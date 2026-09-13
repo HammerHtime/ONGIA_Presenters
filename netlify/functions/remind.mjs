@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin } from "./lib/http.mjs";
-import { listEvents, listPresenters, putPresenter } from "./lib/store.mjs";
+import { listEvents, listPresenters, putPresenter, putEvent } from "./lib/store.mjs";
 import { describeEvent, formatDate } from "./lib/deadlines.mjs";
 import { sendMail, invitationMail, layout } from "./lib/mail.mjs";
 
@@ -82,7 +82,6 @@ export default async (req) => {
           ];
           const out = await sendMail({ to: recipients, subject: heading, html: layout({ heading, lines, button: { label: "Open the event", href: `${origin}/admin.html` } }), text: heading });
           if (out.skipped) throw new Error(out.reason);
-          const { putEvent } = await import("./lib/store.mjs");
           event.lastBoardDigest = today;
           await putEvent(event);
         },
