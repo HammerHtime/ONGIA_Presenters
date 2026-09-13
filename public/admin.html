@@ -153,6 +153,8 @@
 const ROOT = document.getElementById("root");
 const BARRIGHT = document.getElementById("barright");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtDate = (iso) => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso ?? "")) return iso ?? ""; const [y,m,d] = iso.slice(0,10).split("-").map(Number); const dt = new Date(y, m-1, d); return `${DAYS[dt.getDay()]} ${d} ${MONTHS[m-1]} ${y}`; };
 
 let KEY = sessionStorage.getItem("ongia-admin-key") ?? "";
 let view = { name: "list", eventId: null };
@@ -211,7 +213,7 @@ function listScreen(events) {
     const outstanding = c.total - c.approved;
     return `<div class="card">
       <div class="card-head"><div><h2>${esc(ev.title)}</h2>
-        <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(ev.dayOne)}</div></div>
+        <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div>
         <button class="mini gold" style="margin-left:auto" data-open="${esc(ev.id)}">Open</button></div>
       <div class="tiles">
         <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
@@ -348,8 +350,8 @@ function eventScreen(data) {
     </div>
     <div class="card-body">
       <dl class="kv" style="margin:0 0 16px">
-        <dt>Agreement due</dt><dd>${esc(ev.deadlines?.agreement ?? "")}</dd>
-        <dt>Draft / final materials</dt><dd>${esc(ev.deadlines?.draft ?? "")} · ${esc(ev.deadlines?.final ?? "")}</dd>
+        <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))}</dd>
+        <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</dd>
         <dt>Board notified</dt><dd>${(ev.notify ?? []).length ? esc(ev.notify.join(", ")) : "<i>nobody</i>"}</dd>
       </dl>
@@ -491,8 +493,8 @@ function reviewScreen(data) {
       ${!s.talk ? `<div class="note">Nothing submitted yet.</div>` : `
       <dl class="kv">
         <dt>Presentation</dt><dd>${esc(s.talk)}</dd>
-        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(s.travelFrom)} to ${esc(s.travelTo)}` : ""}</dd>
-        <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(s.hotelFrom)} to ${esc(s.hotelTo)}` : ""}</dd>
+        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}` : ""}</dd>
+        <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}` : ""}</dd>
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
