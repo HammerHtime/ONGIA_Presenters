@@ -23,6 +23,7 @@ export function graphConfigured() {
 }
 
 export const graphAccessToken = () => accessToken();
+export const graphGet = (token, path) => graph(token, path);
 
 async function accessToken() {
   const body = new URLSearchParams({
