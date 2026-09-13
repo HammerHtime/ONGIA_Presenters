@@ -43,13 +43,14 @@ const overdueDay = (off) => off > 0 && (off <= 14 ? off % 3 === 0 : off % 7 === 
  * Work out today's chase-ups and, unless dry, send them.
  * Returns { today, dry, count, results } — one row per message planned.
  */
-export async function runReminders({ dry = false, forceDigest = false, origin = "" } = {}) {
+export async function runReminders({ dry = false, forceDigest = false, origin = "", onlyEvent = null, digestRecipients = null, digestOnly = false } = {}) {
   const today = todayIso();
   const isMonday = new Date().getUTCDay() === 1;
 
   const plan = [];
   const digestSections = [];
   for (const event of await listEvents()) {
+    if (onlyEvent && event.id !== onlyEvent) continue;
     if (event.lastDay < today) continue; // past events are history, not work
     const ev = describeEvent(event);
     const due = event.deadlines.agreement;
@@ -57,7 +58,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     const people = await listPresenters(event.id);
     const outstanding = people.filter((p) => p.status !== "submitted" && p.status !== "approved");
 
-    for (const p of outstanding) {
+    for (const p of digestOnly ? [] : outstanding) {
       if (!p.mail?.length) continue; // never invited: that's the coordinator's call, not a reminder
       if (alreadyToday(p, today)) continue;
       const shouldNudge = PRESENTER_DAYS.includes(dayOffset) || overdueDay(dayOffset);
@@ -80,7 +81,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
 
     // Materials chase-ups for everyone whose agreement is in.
     const withAgreement = people.filter((p) => p.status === "submitted" || p.status === "approved");
-    if (withAgreement.length && event.materialsUploadUrl) {
+    if (!digestOnly && withAgreement.length && event.materialsUploadUrl) {
       if (!dry) {
         try { const scan = await scanMaterials(event, people); if (!scan.skipped) { event.materialsScan = scan; await putEvent(event); } } catch { /* keep the last scan */ }
       }
@@ -140,7 +141,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     const overdue = outstanding.filter((p) => p.mail?.length);
     const boardDay = dayOffset >= BOARD_FIRST && (dayOffset - BOARD_FIRST) % OVERDUE_EVERY === 0;
     const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
-    if (boardDay && overdue.length && recipients.length && event.lastBoardDigest !== today) {
+    if (!digestOnly && boardDay && overdue.length && recipients.length && event.lastBoardDigest !== today) {
       plan.push({
         kind: "board",
         event: event.title,
@@ -164,7 +165,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
   }
 
   // One Monday email for all events.
-  const digestTo = (process.env.DIGEST_TO || "president@ongia.ca,vp_operations@ongia.ca").split(/[,;\s]+/).filter(Boolean);
+  const digestTo = digestRecipients ?? (process.env.DIGEST_TO || "president@ongia.ca,vp_operations@ongia.ca").split(/[,;\s]+/).filter(Boolean);
   const lastDigest = await getMeta("digest:lastSent");
   const recentDigest = lastDigest && daysBetween(lastDigest, today) < 6;
   if (digestSections.length && digestTo.length && (forceDigest || (isMonday && !recentDigest))) {
@@ -178,7 +179,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
         const mail = weeklyDigestMail({ sections: digestSections, adminUrl: `${origin}/admin.html` });
         const out = await sendMail({ to: digestTo, ...mail });
         if (out.skipped) throw new Error(out.reason);
-        await putMeta("digest:lastSent", today);
+        // A test send for one event doesn't count as this week's real one.
+        if (!onlyEvent && !digestRecipients) await putMeta("digest:lastSent", today);
       },
     });
   }

@@ -519,8 +519,26 @@ function eventScreen(data) {
       </dl>
       <div class="filters">${chips}</div>
       ${rows}
+      <div class="note" style="margin-top:22px"><b>Test emails</b> (temporary, for checking the weekly summary): 
+        <span style="display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="mini" id="digest-lead">Send summary to lead${ev.reviewer?.name ? ` (${esc(ev.reviewer.name)})` : ""}</button>
+          <button class="mini" id="digest-board">Send summary to president &amp; VP</button>
+        </span></div>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div></div>`;
+
+  for (const [id, to] of [["digest-lead", "lead"], ["digest-board", "board"]]) {
+    const b = document.getElementById(id);
+    b.onclick = async () => {
+      b.disabled = true; const label = b.textContent; b.textContent = "Sending…";
+      try {
+        const out = await api(`/reminders?digest=1&event=${encodeURIComponent(ev.id)}&to=${to}`, { method: "POST" });
+        const r = out.results?.[0];
+        toast(r?.sent ? `Sent to ${r.to}.` : `Not sent: ${r?.error ?? "nothing to send"}`);
+      } catch (e) { toast(e.message); }
+      b.disabled = false; b.textContent = label;
+    };
+  }
 
   ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
   ROOT.querySelectorAll("[data-mat]").forEach((b) => {
