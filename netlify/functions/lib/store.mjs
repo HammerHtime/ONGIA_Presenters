@@ -82,3 +82,7 @@ export async function getHeadshot(eventId, presenterId) {
 
 /** Remove a key outright — used when an event or presenter is deleted. */
 export const deleteKey = (key) => store().delete(key);
+
+/** Board roster — one list for the whole desk. */
+export const getRoster = () => read("roster:board");
+export const putRoster = (members) => write("roster:board", members);

@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
-import { ensureEventFolder, normaliseFolder } from "./lib/graph.mjs";
+import { ensureEventFolder, resolveFolderInput } from "./lib/graph.mjs";
 
 /**
  * Events and their presenters.
@@ -50,7 +50,7 @@ export function conventionalFolder(dayOne, city) {
 }
 
 /** The fields a coordinator may change after creation; ids and counters stay. */
-function applyDetails(event, body, { creating = false } = {}) {
+async function applyDetails(event, body, { creating = false } = {}) {
   const title = text(body.title, 200);
   const city = text(body.city, 120);
   const dayOne = text(body.dayOne, 10);
@@ -74,15 +74,37 @@ function applyDetails(event, body, { creating = false } = {}) {
       email: text(body.contactEmail, 200),
       phone: text(body.contactPhone, 60),
     },
-    reviewer: {
-      name: text(body.reviewerName, 120),
-      email: isEmail(text(body.reviewerEmail, 200)) ? text(body.reviewerEmail, 200) : "",
-    },
-    notify: (Array.isArray(body.notify) ? body.notify : []).map((e) => text(e, 200)).filter(isEmail).slice(0, 20),
-    sharePointFolder: normaliseFolder(text(body.sharePointFolder, 500)) || conventionalFolder(dayOne, city),
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
   });
+
+  // Board members on this event: any number, exactly one lead. The lead
+  // reviews and signs; everyone picked is notified. Older clients that still
+  // send reviewerName/notify are folded into the same shape.
+  const board = (Array.isArray(body.board) ? body.board : [])
+    .map((m) => ({ name: text(m.name, 120), email: text(m.email, 200), lead: m.lead === true }))
+    .filter((m) => m.name && isEmail(m.email))
+    .slice(0, 20);
+  if (!board.length && text(body.reviewerName, 120)) {
+    board.push({ name: text(body.reviewerName, 120), email: text(body.reviewerEmail, 200), lead: true });
+    for (const e of Array.isArray(body.notify) ? body.notify : []) if (isEmail(text(e, 200))) board.push({ name: "", email: text(e, 200), lead: false });
+  }
+  if (board.length && !board.some((m) => m.lead)) board[0].lead = true;
+  if (board.filter((m) => m.lead).length > 1) return "Only one board member can be the lead.";
+  const lead = board.find((m) => m.lead);
+  event.board = board;
+  event.reviewer = lead ? { name: lead.name, email: lead.email } : { name: "", email: "" };
+  event.notify = board.filter((m) => !m.lead).map((m) => m.email);
+
+  // The folder may arrive as a path, a folder URL, or a sharing link.
+  try {
+    const folder = await resolveFolderInput(text(body.sharePointFolder, 800));
+    event.sharePointFolder = folder.path || conventionalFolder(dayOne, city);
+    if (folder.url) event.sharePointFolderUrl = folder.url;
+    else if (!folder.path) event.sharePointFolderUrl = "";
+  } catch (e) {
+    return e.message;
+  }
   if (creating) event.createdAt = event.updatedAt;
   return null;
 }
@@ -91,7 +113,7 @@ async function updateEvent(id, body) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
-  const problem = applyDetails(event, body);
+  const problem = await applyDetails(event, body);
   if (problem) return fail(problem);
   await putEvent(event);
   return json({ event, deadlinesReadable: readableDeadlines(event) });
@@ -174,12 +196,14 @@ export function countStatuses(presenters) {
 
 async function createEvent(body) {
   const event = { id: null, nextSequence: 1 };
-  const problem = applyDetails(event, body, { creating: true });
+  const problem = await applyDetails(event, body, { creating: true });
   if (problem) return fail(problem);
   event.id = eventId(event.dayOne.slice(0, 4), event.city);
-
   await putEvent(event);
-  return json({ event, deadlinesReadable: readableDeadlines(event) }, 201);
+
+  // Presenters pasted into the same form become invitations straight away.
+  const people = Array.isArray(body.presenters) && body.presenters.length ? await addPeople(event, body.presenters) : { added: [], rejected: [] };
+  return json({ event, deadlinesReadable: readableDeadlines(event), ...people }, 201);
 }
 
 async function addPresenters(id, body) {
@@ -189,7 +213,10 @@ async function addPresenters(id, body) {
 
   const rows = Array.isArray(body.presenters) ? body.presenters : [];
   if (!rows.length) return fail("No presenters supplied.");
+  return json(await addPeople(event, rows), 201);
+}
 
+async function addPeople(event, rows) {
   const added = [];
   const rejected = [];
   let seq = event.nextSequence ?? 1;
@@ -230,7 +257,7 @@ async function addPresenters(id, body) {
   event.nextSequence = seq;
   await putEvent(event);
 
-  return json({
+  return {
     added: added.map((p) => ({
       id: p.id,
       name: `${p.first} ${p.last}`,
@@ -239,7 +266,7 @@ async function addPresenters(id, body) {
       reference: p.reference,
     })),
     rejected,
-  }, 201);
+  };
 }
 
 function readableDeadlines(event) {

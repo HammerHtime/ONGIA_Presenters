@@ -93,6 +93,36 @@ export function normaliseFolder(path) {
 const encodePath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
 /**
+ * Coordinators paste what SharePoint gives them: a plain path, the address bar
+ * URL of a folder, or a "Copy link" sharing URL (…/:f:/s/…). Turn any of them
+ * into the library-relative path the filing code needs.
+ */
+export async function resolveFolderInput(input) {
+  const raw = String(input ?? "").trim();
+  if (!raw) return { path: "", url: "" };
+  if (!/^https?:\/\//i.test(raw)) return { path: normaliseFolder(raw), url: "" };
+
+  const u = new URL(raw);
+  // Address-bar style: /sites/<site>/Shared Documents/<folders> (often with ?id=… or RootFolder=…)
+  const idParam = u.searchParams.get("id") || u.searchParams.get("RootFolder");
+  const pathPart = decodeURIComponent(idParam || u.pathname);
+  const m = pathPart.match(/\/(?:Shared Documents|Documents)\/(.+?)\/?$/i);
+  if (m) return { path: normaliseFolder(m[1]), url: raw.split("?")[0] };
+
+  // Sharing link — only Graph can say what it points at.
+  if (/\/:f:\/|\/:u:\//.test(u.pathname)) {
+    if (!graphConfigured()) throw new Error("That's a sharing link; the app needs its Microsoft credentials to resolve it — paste the folder path instead.");
+    const token = await accessToken();
+    const encoded = "u!" + Buffer.from(raw).toString("base64url");
+    const item = await graph(token, `/shares/${encoded}/driveItem?$select=id,name,webUrl,folder,parentReference`);
+    if (!item.folder) throw new Error("That link points at a file, not a folder.");
+    const parentPath = decodeURIComponent((item.parentReference?.path ?? "").split("root:")[1] ?? "");
+    return { path: normaliseFolder(`${parentPath}/${item.name}`), url: item.webUrl };
+  }
+  throw new Error("Couldn't read a folder from that link. Paste the folder path (e.g. ONGIA Board/ONGIA Training/2027/2027 Winnipeg) or its SharePoint URL.");
+}
+
+/**
  * Create the event's folder by ONGIA's convention — year, then "year City" —
  * inside the training library, creating the year folder if it is new.
  * Returns the library-relative path and its web URL.

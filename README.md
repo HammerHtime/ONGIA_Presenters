@@ -7,8 +7,11 @@ presenter and filed to SharePoint.
 ## Flow
 
 1. Coordinator creates an **event** (`/admin.html`): title, city, venue, dates,
-   ONGIA contact, board emails to notify, the event's SharePoint folder, and
-   the file-request link for presentation materials. Deadlines are derived
+   ONGIA contact, the board members involved (one marked **lead** — they review
+   and sign; all are notified), the event's SharePoint folder (a pasted link or
+   path; blank uses `ONGIA Board/ONGIA Training/<year>/<year> <City>`, which the
+   event page can create), the file-request link for materials, and optionally
+   the first presenters. Deadlines are derived
    from day one of training (agreement −90 days, draft materials −50, final
    materials −30; weekends, statutory holidays and the Dec 24–Jan 1 shutdown
    pull each one back to the previous working day).

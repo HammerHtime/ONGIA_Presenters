@@ -121,6 +121,14 @@
   .cost{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--card);
     border:1px solid var(--border);border-radius:14px;padding:11px 14px;font-size:13.5px}
   .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
+  .board{display:grid;gap:6px;margin-top:4px}
+  .member{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--card);
+    border:1px solid var(--border);border-radius:12px;padding:9px 12px;font-size:13.5px}
+  .member .em{color:var(--muted);font-size:12px} .member.lead{border-color:var(--gold);background:var(--gold-pale)}
+  .member label.leadpick{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+  .member input[type=radio]{width:16px;height:16px;padding:0;margin:0;border:0;background:none;accent-color:var(--gold);-webkit-appearance:radio;appearance:auto}
+  .addrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
+  @media (max-width:560px){.addrow{grid-template-columns:1fr}}
   .daterow{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:13.5px;margin-top:8px}
   .daterow .req{color:var(--muted);font-size:12px;margin-bottom:8px} .daterow .req b{color:var(--ink)}
   .daterow .row2 .field{margin:0}
@@ -198,8 +206,9 @@ function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events) {
-  BARRIGHT.innerHTML = `<button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
+  document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
 
   if (!events.length) {
@@ -236,6 +245,7 @@ function listScreen(events) {
 /* ---------- new event ---------- */
 function eventFormScreen(existing = null) {
   const ev = existing?.event ?? null;
+  const roster = existing?.roster ?? ROSTER;
   BARRIGHT.innerHTML = `<button class="chip" id="cancel">${ev ? "Back to event" : "Back"}</button>`;
   document.getElementById("cancel").onclick = () => { view = ev ? { name: "event", eventId: ev.id } : { name: "list" }; render(); };
   const v = (k, d = "") => esc(ev?.[k] ?? d);
@@ -262,18 +272,19 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-cemail">Contact email</label><input id="e-cemail" type="email" value="${esc(ev?.contact?.email ?? "")}" placeholder="training@ongia.ca"></div>
         <div class="field"><label for="e-cphone">Contact number</label><input id="e-cphone" value="${esc(ev?.contact?.phone ?? "")}" placeholder="(306) 555-0100"></div>
       </div>
-      <div class="row2">
-        <div class="field"><label for="e-rname">Reviewing board member</label><input id="e-rname" value="${esc(ev?.reviewer?.name ?? "")}" placeholder="Andrew Hammond"></div>
-        <div class="field"><label for="e-remail">Reviewer email</label><input id="e-remail" type="email" value="${esc(ev?.reviewer?.email ?? "")}" placeholder="president@ongia.ca"></div>
+      <div class="field"><label>Board members for this event</label>
+        <p class="hint" style="margin:0 0 6px">Tick everyone who should be kept informed. Mark one as <b>lead</b> — they review each agreement, set what ONGIA covers, confirm travel dates and sign.</p>
+        <div class="board" id="board">${boardRows(roster, ev?.board ?? [])}</div>
+        <div class="addrow"><input id="nb-name" placeholder="Add someone: name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
       </div>
-      <p class="hint" style="margin:-6px 0 12px">The board member who reviews each agreement, sets what ONGIA covers, confirms travel dates and signs. They're emailed when a presenter submits.</p>
-      <div class="field"><label for="e-notify">Also notify these board members (one email per line)</label>
-        <textarea id="e-notify" placeholder="treasurer@ongia.ca&#10;vp_operations@ongia.ca">${esc((ev?.notify ?? []).join("\n"))}</textarea></div>
-      <div class="field"><label for="e-folder">SharePoint folder for this event</label>
-        <input id="e-folder" value="${v("sharePointFolder")}" placeholder="ONGIA Board/ONGIA Training/2027/2027 Winnipeg">
+      <div class="field"><label for="e-folder">SharePoint folder — paste the folder link or path</label>
+        <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles/Shared Documents/ONGIA Board/…">
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p></div>
       <div class="field"><label for="e-upload">Materials file-request link (optional)</label>
         <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="https://ongia.sharepoint.com/…/FileRequest.aspx?id=…"></div>
+      ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
+        <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
+        <p class="hint" style="margin:6px 0 0">Optional now — you can add more later. Links are created immediately; emails go when you press “Email all outstanding”.</p></div>`}
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="create">${ev ? "Save changes" : "Create event"}</button></div>
     </div></div>`;
@@ -289,9 +300,35 @@ function eventFormScreen(existing = null) {
   const showFolderHint = () => {
     const conv = convention();
     folder.placeholder = conv || "ONGIA Board/ONGIA Training/2027/2027 Winnipeg";
-    folderhint.textContent = folder.value.trim() ? "" : conv ? `Left blank, the app uses ${conv} and can create it for you from the event page.` : "Left blank, the app builds the path from the year and city.";
+    const val = folder.value.trim();
+    folderhint.textContent = val
+      ? (/^https?:/i.test(val) ? "A link — the app will work out the folder from it when you save." : "")
+      : conv ? `Left blank, the app uses ${conv} and can create it for you from the event page.` : "Left blank, the app builds the path from the year and city.";
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint;
+
+  // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
+  const boardEl = $("board");
+  boardEl.addEventListener("change", (e) => {
+    const rows = [...boardEl.querySelectorAll(".member")];
+    if (e.target.type === "radio") rows.forEach((r) => { const on = r.querySelector(".pick"); if (r.querySelector("input[type=radio]").checked) on.checked = true; });
+    const picked = rows.filter((r) => r.querySelector(".pick").checked);
+    if (!picked.some((r) => r.querySelector("input[type=radio]").checked) && picked[0]) picked[0].querySelector("input[type=radio]").checked = true;
+    rows.forEach((r) => { const on = r.querySelector(".pick").checked; const radio = r.querySelector("input[type=radio]"); if (!on) radio.checked = false; r.classList.toggle("lead", radio.checked); radio.disabled = !on; });
+  });
+  $("nb-add").onclick = async () => {
+    const name = $("nb-name").value.trim(), email = $("nb-email").value.trim();
+    if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Name and a valid email, please.");
+    try {
+      const out = await api("/roster", { method: "PUT", body: JSON.stringify({ members: [...roster, { name, email }] }) });
+      ROSTER = out.members; roster.splice(0, roster.length, ...out.members);
+      const chosen = readBoard();
+      boardEl.innerHTML = boardRows(roster, [...chosen, { name, email, lead: !chosen.length }]);
+      $("nb-name").value = ""; $("nb-email").value = ""; toast(`${name} added.`);
+    } catch (e) { toast(e.message); }
+  };
+  const readBoard = () => [...boardEl.querySelectorAll(".member")].filter((r) => r.querySelector(".pick").checked)
+    .map((r) => ({ name: r.dataset.name, email: r.dataset.email, lead: r.querySelector("input[type=radio]").checked }));
 
   const showDeadlines = async () => {
     showFolderHint();
@@ -318,15 +355,17 @@ function eventFormScreen(existing = null) {
       title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
       dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
       contactName: val("e-cname"), contactEmail: val("e-cemail"), contactPhone: val("e-cphone"),
-      reviewerName: val("e-rname"), reviewerEmail: val("e-remail"),
-      notify: val("e-notify").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
+      board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
+    if (!ev) body.presenters = parsePeople(val("e-people"));
+    if (!body.board.length && !confirm("No board member is ticked, so nobody will be emailed when presenters submit. Save anyway?")) { busy = false; e.target.disabled = false; return; }
     try {
       const out = ev
         ? await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })
         : await api("/events", { method: "POST", body: JSON.stringify(body) });
-      toast(ev ? "Saved." : "Event created. Add presenters next.");
+      toast(ev ? "Saved." : out.added?.length ? `Event created with ${out.added.length} presenter${out.added.length === 1 ? "" : "s"}.` : "Event created. Add presenters next.");
+      if (out.rejected?.length) alert("Not added:\n" + out.rejected.map((r) => `${JSON.stringify(r.row)} — ${r.why}`).join("\n"));
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
@@ -393,8 +432,7 @@ function eventScreen(data) {
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
-        <dt>Reviewer</dt><dd>${ev.reviewer?.name ? esc(ev.reviewer.name) + (ev.reviewer.email ? " · " + esc(ev.reviewer.email) : "") : "<i>not set — anyone with the admin key</i>"}</dd>
-        <dt>Board notified</dt><dd>${(ev.notify ?? []).length ? esc(ev.notify.join(", ")) : "<i>nobody</i>"}</dd>
+        <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       ${rows}
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
@@ -502,6 +540,50 @@ async function healthStrip() {
     host.innerHTML = `<div class="stat" style="border:0;padding:0">${dot(h.email)}<div>Email ${h.email.ok ? "ready" : "off"}<small>${esc(h.email.ok ? h.email.from : h.email.reason)}</small></div></div>
       <div class="stat" style="border:0;padding:0">${dot(h.sharepoint ?? h.microsoft)}<div>${esc(sp.split(":")[0])}<small>${esc(sp.includes(":") ? sp.slice(sp.indexOf(":") + 1).trim() : (h.sharepoint?.site ?? ""))}</small></div></div>`;
   } catch (e) { host.innerHTML = `<div class="stat" style="border:0;padding:0"><span class="dot"></span><div>Status unavailable<small>${esc(e.message)}</small></div></div>`; }
+}
+
+/* ---------- board roster ---------- */
+let ROSTER = [];
+async function loadRoster() { try { ROSTER = (await api("/roster")).members; } catch { ROSTER = []; } return ROSTER; }
+
+function boardRows(roster, chosen) {
+  const byEmail = new Map(chosen.map((m) => [m.email.toLowerCase(), m]));
+  const extras = chosen.filter((m) => !roster.some((r) => r.email.toLowerCase() === m.email.toLowerCase()));
+  return [...roster, ...extras].map((m) => {
+    const c = byEmail.get(m.email.toLowerCase());
+    return `<div class="member${c?.lead ? " lead" : ""}" data-name="${esc(m.name)}" data-email="${esc(m.email)}">
+      <input type="checkbox" class="pick"${c ? " checked" : ""} aria-label="Include ${esc(m.name)}">
+      <div>${esc(m.name)}<div class="em">${esc(m.email)}</div></div>
+      <label class="leadpick"><input type="radio" name="lead"${c?.lead ? " checked" : ""}${c ? "" : " disabled"}> Lead</label>
+    </div>`;
+  }).join("");
+}
+
+/** "first, last, email, organization" lines → presenter rows. */
+function parsePeople(textBlock) {
+  return textBlock.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [first = "", last = "", email = "", ...org] = l.split(/\s*[,;\t]\s*/);
+    return { first, last, email, organization: org.join(", ") };
+  });
+}
+
+function rosterScreen(members) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span><div>${esc(m.name)}<div class="em">${esc(m.email)}</div></div>
+    <button class="mini ghost" data-del="${i}" title="Remove">✕</button></div>`).join("");
+  ROOT.innerHTML = `<div class="card"><div class="card-head"><div><h2>Board members</h2>
+    <div class="s">The list the event form picks from. Removing someone here doesn't change events already created.</div></div></div>
+    <div class="card-body"><div class="board">${rows || `<div class="empty">Nobody yet.</div>`}</div>
+      <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><button class="mini gold" id="rb-add">Add</button></div>
+    </div></div>`;
+  const save = async (next) => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; rosterScreen(ROSTER); } catch (e) { toast(e.message); } };
+  ROOT.querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => { const m = members[+b.dataset.del]; if (confirm(`Remove ${m.name} from the list?`)) save(members.filter((_, i) => i !== +b.dataset.del)); }; });
+  document.getElementById("rb-add").onclick = () => {
+    const name = document.getElementById("rb-name").value.trim(), email = document.getElementById("rb-email").value.trim();
+    if (!name || !email) return toast("Name and email, please.");
+    save([...members, { name, email }]);
+  };
 }
 
 /* ---------- shared helpers ---------- */
@@ -733,8 +815,9 @@ function deliveryMarkup(d = {}) {
 async function render() {
   if (!KEY) return signInScreen();
   try {
-    if (view.name === "new") return eventFormScreen();
-    if (view.name === "edit") return eventFormScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
+    if (view.name === "new") { await loadRoster(); return eventFormScreen(); }
+    if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
+    if (view.name === "roster") return rosterScreen(await loadRoster());
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") return eventScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
