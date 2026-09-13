@@ -301,7 +301,7 @@ function eventFormScreen(existing = null) {
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p></div>
       <div class="field"><label for="e-upload">Materials upload link (optional)</label>
         <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
-        <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link (folder → ⋯ → Request files). Presenters can then upload but never see the folder. The app checks the link and refuses one that would expose the folder.</p></div>
+        <p class="hint" style="margin:6px 0 0">Leave blank and the app creates the folder and an upload-only link itself. If you paste one, it must be a SharePoint <b>Request files</b> link — the app refuses anything that would let presenters see the folder.</p></div>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
@@ -509,7 +509,7 @@ function eventScreen(data) {
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
-        <dt>Uploads</dt><dd>${!ev.materialsUploadUrl ? "<i>no materials link — presenters won't get an Upload Material button</i>"
+        <dt>Uploads</dt><dd>${!ev.materialsUploadUrl ? `<i>no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</i> <button class="mini" id="mklink">Create upload link</button>`
           : `${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}
              ${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}
              <button class="mini" id="rescan">Check uploads now</button>
@@ -543,6 +543,14 @@ function eventScreen(data) {
     } catch (e) { toast(e.message); rescan.disabled = false; rescan.textContent = "Check uploads now"; }
   };
 
+  const mkl = document.getElementById("mklink");
+  if (mkl) mkl.onclick = async () => {
+    mkl.disabled = true; mkl.textContent = "Creating…";
+    try {
+      await api(`/events?id=${encodeURIComponent(ev.id)}&uploadlink=1`, { method: "POST" });
+      toast("Folder and upload-only link ready."); render();
+    } catch (e) { toast(e.message); mkl.disabled = false; mkl.textContent = "Create upload link"; }
+  };
   const mk = document.getElementById("mkfolder");
   if (mk) mk.onclick = async () => {
     mk.disabled = true; mk.textContent = "Creating…";

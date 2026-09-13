@@ -95,6 +95,25 @@ export function normaliseFolder(path) {
 const encodePath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
 /**
+ * Create a Request-files link on a folder: anyone with it can add files and
+ * see nothing. Returns { url, id }. The folder must already exist.
+ */
+export async function createUploadLink(folderPath) {
+  if (!graphConfigured()) throw new Error("Microsoft credentials are not set on this site.");
+  const path = normaliseFolder(folderPath);
+  if (!path) throw new Error("No folder to create the link on.");
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const perm = await graph(token, `/drives/${drive}/root:/${encodePath(path)}:/createLink`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "createOnly", scope: "anonymous" }),
+  });
+  if (perm.link?.type !== "createOnly") throw new Error(`SharePoint returned a "${perm.link?.type}" link instead of an upload-only one; not using it.`);
+  return { url: perm.link.webUrl, id: perm.id };
+}
+
+/**
  * What kind of sharing link is this? Presenters only ever receive the
  * materials link, so it must be a SharePoint "Request files" link — Graph
  * reports those as type "createOnly": upload allowed, nothing visible.

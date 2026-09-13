@@ -272,29 +272,32 @@ function describeDates(presenter, lang = "en") {
  * Monday summary for the lead board member: where every presenter stands,
  * what's overdue, what's next, and a button into the event on the admin page.
  */
-export function weeklyDigestMail({ event, rows, counts, materials, overdue, next, adminUrl }) {
-  const heading = `${event.title}: ${counts.approved} of ${counts.total} agreements final`;
-  const cell = (v) => `<td style="padding:6px 10px;border-bottom:1px solid #ddd7c8">${v}</td>`;
-  const numbers = `<table style="border-collapse:collapse;font-size:14px;margin:6px 0 14px">
-    <tr>${cell("Presenters:")}${cell(`<b>${counts.total}</b>`)}</tr>
-    <tr>${cell("Not submitted:")}${cell(`<b>${counts.invited + counts.opened}</b>`)}</tr>
-    <tr>${cell("Needs your review:")}${cell(`<b>${counts.submitted}</b>`)}</tr>
-    <tr>${cell("Final:")}${cell(`<b>${counts.approved}</b>`)}</tr>
-    <tr>${cell("Draft materials received:")}${cell(`<b>${materials.draft}</b> of ${counts.total}`)}</tr>
-    <tr>${cell("Final materials received:")}${cell(`<b>${materials.final}</b> of ${counts.total}`)}</tr></table>`;
-  const lines = [
-    `Weekly summary for <b>${esc(event.title)}</b>, ${esc(event.city)}, ${esc(event.dayOneReadable)}.`,
-    numbers,
-  ];
-  if (overdue.length) {
-    lines.push(`<b style="color:#a33328">Overdue</b><br>${overdue.map((o) => `${esc(o.label)} were due ${esc(o.due)} (${o.days} day${o.days === 1 ? "" : "s"} ago). Still outstanding: ${o.names.map(esc).join(", ")}.`).join("<br>")}`);
+export function weeklyDigestMail({ sections, adminUrl }) {
+  const totalFinal = sections.reduce((n, s) => n + s.counts.approved, 0);
+  const totalAll = sections.reduce((n, s) => n + s.counts.total, 0);
+  const anyOverdue = sections.some((s) => s.overdue.length);
+  const heading = `ONGIA training events this week: ${totalFinal} of ${totalAll} agreements final${anyOverdue ? ", some overdue" : ""}`;
+  const cell = (v) => `<td style="padding:5px 10px;border-bottom:1px solid #ddd7c8">${v}</td>`;
+  const lines = [`Monday summary of every upcoming training event. Each section has a button that opens the event on the admin page.`];
+  for (const s of sections) {
+    const { event, counts, materials, overdue, next, rows } = s;
+    const numbers = `<table style="border-collapse:collapse;font-size:14px;margin:6px 0 10px">
+      <tr>${cell("Presenters:")}${cell(`<b>${counts.total}</b>`)}${cell("Not submitted:")}${cell(`<b>${counts.invited + counts.opened}</b>`)}</tr>
+      <tr>${cell("Needs review:")}${cell(`<b>${counts.submitted}</b>`)}${cell("Final:")}${cell(`<b>${counts.approved}</b>`)}</tr>
+      <tr>${cell("Draft materials:")}${cell(`<b>${materials.draft}</b> of ${counts.total}`)}${cell("Final materials:")}${cell(`<b>${materials.final}</b> of ${counts.total}`)}</tr></table>`;
+    let block = `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">
+      <h2 style="font-size:17px;margin:0 0 4px;color:#1a2f5e">${esc(event.title)}</h2>
+      <div style="font-size:13px;color:#767f92;margin-bottom:6px">${esc(event.city)} · ${esc(event.dayOneReadable)}${event.reviewer?.name ? ` · lead: ${esc(event.reviewer.name)}` : ""}</div>${numbers}`;
+    if (overdue.length) block += `<div style="margin:6px 0"><b style="color:#a33328">Overdue:</b> ${overdue.map((o) => `${esc(o.label)} were due ${esc(o.due)} (${o.days} day${o.days === 1 ? "" : "s"} ago) — still outstanding: ${o.names.map(esc).join(", ")}`).join("<br>")}</div>`;
+    if (counts.submitted) block += `<div style="margin:6px 0"><b>Ready to approve:</b> ${rows.filter((r) => r.status === "submitted").map((r) => esc(r.name)).join(", ")}.</div>`;
+    if (next) block += `<div style="margin:6px 0"><b>Next:</b> ${esc(next.label)} ${esc(next.due)} (${next.days === 0 ? "today" : `in ${next.days} day${next.days === 1 ? "" : "s"}`}).</div>`;
+    block += `<p style="margin:12px 0 0"><a href="${esc(s.adminUrl)}" style="background:#1a2f5e;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;display:inline-block;font-size:14px">Open ${esc(event.city)}</a></p>`;
+    lines.push(block);
   }
-  if (counts.submitted) lines.push(`<b>Waiting on you:</b> ${rows.filter((r) => r.status === "submitted").map((r) => esc(r.name)).join(", ")} — submitted and ready to approve.`);
-  if (next) lines.push(`<b>Next:</b> ${esc(next.label)} ${esc(next.due)} (${next.days === 0 ? "today" : `in ${next.days} day${next.days === 1 ? "" : "s"}`}).`);
-  lines.push(`Everyone who hasn't submitted is being reminded automatically. You'll get this summary every Monday until the training.`);
+  lines.push(`<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">Presenters who haven't submitted, and those whose materials are missing, are being reminded automatically.`);
   return {
     subject: heading,
-    html: layout({ heading, lines, button: { label: "Open the event", href: adminUrl }, footer: `Sent to you as the lead board member for this event. Reply to reach ${esc(event.contact?.name || "the coordinator")}.` }),
+    html: layout({ heading, lines, footer: `This summary goes out every Monday while there are upcoming events. Sign in with the admin key to open an event.` }),
     text: plain(heading, lines, adminUrl),
   };
 }

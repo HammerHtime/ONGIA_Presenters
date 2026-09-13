@@ -9,9 +9,10 @@ presenter and filed to SharePoint.
 1. Coordinator creates an **event** (`/admin.html`): title, city, venue, dates,
    ONGIA contact, the board members involved (one marked **lead** — they review
    and sign; all are notified), the event's SharePoint folder (a pasted link or
-   path; blank uses `ONGIA Board/ONGIA Training/<year>/<year> <City>`, which the
-   event page can create), the file-request link for materials, and optionally
-   the first presenters. Deadlines are derived
+   path; blank uses `ONGIA Board/ONGIA Training/<year>/<year> <City>`), and
+   optionally the first presenters. With Microsoft connected the app creates the
+   folder and an upload-only (Request files) link itself; a pasted link is
+   accepted only if it is upload-only. Deadlines are derived
    from day one of training (agreement −90 days, draft materials −50, final
    materials −30; weekends, statutory holidays and the Dec 24–Jan 1 shutdown
    pull each one back to the previous working day).
@@ -38,9 +39,9 @@ deadline nears:
   14, 7, 3 and 1 days before each materials deadline and on the day; same
   overdue pattern. The request folder is scanned first.
 - **Board**: an overdue digest 3 days past the agreement deadline, weekly after.
-- **Lead board member**: a weekly summary of the numbers every Monday, with
-  what's overdue, who is still outstanding, what's next, and a button that
-  opens the event on the admin page.
+- **Board**: one Monday email covering every upcoming event (to `DIGEST_TO`,
+  default president@ and vp_operations@): the numbers, what's overdue and who is
+  still outstanding, what's next, and a button into each event on the admin page.
 
 `GET /api/reminders?dry=1` (admin key) previews today's run without sending;
 `?digest=1` includes the lead's summary whatever the weekday.
@@ -61,6 +62,7 @@ Environment variables (Functions scope):
 | `RESEND_API_KEY`, `MAIL_FROM` | Fallback transport (Resend) when `MS_MAIL_FROM` is not set; needs a fully verified sending domain |
 | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Entra app (Sites.Selected) for SharePoint filing. The secret is the **Value** shown once at creation, not the Secret ID |
 | `MS_SITE_URL` | Optional; defaults to the ONGIA Board Members site |
+| `DIGEST_TO` | Optional; recipients of the Monday summary, comma-separated (default president@ongia.ca, vp_operations@ongia.ca) |
 
 Environment changes only reach the functions on the next deploy — trigger one
 after editing a variable. `GET /api/health` (admin key) confirms the Microsoft

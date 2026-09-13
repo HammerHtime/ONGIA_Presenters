@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
-import { ensureEventFolder, resolveFolderInput, inspectSharingLink } from "./lib/graph.mjs";
+import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
 import { sendMail, invitationMail } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
@@ -19,6 +19,7 @@ import { materialsStatus } from "./lib/materials.mjs";
  *   POST   /api/events?id=…&add=1           add presenters to an event
  *   DELETE /api/events?id=…&presenter=…     remove one presenter (not once approved)
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
+ *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -30,6 +31,7 @@ export default async (req) => {
   if (req.method === "GET") return id ? showEvent(id) : showList();
   if (req.method === "POST") {
     if (url.searchParams.get("folder")) return createFolder(id);
+    if (url.searchParams.get("uploadlink")) return createUpload(id);
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     const origin = siteUrl(req);
@@ -175,6 +177,35 @@ async function removePresenter(id, presenterId) {
   return json({ ok: true });
 }
 
+/** Folder by convention (if missing) plus a Request-files link on it. */
+async function provisionUpload(event) {
+  const path = event.sharePointFolder || conventionalFolder(event.dayOne, event.city);
+  const folder = await ensureEventFolder(path);
+  event.sharePointFolder = folder.path;
+  event.sharePointFolderUrl = folder.url;
+  const link = await createUploadLink(folder.path);
+  event.materialsUploadUrl = link.url;
+  event.materialsLinkCheck = { verdict: "upload-only", type: "createOnly", reason: null, at: new Date().toISOString(), createdByApp: true };
+  event.provisioningError = null;
+  return link;
+}
+
+async function createUpload(id) {
+  if (!id) return fail("Which event? Pass ?id=…");
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  if (event.materialsUploadUrl && event.materialsLinkCheck?.verdict === "upload-only") {
+    return fail("This event already has a verified upload-only link. Remove it on the edit form first if you want a new one.", 409);
+  }
+  try {
+    const link = await provisionUpload(event);
+    await putEvent(event);
+    return json({ ok: true, link: link.url, event });
+  } catch (e) {
+    return fail(e.message, 502);
+  }
+}
+
 async function createFolder(id) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
@@ -232,6 +263,18 @@ async function createEvent(body, origin) {
   if (problem) return fail(problem);
   event.id = eventId(event.dayOne.slice(0, 4), event.city);
   await putEvent(event);
+
+  // With Microsoft connected, a new event gets its folder and upload link
+  // made for it — the coordinator pastes nothing.
+  if (!event.materialsUploadUrl && graphConfigured()) {
+    try {
+      await provisionUpload(event);
+      await putEvent(event);
+    } catch (e) {
+      event.provisioningError = e.message;
+      await putEvent(event);
+    }
+  }
 
   // Presenters pasted into the same form become invitations straight away.
   const people = Array.isArray(body.presenters) && body.presenters.length

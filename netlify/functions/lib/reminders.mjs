@@ -1,4 +1,4 @@
-import { listEvents, listPresenters, putPresenter, putEvent } from "./store.mjs";
+import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta } from "./store.mjs";
 import { describeEvent, formatDate } from "./deadlines.mjs";
 import { sendMail, invitationMail, layout } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
@@ -17,8 +17,9 @@ import { formatDateIn } from "./deadlines.mjs";
  *                overdue, weekly after
  *   materials:   -14, -7, -3, -1, 0, then the same overdue pattern
  *   board:       an overdue digest on +3 and weekly after while anyone is late
- *   lead:        a weekly summary of the numbers every Monday, with a link
- *                into the event on the admin page
+ *   board:       one weekly summary every Monday covering every active event,
+ *                to DIGEST_TO (default the president and VP operations), with
+ *                a button into each event on the admin page
  * Nobody is chased before they have been sent their link at least once.
  *
  * Materials: presenters whose agreement is in (submitted or final) but whose
@@ -47,6 +48,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
   const isMonday = new Date().getUTCDay() === 1;
 
   const plan = [];
+  const digestSections = [];
   for (const event of await listEvents()) {
     if (event.lastDay < today) continue; // past events are history, not work
     const ev = describeEvent(event);
@@ -115,10 +117,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       }
     }
 
-    // Monday summary to the lead board member.
-    const lead = event.reviewer?.email;
-    const recentDigest = event.lastWeeklyDigest && daysBetween(event.lastWeeklyDigest, today) < 6;
-    if (lead && (forceDigest || (isMonday && !recentDigest))) {
+    // Gather this event's numbers for the Monday summary.
+    {
       const counts = countStatuses(people);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const materialsSummary = { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length };
@@ -130,23 +130,10 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       const overdueItems = items.filter((x) => x.days > 0 && x.names.length);
       const nextItem = [...items.map((x) => ({ label: `${x.label} due`, due: x.due, days: -x.days })), { label: "Training starts", due: formatDate(event.dayOne), days: -daysBetween(event.dayOne, today) }]
         .filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0] ?? null;
-      plan.push({
-        kind: "weekly-summary",
-        event: event.title,
-        to: lead,
-        name: event.reviewer?.name || lead,
-        why: forceDigest ? "requested now" : "Monday summary",
-        send: async () => {
-          const mail = weeklyDigestMail({
-            event: ev, counts, materials: materialsSummary, overdue: overdueItems, next: nextItem,
-            rows: people.map((p) => ({ name: `${p.first} ${p.last}`, status: p.status })),
-            adminUrl: `${origin}/admin.html#event/${encodeURIComponent(event.id)}`,
-          });
-          const out = await sendMail({ to: lead, replyTo: event.contact?.email, ...mail });
-          if (out.skipped) throw new Error(out.reason);
-          event.lastWeeklyDigest = today;
-          await putEvent(event);
-        },
+      digestSections.push({
+        event: ev, counts, materials: materialsSummary, overdue: overdueItems, next: nextItem,
+        rows: people.map((p) => ({ name: `${p.first} ${p.last}`, status: p.status })),
+        adminUrl: `${origin}/admin.html#event/${encodeURIComponent(event.id)}`,
       });
     }
 
@@ -174,6 +161,26 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
         },
       });
     }
+  }
+
+  // One Monday email for all events.
+  const digestTo = (process.env.DIGEST_TO || "president@ongia.ca,vp_operations@ongia.ca").split(/[,;\s]+/).filter(Boolean);
+  const lastDigest = await getMeta("digest:lastSent");
+  const recentDigest = lastDigest && daysBetween(lastDigest, today) < 6;
+  if (digestSections.length && digestTo.length && (forceDigest || (isMonday && !recentDigest))) {
+    plan.push({
+      kind: "weekly-summary",
+      event: `${digestSections.length} event${digestSections.length === 1 ? "" : "s"}`,
+      to: digestTo.join(", "),
+      name: "ONGIA board",
+      why: forceDigest ? "requested now" : "Monday summary",
+      send: async () => {
+        const mail = weeklyDigestMail({ sections: digestSections, adminUrl: `${origin}/admin.html` });
+        const out = await sendMail({ to: digestTo, ...mail });
+        if (out.skipped) throw new Error(out.reason);
+        await putMeta("digest:lastSent", today);
+      },
+    });
   }
 
   const results = [];
