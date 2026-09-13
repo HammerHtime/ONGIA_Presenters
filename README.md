@@ -32,6 +32,9 @@ presenter and filed to SharePoint.
 been sent their link but not submitted are nudged 14, 7 and 1 days before the
 agreement deadline, on the day, and every 7 days after; the board gets a digest
 3 days past the deadline and weekly while anyone is still outstanding.
+Presenters whose agreement is in but whose draft or final materials haven't
+arrived are nudged 7 days before and on each materials deadline, then weekly;
+the request folder is scanned first so anyone who has uploaded is left alone.
 `GET /api/remind?dry=1` (admin key) previews today's run without sending.
 
 ## Hosting
