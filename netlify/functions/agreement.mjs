@@ -1,4 +1,5 @@
 import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
+import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
 import { formatDate, describeEvent } from "./lib/deadlines.mjs";
 import { sendMail, reviewNeededMail } from "./lib/mail.mjs";
@@ -154,7 +155,7 @@ async function submit(req, event, presenter) {
   // Tell the board someone needs to review — best effort, never blocks the presenter.
   const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
   if (recipients.length) {
-    const origin = process.env.URL || new URL(req.url).origin;
+    const origin = siteUrl(req);
     const adminUrl = `${origin}/admin.html#review/${encodeURIComponent(event.id)}/${encodeURIComponent(presenter.id)}`;
     const mail = reviewNeededMail({ event: describeEvent(event), presenter, adminUrl });
     presenter.reviewNotice = await sendMail({ to: recipients, ...mail })

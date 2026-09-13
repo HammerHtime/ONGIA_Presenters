@@ -1,4 +1,5 @@
 import { json, fail, requireAdmin } from "./lib/http.mjs";
+import { siteUrl } from "./lib/site.mjs";
 import { listEvents, listPresenters, putPresenter, putEvent } from "./lib/store.mjs";
 import { describeEvent, formatDate } from "./lib/deadlines.mjs";
 import { sendMail, invitationMail, layout } from "./lib/mail.mjs";
@@ -31,7 +32,7 @@ export default async (req) => {
   }
   const dry = url.searchParams.has("dry");
   const today = todayIso();
-  const origin = process.env.URL || url.origin;
+  const origin = siteUrl(req);
 
   const plan = [];
   for (const event of await listEvents()) {

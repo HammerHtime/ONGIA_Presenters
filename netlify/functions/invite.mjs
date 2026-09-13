@@ -1,4 +1,5 @@
 import { json, fail, requireAdmin } from "./lib/http.mjs";
+import { siteUrl } from "./lib/site.mjs";
 import { getEvent, listPresenters, putPresenter } from "./lib/store.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { sendMail, invitationMail } from "./lib/mail.mjs";
@@ -24,7 +25,7 @@ export default async (req) => {
   const body = (await req.json().catch(() => null)) ?? {};
   const wanted = Array.isArray(body.presenterIds) ? new Set(body.presenterIds) : null;
   const remind = body.remind === true;
-  const origin = process.env.URL || url.origin;
+  const origin = siteUrl(req);
   const ev = describeEvent(event);
 
   const people = (await listPresenters(event.id)).filter((p) =>

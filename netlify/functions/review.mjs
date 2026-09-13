@@ -1,4 +1,5 @@
 import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
@@ -30,7 +31,7 @@ export default async (req) => {
   if (req.method !== "POST") return fail("Method not allowed.", 405);
 
   const body = (await req.json().catch(() => null)) ?? {};
-  const origin = process.env.URL || url.origin;
+  const origin = siteUrl(req);
   switch (url.searchParams.get("action")) {
     case "approve": return approve(event, presenter, body, origin);
     case "return": return sendBack(event, presenter, body, origin);
