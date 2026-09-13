@@ -277,9 +277,9 @@ class Painter {
   gap(n) { this.y += n; }
 
   heading(text) {
-    this.y += 7;
+    this.y += 5;
     this.doc.font("Helvetica").fontSize(12).fillColor(GOLD).text(text, MARGIN, this.y, { width: BODY_W, lineBreak: false });
-    this.y += 17;
+    this.y += 15;
   }
 
   label(text, bold = false, color = INK) {

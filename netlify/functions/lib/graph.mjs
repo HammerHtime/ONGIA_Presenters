@@ -92,6 +92,34 @@ export function normaliseFolder(path) {
 
 const encodePath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
+/**
+ * Create the event's folder by ONGIA's convention — year, then "year City" —
+ * inside the training library, creating the year folder if it is new.
+ * Returns the library-relative path and its web URL.
+ */
+export async function ensureEventFolder(folderPath) {
+  if (!graphConfigured()) throw new Error("Microsoft credentials are not set on this site.");
+  const path = normaliseFolder(folderPath);
+  if (!path) throw new Error("No folder path given.");
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const segments = path.split("/");
+  let current = "";
+  let item = null;
+  for (const seg of segments) {
+    const parent = current;
+    current = current ? `${current}/${seg}` : seg;
+    try {
+      item = await graph(token, `/drives/${drive}/root:/${encodePath(current)}?$select=id,name,webUrl`);
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      if (!parent) throw new Error(`"${seg}" does not exist at the top of the library; the app only creates folders inside an existing top-level folder.`);
+      item = await ensureChildFolder(token, drive, parent, seg);
+    }
+  }
+  return { path, url: item.webUrl, created: true };
+}
+
 async function ensureChildFolder(token, drive, parentPath, name) {
   try {
     return await graph(token, `/drives/${drive}/root:/${encodePath(parentPath)}:/children`, {

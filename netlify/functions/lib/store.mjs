@@ -79,3 +79,6 @@ export async function getHeadshot(eventId, presenterId) {
   if (!got) return null;
   return { bytes: got.data, type: got.metadata?.type ?? "image/jpeg", name: got.metadata?.name ?? "headshot.jpg" };
 }
+
+/** Remove a key outright — used when an event or presenter is deleted. */
+export const deleteKey = (key) => store().delete(key);

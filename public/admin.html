@@ -234,48 +234,69 @@ function listScreen(events) {
 }
 
 /* ---------- new event ---------- */
-function newEventScreen() {
-  BARRIGHT.innerHTML = `<button class="chip" id="cancel">Back</button>`;
-  document.getElementById("cancel").onclick = () => { view = { name: "list" }; render(); };
+function eventFormScreen(existing = null) {
+  const ev = existing?.event ?? null;
+  BARRIGHT.innerHTML = `<button class="chip" id="cancel">${ev ? "Back to event" : "Back"}</button>`;
+  document.getElementById("cancel").onclick = () => { view = ev ? { name: "event", eventId: ev.id } : { name: "list" }; render(); };
+  const v = (k, d = "") => esc(ev?.[k] ?? d);
 
   ROOT.innerHTML = `<div class="card">
-    <div class="card-head"><div><h2>New event</h2>
-      <div class="s">Deadlines are worked out from day one of the training — you never type them.</div></div></div>
+    <div class="card-head"><div><h2>${ev ? "Edit event" : "New training event"}</h2>
+      <div class="s">${ev ? "Change anything below — deadlines re-derive from day one." : "Deadlines are worked out from day one of the training — you never type them."}</div></div></div>
     <div class="card-body">
       <div class="row2">
-        <div class="field"><label for="e-title">Event title</label><input id="e-title" placeholder="Gangs &amp; Guns Symposium"></div>
-        <div class="field"><label for="e-city">City</label><input id="e-city" placeholder="Winnipeg, MB"></div>
+        <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
+        <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
       </div>
-      <div class="field"><label for="e-venue">Venue</label><input id="e-venue" placeholder="RBC Convention Centre"></div>
       <div class="row2">
-        <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date"></div>
-        <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date"></div>
+        <div class="field"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
+        <div class="field"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" min="15" step="5" value="${v("sessionMinutes", 70)}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date" value="${v("dayOne")}"></div>
+        <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
       <div class="row3">
-        <div class="field"><label for="e-cname">ONGIA contact</label><input id="e-cname" placeholder="Barb Konkle"></div>
-        <div class="field"><label for="e-cemail">Contact email</label><input id="e-cemail" type="email" placeholder="training@ongia.ca"></div>
-        <div class="field"><label for="e-cphone">Contact number</label><input id="e-cphone" placeholder="(306) 555-0100"></div>
+        <div class="field"><label for="e-cname">ONGIA contact</label><input id="e-cname" value="${esc(ev?.contact?.name ?? "")}" placeholder="Barb Konkle"></div>
+        <div class="field"><label for="e-cemail">Contact email</label><input id="e-cemail" type="email" value="${esc(ev?.contact?.email ?? "")}" placeholder="training@ongia.ca"></div>
+        <div class="field"><label for="e-cphone">Contact number</label><input id="e-cphone" value="${esc(ev?.contact?.phone ?? "")}" placeholder="(306) 555-0100"></div>
       </div>
       <div class="row2">
-        <div class="field"><label for="e-rname">Reviewing board member</label><input id="e-rname" placeholder="Andrew Hammond"></div>
-        <div class="field"><label for="e-remail">Reviewer email</label><input id="e-remail" type="email" placeholder="president@ongia.ca"></div>
+        <div class="field"><label for="e-rname">Reviewing board member</label><input id="e-rname" value="${esc(ev?.reviewer?.name ?? "")}" placeholder="Andrew Hammond"></div>
+        <div class="field"><label for="e-remail">Reviewer email</label><input id="e-remail" type="email" value="${esc(ev?.reviewer?.email ?? "")}" placeholder="president@ongia.ca"></div>
       </div>
       <p class="hint" style="margin:-6px 0 12px">The board member who reviews each agreement, sets what ONGIA covers, confirms travel dates and signs. They're emailed when a presenter submits.</p>
-      <div class="field"><label for="e-notify">Notify these board members (one email per line)</label>
-        <textarea id="e-notify" placeholder="president@ongia.ca&#10;training@ongia.ca"></textarea></div>
+      <div class="field"><label for="e-notify">Also notify these board members (one email per line)</label>
+        <textarea id="e-notify" placeholder="treasurer@ongia.ca&#10;vp_operations@ongia.ca">${esc((ev?.notify ?? []).join("\n"))}</textarea></div>
       <div class="field"><label for="e-folder">SharePoint folder for this event</label>
-        <input id="e-folder" placeholder="ONGIA Board/ONGIA Training/2027/2027 Winnipeg"></div>
+        <input id="e-folder" value="${v("sharePointFolder")}" placeholder="ONGIA Board/ONGIA Training/2027/2027 Winnipeg">
+        <p class="hint" id="folderhint" style="margin:6px 0 0"></p></div>
       <div class="field"><label for="e-upload">Materials file-request link (optional)</label>
-        <input id="e-upload" placeholder="https://ongia.sharepoint.com/…/FileRequest.aspx?id=…"></div>
+        <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="https://ongia.sharepoint.com/…/FileRequest.aspx?id=…"></div>
       <div id="problem"></div>
-      <div class="actions"><button class="btn btn-gold" id="create">Create event</button></div>
+      <div class="actions"><button class="btn btn-gold" id="create">${ev ? "Save changes" : "Create event"}</button></div>
     </div></div>`;
 
-  const day1 = document.getElementById("e-day1");
-  const preview = document.getElementById("preview");
-  day1.onchange = async () => {
+  const $ = (id) => document.getElementById(id);
+  const day1 = $("e-day1"), last = $("e-last"), preview = $("preview"), city = $("e-city"), folder = $("e-folder"), folderhint = $("folderhint");
+
+  // Folder convention: year, then "year City". Shown as the default so a blank field is never a surprise.
+  const convention = () => {
+    const y = day1.value.slice(0, 4), c = city.value.split(",")[0].trim();
+    return y && c ? `ONGIA Board/ONGIA Training/${y}/${y} ${c}` : "";
+  };
+  const showFolderHint = () => {
+    const conv = convention();
+    folder.placeholder = conv || "ONGIA Board/ONGIA Training/2027/2027 Winnipeg";
+    folderhint.textContent = folder.value.trim() ? "" : conv ? `Left blank, the app uses ${conv} and can create it for you from the event page.` : "Left blank, the app builds the path from the year and city.";
+  };
+  city.oninput = showFolderHint; folder.oninput = showFolderHint;
+
+  const showDeadlines = async () => {
+    showFolderHint();
     if (!day1.value) { preview.innerHTML = ""; return; }
+    if (!last.value || last.value < day1.value) last.value = day1.value;
     preview.innerHTML = `<p class="hint">Working out deadlines…</p>`;
     try {
       const out = await api(`/deadlines?dayOne=${day1.value}`);
@@ -286,25 +307,31 @@ function newEventScreen() {
       </dl>${out.moved.length ? `<div class="note">${out.moved.map(esc).join("<br>")}</div>` : ""}`;
     } catch (e) { preview.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
   };
+  day1.onchange = showDeadlines;
+  if (ev) showDeadlines(); else showFolderHint();
 
-  document.getElementById("create").onclick = async (e) => {
+  $("create").onclick = async (e) => {
     if (busy) return;
     busy = true; e.target.disabled = true;
-    const val = (id) => document.getElementById(id).value.trim();
+    const val = (id) => $(id).value.trim();
+    const body = {
+      title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
+      dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
+      contactName: val("e-cname"), contactEmail: val("e-cemail"), contactPhone: val("e-cphone"),
+      reviewerName: val("e-rname"), reviewerEmail: val("e-remail"),
+      notify: val("e-notify").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
+      sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
+    };
     try {
-      const out = await api("/events", { method: "POST", body: JSON.stringify({
-        title: val("e-title"), city: val("e-city"), venue: val("e-venue"),
-        dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
-        contactName: val("e-cname"), contactEmail: val("e-cemail"), contactPhone: val("e-cphone"),
-        reviewerName: val("e-rname"), reviewerEmail: val("e-remail"),
-        notify: val("e-notify").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
-        sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
-      })});
+      const out = ev
+        ? await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })
+        : await api("/events", { method: "POST", body: JSON.stringify(body) });
+      toast(ev ? "Saved." : "Event created. Add presenters next.");
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
       busy = false; e.target.disabled = false;
-      document.getElementById("problem").innerHTML = `<div class="bad"><b>Couldn't create it.</b> ${esc(err.message)}</div>`;
+      $("problem").innerHTML = `<div class="bad"><b>Couldn't save it.</b> ${esc(err.message)}</div>`;
     }
   };
 }
@@ -313,9 +340,11 @@ function newEventScreen() {
 function eventScreen(data) {
   const { event: ev, presenters, counts: c } = data;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>
+    <button class="chip" id="edit">Edit event</button>
     <button class="chip" id="mailall">Email all outstanding</button>
     <button class="chip solid" id="add">Add presenters</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
   document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
   document.getElementById("mailall").onclick = async () => {
     const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
@@ -344,7 +373,7 @@ function eventScreen(data) {
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
         ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${p.mail?.length ? "Remind" : "Email link"}</button>` : ""}
         ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
-        ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : ""}
+        ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : `<button class="mini ghost" data-remove="${esc(p.id)}" title="Remove presenter">✕</button>`}
       </div></div>`;
   }).join("") : `<div class="empty">No presenters yet. Add some to send their links.</div>`;
 
@@ -361,11 +390,42 @@ function eventScreen(data) {
       <dl class="kv" style="margin:0 0 16px">
         <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))}</dd>
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
-        <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</dd>
+        <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
+          ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
+        <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
         <dt>Reviewer</dt><dd>${ev.reviewer?.name ? esc(ev.reviewer.name) + (ev.reviewer.email ? " · " + esc(ev.reviewer.email) : "") : "<i>not set — anyone with the admin key</i>"}</dd>
         <dt>Board notified</dt><dd>${(ev.notify ?? []).length ? esc(ev.notify.join(", ")) : "<i>nobody</i>"}</dd>
       </dl>
-      ${rows}</div></div>`;
+      ${rows}
+      <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
+    </div></div>`;
+
+  const mk = document.getElementById("mkfolder");
+  if (mk) mk.onclick = async () => {
+    mk.disabled = true; mk.textContent = "Creating…";
+    try {
+      const out = await api(`/events?id=${encodeURIComponent(ev.id)}&folder=1`, { method: "POST" });
+      toast(`Folder ready: ${out.folder.path}`); render();
+    } catch (e) { toast(e.message); mk.disabled = false; mk.textContent = "Create it in SharePoint"; }
+  };
+  document.getElementById("delevent").onclick = async () => {
+    const approved = presenters.filter((p) => p.status === "approved").length;
+    const msg = `Delete "${ev.title}" and its ${presenters.length} presenter${presenters.length === 1 ? "" : "s"} from the desk?\n\n` +
+      (approved ? `${approved} final PDF${approved === 1 ? " is" : "s are"} already filed in SharePoint and will stay there. ` : "") +
+      `Presenter links stop working immediately. This cannot be undone.`;
+    if (!confirm(msg)) return;
+    if (prompt(`Type the city to confirm: ${ev.city}`) !== ev.city) return toast("Not deleted — city didn't match.");
+    try { await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "DELETE" }); toast("Event deleted."); view = { name: "list" }; render(); }
+    catch (e) { toast(e.message); }
+  };
+  ROOT.querySelectorAll("[data-remove]").forEach((b) => {
+    b.onclick = async () => {
+      const p = presenters.find((x) => x.id === b.dataset.remove);
+      if (!confirm(`Remove ${p.first} ${p.last}? Their link stops working.`)) return;
+      try { await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { method: "DELETE" }); toast("Removed."); render(); }
+      catch (e) { toast(e.message); }
+    };
+  });
 
   ROOT.querySelectorAll("[data-invite]").forEach((b) => {
     b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind");
@@ -673,7 +733,8 @@ function deliveryMarkup(d = {}) {
 async function render() {
   if (!KEY) return signInScreen();
   try {
-    if (view.name === "new") return newEventScreen();
+    if (view.name === "new") return eventFormScreen();
+    if (view.name === "edit") return eventFormScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") return eventScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
