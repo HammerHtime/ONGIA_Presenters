@@ -57,3 +57,9 @@ sign-in and, with `?folder=`, that an event folder exists.
 
 Missing email or Microsoft credentials never block an approval — the
 dashboard shows what didn't land, and **Retry** re-runs just those parts.
+
+## Running locally
+
+`npm run dev:mock` serves the site and functions on http://localhost:8788 against
+an in-memory store (admin key `testkey`). Email and SharePoint are skipped unless
+the real environment variables are set, so it's safe for clicking through.
