@@ -15,7 +15,7 @@ export async function scanMaterials(event, presenters) {
 
   const token = await graphAccessToken();
   const folder = await findRequestFolder(event, token);
-  if (!folder) return { skipped: true, reason: `Couldn't find which folder the materials link belongs to. It should be the event folder, its parent, or a folder inside either. Checked: ${(event.materialsFolderSearch?.tried ?? []).join("; ") || "nothing reachable"}.` };
+  if (!folder) return { skipped: true, reason: `The materials folder "${event.materialsFolderPath || event.sharePointFolder}" wasn't found in the library. Uploads are read from the event folder unless a separate materials folder is set on the event.` };
 
   const files = [];
   let next = `/drives/${folder.driveId}/items/${folder.id}/children?$select=id,name,size,lastModifiedDateTime,webUrl,file,folder&$top=200`;
@@ -44,50 +44,21 @@ export async function scanMaterials(event, presenters) {
 }
 
 /**
- * A Request-files link deliberately can't be resolved to its folder (it grants
- * no reading), so work backwards: the event folder, the folders inside it and
- * its siblings are checked for a sharing link that matches. The answer is
- * cached on the event so later scans are a single call.
+ * Where uploads land. SharePoint's "Request files" puts them straight into the
+ * folder the link was made on — for ONGIA that is the event folder itself —
+ * so that is the default, with an optional override for events that keep a
+ * separate drop folder. The app's identity can list folders but not their
+ * sharing links, so it cannot work this out from the link; it is told.
  */
 async function findRequestFolder(event, token) {
-  const target = linkKey(event.materialsUploadUrl);
-  if (event.materialsFolder?.id && event.materialsFolder.link === target) return event.materialsFolder;
+  const path = normaliseFolder(event.materialsFolderPath || event.sharePointFolder);
+  if (!path) return null;
   const drive = await driveIdFor(token);
-  const base = normaliseFolder(event.sharePointFolder);
-  if (!base) return null;
-
-  const candidates = [];
-  const eventFolder = await graphGet(token, `/drives/${drive}/root:/${enc(base)}?$select=id,name,webUrl,parentReference`).catch(() => null);
-  if (eventFolder) {
-    candidates.push({ ...eventFolder, path: base });
-    const kids = await graphGet(token, `/drives/${drive}/items/${eventFolder.id}/children?$select=id,name,webUrl,folder&$top=200`).catch(() => ({ value: [] }));
-    for (const k of kids.value ?? []) if (k.folder) candidates.push({ ...k, path: `${base}/${k.name}` });
-    const parentPath = base.includes("/") ? base.slice(0, base.lastIndexOf("/")) : "";
-    if (parentPath) {
-      const parent = await graphGet(token, `/drives/${drive}/root:/${enc(parentPath)}?$select=id,name,webUrl`).catch(() => null);
-      if (parent) candidates.push({ ...parent, path: parentPath });
-      const sibs = await graphGet(token, `/drives/${drive}/root:/${enc(parentPath)}:/children?$select=id,name,webUrl,folder&$top=200`).catch(() => ({ value: [] }));
-      for (const k of sibs.value ?? []) if (k.folder && k.id !== eventFolder.id) candidates.push({ ...k, path: `${parentPath}/${k.name}` });
-    }
-  }
-  const tried = [];
-  for (const c of candidates) {
-    let perms;
-    try { perms = await graphGet(token, `/drives/${drive}/items/${c.id}/permissions?$select=id,link`); }
-    catch (e) { tried.push(`${c.path}: ${e.code ?? e.status}`); continue; }
-    const links = (perms.value ?? []).filter((p) => p.link?.webUrl);
-    tried.push(`${c.path}: ${links.length} link${links.length === 1 ? "" : "s"}`);
-    if (links.some((p) => linkKey(p.link.webUrl) === target)) {
-      event.materialsFolder = { id: c.id, driveId: drive, name: c.name, webUrl: c.webUrl, path: c.path, link: target };
-      return event.materialsFolder;
-    }
-  }
-  event.materialsFolderSearch = { at: new Date().toISOString(), tried };
-  return null;
+  const item = await graphGet(token, `/drives/${drive}/root:/${enc(path)}?$select=id,name,webUrl,folder`).catch(() => null);
+  if (!item?.folder) return null;
+  return { id: item.id, driveId: drive, name: item.name, webUrl: item.webUrl, path };
 }
 
-// Sharing links compare on their path; the ?e= tail varies between copies.
-const linkKey = (u) => { try { const x = new URL(u); return `${x.hostname}${x.pathname}`.toLowerCase(); } catch { return String(u); } };
 const enc = (p) => p.split("/").map(encodeURIComponent).join("/");
 
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();

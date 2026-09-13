@@ -113,6 +113,14 @@ async function applyDetails(event, body, { creating = false } = {}) {
     event.materialsLinkCheck = null;
   }
 
+  // Where Request-files uploads land, if not the event folder itself.
+  try {
+    const mf = await resolveFolderInput(text(body.materialsFolder, 800));
+    event.materialsFolderPath = mf.path || "";
+  } catch (e) {
+    return `Materials folder: ${e.message}`;
+  }
+
   // The folder may arrive as a path, a folder URL, or a sharing link.
   try {
     const folder = await resolveFolderInput(text(body.sharePointFolder, 800));
