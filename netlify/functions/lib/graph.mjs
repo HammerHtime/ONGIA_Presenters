@@ -157,3 +157,31 @@ export async function fileAgreement({ event, presenter, pdf, headshot }) {
 
   return { folderUrl: folder.webUrl, files, filedAt: new Date().toISOString() };
 }
+
+/**
+ * Prove the sign-in and (optionally) an event folder before anyone approves
+ * anything. Distinguishes "the app has no grant on the site" from "the folder
+ * path is wrong", which need different people to fix them.
+ */
+export async function checkFolder(folderPath) {
+  const token = await accessToken();
+  let drive;
+  try {
+    drive = await driveId(token);
+  } catch (e) {
+    if (e.status === 403 || e.status === 401) throw new Error(`Signed in, but the app has no access to the site yet (${e.code ?? e.status}). The Sites.Selected grant on ${SITE_URL} is still needed.`);
+    throw e;
+  }
+  const result = { site: SITE_URL, driveId: drive };
+  const folder = normaliseFolder(folderPath);
+  if (folder) {
+    try {
+      const item = await graph(token, `/drives/${drive}/root:/${encodePath(folder)}?$select=id,name,webUrl,folder`);
+      result.folder = { path: folder, url: item.webUrl, items: item.folder?.childCount ?? 0 };
+    } catch (e) {
+      if (e.status === 404) throw new Error(`Signed in and the library is reachable, but "${folder}" does not exist in it.`);
+      throw e;
+    }
+  }
+  return result;
+}

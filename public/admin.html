@@ -194,10 +194,11 @@ function signInScreen(message) {
 /* ---------- events list ---------- */
 function listScreen(events) {
   BARRIGHT.innerHTML = `<button class="chip solid" id="newevent">New event</button>`;
+  queueMicrotask(healthStrip);
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
 
   if (!events.length) {
-    ROOT.innerHTML = `<div class="card"><div class="empty">
+    ROOT.innerHTML = `<div class="card" style="margin-bottom:16px"><div class="card-body" id="health" style="display:flex;gap:28px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px"><span class="empty" style="padding:0">Checking email and SharePoint…</span></div></div><div class="card"><div class="empty">
       <p>No events yet.</p>
       <div class="actions" style="justify-content:center"><button class="btn btn-gold" id="first">Create your first event</button></div>
     </div></div>`;
@@ -205,7 +206,7 @@ function listScreen(events) {
     return;
   }
 
-  ROOT.innerHTML = events.map((ev) => {
+  ROOT.innerHTML = `<div class="card" style="margin-bottom:16px"><div class="card-body" id="health" style="display:flex;gap:28px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px"><span class="empty" style="padding:0">Checking email and SharePoint…</span></div></div>` + events.map((ev) => {
     const c = ev.counts;
     const outstanding = c.total - c.approved;
     return `<div class="card">
@@ -414,6 +415,21 @@ function addScreen(eventId) {
       document.getElementById("problem").innerHTML = `<div class="bad"><b>Couldn't add them.</b> ${esc(err.message)}</div>`;
     }
   };
+}
+
+/* ---------- integration status ---------- */
+async function healthStrip() {
+  const host = document.getElementById("health");
+  if (!host) return;
+  try {
+    const h = await api("/health");
+    const dot = (r) => `<span class="dot" style="background:${r?.ok ? "var(--done)" : "var(--late)"}"></span>`;
+    const sp = h.sharepoint
+      ? (h.sharepoint.ok ? "SharePoint reachable" : `SharePoint: ${esc(h.sharepoint.error)}`)
+      : "SharePoint: credentials not set";
+    host.innerHTML = `<div class="stat" style="border:0;padding:0">${dot(h.email)}<div>Email ${h.email.ok ? "ready" : "off"}<small>${esc(h.email.ok ? h.email.from : h.email.reason)}</small></div></div>
+      <div class="stat" style="border:0;padding:0">${dot(h.sharepoint ?? h.microsoft)}<div>${esc(sp.split(":")[0])}<small>${esc(sp.includes(":") ? sp.slice(sp.indexOf(":") + 1).trim() : (h.sharepoint?.site ?? ""))}</small></div></div>`;
+  } catch (e) { host.innerHTML = `<div class="stat" style="border:0;padding:0"><span class="dot"></span><div>Status unavailable<small>${esc(e.message)}</small></div></div>`; }
 }
 
 /* ---------- shared helpers ---------- */
