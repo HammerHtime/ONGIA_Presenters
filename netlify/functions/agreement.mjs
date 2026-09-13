@@ -117,6 +117,7 @@ async function submit(req, event, presenter) {
   if (!expenses.other) problems.push("Tell us whether your agency covers any other cost.");
 
   if (body.copyright !== true) problems.push("Please confirm the copyright statement.");
+  if (body.goodStanding !== true) problems.push("Please confirm you are in good standing with your agency.");
 
   // Six choices, each required. Loose checkboxes are how the paper form came
   // back half-answered; here nothing submits until all six are set.
@@ -156,6 +157,7 @@ async function submit(req, event, presenter) {
     hotelTo: hotel === "yes" ? hotelTo : "",
     expenses,
     copyright: true,
+    goodStanding: true,
     media,
     signature,
     signedAt: now.toISOString(),

@@ -506,6 +506,7 @@ function reviewScreen(data) {
         <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}${approvedNote(p.review?.travel)}` : ""}</dd>
         <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}${approvedNote(p.review?.hotel)}` : ""}</dd>
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
+        <dt>Good standing</dt><dd>${s.goodStanding ? "Confirmed — in good standing, no disciplinary proceedings or investigation" : "<b style=\"color:var(--late)\">Not confirmed</b> (submitted before this question existed)"}</dd>
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>

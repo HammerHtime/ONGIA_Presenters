@@ -192,7 +192,7 @@ const S = {
   travel: null, travelFrom: "", travelTo: "",
   hotel: null, hotelFrom: "", hotelTo: "",
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
-  copyright: false,
+  copyright: false, goodStanding: false,
   media: { photo: {}, materials: {}, summary: {} },
   signature: "", agreed: false,
 };
@@ -390,7 +390,10 @@ function stepMarkup() {
         <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
       <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
         <div class="meta"><span>Electronic signature</span><span>${esc(fmtDate(toISO(new Date())))}</span></div></div>
-      <label class="attest" for="f-agree" style="margin-top:14px">
+      <label class="attest" for="f-standing" style="margin-top:14px">
+        <input id="f-standing" type="checkbox" data-bind="goodStanding"${S.goodStanding ? " checked" : ""}>
+        <span>I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.</span></label>
+      <label class="attest" for="f-agree" style="margin-top:10px">
         <input id="f-agree" type="checkbox" data-bind="agreed"${S.agreed ? " checked" : ""}>
         <span>This typed name is my electronic signature, and the information above is accurate.</span></label>
       </div>`;
@@ -499,6 +502,7 @@ function validate() {
         if (!S.media[row]?.[s]) { out.push("Please answer every media-sharing line."); break; }
   }
   if (S.step === 5) {
+    if (!S.goodStanding) out.push("Please confirm you are in good standing with your agency.");
     if (!S.signature.trim()) out.push("Please type your name to sign.");
     if (!S.agreed) out.push("Please confirm your electronic signature.");
   }
@@ -646,7 +650,7 @@ document.addEventListener("keydown", (e) => {
         travel: d.travel ?? null, travelFrom: d.travelFrom ?? "", travelTo: d.travelTo ?? "",
         hotel: d.hotel ?? null, hotelFrom: d.hotelFrom ?? "", hotelTo: d.hotelTo ?? "",
         expenses: { ...S.expenses, ...(d.expenses ?? {}) },
-        copyright: !!d.copyright, media: d.media ?? S.media,
+        copyright: !!d.copyright, goodStanding: !!d.goodStanding, media: d.media ?? S.media,
         signature: d.signature ?? "", headshotName: d.headshotName ?? "",
       });
     }

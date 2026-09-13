@@ -198,6 +198,11 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
       "Copyrighted material or intellectual property presented.",
     RED
   );
+  p.tickLine(
+    s.goodStanding === true,
+    "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
+    RED
+  );
 
   p.gap(4);
   p.label("MEDIA AND CONTENT SHARING AUTHORIZATION", true);
