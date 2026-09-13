@@ -17,8 +17,10 @@ presenter and filed to SharePoint.
    pull each one back to the previous working day).
 2. Coordinator adds presenters (name, email, organization). Each gets a unique
    link `/a/<token>` — no account, no password. "Email link" sends it.
-3. Presenter fills in the form, says which costs their **agency** covers,
-   uploads a headshot, and signs by typing their name.
+3. Presenter fills in the form (English or French — a switch in the top bar;
+   Québec presenters' emails then follow their choice, while the filed PDF stays
+   English), says which costs their **agency** covers, uploads a headshot, and
+   signs by typing their name.
 4. A board member opens **Review**, ticks what **ONGIA** covers, signs.
    Only then is the final PDF generated, emailed to the presenter, filed to
    `<event folder>/<First Last>/<Last>_Presenter Agreement.pdf` (plus the

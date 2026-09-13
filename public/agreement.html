@@ -162,6 +162,9 @@
 
   .loading,.oops{max-width:560px;margin:0 auto;padding:60px 20px;text-align:center;color:var(--muted)}
   .oops h2{font-family:var(--fd);font-size:24px;color:var(--ink);margin-bottom:10px}
+  .bar .langbtn{margin-left:10px;background:transparent;color:var(--gold-light);border:1px solid rgba(217,174,75,.55);
+    border-radius:999px;padding:5px 12px;font:600 12px var(--fu,inherit);letter-spacing:.06em;cursor:pointer}
+  .bar .langbtn:hover{background:rgba(217,174,75,.12)}
 </style>
 </head>
 <body>
@@ -169,6 +172,7 @@
 <div class="bar">
   <span class="mark">ONGIA<span>.</span></span>
   <span class="step" id="stepcount"></span>
+  <button type="button" class="langbtn" id="lang" aria-label="Switch language / Changer de langue">Français</button>
 </div>
 
 <div id="root"><p class="loading">Loading your agreement…</p></div>
@@ -176,14 +180,165 @@
 <script type="module">
 const ROOT = document.getElementById("root");
 const STEPCOUNT = document.getElementById("stepcount");
+const LANGBTN = document.getElementById("lang");
 const TOKEN = location.pathname.startsWith("/a/")
   ? location.pathname.slice(3)
   : new URLSearchParams(location.search).get("t") ?? "";
 
-const TITLES = ["Your event", "About you", "Your session", "Travel & costs", "Permissions", "Sign & send"];
-const LAST_STEP = 5;
+/* ---------- language ---------- */
+// Presenters from Québec get the whole form in French; the record ONGIA files stays English.
+let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })()
+  || (/^fr/i.test(navigator.language) ? "fr" : "en");
 
-let DATA = null;
+const T = {
+en: {
+  titles: ["Your event", "About you", "Your session", "Travel & costs", "Permissions", "Sign & send"],
+  stepOf: (n) => `Step ${n} of 6`, submitted: "Submitted",
+  chooseDate: "Choose a date", prevMonth: "Previous month", nextMonth: "Next month", onOrAfter: (d) => `On or after ${d}`, done: "Done",
+  yes: "Yes", no: "No",
+  inside: "Inside ONGIA<br>(paid members only)", social: "Social media &amp;<br>public platforms",
+  returnedTitle: "ONGIA sent this back with a note", returnedHint: "Your answers are saved — adjust what's needed and sign again.",
+  presentingAt: (t) => `You're presenting at ${t}`,
+  hello: (f) => `Hello ${f}. Everything below is already set by ONGIA — read it over, then six short questions.`,
+  city: "City", venue: "Venue", begins: "Training begins", length: "Length", minutes: (n) => `${n} minutes`,
+  twoDates: "Two dates to keep",
+  draftFinal: (a, b) => `Draft materials for review by <strong>${a}</strong>. Final, production-ready materials by <strong>${b}</strong>.`,
+  questions: "Questions?",
+  introduced: "This is how you'll be introduced on the day.", first: "First name", last: "Last name",
+  filedAs: (f) => `Your agreement will be filed as <b>${f}</b>`, phone: "Contact number", email: "Email", org: "Organization",
+  talkTitle: "Presentation title", bio: "Biography",
+  bioCount: (n) => `${n} words — aim for 250 to 300. Used to introduce you at the event.`,
+  outline: "Presentation outline", outlineHint: "What you'll cover, in a short paragraph.",
+  travelLede: (a, b) => `Tell us what you need arranged for the training event. Dates can run from the day before training to the day after — <b>${a}</b> to <b>${b}</b>. ONGIA confirms the final dates when your agreement is approved.`,
+  needTravel: "Will you need travel arranged?", arriving: "Arriving", departing: "Departing",
+  needHotel: "Will you need hotel accommodation?", checkin: "Check in", checkout: "Check out",
+  shared: "Shared expenses",
+  blurb1: "ONGIA is a non-profit, and we look for opportunities to share the cost of presenter attendance with the presenter's home agency. Where an agency is able to contribute, it allows ONGIA to keep the training affordable and put more of the budget back into the program.",
+  blurb2: "Please tell us which of these your agency would cover while you are at the training event.",
+  covTransport: "Is your agency covering the cost of transportation (ground or air)?",
+  covHotel: "Is your agency covering the cost of hotel accommodation?", hotelTitle: "Hotel accommodation",
+  hotelSkipped: "Skipped — you said you don't need a hotel.",
+  covMeals: "Is your agency covering the cost of meals?",
+  mealsHint: "Meal claims need a receipt or declaration. Maximums follow the Treasury Board of Canada directive.",
+  covOther: "Is there any other cost your agency is covering?", whatIsIt: "What is it?", otherPh: "e.g. parking, checked baggage",
+  covers: "Anything your agency is not covering goes to ONGIA for review. The board decides what ONGIA covers, and your final copy will confirm it. Answering &ldquo;no&rdquo; does not affect your invitation to present.",
+  twoThings: "Two things ONGIA needs in writing.",
+  copyright: "The presentation is my own work, or I have obtained every permission needed to use the copyrighted material and intellectual property in it.",
+  media: "Media &amp; content sharing", mediaLede: "Tell us where ONGIA may use each item. Every line needs an answer.",
+  photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
+  lastStep: (d) => `Last step. Due back by ${d}.`, addHeadshot: "Add your headshot", tapReplace: "Tap to replace",
+  headshotHint: ".png or .jpeg — used to introduce you and on ongia.ca", typeName: "Type your full name to sign", eSig: "Electronic signature",
+  standing: "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
+  agreed: "This typed name is my electronic signature, and the information above is accurate.",
+  doneTitle: "Thank you — that's submitted", doneP: "ONGIA has your agreement. One more step happens on our side before it's final.",
+  received: "Your answers were received and time-stamped", notified: (n) => `${n} and the board were notified`,
+  reviewNext: "An ONGIA board member reviews it and confirms which costs ONGIA will cover.",
+  finalNext: "You'll be emailed the signed final copy once they approve.", draftDue: (d) => `Draft materials due ${d}`,
+  reference: (r) => `Reference ${r}`,
+  finalTitle: "Your agreement is final", finalP: (on, e) => `ONGIA approved and signed it${on ? " on " + on : ""}. A copy was emailed to ${e}.`,
+  downloadPdf: "Download the signed PDF", draftFor: (d) => `Draft materials for review by <b>${d}</b>`,
+  finalFor: (d) => `Final, production-ready materials by <b>${d}</b>`, upload: "Upload your presentation materials",
+  refQuestions: (r, n) => `Reference ${r} · Questions? Reply to your ONGIA email or contact ${n}.`,
+  notQuite: "Not quite there", back: "Back", cont: "Continue", submit: "Submit agreement", sending: "Sending…",
+  vName: "Please add your first and last name.", vEmail: "That email address doesn't look right.",
+  vTalk: "Please add a presentation title.", vBio: "Please add a biography.", vOutline: "Please add a presentation outline.",
+  vTravel: "Tell us whether you need travel arranged.", vHotel: "Tell us whether you need hotel accommodation.",
+  vBoth: (w) => `${w}: please choose both dates.`, vOrder: (w) => `${w}: the end date is before the start date.`,
+  vWindow: (w, a, b) => `${w} dates must fall between ${a} and ${b}.`, travelWord: "Travel", hotelWord: "Hotel",
+  vCovT: "Tell us whether your agency covers transportation.", vCovH: "Tell us whether your agency covers accommodation.",
+  vCovM: "Tell us whether your agency covers meals.", vCovO: "Tell us whether your agency covers any other cost.",
+  vCopy: "Please confirm the copyright statement.", vMedia: "Please answer every media-sharing line.",
+  vStanding: "Please confirm you are in good standing with your agency.", vSign: "Please type your name to sign.", vAgree: "Please confirm your electronic signature.",
+  shotBig: "Your headshot is over 5 MB, so it wasn't attached — email it to us instead.",
+  shotFail: "Your answers went through, but the headshot didn't upload — email it to us instead.",
+  netFail: "Couldn't reach ONGIA — check your connection and try again.", generic: "Something went wrong. Please try again.",
+  linkTitle: "This link is incomplete", linkP: "Open the link from your ONGIA email, or ask us to send it again.",
+  openFail: "We couldn't open this agreement", reachTitle: "We couldn't reach ONGIA", reachP: "Check your connection and refresh the page.",
+  loading: "Loading your agreement…", other: "Français",
+  months: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+  mons: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], days: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+  dow: ["Su","Mo","Tu","We","Th","Fr","Sa"], fmt: (dn, d, mo, y) => `${dn} ${d} ${mo} ${y}`,
+},
+fr: {
+  titles: ["Votre événement", "À propos de vous", "Votre présentation", "Déplacements et frais", "Autorisations", "Signer et envoyer"],
+  stepOf: (n) => `Étape ${n} sur 6`, submitted: "Envoyé",
+  chooseDate: "Choisir une date", prevMonth: "Mois précédent", nextMonth: "Mois suivant", onOrAfter: (d) => `À partir du ${d}`, done: "OK",
+  yes: "Oui", no: "Non",
+  inside: "À l'interne (ONGIA)<br>(membres payants seulement)", social: "Médias sociaux et<br>plateformes publiques",
+  returnedTitle: "ONGIA vous a renvoyé ce formulaire avec une note", returnedHint: "Vos réponses sont conservées — apportez les corrections demandées et signez de nouveau.",
+  presentingAt: (t) => `Vous présentez à ${t}`,
+  hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA — lisez-les, puis répondez à six courtes questions.`,
+  city: "Ville", venue: "Lieu", begins: "Début de la formation", length: "Durée", minutes: (n) => `${n} minutes`,
+  twoDates: "Deux dates à retenir",
+  draftFinal: (a, b) => `Version préliminaire de votre matériel à remettre pour révision d'ici le <strong>${a}</strong>. Version finale, prête pour la production, d'ici le <strong>${b}</strong>.`,
+  questions: "Des questions?",
+  introduced: "C'est ainsi que vous serez présenté(e) le jour de l'événement.", first: "Prénom", last: "Nom de famille",
+  filedAs: (f) => `Votre entente sera classée sous <b>${f}</b>`, phone: "Numéro de téléphone", email: "Courriel", org: "Organisation",
+  talkTitle: "Titre de la présentation", bio: "Biographie",
+  bioCount: (n) => `${n} mots — visez 250 à 300. Servira à vous présenter lors de l'événement.`,
+  outline: "Plan de la présentation", outlineHint: "Ce que vous aborderez, en un court paragraphe.",
+  travelLede: (a, b) => `Indiquez-nous ce qu'il faut organiser pour la formation. Les dates peuvent aller de la veille au lendemain de la formation — du <b>${a}</b> au <b>${b}</b>. ONGIA confirmera les dates définitives lors de l'approbation de votre entente.`,
+  needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Arrivée", departing: "Départ",
+  needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", checkin: "Arrivée à l'hôtel", checkout: "Départ de l'hôtel",
+  shared: "Partage des frais",
+  blurb1: "ONGIA est un organisme sans but lucratif et nous cherchons à partager les coûts liés à la participation des conférenciers avec leur organisation d'attache. Lorsqu'une organisation est en mesure de contribuer, cela permet à ONGIA de maintenir des frais de formation abordables et de réinvestir davantage dans le programme.",
+  blurb2: "Veuillez indiquer lesquels de ces frais votre organisation assumera pendant la formation.",
+  covTransport: "Votre organisation assume-t-elle les frais de transport (terrestre ou aérien)?",
+  covHotel: "Votre organisation assume-t-elle les frais d'hébergement à l'hôtel?", hotelTitle: "Hébergement à l'hôtel",
+  hotelSkipped: "Sans objet — vous avez indiqué ne pas avoir besoin d'hôtel.",
+  covMeals: "Votre organisation assume-t-elle les frais de repas?",
+  mealsHint: "Les demandes de remboursement de repas exigent un reçu ou une déclaration. Les maximums suivent la directive du Conseil du Trésor du Canada.",
+  covOther: "Votre organisation assume-t-elle d'autres frais?", whatIsIt: "Lesquels?", otherPh: "p. ex. stationnement, bagages enregistrés",
+  covers: "Tout ce que votre organisation n'assume pas est soumis à ONGIA pour examen. Le conseil décide de ce qu'ONGIA prend en charge et votre copie finale le confirmera. Répondre « non » n'a aucune incidence sur votre invitation à présenter.",
+  twoThings: "Deux éléments qu'ONGIA doit obtenir par écrit.",
+  copyright: "La présentation est mon œuvre, ou j'ai obtenu toutes les autorisations nécessaires pour utiliser le matériel protégé par le droit d'auteur et la propriété intellectuelle qu'elle contient.",
+  media: "Partage de contenu et médias", mediaLede: "Indiquez où ONGIA peut utiliser chaque élément. Chaque ligne exige une réponse.",
+  photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Le résumé de votre présentation",
+  lastStep: (d) => `Dernière étape. À retourner d'ici le ${d}.`, addHeadshot: "Ajoutez votre photo portrait", tapReplace: "Touchez pour remplacer",
+  headshotHint: ".png ou .jpeg — servira à vous présenter et sur ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
+  standing: "Je confirme être actuellement en règle auprès de mon organisation et ne faire l'objet d'aucune procédure disciplinaire ni d'aucune enquête, de quelque nature que ce soit.",
+  agreed: "Ce nom tapé constitue ma signature électronique et les renseignements ci-dessus sont exacts.",
+  doneTitle: "Merci — c'est envoyé", doneP: "ONGIA a reçu votre entente. Il reste une étape de notre côté avant qu'elle soit définitive.",
+  received: "Vos réponses ont été reçues et horodatées", notified: (n) => `${n} et le conseil ont été avisés`,
+  reviewNext: "Un membre du conseil d'ONGIA l'examinera et confirmera les frais qu'ONGIA prendra en charge.",
+  finalNext: "Vous recevrez la copie finale signée par courriel une fois l'entente approuvée.", draftDue: (d) => `Version préliminaire du matériel attendue le ${d}`,
+  reference: (r) => `Référence ${r}`,
+  finalTitle: "Votre entente est définitive", finalP: (on, e) => `ONGIA l'a approuvée et signée${on ? " le " + on : ""}. Une copie a été envoyée à ${e}.`,
+  downloadPdf: "Télécharger le PDF signé", draftFor: (d) => `Version préliminaire du matériel pour révision d'ici le <b>${d}</b>`,
+  finalFor: (d) => `Version finale, prête pour la production, d'ici le <b>${d}</b>`, upload: "Téléverser votre matériel de présentation",
+  refQuestions: (r, n) => `Référence ${r} · Des questions? Répondez au courriel d'ONGIA ou communiquez avec ${n}.`,
+  notQuite: "Il manque quelque chose", back: "Retour", cont: "Continuer", submit: "Envoyer l'entente", sending: "Envoi…",
+  vName: "Veuillez indiquer votre prénom et votre nom.", vEmail: "Cette adresse courriel semble incorrecte.",
+  vTalk: "Veuillez indiquer le titre de la présentation.", vBio: "Veuillez ajouter une biographie.", vOutline: "Veuillez ajouter un plan de présentation.",
+  vTravel: "Indiquez si vous avez besoin qu'on organise votre transport.", vHotel: "Indiquez si vous avez besoin d'un hébergement.",
+  vBoth: (w) => `${w} : veuillez choisir les deux dates.`, vOrder: (w) => `${w} : la date de fin précède la date de début.`,
+  vWindow: (w, a, b) => `Les dates (${w.toLowerCase()}) doivent se situer entre le ${a} et le ${b}.`, travelWord: "Transport", hotelWord: "Hôtel",
+  vCovT: "Indiquez si votre organisation assume le transport.", vCovH: "Indiquez si votre organisation assume l'hébergement.",
+  vCovM: "Indiquez si votre organisation assume les repas.", vCovO: "Indiquez si votre organisation assume d'autres frais.",
+  vCopy: "Veuillez confirmer la déclaration sur le droit d'auteur.", vMedia: "Veuillez répondre à chaque ligne sur le partage de contenu.",
+  vStanding: "Veuillez confirmer que vous êtes en règle auprès de votre organisation.", vSign: "Veuillez taper votre nom pour signer.", vAgree: "Veuillez confirmer votre signature électronique.",
+  shotBig: "Votre photo dépasse 5 Mo et n'a pas été jointe — envoyez-la-nous par courriel.",
+  shotFail: "Vos réponses ont été reçues, mais la photo n'a pas pu être téléversée — envoyez-la-nous par courriel.",
+  netFail: "Impossible de joindre ONGIA — vérifiez votre connexion et réessayez.", generic: "Une erreur s'est produite. Veuillez réessayer.",
+  linkTitle: "Ce lien est incomplet", linkP: "Ouvrez le lien depuis votre courriel d'ONGIA ou demandez-nous de le renvoyer.",
+  openFail: "Impossible d'ouvrir cette entente", reachTitle: "Impossible de joindre ONGIA", reachP: "Vérifiez votre connexion et actualisez la page.",
+  loading: "Chargement de votre entente…", other: "English",
+  months: ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
+  mons: ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."], days: ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."],
+  dow: ["Di","Lu","Ma","Me","Je","Ve","Sa"], fmt: (dn, d, mo, y) => `${dn} ${d} ${mo} ${y}`,
+},
+};
+const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
+function setLang(l) {
+  LANG = l; try { localStorage.setItem("ongia-lang", l); } catch {}
+  document.documentElement.lang = l; LANGBTN.textContent = t("other");
+  if (DATA) { if (DATA.presenter.status === "approved") ROOT.innerHTML = finalMarkup(); else if (DONE) render(DONE); else render(); }
+}
+LANGBTN.textContent = t("other");
+LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
+
+const LAST_STEP = 5;
+let DATA = null, DONE = null;
 let sending = false;
 const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
@@ -203,10 +358,6 @@ const fullName = () => `${S.first} ${S.last}`.trim();
 const fileName = () => `${(S.last || "Surname").trim()}_Presenter Agreement.pdf`;
 
 /* ---------- dates ---------- */
-const MONL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const MONS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DOW  = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const PAIR  = { travelFrom: "travelTo", hotelFrom: "hotelTo" };
 const AFTER = { travelTo: "travelFrom", hotelTo: "hotelFrom" };
 const RANGE = { travelFrom:["travelFrom","travelTo"], travelTo:["travelFrom","travelTo"],
@@ -215,13 +366,13 @@ const RANGE = { travelFrom:["travelFrom","travelTo"], travelTo:["travelFrom","tr
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const parseISO = (v) => { if (!v) return null; const [y,m,d] = v.split("-").map(Number); return new Date(y, m-1, d); };
-const fmtDate = (v) => { const d = parseISO(v); return d ? `${DAYS[d.getDay()]} ${d.getDate()} ${MONS[d.getMonth()]} ${d.getFullYear()}` : ""; };
+const fmtDate = (v) => { const d = parseISO(v); return d ? t("fmt", t("days")[d.getDay()], d.getDate(), t("mons")[d.getMonth()], d.getFullYear()) : ""; };
 
 function dateField(id, label, key) {
   const val = S[key], open = S.openCal === key;
   let h = `<div class="field"><label for="${id}">${label}</label>
     <button type="button" class="datebtn" id="${id}" data-cal="${key}" aria-expanded="${open}">
-      <span class="dv${val ? "" : " empty"}">${val ? esc(fmtDate(val)) : "Choose a date"}</span>
+      <span class="dv${val ? "" : " empty"}">${val ? esc(fmtDate(val)) : t("chooseDate")}</span>
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" aria-hidden="true" style="opacity:.6">
         <rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 10h18"></path>
@@ -240,12 +391,12 @@ function calendar(key) {
   const total = new Date(y, m+1, 0).getDate();
   const r = RANGE[key] ?? [], a = r[0] ? S[r[0]] : null, b = r[1] ? S[r[1]] : null;
 
-  let h = `<div class="cal" role="group" aria-label="Choose a date"><div class="cal-top">
-    <button type="button" class="cal-nav" data-cal-move="-1" aria-label="Previous month">&#8249;</button>
-    <span class="m">${MONL[m]} ${y}</span>
-    <button type="button" class="cal-nav" data-cal-move="1" aria-label="Next month">&#8250;</button>
+  let h = `<div class="cal" role="group" aria-label="${t("chooseDate")}"><div class="cal-top">
+    <button type="button" class="cal-nav" data-cal-move="-1" aria-label="${t("prevMonth")}">&#8249;</button>
+    <span class="m">${t("months")[m]} ${y}</span>
+    <button type="button" class="cal-nav" data-cal-move="1" aria-label="${t("nextMonth")}">&#8250;</button>
     </div><div class="cal-grid">`;
-  for (const d of DOW) h += `<div class="dow">${d}</div>`;
+  for (const d of t("dow")) h += `<div class="dow">${d}</div>`;
   for (let i = 0; i < lead; i++) h += "<span></span>";
   for (let d = 1; d <= total; d++) {
     const iso = toISO(new Date(y, m, d));
@@ -256,8 +407,8 @@ function calendar(key) {
     h += `<button type="button" class="${cls}" data-cal-pick="${iso}"${blocked ? " disabled" : ""}
            aria-label="${esc(fmtDate(iso))}">${d}</button>`;
   }
-  return h + `</div><div class="cal-foot"><span>${min && min > win.from ? "On or after " + esc(fmtDate(min)) : esc(fmtDate(win.from)) + " – " + esc(fmtDate(win.to))}</span>
-    <button type="button" class="btn btn-ghost" style="padding:7px 15px;font-size:13.5px" data-cal-close="1">Done</button>
+  return h + `</div><div class="cal-foot"><span>${min && min > win.from ? esc(t("onOrAfter", fmtDate(min))) : esc(fmtDate(win.from)) + " – " + esc(fmtDate(win.to))}</span>
+    <button type="button" class="btn btn-ghost" style="padding:7px 15px;font-size:13.5px" data-cal-close="1">${t("done")}</button>
     </div></div>`;
 }
 
@@ -268,134 +419,127 @@ function seg(key, opts, path) {
     `<button type="button" data-set="${key}" data-val="${o.v}"${path ? ` data-path="${path.join(".")}"` : ""}
       aria-pressed="${current === o.v}">${o.t}</button>`).join("") + `</div>`;
 }
-const YESNO = [{ v:"yes", t:"Yes" }, { v:"no", t:"No" }];
+const YESNO = () => [{ v:"yes", t:t("yes") }, { v:"no", t:t("no") }];
 
 function consentRow(label, row) {
   return `<div class="consent"><h3>${label}</h3>
-    <div class="surface"><span class="sname">Inside ONGIA<br>(paid members only)</span>
-      ${seg("media", YESNO, ["media", row, "internal"])}</div>
-    <div class="surface"><span class="sname">Social media &amp;<br>public platforms</span>
-      ${seg("media", YESNO, ["media", row, "public"])}</div></div>`;
+    <div class="surface"><span class="sname">${t("inside")}</span>
+      ${seg("media", YESNO(), ["media", row, "internal"])}</div>
+    <div class="surface"><span class="sname">${t("social")}</span>
+      ${seg("media", YESNO(), ["media", row, "public"])}</div></div>`;
 }
 
 /* ---------- steps ---------- */
 function stepMarkup() {
   const ev = DATA.event;
+  const dl = ev.deadlinesIso;
   switch (S.step) {
-    case 0: return `${DATA.presenter.returnNote ? `<div class="problems" style="margin:0 0 14px"><b>ONGIA sent this back with a note</b>
+    case 0: return `${DATA.presenter.returnNote ? `<div class="problems" style="margin:0 0 14px"><b>${t("returnedTitle")}</b>
         <p style="margin:6px 0 0">${esc(DATA.presenter.returnNote)}</p>
-        <p style="margin:6px 0 0;font-size:13px">Your answers are saved — adjust what's needed and sign again.</p></div>` : ""}<div class="card">
-      <h2>You're presenting at ${esc(ev.title)}</h2>
-      <p class="lede">Hello ${esc(S.first)}. Everything below is already set by ONGIA — read it over, then six short questions.</p>
+        <p style="margin:6px 0 0;font-size:13px">${t("returnedHint")}</p></div>` : ""}<div class="card">
+      <h2>${t("presentingAt", esc(ev.title))}</h2>
+      <p class="lede">${t("hello", esc(S.first))}</p>
       <dl class="facts">
-        <div class="fact"><dt>City</dt><dd>${esc(ev.city)}</dd></div>
-        ${ev.venue ? `<div class="fact"><dt>Venue</dt><dd>${esc(ev.venue)}</dd></div>` : ""}
-        <div class="fact"><dt>Training begins</dt><dd>${esc(ev.dayOne)}</dd></div>
-        <div class="fact"><dt>Length</dt><dd>${ev.sessionMinutes} minutes</dd></div>
+        <div class="fact"><dt>${t("city")}</dt><dd>${esc(ev.city)}</dd></div>
+        ${ev.venue ? `<div class="fact"><dt>${t("venue")}</dt><dd>${esc(ev.venue)}</dd></div>` : ""}
+        <div class="fact"><dt>${t("begins")}</dt><dd>${esc(fmtDate(ev.dayOneIso))}</dd></div>
+        <div class="fact"><dt>${t("length")}</dt><dd>${t("minutes", ev.sessionMinutes)}</dd></div>
       </dl>
-      <div class="flag"><span>🗓️</span><div><strong>Two dates to keep</strong>
-        <p>Draft materials for review by <strong>${esc(ev.deadlines.draft)}</strong>.
-           Final, production-ready materials by <strong>${esc(ev.deadlines.final)}</strong>.</p></div></div>
-      ${ev.contact?.name ? `<p class="hint">Questions? ${esc(ev.contact.name)}${ev.contact.email ? " · " + esc(ev.contact.email) : ""}</p>` : ""}
+      <div class="flag"><span>🗓️</span><div><strong>${t("twoDates")}</strong>
+        <p>${t("draftFinal", esc(fmtDate(dl.draft)), esc(fmtDate(dl.final)))}</p></div></div>
+      ${ev.contact?.name ? `<p class="hint">${t("questions")} ${esc(ev.contact.name)}${ev.contact.email ? " · " + esc(ev.contact.email) : ""}</p>` : ""}
       </div>`;
 
-    case 1: return `<div class="card"><h2>About you</h2>
-      <p class="lede">This is how you'll be introduced on the day.</p>
+    case 1: return `<div class="card"><h2>${t("titles")[1]}</h2>
+      <p class="lede">${t("introduced")}</p>
       <div class="row2">
-        <div class="field"><label for="f-first">First name</label><input id="f-first" type="text" data-bind="first" value="${esc(S.first)}" autocomplete="given-name"></div>
-        <div class="field"><label for="f-last">Last name</label><input id="f-last" type="text" data-bind="last" value="${esc(S.last)}" autocomplete="family-name"></div>
+        <div class="field"><label for="f-first">${t("first")}</label><input id="f-first" type="text" data-bind="first" value="${esc(S.first)}" autocomplete="given-name"></div>
+        <div class="field"><label for="f-last">${t("last")}</label><input id="f-last" type="text" data-bind="last" value="${esc(S.last)}" autocomplete="family-name"></div>
       </div>
-      <p class="hint" id="fnhint">Your agreement will be filed as <b>${esc(fileName())}</b></p>
+      <p class="hint" id="fnhint">${t("filedAs", esc(fileName()))}</p>
       <div class="row2">
-        <div class="field"><label for="f-phone">Contact number</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel"></div>
-        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" data-bind="email" value="${esc(S.email)}" autocomplete="email"></div>
+        <div class="field"><label for="f-phone">${t("phone")}</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel"></div>
+        <div class="field"><label for="f-email">${t("email")}</label><input id="f-email" type="email" data-bind="email" value="${esc(S.email)}" autocomplete="email"></div>
       </div>
-      <div class="field"><label for="f-org">Organization</label><input id="f-org" type="text" data-bind="organization" value="${esc(S.organization)}" autocomplete="organization"></div>
+      <div class="field"><label for="f-org">${t("org")}</label><input id="f-org" type="text" data-bind="organization" value="${esc(S.organization)}" autocomplete="organization"></div>
       </div>`;
 
     case 2: {
       const w = words(S.bio);
-      return `<div class="card"><h2>Your session</h2>
-      <div class="field"><label for="f-talk">Presentation title</label><input id="f-talk" type="text" data-bind="talk" value="${esc(S.talk)}"></div>
-      <div class="field"><label for="f-bio">Biography</label>
+      return `<div class="card"><h2>${t("titles")[2]}</h2>
+      <div class="field"><label for="f-talk">${t("talkTitle")}</label><input id="f-talk" type="text" data-bind="talk" value="${esc(S.talk)}"></div>
+      <div class="field"><label for="f-bio">${t("bio")}</label>
         <textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
-        <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${w} words — aim for 250 to 300. Used to introduce you at the event.</p></div>
-      <div class="field"><label for="f-outline">Presentation outline</label>
+        <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${t("bioCount", w)}</p></div>
+      <div class="field"><label for="f-outline">${t("outline")}</label>
         <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
-        <p class="hint">What you'll cover, in a short paragraph.</p></div>
+        <p class="hint">${t("outlineHint")}</p></div>
       </div>`;
     }
 
     case 3: {
-      let h = `<div class="card"><h2>Travel &amp; costs</h2>
-        <p class="lede">Tell us what you need arranged for the training event. Dates can run from the day before
-          training to the day after — <b>${esc(fmtDate(ev.travelWindow.from))}</b> to <b>${esc(fmtDate(ev.travelWindow.to))}</b>.
-          ONGIA confirms the final dates when your agreement is approved.</p>
-        <div class="qblock"><p class="qtext">Will you need travel arranged?</p>${seg("travel", YESNO)}</div>`;
-      if (S.travel === "yes") h += dateField("f-tf", "Arriving", "travelFrom") + dateField("f-tt", "Departing", "travelTo");
-      h += `<div class="qblock"><p class="qtext">Will you need hotel accommodation?</p>${seg("hotel", YESNO)}</div>`;
-      if (S.hotel === "yes") h += dateField("f-hf", "Check in", "hotelFrom") + dateField("f-ht", "Check out", "hotelTo");
+      let h = `<div class="card"><h2>${t("titles")[3]}</h2>
+        <p class="lede">${t("travelLede", esc(fmtDate(ev.travelWindow.from)), esc(fmtDate(ev.travelWindow.to)))}</p>
+        <div class="qblock"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`;
+      if (S.travel === "yes") h += dateField("f-tf", t("arriving"), "travelFrom") + dateField("f-tt", t("departing"), "travelTo");
+      h += `<div class="qblock"><p class="qtext">${t("needHotel")}</p>${seg("hotel", YESNO())}</div>`;
+      if (S.hotel === "yes") h += dateField("f-hf", t("checkin"), "hotelFrom") + dateField("f-ht", t("checkout"), "hotelTo");
       h += `</div>`;
 
-      h += `<div class="card"><h2>Shared expenses</h2>
-        <p class="blurb">ONGIA is a non-profit, and we look for opportunities to share the cost of presenter
-          attendance with the presenter's home agency. Where an agency is able to contribute, it allows ONGIA
-          to keep the training affordable and put more of the budget back into the program.</p>
-        <p class="blurb">Please tell us which of these your agency would cover while you are at the training event.</p>
-        <div class="qblock"><p class="qtext">Is your agency covering the cost of transportation (ground or air)?</p>
-          ${seg("expenses", YESNO, ["expenses", "transport"])}</div>`;
+      h += `<div class="card"><h2>${t("shared")}</h2>
+        <p class="blurb">${t("blurb1")}</p>
+        <p class="blurb">${t("blurb2")}</p>
+        <div class="qblock"><p class="qtext">${t("covTransport")}</p>
+          ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`;
       if (S.hotel === "yes") {
-        h += `<div class="qblock"><p class="qtext">Is your agency covering the cost of hotel accommodation?</p>
-          ${seg("expenses", YESNO, ["expenses", "hotel"])}</div>`;
+        h += `<div class="qblock"><p class="qtext">${t("covHotel")}</p>
+          ${seg("expenses", YESNO(), ["expenses", "hotel"])}</div>`;
       } else {
-        h += `<div class="qblock"><p class="qtext">Hotel accommodation</p>
-          <p class="hint">Skipped — you said you don't need a hotel.</p></div>`;
+        h += `<div class="qblock"><p class="qtext">${t("hotelTitle")}</p>
+          <p class="hint">${t("hotelSkipped")}</p></div>`;
       }
-      h += `<div class="qblock"><p class="qtext">Is your agency covering the cost of meals?</p>
-          ${seg("expenses", YESNO, ["expenses", "meals"])}
-          <p class="hint">Meal claims need a receipt or declaration. Maximums follow the Treasury Board of Canada directive.</p></div>
-        <div class="qblock"><p class="qtext">Is there any other cost your agency is covering?</p>
-          ${seg("expenses", YESNO, ["expenses", "other"])}`;
+      h += `<div class="qblock"><p class="qtext">${t("covMeals")}</p>
+          ${seg("expenses", YESNO(), ["expenses", "meals"])}
+          <p class="hint">${t("mealsHint")}</p></div>
+        <div class="qblock"><p class="qtext">${t("covOther")}</p>
+          ${seg("expenses", YESNO(), ["expenses", "other"])}`;
       if (S.expenses.other === "yes") {
-        h += `<div class="field"><label for="f-other">What is it?</label>
-          <input id="f-other" type="text" data-bind="expenses.otherText" value="${esc(S.expenses.otherText)}" placeholder="e.g. parking, checked baggage"></div>`;
+        h += `<div class="field"><label for="f-other">${t("whatIsIt")}</label>
+          <input id="f-other" type="text" data-bind="expenses.otherText" value="${esc(S.expenses.otherText)}" placeholder="${t("otherPh")}"></div>`;
       }
       h += `</div>
-        <div class="covers">Anything your agency is not covering goes to ONGIA for review. The board decides
-          what ONGIA covers, and your final copy will confirm it. Answering &ldquo;no&rdquo; does not affect
-          your invitation to present.</div></div>`;
+        <div class="covers">${t("covers")}</div></div>`;
       return h;
     }
 
-    case 4: return `<div class="card"><h2>Permissions</h2>
-      <p class="lede">Two things ONGIA needs in writing.</p>
+    case 4: return `<div class="card"><h2>${t("titles")[4]}</h2>
+      <p class="lede">${t("twoThings")}</p>
       <label class="attest" for="f-copy" style="margin-top:15px">
         <input id="f-copy" type="checkbox" data-bind="copyright"${S.copyright ? " checked" : ""}>
-        <span>The presentation is my own work, or I have obtained every permission needed to use the
-          copyrighted material and intellectual property in it.</span></label></div>
-      <div class="card"><h2>Media &amp; content sharing</h2>
-      <p class="lede">Tell us where ONGIA may use each item. Every line needs an answer.</p>
-      ${consentRow("Photographs of you", "photo")}
-      ${consentRow("Your presentation materials", "materials")}
-      ${consentRow("Your presentation summary", "summary")}</div>`;
+        <span>${t("copyright")}</span></label></div>
+      <div class="card"><h2>${t("media")}</h2>
+      <p class="lede">${t("mediaLede")}</p>
+      ${consentRow(t("photos"), "photo")}
+      ${consentRow(t("materials"), "materials")}
+      ${consentRow(t("summary"), "summary")}</div>`;
 
-    case 5: return `<div class="card"><h2>Sign &amp; send</h2>
-      <p class="lede">Last step. Due back by ${esc(DATA.event.deadlines.agreement)}.</p>
+    case 5: return `<div class="card"><h2>${t("titles")[5]}</h2>
+      <p class="lede">${t("lastStep", esc(fmtDate(dl.agreement)))}</p>
       <label class="upload" for="f-shot">
         <div class="big">${S.headshotName ? "✅" : "📷"}</div>
-        <div class="t">${S.headshotName ? esc(S.headshotName) : "Add your headshot"}</div>
-        <div class="s">${S.headshotName ? "Tap to replace" : ".png or .jpeg — used to introduce you and on ongia.ca"}</div>
+        <div class="t">${S.headshotName ? esc(S.headshotName) : t("addHeadshot")}</div>
+        <div class="s">${S.headshotName ? t("tapReplace") : t("headshotHint")}</div>
         <input id="f-shot" type="file" accept="image/png,image/jpeg"></label>
-      <div class="field"><label for="f-sign">Type your full name to sign</label>
+      <div class="field"><label for="f-sign">${t("typeName")}</label>
         <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
       <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
-        <div class="meta"><span>Electronic signature</span><span>${esc(fmtDate(toISO(new Date())))}</span></div></div>
+        <div class="meta"><span>${t("eSig")}</span><span>${esc(fmtDate(toISO(new Date())))}</span></div></div>
       <label class="attest" for="f-standing" style="margin-top:14px">
         <input id="f-standing" type="checkbox" data-bind="goodStanding"${S.goodStanding ? " checked" : ""}>
-        <span>I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.</span></label>
+        <span>${t("standing")}</span></label>
       <label class="attest" for="f-agree" style="margin-top:10px">
         <input id="f-agree" type="checkbox" data-bind="agreed"${S.agreed ? " checked" : ""}>
-        <span>This typed name is my electronic signature, and the information above is accurate.</span></label>
+        <span>${t("agreed")}</span></label>
       </div>`;
 
     default: return "";
@@ -404,56 +548,57 @@ function stepMarkup() {
 
 function doneMarkup(result) {
   return `<div class="card done-screen"><div class="tick">✓</div>
-    <h2>Thank you — that's submitted</h2>
-    <p>ONGIA has your agreement. One more step happens on our side before it's final.</p>
+    <h2>${t("doneTitle")}</h2>
+    <p>${t("doneP")}</p>
     <div class="done-list">
-      <div><b>✓</b><span>Your answers were received and time-stamped</span></div>
-      <div><b>✓</b><span>${esc(DATA.event.contact?.name || "ONGIA")} and the board were notified</span></div>
-      <div><b>→</b><span>${esc(result.next.review)}</span></div>
-      <div><b>→</b><span>${esc(result.next.finalCopy)}</span></div>
-      <div><b>→</b><span>Draft materials due ${esc(result.next.draftMaterials)}</span></div>
-      ${result.headshotWarning ? `<div><b style="color:var(--late)">!</b><span>${esc(result.headshotWarning)}</span></div>` : ""}
+      <div><b>✓</b><span>${t("received")}</span></div>
+      <div><b>✓</b><span>${t("notified", esc(DATA.event.contact?.name || "ONGIA"))}</span></div>
+      <div><b>→</b><span>${t("reviewNext")}</span></div>
+      <div><b>→</b><span>${t("finalNext")}</span></div>
+      <div><b>→</b><span>${t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>
+      ${result.headshotWarning ? `<div><b style="color:var(--late)">!</b><span>${esc(t(result.headshotWarning))}</span></div>` : ""}
     </div>
-    <p class="ref">Reference ${esc(result.reference)}</p></div>`;
+    <p class="ref">${t("reference", esc(result.reference))}</p></div>`;
 }
 
 /** Once a board member has approved, the link becomes the place to get the final copy. */
 function finalMarkup() {
-  const ev = DATA.event, me = DATA.presenter;
+  const ev = DATA.event, me = DATA.presenter, dl = ev.deadlinesIso;
   return `<div class="wrap"><div class="card done-screen"><div class="tick">✓</div>
-    <h2>Your agreement is final</h2>
-    <p>ONGIA approved and signed it${me.approvedAt ? " on " + esc(fmtDate(me.approvedAt.slice(0, 10))) : ""}. A copy was emailed to ${esc(me.email)}.</p>
+    <h2>${t("finalTitle")}</h2>
+    <p>${t("finalP", me.approvedAt ? esc(fmtDate(me.approvedAt.slice(0, 10))) : "", esc(me.email))}</p>
     <div class="done-list">
-      <div><b>↓</b><span><a href="/api/download?t=${encodeURIComponent(TOKEN)}">Download the signed PDF</a></span></div>
-      <div><b>→</b><span>Draft materials for review by <b>${esc(ev.deadlines.draft)}</b></span></div>
-      <div><b>→</b><span>Final, production-ready materials by <b>${esc(ev.deadlines.final)}</b></span></div>
-      ${ev.materialsUploadUrl ? `<div><b>↑</b><span><a href="${esc(ev.materialsUploadUrl)}">Upload your presentation materials</a></span></div>` : ""}
+      <div><b>↓</b><span><a href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a></span></div>
+      <div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
+      <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
+      ${ev.materialsUploadUrl ? `<div><b>↑</b><span><a href="${esc(ev.materialsUploadUrl)}">${t("upload")}</a></span></div>` : ""}
     </div>
-    <p class="ref">Reference ${esc(me.reference)} · Questions? Reply to your ONGIA email or contact ${esc(ev.contact?.name || "ONGIA")}.</p></div></div>`;
+    <p class="ref">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
 }
 
 /* ---------- render ---------- */
 let lastStep = null;
 function render(done) {
   if (done) {
+    DONE = done;
     ROOT.innerHTML = `<div class="wrap">${doneMarkup(done)}</div>`;
-    STEPCOUNT.textContent = "Submitted";
+    STEPCOUNT.textContent = t("submitted");
     window.scrollTo(0, 0);
     return;
   }
   const bars = Array.from({ length: 6 }, (_, i) =>
     `<i class="${i < S.step ? "done" : i === S.step ? "on" : ""}"></i>`).join("");
   const problems = S.problems.length
-    ? `<div class="problems"><b>Not quite there</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
+    ? `<div class="problems"><b>${t("notQuite")}</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
     : "";
   const nav = `<div class="nav">
-      ${S.step > 0 ? `<button type="button" class="btn btn-ghost" id="back">Back</button>` : ""}
+      ${S.step > 0 ? `<button type="button" class="btn btn-ghost" id="back">${t("back")}</button>` : ""}
       <button type="button" class="btn ${S.step === LAST_STEP ? "btn-gold" : "btn-primary"}" id="next"${sending ? " disabled" : ""}>
-        ${sending ? "Sending…" : S.step === LAST_STEP ? "Submit agreement" : "Continue"}</button></div>`;
+        ${sending ? t("sending") : S.step === LAST_STEP ? t("submit") : t("cont")}</button></div>`;
 
   const keep = lastStep === S.step ? window.scrollY : null;
   ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${stepMarkup()}${problems}${nav}</div>`;
-  STEPCOUNT.textContent = `Step ${S.step + 1} of 6`;
+  STEPCOUNT.textContent = t("stepOf", S.step + 1);
   if (keep !== null) window.scrollTo(0, keep); else window.scrollTo(0, 0);
   lastStep = S.step;
 
@@ -470,59 +615,60 @@ function render(done) {
 function validate() {
   const out = [];
   if (S.step === 1) {
-    if (!S.first.trim() || !S.last.trim()) out.push("Please add your first and last name.");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) out.push("That email address doesn't look right.");
+    if (!S.first.trim() || !S.last.trim()) out.push(t("vName"));
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) out.push(t("vEmail"));
   }
   if (S.step === 2) {
-    if (!S.talk.trim()) out.push("Please add a presentation title.");
-    if (words(S.bio) < 20) out.push("Please add a biography.");
-    if (!S.outline.trim()) out.push("Please add a presentation outline.");
+    if (!S.talk.trim()) out.push(t("vTalk"));
+    if (words(S.bio) < 20) out.push(t("vBio"));
+    if (!S.outline.trim()) out.push(t("vOutline"));
   }
   if (S.step === 3) {
-    if (!S.travel) out.push("Tell us whether you need travel arranged.");
-    if (!S.hotel) out.push("Tell us whether you need hotel accommodation.");
+    if (!S.travel) out.push(t("vTravel"));
+    if (!S.hotel) out.push(t("vHotel"));
     const win = DATA.event.travelWindow;
     const check = (on, from, to, what) => {
       if (!on) return;
-      if (!from || !to) out.push(`${what}: please choose both dates.`);
-      else if (to < from) out.push(`${what}: the end date is before the start date.`);
-      else if (from < win.from || to > win.to) out.push(`${what} dates must fall between ${fmtDate(win.from)} and ${fmtDate(win.to)}.`);
+      if (!from || !to) out.push(t("vBoth", what));
+      else if (to < from) out.push(t("vOrder", what));
+      else if (from < win.from || to > win.to) out.push(t("vWindow", what, fmtDate(win.from), fmtDate(win.to)));
     };
-    check(S.travel === "yes", S.travelFrom, S.travelTo, "Travel");
-    check(S.hotel === "yes", S.hotelFrom, S.hotelTo, "Hotel");
-    if (!S.expenses.transport) out.push("Tell us whether your agency covers transportation.");
-    if (S.hotel === "yes" && !S.expenses.hotel) out.push("Tell us whether your agency covers accommodation.");
-    if (!S.expenses.meals) out.push("Tell us whether your agency covers meals.");
-    if (!S.expenses.other) out.push("Tell us whether your agency covers any other cost.");
+    check(S.travel === "yes", S.travelFrom, S.travelTo, t("travelWord"));
+    check(S.hotel === "yes", S.hotelFrom, S.hotelTo, t("hotelWord"));
+    if (!S.expenses.transport) out.push(t("vCovT"));
+    if (S.hotel === "yes" && !S.expenses.hotel) out.push(t("vCovH"));
+    if (!S.expenses.meals) out.push(t("vCovM"));
+    if (!S.expenses.other) out.push(t("vCovO"));
   }
   if (S.step === 4) {
-    if (!S.copyright) out.push("Please confirm the copyright statement.");
+    if (!S.copyright) out.push(t("vCopy"));
     for (const row of ["photo", "materials", "summary"])
       for (const s of ["internal", "public"])
-        if (!S.media[row]?.[s]) { out.push("Please answer every media-sharing line."); break; }
+        if (!S.media[row]?.[s]) { out.push(t("vMedia")); break; }
   }
   if (S.step === 5) {
-    if (!S.goodStanding) out.push("Please confirm you are in good standing with your agency.");
-    if (!S.signature.trim()) out.push("Please type your name to sign.");
-    if (!S.agreed) out.push("Please confirm your electronic signature.");
+    if (!S.goodStanding) out.push(t("vStanding"));
+    if (!S.signature.trim()) out.push(t("vSign"));
+    if (!S.agreed) out.push(t("vAgree"));
   }
   return [...new Set(out)];
 }
 
 let FILE = null;
+// Returns a translation key so the warning follows a later language switch.
 async function uploadHeadshot() {
   if (!FILE) return null;
-  if (FILE.size > 5 * 1024 * 1024) return "Your headshot is over 5 MB, so it wasn't attached — email it to us instead.";
+  if (FILE.size > 5 * 1024 * 1024) return "shotBig";
   try {
     const res = await fetch(`/api/headshot?t=${encodeURIComponent(TOKEN)}`, {
       method: "POST",
       headers: { "content-type": FILE.type || "image/jpeg", "x-file-name": encodeURIComponent(FILE.name) },
       body: FILE,
     });
-    if (!res.ok) return "Your answers went through, but the headshot didn't upload — email it to us instead.";
+    if (!res.ok) return "shotFail";
     FILE = null;
     return null;
-  } catch { return "Your answers went through, but the headshot didn't upload — email it to us instead."; }
+  } catch { return "shotFail"; }
 }
 
 async function submit() {
@@ -531,16 +677,16 @@ async function submit() {
     const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...S, headshotName: S.headshotName }),
+      body: JSON.stringify({ ...S, headshotName: S.headshotName, language: LANG }),
     });
     const out = await res.json();
     if (res.ok) { out.headshotWarning = await uploadHeadshot(); sending = false; render(out); return; }
     sending = false;
-    S.problems = out.problems ?? [out.error ?? "Something went wrong. Please try again."];
+    S.problems = out.problems ?? [out.error ?? t("generic")];
     render();
   } catch {
     sending = false;
-    S.problems = ["Couldn't reach ONGIA — check your connection and try again."];
+    S.problems = [t("netFail")];
     render();
   }
 }
@@ -550,24 +696,29 @@ ROOT.addEventListener("click", (e) => {
   const set = e.target.closest("[data-set]");
   if (set) {
     const path = set.dataset.path;
+    const value = set.dataset.val;
     if (path) {
       const keys = path.split(".");
       let node = S;
       for (const k of keys.slice(0, -1)) node = node[k] ??= {};
-      node[keys.at(-1)] = set.dataset.val;
-    } else S[set.dataset.set] = set.dataset.val;
-    render(); return;
+      node[keys.at(-1)] = value;
+    } else S[set.dataset.set] = value;
+    if (set.dataset.set === "hotel" && value === "no") { S.hotelFrom = ""; S.hotelTo = ""; S.expenses.hotel = null; }
+    if (set.dataset.set === "travel" && value === "no") { S.travelFrom = ""; S.travelTo = ""; }
+    S.problems = [];
+    render();
+    return;
   }
   const cal = e.target.closest("[data-cal]");
   if (cal) { const k = cal.dataset.cal; S.openCal = S.openCal === k ? null : k; S.calMonth = null; render(); return; }
-  const mv = e.target.closest("[data-cal-move]");
-  if (mv) {
+  const move = e.target.closest("[data-cal-move]");
+  if (move) {
     const base = S.calMonth || ((S[S.openCal] || DATA.event.travelWindow.from).slice(0,7) + "-01");
-    const d = parseISO(base); d.setMonth(d.getMonth() + Number(mv.dataset.calMove));
+    const d = parseISO(base); d.setMonth(d.getMonth() + Number(move.dataset.calMove));
     S.calMonth = toISO(d); render(); return;
   }
   const pick = e.target.closest("[data-cal-pick]");
-  if (pick) {
+  if (pick && !pick.disabled) {
     const field = S.openCal, iso = pick.dataset.calPick;
     S[field] = iso;
     const mate = PAIR[field];
@@ -575,9 +726,9 @@ ROOT.addEventListener("click", (e) => {
     S.openCal = null; S.calMonth = null; render(); return;
   }
   if (e.target.closest("[data-cal-close]")) { S.openCal = null; S.calMonth = null; render(); return; }
-  if (e.target.closest("#back")) { S.problems = []; S.step--; render(); return; }
-  if (e.target.closest("#next")) {
-    if (sending) return;
+
+  if (e.target.id === "back") { S.problems = []; S.step = Math.max(0, S.step - 1); render(); return; }
+  if (e.target.id === "next") {
     const problems = validate();
     if (problems.length) { S.problems = problems; render(); return; }
     S.problems = [];
@@ -587,11 +738,11 @@ ROOT.addEventListener("click", (e) => {
 });
 
 ROOT.addEventListener("input", (e) => {
-  const t = e.target;
-  if (t.id === "f-shot") { FILE = t.files?.[0] ?? null; S.headshotName = FILE?.name ?? ""; render(); return; }
-  const bind = t.dataset?.bind;
+  const t0 = e.target;
+  if (t0.id === "f-shot") { FILE = t0.files?.[0] ?? null; S.headshotName = FILE?.name ?? ""; render(); return; }
+  const bind = t0.dataset?.bind;
   if (!bind) return;
-  const value = t.type === "checkbox" ? t.checked : t.value;
+  const value = t0.type === "checkbox" ? t0.checked : t0.value;
   if (bind.includes(".")) {
     const keys = bind.split(".");
     let node = S;
@@ -601,17 +752,17 @@ ROOT.addEventListener("input", (e) => {
 
   if (bind === "first" || bind === "last") {
     const h = document.getElementById("fnhint");
-    if (h) h.innerHTML = `Your agreement will be filed as <b>${esc(fileName())}</b>`;
+    if (h) h.innerHTML = t("filedAs", esc(fileName()));
   }
   if (bind === "signature") {
     const sl = document.getElementById("sigline");
-    if (sl) sl.textContent = t.value || " ";
+    if (sl) sl.textContent = t0.value || " ";
   }
-  if (t.dataset.count) {
+  if (t0.dataset.count) {
     const c = document.getElementById("biocount");
     if (c) {
-      const n = words(t.value);
-      c.textContent = `${n} words — aim for 250 to 300. Used to introduce you at the event.`;
+      const n = words(t0.value);
+      c.textContent = t("bioCount", n);
       c.className = "hint" + (n >= 250 && n <= 300 ? " ok" : "");
     }
   }
@@ -623,19 +774,22 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- boot ---------- */
 (async function boot() {
+  document.documentElement.lang = LANG;
+  ROOT.innerHTML = `<p class="loading">${t("loading")}</p>`;
   if (!TOKEN) {
-    ROOT.innerHTML = `<div class="oops"><h2>This link is incomplete</h2>
-      <p>Open the link from your ONGIA email, or ask us to send it again.</p></div>`;
+    ROOT.innerHTML = `<div class="oops"><h2>${t("linkTitle")}</h2><p>${t("linkP")}</p></div>`;
     return;
   }
   try {
     const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}`);
     const out = await res.json();
     if (!res.ok) {
-      ROOT.innerHTML = `<div class="oops"><h2>We couldn't open this agreement</h2><p>${esc(out.error)}</p></div>`;
+      ROOT.innerHTML = `<div class="oops"><h2>${t("openFail")}</h2><p>${esc(out.error)}</p></div>`;
       return;
     }
     DATA = out;
+    let remembered = null; try { remembered = localStorage.getItem("ongia-lang"); } catch {}
+    if (out.presenter.language && !remembered) setLang(out.presenter.language);
     if (out.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); return; }
     Object.assign(S, {
       first: out.presenter.first ?? "",
@@ -656,8 +810,7 @@ document.addEventListener("keydown", (e) => {
     }
     render();
   } catch {
-    ROOT.innerHTML = `<div class="oops"><h2>We couldn't reach ONGIA</h2>
-      <p>Check your connection and refresh the page.</p></div>`;
+    ROOT.innerHTML = `<div class="oops"><h2>${t("reachTitle")}</h2><p>${t("reachP")}</p></div>`;
   }
 })();
 </script>

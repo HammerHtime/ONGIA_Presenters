@@ -15,7 +15,7 @@
  * dashboard says what didn't go.
  */
 import { graphAccessToken, graphConfigured } from "./graph.mjs";
-import { formatDate } from "./deadlines.mjs";
+import { formatDate, formatDateIn, formatDateFr } from "./deadlines.mjs";
 
 const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
 const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
@@ -113,29 +113,60 @@ export function layout({ heading, lines, button, footer }) {
 const plain = (heading, lines, href) =>
   [heading, "", ...lines.map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : ""].join("\n");
 
-/** The message a presenter gets with their link — and, with `remind`, the chase-up. */
+/**
+ * The message a presenter gets with their link — and, with `remind`, the chase-up.
+ * Bilingual: it goes out before the presenter has told us which language they
+ * work in, so English comes first and French follows. The form itself has a
+ * switch, and everything after that follows their choice.
+ */
 export function invitationMail({ event, presenter, link, remind }) {
+  const d = event.deadlines;
+  const fr = (iso) => esc(formatDateFr(iso));
   const heading = remind
-    ? `Reminder: your ONGIA presenter agreement is due ${event.deadlinesReadable.agreement}`
-    : `Your ONGIA presenter agreement — ${event.title}`;
+    ? `Reminder: your ONGIA presenter agreement is due ${event.deadlinesReadable.agreement} / Rappel : votre entente de conférencier ONGIA est attendue le ${formatDateFr(d.agreement)}`
+    : `Your ONGIA presenter agreement — ${event.title} / Votre entente de conférencier ONGIA`;
   const lines = [
     `Hello ${esc(presenter.first)},`,
     remind
       ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}). It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.`
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
-    `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form saves your details, asks about travel and which costs your agency is covering, and you sign by typing your name.`,
+    `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form saves your details, asks about travel and which costs your agency is covering, and you sign by typing your name. It's available in English and French.`,
     `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`,
+    `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
+    `Bonjour ${esc(presenter.first)},`,
+    remind
+      ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}). Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.`
+      : `Merci de présenter à <b>${esc(event.title)}</b> à ${esc(event.city)}, le ${fr(event.dayOne)}. Avant l'événement, nous avons besoin de votre entente de conférencier — une dizaine de minutes sur un téléphone, rien à imprimer ni à numériser.`,
+    `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.`,
+    `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`,
   ];
-  const footer = `Questions? Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}.`;
+  const footer = `Questions? Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}. / Des questions? Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.`;
   return {
     subject: heading,
-    html: layout({ heading, lines, button: { label: "Open my agreement", href: link }, footer }),
+    html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link }, footer }),
     text: plain(heading, lines, link),
   };
 }
 
 /** Sent to the presenter with the signed final copy attached. */
 export function finalCopyMail({ event, presenter, approval, coverage }) {
+  const lang = presenter.language === "fr" ? "fr" : "en";
+  const d = event.deadlines;
+  const f = (iso) => esc(formatDateIn(iso, lang));
+  const up = event.materialsUploadUrl ? `<a href="${esc(event.materialsUploadUrl)}">${esc(event.materialsUploadUrl)}</a>` : "";
+  if (lang === "fr") {
+    const heading = `Votre entente de conférencier signée — ${event.title}`;
+    const covered = coverage.length ? coverage.map(frCost).join(", ") : "aucuns frais (votre organisation les assume)";
+    const lines = [
+      `Bonjour ${esc(presenter.first)},`,
+      `${esc(approval.name)} a examiné et approuvé votre entente de conférencier pour <b>${esc(event.title)}</b>. La copie finale signée est jointe pour vos dossiers (le document officiel est en anglais).`,
+      `ONGIA prend en charge : <b>${esc(covered)}</b>.`,
+      describeDates(presenter, "fr"),
+      `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
+      `Référence ${esc(presenter.reference)}.`,
+    ];
+    return { subject: heading, html: layout({ heading, lines, footer: `Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.` }), text: plain(heading, lines) };
+  }
   const heading = `Your signed presenter agreement — ${event.title}`;
   const covered = coverage.length ? coverage.join(", ") : "no costs (your agency is covering them)";
   const lines = [
@@ -143,8 +174,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
     `${esc(approval.name)} has reviewed and approved your presenter agreement for <b>${esc(event.title)}</b>. The signed final copy is attached for your records.`,
     `ONGIA will cover: <b>${esc(covered)}</b>.`,
     describeDates(presenter),
-    `Next dates: draft materials by <b>${esc(event.deadlinesReadable.draft)}</b>; final, production-ready materials by <b>${esc(event.deadlinesReadable.final)}</b>.` +
-      (event.materialsUploadUrl ? ` Upload them here: <a href="${esc(event.materialsUploadUrl)}">${esc(event.materialsUploadUrl)}</a>` : ""),
+    `Next dates: draft materials by <b>${f(d.draft)}</b>; final, production-ready materials by <b>${f(d.final)}</b>.` + (up ? ` Upload them here: ${up}` : ""),
     `Reference ${esc(presenter.reference)}.`,
   ];
   return {
@@ -153,6 +183,8 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
     text: plain(heading, lines),
   };
 }
+
+const frCost = (c) => ({ transportation: "le transport", accommodation: "l'hébergement", meals: "les repas", "other costs": "les autres frais" }[c] ?? c);
 
 /** Sent to the board/notify list when a presenter submits, so someone reviews it. */
 export function reviewNeededMail({ event, presenter, adminUrl }) {
@@ -183,6 +215,16 @@ export function approvedNoticeMail({ event, presenter, approval, coverage, filin
 
 /** When a board member sends an agreement back for changes. */
 export function returnedMail({ event, presenter, link, note }) {
+  if (presenter.language === "fr") {
+    const heading = `Une modification est requise à votre entente de conférencier — ${event.title}`;
+    const lines = [
+      `Bonjour ${esc(presenter.first)},`,
+      `ONGIA a examiné votre entente de conférencier pour <b>${esc(event.title)}</b> et demande une modification avant de pouvoir l'approuver :`,
+      `<i>${esc(note)}</i>`,
+      `Vos réponses sont conservées — ouvrez le lien, apportez la correction et signez de nouveau.`,
+    ];
+    return { subject: heading, html: layout({ heading, lines, button: { label: "Mettre à jour mon entente", href: link } }), text: plain(heading, lines, link) };
+  }
   const heading = `A change is needed on your presenter agreement — ${event.title}`;
   const lines = [
     `Hello ${esc(presenter.first)},`,
@@ -197,16 +239,19 @@ export function returnedMail({ event, presenter, link, note }) {
   };
 }
 
-function describeDates(presenter) {
+function describeDates(presenter, lang = "en") {
   const r = presenter.review ?? {};
   const s = presenter.submission ?? {};
-  const fmt = (v) => esc(formatDate(v));
+  const fmt = (v) => esc(formatDateIn(v, lang));
+  const fr = lang === "fr";
   const parts = [];
   const travel = r.travel ?? (s.travel === "yes" ? { from: s.travelFrom, to: s.travelTo } : null);
   const hotel = r.hotel ?? (s.hotel === "yes" ? { from: s.hotelFrom, to: s.hotelTo } : null);
-  if (travel) parts.push(`travel <b>${fmt(travel.from)} – ${fmt(travel.to)}</b>${r.travel?.changed ? " (adjusted by ONGIA)" : ""}`);
-  if (hotel) parts.push(`hotel <b>${fmt(hotel.from)} – ${fmt(hotel.to)}</b>${r.hotel?.changed ? " (adjusted by ONGIA)" : ""}`);
-  return parts.length ? `Confirmed dates: ${parts.join("; ")}.` : "No travel or hotel was requested.";
+  const adj = fr ? " (ajustées par ONGIA)" : " (adjusted by ONGIA)";
+  if (travel) parts.push(`${fr ? "transport" : "travel"} <b>${fmt(travel.from)} – ${fmt(travel.to)}</b>${r.travel?.changed ? adj : ""}`);
+  if (hotel) parts.push(`${fr ? "hôtel" : "hotel"} <b>${fmt(hotel.from)} – ${fmt(hotel.to)}</b>${r.hotel?.changed ? adj : ""}`);
+  if (!parts.length) return fr ? "Aucun transport ni hôtel n'a été demandé." : "No travel or hotel was requested.";
+  return fr ? `Dates confirmées : ${parts.join("; ")}.` : `Confirmed dates: ${parts.join("; ")}.`;
 }
 
 export function describeAgency(expenses) {

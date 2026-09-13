@@ -49,6 +49,7 @@ async function showForm(event, presenter) {
         draft: formatDate(event.deadlines.draft),
         final: formatDate(event.deadlines.final),
       },
+      deadlinesIso: event.deadlines,
       contact: event.contact,
       materialsUploadUrl: event.materialsUploadUrl,
     },
@@ -61,6 +62,7 @@ async function showForm(event, presenter) {
       status: presenter.status,
       submittedAt: presenter.submittedAt,
       approvedAt: presenter.approvedAt,
+      language: presenter.language ?? null,
       headshot: presenter.headshot ?? null,
       // Set when a board member sent it back; the form shows it at the top.
       returnNote: presenter.status === "returned" ? presenter.review?.returnNote : null,
@@ -143,6 +145,8 @@ async function submit(req, event, presenter) {
   presenter.organization = text(body.organization, 200);
   presenter.status = "submitted";
   presenter.submittedAt = now.toISOString();
+  // The language they filled the form in; their emails follow it. The filed PDF stays English.
+  presenter.language = body.language === "fr" ? "fr" : "en";
   presenter.submission = {
     phone: text(body.phone, 60),
     talk,

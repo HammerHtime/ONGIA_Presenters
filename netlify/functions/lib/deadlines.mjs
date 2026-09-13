@@ -168,6 +168,16 @@ export function rangeProblem(from, to, window, what) {
 }
 
 /** The event plus the human-readable dates the emails and PDF quote. */
+const FR_DAYS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+const FR_MONS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+/** "jeu. 3 déc. 2026" — the same shape as the English, in the presenter's language. */
+export function formatDateFr(iso) {
+  if (!iso) return "";
+  const d = parseDate(iso);
+  return `${FR_DAYS[d.getDay()]} ${d.getDate()} ${FR_MONS[d.getMonth()]} ${d.getFullYear()}`;
+}
+export const formatDateIn = (iso, lang) => (lang === "fr" ? formatDateFr(iso) : formatDate(iso));
+
 export function describeEvent(event) {
   return {
     ...event,
