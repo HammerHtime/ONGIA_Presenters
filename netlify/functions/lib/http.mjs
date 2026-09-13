@@ -18,7 +18,7 @@ export function requireAdmin(req) {
   const expected = process.env.ADMIN_KEY;
   if (!expected) return "ADMIN_KEY is not set on this site, so admin screens are locked.";
   const supplied = req.headers.get("x-admin-key") ?? "";
-  if (supplied !== expected) return "Not authorised.";
+  if (supplied !== expected) return "Not authorized.";
   return null;
 }
 

@@ -81,7 +81,7 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
 
   p.heading("EVENT DETAILS");
   p.kvRow([
-    ["Location(City):", event.city, 150],
+    ["Location (City):", event.city, 150],
     ["Event Title:", event.title, 160],
   ]);
   p.kvRow([["Address:", event.venue || event.city, 330]]);
@@ -93,14 +93,14 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.heading("PRESENTER INFORMATION");
   p.kvRow([
     ["Name:", `${presenter.first} ${presenter.last}`, 160],
-    ["Contact#:", s.phone || "—", 110],
+    ["Contact #:", s.phone || "—", 110],
   ]);
   p.kvRow([["Organization:", presenter.organization || "—", 330]]);
   p.kvRow([["Email:", presenter.email, 330]]);
   p.kvRow([["Presentation Title:", s.talk, 330]]);
 
   p.gap(4);
-  p.label("Biography (Max 250-300 words)", true);
+  p.label("Biography (250–300 words)", true);
   p.label("(This biography may be used to introduce you at the ONGIA event)");
   p.box(s.bio);
 
@@ -172,22 +172,22 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   );
   p.note(
     "*NOTE – Meal claims must be accompanied by a receipt or declaration. Maximum meal amounts will be utilized in " +
-    "accordance with the Treasury Board of Canada. Maximum repayment amounts can be found at " +
+    "accordance with the Treasury Board of Canada directive. Maximum repayment amounts can be found at " +
     "https://www.njc-cnm.gc.ca/directive/d10/v238/s659/en"
   );
   p.small(
-    "Presenter Agency records what the presenter's agency confirmed. ONGIA was completed by the reviewing " +
+    "The Presenter Agency column records what the presenter's agency confirmed; the ONGIA column was completed by the reviewing " +
     "board member below."
   );
 
   p.heading("PRESENTATION EXPECTATIONS AND REQUESTS");
   p.bullets([
-    "Please send us a .png or .JPEG-formatted picture of yourself (headshot) that can be used in training " +
+    "Please send us a .png or .jpeg picture of yourself (headshot) that can be used in training " +
       "material, ONGIA website and social media platforms",
-    "If your presentation has audio or video components embedded in the PowerPoint, you either insert " +
-      "transcripts, subtitles as the video/audio plays, or you provide a detailed narrative to accompany the audio/video",
-    "Business casual dress minimum requirement",
-    "All PowerPoint text must be a minimum 22 font",
+    "If your presentation has audio or video embedded in the PowerPoint, either insert transcripts or subtitles " +
+      "that run as it plays, or provide a detailed narrative to accompany it",
+    "Business casual dress is the minimum requirement",
+    "All PowerPoint text must be at least 22-point",
   ]);
   p.small(`Headshot received with this agreement: ${s.headshotName ? "Yes — " + s.headshotName : "Not yet"}`);
 
@@ -195,7 +195,7 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.tickLine(
     true,
     "The presentation/training presented is my work, or I have received all permissions required to use any " +
-      "Copyrighted material or intellectual property presented.",
+      "copyrighted material or intellectual property presented.",
     RED
   );
   p.tickLine(
@@ -245,7 +245,7 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.stamp(
     `FINAL COPY — issued on ${fmt(approval.approvedAt?.slice(0, 10))} when ${approval.name} approved it. ` +
       `Presenter submitted ${fmt(s.signedAt?.slice(0, 10))}; ONGIA cost coverage was set at review, not by the presenter. ` +
-      `Filed to ${event.sharePointFolder || "the event folder"} and emailed to the presenter.`
+      `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails it to the presenter.`
   );
 
   p.band(band);

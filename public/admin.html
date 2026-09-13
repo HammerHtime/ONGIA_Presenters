@@ -36,7 +36,7 @@
   .bar .mark{font-family:var(--fu);font-weight:600;letter-spacing:.18em;font-size:17px}
   .bar .mark span{color:var(--gold-light)}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
-  .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .chip{border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
@@ -188,15 +188,16 @@ function signInScreen(message) {
     <div class="card-head"><div><h2>Sign in</h2>
       <div class="s">The admin key for this site.</div></div></div>
     <div class="card-body">
-      ${message ? `<div class="bad"><b>Not in.</b> ${esc(message)}</div>` : ""}
+      ${message ? `<div class="bad"><b>Couldn't sign in.</b> ${esc(message)}</div>` : ""}
       <div class="field"><label for="k">Admin key</label>
         <input id="k" type="password" autocomplete="current-password" placeholder="••••••••"></div>
       <div class="actions"><button class="btn btn-navy" id="go">Sign in</button></div>
-      <p class="hint">Set as the ADMIN_KEY environment variable on the Netlify site.</p>
+      <p class="hint">Ask the coordinator for the key. (Technically: the site's ADMIN_KEY setting on Netlify.)</p>
     </div></div>`;
   document.getElementById("k").focus();
   const submit = () => {
     KEY = document.getElementById("k").value.trim();
+    if (!KEY) return signInScreen("Please enter the key.");
     sessionStorage.setItem("ongia-admin-key", KEY);
     load();
   };
@@ -252,7 +253,7 @@ function eventFormScreen(existing = null) {
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${ev ? "Edit event" : "New training event"}</h2>
-      <div class="s">${ev ? "Change anything below — deadlines re-derive from day one." : "Deadlines are worked out from day one of the training — you never type them."}</div></div></div>
+      <div class="s">${ev ? "Change anything below. Deadlines are recalculated from day one." : "Deadlines are worked out from day one of the training — you never type them."}</div></div></div>
     <div class="card-body">
       <div class="row2">
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
@@ -304,7 +305,7 @@ function eventFormScreen(existing = null) {
     folder.placeholder = conv || "ONGIA Board/ONGIA Training/2027/2027 Winnipeg";
     const val = folder.value.trim();
     folderhint.textContent = val
-      ? (/^https?:/i.test(val) ? "A link — the app will work out the folder from it when you save." : "")
+      ? (/^https?:/i.test(val) ? "A link: the app will work out the folder from it when you save." : `Will file to ${val.replace(/^(Shared Documents|Documents)\//i, "")}`)
       : conv ? `Left blank, the app uses ${conv} and can create it for you from the event page.` : "Left blank, the app builds the path from the year and city.";
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint;
@@ -391,6 +392,7 @@ function eventScreen(data) {
   document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
   document.getElementById("mailall").onclick = async () => {
     const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    if (!presenters.length) return toast("No presenters yet.");
     if (!outstanding.length) return toast("Everyone has submitted.");
     if (!confirm(`Email their link to ${outstanding.length} presenter${outstanding.length === 1 ? "" : "s"} who haven't submitted?`)) return;
     await invite(ev.id, null, outstanding.some((p) => p.mail?.length));
@@ -436,7 +438,7 @@ function eventScreen(data) {
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
-        <dt>Materials link</dt><dd>${!ev.materialsUploadUrl ? "<i>none — reminders won't include an upload button</i>"
+        <dt>Materials link</dt><dd>${!ev.materialsUploadUrl ? "<i>none — presenters won't get an Upload Material button</i>"
           : ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span> presenters can add files but can't see the folder`
           : `<span class="pill late">unverified</span> ${esc(ev.materialsLinkCheck?.reason ?? "not checked yet — re-save the event")}`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
@@ -501,7 +503,7 @@ function addScreen(eventId) {
     <div class="card-body">
       <div class="field"><label for="p-rows">Presenters</label>
         <textarea id="p-rows" style="min-height:150px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, Service de police de la Ville de Montréal"></textarea>
-        <p class="hint">Organization is optional. Everything else they fill in themselves.</p></div>
+        <p class="hint">Name and email are needed; organization is optional. Phone, biography and the rest they fill in themselves.</p></div>
       <div id="problem"></div>
       <label class="attest" style="margin-top:4px"><input type="checkbox" id="p-invite" checked><span>Email each presenter their agreement link now</span></label>
       <div class="actions"><button class="btn btn-gold" id="save">Add presenters</button></div>
@@ -649,9 +651,12 @@ function reviewScreen(data) {
     <div class="card-head"><div><h2>${esc(p.first)} ${esc(p.last)}</h2>
       <div class="s">${esc(p.organization || "")}${p.organization ? " · " : ""}${esc(p.email)}${s.phone ? " · " + esc(s.phone) : ""} · ${esc(p.reference)}</div></div>
       <div>${approved ? `<span class="pill done">Approved ${esc((p.approvedAt ?? "").slice(0, 10))}</span>` :
-        p.status === "returned" ? `<span class="pill late">Sent back</span>` : `<span class="pill wait">Submitted ${esc((p.submittedAt ?? "").slice(0, 10))}</span>`}</div></div>
+        p.status === "returned" ? `<span class="pill late">Sent back</span>` :
+        p.status === "submitted" ? `<span class="pill wait">Submitted ${esc((p.submittedAt ?? "").slice(0, 10))}</span>` :
+        p.openedAt ? `<span class="pill wait">Opened, not finished</span>` : `<span class="pill wait">Not opened</span>`}</div></div>
     <div class="card-body">
-      ${!s.talk ? `<div class="note">Nothing submitted yet.</div>` : `
+      ${p.status === "returned" && p.review?.returnNote ? `<div class="note"><b>Sent back${p.review.returnedBy ? " by " + esc(p.review.returnedBy) : ""}${p.review.returnedAt ? " on " + esc(fmtDate(p.review.returnedAt.slice(0, 10))) : ""}:</b> ${esc(p.review.returnNote)}${s.talk ? "" : " — the presenter hasn't re-submitted yet."}</div>` : ""}
+      ${!s.talk ? `<div class="note">Nothing submitted yet — there is nothing to review until ${esc(p.first)} completes the form.</div>` : `
       <dl class="kv">
         <dt>Presentation</dt><dd>${esc(s.talk)}</dd>
         <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}${approvedNote(p.review?.travel)}` : ""}</dd>
@@ -715,7 +720,8 @@ function reviewScreen(data) {
       <div class="actions"><button class="btn btn-late" id="return">Send back to presenter</button></div>
     </div></div>`;
 
-  ROOT.innerHTML = submission + decision;
+  ROOT.innerHTML = submission + (s.talk || approved ? decision : "");
+  if (!s.talk && !approved) return;
 
   if (approved) {
     document.getElementById("pdf").onclick = () => openPdf(ev.id, p.id);
@@ -804,7 +810,7 @@ function dateRows(s, ev) {
   return !any ? "" : `<h2 style="margin:18px 0 4px;font-size:16px">Travel &amp; accommodation dates</h2>
     <p class="hint" style="margin:0 0 4px">Allowed: ${esc(fmtDate(win.from))} to ${esc(fmtDate(win.to))} (training days plus one either side).</p>
     ${row("Travel", s.travel === "yes", s.travelFrom, s.travelTo, "r-tf", "r-tt", "Arriving", "Departing")}
-    ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check in", "Check out")}`;
+    ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check-in", "Check-out")}`;
 }
 
 function deliveryMarkup(d = {}) {
@@ -834,6 +840,8 @@ async function render() {
     return listScreen((await api("/events")).events);
   } catch (e) {
     if (/not auth|ADMIN_KEY/i.test(e.message)) { KEY = ""; sessionStorage.removeItem("ongia-admin-key"); return signInScreen(e.message); }
+    BARRIGHT.innerHTML = `<button class="chip" id="home">All events</button>`;
+    document.getElementById("home").onclick = () => { view = { name: "list" }; render(); };
     ROOT.innerHTML = `<div class="card"><div class="card-body"><div class="bad"><b>Something went wrong.</b> ${esc(e.message)}</div></div></div>`;
   }
 }
@@ -843,6 +851,10 @@ const load = render;
   const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
   if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); }
 }
+window.addEventListener("hashchange", () => {
+  const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
+  if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); render(); }
+});
 render();
 </script>
 </body>

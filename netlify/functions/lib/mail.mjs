@@ -130,14 +130,14 @@ export function invitationMail({ event, presenter, link, remind }) {
   const d = event.deadlines;
   const fr = (iso) => esc(formatDateFr(iso));
   const heading = remind
-    ? `Reminder: your ONGIA presenter agreement is due ${event.deadlinesReadable.agreement} / Rappel : votre entente de conférencier ONGIA est attendue le ${formatDateFr(d.agreement)}`
+    ? `Reminder / Rappel — ONGIA presenter agreement due ${event.deadlinesReadable.agreement} · entente attendue le ${formatDateFr(d.agreement)}`
     : `Your ONGIA presenter agreement — ${event.title} / Votre entente de conférencier ONGIA`;
   const lines = [
     `Hello ${esc(presenter.first)},`,
     remind
       ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}). It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.`
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
-    `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form saves your details, asks about travel and which costs your agency is covering, and you sign by typing your name. It's available in English and French.`,
+    `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form asks about your session, travel, and which costs your agency is covering, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
     `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`,
     `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
     `Bonjour ${esc(presenter.first)},`,
@@ -227,7 +227,7 @@ export function approvedNoticeMail({ event, presenter, approval, coverage, filin
 /** When a board member sends an agreement back for changes. */
 export function returnedMail({ event, presenter, link, note }) {
   if (presenter.language === "fr") {
-    const heading = `Une modification est requise à votre entente de conférencier — ${event.title}`;
+    const heading = `Une modification est requise dans votre entente de conférencier — ${event.title}`;
     const lines = [
       `Bonjour ${esc(presenter.first)},`,
       `ONGIA a examiné votre entente de conférencier pour <b>${esc(event.title)}</b> et demande une modification avant de pouvoir l'approuver :`,
@@ -239,7 +239,7 @@ export function returnedMail({ event, presenter, link, note }) {
   const heading = `A change is needed on your presenter agreement — ${event.title}`;
   const lines = [
     `Hello ${esc(presenter.first)},`,
-    `ONGIA has looked at your presenter agreement for <b>${esc(event.title)}</b> and needs one change before it can be approved:`,
+    `ONGIA has looked at your presenter agreement for <b>${esc(event.title)}</b> and needs a change before it can be approved:`,
     `<i>${esc(note)}</i>`,
     `Your answers are saved — open the link, adjust, and sign again.`,
   ];

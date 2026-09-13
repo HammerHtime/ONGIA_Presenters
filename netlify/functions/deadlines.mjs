@@ -22,7 +22,9 @@ export default async (req) => {
     const rawIso = `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, "0")}-${String(raw.getDate()).padStart(2, "0")}`;
     if (rawIso !== dates[key]) {
       const label = { agreement: "Agreement", draft: "Draft materials", final: "Final materials" }[key];
-      moved.push(`${label}: ${formatDate(rawIso)} was a ${whyNotWorking(rawIso)}, so it moved to ${formatDate(dates[key])}.`);
+      const why = whyNotWorking(rawIso);
+      const on = why === "weekend" ? "fell on a weekend" : why === "Christmas shutdown" ? "fell in the Christmas shutdown" : `fell on ${why}`;
+      moved.push(`${label}: ${formatDate(rawIso)} ${on}, so it moved to ${formatDate(dates[key])}.`);
     }
   }
 

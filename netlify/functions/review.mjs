@@ -113,6 +113,9 @@ async function approve(event, presenter, body, origin) {
 
 async function sendBack(event, presenter, body, origin) {
   if (presenter.status === "approved") return fail("Already approved; it can't be returned.", 409);
+  if (presenter.status !== "submitted" && presenter.status !== "returned") {
+    return fail("The presenter hasn't submitted yet, so there is nothing to send back.", 409);
+  }
   const note = text(body.note, 2000);
   if (!note) return fail("Tell the presenter what needs changing.");
 

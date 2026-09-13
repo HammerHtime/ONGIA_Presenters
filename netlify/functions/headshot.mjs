@@ -16,7 +16,7 @@ export default async (req) => {
   if (presenter.status === "approved") return fail("This agreement is final; contact ONGIA to change the photo.", 409);
 
   const type = (req.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-  if (!["image/jpeg", "image/png"].includes(type)) return fail("Please send a .jpg or .png image.", 415);
+  if (!["image/jpeg", "image/png"].includes(type)) return fail("Please send a .png or .jpeg image.", 415);
 
   const bytes = await req.arrayBuffer();
   if (!bytes.byteLength) return fail("The image was empty.");
