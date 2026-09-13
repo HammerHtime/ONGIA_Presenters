@@ -2,7 +2,7 @@ import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
 import { formatDate, describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
-import { sendMail, reviewNeededMail } from "./lib/mail.mjs";
+import { sendMail, reviewNeededMail, coordinatorOf } from "./lib/mail.mjs";
 
 /**
  * The presenter's own endpoint. No account, no password — the token in their
@@ -176,7 +176,7 @@ async function submit(req, event, presenter) {
     const origin = siteUrl(req);
     const adminUrl = `${origin}/admin.html#review/${encodeURIComponent(event.id)}/${encodeURIComponent(presenter.id)}`;
     const mail = reviewNeededMail({ event: describeEvent(event), presenter, adminUrl });
-    presenter.reviewNotice = await sendMail({ to: recipients, ...mail })
+    presenter.reviewNotice = await sendMail({ to: recipients, replyTo: coordinatorOf(event).email || undefined, ...mail })
       .then((r) => ({ ok: !r.skipped, ...r, at: now.toISOString() }))
       .catch((e) => ({ ok: false, error: e.message, at: now.toISOString() }));
     await putPresenter(presenter);

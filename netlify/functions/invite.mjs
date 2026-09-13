@@ -2,7 +2,7 @@ import { json, fail, requireAdmin } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, listPresenters, putPresenter } from "./lib/store.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
-import { sendMail, invitationMail } from "./lib/mail.mjs";
+import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 
 /**
  * Email presenters their personal link.
@@ -38,7 +38,7 @@ export default async (req) => {
     const link = `${origin}/a/${p.token}`;
     const mail = invitationMail({ event: ev, presenter: p, link, remind });
     try {
-      const out = await sendMail({ to: p.email, replyTo: event.contact?.email, ...mail });
+      const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, ...mail });
       if (out.skipped) { failed.push({ id: p.id, name: `${p.first} ${p.last}`, why: out.reason }); continue; }
       p.mail = [...(p.mail ?? []), { type: remind ? "reminder" : "invitation", at: new Date().toISOString(), id: out.id }];
       p.invitedAt ??= p.mail.at(-1).at;

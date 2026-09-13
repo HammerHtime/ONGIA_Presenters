@@ -1,6 +1,6 @@
 import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta } from "./store.mjs";
 import { describeEvent, formatDate } from "./deadlines.mjs";
-import { sendMail, invitationMail, layout } from "./mail.mjs";
+import { sendMail, invitationMail, layout, coordinatorOf } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
 import { weeklyDigestMail } from "./mail.mjs";
 import { countStatuses } from "../events.mjs";
@@ -71,7 +71,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
         why: dayOffset < 0 ? `${-dayOffset} days before due` : dayOffset === 0 ? "due today" : `${dayOffset} days overdue`,
         send: async () => {
           const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: true, daysLeft: -dayOffset });
-          const out = await sendMail({ to: p.email, replyTo: event.contact?.email, ...mail });
+          const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, ...mail });
           if (out.skipped) throw new Error(out.reason);
           p.mail.push({ type: "reminder-auto", at: new Date().toISOString(), id: out.id });
           await putPresenter(p);
@@ -107,7 +107,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
               const lines = fr
                 ? [`Bonjour ${esc(p.first)},`, `Un rappel amical : votre ${labelFr.toLowerCase()} pour <b>${esc(event.title)}</b> est attendue le <b>${due}</b>${off > 0 ? " et nous ne l'avons pas encore reçue" : ""}.`, `Le bouton ci-dessous ouvre le dossier de dépôt d'ONGIA — déposez-y vos fichiers, rien d'autre à faire.`]
                 : [`Hello ${esc(p.first)},`, `A friendly reminder: your ${label.toLowerCase()} for <b>${esc(event.title)}</b> ${off > 0 ? "were due" : "are due"} <b>${due}</b>${off > 0 ? " and haven't arrived yet" : ""}.`, `The button below opens ONGIA's drop folder for this event — add your files there and you're done.`];
-              const out = await sendMail({ to: p.email, replyTo: event.contact?.email, subject: heading, text: heading,
+              const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, subject: heading, text: heading,
                 html: layout({ heading, lines, buttons: [{ href: event.materialsUploadUrl, label: fr ? "Téléverser le matériel" : "Upload Material" }] }) });
               if (out.skipped) throw new Error(out.reason);
               p.mail = [...(p.mail ?? []), { type: `materials-${key}`, at: new Date().toISOString(), id: out.id }];

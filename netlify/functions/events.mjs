@@ -3,7 +3,7 @@ import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresen
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
-import { sendMail, invitationMail } from "./lib/mail.mjs";
+import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
@@ -101,6 +101,8 @@ async function applyDetails(event, body, { creating = false } = {}) {
   const lead = board.find((m) => m.lead);
   event.board = board;
   event.reviewer = lead ? { name: lead.name, email: lead.email } : { name: "", email: "" };
+  // The lead coordinates presenters; unless someone else is named, they are the contact too.
+  if (lead && !event.contact.name && !event.contact.email) event.contact = { name: lead.name, email: lead.email, phone: event.contact.phone || "" };
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
 
   // The materials link is the one thing presenters receive that points at
@@ -346,7 +348,7 @@ async function addPeople(event, rows, { invite = true, origin = "" } = {}) {
     for (const p of added) {
       const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: false });
       try {
-        const out = await sendMail({ to: p.email, replyTo: event.contact?.email, ...mail });
+        const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, ...mail });
         if (out.skipped) { notSent.push({ id: p.id, name: `${p.first} ${p.last}`, why: out.reason }); continue; }
         p.mail = [{ type: "invitation", at: new Date().toISOString(), id: out.id }];
         p.invitedAt = p.mail[0].at;

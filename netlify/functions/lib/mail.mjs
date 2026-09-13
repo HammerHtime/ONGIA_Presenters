@@ -86,6 +86,13 @@ async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments
   return { id: body.id, transport: "resend" };
 }
 
+/** The person replies should reach: the event's lead board member, else the ONGIA contact. */
+export function coordinatorOf(event) {
+  if (event?.reviewer?.email) return { name: event.reviewer.name || event.reviewer.email, email: event.reviewer.email };
+  if (event?.contact?.email || event?.contact?.name) return { name: event.contact.name || event.contact.email, email: event.contact.email || "" };
+  return { name: "ONGIA", email: "" };
+}
+
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
@@ -150,7 +157,7 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
     `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.`,
     `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`,
   ];
-  const footer = `Questions? Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}. / Des questions? Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.`;
+  const footer = `Questions? Reply to this email to reach ${esc(coordinatorOf(event).name)}. / Des questions? Répondez à ce courriel pour joindre ${esc(coordinatorOf(event).name)}.`;
   return {
     subject: heading,
     html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link }, footer }),
@@ -179,7 +186,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
       `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
       `Référence ${esc(presenter.reference)}.`,
     ];
-    return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, footer: `Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.` }), text: plain(heading, lines, event.materialsUploadUrl) };
+    return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, footer: `Répondez à ce courriel pour joindre ${esc(coordinatorOf(event).name)}.` }), text: plain(heading, lines, event.materialsUploadUrl) };
   }
   const heading = `Your signed presenter agreement — ${event.title}`;
   const covered = coverage.length ? coverage.join(", ") : "no costs (your agency is covering them)";
@@ -193,7 +200,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
   ];
   return {
     subject: heading,
-    html: layout({ heading, lines, buttons: uploadBtn, footer: `Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}.` }),
+    html: layout({ heading, lines, buttons: uploadBtn, footer: `Reply to this email to reach ${esc(coordinatorOf(event).name)}.` }),
     text: plain(heading, lines, event.materialsUploadUrl),
   };
 }

@@ -3,7 +3,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
 import { describeEvent, travelWindow, rangeProblem, formatDate } from "./lib/deadlines.mjs";
-import { sendMail, finalCopyMail, approvedNoticeMail, returnedMail } from "./lib/mail.mjs";
+import { sendMail, finalCopyMail, approvedNoticeMail, returnedMail, coordinatorOf } from "./lib/mail.mjs";
 import { fileAgreement } from "./lib/graph.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 
@@ -128,7 +128,7 @@ async function sendBack(event, presenter, body, origin) {
   };
   const link = `${origin}/a/${presenter.token}`;
   const mail = returnedMail({ event, presenter, link, note });
-  presenter.delivery = { returnEmail: await attempt(() => sendMail({ to: presenter.email, replyTo: event.contact?.email, ...mail })) };
+  presenter.delivery = { returnEmail: await attempt(() => sendMail({ to: presenter.email, replyTo: coordinatorOf(event).email || undefined, ...mail })) };
   await putPresenter(presenter);
   return json({ ok: true, presenter });
 }
@@ -175,7 +175,7 @@ async function deliver(event, presenter, pdf, origin, which) {
   if (which.presenterEmail) {
     const mail = finalCopyMail({ event: ev, presenter, approval, coverage });
     presenter.delivery.presenterEmail = await attempt(() =>
-      sendMail({ to: presenter.email, replyTo: event.contact?.email, attachments: [{ filename, content: pdf }], ...mail })
+      sendMail({ to: presenter.email, replyTo: coordinatorOf(event).email || undefined, attachments: [{ filename, content: pdf }], ...mail })
     );
   }
 
@@ -185,7 +185,7 @@ async function deliver(event, presenter, pdf, origin, which) {
       const filing = presenter.delivery.filing?.result ?? presenter.delivery.filing;
       const mail = approvedNoticeMail({ event: ev, presenter, approval, coverage, filing });
       const attachments = filing?.folderUrl ? [] : [{ filename, content: pdf }];
-      presenter.delivery.boardEmail = await attempt(() => sendMail({ to: recipients, attachments, ...mail }));
+      presenter.delivery.boardEmail = await attempt(() => sendMail({ to: recipients, replyTo: coordinatorOf(event).email || undefined, attachments, ...mail }));
     } else {
       presenter.delivery.boardEmail = { ok: true, skipped: true, reason: "No board emails on this event." };
     }
