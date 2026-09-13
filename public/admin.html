@@ -280,8 +280,9 @@ function eventFormScreen(existing = null) {
       <div class="field"><label for="e-folder">SharePoint folder — paste the folder link or path</label>
         <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles/Shared Documents/ONGIA Board/…">
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p></div>
-      <div class="field"><label for="e-upload">Materials file-request link (optional)</label>
-        <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="https://ongia.sharepoint.com/…/FileRequest.aspx?id=…"></div>
+      <div class="field"><label for="e-upload">Materials upload link (optional)</label>
+        <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
+        <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link (folder → ⋯ → Request files). Presenters can then upload but never see the folder. The app checks the link and refuses one that would expose the folder.</p></div>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
@@ -435,6 +436,9 @@ function eventScreen(data) {
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
+        <dt>Materials link</dt><dd>${!ev.materialsUploadUrl ? "<i>none — reminders won't include an upload button</i>"
+          : ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span> presenters can add files but can't see the folder`
+          : `<span class="pill late">unverified</span> ${esc(ev.materialsLinkCheck?.reason ?? "not checked yet — re-save the event")}`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       ${rows}

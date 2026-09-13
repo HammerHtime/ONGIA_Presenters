@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
-import { ensureEventFolder, resolveFolderInput } from "./lib/graph.mjs";
+import { ensureEventFolder, resolveFolderInput, inspectSharingLink } from "./lib/graph.mjs";
 import { sendMail, invitationMail } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
@@ -99,6 +99,19 @@ async function applyDetails(event, body, { creating = false } = {}) {
   event.board = board;
   event.reviewer = lead ? { name: lead.name, email: lead.email } : { name: "", email: "" };
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
+
+  // The materials link is the one thing presenters receive that points at
+  // SharePoint. Refuse anything that would let them browse the folder; note
+  // when the app couldn't tell so the event page can warn.
+  if (event.materialsUploadUrl) {
+    const check = await inspectSharingLink(event.materialsUploadUrl);
+    if (check.verdict === "exposes-folder") {
+      return `That materials link would let presenters open the folder (it is a "${check.type}" link${check.scope ? `, ${check.scope}` : ""}). In SharePoint, right-click the folder → Request files, and paste that link instead.`;
+    }
+    event.materialsLinkCheck = { verdict: check.verdict, type: check.type ?? null, reason: check.reason ?? null, at: new Date().toISOString() };
+  } else {
+    event.materialsLinkCheck = null;
+  }
 
   // The folder may arrive as a path, a folder URL, or a sharing link.
   try {

@@ -13,7 +13,9 @@ export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
 
-  const folder = new URL(req.url).searchParams.get("folder");
+  const params = new URL(req.url).searchParams;
+  const folder = params.get("folder");
+  const upload = params.get("upload");
   const transport = mailTransport();
   const out = {
     email: transport ? { ok: true, ...transport } : { ok: false, reason: "No email transport: set MS_MAIL_FROM (Microsoft 365) or RESEND_API_KEY" },
@@ -28,6 +30,10 @@ export default async (req) => {
       const roles = await graphAccessToken().then(tokenRoles).catch(() => []);
       if (!roles.includes("Mail.Send")) out.email = { ok: false, ...transport, reason: "Mail.Send (Application) is not granted on the app yet — add it in Entra → API permissions and grant admin consent." };
     }
+  }
+  if (upload) {
+    const { inspectSharingLink } = await import("./lib/graph.mjs");
+    out.uploadLink = await inspectSharingLink(upload);
   }
   return json(out);
 };

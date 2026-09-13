@@ -93,6 +93,36 @@ export function normaliseFolder(path) {
 const encodePath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
 /**
+ * What kind of sharing link is this? Presenters only ever receive the
+ * materials link, so it must be a SharePoint "Request files" link — Graph
+ * reports those as type "createOnly": upload allowed, nothing visible.
+ * Anything else would let a presenter browse the folder.
+ *
+ * Returns { verdict: "upload-only" | "exposes-folder" | "unverified", type, reason }.
+ */
+export async function inspectSharingLink(url) {
+  const raw = String(url ?? "").trim();
+  if (!raw) return { verdict: "none" };
+  let u;
+  try { u = new URL(raw); } catch { return { verdict: "unverified", reason: "Not a valid web address." }; }
+  if (!/sharepoint\.com$/i.test(u.hostname) && !/1drv\.ms$/i.test(u.hostname)) {
+    return { verdict: "unverified", reason: "Not a SharePoint/OneDrive link, so the app can't tell what it exposes." };
+  }
+  if (!graphConfigured()) return { verdict: "unverified", reason: "Microsoft credentials are not set, so the link couldn't be checked." };
+  try {
+    const token = await accessToken();
+    const encoded = "u!" + Buffer.from(raw).toString("base64url");
+    const perm = await graph(token, `/shares/${encoded}/permission?$select=id,roles,link`);
+    const type = perm.link?.type ?? "";
+    if (type === "createOnly") return { verdict: "upload-only", type };
+    return { verdict: "exposes-folder", type, roles: perm.roles ?? [], scope: perm.link?.scope };
+  } catch (e) {
+    // A OneDrive-personal or another-site link is outside the app's grant; say so rather than guess.
+    return { verdict: "unverified", reason: `Couldn't read the link's permissions (${e.code ?? e.status ?? e.message}).` };
+  }
+}
+
+/**
  * Coordinators paste what SharePoint gives them: a plain path, the address bar
  * URL of a folder, or a "Copy link" sharing URL (…/:f:/s/…). Turn any of them
  * into the library-relative path the filing code needs.
