@@ -52,11 +52,11 @@
         padding:18px;box-shadow:var(--shadow)}
   .card+.card{margin-top:14px}
   .card h2{font-family:var(--fd);font-size:23px;line-height:1.15;margin-bottom:5px}
-  .lede{color:var(--muted);font-size:14.5px}
+  .lede{color:#5c6577;font-size:14.5px}
 
   .facts{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:16px}
   .fact{background:var(--sunk);padding:11px 14px;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
-  .fact dt{font-family:var(--fu);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .fact dt{font-family:var(--fu);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#5c6577}
   .fact dd{margin:0;font-size:14.5px;font-weight:600;text-align:right}
 
   .flag{margin-top:14px;border-radius:14px;padding:13px 15px;display:flex;gap:11px;align-items:flex-start;
@@ -72,7 +72,7 @@
     border:1px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
   textarea{resize:vertical;min-height:120px;line-height:1.5}
   input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
-  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .hint{font-size:13px;color:#5c6577;margin-top:6px}
   .hint.ok{color:var(--done);font-weight:600}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
@@ -124,11 +124,12 @@
   .cal-grid button.sel{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
   .cal-foot{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
 
-  .upload{margin-top:14px;border:1.5px dashed var(--border);border-radius:14px;padding:20px 14px;
+  .upload{display:block;cursor:pointer;margin-top:14px;border:1.5px dashed var(--border);border-radius:14px;padding:20px 14px;
           text-align:center;background:var(--sunk);cursor:pointer}
   .upload .big{font-size:24px} .upload .t{font-weight:600;font-size:14.5px;margin-top:5px}
-  .upload .s{font-size:12.5px;color:var(--muted);margin-top:3px}
-  .upload input{display:none}
+  .upload .s{font-size:12.5px;color:#5c6577;margin-top:3px}
+  .upload input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+  .upload:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
   .sig{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:15px}
   .sig .typed{font-family:var(--fd);font-size:27px;color:var(--navy);border-bottom:1.5px solid var(--border);
@@ -199,7 +200,12 @@ en: {
   inside: "Inside ONGIA<br>(paid members only)", social: "Social media &amp;<br>public platforms",
   returnedTitle: "ONGIA sent this back with a note", returnedHint: "Your answers are saved — adjust what's needed and sign again.",
   presentingAt: (t) => `You're presenting at ${t}`,
-  hello: (f) => `Hello ${f}. Everything below is already set by ONGIA — read it over, then six short questions.`,
+  hello: (f) => `Hello ${f}. Everything below is already set by ONGIA. Read it over, then five short steps.`,
+  submittedNote: (d) => `You submitted this on ${d}. You can change anything and sign again.`,
+  hotelFirst: "Answer the hotel question above first.", otherNeeded: "Tell us what the other cost is.",
+  finalWord: "Final", boardWillSee: "ONGIA will pick this up shortly", pageTitle: "ONGIA Presenter Agreement",
+  errInvalidLink: "This link isn't valid. Check it came from ONGIA, or ask us for a new one.",
+  errApproved: "This agreement has already been approved. Contact ONGIA if something needs changing.",
   city: "City", venue: "Venue", begins: "Training begins", length: "Length", minutes: (n) => `${n} minutes`,
   twoDates: "Two dates to keep",
   draftFinal: (a, b) => `Draft materials for review by <b>${a}</b>. Final, production-ready materials by <b>${b}</b>.`,
@@ -211,7 +217,7 @@ en: {
   outline: "Presentation outline", outlineHint: "What you'll cover, in a short paragraph.",
   travelLede: (a, b) => `Tell us what you need arranged for the training event. Dates can run from the day before training to the day after — <b>${a}</b> to <b>${b}</b>. ONGIA confirms the final dates when your agreement is approved.`,
   needTravel: "Will you need travel arranged?", arriving: "Arriving", departing: "Departing",
-  needHotel: "Will you need hotel accommodation?", checkin: "Check in", checkout: "Check out",
+  needHotel: "Will you need hotel accommodation?", checkin: "Check-in", checkout: "Check-out",
   shared: "Shared expenses",
   blurb1: "ONGIA is a non-profit, and we look for opportunities to share the cost of presenter attendance with the presenter's home agency. Where an agency is able to contribute, it allows ONGIA to keep the training affordable and put more of the budget back into the program.",
   blurb2: "Please tell us which of these your agency would cover while you are at the training event.",
@@ -241,7 +247,7 @@ en: {
   refQuestions: (r, n) => `Reference ${r} · Questions? Reply to your ONGIA email or contact ${n}.`,
   notQuite: "Not quite there", back: "Back", cont: "Continue", submit: "Submit agreement", sending: "Sending…",
   vName: "Please add your first and last name.", vEmail: "That email address doesn't look right.",
-  vTalk: "Please add a presentation title.", vBio: "Please add a biography.", vOutline: "Please add a presentation outline.",
+  vTalk: "Please add a presentation title.", vBio: "Your biography needs at least 20 words.", vOutline: "Please add a presentation outline.",
   vTravel: "Tell us whether you need travel arranged.", vHotel: "Tell us whether you need hotel accommodation.",
   vBoth: (w) => `${w}: please choose both dates.`, vOrder: (w) => `${w}: the end date is before the start date.`,
   vWindow: (w, a, b) => `${w} dates must fall between ${a} and ${b}.`, travelWord: "Travel", hotelWord: "Hotel",
@@ -264,10 +270,15 @@ fr: {
   stepOf: (n) => `Étape ${n} sur 6`, submitted: "Envoyé",
   chooseDate: "Choisir une date", prevMonth: "Mois précédent", nextMonth: "Mois suivant", onOrAfter: (d) => `À partir du ${d}`, done: "OK",
   yes: "Oui", no: "Non",
-  inside: "À l'interne (ONGIA)<br>(membres payants seulement)", social: "Médias sociaux et<br>plateformes publiques",
+  inside: "Interne à ONGIA<br>(membres payants seulement)", social: "Médias sociaux et<br>plateformes publiques",
   returnedTitle: "ONGIA vous a renvoyé ce formulaire avec une note", returnedHint: "Vos réponses sont conservées — apportez les corrections demandées et signez de nouveau.",
   presentingAt: (t) => `Vous présentez à ${t}`,
-  hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA — lisez-les, puis répondez à six courtes questions.`,
+  hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA. Lisez-les, puis suivez cinq courtes étapes.`,
+  submittedNote: (d) => `Vous avez envoyé ce formulaire le ${d}. Vous pouvez modifier vos réponses et signer de nouveau.`,
+  hotelFirst: "Répondez d'abord à la question sur l'hôtel ci-dessus.", otherNeeded: "Précisez de quels autres frais il s'agit.",
+  finalWord: "Définitive", boardWillSee: "ONGIA en prendra connaissance sous peu", pageTitle: "Entente de conférencier ONGIA",
+  errInvalidLink: "Ce lien n'est pas valide. Vérifiez qu'il provient bien d'ONGIA ou demandez-nous un nouveau lien.",
+  errApproved: "Cette entente a déjà été approuvée. Communiquez avec ONGIA si quelque chose doit changer.",
   city: "Ville", venue: "Lieu", begins: "Début de la formation", length: "Durée", minutes: (n) => `${n} minutes`,
   twoDates: "Deux dates à retenir",
   draftFinal: (a, b) => `Version préliminaire de votre matériel à remettre pour révision d'ici le <b>${a}</b>. Version finale, prête pour la production, d'ici le <b>${b}</b>.`,
@@ -293,9 +304,9 @@ fr: {
   twoThings: "Deux éléments qu'ONGIA doit obtenir par écrit.",
   copyright: "La présentation est mon œuvre, ou j'ai obtenu toutes les autorisations nécessaires pour utiliser le matériel protégé par le droit d'auteur et la propriété intellectuelle qu'elle contient.",
   media: "Partage de contenu et médias", mediaLede: "Indiquez où ONGIA peut utiliser chaque élément. Chaque ligne exige une réponse.",
-  photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Le résumé de votre présentation",
+  photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
   lastStep: (d) => `Dernière étape. À retourner d'ici le ${d}.`, addHeadshot: "Ajoutez votre photo portrait", tapReplace: "Touchez pour remplacer",
-  headshotHint: ".png ou .jpeg — servira à vous présenter et sur ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
+  headshotHint: ".png ou .jpeg — pour vous présenter et pour le site ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
   standing: "Je confirme être actuellement en règle auprès de mon organisation et ne faire l'objet d'aucune procédure disciplinaire ni d'aucune enquête, de quelque nature que ce soit.",
   agreed: "Ce nom tapé constitue ma signature électronique et les renseignements ci-dessus sont exacts.",
   doneTitle: "Merci — c'est envoyé", doneP: "ONGIA a reçu votre entente. Il reste une étape de notre côté avant qu'elle soit définitive.",
@@ -309,7 +320,7 @@ fr: {
   refQuestions: (r, n) => `Référence ${r} · Des questions? Répondez au courriel d'ONGIA ou communiquez avec ${n}.`,
   notQuite: "Il manque quelque chose", back: "Retour", cont: "Continuer", submit: "Envoyer l'entente", sending: "Envoi…",
   vName: "Veuillez indiquer votre prénom et votre nom.", vEmail: "Cette adresse courriel semble incorrecte.",
-  vTalk: "Veuillez indiquer le titre de la présentation.", vBio: "Veuillez ajouter une biographie.", vOutline: "Veuillez ajouter un plan de présentation.",
+  vTalk: "Veuillez indiquer le titre de la présentation.", vBio: "Votre biographie doit compter au moins 20 mots.", vOutline: "Veuillez ajouter un plan de présentation.",
   vTravel: "Indiquez si vous avez besoin qu'on organise votre transport.", vHotel: "Indiquez si vous avez besoin d'un hébergement.",
   vBoth: (w) => `${w} : veuillez choisir les deux dates.`, vOrder: (w) => `${w} : la date de fin précède la date de début.`,
   vWindow: (w, a, b) => `Les dates (${w.toLowerCase()}) doivent se situer entre le ${a} et le ${b}.`, travelWord: "Transport", hotelWord: "Hôtel",
@@ -329,10 +340,12 @@ fr: {
 },
 };
 const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
+// The server answers in English; the few messages a presenter can meet are mapped here.
+const serverText = (msg) => /isn't valid/.test(msg ?? "") ? t("errInvalidLink") : /already been approved/.test(msg ?? "") ? t("errApproved") : (msg ?? t("generic"));
 function setLang(l) {
   LANG = l; try { localStorage.setItem("ongia-lang", l); } catch {}
-  document.documentElement.lang = l; LANGBTN.textContent = t("other");
-  if (DATA) { if (DATA.presenter.status === "approved") ROOT.innerHTML = finalMarkup(); else if (DONE) render(DONE); else render(); }
+  document.documentElement.lang = l; LANGBTN.textContent = t("other"); document.title = t("pageTitle");
+  if (DATA) { if (DATA.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); STEPCOUNT.textContent = t("finalWord"); } else if (DONE) render(DONE); else render(); }
 }
 LANGBTN.textContent = t("other");
 LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
@@ -415,7 +428,7 @@ function calendar(key) {
 /* ---------- pieces ---------- */
 function seg(key, opts, path) {
   const current = path ? path.reduce((o, k) => o?.[k], S) : S[key];
-  return `<div class="seg">` + opts.map((o) =>
+  return `<div class="seg" role="group" aria-label="${esc(String(key))}">` + opts.map((o) =>
     `<button type="button" data-set="${key}" data-val="${o.v}"${path ? ` data-path="${path.join(".")}"` : ""}
       aria-pressed="${current === o.v}">${o.t}</button>`).join("") + `</div>`;
 }
@@ -434,9 +447,7 @@ function stepMarkup() {
   const ev = DATA.event;
   const dl = ev.deadlinesIso;
   switch (S.step) {
-    case 0: return `${DATA.presenter.returnNote ? `<div class="problems" style="margin:0 0 14px"><b>${t("returnedTitle")}</b>
-        <p style="margin:6px 0 0">${esc(DATA.presenter.returnNote)}</p>
-        <p style="margin:6px 0 0;font-size:13px">${t("returnedHint")}</p></div>` : ""}<div class="card">
+    case 0: return `<div class="card">
       <h2>${t("presentingAt", esc(ev.title))}</h2>
       <p class="lede">${t("hello", esc(S.first))}</p>
       <dl class="facts">
@@ -496,7 +507,7 @@ function stepMarkup() {
           ${seg("expenses", YESNO(), ["expenses", "hotel"])}</div>`;
       } else {
         h += `<div class="qblock"><p class="qtext">${t("hotelTitle")}</p>
-          <p class="hint">${t("hotelSkipped")}</p></div>`;
+          <p class="hint">${S.hotel === "no" ? t("hotelSkipped") : t("hotelFirst")}</p></div>`;
       }
       h += `<div class="qblock"><p class="qtext">${t("covMeals")}</p>
           ${seg("expenses", YESNO(), ["expenses", "meals"])}
@@ -525,11 +536,11 @@ function stepMarkup() {
 
     case 5: return `<div class="card"><h2>${t("titles")[5]}</h2>
       <p class="lede">${t("lastStep", esc(fmtDate(dl.agreement)))}</p>
-      <label class="upload" for="f-shot">
+      <label class="upload" for="f-shot" tabindex="0" role="button" id="shot-tile">
         <div class="big">${S.headshotName ? "✅" : "📷"}</div>
         <div class="t">${S.headshotName ? esc(S.headshotName) : t("addHeadshot")}</div>
         <div class="s">${S.headshotName ? t("tapReplace") : t("headshotHint")}</div>
-        <input id="f-shot" type="file" accept="image/png,image/jpeg"></label>
+        <input id="f-shot" type="file" accept="image/png,image/jpeg" tabindex="-1"></label>
       <div class="field"><label for="f-sign">${t("typeName")}</label>
         <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
       <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
@@ -552,11 +563,11 @@ function doneMarkup(result) {
     <p>${t("doneP")}</p>
     <div class="done-list">
       <div><b>✓</b><span>${t("received")}</span></div>
-      <div><b>✓</b><span>${t("notified", esc(DATA.event.contact?.name || "ONGIA"))}</span></div>
+      <div><b>${result.notified === false ? "→" : "✓"}</b><span>${result.notified === false ? t("boardWillSee") : t("notified", esc(DATA.event.contact?.name || "ONGIA"))}</span></div>
       <div><b>→</b><span>${t("reviewNext")}</span></div>
       <div><b>→</b><span>${t("finalNext")}</span></div>
       <div><b>→</b><span>${t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>
-      ${result.headshotWarning ? `<div><b style="color:var(--late)">!</b><span>${esc(t(result.headshotWarning))}</span></div>` : ""}
+      ${result.headshotWarning ? `<div><b style="color:var(--bad)">!</b><span>${esc(t(result.headshotWarning))}</span></div>` : ""}
     </div>
     <p class="ref">${t("reference", esc(result.reference))}</p></div>`;
 }
@@ -566,14 +577,15 @@ function finalMarkup() {
   const ev = DATA.event, me = DATA.presenter, dl = ev.deadlinesIso;
   return `<div class="wrap"><div class="card done-screen"><div class="tick">✓</div>
     <h2>${t("finalTitle")}</h2>
-    <p>${t("finalP", me.approvedAt ? esc(fmtDate(me.approvedAt.slice(0, 10))) : "", esc(me.email))}</p>
+    <p>${t("finalP", me.approvedAt ? esc(fmtDate(toISO(new Date(me.approvedAt)))) : "", esc(me.email))}</p>
     <div class="done-list">
-      <div><b>↓</b><span><a href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a></span></div>
       <div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
       <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
     </div>
-    ${ev.materialsUploadUrl ? `<p style="margin:18px 0 0"><a class="btn btn-primary" style="display:inline-block;text-decoration:none" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a></p>` : ""}
-    <p class="ref">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
+    <p style="margin:18px 0 0;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn btn-gold" style="display:inline-block;text-decoration:none" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>
+      ${ev.materialsUploadUrl ? `<a class="btn btn-primary" style="display:inline-block;text-decoration:none" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a>` : ""}</p>
+    <p class="hint" style="margin-top:16px;text-align:center;letter-spacing:0;text-transform:none">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
 }
 
 /* ---------- render ---------- */
@@ -589,7 +601,7 @@ function render(done) {
   const bars = Array.from({ length: 6 }, (_, i) =>
     `<i class="${i < S.step ? "done" : i === S.step ? "on" : ""}"></i>`).join("");
   const problems = S.problems.length
-    ? `<div class="problems"><b>${t("notQuite")}</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
+    ? `<div class="problems" role="alert"><b>${t("notQuite")}</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
     : "";
   const nav = `<div class="nav">
       ${S.step > 0 ? `<button type="button" class="btn btn-ghost" id="back">${t("back")}</button>` : ""}
@@ -597,7 +609,14 @@ function render(done) {
         ${sending ? t("sending") : S.step === LAST_STEP ? t("submit") : t("cont")}</button></div>`;
 
   const keep = lastStep === S.step ? window.scrollY : null;
-  ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${stepMarkup()}${problems}${nav}</div>`;
+  const banner = DATA.presenter.returnNote
+    ? `<div class="problems" style="margin:0 0 14px" role="status"><b>${t("returnedTitle")}</b><p style="margin:6px 0 0">${esc(DATA.presenter.returnNote)}</p><p style="margin:6px 0 0;font-size:13px">${t("returnedHint")}</p></div>`
+    : DATA.presenter.status === "submitted" && DATA.presenter.submittedAt
+      ? `<div class="flag" style="margin:0 0 14px"><span>✓</span><div><p style="margin:0">${t("submittedNote", esc(fmtDate(toISO(new Date(DATA.presenter.submittedAt)))))}</p></div></div>` : "";
+  const focusId = document.activeElement?.id;
+  ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${banner}${stepMarkup()}${problems}${nav}</div>`;
+  // Re-rendering replaces the DOM; put keyboard focus back where it was.
+  if (focusId) { const again = document.getElementById(focusId); if (again) again.focus({ preventScroll: true }); }
   STEPCOUNT.textContent = t("stepOf", S.step + 1);
   if (keep !== null) window.scrollTo(0, keep); else window.scrollTo(0, 0);
   lastStep = S.step;
@@ -639,6 +658,7 @@ function validate() {
     if (S.hotel === "yes" && !S.expenses.hotel) out.push(t("vCovH"));
     if (!S.expenses.meals) out.push(t("vCovM"));
     if (!S.expenses.other) out.push(t("vCovO"));
+    if (S.expenses.other === "yes" && !S.expenses.otherText.trim()) out.push(t("otherNeeded"));
   }
   if (S.step === 4) {
     if (!S.copyright) out.push(t("vCopy"));
@@ -665,6 +685,7 @@ async function uploadHeadshot() {
       headers: { "content-type": FILE.type || "image/jpeg", "x-file-name": encodeURIComponent(FILE.name) },
       body: FILE,
     });
+    await res.json().catch(() => null);
     if (!res.ok) return "shotFail";
     FILE = null;
     return null;
@@ -682,7 +703,7 @@ async function submit() {
     const out = await res.json();
     if (res.ok) { out.headshotWarning = await uploadHeadshot(); sending = false; render(out); return; }
     sending = false;
-    S.problems = out.problems ?? [out.error ?? t("generic")];
+    S.problems = out.problems ?? [serverText(out.error)];
     render();
   } catch {
     sending = false;
@@ -739,7 +760,11 @@ ROOT.addEventListener("click", (e) => {
 
 ROOT.addEventListener("input", (e) => {
   const t0 = e.target;
-  if (t0.id === "f-shot") { FILE = t0.files?.[0] ?? null; S.headshotName = FILE?.name ?? ""; render(); return; }
+  if (t0.id === "f-shot") {
+    FILE = t0.files?.[0] ?? null;
+    if (FILE && FILE.size > 5 * 1024 * 1024) { FILE = null; S.headshotName = ""; S.problems = [t("shotBig")]; render(); return; }
+    S.headshotName = FILE?.name ?? ""; S.problems = []; render(); return;
+  }
   const bind = t0.dataset?.bind;
   if (!bind) return;
   const value = t0.type === "checkbox" ? t0.checked : t0.value;
@@ -770,6 +795,7 @@ ROOT.addEventListener("input", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && S.openCal) { S.openCal = null; S.calMonth = null; render(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.id === "shot-tile") { e.preventDefault(); document.getElementById("f-shot")?.click(); }
 });
 
 /* ---------- boot ---------- */
@@ -784,13 +810,13 @@ document.addEventListener("keydown", (e) => {
     const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}`);
     const out = await res.json();
     if (!res.ok) {
-      ROOT.innerHTML = `<div class="oops"><h2>${t("openFail")}</h2><p>${esc(out.error)}</p></div>`;
+      ROOT.innerHTML = `<div class="oops"><h2>${t("openFail")}</h2><p>${esc(serverText(out.error))}</p></div>`;
       return;
     }
     DATA = out;
     let remembered = null; try { remembered = localStorage.getItem("ongia-lang"); } catch {}
     if (out.presenter.language && !remembered) setLang(out.presenter.language);
-    if (out.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); return; }
+    if (out.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); STEPCOUNT.textContent = t("finalWord"); return; }
     Object.assign(S, {
       first: out.presenter.first ?? "",
       last: out.presenter.last ?? "",

@@ -117,6 +117,7 @@ async function submit(req, event, presenter) {
   if (hotel === "yes" && !expenses.hotel) problems.push("Tell us whether your agency covers accommodation.");
   if (!expenses.meals) problems.push("Tell us whether your agency covers meals.");
   if (!expenses.other) problems.push("Tell us whether your agency covers any other cost.");
+  if (expenses.other === "yes" && !expenses.otherText) problems.push("Tell us what the other cost is.");
 
   if (body.copyright !== true) problems.push("Please confirm the copyright statement.");
   if (body.goodStanding !== true) problems.push("Please confirm you are in good standing with your agency.");
@@ -184,6 +185,7 @@ async function submit(req, event, presenter) {
   return json({
     ok: true,
     reference: presenter.reference,
+    notified: presenter.reviewNotice ? presenter.reviewNotice.ok === true : false,
     // Submission is not the end of the line — a board member still has to set
     // what ONGIA covers and sign before anything is final.
     next: {
