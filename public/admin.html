@@ -960,10 +960,14 @@ const load = render;
 {
   const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
   if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); }
+  const e = location.hash.match(/^#event\/([^/]+)$/);
+  if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); }
 }
 window.addEventListener("hashchange", () => {
   const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
   if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); render(); }
+  const e = location.hash.match(/^#event\/([^/]+)$/);
+  if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); render(); }
 });
 render();
 </script>

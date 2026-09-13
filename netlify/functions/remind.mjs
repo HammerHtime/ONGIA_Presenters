@@ -4,6 +4,8 @@ import { listEvents, listPresenters, putPresenter, putEvent } from "./lib/store.
 import { describeEvent, formatDate } from "./lib/deadlines.mjs";
 import { sendMail, invitationMail, layout } from "./lib/mail.mjs";
 import { scanMaterials, materialsStatus } from "./lib/materials.mjs";
+import { weeklyDigestMail } from "./lib/mail.mjs";
+import { countStatuses } from "./events.mjs";
 import { formatDateIn } from "./lib/deadlines.mjs";
 
 /**
@@ -11,9 +13,14 @@ import { formatDateIn } from "./lib/deadlines.mjs";
  * decides, per presenter, whether today is a day to nudge. Nothing here sends
  * twice on the same day, and nothing goes to someone who has submitted.
  *
- * Default cadence (days relative to the agreement due date; negative = before):
- *   presenters:  -14, -7, -1, 0, then every 7 days overdue
- *   board:       a digest on +3 and every 7 days after while anyone is overdue
+ * Cadence (days relative to the due date; negative = before). Reminders
+ * tighten as the date nears:
+ *   agreements:  -28, -14, -7, -4, -2, -1, 0, then every 3 days for two weeks
+ *                overdue, weekly after
+ *   materials:   -14, -7, -3, -1, 0, then the same overdue pattern
+ *   board:       an overdue digest on +3 and weekly after while anyone is late
+ *   lead:        a weekly summary of the numbers every Monday, with a link
+ *                into the event on the admin page
  * Nobody is chased before they have been sent their link at least once.
  *
  * Materials: presenters whose agreement is in (submitted or final) but whose
@@ -21,25 +28,30 @@ import { formatDateIn } from "./lib/deadlines.mjs";
  * each materials deadline, then weekly. The request folder is scanned first,
  * so a presenter who has uploaded is left alone.
  *
- *   GET /api/remind?dry=1   (admin) show what today's run would send, send nothing
- *   GET /api/remind?run=1   (admin) run it now
+ *   GET /api/remind?dry=1      (admin) show what today's run would send, send nothing
+ *   GET /api/remind?run=1      (admin) run it now
+ *   GET /api/remind?digest=1   (admin) run now and include the lead's weekly summary whatever the day
  */
 export const config = { schedule: "0 14 * * *" };
 
-const PRESENTER_DAYS = [-14, -7, -1, 0];
-const MATERIALS_DAYS = [-7, 0];
+const PRESENTER_DAYS = [-28, -14, -7, -4, -2, -1, 0];
+const MATERIALS_DAYS = [-14, -7, -3, -1, 0];
 const OVERDUE_EVERY = 7;
 const BOARD_FIRST = 3;
+// Overdue: every 3 days for the first two weeks, then weekly.
+const overdueDay = (off) => off > 0 && (off <= 14 ? off % 3 === 0 : off % 7 === 0);
 
 export default async (req) => {
   const url = new URL(req.url);
-  const manual = url.searchParams.has("dry") || url.searchParams.has("run");
+  const manual = url.searchParams.has("dry") || url.searchParams.has("run") || url.searchParams.has("digest");
   if (manual) {
     const denied = requireAdmin(req);
     if (denied) return fail(denied, 401);
   }
   const dry = url.searchParams.has("dry");
+  const forceDigest = url.searchParams.has("digest");
   const today = todayIso();
+  const isMonday = new Date().getUTCDay() === 1;
   const origin = siteUrl(req);
 
   const plan = [];
@@ -54,7 +66,7 @@ export default async (req) => {
     for (const p of outstanding) {
       if (!p.mail?.length) continue; // never invited: that's the coordinator's call, not a reminder
       if (alreadyToday(p, today)) continue;
-      const shouldNudge = PRESENTER_DAYS.includes(dayOffset) || (dayOffset > 0 && dayOffset % OVERDUE_EVERY === 0);
+      const shouldNudge = PRESENTER_DAYS.includes(dayOffset) || overdueDay(dayOffset);
       if (!shouldNudge) continue;
       plan.push({
         kind: "presenter",
@@ -63,7 +75,7 @@ export default async (req) => {
         name: `${p.first} ${p.last}`,
         why: dayOffset < 0 ? `${-dayOffset} days before due` : dayOffset === 0 ? "due today" : `${dayOffset} days overdue`,
         send: async () => {
-          const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: true });
+          const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: true, daysLeft: -dayOffset });
           const out = await sendMail({ to: p.email, replyTo: event.contact?.email, ...mail });
           if (out.skipped) throw new Error(out.reason);
           p.mail.push({ type: "reminder-auto", at: new Date().toISOString(), id: out.id });
@@ -81,7 +93,7 @@ export default async (req) => {
       for (const [key, label, labelFr] of [["draft", "Draft materials", "Version préliminaire du matériel"], ["final", "Final materials", "Version finale du matériel"]]) {
         const dueIso = event.deadlines[key];
         const off = daysBetween(dueIso, today);
-        const isDay = MATERIALS_DAYS.includes(off) || (off > 0 && off % OVERDUE_EVERY === 0);
+        const isDay = MATERIALS_DAYS.includes(off) || overdueDay(off);
         if (!isDay) continue;
         for (const p of withAgreement) {
           const st = materialsStatus(p, event.materialsScan ?? null);
@@ -109,6 +121,41 @@ export default async (req) => {
           });
         }
       }
+    }
+
+    // Monday summary to the lead board member.
+    const lead = event.reviewer?.email;
+    const recentDigest = event.lastWeeklyDigest && daysBetween(event.lastWeeklyDigest, today) < 6;
+    if (lead && (forceDigest || (isMonday && !recentDigest))) {
+      const counts = countStatuses(people);
+      const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
+      const materialsSummary = { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length };
+      const items = [
+        ["Agreements", event.deadlines.agreement, people.filter((p) => p.status !== "submitted" && p.status !== "approved")],
+        ["Draft materials", event.deadlines.draft, people.filter((p, i) => !mats[i].draft)],
+        ["Final materials", event.deadlines.final, people.filter((p, i) => !mats[i].final)],
+      ].map(([label, due, missing]) => ({ label, due: formatDate(due), days: daysBetween(due, today), names: missing.map((p) => `${p.first} ${p.last}`) }));
+      const overdueItems = items.filter((x) => x.days > 0 && x.names.length);
+      const nextItem = [...items.map((x) => ({ label: `${x.label} due`, due: x.due, days: -x.days })), { label: "Training starts", due: formatDate(event.dayOne), days: -daysBetween(event.dayOne, today) }]
+        .filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0] ?? null;
+      plan.push({
+        kind: "weekly-summary",
+        event: event.title,
+        to: lead,
+        name: event.reviewer?.name || lead,
+        why: forceDigest ? "requested now" : "Monday summary",
+        send: async () => {
+          const mail = weeklyDigestMail({
+            event: ev, counts, materials: materialsSummary, overdue: overdueItems, next: nextItem,
+            rows: people.map((p) => ({ name: `${p.first} ${p.last}`, status: p.status })),
+            adminUrl: `${origin}/admin.html#event/${encodeURIComponent(event.id)}`,
+          });
+          const out = await sendMail({ to: lead, replyTo: event.contact?.email, ...mail });
+          if (out.skipped) throw new Error(out.reason);
+          event.lastWeeklyDigest = today;
+          await putEvent(event);
+        },
+      });
     }
 
     const overdue = outstanding.filter((p) => p.mail?.length);

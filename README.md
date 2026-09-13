@@ -28,14 +28,22 @@ presenter and filed to SharePoint.
 
 ## Reminders
 
-`netlify/functions/remind.mjs` runs daily at 14:00 UTC. Presenters who have
-been sent their link but not submitted are nudged 14, 7 and 1 days before the
-agreement deadline, on the day, and every 7 days after; the board gets a digest
-3 days past the deadline and weekly while anyone is still outstanding.
-Presenters whose agreement is in but whose draft or final materials haven't
-arrived are nudged 7 days before and on each materials deadline, then weekly;
-the request folder is scanned first so anyone who has uploaded is left alone.
-`GET /api/remind?dry=1` (admin key) previews today's run without sending.
+`netlify/functions/remind.mjs` runs daily at 14:00 UTC. Reminders tighten as a
+deadline nears:
+
+- **Agreements** (presenters who have been sent their link but not submitted):
+  28, 14, 7, 4, 2 and 1 days before the deadline and on the day; overdue, every
+  3 days for two weeks, then weekly. Each says how many days are left.
+- **Materials** (agreement in, but no draft/final upload detected or ticked):
+  14, 7, 3 and 1 days before each materials deadline and on the day; same
+  overdue pattern. The request folder is scanned first.
+- **Board**: an overdue digest 3 days past the agreement deadline, weekly after.
+- **Lead board member**: a weekly summary of the numbers every Monday, with
+  what's overdue, who is still outstanding, what's next, and a button that
+  opens the event on the admin page.
+
+`GET /api/remind?dry=1` (admin key) previews today's run without sending;
+`?digest=1` includes the lead's summary whatever the weekday.
 
 ## Hosting
 

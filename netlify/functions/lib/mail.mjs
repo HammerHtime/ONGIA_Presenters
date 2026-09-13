@@ -126,23 +126,26 @@ const plain = (heading, lines, href) =>
  * work in, so English comes first and French follows. The form itself has a
  * switch, and everything after that follows their choice.
  */
-export function invitationMail({ event, presenter, link, remind }) {
+export function invitationMail({ event, presenter, link, remind, daysLeft = null }) {
   const d = event.deadlines;
   const fr = (iso) => esc(formatDateFr(iso));
+  // "That's in 3 days." / "That was 4 days ago." — the nudge gets sharper as the date nears.
+  const urgencyEn = daysLeft === null ? "" : daysLeft > 1 ? ` That's in ${daysLeft} days.` : daysLeft === 1 ? " That's tomorrow." : daysLeft === 0 ? " That's today." : ` That was ${-daysLeft} day${daysLeft === -1 ? "" : "s"} ago.`;
+  const urgencyFr = daysLeft === null ? "" : daysLeft > 1 ? ` C'est dans ${daysLeft} jours.` : daysLeft === 1 ? " C'est demain." : daysLeft === 0 ? " C'est aujourd'hui." : ` C'était il y a ${-daysLeft} jour${daysLeft === -1 ? "" : "s"}.`;
   const heading = remind
     ? `Reminder / Rappel — ONGIA presenter agreement due ${event.deadlinesReadable.agreement} · entente attendue le ${formatDateFr(d.agreement)}`
     : `Your ONGIA presenter agreement — ${event.title} / Votre entente de conférencier ONGIA`;
   const lines = [
     `Hello ${esc(presenter.first)},`,
     remind
-      ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}). It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.`
+      ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}). It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.${urgencyEn}`
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
     `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form asks about your session, travel, and which costs your agency is covering, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
     `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`,
     `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
     `Bonjour ${esc(presenter.first)},`,
     remind
-      ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}). Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.`
+      ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}). Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.${urgencyFr}`
       : `Merci de présenter à <b>${esc(event.title)}</b> à ${esc(event.city)}, le ${fr(event.dayOne)}. Avant l'événement, nous avons besoin de votre entente de conférencier — une dizaine de minutes sur un téléphone, rien à imprimer ni à numériser.`,
     `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.`,
     `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`,
@@ -263,6 +266,37 @@ function describeDates(presenter, lang = "en") {
   if (hotel) parts.push(`${fr ? "hôtel" : "hotel"} <b>${fmt(hotel.from)} – ${fmt(hotel.to)}</b>${r.hotel?.changed ? adj : ""}`);
   if (!parts.length) return fr ? "Aucun transport ni hôtel n'a été demandé." : "No travel or hotel was requested.";
   return fr ? `Dates confirmées : ${parts.join("; ")}.` : `Confirmed dates: ${parts.join("; ")}.`;
+}
+
+/**
+ * Monday summary for the lead board member: where every presenter stands,
+ * what's overdue, what's next, and a button into the event on the admin page.
+ */
+export function weeklyDigestMail({ event, rows, counts, materials, overdue, next, adminUrl }) {
+  const heading = `${event.title}: ${counts.approved} of ${counts.total} agreements final`;
+  const cell = (v) => `<td style="padding:6px 10px;border-bottom:1px solid #ddd7c8">${v}</td>`;
+  const numbers = `<table style="border-collapse:collapse;font-size:14px;margin:6px 0 14px">
+    <tr>${cell("Presenters:")}${cell(`<b>${counts.total}</b>`)}</tr>
+    <tr>${cell("Not submitted:")}${cell(`<b>${counts.invited + counts.opened}</b>`)}</tr>
+    <tr>${cell("Needs your review:")}${cell(`<b>${counts.submitted}</b>`)}</tr>
+    <tr>${cell("Final:")}${cell(`<b>${counts.approved}</b>`)}</tr>
+    <tr>${cell("Draft materials received:")}${cell(`<b>${materials.draft}</b> of ${counts.total}`)}</tr>
+    <tr>${cell("Final materials received:")}${cell(`<b>${materials.final}</b> of ${counts.total}`)}</tr></table>`;
+  const lines = [
+    `Weekly summary for <b>${esc(event.title)}</b>, ${esc(event.city)}, ${esc(event.dayOneReadable)}.`,
+    numbers,
+  ];
+  if (overdue.length) {
+    lines.push(`<b style="color:#a33328">Overdue</b><br>${overdue.map((o) => `${esc(o.label)} were due ${esc(o.due)} (${o.days} day${o.days === 1 ? "" : "s"} ago). Still outstanding: ${o.names.map(esc).join(", ")}.`).join("<br>")}`);
+  }
+  if (counts.submitted) lines.push(`<b>Waiting on you:</b> ${rows.filter((r) => r.status === "submitted").map((r) => esc(r.name)).join(", ")} — submitted and ready to approve.`);
+  if (next) lines.push(`<b>Next:</b> ${esc(next.label)} ${esc(next.due)} (${next.days === 0 ? "today" : `in ${next.days} day${next.days === 1 ? "" : "s"}`}).`);
+  lines.push(`Everyone who hasn't submitted is being reminded automatically. You'll get this summary every Monday until the training.`);
+  return {
+    subject: heading,
+    html: layout({ heading, lines, button: { label: "Open the event", href: adminUrl }, footer: `Sent to you as the lead board member for this event. Reply to reach ${esc(event.contact?.name || "the coordinator")}.` }),
+    text: plain(heading, lines, adminUrl),
+  };
 }
 
 export function describeAgency(expenses) {
