@@ -13,6 +13,9 @@ import { safeFileName } from "./ids.mjs";
  * skip the filing rather than fail the approval; the dashboard shows it.
  */
 const SITE_URL = process.env.MS_SITE_URL || "https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles";
+// The Graph site id for the URL above; resolving by path needs no extra rights,
+// but a known id avoids one round trip and one more place to be denied.
+const SITE_ID = process.env.MS_SITE_ID || "ongia.sharepoint.com,79a316dc-241e-4031-b1c1-a878fbe2fdfe,98028b36-6484-490d-9264-800106bb3616";
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
 export function graphConfigured() {
@@ -36,6 +39,16 @@ async function accessToken() {
   return json.access_token;
 }
 
+/** The app roles Microsoft put in the token — empty means admin consent was never granted. */
+export function tokenRoles(token) {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+    return payload.roles ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function graph(token, path, init = {}) {
   const res = await fetch(`${GRAPH}${path}`, {
     ...init,
@@ -44,7 +57,7 @@ async function graph(token, path, init = {}) {
   if (res.status === 204) return {};
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(`${json.error?.code ?? res.status}: ${json.error?.message ?? "Graph request failed"}`);
+    const err = new Error(`${json.error?.code ?? res.status}: ${json.error?.message ?? "Graph request failed"} [HTTP ${res.status} ${path.split("?")[0]}]`);
     err.code = json.error?.code;
     err.status = res.status;
     throw err;
@@ -55,9 +68,12 @@ async function graph(token, path, init = {}) {
 /** The default document library ("Shared Documents") of the configured site. */
 async function driveId(token) {
   if (process.env.MS_DRIVE_ID) return process.env.MS_DRIVE_ID;
-  const u = new URL(SITE_URL);
-  const site = await graph(token, `/sites/${u.hostname}:${u.pathname}`);
-  const drive = await graph(token, `/sites/${site.id}/drive?$select=id`);
+  let siteId = SITE_ID;
+  if (!siteId) {
+    const u = new URL(SITE_URL);
+    siteId = (await graph(token, `/sites/${u.hostname}:${u.pathname}`)).id;
+  }
+  const drive = await graph(token, `/sites/${siteId}/drive?$select=id`);
   return drive.id;
 }
 
@@ -165,14 +181,18 @@ export async function fileAgreement({ event, presenter, pdf, headshot }) {
  */
 export async function checkFolder(folderPath) {
   const token = await accessToken();
+  const roles = tokenRoles(token);
+  if (!roles.length) {
+    throw new Error("Signed in, but the token carries no application permissions. In Entra → the app → API permissions, Sites.Selected must show a green tick under \"Grant admin consent for ONGIA\".");
+  }
   let drive;
   try {
     drive = await driveId(token);
   } catch (e) {
-    if (e.status === 403 || e.status === 401) throw new Error(`Signed in, but the app has no access to the site yet (${e.code ?? e.status}). The Sites.Selected grant on ${SITE_URL} is still needed.`);
+    if (e.status === 403 || e.status === 401) throw new Error(`Signed in with ${roles.join(", ")}, but the site refused the app (${e.message}). The Sites.Selected grant on ${SITE_URL} may still be propagating.`);
     throw e;
   }
-  const result = { site: SITE_URL, driveId: drive };
+  const result = { site: SITE_URL, driveId: drive, roles };
   const folder = normaliseFolder(folderPath);
   if (folder) {
     try {
