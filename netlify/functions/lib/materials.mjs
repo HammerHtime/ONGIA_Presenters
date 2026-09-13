@@ -15,7 +15,7 @@ export async function scanMaterials(event, presenters) {
 
   const token = await graphAccessToken();
   const folder = await findRequestFolder(event, token);
-  if (!folder) return { skipped: true, reason: "Couldn't find which folder the materials link belongs to. It should be the event folder or a folder inside it." };
+  if (!folder) return { skipped: true, reason: `Couldn't find which folder the materials link belongs to. It should be the event folder, its parent, or a folder inside either. Checked: ${(event.materialsFolderSearch?.tried ?? []).join("; ") || "nothing reachable"}.` };
 
   const files = [];
   let next = `/drives/${folder.driveId}/items/${folder.id}/children?$select=id,name,size,lastModifiedDateTime,webUrl,file,folder&$top=200`;
@@ -64,17 +64,25 @@ async function findRequestFolder(event, token) {
     for (const k of kids.value ?? []) if (k.folder) candidates.push({ ...k, path: `${base}/${k.name}` });
     const parentPath = base.includes("/") ? base.slice(0, base.lastIndexOf("/")) : "";
     if (parentPath) {
+      const parent = await graphGet(token, `/drives/${drive}/root:/${enc(parentPath)}?$select=id,name,webUrl`).catch(() => null);
+      if (parent) candidates.push({ ...parent, path: parentPath });
       const sibs = await graphGet(token, `/drives/${drive}/root:/${enc(parentPath)}:/children?$select=id,name,webUrl,folder&$top=200`).catch(() => ({ value: [] }));
       for (const k of sibs.value ?? []) if (k.folder && k.id !== eventFolder.id) candidates.push({ ...k, path: `${parentPath}/${k.name}` });
     }
   }
+  const tried = [];
   for (const c of candidates) {
-    const perms = await graphGet(token, `/drives/${drive}/items/${c.id}/permissions?$select=id,link`).catch(() => ({ value: [] }));
-    if ((perms.value ?? []).some((p) => p.link?.webUrl && linkKey(p.link.webUrl) === target)) {
+    let perms;
+    try { perms = await graphGet(token, `/drives/${drive}/items/${c.id}/permissions?$select=id,link`); }
+    catch (e) { tried.push(`${c.path}: ${e.code ?? e.status}`); continue; }
+    const links = (perms.value ?? []).filter((p) => p.link?.webUrl);
+    tried.push(`${c.path}: ${links.length} link${links.length === 1 ? "" : "s"}`);
+    if (links.some((p) => linkKey(p.link.webUrl) === target)) {
       event.materialsFolder = { id: c.id, driveId: drive, name: c.name, webUrl: c.webUrl, path: c.path, link: target };
       return event.materialsFolder;
     }
   }
+  event.materialsFolderSearch = { at: new Date().toISOString(), tried };
   return null;
 }
 
