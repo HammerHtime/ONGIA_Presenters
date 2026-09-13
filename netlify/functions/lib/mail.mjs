@@ -89,13 +89,20 @@ async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
-export function layout({ heading, lines, button, footer }) {
+export function layout({ heading, lines, button, buttons = [], footer }) {
   const paras = lines.map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
+  // The primary button keeps its raw URL underneath for mail clients that strip
+  // buttons; secondary ones (file uploads) are just a button — the address is
+  // long, ugly and nobody types it.
   const cta = button
     ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:#b8922a;color:#12161f;text-decoration:none;
         font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block">${esc(button.label)}</a></p>
        <p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all">Or paste this into your browser: ${esc(button.href)}</p>`
     : "";
+  const extra = buttons.filter((b) => b?.href).map((b) =>
+    `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:#1a2f5e;color:#fff;text-decoration:none;
+        font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
+    (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
   return `<!doctype html><html><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
     <div style="background:#1a2f5e;color:#fff;padding:18px 24px">
@@ -104,7 +111,7 @@ export function layout({ heading, lines, button, footer }) {
     </div>
     <div style="padding:24px;font-size:15px">
       <h1 style="font-size:22px;margin:0 0 16px;color:#1a2f5e">${esc(heading)}</h1>
-      ${paras}${cta}
+      ${paras}${cta}${extra}
       ${footer ? `<p style="margin:20px 0 0;font-size:13px;color:#767f92;line-height:1.5">${footer}</p>` : ""}
     </div>
   </div></body></html>`;
@@ -153,7 +160,11 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
   const lang = presenter.language === "fr" ? "fr" : "en";
   const d = event.deadlines;
   const f = (iso) => esc(formatDateIn(iso, lang));
-  const up = event.materialsUploadUrl ? `<a href="${esc(event.materialsUploadUrl)}">${esc(event.materialsUploadUrl)}</a>` : "";
+  const up = ""; // the upload link is a button below the text, not a pasted address
+  const uploadBtn = event.materialsUploadUrl
+    ? [{ href: event.materialsUploadUrl, label: lang === "fr" ? "Téléverser le matériel" : "Upload Material",
+        note: lang === "fr" ? "Le bouton ouvre le dossier de dépôt d'ONGIA pour cette formation — déposez-y vos fichiers, rien d'autre à faire." : "Opens ONGIA's drop folder for this event — add your files there and you're done." }]
+    : [];
   if (lang === "fr") {
     const heading = `Votre entente de conférencier signée — ${event.title}`;
     const covered = coverage.length ? coverage.map(frCost).join(", ") : "aucuns frais (votre organisation les assume)";
@@ -165,7 +176,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
       `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
       `Référence ${esc(presenter.reference)}.`,
     ];
-    return { subject: heading, html: layout({ heading, lines, footer: `Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.` }), text: plain(heading, lines) };
+    return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, footer: `Répondez à ce courriel pour joindre ${esc(event.contact?.name || "ONGIA")}.` }), text: plain(heading, lines, event.materialsUploadUrl) };
   }
   const heading = `Your signed presenter agreement — ${event.title}`;
   const covered = coverage.length ? coverage.join(", ") : "no costs (your agency is covering them)";
@@ -179,8 +190,8 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
   ];
   return {
     subject: heading,
-    html: layout({ heading, lines, footer: `Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}.` }),
-    text: plain(heading, lines),
+    html: layout({ heading, lines, buttons: uploadBtn, footer: `Reply to this email to reach ${esc(event.contact?.name || "ONGIA")}.` }),
+    text: plain(heading, lines, event.materialsUploadUrl),
   };
 }
 

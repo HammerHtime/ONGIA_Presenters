@@ -237,7 +237,7 @@ en: {
   reference: (r) => `Reference ${r}`,
   finalTitle: "Your agreement is final", finalP: (on, e) => `ONGIA approved and signed it${on ? " on " + on : ""}. A copy was emailed to ${e}.`,
   downloadPdf: "Download the signed PDF", draftFor: (d) => `Draft materials for review by <b>${d}</b>`,
-  finalFor: (d) => `Final, production-ready materials by <b>${d}</b>`, upload: "Upload your presentation materials",
+  finalFor: (d) => `Final, production-ready materials by <b>${d}</b>`, upload: "Upload Material",
   refQuestions: (r, n) => `Reference ${r} · Questions? Reply to your ONGIA email or contact ${n}.`,
   notQuite: "Not quite there", back: "Back", cont: "Continue", submit: "Submit agreement", sending: "Sending…",
   vName: "Please add your first and last name.", vEmail: "That email address doesn't look right.",
@@ -305,7 +305,7 @@ fr: {
   reference: (r) => `Référence ${r}`,
   finalTitle: "Votre entente est définitive", finalP: (on, e) => `ONGIA l'a approuvée et signée${on ? " le " + on : ""}. Une copie a été envoyée à ${e}.`,
   downloadPdf: "Télécharger le PDF signé", draftFor: (d) => `Version préliminaire du matériel pour révision d'ici le <b>${d}</b>`,
-  finalFor: (d) => `Version finale, prête pour la production, d'ici le <b>${d}</b>`, upload: "Téléverser votre matériel de présentation",
+  finalFor: (d) => `Version finale, prête pour la production, d'ici le <b>${d}</b>`, upload: "Téléverser le matériel",
   refQuestions: (r, n) => `Référence ${r} · Des questions? Répondez au courriel d'ONGIA ou communiquez avec ${n}.`,
   notQuite: "Il manque quelque chose", back: "Retour", cont: "Continuer", submit: "Envoyer l'entente", sending: "Envoi…",
   vName: "Veuillez indiquer votre prénom et votre nom.", vEmail: "Cette adresse courriel semble incorrecte.",
@@ -571,8 +571,8 @@ function finalMarkup() {
       <div><b>↓</b><span><a href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a></span></div>
       <div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
       <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
-      ${ev.materialsUploadUrl ? `<div><b>↑</b><span><a href="${esc(ev.materialsUploadUrl)}">${t("upload")}</a></span></div>` : ""}
     </div>
+    ${ev.materialsUploadUrl ? `<p style="margin:18px 0 0"><a class="btn btn-primary" style="display:inline-block;text-decoration:none" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a></p>` : ""}
     <p class="ref">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
 }
 
