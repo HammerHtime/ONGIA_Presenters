@@ -284,7 +284,8 @@ function eventFormScreen(existing = null) {
         <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="https://ongia.sharepoint.com/…/FileRequest.aspx?id=…"></div>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
-        <p class="hint" style="margin:6px 0 0">Optional now — you can add more later. Links are created immediately; emails go when you press “Email all outstanding”.</p></div>`}
+        <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
+        <p class="hint" style="margin:6px 0 0">Optional now — you can add more later from the event page.</p></div>`}
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="create">${ev ? "Save changes" : "Create event"}</button></div>
     </div></div>`;
@@ -358,14 +359,16 @@ function eventFormScreen(existing = null) {
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
-    if (!ev) body.presenters = parsePeople(val("e-people"));
+    if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
     if (!body.board.length && !confirm("No board member is ticked, so nobody will be emailed when presenters submit. Save anyway?")) { busy = false; e.target.disabled = false; return; }
     try {
       const out = ev
         ? await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })
         : await api("/events", { method: "POST", body: JSON.stringify(body) });
-      toast(ev ? "Saved." : out.added?.length ? `Event created with ${out.added.length} presenter${out.added.length === 1 ? "" : "s"}.` : "Event created. Add presenters next.");
+      const sent = (out.added ?? []).filter((a) => a.invited).length;
+      toast(ev ? "Saved." : out.added?.length ? `Event created with ${out.added.length} presenter${out.added.length === 1 ? "" : "s"}${sent ? `; ${sent} invitation${sent === 1 ? "" : "s"} emailed` : ""}.` : "Event created. Add presenters next.");
       if (out.rejected?.length) alert("Not added:\n" + out.rejected.map((r) => `${JSON.stringify(r.row)} — ${r.why}`).join("\n"));
+      if (out.notSent?.length) alert("Added but not emailed:\n" + out.notSent.map((r) => `${r.name} — ${r.why}`).join("\n"));
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
@@ -496,7 +499,8 @@ function addScreen(eventId) {
         <textarea id="p-rows" style="min-height:150px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, Service de police de la Ville de Montréal"></textarea>
         <p class="hint">Organization is optional. Everything else they fill in themselves.</p></div>
       <div id="problem"></div>
-      <div class="actions"><button class="btn btn-gold" id="save">Add and create links</button></div>
+      <label class="attest" style="margin-top:4px"><input type="checkbox" id="p-invite" checked><span>Email each presenter their agreement link now</span></label>
+      <div class="actions"><button class="btn btn-gold" id="save">Add presenters</button></div>
     </div></div>`;
 
   document.getElementById("save").onclick = async (e) => {
@@ -510,12 +514,13 @@ function addScreen(eventId) {
       });
     try {
       const out = await api(`/events?id=${encodeURIComponent(eventId)}&add=1`, {
-        method: "POST", body: JSON.stringify({ presenters }),
+        method: "POST", body: JSON.stringify({ presenters , invite: document.getElementById("p-invite").checked }),
       });
       busy = false;
-      const links = out.added.map((a) => `${esc(a.name)} — ${location.origin}${esc(a.link)}`).join("<br>");
+      const links = out.added.map((a) => `${esc(a.name)} — ${location.origin}${esc(a.link)}${a.invited ? " <b>· emailed</b>" : ""}`).join("<br>");
       document.getElementById("problem").innerHTML =
-        `<div class="note"><b>${out.added.length} added.</b> Their links:</div><div class="links">${links}</div>` +
+        `<div class="note"><b>${out.added.length} added${out.added.filter((a) => a.invited).length ? `, ${out.added.filter((a) => a.invited).length} emailed` : ""}.</b> Their links:</div><div class="links">${links}</div>` +
+        (out.notSent?.length ? `<div class="bad"><b>Not emailed:</b> ${out.notSent.map((r) => `${esc(r.name)} — ${esc(r.why)}`).join("; ")}</div>` : "") +
         (out.rejected.length ? `<div class="bad"><b>${out.rejected.length} skipped.</b><br>` +
           out.rejected.map((r) => esc(r.why)).join("<br>") + `</div>` : "");
       document.getElementById("p-rows").value = "";

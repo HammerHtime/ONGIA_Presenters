@@ -3,6 +3,9 @@ import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresen
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput } from "./lib/graph.mjs";
+import { sendMail, invitationMail } from "./lib/mail.mjs";
+import { describeEvent } from "./lib/deadlines.mjs";
+import { siteUrl } from "./lib/site.mjs";
 
 /**
  * Events and their presenters.
@@ -28,7 +31,8 @@ export default async (req) => {
     if (url.searchParams.get("folder")) return createFolder(id);
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
-    return url.searchParams.get("add") ? addPresenters(id, body) : createEvent(body);
+    const origin = siteUrl(req);
+    return url.searchParams.get("add") ? addPresenters(id, body, origin) : createEvent(body, origin);
   }
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
@@ -194,7 +198,7 @@ export function countStatuses(presenters) {
   return counts;
 }
 
-async function createEvent(body) {
+async function createEvent(body, origin) {
   const event = { id: null, nextSequence: 1 };
   const problem = await applyDetails(event, body, { creating: true });
   if (problem) return fail(problem);
@@ -202,21 +206,28 @@ async function createEvent(body) {
   await putEvent(event);
 
   // Presenters pasted into the same form become invitations straight away.
-  const people = Array.isArray(body.presenters) && body.presenters.length ? await addPeople(event, body.presenters) : { added: [], rejected: [] };
+  const people = Array.isArray(body.presenters) && body.presenters.length
+    ? await addPeople(event, body.presenters, { invite: body.invite !== false, origin })
+    : { added: [], rejected: [] };
   return json({ event, deadlinesReadable: readableDeadlines(event), ...people }, 201);
 }
 
-async function addPresenters(id, body) {
+async function addPresenters(id, body, origin) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
 
   const rows = Array.isArray(body.presenters) ? body.presenters : [];
   if (!rows.length) return fail("No presenters supplied.");
-  return json(await addPeople(event, rows), 201);
+  return json(await addPeople(event, rows, { invite: body.invite !== false, origin }), 201);
 }
 
-async function addPeople(event, rows) {
+/**
+ * Create presenters and, unless told not to, email each their link straight
+ * away — adding someone to an event is the moment the coordinator means
+ * "send them the agreement", not a staging step.
+ */
+async function addPeople(event, rows, { invite = true, origin = "" } = {}) {
   const added = [];
   const rejected = [];
   let seq = event.nextSequence ?? 1;
@@ -257,6 +268,25 @@ async function addPeople(event, rows) {
   event.nextSequence = seq;
   await putEvent(event);
 
+  const invited = [];
+  const notSent = [];
+  if (invite && origin) {
+    const ev = describeEvent(event);
+    for (const p of added) {
+      const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: false });
+      try {
+        const out = await sendMail({ to: p.email, replyTo: event.contact?.email, ...mail });
+        if (out.skipped) { notSent.push({ id: p.id, name: `${p.first} ${p.last}`, why: out.reason }); continue; }
+        p.mail = [{ type: "invitation", at: new Date().toISOString(), id: out.id }];
+        p.invitedAt = p.mail[0].at;
+        await putPresenter(p);
+        invited.push(p.id);
+      } catch (e) {
+        notSent.push({ id: p.id, name: `${p.first} ${p.last}`, why: e.message });
+      }
+    }
+  }
+
   return {
     added: added.map((p) => ({
       id: p.id,
@@ -264,8 +294,10 @@ async function addPeople(event, rows) {
       email: p.email,
       link: `/a/${p.token}`,
       reference: p.reference,
+      invited: invited.includes(p.id),
     })),
     rejected,
+    notSent,
   };
 }
 
