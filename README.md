@@ -21,6 +21,14 @@ presenter and filed to SharePoint.
    `<event folder>/<First Last>/<Last>_Presenter Agreement.pdf` (plus the
    headshot) and the board notified.
 
+## Reminders
+
+`netlify/functions/remind.mjs` runs daily at 14:00 UTC. Presenters who have
+been sent their link but not submitted are nudged 14, 7 and 1 days before the
+agreement deadline, on the day, and every 7 days after; the board gets a digest
+3 days past the deadline and weekly while anyone is still outstanding.
+`GET /api/remind?dry=1` (admin key) previews today's run without sending.
+
 ## Hosting
 
 Netlify: static `public/`, functions in `netlify/functions/`, data in Netlify
