@@ -111,6 +111,22 @@
     font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;word-break:break-all;line-height:1.8}
   .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 
+  /* tracking table */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
+    border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
+  .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
+  .trow{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) auto;gap:14px;align-items:center;
+    background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:8px}
+  .trow .who{display:flex;gap:12px;align-items:center;min-width:0} .trow .who>div{min-width:0}
+  .trow .cell .cl{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .trow .act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .mini.mat{font-size:11.5px;padding:5px 10px;background:var(--sunk)} .mini.mat.done{background:var(--done-bg);color:var(--done);border-color:var(--done)}
+  .mini.mat.late{background:var(--late-bg);color:var(--late);border-color:var(--late)} .mini.mat.wait{background:var(--wait-bg);color:var(--wait);border-color:var(--wait)}
+  .tile .v small{font-size:14px;color:var(--muted);font-weight:400}
+  @media (max-width:820px){.trow{grid-template-columns:1fr 1fr}.trow .who{grid-column:1/-1}.trow .act{grid-column:1/-1;justify-content:flex-start}}
+  @media (max-width:480px){.trow{grid-template-columns:1fr}}
+
   /* review screen */
   .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px;margin-top:12px}
   .kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500;white-space:pre-wrap;word-break:break-word}
@@ -232,9 +248,11 @@ function listScreen(events) {
         <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
         <div class="tile"><div class="k">Not submitted</div><div class="v">${c.invited + c.opened}</div></div>
         <div class="tile accent"><div class="k">Needs review</div><div class="v">${c.submitted}</div></div>
-        <div class="tile"><div class="k">Final &amp; filed</div><div class="v">${c.approved}</div></div>
+        <div class="tile"><div class="k">Final</div><div class="v">${c.approved}</div></div>
+        <div class="tile"><div class="k">Draft materials</div><div class="v">${ev.materials?.draft ?? 0}<small>/${c.total}</small></div></div>
+        <div class="tile"><div class="k">Final materials</div><div class="v">${ev.materials?.final ?? 0}<small>/${c.total}</small></div></div>
       </div>
-      ${outstanding ? "" : `<div class="card-body"><div class="note">Everything on this event is signed, approved and filed.</div></div>`}
+      <div class="card-body" style="padding-top:12px;padding-bottom:12px">${nextLine(ev, c)}</div>
     </div>`;
   }).join("");
 
@@ -382,7 +400,9 @@ function eventFormScreen(existing = null) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c } = data;
+  const { event: ev, presenters, counts: c, materials } = data;
+  const mstat = materials?.status ?? {};
+  const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>
     <button class="chip" id="edit">Edit event</button>
     <button class="chip" id="mailall">Email all outstanding</button>
@@ -398,38 +418,90 @@ function eventScreen(data) {
     await invite(ev.id, null, outstanding.some((p) => p.mail?.length));
   };
 
-  const rows = presenters.length ? presenters.map((p) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const daysTo = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+  const short = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
+
+  // One line that says where each agreement stands and when it last moved.
+  const agreementCell = (p) => {
+    const mails = p.mail?.length ?? 0;
+    const lastMail = mails ? `emailed ${mails}× · last ${short(p.mail.at(-1).at)}` : "never emailed";
+    if (p.status === "approved") {
+      const filed = p.delivery?.filing?.ok;
+      return { bucket: "final", pill: `<span class="pill done">Final</span>${filed ? "" : ` <span class="pill late">Not filed</span>`}`, sub: `approved ${short(p.approvedAt)}${filed ? " · filed" : " · filing failed — open Details"}` };
+    }
+    if (p.status === "submitted") return { bucket: "review", pill: `<span class="pill wait">Needs review</span>`, sub: `submitted ${short(p.submittedAt)}` };
+    if (p.status === "returned") return { bucket: "progress", pill: `<span class="pill late">Sent back</span>`, sub: `${short(p.review?.returnedAt)} · waiting for changes` };
+    if (p.openedAt) return { bucket: "progress", pill: `<span class="pill wait">Opened, not finished</span>`, sub: `opened ${short(p.openedAt)} · ${lastMail}` };
+    return { bucket: "notstarted", pill: `<span class="pill wait">Not opened</span>`, sub: lastMail };
+  };
+
+  // Draft and final materials, detected from uploads or ticked by hand.
+  const matCell = (p) => {
+    const m = mstat[p.id] ?? {};
+    const files = materials?.files?.[p.id] ?? [];
+    const due = ev.deadlines ?? {};
+    const chip = (label, at, manual, key, deadline) => {
+      const late = !at && deadline && daysTo(deadline) < 0;
+      const soon = !at && deadline && daysTo(deadline) >= 0 && daysTo(deadline) <= 14;
+      const cls = at ? "done" : late ? "late" : soon ? "wait" : "";
+      const text = at ? `${label} ✓ ${short(at)}${manual ? "" : " (upload)"}` : `${label} –${late ? " overdue" : soon ? ` due ${short(deadline)}` : ""}`;
+      return `<button class="mini mat ${cls}" data-mat="${esc(p.id)}" data-key="${key}" data-on="${at ? "0" : "1"}" title="${at ? "Click to clear" : "Click to mark received"}">${text}</button>`;
+    };
+    const missing = (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14);
+    return {
+      missing,
+      html: `${chip("Draft", m.draft, m.draftManual, "draft", due.draft)} ${chip("Final", m.final, m.finalManual, "final", due.final)}` +
+        (files.length ? `<div class="porg">${files.length} file${files.length === 1 ? "" : "s"} uploaded · latest ${short(files[0].at)}</div>` : ""),
+    };
+  };
+
+  const enriched = presenters.map((p) => ({ p, a: agreementCell(p), m: matCell(p) }));
+  const filter = view.filter ?? "all";
+  const show = enriched.filter(({ a, m }) =>
+    filter === "all" || (filter === "materials" ? m.missing : a.bucket === filter));
+  const count = (f) => enriched.filter(({ a, m }) => f === "materials" ? m.missing : a.bucket === f).length;
+
+  const rows = show.length ? show.map(({ p, a, m }) => {
     const initials = `${p.first[0] ?? ""}${p.last[0] ?? ""}`.toUpperCase();
     const link = `${location.origin}/a/${p.token}`;
-    let pill = `<span class="pill wait">Not opened</span>`;
-    if (p.status === "approved") pill = p.delivery?.filing?.ok
-      ? `<span class="pill done">Final &amp; filed</span>`
-      : `<span class="pill done">Final</span> <span class="pill late">Not filed</span>`;
-    else if (p.status === "submitted") pill = `<span class="pill wait">Needs review</span>`;
-    else if (p.status === "returned") pill = `<span class="pill late">Sent back</span>`;
-    else if (p.openedAt) pill = `<span class="pill wait">Opened, not finished</span>`;
-    const mailed = p.mail?.length ? `<div class="porg">Emailed ${p.mail.length}× · last ${esc(p.mail.at(-1).at.slice(0, 10))}</div>` : "";
-    return `<div class="presenter">
-      <div class="av">${esc(initials)}</div>
-      <div><div class="pname">${esc(p.first)} ${esc(p.last)}</div>
-        <div class="porg">${esc(p.organization || p.email)}</div>
-        ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}${mailed}</div>
-      <div class="act">${pill}
+    return `<div class="trow">
+      <div class="who"><div class="av">${esc(initials)}</div>
+        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}</div>
+          <div class="porg">${esc(p.organization || p.email)}</div>
+          ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
+      <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
+      <div class="cell"><div class="cl">Materials</div>${m.html}</div>
+      <div class="act">
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
         ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${p.mail?.length ? "Remind" : "Email link"}</button>` : ""}
         ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
         ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : `<button class="mini ghost" data-remove="${esc(p.id)}" title="Remove presenter">✕</button>`}
       </div></div>`;
-  }).join("") : `<div class="empty">No presenters yet. Add some to send their links.</div>`;
+  }).join("") : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`;
+
+  const chips = [["all", "All"], ["notstarted", "Not started"], ["progress", "Waiting on presenter"], ["review", "Needs review"], ["final", "Final"], ["materials", "Materials missing"]]
+    .map(([k, l]) => `<button class="fchip${filter === k ? " on" : ""}" data-filter="${k}">${l}${k === "all" ? "" : ` <b>${count(k)}</b>`}</button>`).join("");
+
+  const draftGot = enriched.filter(({ p }) => mstat[p.id]?.draft).length;
+  const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
+  const nextDl = [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]]
+    .map(([k, l]) => ({ l, iso: k === "dayOne" ? ev.dayOne : ev.deadlines?.[k] })).filter((x) => x.iso).map((x) => ({ ...x, d: daysTo(x.iso) }));
+  const upcoming = nextDl.find((x) => x.d >= 0) ?? nextDl.at(-1);
+  const overdue = nextDl.filter((x) => x.d < 0 && x.l !== "Training starts" && (x.l.startsWith("Agreements") ? c.invited + c.opened : x.l.startsWith("Draft") ? presenters.length - draftGot : presenters.length - finalGot) > 0);
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
-      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div></div>
+      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}
+        ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
+      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}</div></div>
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Not submitted</div><div class="v">${c.invited + c.opened}</div></div>
       <div class="tile accent"><div class="k">Needs review</div><div class="v">${c.submitted}</div></div>
-      <div class="tile"><div class="k">Final &amp; filed</div><div class="v">${c.approved}</div></div>
+      <div class="tile"><div class="k">Final</div><div class="v">${c.approved}</div></div>
+      <div class="tile"><div class="k">Draft materials</div><div class="v">${draftGot}<small>/${c.total}</small></div></div>
+      <div class="tile"><div class="k">Final materials</div><div class="v">${finalGot}<small>/${c.total}</small></div></div>
     </div>
     <div class="card-body">
       <dl class="kv" style="margin:0 0 16px">
@@ -437,15 +509,39 @@ function eventScreen(data) {
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
+        <dt>Uploads</dt><dd>${!ev.materialsUploadUrl ? "<i>no materials link — presenters won't get an Upload Material button</i>"
+          : `${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}
+             ${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}
+             <button class="mini" id="rescan">Check uploads now</button>
+             ${scan?.unmatched?.length ? `<div class="porg" style="margin-top:6px"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
-        <dt>Materials link</dt><dd>${!ev.materialsUploadUrl ? "<i>none — presenters won't get an Upload Material button</i>"
-          : ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span> presenters can add files but can't see the folder`
-          : `<span class="pill late">unverified</span> ${esc(ev.materialsLinkCheck?.reason ?? "not checked yet — re-save the event")}`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
+      <div class="filters">${chips}</div>
       ${rows}
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div></div>`;
+
+  ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
+  ROOT.querySelectorAll("[data-mat]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const out = await api(`/materials?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.mat)}`,
+          { method: "POST", body: JSON.stringify({ [b.dataset.key]: b.dataset.on === "1" }) });
+        eventScreen({ ...data, materials: out });
+      } catch (e) { toast(e.message); b.disabled = false; }
+    };
+  });
+  const rescan = document.getElementById("rescan");
+  if (rescan) rescan.onclick = async () => {
+    rescan.disabled = true; rescan.textContent = "Checking…";
+    try {
+      const out = await api(`/materials?event=${encodeURIComponent(ev.id)}&scan=1`, { method: "POST" });
+      toast(`${out.scan?.total ?? 0} file${out.scan?.total === 1 ? "" : "s"} found.`);
+      eventScreen({ ...data, materials: out });
+    } catch (e) { toast(e.message); rescan.disabled = false; rescan.textContent = "Check uploads now"; }
+  };
 
   const mk = document.getElementById("mkfolder");
   if (mk) mk.onclick = async () => {
@@ -473,13 +569,8 @@ function eventScreen(data) {
       catch (e) { toast(e.message); }
     };
   });
-
-  ROOT.querySelectorAll("[data-invite]").forEach((b) => {
-    b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind");
-  });
-  ROOT.querySelectorAll("[data-pdf]").forEach((b) => {
-    b.onclick = () => openPdf(ev.id, b.dataset.pdf);
-  });
+  ROOT.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
+  ROOT.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });
   ROOT.querySelectorAll("[data-copy]").forEach((b) => {
     b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
@@ -551,6 +642,22 @@ async function healthStrip() {
     host.innerHTML = `<div class="stat" style="border:0;padding:0">${dot(h.email)}<div>Email ${h.email.ok ? "ready" : "off"}<small>${esc(h.email.ok ? h.email.from : h.email.reason)}</small></div></div>
       <div class="stat" style="border:0;padding:0">${dot(h.sharepoint ?? h.microsoft)}<div>${esc(sp.split(":")[0])}<small>${esc(sp.includes(":") ? sp.slice(sp.indexOf(":") + 1).trim() : (h.sharepoint?.site ?? ""))}</small></div></div>`;
   } catch (e) { host.innerHTML = `<div class="stat" style="border:0;padding:0"><span class="dot"></span><div>Status unavailable<small>${esc(e.message)}</small></div></div>`; }
+}
+
+/** "Agreements due in 12 days" or a red "overdue" line for the events list. */
+function nextLine(ev, c) {
+  const today = new Date().toISOString().slice(0, 10);
+  const d = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+  const items = [["Agreements due", ev.deadlines?.agreement, c.invited + c.opened], ["Draft materials due", ev.deadlines?.draft, c.total - (ev.materials?.draft ?? 0)],
+    ["Final materials due", ev.deadlines?.final, c.total - (ev.materials?.final ?? 0)], ["Training starts", ev.dayOne, 0]].filter((x) => x[1]).map(([l, iso, open]) => ({ l, iso, open, days: d(iso) }));
+  const late = items.filter((x) => x.days < 0 && x.open > 0 && x.l !== "Training starts");
+  const next = items.find((x) => x.days >= 0);
+  const when = (x) => x.days === 0 ? "today" : x.days > 0 ? `in ${x.days} day${x.days === 1 ? "" : "s"}` : `${-x.days} day${x.days === -1 ? "" : "s"} ago`;
+  const parts = [];
+  if (late.length) parts.push(`<span class="pill late">overdue</span> ${late.map((x) => `${esc(x.l.replace(" due", ""))}: ${x.open} outstanding (${when(x)})`).join(" · ")}`);
+  if (next) parts.push(`${late.length ? "<br>" : ""}<b>${esc(next.l)}</b> ${esc(fmtDate(next.iso))} · ${when(next)}`);
+  if (!parts.length) parts.push("This event is in the past.");
+  return `<div style="font-size:13.5px;line-height:1.7">${parts.join(" ")}</div>`;
 }
 
 /* ---------- board roster ---------- */
@@ -835,7 +942,10 @@ async function render() {
     if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
     if (view.name === "roster") return rosterScreen(await loadRoster());
     if (view.name === "add") return addScreen(view.eventId);
-    if (view.name === "event") return eventScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
+    if (view.name === "event") {
+      const [data, materials] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null)]);
+      return eventScreen({ ...data, materials });
+    }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);
   } catch (e) {

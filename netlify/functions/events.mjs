@@ -6,6 +6,7 @@ import { ensureEventFolder, resolveFolderInput, inspectSharingLink } from "./lib
 import { sendMail, invitationMail } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
+import { materialsStatus } from "./lib/materials.mjs";
 
 /**
  * Events and their presenters.
@@ -195,7 +196,13 @@ async function showList() {
   const withCounts = await Promise.all(
     events.map(async (event) => {
       const people = await listPresenters(event.id);
-      return { ...event, counts: countStatuses(people), presenterCount: people.length };
+      const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
+      return {
+        ...event,
+        counts: countStatuses(people),
+        presenterCount: people.length,
+        materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
+      };
     })
   );
   return json({ events: withCounts });
