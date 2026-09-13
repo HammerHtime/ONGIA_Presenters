@@ -115,9 +115,15 @@ async function sendBack(event, presenter, body, origin) {
 
 async function redeliver(event, presenter, body, origin) {
   if (presenter.status !== "approved") return fail("Only an approved agreement can be redelivered.", 409);
-  const stored = await getPdf(`${event.id}:${presenter.id}`);
-  if (!stored) return fail("The final PDF is missing from storage; approve again is not possible — contact support.", 500);
-  const pdf = Buffer.from(stored);
+  // The decision is saved before the PDF is built, so a failure in between
+  // leaves an approved presenter with no file. Everything needed to rebuild
+  // it is on the record, so rebuild rather than refuse.
+  let pdf = await getPdf(`${event.id}:${presenter.id}`).then((b) => (b ? Buffer.from(b) : null));
+  if (!pdf) {
+    const approval = { ...(presenter.review?.approver ?? { name: "ONGIA", role: "" }), approvedAt: presenter.review?.approvedAt ?? presenter.approvedAt };
+    pdf = await buildAgreementPdf({ event, presenter, approval });
+    await putPdf(`${event.id}:${presenter.id}`, pdf);
+  }
 
   const d = presenter.delivery ?? {};
   // Retry only the parts that didn't land, unless asked for everything.

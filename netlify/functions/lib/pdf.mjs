@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { formatDate } from "./deadlines.mjs";
@@ -15,7 +16,16 @@ import { formatDate } from "./deadlines.mjs";
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS = path.resolve(HERE, "../../../public/assets");
+// Locally this file sits at netlify/functions/lib/; in the deployed bundle
+// esbuild flattens it into /var/task/netlify/functions/<fn>.mjs and the
+// included assets land at /var/task/public/assets. Try both shapes.
+const ASSET_DIRS = [
+  path.resolve(HERE, "../../../public/assets"),
+  path.resolve(HERE, "../../public/assets"),
+  path.resolve(process.cwd(), "public/assets"),
+  "/var/task/public/assets",
+];
+const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-banner.jpg"))) ?? ASSET_DIRS[0];
 
 // Letter, in points.
 const PAGE_W = 612;
