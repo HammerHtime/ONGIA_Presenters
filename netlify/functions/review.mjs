@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
-import { describeEvent } from "./lib/deadlines.mjs";
+import { describeEvent, travelWindow, rangeProblem, formatDate } from "./lib/deadlines.mjs";
 import { sendMail, finalCopyMail, approvedNoticeMail, returnedMail } from "./lib/mail.mjs";
 import { fileAgreement } from "./lib/graph.mjs";
 import { safeFileName } from "./lib/ids.mjs";
@@ -69,10 +69,26 @@ async function approve(event, presenter, body, origin) {
 
   const ongiaCovers = {};
   for (const k of COST_KEYS) ongiaCovers[k] = body?.covers?.[k] === true;
+
+  // Travel and hotel dates are the board member's to confirm. Default to what
+  // the presenter asked for; whatever is approved must sit inside the window.
+  const s = presenter.submission ?? {};
+  const window = travelWindow(event);
+  const dates = {};
+  for (const [key, label, fromKey, toKey] of [["travel", "Travel", "travelFrom", "travelTo"], ["hotel", "Hotel", "hotelFrom", "hotelTo"]]) {
+    if (s[key] !== "yes") { dates[key] = null; continue; }
+    const from = text(body?.[key]?.from, 10) || s[fromKey];
+    const to = text(body?.[key]?.to, 10) || s[toKey];
+    const problem = rangeProblem(from, to, window, label);
+    if (problem) return fail(problem);
+    dates[key] = { from, to, changed: from !== s[fromKey] || to !== s[toKey] };
+  }
   const now = new Date().toISOString();
 
   presenter.review = {
     ongiaCovers,
+    travel: dates.travel,
+    hotel: dates.hotel,
     otherText: text(body.otherText, 200),
     note: text(body.note, 2000),
     approver: { name: approverName, role: approverRole },
@@ -161,7 +177,7 @@ async function deliver(event, presenter, pdf, origin, which) {
   }
 
   if (which.boardEmail) {
-    const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+    const recipients = [...new Set([event.reviewer?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
     if (recipients.length) {
       const filing = presenter.delivery.filing?.result ?? presenter.delivery.filing;
       const mail = approvedNoticeMail({ event: ev, presenter, approval, coverage, filing });

@@ -83,6 +83,11 @@ async function createEvent(body) {
       email: text(body.contactEmail, 200),
       phone: text(body.contactPhone, 60),
     },
+    // The board member who reviews, sets ONGIA's coverage, confirms dates and signs.
+    reviewer: {
+      name: text(body.reviewerName, 120),
+      email: isEmail(text(body.reviewerEmail, 200)) ? text(body.reviewerEmail, 200) : "",
+    },
     notify: (Array.isArray(body.notify) ? body.notify : [])
       .map((e) => text(e, 200))
       .filter(isEmail)

@@ -121,6 +121,9 @@
   .cost{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--card);
     border:1px solid var(--border);border-radius:14px;padding:11px 14px;font-size:13.5px}
   .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
+  .daterow{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:13.5px;margin-top:8px}
+  .daterow .req{color:var(--muted);font-size:12px;margin-bottom:8px} .daterow .req b{color:var(--ink)}
+  .daterow .row2 .field{margin:0}
   .toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-weight:600}
   .toggle input{width:20px;height:20px;accent-color:var(--gold)}
   .stat{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--hair);font-size:13.5px}
@@ -254,6 +257,11 @@ function newEventScreen() {
         <div class="field"><label for="e-cemail">Contact email</label><input id="e-cemail" type="email" placeholder="training@ongia.ca"></div>
         <div class="field"><label for="e-cphone">Contact number</label><input id="e-cphone" placeholder="(306) 555-0100"></div>
       </div>
+      <div class="row2">
+        <div class="field"><label for="e-rname">Reviewing board member</label><input id="e-rname" placeholder="Andrew Hammond"></div>
+        <div class="field"><label for="e-remail">Reviewer email</label><input id="e-remail" type="email" placeholder="president@ongia.ca"></div>
+      </div>
+      <p class="hint" style="margin:-6px 0 12px">The board member who reviews each agreement, sets what ONGIA covers, confirms travel dates and signs. They're emailed when a presenter submits.</p>
       <div class="field"><label for="e-notify">Notify these board members (one email per line)</label>
         <textarea id="e-notify" placeholder="president@ongia.ca&#10;training@ongia.ca"></textarea></div>
       <div class="field"><label for="e-folder">SharePoint folder for this event</label>
@@ -288,6 +296,7 @@ function newEventScreen() {
         title: val("e-title"), city: val("e-city"), venue: val("e-venue"),
         dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
         contactName: val("e-cname"), contactEmail: val("e-cemail"), contactPhone: val("e-cphone"),
+        reviewerName: val("e-rname"), reviewerEmail: val("e-remail"),
         notify: val("e-notify").split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
         sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
       })});
@@ -353,6 +362,7 @@ function eventScreen(data) {
         <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))}</dd>
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</dd>
+        <dt>Reviewer</dt><dd>${ev.reviewer?.name ? esc(ev.reviewer.name) + (ev.reviewer.email ? " · " + esc(ev.reviewer.email) : "") : "<i>not set — anyone with the admin key</i>"}</dd>
         <dt>Board notified</dt><dd>${(ev.notify ?? []).length ? esc(ev.notify.join(", ")) : "<i>nobody</i>"}</dd>
       </dl>
       ${rows}</div></div>`;
@@ -493,8 +503,8 @@ function reviewScreen(data) {
       ${!s.talk ? `<div class="note">Nothing submitted yet.</div>` : `
       <dl class="kv">
         <dt>Presentation</dt><dd>${esc(s.talk)}</dd>
-        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}` : ""}</dd>
-        <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}` : ""}</dd>
+        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}${approvedNote(p.review?.travel)}` : ""}</dd>
+        <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}${approvedNote(p.review?.hotel)}` : ""}</dd>
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
@@ -533,12 +543,13 @@ function reviewScreen(data) {
       <div class="s">Tick what ONGIA will cover. Lines the agency isn't covering are pre-ticked; untick to decline.</div></div></div>
     <div class="card-body">
       <div class="costs">${costRows}</div>
+      ${dateRows(s, ev)}
       <div class="field" style="margin-top:14px"><label for="r-other">Describe "other" (optional)</label>
         <input id="r-other" value="${esc(s.expenses?.otherText ?? "")}" placeholder="e.g. parking, printing"></div>
       <div class="field"><label for="r-note">Internal note (optional, not shown to the presenter)</label>
         <textarea id="r-note" placeholder="Per board discussion 3 Dec…"></textarea></div>
       <div class="row2">
-        <div class="field"><label for="r-name">Your name (this is the signature)</label><input id="r-name" value="${esc(sessionStorage.getItem("ongia-approver") ?? "")}" placeholder="Andrew Hammond"></div>
+        <div class="field"><label for="r-name">Your name (this is the signature)</label><input id="r-name" value="${esc(sessionStorage.getItem("ongia-approver") || ev.reviewer?.name || "")}" placeholder="Andrew Hammond"></div>
         <div class="field"><label for="r-role">Title / role</label><input id="r-role" value="${esc(sessionStorage.getItem("ongia-approver-role") ?? "")}" placeholder="President, ONGIA"></div>
       </div>
       <div class="sigbox" id="sigline">&nbsp;</div>
@@ -578,8 +589,11 @@ function reviewScreen(data) {
     const problem = document.getElementById("problem");
     const covers = {};
     ROOT.querySelectorAll("[data-cover]").forEach((c) => { covers[c.dataset.cover] = c.checked && !c.disabled; });
+    const dates = (key, f, t) => s[key] === "yes" ? { from: document.getElementById(f).value, to: document.getElementById(t).value } : undefined;
     const body = {
       covers,
+      travel: dates("travel", "r-tf", "r-tt"),
+      hotel: dates("hotel", "r-hf", "r-ht"),
       otherText: document.getElementById("r-other").value,
       note: document.getElementById("r-note").value,
       approverName: nameEl.value,
@@ -616,6 +630,28 @@ function reviewScreen(data) {
       view = { name: "event", eventId: ev.id }; render();
     } catch (err) { toast(err.message); e.target.disabled = false; }
   };
+}
+
+/** "· confirmed" or "· approved X to Y" next to what the presenter asked for. */
+function approvedNote(r) {
+  if (!r) return "";
+  return r.changed ? ` · <b>approved ${esc(fmtDate(r.from))} to ${esc(fmtDate(r.to))}</b>` : " · confirmed";
+}
+
+/** Editable travel / hotel dates for the board member, boxed to the event's window. */
+function dateRows(s, ev) {
+  const win = ev.travelWindow ?? {};
+  const row = (label, on, from, to, f, t, a, b) => !on ? "" : `<div class="daterow">
+    <div class="req">${label} — presenter asked for <b>${esc(fmtDate(from))} to ${esc(fmtDate(to))}</b>. Confirm or adjust:</div>
+    <div class="row2">
+      <div class="field"><label for="${f}">${a}</label><input type="date" id="${f}" value="${esc(from)}" min="${esc(win.from ?? "")}" max="${esc(win.to ?? "")}"></div>
+      <div class="field"><label for="${t}">${b}</label><input type="date" id="${t}" value="${esc(to)}" min="${esc(win.from ?? "")}" max="${esc(win.to ?? "")}"></div>
+    </div></div>`;
+  const any = s.travel === "yes" || s.hotel === "yes";
+  return !any ? "" : `<h2 style="margin:18px 0 4px;font-size:16px">Travel &amp; accommodation dates</h2>
+    <p class="hint" style="margin:0 0 4px">Allowed: ${esc(fmtDate(win.from))} to ${esc(fmtDate(win.to))} (training days plus one either side).</p>
+    ${row("Travel", s.travel === "yes", s.travelFrom, s.travelTo, "r-tf", "r-tt", "Arriving", "Departing")}
+    ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check in", "Check out")}`;
 }
 
 function deliveryMarkup(d = {}) {

@@ -139,14 +139,20 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
     "confirmed it would cover, and what ONGIA has agreed to cover."
   );
 
+  // Approved dates come from the review; the presenter's request is kept
+  // underneath only when the board changed it.
+  const travelDates = review.travel ?? (s.travel === "yes" ? { from: s.travelFrom, to: s.travelTo } : null);
+  const hotelDates = review.hotel ?? (s.hotel === "yes" ? { from: s.hotelFrom, to: s.hotelTo } : null);
   p.kvRow([
     ["Will you require travel:", cap(s.travel), 40, true],
-    ["Dates:", s.travel === "yes" ? `${fmt(s.travelFrom)}  to  ${fmt(s.travelTo)}` : "—", 220, true],
+    ["Dates:", travelDates ? `${fmt(travelDates.from)}  to  ${fmt(travelDates.to)}` : "—", 220, true],
   ]);
+  if (review.travel?.changed) p.tiny(`Presenter requested ${fmt(s.travelFrom)} to ${fmt(s.travelTo)}; dates set by ONGIA at review.`);
   p.kvRow([
     ["Will you require hotel accommodations:", cap(s.hotel), 40, true],
-    ["Dates:", s.hotel === "yes" ? `${fmt(s.hotelFrom)}  to  ${fmt(s.hotelTo)}` : "—", 220, true],
+    ["Dates:", hotelDates ? `${fmt(hotelDates.from)}  to  ${fmt(hotelDates.to)}` : "—", 220, true],
   ]);
+  if (review.hotel?.changed) p.tiny(`Presenter requested ${fmt(s.hotelFrom)} to ${fmt(s.hotelTo)}; dates set by ONGIA at review.`);
 
   const ex = s.expenses ?? {};
   const oc = review.ongiaCovers ?? {};

@@ -232,7 +232,8 @@ function dateField(id, label, key) {
 
 function calendar(key) {
   const minKey = AFTER[key], min = minKey ? S[minKey] : null;
-  const cur = S[key] || min || DATA.eventDayOneISO || toISO(new Date());
+  const win = DATA.event.travelWindow;
+  const cur = S[key] || min || win.from;
   const view = S.calMonth || cur.slice(0,7) + "-01";
   const vd = parseISO(view), y = vd.getFullYear(), m = vd.getMonth();
   const lead = new Date(y, m, 1).getDay();
@@ -248,12 +249,14 @@ function calendar(key) {
   for (let i = 0; i < lead; i++) h += "<span></span>";
   for (let d = 1; d <= total; d++) {
     const iso = toISO(new Date(y, m, d));
-    const blocked = min && iso < min;
+    // Only the training days plus one either side are offered — anything
+    // else is a board decision, so the form doesn't pretend otherwise.
+    const blocked = (min && iso < min) || iso < win.from || iso > win.to;
     const cls = iso === S[key] ? "sel" : (a && b && iso > a && iso < b ? "inrange" : "");
     h += `<button type="button" class="${cls}" data-cal-pick="${iso}"${blocked ? " disabled" : ""}
            aria-label="${esc(fmtDate(iso))}">${d}</button>`;
   }
-  return h + `</div><div class="cal-foot"><span>${min ? "On or after " + esc(fmtDate(min)) : "Tap a day"}</span>
+  return h + `</div><div class="cal-foot"><span>${min && min > win.from ? "On or after " + esc(fmtDate(min)) : esc(fmtDate(win.from)) + " – " + esc(fmtDate(win.to))}</span>
     <button type="button" class="btn btn-ghost" style="padding:7px 15px;font-size:13.5px" data-cal-close="1">Done</button>
     </div></div>`;
 }
@@ -325,7 +328,9 @@ function stepMarkup() {
 
     case 3: {
       let h = `<div class="card"><h2>Travel &amp; costs</h2>
-        <p class="lede">Tell us what you need arranged for the training event.</p>
+        <p class="lede">Tell us what you need arranged for the training event. Dates can run from the day before
+          training to the day after — <b>${esc(fmtDate(ev.travelWindow.from))}</b> to <b>${esc(fmtDate(ev.travelWindow.to))}</b>.
+          ONGIA confirms the final dates when your agreement is approved.</p>
         <div class="qblock"><p class="qtext">Will you need travel arranged?</p>${seg("travel", YESNO)}</div>`;
       if (S.travel === "yes") h += dateField("f-tf", "Arriving", "travelFrom") + dateField("f-tt", "Departing", "travelTo");
       h += `<div class="qblock"><p class="qtext">Will you need hotel accommodation?</p>${seg("hotel", YESNO)}</div>`;
@@ -473,6 +478,15 @@ function validate() {
   if (S.step === 3) {
     if (!S.travel) out.push("Tell us whether you need travel arranged.");
     if (!S.hotel) out.push("Tell us whether you need hotel accommodation.");
+    const win = DATA.event.travelWindow;
+    const check = (on, from, to, what) => {
+      if (!on) return;
+      if (!from || !to) out.push(`${what}: please choose both dates.`);
+      else if (to < from) out.push(`${what}: the end date is before the start date.`);
+      else if (from < win.from || to > win.to) out.push(`${what} dates must fall between ${fmtDate(win.from)} and ${fmtDate(win.to)}.`);
+    };
+    check(S.travel === "yes", S.travelFrom, S.travelTo, "Travel");
+    check(S.hotel === "yes", S.hotelFrom, S.hotelTo, "Hotel");
     if (!S.expenses.transport) out.push("Tell us whether your agency covers transportation.");
     if (S.hotel === "yes" && !S.expenses.hotel) out.push("Tell us whether your agency covers accommodation.");
     if (!S.expenses.meals) out.push("Tell us whether your agency covers meals.");
@@ -544,7 +558,7 @@ ROOT.addEventListener("click", (e) => {
   if (cal) { const k = cal.dataset.cal; S.openCal = S.openCal === k ? null : k; S.calMonth = null; render(); return; }
   const mv = e.target.closest("[data-cal-move]");
   if (mv) {
-    const base = S.calMonth || ((S[S.openCal] || DATA.eventDayOneISO || toISO(new Date())).slice(0,7) + "-01");
+    const base = S.calMonth || ((S[S.openCal] || DATA.event.travelWindow.from).slice(0,7) + "-01");
     const d = parseISO(base); d.setMonth(d.getMonth() + Number(mv.dataset.calMove));
     S.calMonth = toISO(d); render(); return;
   }

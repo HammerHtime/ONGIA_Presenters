@@ -15,6 +15,7 @@
  * dashboard says what didn't go.
  */
 import { graphAccessToken, graphConfigured } from "./graph.mjs";
+import { formatDate } from "./deadlines.mjs";
 
 const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
 const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
@@ -141,6 +142,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
     `Hello ${esc(presenter.first)},`,
     `${esc(approval.name)} has reviewed and approved your presenter agreement for <b>${esc(event.title)}</b>. The signed final copy is attached for your records.`,
     `ONGIA will cover: <b>${esc(covered)}</b>.`,
+    describeDates(presenter),
     `Next dates: draft materials by <b>${esc(event.deadlinesReadable.draft)}</b>; final, production-ready materials by <b>${esc(event.deadlinesReadable.final)}</b>.` +
       (event.materialsUploadUrl ? ` Upload them here: <a href="${esc(event.materialsUploadUrl)}">${esc(event.materialsUploadUrl)}</a>` : ""),
     `Reference ${esc(presenter.reference)}.`,
@@ -193,6 +195,18 @@ export function returnedMail({ event, presenter, link, note }) {
     html: layout({ heading, lines, button: { label: "Update my agreement", href: link } }),
     text: plain(heading, lines, link),
   };
+}
+
+function describeDates(presenter) {
+  const r = presenter.review ?? {};
+  const s = presenter.submission ?? {};
+  const fmt = (v) => esc(formatDate(v));
+  const parts = [];
+  const travel = r.travel ?? (s.travel === "yes" ? { from: s.travelFrom, to: s.travelTo } : null);
+  const hotel = r.hotel ?? (s.hotel === "yes" ? { from: s.hotelFrom, to: s.hotelTo } : null);
+  if (travel) parts.push(`travel <b>${fmt(travel.from)} – ${fmt(travel.to)}</b>${r.travel?.changed ? " (adjusted by ONGIA)" : ""}`);
+  if (hotel) parts.push(`hotel <b>${fmt(hotel.from)} – ${fmt(hotel.to)}</b>${r.hotel?.changed ? " (adjusted by ONGIA)" : ""}`);
+  return parts.length ? `Confirmed dates: ${parts.join("; ")}.` : "No travel or hotel was requested.";
 }
 
 export function describeAgency(expenses) {

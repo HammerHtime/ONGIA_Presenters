@@ -144,10 +144,34 @@ export function formatDate(value) {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const shiftIso = (isoDate, n) => iso(addDays(parseDate(isoDate), n));
+
+/**
+ * Travel and hotel dates a presenter may pick: the training days plus one
+ * day either side. Anything outside that is a board decision, not a form entry.
+ */
+export function travelWindow(event) {
+  const from = shiftIso(event.dayOne, -1);
+  const to = shiftIso(event.lastDay || event.dayOne, 1);
+  return { from, to, fromReadable: formatDate(from), toReadable: formatDate(to) };
+}
+
+/** A date range is usable if both ends are real, ordered, and inside the window. */
+export function rangeProblem(from, to, window, what) {
+  const ok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v ?? "");
+  if (!ok(from) || !ok(to)) return `${what} needs both dates.`;
+  if (to < from) return `${what}: the end date is before the start date.`;
+  if (from < window.from || to > window.to) {
+    return `${what} must fall between ${window.fromReadable} and ${window.toReadable} (the training dates plus a day either side).`;
+  }
+  return null;
+}
+
 /** The event plus the human-readable dates the emails and PDF quote. */
 export function describeEvent(event) {
   return {
     ...event,
+    travelWindow: travelWindow(event),
     dayOneReadable: formatDate(event.dayOne),
     lastDayReadable: formatDate(event.lastDay),
     deadlinesReadable: {

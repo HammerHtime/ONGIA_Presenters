@@ -1,7 +1,7 @@
 import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
-import { formatDate, describeEvent } from "./lib/deadlines.mjs";
+import { formatDate, describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
 import { sendMail, reviewNeededMail } from "./lib/mail.mjs";
 
 /**
@@ -40,6 +40,9 @@ async function showForm(event, presenter) {
       venue: event.venue,
       dayOne: formatDate(event.dayOne),
       lastDay: formatDate(event.lastDay),
+      dayOneIso: event.dayOne,
+      lastDayIso: event.lastDay,
+      travelWindow: travelWindow(event),
       sessionMinutes: event.sessionMinutes,
       deadlines: {
         agreement: formatDate(event.deadlines.agreement),
@@ -93,6 +96,14 @@ async function submit(req, event, presenter) {
   const travel = need(yesNo(body.travel), "Tell us whether you need travel arranged.");
   const hotel = need(yesNo(body.hotel), "Tell us whether you need hotel accommodation.");
 
+  // Dates are boxed to the training days plus one either side; the board
+  // confirms them at review, so the form only offers what can be approved.
+  const window = travelWindow(event);
+  const travelFrom = text(body.travelFrom, 10), travelTo = text(body.travelTo, 10);
+  const hotelFrom = text(body.hotelFrom, 10), hotelTo = text(body.hotelTo, 10);
+  if (travel === "yes") { const p = rangeProblem(travelFrom, travelTo, window, "Travel"); if (p) problems.push(p); }
+  if (hotel === "yes") { const p = rangeProblem(hotelFrom, hotelTo, window, "Hotel"); if (p) problems.push(p); }
+
   const expenses = {
     transport: yesNo(body?.expenses?.transport),
     hotel: hotel === "yes" ? yesNo(body?.expenses?.hotel) : "n/a",
@@ -138,11 +149,11 @@ async function submit(req, event, presenter) {
     outline,
     headshotName: text(body.headshotName, 200),
     travel,
-    travelFrom: text(body.travelFrom, 10),
-    travelTo: text(body.travelTo, 10),
+    travelFrom: travel === "yes" ? travelFrom : "",
+    travelTo: travel === "yes" ? travelTo : "",
     hotel,
-    hotelFrom: text(body.hotelFrom, 10),
-    hotelTo: text(body.hotelTo, 10),
+    hotelFrom: hotel === "yes" ? hotelFrom : "",
+    hotelTo: hotel === "yes" ? hotelTo : "",
     expenses,
     copyright: true,
     media,
@@ -153,7 +164,7 @@ async function submit(req, event, presenter) {
   await putPresenter(presenter);
 
   // Tell the board someone needs to review — best effort, never blocks the presenter.
-  const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+  const recipients = [...new Set([event.reviewer?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
   if (recipients.length) {
     const origin = siteUrl(req);
     const adminUrl = `${origin}/admin.html#review/${encodeURIComponent(event.id)}/${encodeURIComponent(presenter.id)}`;
