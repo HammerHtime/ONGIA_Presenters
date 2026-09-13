@@ -42,7 +42,7 @@ deadline nears:
   what's overdue, who is still outstanding, what's next, and a button that
   opens the event on the admin page.
 
-`GET /api/remind?dry=1` (admin key) previews today's run without sending;
+`GET /api/reminders?dry=1` (admin key) previews today's run without sending;
 `?digest=1` includes the lead's summary whatever the weekday.
 
 ## Hosting
