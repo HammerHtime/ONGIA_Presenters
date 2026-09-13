@@ -1,6 +1,7 @@
 import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
-import { formatDate } from "./lib/deadlines.mjs";
+import { formatDate, describeEvent } from "./lib/deadlines.mjs";
+import { sendMail, reviewNeededMail } from "./lib/mail.mjs";
 
 /**
  * The presenter's own endpoint. No account, no password — the token in their
@@ -45,6 +46,7 @@ async function showForm(event, presenter) {
         final: formatDate(event.deadlines.final),
       },
       contact: event.contact,
+      materialsUploadUrl: event.materialsUploadUrl,
     },
     presenter: {
       first: presenter.first,
@@ -54,6 +56,10 @@ async function showForm(event, presenter) {
       reference: presenter.reference,
       status: presenter.status,
       submittedAt: presenter.submittedAt,
+      approvedAt: presenter.approvedAt,
+      headshot: presenter.headshot ?? null,
+      // Set when a board member sent it back; the form shows it at the top.
+      returnNote: presenter.status === "returned" ? presenter.review?.returnNote : null,
     },
     // What they typed last time, so a half-finished form isn't lost.
     draft: presenter.submission ?? null,
@@ -144,6 +150,18 @@ async function submit(req, event, presenter) {
   };
 
   await putPresenter(presenter);
+
+  // Tell the board someone needs to review — best effort, never blocks the presenter.
+  const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+  if (recipients.length) {
+    const origin = process.env.URL || new URL(req.url).origin;
+    const adminUrl = `${origin}/admin.html#review/${encodeURIComponent(event.id)}/${encodeURIComponent(presenter.id)}`;
+    const mail = reviewNeededMail({ event: describeEvent(event), presenter, adminUrl });
+    presenter.reviewNotice = await sendMail({ to: recipients, ...mail })
+      .then((r) => ({ ok: !r.skipped, ...r, at: now.toISOString() }))
+      .catch((e) => ({ ok: false, error: e.message, at: now.toISOString() }));
+    await putPresenter(presenter);
+  }
 
   return json({
     ok: true,

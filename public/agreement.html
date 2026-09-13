@@ -279,7 +279,9 @@ function consentRow(label, row) {
 function stepMarkup() {
   const ev = DATA.event;
   switch (S.step) {
-    case 0: return `<div class="card">
+    case 0: return `${DATA.presenter.returnNote ? `<div class="problems" style="margin:0 0 14px"><b>ONGIA sent this back with a note</b>
+        <p style="margin:6px 0 0">${esc(DATA.presenter.returnNote)}</p>
+        <p style="margin:6px 0 0;font-size:13px">Your answers are saved — adjust what's needed and sign again.</p></div>` : ""}<div class="card">
       <h2>You're presenting at ${esc(ev.title)}</h2>
       <p class="lede">Hello ${esc(S.first)}. Everything below is already set by ONGIA — read it over, then six short questions.</p>
       <dl class="facts">
@@ -402,8 +404,24 @@ function doneMarkup(result) {
       <div><b>→</b><span>${esc(result.next.review)}</span></div>
       <div><b>→</b><span>${esc(result.next.finalCopy)}</span></div>
       <div><b>→</b><span>Draft materials due ${esc(result.next.draftMaterials)}</span></div>
+      ${result.headshotWarning ? `<div><b style="color:var(--late)">!</b><span>${esc(result.headshotWarning)}</span></div>` : ""}
     </div>
     <p class="ref">Reference ${esc(result.reference)}</p></div>`;
+}
+
+/** Once a board member has approved, the link becomes the place to get the final copy. */
+function finalMarkup() {
+  const ev = DATA.event, me = DATA.presenter;
+  return `<div class="wrap"><div class="card done-screen"><div class="tick">✓</div>
+    <h2>Your agreement is final</h2>
+    <p>ONGIA approved and signed it${me.approvedAt ? " on " + esc(fmtDate(me.approvedAt.slice(0, 10))) : ""}. A copy was emailed to ${esc(me.email)}.</p>
+    <div class="done-list">
+      <div><b>↓</b><span><a href="/api/download?t=${encodeURIComponent(TOKEN)}">Download the signed PDF</a></span></div>
+      <div><b>→</b><span>Draft materials for review by <b>${esc(ev.deadlines.draft)}</b></span></div>
+      <div><b>→</b><span>Final, production-ready materials by <b>${esc(ev.deadlines.final)}</b></span></div>
+      ${ev.materialsUploadUrl ? `<div><b>↑</b><span><a href="${esc(ev.materialsUploadUrl)}">Upload your presentation materials</a></span></div>` : ""}
+    </div>
+    <p class="ref">Reference ${esc(me.reference)} · Questions? Reply to your ONGIA email or contact ${esc(ev.contact?.name || "ONGIA")}.</p></div></div>`;
 }
 
 /* ---------- render ---------- */
@@ -473,6 +491,22 @@ function validate() {
   return [...new Set(out)];
 }
 
+let FILE = null;
+async function uploadHeadshot() {
+  if (!FILE) return null;
+  if (FILE.size > 5 * 1024 * 1024) return "Your headshot is over 5 MB, so it wasn't attached — email it to us instead.";
+  try {
+    const res = await fetch(`/api/headshot?t=${encodeURIComponent(TOKEN)}`, {
+      method: "POST",
+      headers: { "content-type": FILE.type || "image/jpeg", "x-file-name": encodeURIComponent(FILE.name) },
+      body: FILE,
+    });
+    if (!res.ok) return "Your answers went through, but the headshot didn't upload — email it to us instead.";
+    FILE = null;
+    return null;
+  } catch { return "Your answers went through, but the headshot didn't upload — email it to us instead."; }
+}
+
 async function submit() {
   sending = true; render();
   try {
@@ -482,8 +516,8 @@ async function submit() {
       body: JSON.stringify({ ...S, headshotName: S.headshotName }),
     });
     const out = await res.json();
+    if (res.ok) { out.headshotWarning = await uploadHeadshot(); sending = false; render(out); return; }
     sending = false;
-    if (res.ok) { render(out); return; }
     S.problems = out.problems ?? [out.error ?? "Something went wrong. Please try again."];
     render();
   } catch {
@@ -536,7 +570,7 @@ ROOT.addEventListener("click", (e) => {
 
 ROOT.addEventListener("input", (e) => {
   const t = e.target;
-  if (t.id === "f-shot") { S.headshotName = t.files?.[0]?.name ?? ""; render(); return; }
+  if (t.id === "f-shot") { FILE = t.files?.[0] ?? null; S.headshotName = FILE?.name ?? ""; render(); return; }
   const bind = t.dataset?.bind;
   if (!bind) return;
   const value = t.type === "checkbox" ? t.checked : t.value;
@@ -584,6 +618,7 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     DATA = out;
+    if (out.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); return; }
     Object.assign(S, {
       first: out.presenter.first ?? "",
       last: out.presenter.last ?? "",

@@ -62,6 +62,8 @@
   input,textarea,select{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--sunk);
     border:1px solid var(--border);border-radius:12px;padding:11px 13px;-webkit-appearance:none}
   textarea{resize:vertical;min-height:92px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13.5px}
+  input[type=checkbox]{-webkit-appearance:checkbox;appearance:auto;width:20px;height:20px;padding:0;margin:0;
+    border:0;border-radius:4px;background:none;accent-color:var(--gold);flex:none}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
@@ -108,6 +110,33 @@
   .links{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:13px;
     font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;word-break:break-all;line-height:1.8}
   .empty{padding:40px 20px;text-align:center;color:var(--muted)}
+
+  /* review screen */
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px;margin-top:12px}
+  .kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500;white-space:pre-wrap;word-break:break-word}
+  @media (max-width:560px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}}
+  .blurb{background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:13.5px;
+    line-height:1.55;white-space:pre-wrap;margin-top:6px}
+  .costs{display:grid;gap:8px;margin-top:10px}
+  .cost{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--card);
+    border:1px solid var(--border);border-radius:14px;padding:11px 14px;font-size:13.5px}
+  .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
+  .toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-weight:600}
+  .toggle input{width:20px;height:20px;accent-color:var(--gold)}
+  .stat{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--hair);font-size:13.5px}
+  .stat:first-child{border-top:0}
+  .stat .dot{width:10px;height:10px;border-radius:999px;margin-top:5px;flex:none;background:var(--muted)}
+  .stat.ok .dot{background:var(--done)} .stat.err .dot{background:var(--late)} .stat.skip .dot{background:var(--wait)}
+  .stat small{display:block;color:var(--muted)}
+  .sigbox{margin-top:14px;border-bottom:2px solid var(--navy);padding:6px 4px;font-family:var(--fd,"DM Serif Display",serif);
+    font-size:26px;min-height:40px;color:var(--navy)}
+  .attest{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13.5px;line-height:1.5;cursor:pointer}
+  .attest input{width:20px;height:20px;accent-color:var(--gold);flex:none;margin-top:1px}
+  .mini.ghost{background:transparent}
+  .pill.late{background:var(--late-bg);color:var(--late)}
+  .btn-late{background:var(--late-bg);color:var(--late);border:1px solid var(--late)}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy-deep);color:#fff;
+    padding:11px 18px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9}
 </style>
 </head>
 <body>
@@ -272,25 +301,38 @@ function newEventScreen() {
 function eventScreen(data) {
   const { event: ev, presenters, counts: c } = data;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>
+    <button class="chip" id="mailall">Email all outstanding</button>
     <button class="chip solid" id="add">Add presenters</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
+  document.getElementById("mailall").onclick = async () => {
+    const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    if (!outstanding.length) return toast("Everyone has submitted.");
+    if (!confirm(`Email their link to ${outstanding.length} presenter${outstanding.length === 1 ? "" : "s"} who haven't submitted?`)) return;
+    await invite(ev.id, null, outstanding.some((p) => p.mail?.length));
+  };
 
   const rows = presenters.length ? presenters.map((p) => {
     const initials = `${p.first[0] ?? ""}${p.last[0] ?? ""}`.toUpperCase();
     const link = `${location.origin}/a/${p.token}`;
     let pill = `<span class="pill wait">Not opened</span>`;
-    if (p.status === "approved") pill = `<span class="pill done">Final &amp; filed</span>`;
+    if (p.status === "approved") pill = p.delivery?.filing?.ok
+      ? `<span class="pill done">Final &amp; filed</span>`
+      : `<span class="pill done">Final</span> <span class="pill late">Not filed</span>`;
     else if (p.status === "submitted") pill = `<span class="pill wait">Needs review</span>`;
+    else if (p.status === "returned") pill = `<span class="pill late">Sent back</span>`;
     else if (p.openedAt) pill = `<span class="pill wait">Opened, not finished</span>`;
+    const mailed = p.mail?.length ? `<div class="porg">Emailed ${p.mail.length}× · last ${esc(p.mail.at(-1).at.slice(0, 10))}</div>` : "";
     return `<div class="presenter">
       <div class="av">${esc(initials)}</div>
       <div><div class="pname">${esc(p.first)} ${esc(p.last)}</div>
         <div class="porg">${esc(p.organization || p.email)}</div>
-        ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div>
+        ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}${mailed}</div>
       <div class="act">${pill}
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
-        ${p.status === "submitted" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
+        ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${p.mail?.length ? "Remind" : "Email link"}</button>` : ""}
+        ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
+        ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : ""}
       </div></div>`;
   }).join("") : `<div class="empty">No presenters yet. Add some to send their links.</div>`;
 
@@ -303,8 +345,21 @@ function eventScreen(data) {
       <div class="tile accent"><div class="k">Needs review</div><div class="v">${c.submitted}</div></div>
       <div class="tile"><div class="k">Final &amp; filed</div><div class="v">${c.approved}</div></div>
     </div>
-    <div class="card-body">${rows}</div></div>`;
+    <div class="card-body">
+      <dl class="kv" style="margin:0 0 16px">
+        <dt>Agreement due</dt><dd>${esc(ev.deadlines?.agreement ?? "")}</dd>
+        <dt>Draft / final materials</dt><dd>${esc(ev.deadlines?.draft ?? "")} · ${esc(ev.deadlines?.final ?? "")}</dd>
+        <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</dd>
+        <dt>Board notified</dt><dd>${(ev.notify ?? []).length ? esc(ev.notify.join(", ")) : "<i>nobody</i>"}</dd>
+      </dl>
+      ${rows}</div></div>`;
 
+  ROOT.querySelectorAll("[data-invite]").forEach((b) => {
+    b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind");
+  });
+  ROOT.querySelectorAll("[data-pdf]").forEach((b) => {
+    b.onclick = () => openPdf(ev.id, b.dataset.pdf);
+  });
   ROOT.querySelectorAll("[data-copy]").forEach((b) => {
     b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
@@ -361,6 +416,204 @@ function addScreen(eventId) {
   };
 }
 
+/* ---------- shared helpers ---------- */
+let toastTimer;
+function toast(msg) {
+  document.querySelectorAll(".toast").forEach((t) => t.remove());
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 3200);
+}
+
+async function invite(eventId, presenterIds, remind) {
+  try {
+    const out = await api(`/invite?id=${encodeURIComponent(eventId)}`, {
+      method: "POST", body: JSON.stringify({ presenterIds: presenterIds ?? undefined, remind: !!remind }),
+    });
+    const bits = [];
+    if (out.sent.length) bits.push(`Sent to ${out.sent.map((s) => s.name).join(", ")}`);
+    if (out.failed.length) bits.push(`Not sent: ${out.failed.map((f) => `${f.name} (${f.why})`).join("; ")}`);
+    toast(bits.join(" · ") || "Nothing to send.");
+    render();
+  } catch (e) { toast(e.message); }
+}
+
+/** Fetch with the admin header, then open — a plain link can't carry the key. */
+async function openPdf(eventId, presenterId) {
+  try {
+    const res = await fetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1`,
+      { headers: { "x-admin-key": KEY } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
+    const url = URL.createObjectURL(await res.blob());
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) { toast(e.message); }
+}
+
+const YN = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : v === "n/a" ? "n/a" : "—");
+const COSTS = [
+  ["transport", "Transportation (ground/air)"],
+  ["hotel", "Hotel / accommodation"],
+  ["meals", "Meals (receipts required)"],
+  ["other", "Other"],
+];
+
+/* ---------- review ---------- */
+function reviewScreen(data) {
+  const { event: ev, presenter: p, headshot } = data;
+  const s = p.submission ?? {};
+  const approved = p.status === "approved";
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Back to event</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "event", eventId: ev.id }; render(); };
+
+  const consent = (row) => `${YN(s.media?.[row]?.internal)} internal · ${YN(s.media?.[row]?.public)} public`;
+  const submission = `<div class="card">
+    <div class="card-head"><div><h2>${esc(p.first)} ${esc(p.last)}</h2>
+      <div class="s">${esc(p.organization || "")}${p.organization ? " · " : ""}${esc(p.email)}${s.phone ? " · " + esc(s.phone) : ""} · ${esc(p.reference)}</div></div>
+      <div>${approved ? `<span class="pill done">Approved ${esc((p.approvedAt ?? "").slice(0, 10))}</span>` :
+        p.status === "returned" ? `<span class="pill late">Sent back</span>` : `<span class="pill wait">Submitted ${esc((p.submittedAt ?? "").slice(0, 10))}</span>`}</div></div>
+    <div class="card-body">
+      ${!s.talk ? `<div class="note">Nothing submitted yet.</div>` : `
+      <dl class="kv">
+        <dt>Presentation</dt><dd>${esc(s.talk)}</dd>
+        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(s.travelFrom)} to ${esc(s.travelTo)}` : ""}</dd>
+        <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(s.hotelFrom)} to ${esc(s.hotelTo)}` : ""}</dd>
+        <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
+        <dt>Photographs</dt><dd>${consent("photo")}</dd>
+        <dt>Materials</dt><dd>${consent("materials")}</dd>
+        <dt>Summary</dt><dd>${consent("summary")}</dd>
+        <dt>Headshot</dt><dd>${headshot ? `${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB)` : "<i>not uploaded</i>"}</dd>
+        <dt>Signed</dt><dd>${esc(s.signature)} · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
+      </dl>
+      <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${esc(s.bio)}</div></div>
+      <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${esc(s.outline)}</div></div>`}
+    </div></div>`;
+
+  const covers = approved ? (p.review?.ongiaCovers ?? {}) : null;
+  const costRows = COSTS.map(([k, label]) => {
+    const agency = k === "hotel" && s.hotel !== "yes" ? "n/a" : s.expenses?.[k];
+    const na = agency === "n/a";
+    const checked = covers ? !!covers[k] : agency === "no";
+    return `<div class="cost">
+      <div>${esc(label)}${k === "other" && s.expenses?.otherText ? ` — ${esc(s.expenses.otherText)}` : ""}
+        <div class="agency">Agency covering: <b>${YN(agency)}</b></div></div>
+      <label class="toggle"><input type="checkbox" data-cover="${k}"${checked ? " checked" : ""}${approved || na ? " disabled" : ""}>ONGIA covers</label>
+    </div>`;
+  }).join("");
+
+  const decision = approved ? `<div class="card" style="margin-top:16px">
+    <div class="card-head"><div><h2>Decision</h2><div class="s">Approved by ${esc(p.review?.approver?.name ?? "")}${p.review?.approver?.role ? ", " + esc(p.review.approver.role) : ""}</div></div></div>
+    <div class="card-body"><div class="costs">${costRows}</div>
+      ${p.review?.note ? `<div class="note">${esc(p.review.note)}</div>` : ""}
+      <div class="actions"><button class="btn btn-navy" id="pdf">Open the final PDF</button></div>
+      <h2 style="margin-top:18px;font-size:16px">Delivery</h2>
+      <div id="delivery">${deliveryMarkup(p.delivery)}</div>
+      <div class="actions"><button class="btn btn-ghost" id="redeliver">Retry what didn't land</button>
+        <button class="btn btn-ghost" id="redeliver-all">Resend everything</button></div>
+    </div></div>`
+  : `<div class="card" style="margin-top:16px">
+    <div class="card-head"><div><h2>Board decision</h2>
+      <div class="s">Tick what ONGIA will cover. Lines the agency isn't covering are pre-ticked; untick to decline.</div></div></div>
+    <div class="card-body">
+      <div class="costs">${costRows}</div>
+      <div class="field" style="margin-top:14px"><label for="r-other">Describe "other" (optional)</label>
+        <input id="r-other" value="${esc(s.expenses?.otherText ?? "")}" placeholder="e.g. parking, printing"></div>
+      <div class="field"><label for="r-note">Internal note (optional, not shown to the presenter)</label>
+        <textarea id="r-note" placeholder="Per board discussion 3 Dec…"></textarea></div>
+      <div class="row2">
+        <div class="field"><label for="r-name">Your name (this is the signature)</label><input id="r-name" value="${esc(sessionStorage.getItem("ongia-approver") ?? "")}" placeholder="Andrew Hammond"></div>
+        <div class="field"><label for="r-role">Title / role</label><input id="r-role" value="${esc(sessionStorage.getItem("ongia-approver-role") ?? "")}" placeholder="President, ONGIA"></div>
+      </div>
+      <div class="sigbox" id="sigline">&nbsp;</div>
+      <label class="attest"><input type="checkbox" id="r-attest"><span>My typed name is my electronic signature. Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
+      <div id="problem"></div>
+      <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button></div>
+      <hr style="border:0;border-top:1px solid var(--hair);margin:20px 0">
+      <div class="field"><label for="r-return">Or send it back — what needs changing?</label>
+        <textarea id="r-return" placeholder="The hotel dates don't match the training days — please check them."></textarea></div>
+      <div class="actions"><button class="btn btn-late" id="return">Send back to presenter</button></div>
+    </div></div>`;
+
+  ROOT.innerHTML = submission + decision;
+
+  if (approved) {
+    document.getElementById("pdf").onclick = () => openPdf(ev.id, p.id);
+    const redo = (all) => async (e) => {
+      e.target.disabled = true; e.target.textContent = "Working…";
+      try {
+        const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}&action=redeliver`,
+          { method: "POST", body: JSON.stringify({ all }) });
+        document.getElementById("delivery").innerHTML = deliveryMarkup(out.delivery);
+        toast("Done — see delivery status.");
+      } catch (err) { toast(err.message); }
+      e.target.disabled = false; e.target.textContent = all ? "Resend everything" : "Retry what didn't land";
+    };
+    document.getElementById("redeliver").onclick = redo(false);
+    document.getElementById("redeliver-all").onclick = redo(true);
+    return;
+  }
+
+  const nameEl = document.getElementById("r-name");
+  const sig = () => { document.getElementById("sigline").textContent = nameEl.value.trim() || " "; };
+  nameEl.oninput = sig; sig();
+
+  document.getElementById("approve").onclick = async (e) => {
+    const problem = document.getElementById("problem");
+    const covers = {};
+    ROOT.querySelectorAll("[data-cover]").forEach((c) => { covers[c.dataset.cover] = c.checked && !c.disabled; });
+    const body = {
+      covers,
+      otherText: document.getElementById("r-other").value,
+      note: document.getElementById("r-note").value,
+      approverName: nameEl.value,
+      approverRole: document.getElementById("r-role").value,
+      attest: document.getElementById("r-attest").checked,
+    };
+    if (!body.approverName.trim()) return (problem.innerHTML = `<div class="bad"><b>Your name is the signature.</b> Please type it.</div>`);
+    if (!body.attest) return (problem.innerHTML = `<div class="bad"><b>Please confirm</b> the electronic signature.</div>`);
+    const covered = COSTS.filter(([k]) => covers[k]).map(([, l]) => l.split(" (")[0]);
+    if (!confirm(`Approve ${p.first} ${p.last}'s agreement?\n\nONGIA covers: ${covered.join(", ") || "nothing"}.\n\nThis issues the final PDF and emails it.`)) return;
+    sessionStorage.setItem("ongia-approver", body.approverName);
+    sessionStorage.setItem("ongia-approver-role", body.approverRole);
+    e.target.disabled = true; e.target.textContent = "Issuing final copy…";
+    try {
+      await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}&action=approve`,
+        { method: "POST", body: JSON.stringify(body) });
+      toast("Approved. Final PDF issued.");
+      render();
+    } catch (err) {
+      problem.innerHTML = `<div class="bad"><b>Not approved.</b> ${esc(err.message)}</div>`;
+      e.target.disabled = false; e.target.textContent = "Approve & issue final";
+    }
+  };
+
+  document.getElementById("return").onclick = async (e) => {
+    const note = document.getElementById("r-return").value.trim();
+    if (!note) return toast("Say what needs changing first.");
+    if (!confirm(`Send this back to ${p.first} with your note?`)) return;
+    e.target.disabled = true;
+    try {
+      await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}&action=return`,
+        { method: "POST", body: JSON.stringify({ note, approverName: nameEl.value }) });
+      toast("Sent back to the presenter.");
+      view = { name: "event", eventId: ev.id }; render();
+    } catch (err) { toast(err.message); e.target.disabled = false; }
+  };
+}
+
+function deliveryMarkup(d = {}) {
+  const line = (label, r) => {
+    if (!r) return `<div class="stat"><span class="dot"></span><div>${label}<small>not attempted</small></div></div>`;
+    const cls = r.ok ? "ok" : r.skipped ? "skip" : "err";
+    const detail = r.ok
+      ? (r.folderUrl ? `<a href="${esc(r.folderUrl)}" target="_blank" rel="noopener">Open folder</a> · ${(r.files ?? []).map((f) => esc(f.name)).join(", ")}` : `sent ${esc((r.at ?? "").replace("T", " ").slice(0, 16))} UTC`)
+      : esc(r.reason ?? r.error ?? "failed");
+    return `<div class="stat ${cls}"><span class="dot"></span><div>${label}<small>${detail}</small></div></div>`;
+  };
+  return line("Final copy emailed to the presenter", d.presenterEmail) +
+    line("Filed to SharePoint", d.filing) +
+    line("Board notified", d.boardEmail);
+}
+
 /* ---------- render ---------- */
 async function render() {
   if (!KEY) return signInScreen();
@@ -368,6 +621,7 @@ async function render() {
     if (view.name === "new") return newEventScreen();
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") return eventScreen(await api(`/events?id=${encodeURIComponent(view.eventId)}`));
+    if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);
   } catch (e) {
     if (/not auth|ADMIN_KEY/i.test(e.message)) { KEY = ""; sessionStorage.removeItem("ongia-admin-key"); return signInScreen(e.message); }
@@ -375,6 +629,11 @@ async function render() {
   }
 }
 const load = render;
+// The "ready for review" email links straight to a presenter: #review/<event>/<presenter>
+{
+  const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
+  if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); }
+}
 render();
 </script>
 </body>

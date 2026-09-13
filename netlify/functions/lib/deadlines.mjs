@@ -143,3 +143,17 @@ export function formatDate(value) {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
+
+/** The event plus the human-readable dates the emails and PDF quote. */
+export function describeEvent(event) {
+  return {
+    ...event,
+    dayOneReadable: formatDate(event.dayOne),
+    lastDayReadable: formatDate(event.lastDay),
+    deadlinesReadable: {
+      agreement: formatDate(event.deadlines.agreement),
+      draft: formatDate(event.deadlines.draft),
+      final: formatDate(event.deadlines.final),
+    },
+  };
+}

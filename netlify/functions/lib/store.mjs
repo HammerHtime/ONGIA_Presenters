@@ -68,3 +68,14 @@ export async function putPdf(key, bytes) {
 }
 
 export const getPdf = (key) => store().get(`pdf:${key}`, { type: "arrayBuffer" });
+
+/** Presenter headshots — raw bytes plus what they were. */
+export async function putHeadshot(eventId, presenterId, bytes, meta) {
+  await store().set(`headshot:${eventId}:${presenterId}`, bytes, { metadata: meta });
+}
+
+export async function getHeadshot(eventId, presenterId) {
+  const got = await store().getWithMetadata(`headshot:${eventId}:${presenterId}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, type: got.metadata?.type ?? "image/jpeg", name: got.metadata?.name ?? "headshot.jpg" };
+}
