@@ -55,7 +55,7 @@ Environment variables (Functions scope):
 
 | Key | Purpose |
 | --- | --- |
-| `ADMIN_KEY` | Shared key for the admin screens |
+| `ADMIN_KEY` | Shared key for the admin screens. To change it: edit the value in Netlify, then trigger a deploy — functions only pick up variables at deploy time. Everyone signed in with the old key is signed out |
 | `APP_URL` | Public address used in every emailed link (e.g. `https://ongia-presenter-agreements.netlify.app`); update it if the site moves to a custom domain |
 | `MS_MAIL_FROM` | Mailbox the app sends as through Microsoft 365 (e.g. `ongiaspeakers@ongia.ca`); needs `Mail.Send` (Application) with admin consent. Preferred transport |
 | `MS_MAIL_FROM_NAME` | Display name for that sender; defaults to `ONGIA Training` |
