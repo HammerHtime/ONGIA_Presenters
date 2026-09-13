@@ -1,24 +1,72 @@
 /**
- * Outbound email through Resend. Everything goes out from the app's own
- * address on send.ongia.ca; replies are steered to the event's ONGIA contact,
- * so a presenter who hits Reply reaches a person, not a mailbox nobody reads.
+ * Outbound email. Two transports, chosen by configuration:
  *
- * With no RESEND_API_KEY the send is skipped, not failed — the rest of the
- * approval (PDF, filing) still completes and the dashboard says what didn't go.
+ *   Microsoft 365 (preferred) — MS_MAIL_FROM names a mailbox in the ONGIA
+ *   tenant (e.g. ongiaspeakers@ongia.ca); the app sends as that mailbox using
+ *   the same Entra credentials it files to SharePoint with (Mail.Send).
+ *   Mail then carries ONGIA's own SPF/DKIM and lands in that mailbox's Sent
+ *   Items, so there is a record outside the app.
+ *
+ *   Resend — RESEND_API_KEY, from MAIL_FROM on a verified sending domain.
+ *
+ * Replies are steered to the event's ONGIA contact either way, so a presenter
+ * who hits Reply reaches a person. With neither transport configured the send
+ * is skipped, not failed — the rest of the approval still completes and the
+ * dashboard says what didn't go.
  */
-const FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
+import { graphAccessToken, graphConfigured } from "./graph.mjs";
 
-export async function sendMail({ to, cc, replyTo, subject, html, text, attachments }) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return { skipped: true, reason: "RESEND_API_KEY is not set." };
+const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
+const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
+const GRAPH_DISPLAY = process.env.MS_MAIL_FROM_NAME || "ONGIA Training";
 
-  const payload = {
-    from: FROM,
-    to: Array.isArray(to) ? to : [to],
+export function mailTransport() {
+  if (GRAPH_MAILBOX && graphConfigured()) return { kind: "microsoft", from: `${GRAPH_DISPLAY} <${GRAPH_MAILBOX}>` };
+  if (process.env.RESEND_API_KEY) return { kind: "resend", from: RESEND_FROM };
+  return null;
+}
+
+export async function sendMail(message) {
+  const transport = mailTransport();
+  if (!transport) return { skipped: true, reason: "No email transport is configured (MS_MAIL_FROM or RESEND_API_KEY)." };
+  return transport.kind === "microsoft" ? sendViaGraph(message) : sendViaResend(message);
+}
+
+const list = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+async function sendViaGraph({ to, cc, replyTo, subject, html, text, attachments }) {
+  const token = await graphAccessToken();
+  const recipient = (address) => ({ emailAddress: { address } });
+  const message = {
     subject,
-    html,
-    text,
+    body: { contentType: "HTML", content: html || `<pre>${text ?? ""}</pre>` },
+    toRecipients: list(to).map(recipient),
+    ccRecipients: list(cc).map(recipient),
+    replyTo: replyTo ? [recipient(replyTo)] : [],
+    from: { emailAddress: { address: GRAPH_MAILBOX, name: GRAPH_DISPLAY } },
+    attachments: (attachments ?? []).map((a) => ({
+      "@odata.type": "#microsoft.graph.fileAttachment",
+      name: a.filename,
+      contentType: a.contentType ?? "application/pdf",
+      contentBytes: Buffer.from(a.content).toString("base64"),
+    })),
   };
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(GRAPH_MAILBOX)}/sendMail`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ message, saveToSentItems: true }),
+  });
+  if (res.status !== 202) {
+    const body = await res.json().catch(() => ({}));
+    const code = body.error?.code ?? res.status;
+    const hint = res.status === 403 ? " — the app needs the Mail.Send application permission with admin consent" : "";
+    throw new Error(`Email failed (${code}): ${body.error?.message ?? "Graph sendMail refused"}${hint}`);
+  }
+  return { id: res.headers.get("request-id") ?? "sent", transport: "microsoft" };
+}
+
+async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments }) {
+  const payload = { from: RESEND_FROM, to: list(to), subject, html, text };
   if (cc?.length) payload.cc = cc;
   if (replyTo) payload.reply_to = replyTo;
   if (attachments?.length) {
@@ -27,15 +75,14 @@ export async function sendMail({ to, cc, replyTo, subject, html, text, attachmen
       content: Buffer.from(a.content).toString("base64"),
     }));
   }
-
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Email failed (${res.status}): ${body.message ?? body.error ?? "unknown"}`);
-  return { id: body.id };
+  return { id: body.id, transport: "resend" };
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

@@ -39,8 +39,9 @@ Environment variables (Functions scope):
 | Key | Purpose |
 | --- | --- |
 | `ADMIN_KEY` | Shared key for the admin screens |
-| `RESEND_API_KEY` | Outbound email (Resend); without it sends are skipped and recorded |
-| `MAIL_FROM` | Optional; defaults to `ONGIA Training <agreements@send.ongia.ca>` |
+| `MS_MAIL_FROM` | Mailbox the app sends as through Microsoft 365 (e.g. `ongiaspeakers@ongia.ca`); needs `Mail.Send` (Application) with admin consent. Preferred transport |
+| `MS_MAIL_FROM_NAME` | Display name for that sender; defaults to `ONGIA Training` |
+| `RESEND_API_KEY`, `MAIL_FROM` | Fallback transport (Resend) when `MS_MAIL_FROM` is not set; needs a fully verified sending domain |
 | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Entra app (Sites.Selected) for SharePoint filing. The secret is the **Value** shown once at creation, not the Secret ID |
 | `MS_SITE_URL` | Optional; defaults to the ONGIA Board Members site |
 

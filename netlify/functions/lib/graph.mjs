@@ -22,6 +22,8 @@ export function graphConfigured() {
   return Boolean(process.env.MS_TENANT_ID && process.env.MS_CLIENT_ID && process.env.MS_CLIENT_SECRET);
 }
 
+export const graphAccessToken = () => accessToken();
+
 async function accessToken() {
   const body = new URLSearchParams({
     client_id: process.env.MS_CLIENT_ID,
