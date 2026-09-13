@@ -41,8 +41,12 @@ Environment variables (Functions scope):
 | `ADMIN_KEY` | Shared key for the admin screens |
 | `RESEND_API_KEY` | Outbound email (Resend); without it sends are skipped and recorded |
 | `MAIL_FROM` | Optional; defaults to `ONGIA Training <agreements@send.ongia.ca>` |
-| `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Entra app (Sites.Selected) for SharePoint filing |
+| `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Entra app (Sites.Selected) for SharePoint filing. The secret is the **Value** shown once at creation, not the Secret ID |
 | `MS_SITE_URL` | Optional; defaults to the ONGIA Board Members site |
+
+Environment changes only reach the functions on the next deploy — trigger one
+after editing a variable. `GET /api/health` (admin key) confirms the Microsoft
+sign-in and, with `?folder=`, that an event folder exists.
 
 Missing email or Microsoft credentials never block an approval — the
 dashboard shows what didn't land, and **Retry** re-runs just those parts.
