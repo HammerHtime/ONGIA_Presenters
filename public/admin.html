@@ -341,7 +341,7 @@ function eventScreen(data) {
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
-      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(ev.dayOne)}</div></div></div>
+      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div></div>
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Not submitted</div><div class="v">${c.invited + c.opened}</div></div>
