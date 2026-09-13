@@ -1,0 +1,70 @@
+import { getStore } from "@netlify/blobs";
+
+/**
+ * Storage sits on Netlify Blobs rather than a database: this is a few hundred
+ * records a year, and it means no extra account, no connection string and no
+ * credential to rotate.
+ *
+ * Keys are flat and prefixed so a listing can be scoped:
+ *   event:<id>                  the event record
+ *   presenter:<eventId>:<id>    one presenter on that event
+ *   token:<token>               pointer to { eventId, presenterId }
+ */
+const store = () => getStore({ name: "ongia-agreements", consistency: "strong" });
+
+const read = async (key) => (await store().get(key, { type: "json" })) ?? null;
+const write = (key, value) => store().setJSON(key, value);
+
+export async function putEvent(event) {
+  await write(`event:${event.id}`, event);
+  return event;
+}
+
+export const getEvent = (id) => read(`event:${id}`);
+
+export async function listEvents() {
+  const { blobs } = await store().list({ prefix: "event:" });
+  const events = await Promise.all(blobs.map((b) => read(b.key)));
+  return events
+    .filter(Boolean)
+    .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)));
+}
+
+export async function putPresenter(presenter) {
+  await write(`presenter:${presenter.eventId}:${presenter.id}`, presenter);
+  if (presenter.token) {
+    await write(`token:${presenter.token}`, {
+      eventId: presenter.eventId,
+      presenterId: presenter.id,
+    });
+  }
+  return presenter;
+}
+
+export const getPresenter = (eventId, id) => read(`presenter:${eventId}:${id}`);
+
+export async function listPresenters(eventId) {
+  const { blobs } = await store().list({ prefix: `presenter:${eventId}:` });
+  const people = await Promise.all(blobs.map((b) => read(b.key)));
+  return people.filter(Boolean).sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+}
+
+/** Resolve a presenter link token to the presenter and their event. */
+export async function resolveToken(tok) {
+  if (!tok) return null;
+  const pointer = await read(`token:${tok}`);
+  if (!pointer) return null;
+  const [event, presenter] = await Promise.all([
+    getEvent(pointer.eventId),
+    getPresenter(pointer.eventId, pointer.presenterId),
+  ]);
+  if (!event || !presenter) return null;
+  return { event, presenter };
+}
+
+/** Store a generated PDF so it can be re-downloaded without regenerating. */
+export async function putPdf(key, bytes) {
+  await store().set(`pdf:${key}`, bytes, { metadata: { contentType: "application/pdf" } });
+}
+
+export const getPdf = (key) => store().get(`pdf:${key}`, { type: "arrayBuffer" });

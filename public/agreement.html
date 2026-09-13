@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA Presenter Agreement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  /* ONGIA's palette, softened: this is a form a non-technical presenter fills
+     on a phone, not a page that has to impress anyone. */
+  :root {
+    color-scheme: light;
+    --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#767f92;
+    --navy:#1a2f5e; --navy-deep:#0e1a35;
+    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --border:#ddd7c8; --hair:rgba(18,22,31,.10);
+    --done:#2f6b4f; --done-bg:#e2efe7;
+    --warn:#9a6a12; --warn-bg:#f8ecd5;
+    --bad:#a33328; --bad-bg:#f7e3e0;
+    --shadow:0 10px 30px rgba(14,26,53,.09), 0 2px 6px rgba(14,26,53,.05);
+    --fd:"DM Serif Display",Georgia,serif;
+    --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --fu:"Oswald","Arial Narrow",sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);
+       font-size:16px;line-height:1.55;-webkit-text-size-adjust:100%}
+  h1,h2,h3{margin:0;font-weight:400;text-wrap:balance}
+  p{margin:0}
+  button{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:8px}
+  @media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important}}
+
+  .bar{background:var(--navy-deep);color:#fff;padding:12px 18px;display:flex;
+       align-items:center;gap:12px;border-bottom:3px solid var(--gold);
+       position:sticky;top:0;z-index:10}
+  .bar .mark{font-family:var(--fu);font-weight:600;letter-spacing:.18em;font-size:16px}
+  .bar .mark span{color:var(--gold-light)}
+  .bar .step{margin-left:auto;font-family:var(--fu);font-size:11.5px;
+             letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+
+  .steps{display:flex;gap:5px;margin-bottom:18px}
+  .steps i{flex:1;height:5px;border-radius:999px;background:var(--border);transition:background .25s}
+  .steps i.on{background:var(--gold)} .steps i.done{background:var(--navy)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+        padding:18px;box-shadow:var(--shadow)}
+  .card+.card{margin-top:14px}
+  .card h2{font-family:var(--fd);font-size:23px;line-height:1.15;margin-bottom:5px}
+  .lede{color:var(--muted);font-size:14.5px}
+
+  .facts{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:16px}
+  .fact{background:var(--sunk);padding:11px 14px;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .fact dt{font-family:var(--fu);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .fact dd{margin:0;font-size:14.5px;font-weight:600;text-align:right}
+
+  .flag{margin-top:14px;border-radius:14px;padding:13px 15px;display:flex;gap:11px;align-items:flex-start;
+        background:var(--warn-bg);border:1px solid rgba(154,106,18,.3)}
+  .flag strong{color:var(--warn);display:block;font-size:14px}
+  .flag p{font-size:13.5px;color:var(--ink-mid);margin-top:3px}
+
+  .field{margin-top:15px}
+  .field>label,.qlabel{display:block;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
+        text-transform:uppercase;color:var(--ink-mid);margin-bottom:6px}
+  input[type=text],input[type=email],input[type=tel],textarea{
+    width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--sunk);
+    border:1px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
+  textarea{resize:vertical;min-height:120px;line-height:1.5}
+  input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .hint.ok{color:var(--done);font-weight:600}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .seg{display:flex;gap:7px}
+  .seg button{flex:1;border:1px solid var(--border);background:var(--sunk);color:var(--ink-mid);
+    border-radius:999px;padding:11px 6px;font-size:14.5px;font-weight:600;cursor:pointer;
+    transition:background .16s,color .16s,border-color .16s}
+  .seg button:hover{border-color:var(--gold)}
+  .seg button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+
+  .qblock{margin-top:16px;padding-top:15px;border-top:1px solid var(--hair)}
+  .qblock:first-of-type{border-top:0;padding-top:0}
+  .qtext{font-size:15px;font-weight:500;margin-bottom:9px}
+
+  .blurb{font-size:14px;line-height:1.62;color:var(--ink-mid)}
+  .blurb+.blurb{margin-top:9px}
+  .covers{margin-top:15px;background:var(--gold-pale);border:1px solid var(--gold);
+          border-radius:14px;padding:13px 15px;font-size:14px;line-height:1.5;color:var(--ink-mid)}
+
+  .consent{background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:11px}
+  .consent h3{font-size:15px;font-weight:700;margin-bottom:10px}
+  .surface{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .surface .sname{flex:1;font-size:13.5px;color:var(--ink-mid);line-height:1.35}
+  .surface .seg{flex:0 0 138px}
+  .surface .seg button{padding:8px 4px;font-size:13px}
+
+  .attest{display:flex;gap:12px;align-items:flex-start;background:var(--gold-pale);
+          border:1px solid var(--gold);border-radius:14px;padding:14px;cursor:pointer}
+  .attest input{width:24px;height:24px;flex:0 0 auto;accent-color:var(--gold);margin:1px 0 0}
+  .attest span{font-size:14px;line-height:1.45}
+
+  .datebtn{width:100%;display:flex;align-items:center;gap:10px;text-align:left;background:var(--sunk);
+    border:1px solid var(--border);border-radius:12px;padding:12px 13px;font-size:16px;cursor:pointer;color:var(--ink)}
+  .datebtn[aria-expanded=true]{border-color:var(--gold);background:var(--gold-pale)}
+  .datebtn .dv{flex:1} .datebtn .dv.empty{color:var(--muted)}
+  .cal{margin-top:9px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:13px;box-shadow:var(--shadow)}
+  .cal-top{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .cal-top .m{flex:1;text-align:center;font-weight:700;font-size:15px}
+  .cal-nav{width:34px;height:34px;border-radius:999px;border:1px solid var(--border);background:var(--sunk);
+    cursor:pointer;display:grid;place-items:center;font-size:17px;line-height:1;padding:0}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal-grid .dow{font-family:var(--fu);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);text-align:center;padding-bottom:4px}
+  .cal-grid button{aspect-ratio:1;border-radius:999px;border:1px solid transparent;background:transparent;
+    color:var(--ink);font-size:14px;cursor:pointer;font-variant-numeric:tabular-nums;padding:0}
+  .cal-grid button:hover:not(:disabled){border-color:var(--gold)}
+  .cal-grid button:disabled{opacity:.26;cursor:default}
+  .cal-grid button.inrange{background:var(--gold-pale)}
+  .cal-grid button.sel{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
+  .cal-foot{margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
+
+  .upload{margin-top:14px;border:1.5px dashed var(--border);border-radius:14px;padding:20px 14px;
+          text-align:center;background:var(--sunk);cursor:pointer}
+  .upload .big{font-size:24px} .upload .t{font-weight:600;font-size:14.5px;margin-top:5px}
+  .upload .s{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .upload input{display:none}
+
+  .sig{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:15px}
+  .sig .typed{font-family:var(--fd);font-size:27px;color:var(--navy);border-bottom:1.5px solid var(--border);
+    padding-bottom:7px;min-height:42px;word-break:break-word}
+  .sig .meta{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11.5px;color:var(--muted);
+    font-family:var(--fu);letter-spacing:.1em;text-transform:uppercase}
+
+  .nav{display:flex;gap:10px;margin-top:20px}
+  .btn{border-radius:999px;padding:14px 24px;font-weight:700;font-size:16px;border:1px solid transparent;
+       cursor:pointer;transition:transform .14s,background .18s}
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.6;cursor:progress}
+  .btn-primary{background:var(--navy);color:#fff;flex:1}
+  .btn-gold{background:var(--gold);color:#1c1608;flex:1}
+  .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink-mid)}
+
+  .problems{margin-top:14px;background:var(--bad-bg);border:1px solid var(--bad);border-radius:14px;padding:13px 15px}
+  .problems b{color:var(--bad);font-size:14px}
+  .problems ul{margin:7px 0 0;padding-left:20px;font-size:14px;color:var(--ink-mid)}
+  .problems li{margin-bottom:3px}
+
+  .done-screen{text-align:center;padding:26px 6px}
+  .done-screen .tick{width:66px;height:66px;border-radius:999px;background:var(--done-bg);color:var(--done);
+    display:grid;place-items:center;margin:0 auto 18px;font-size:32px;border:1px solid var(--done)}
+  .done-screen h2{font-family:var(--fd);font-size:26px;margin-bottom:9px}
+  .done-screen p{color:var(--muted);font-size:14.5px;max-width:34ch;margin:0 auto}
+  .done-list{text-align:left;margin-top:20px;display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden}
+  .done-list div{background:var(--sunk);padding:12px 14px;font-size:13.5px;display:flex;gap:10px;align-items:flex-start}
+  .done-list b{color:var(--done)}
+  .ref{margin-top:16px;font-family:var(--fu);font-size:12px;letter-spacing:.1em;color:var(--muted)}
+
+  .loading,.oops{max-width:560px;margin:0 auto;padding:60px 20px;text-align:center;color:var(--muted)}
+  .oops h2{font-family:var(--fd);font-size:24px;color:var(--ink);margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="mark">ONGIA<span>.</span></span>
+  <span class="step" id="stepcount"></span>
+</div>
+
+<div id="root"><p class="loading">Loading your agreement…</p></div>
+
+<script type="module">
+const ROOT = document.getElementById("root");
+const STEPCOUNT = document.getElementById("stepcount");
+const TOKEN = location.pathname.startsWith("/a/")
+  ? location.pathname.slice(3)
+  : new URLSearchParams(location.search).get("t") ?? "";
+
+const TITLES = ["Your event", "About you", "Your session", "Travel & costs", "Permissions", "Sign & send"];
+const LAST_STEP = 5;
+
+let DATA = null;
+let sending = false;
+const S = {
+  step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
+  first: "", last: "", email: "", phone: "", organization: "",
+  talk: "", bio: "", outline: "",
+  travel: null, travelFrom: "", travelTo: "",
+  hotel: null, hotelFrom: "", hotelTo: "",
+  expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
+  copyright: false,
+  media: { photo: {}, materials: {}, summary: {} },
+  signature: "", agreed: false,
+};
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const words = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+const fullName = () => `${S.first} ${S.last}`.trim();
+const fileName = () => `${(S.last || "Surname").trim()}_Presenter Agreement.pdf`;
+
+/* ---------- dates ---------- */
+const MONL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DOW  = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const PAIR  = { travelFrom: "travelTo", hotelFrom: "hotelTo" };
+const AFTER = { travelTo: "travelFrom", hotelTo: "hotelFrom" };
+const RANGE = { travelFrom:["travelFrom","travelTo"], travelTo:["travelFrom","travelTo"],
+                hotelFrom:["hotelFrom","hotelTo"],   hotelTo:["hotelFrom","hotelTo"] };
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const parseISO = (v) => { if (!v) return null; const [y,m,d] = v.split("-").map(Number); return new Date(y, m-1, d); };
+const fmtDate = (v) => { const d = parseISO(v); return d ? `${DAYS[d.getDay()]} ${d.getDate()} ${MONS[d.getMonth()]} ${d.getFullYear()}` : ""; };
+
+function dateField(id, label, key) {
+  const val = S[key], open = S.openCal === key;
+  let h = `<div class="field"><label for="${id}">${label}</label>
+    <button type="button" class="datebtn" id="${id}" data-cal="${key}" aria-expanded="${open}">
+      <span class="dv${val ? "" : " empty"}">${val ? esc(fmtDate(val)) : "Choose a date"}</span>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" aria-hidden="true" style="opacity:.6">
+        <rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 10h18"></path>
+      </svg></button>`;
+  if (open) h += calendar(key);
+  return h + "</div>";
+}
+
+function calendar(key) {
+  const minKey = AFTER[key], min = minKey ? S[minKey] : null;
+  const cur = S[key] || min || DATA.eventDayOneISO || toISO(new Date());
+  const view = S.calMonth || cur.slice(0,7) + "-01";
+  const vd = parseISO(view), y = vd.getFullYear(), m = vd.getMonth();
+  const lead = new Date(y, m, 1).getDay();
+  const total = new Date(y, m+1, 0).getDate();
+  const r = RANGE[key] ?? [], a = r[0] ? S[r[0]] : null, b = r[1] ? S[r[1]] : null;
+
+  let h = `<div class="cal" role="group" aria-label="Choose a date"><div class="cal-top">
+    <button type="button" class="cal-nav" data-cal-move="-1" aria-label="Previous month">&#8249;</button>
+    <span class="m">${MONL[m]} ${y}</span>
+    <button type="button" class="cal-nav" data-cal-move="1" aria-label="Next month">&#8250;</button>
+    </div><div class="cal-grid">`;
+  for (const d of DOW) h += `<div class="dow">${d}</div>`;
+  for (let i = 0; i < lead; i++) h += "<span></span>";
+  for (let d = 1; d <= total; d++) {
+    const iso = toISO(new Date(y, m, d));
+    const blocked = min && iso < min;
+    const cls = iso === S[key] ? "sel" : (a && b && iso > a && iso < b ? "inrange" : "");
+    h += `<button type="button" class="${cls}" data-cal-pick="${iso}"${blocked ? " disabled" : ""}
+           aria-label="${esc(fmtDate(iso))}">${d}</button>`;
+  }
+  return h + `</div><div class="cal-foot"><span>${min ? "On or after " + esc(fmtDate(min)) : "Tap a day"}</span>
+    <button type="button" class="btn btn-ghost" style="padding:7px 15px;font-size:13.5px" data-cal-close="1">Done</button>
+    </div></div>`;
+}
+
+/* ---------- pieces ---------- */
+function seg(key, opts, path) {
+  const current = path ? path.reduce((o, k) => o?.[k], S) : S[key];
+  return `<div class="seg">` + opts.map((o) =>
+    `<button type="button" data-set="${key}" data-val="${o.v}"${path ? ` data-path="${path.join(".")}"` : ""}
+      aria-pressed="${current === o.v}">${o.t}</button>`).join("") + `</div>`;
+}
+const YESNO = [{ v:"yes", t:"Yes" }, { v:"no", t:"No" }];
+
+function consentRow(label, row) {
+  return `<div class="consent"><h3>${label}</h3>
+    <div class="surface"><span class="sname">Inside ONGIA<br>(paid members only)</span>
+      ${seg("media", YESNO, ["media", row, "internal"])}</div>
+    <div class="surface"><span class="sname">Social media &amp;<br>public platforms</span>
+      ${seg("media", YESNO, ["media", row, "public"])}</div></div>`;
+}
+
+/* ---------- steps ---------- */
+function stepMarkup() {
+  const ev = DATA.event;
+  switch (S.step) {
+    case 0: return `<div class="card">
+      <h2>You're presenting at ${esc(ev.title)}</h2>
+      <p class="lede">Hello ${esc(S.first)}. Everything below is already set by ONGIA — read it over, then six short questions.</p>
+      <dl class="facts">
+        <div class="fact"><dt>City</dt><dd>${esc(ev.city)}</dd></div>
+        ${ev.venue ? `<div class="fact"><dt>Venue</dt><dd>${esc(ev.venue)}</dd></div>` : ""}
+        <div class="fact"><dt>Training begins</dt><dd>${esc(ev.dayOne)}</dd></div>
+        <div class="fact"><dt>Length</dt><dd>${ev.sessionMinutes} minutes</dd></div>
+      </dl>
+      <div class="flag"><span>🗓️</span><div><strong>Two dates to keep</strong>
+        <p>Draft materials for review by <strong>${esc(ev.deadlines.draft)}</strong>.
+           Final, production-ready materials by <strong>${esc(ev.deadlines.final)}</strong>.</p></div></div>
+      ${ev.contact?.name ? `<p class="hint">Questions? ${esc(ev.contact.name)}${ev.contact.email ? " · " + esc(ev.contact.email) : ""}</p>` : ""}
+      </div>`;
+
+    case 1: return `<div class="card"><h2>About you</h2>
+      <p class="lede">This is how you'll be introduced on the day.</p>
+      <div class="row2">
+        <div class="field"><label for="f-first">First name</label><input id="f-first" type="text" data-bind="first" value="${esc(S.first)}" autocomplete="given-name"></div>
+        <div class="field"><label for="f-last">Last name</label><input id="f-last" type="text" data-bind="last" value="${esc(S.last)}" autocomplete="family-name"></div>
+      </div>
+      <p class="hint" id="fnhint">Your agreement will be filed as <b>${esc(fileName())}</b></p>
+      <div class="row2">
+        <div class="field"><label for="f-phone">Contact number</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel"></div>
+        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" data-bind="email" value="${esc(S.email)}" autocomplete="email"></div>
+      </div>
+      <div class="field"><label for="f-org">Organization</label><input id="f-org" type="text" data-bind="organization" value="${esc(S.organization)}" autocomplete="organization"></div>
+      </div>`;
+
+    case 2: {
+      const w = words(S.bio);
+      return `<div class="card"><h2>Your session</h2>
+      <div class="field"><label for="f-talk">Presentation title</label><input id="f-talk" type="text" data-bind="talk" value="${esc(S.talk)}"></div>
+      <div class="field"><label for="f-bio">Biography</label>
+        <textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
+        <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${w} words — aim for 250 to 300. Used to introduce you at the event.</p></div>
+      <div class="field"><label for="f-outline">Presentation outline</label>
+        <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
+        <p class="hint">What you'll cover, in a short paragraph.</p></div>
+      </div>`;
+    }
+
+    case 3: {
+      let h = `<div class="card"><h2>Travel &amp; costs</h2>
+        <p class="lede">Tell us what you need arranged for the training event.</p>
+        <div class="qblock"><p class="qtext">Will you need travel arranged?</p>${seg("travel", YESNO)}</div>`;
+      if (S.travel === "yes") h += dateField("f-tf", "Arriving", "travelFrom") + dateField("f-tt", "Departing", "travelTo");
+      h += `<div class="qblock"><p class="qtext">Will you need hotel accommodation?</p>${seg("hotel", YESNO)}</div>`;
+      if (S.hotel === "yes") h += dateField("f-hf", "Check in", "hotelFrom") + dateField("f-ht", "Check out", "hotelTo");
+      h += `</div>`;
+
+      h += `<div class="card"><h2>Shared expenses</h2>
+        <p class="blurb">ONGIA is a non-profit, and we look for opportunities to share the cost of presenter
+          attendance with the presenter's home agency. Where an agency is able to contribute, it allows ONGIA
+          to keep the training affordable and put more of the budget back into the program.</p>
+        <p class="blurb">Please tell us which of these your agency would cover while you are at the training event.</p>
+        <div class="qblock"><p class="qtext">Is your agency covering the cost of transportation (ground or air)?</p>
+          ${seg("expenses", YESNO, ["expenses", "transport"])}</div>`;
+      if (S.hotel === "yes") {
+        h += `<div class="qblock"><p class="qtext">Is your agency covering the cost of hotel accommodation?</p>
+          ${seg("expenses", YESNO, ["expenses", "hotel"])}</div>`;
+      } else {
+        h += `<div class="qblock"><p class="qtext">Hotel accommodation</p>
+          <p class="hint">Skipped — you said you don't need a hotel.</p></div>`;
+      }
+      h += `<div class="qblock"><p class="qtext">Is your agency covering the cost of meals?</p>
+          ${seg("expenses", YESNO, ["expenses", "meals"])}
+          <p class="hint">Meal claims need a receipt or declaration. Maximums follow the Treasury Board of Canada directive.</p></div>
+        <div class="qblock"><p class="qtext">Is there any other cost your agency is covering?</p>
+          ${seg("expenses", YESNO, ["expenses", "other"])}`;
+      if (S.expenses.other === "yes") {
+        h += `<div class="field"><label for="f-other">What is it?</label>
+          <input id="f-other" type="text" data-bind="expenses.otherText" value="${esc(S.expenses.otherText)}" placeholder="e.g. parking, checked baggage"></div>`;
+      }
+      h += `</div>
+        <div class="covers">Anything your agency is not covering goes to ONGIA for review. The board decides
+          what ONGIA covers, and your final copy will confirm it. Answering &ldquo;no&rdquo; does not affect
+          your invitation to present.</div></div>`;
+      return h;
+    }
+
+    case 4: return `<div class="card"><h2>Permissions</h2>
+      <p class="lede">Two things ONGIA needs in writing.</p>
+      <label class="attest" for="f-copy" style="margin-top:15px">
+        <input id="f-copy" type="checkbox" data-bind="copyright"${S.copyright ? " checked" : ""}>
+        <span>The presentation is my own work, or I have obtained every permission needed to use the
+          copyrighted material and intellectual property in it.</span></label></div>
+      <div class="card"><h2>Media &amp; content sharing</h2>
+      <p class="lede">Tell us where ONGIA may use each item. Every line needs an answer.</p>
+      ${consentRow("Photographs of you", "photo")}
+      ${consentRow("Your presentation materials", "materials")}
+      ${consentRow("Your presentation summary", "summary")}</div>`;
+
+    case 5: return `<div class="card"><h2>Sign &amp; send</h2>
+      <p class="lede">Last step. Due back by ${esc(DATA.event.deadlines.agreement)}.</p>
+      <label class="upload" for="f-shot">
+        <div class="big">${S.headshotName ? "✅" : "📷"}</div>
+        <div class="t">${S.headshotName ? esc(S.headshotName) : "Add your headshot"}</div>
+        <div class="s">${S.headshotName ? "Tap to replace" : ".png or .jpeg — used to introduce you and on ongia.ca"}</div>
+        <input id="f-shot" type="file" accept="image/png,image/jpeg"></label>
+      <div class="field"><label for="f-sign">Type your full name to sign</label>
+        <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
+      <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
+        <div class="meta"><span>Electronic signature</span><span>${esc(fmtDate(toISO(new Date())))}</span></div></div>
+      <label class="attest" for="f-agree" style="margin-top:14px">
+        <input id="f-agree" type="checkbox" data-bind="agreed"${S.agreed ? " checked" : ""}>
+        <span>This typed name is my electronic signature, and the information above is accurate.</span></label>
+      </div>`;
+
+    default: return "";
+  }
+}
+
+function doneMarkup(result) {
+  return `<div class="card done-screen"><div class="tick">✓</div>
+    <h2>Thank you — that's submitted</h2>
+    <p>ONGIA has your agreement. One more step happens on our side before it's final.</p>
+    <div class="done-list">
+      <div><b>✓</b><span>Your answers were received and time-stamped</span></div>
+      <div><b>✓</b><span>${esc(DATA.event.contact?.name || "ONGIA")} and the board were notified</span></div>
+      <div><b>→</b><span>${esc(result.next.review)}</span></div>
+      <div><b>→</b><span>${esc(result.next.finalCopy)}</span></div>
+      <div><b>→</b><span>Draft materials due ${esc(result.next.draftMaterials)}</span></div>
+    </div>
+    <p class="ref">Reference ${esc(result.reference)}</p></div>`;
+}
+
+/* ---------- render ---------- */
+let lastStep = null;
+function render(done) {
+  if (done) {
+    ROOT.innerHTML = `<div class="wrap">${doneMarkup(done)}</div>`;
+    STEPCOUNT.textContent = "Submitted";
+    window.scrollTo(0, 0);
+    return;
+  }
+  const bars = Array.from({ length: 6 }, (_, i) =>
+    `<i class="${i < S.step ? "done" : i === S.step ? "on" : ""}"></i>`).join("");
+  const problems = S.problems.length
+    ? `<div class="problems"><b>Not quite there</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
+    : "";
+  const nav = `<div class="nav">
+      ${S.step > 0 ? `<button type="button" class="btn btn-ghost" id="back">Back</button>` : ""}
+      <button type="button" class="btn ${S.step === LAST_STEP ? "btn-gold" : "btn-primary"}" id="next"${sending ? " disabled" : ""}>
+        ${sending ? "Sending…" : S.step === LAST_STEP ? "Submit agreement" : "Continue"}</button></div>`;
+
+  const keep = lastStep === S.step ? window.scrollY : null;
+  ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${stepMarkup()}${problems}${nav}</div>`;
+  STEPCOUNT.textContent = `Step ${S.step + 1} of 6`;
+  if (keep !== null) window.scrollTo(0, keep); else window.scrollTo(0, 0);
+  lastStep = S.step;
+
+  if (S.openCal) {
+    const cal = ROOT.querySelector(".cal");
+    if (cal) {
+      const over = cal.getBoundingClientRect().bottom - window.innerHeight;
+      if (over > 0) window.scrollBy(0, over + 14);
+    }
+  }
+}
+
+/* ---------- validation, mirroring the server ---------- */
+function validate() {
+  const out = [];
+  if (S.step === 1) {
+    if (!S.first.trim() || !S.last.trim()) out.push("Please add your first and last name.");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) out.push("That email address doesn't look right.");
+  }
+  if (S.step === 2) {
+    if (!S.talk.trim()) out.push("Please add a presentation title.");
+    if (words(S.bio) < 20) out.push("Please add a biography.");
+    if (!S.outline.trim()) out.push("Please add a presentation outline.");
+  }
+  if (S.step === 3) {
+    if (!S.travel) out.push("Tell us whether you need travel arranged.");
+    if (!S.hotel) out.push("Tell us whether you need hotel accommodation.");
+    if (!S.expenses.transport) out.push("Tell us whether your agency covers transportation.");
+    if (S.hotel === "yes" && !S.expenses.hotel) out.push("Tell us whether your agency covers accommodation.");
+    if (!S.expenses.meals) out.push("Tell us whether your agency covers meals.");
+    if (!S.expenses.other) out.push("Tell us whether your agency covers any other cost.");
+  }
+  if (S.step === 4) {
+    if (!S.copyright) out.push("Please confirm the copyright statement.");
+    for (const row of ["photo", "materials", "summary"])
+      for (const s of ["internal", "public"])
+        if (!S.media[row]?.[s]) { out.push("Please answer every media-sharing line."); break; }
+  }
+  if (S.step === 5) {
+    if (!S.signature.trim()) out.push("Please type your name to sign.");
+    if (!S.agreed) out.push("Please confirm your electronic signature.");
+  }
+  return [...new Set(out)];
+}
+
+async function submit() {
+  sending = true; render();
+  try {
+    const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...S, headshotName: S.headshotName }),
+    });
+    const out = await res.json();
+    sending = false;
+    if (res.ok) { render(out); return; }
+    S.problems = out.problems ?? [out.error ?? "Something went wrong. Please try again."];
+    render();
+  } catch {
+    sending = false;
+    S.problems = ["Couldn't reach ONGIA — check your connection and try again."];
+    render();
+  }
+}
+
+/* ---------- events ---------- */
+ROOT.addEventListener("click", (e) => {
+  const set = e.target.closest("[data-set]");
+  if (set) {
+    const path = set.dataset.path;
+    if (path) {
+      const keys = path.split(".");
+      let node = S;
+      for (const k of keys.slice(0, -1)) node = node[k] ??= {};
+      node[keys.at(-1)] = set.dataset.val;
+    } else S[set.dataset.set] = set.dataset.val;
+    render(); return;
+  }
+  const cal = e.target.closest("[data-cal]");
+  if (cal) { const k = cal.dataset.cal; S.openCal = S.openCal === k ? null : k; S.calMonth = null; render(); return; }
+  const mv = e.target.closest("[data-cal-move]");
+  if (mv) {
+    const base = S.calMonth || ((S[S.openCal] || DATA.eventDayOneISO || toISO(new Date())).slice(0,7) + "-01");
+    const d = parseISO(base); d.setMonth(d.getMonth() + Number(mv.dataset.calMove));
+    S.calMonth = toISO(d); render(); return;
+  }
+  const pick = e.target.closest("[data-cal-pick]");
+  if (pick) {
+    const field = S.openCal, iso = pick.dataset.calPick;
+    S[field] = iso;
+    const mate = PAIR[field];
+    if (mate && (!S[mate] || S[mate] < iso)) S[mate] = iso;
+    S.openCal = null; S.calMonth = null; render(); return;
+  }
+  if (e.target.closest("[data-cal-close]")) { S.openCal = null; S.calMonth = null; render(); return; }
+  if (e.target.closest("#back")) { S.problems = []; S.step--; render(); return; }
+  if (e.target.closest("#next")) {
+    if (sending) return;
+    const problems = validate();
+    if (problems.length) { S.problems = problems; render(); return; }
+    S.problems = [];
+    if (S.step === LAST_STEP) submit();
+    else { S.step++; render(); }
+  }
+});
+
+ROOT.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.id === "f-shot") { S.headshotName = t.files?.[0]?.name ?? ""; render(); return; }
+  const bind = t.dataset?.bind;
+  if (!bind) return;
+  const value = t.type === "checkbox" ? t.checked : t.value;
+  if (bind.includes(".")) {
+    const keys = bind.split(".");
+    let node = S;
+    for (const k of keys.slice(0, -1)) node = node[k] ??= {};
+    node[keys.at(-1)] = value;
+  } else S[bind] = value;
+
+  if (bind === "first" || bind === "last") {
+    const h = document.getElementById("fnhint");
+    if (h) h.innerHTML = `Your agreement will be filed as <b>${esc(fileName())}</b>`;
+  }
+  if (bind === "signature") {
+    const sl = document.getElementById("sigline");
+    if (sl) sl.textContent = t.value || " ";
+  }
+  if (t.dataset.count) {
+    const c = document.getElementById("biocount");
+    if (c) {
+      const n = words(t.value);
+      c.textContent = `${n} words — aim for 250 to 300. Used to introduce you at the event.`;
+      c.className = "hint" + (n >= 250 && n <= 300 ? " ok" : "");
+    }
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && S.openCal) { S.openCal = null; S.calMonth = null; render(); }
+});
+
+/* ---------- boot ---------- */
+(async function boot() {
+  if (!TOKEN) {
+    ROOT.innerHTML = `<div class="oops"><h2>This link is incomplete</h2>
+      <p>Open the link from your ONGIA email, or ask us to send it again.</p></div>`;
+    return;
+  }
+  try {
+    const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}`);
+    const out = await res.json();
+    if (!res.ok) {
+      ROOT.innerHTML = `<div class="oops"><h2>We couldn't open this agreement</h2><p>${esc(out.error)}</p></div>`;
+      return;
+    }
+    DATA = out;
+    Object.assign(S, {
+      first: out.presenter.first ?? "",
+      last: out.presenter.last ?? "",
+      email: out.presenter.email ?? "",
+      organization: out.presenter.organization ?? "",
+    });
+    if (out.draft) {
+      const d = out.draft;
+      Object.assign(S, {
+        phone: d.phone ?? "", talk: d.talk ?? "", bio: d.bio ?? "", outline: d.outline ?? "",
+        travel: d.travel ?? null, travelFrom: d.travelFrom ?? "", travelTo: d.travelTo ?? "",
+        hotel: d.hotel ?? null, hotelFrom: d.hotelFrom ?? "", hotelTo: d.hotelTo ?? "",
+        expenses: { ...S.expenses, ...(d.expenses ?? {}) },
+        copyright: !!d.copyright, media: d.media ?? S.media,
+        signature: d.signature ?? "", headshotName: d.headshotName ?? "",
+      });
+    }
+    render();
+  } catch {
+    ROOT.innerHTML = `<div class="oops"><h2>We couldn't reach ONGIA</h2>
+      <p>Check your connection and refresh the page.</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>
