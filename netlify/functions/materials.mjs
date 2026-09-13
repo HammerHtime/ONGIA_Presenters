@@ -20,7 +20,7 @@ export default async (req) => {
   if (req.method === "POST" && url.searchParams.get("scan")) {
     try {
       const scan = await scanMaterials(event, presenters);
-      if (scan.skipped) return fail(scan.reason, 409);
+      if (scan.skipped) { await putEvent(event); return fail(scan.reason, 409); }
       event.materialsScan = scan;
       await putEvent(event);
     } catch (e) {

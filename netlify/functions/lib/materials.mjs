@@ -1,4 +1,4 @@
-import { graphConfigured, graphAccessToken, graphGet } from "./graph.mjs";
+import { graphConfigured, graphAccessToken, graphGet, driveIdFor, normaliseFolder } from "./graph.mjs";
 
 /**
  * Who has actually sent their slides?
@@ -14,12 +14,11 @@ export async function scanMaterials(event, presenters) {
   if (!graphConfigured()) return { skipped: true, reason: "Microsoft credentials are not set." };
 
   const token = await graphAccessToken();
-  const encoded = "u!" + Buffer.from(event.materialsUploadUrl).toString("base64url");
-  const folder = await graphGet(token, `/shares/${encoded}/driveItem?$select=id,name,webUrl,folder,parentReference`);
-  if (!folder.folder) return { skipped: true, reason: "The materials link points at a file, not a folder." };
+  const folder = await findRequestFolder(event, token);
+  if (!folder) return { skipped: true, reason: "Couldn't find which folder the materials link belongs to. It should be the event folder or a folder inside it." };
 
   const files = [];
-  let next = `/drives/${folder.parentReference.driveId}/items/${folder.id}/children?$select=id,name,size,lastModifiedDateTime,webUrl,file,folder&$top=200`;
+  let next = `/drives/${folder.driveId}/items/${folder.id}/children?$select=id,name,size,lastModifiedDateTime,webUrl,file,folder&$top=200`;
   while (next) {
     const page = await graphGet(token, next);
     for (const it of page.value ?? []) if (it.file) files.push({ id: it.id, name: it.name, size: it.size, at: it.lastModifiedDateTime, url: it.webUrl });
@@ -36,13 +35,52 @@ export async function scanMaterials(event, presenters) {
   for (const list of Object.values(byPresenter)) list.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
 
   return {
-    folder: { name: folder.name, url: folder.webUrl },
+    folder: { name: folder.name, url: folder.webUrl, path: folder.path },
     total: files.length,
     byPresenter,
     unmatched,
     checkedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * A Request-files link deliberately can't be resolved to its folder (it grants
+ * no reading), so work backwards: the event folder, the folders inside it and
+ * its siblings are checked for a sharing link that matches. The answer is
+ * cached on the event so later scans are a single call.
+ */
+async function findRequestFolder(event, token) {
+  const target = linkKey(event.materialsUploadUrl);
+  if (event.materialsFolder?.id && event.materialsFolder.link === target) return event.materialsFolder;
+  const drive = await driveIdFor(token);
+  const base = normaliseFolder(event.sharePointFolder);
+  if (!base) return null;
+
+  const candidates = [];
+  const eventFolder = await graphGet(token, `/drives/${drive}/root:/${enc(base)}?$select=id,name,webUrl,parentReference`).catch(() => null);
+  if (eventFolder) {
+    candidates.push({ ...eventFolder, path: base });
+    const kids = await graphGet(token, `/drives/${drive}/items/${eventFolder.id}/children?$select=id,name,webUrl,folder&$top=200`).catch(() => ({ value: [] }));
+    for (const k of kids.value ?? []) if (k.folder) candidates.push({ ...k, path: `${base}/${k.name}` });
+    const parentPath = base.includes("/") ? base.slice(0, base.lastIndexOf("/")) : "";
+    if (parentPath) {
+      const sibs = await graphGet(token, `/drives/${drive}/root:/${enc(parentPath)}:/children?$select=id,name,webUrl,folder&$top=200`).catch(() => ({ value: [] }));
+      for (const k of sibs.value ?? []) if (k.folder && k.id !== eventFolder.id) candidates.push({ ...k, path: `${parentPath}/${k.name}` });
+    }
+  }
+  for (const c of candidates) {
+    const perms = await graphGet(token, `/drives/${drive}/items/${c.id}/permissions?$select=id,link`).catch(() => ({ value: [] }));
+    if ((perms.value ?? []).some((p) => p.link?.webUrl && linkKey(p.link.webUrl) === target)) {
+      event.materialsFolder = { id: c.id, driveId: drive, name: c.name, webUrl: c.webUrl, path: c.path, link: target };
+      return event.materialsFolder;
+    }
+  }
+  return null;
+}
+
+// Sharing links compare on their path; the ?e= tail varies between copies.
+const linkKey = (u) => { try { const x = new URL(u); return `${x.hostname}${x.pathname}`.toLowerCase(); } catch { return String(u); } };
+const enc = (p) => p.split("/").map(encodeURIComponent).join("/");
 
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 

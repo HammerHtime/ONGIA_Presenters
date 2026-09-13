@@ -24,6 +24,7 @@ export function graphConfigured() {
 
 export const graphAccessToken = () => accessToken();
 export const graphGet = (token, path) => graph(token, path);
+export const driveIdFor = (token) => driveId(token);
 
 async function accessToken() {
   const body = new URLSearchParams({
