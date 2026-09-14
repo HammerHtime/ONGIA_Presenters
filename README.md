@@ -10,9 +10,12 @@ presenter and filed to SharePoint.
    the board members involved (exactly one marked **lead**, which is required —
    they are the contact presenters reply to and whose name, email and phone
    print on the agreement; they review and sign; all are notified), and
-   optionally the first presenters. Each board member on the roster
-   (`/api/roster`) can carry a phone number, which fills the lead's number in by
-   itself; a number typed on the event form is saved back to the roster. Nothing about SharePoint is typed: the app
+   optionally the first presenters. The lead's name, email and phone number are
+   their entry on the board list (`/api/roster`) and nowhere else — there is no
+   per-event contact to type, so a number can never be recorded against the
+   wrong person. Change the number on the board list and every event using that
+   lead picks it up, with no re-saving. Events read back before this rule are
+   reconciled on read, so a contact left behind by a previous lead is replaced. Nothing about SharePoint is typed: the app
    creates `ONGIA Board/ONGIA Training/<year>/<year> <City>` and an upload-only
    (Request files) link itself. A "use an existing folder or upload link"
    toggle on the form takes a pasted folder link/path or a Request-files link;

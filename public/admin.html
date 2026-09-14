@@ -457,9 +457,8 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
         <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
       </div>
-      <div class="field" style="max-width:340px"><label for="e-cphone">Lead's phone number</label>
-        <input id="e-cphone" type="tel" value="${esc(formatPhone(ev?.contact?.phone ?? ""))}" placeholder="306-555-0100">
-        <p class="hint" id="cphonehint" style="margin:6px 0 0"></p></div>
+      <div class="field"><label>Presenters reach</label>
+        <p class="hint" id="cphonehint" style="margin:0"></p></div>
       <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
         <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
@@ -504,18 +503,17 @@ function eventFormScreen(existing = null) {
     folderhint.textContent = where + up;
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint; upload.oninput = showFolderHint;
-  const cphone = $("e-cphone"), cphonehint = $("cphonehint");
-  let cphoneTouched = !!cphone.value.trim();
-  cphone.oninput = (e) => { cphoneTouched = true; formatPhoneInput(e.target); showLeadPhone(); };
-  // The lead's number lives on the board roster, so it fills in by itself next time.
+  const cphonehint = $("cphonehint");
+  // The lead's name, address and number are their entry on the board list. There
+  // is nothing to type here: it is shown so the coordinator can see what prints.
   function showLeadPhone() {
     const lead = readBoard().find((m) => m.lead);
-    if (!lead) { cphonehint.textContent = "Pick a lead above and their stored number fills in here."; return; }
-    if (!cphoneTouched && lead.phone && cphone.value.trim() !== lead.phone) cphone.value = lead.phone;
-    const typed = cphone.value.trim();
-    cphonehint.textContent = !typed ? `Printed on the agreement. No number stored for ${lead.name} — type one and it is kept for next time.`
-      : typed === lead.phone ? `From the board list, for ${lead.name}.`
-      : `Saved to the board list for ${lead.name}.`;
+    if (!lead) { cphonehint.innerHTML = "Mark one board member as the lead. Their name, email and phone number go on the agreement, and presenters' replies reach them."; return; }
+    cphonehint.innerHTML = lead.phone
+      ? `<b>${esc(lead.name)}</b> · ${esc(lead.email)} · ${esc(lead.phone)} — printed on the agreement and on every email.`
+      : `<b>${esc(lead.name)}</b> · ${esc(lead.email)} — <b>no phone number on file.</b> Add one on the <a href="#" id="goroster">Board members</a> page and it appears here.`;
+    const go = $("goroster");
+    if (go) go.onclick = (e) => { e.preventDefault(); view = { name: "roster" }; render(); };
   }
   $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) upload.focus(); };
 
@@ -569,7 +567,6 @@ function eventFormScreen(existing = null) {
     const body = {
       title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
       dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
-      contactPhone: val("e-cphone"),
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
@@ -580,13 +577,7 @@ function eventFormScreen(existing = null) {
       $("board").scrollIntoView({ behavior: "smooth", block: "center" });
       busy = false; e.target.disabled = false; return;
     }
-    // Remember the lead's number on the board list so it fills in next time.
-    if (body.contactPhone && body.contactPhone !== leadRow.phone) {
-      const next = ROSTER.map((m) => (m.email.toLowerCase() === leadRow.email.toLowerCase() ? { ...m, phone: body.contactPhone } : m));
-      if (next.some((m) => m.email.toLowerCase() === leadRow.email.toLowerCase())) {
-        try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; } catch { /* the event still saves */ }
-      }
-    }
+
     try {
       const out = ev
         ? await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })

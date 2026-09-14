@@ -78,11 +78,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
     sessionMinutes: Number(body.sessionMinutes) || event.sessionMinutes || 70,
     // Derived, never typed. Change a training date and all three move with it.
     deadlines: deadlinesFor(dayOne),
-    contact: {
-      name: text(body.contactName, 120),
-      email: text(body.contactEmail, 200),
-      phone: formatPhone(text(body.contactPhone, 60)),
-    },
+    contact: { name: "", email: "", phone: "" },
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
   });
@@ -110,11 +106,11 @@ async function applyDetails(event, body, { creating = false } = {}) {
   }
   event.board = board;
   event.reviewer = { name: lead.name, email: lead.email, phone: lead.phone };
-  // The lead is the ONGIA contact presenters see and reply to. Older clients could name
-  // someone else; that still works, but the form no longer offers it.
-  if (!text(body.contactName, 120) || !text(body.contactEmail, 200)) {
-    event.contact = { name: lead.name, email: lead.email, phone: formatPhone(text(body.contactPhone, 60)) || lead.phone };
-  }
+  // The lead IS the ONGIA contact: the name, address and number on the agreement,
+  // and where replies go. The number comes from that person's entry on the board
+  // list and nowhere else, so it cannot be typed against the wrong person — which
+  // is how one event ended up printing a previous lead's number under a new lead.
+  event.contact = { name: lead.name, email: lead.email, phone: lead.phone };
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
 
   // The materials link is the one thing presenters receive that points at

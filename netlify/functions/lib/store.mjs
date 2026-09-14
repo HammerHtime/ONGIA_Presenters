@@ -22,8 +22,8 @@ export async function putEvent(event) {
 
 export const getEvent = async (id) => {
   const event = await read(`event:${id}`);
-  if (!event || event.contact?.phone) return event;
-  return withLeadPhone(event, (await getRoster()) ?? []);
+  if (!event) return event;
+  return withLead(event, (await getRoster()) ?? []);
 };
 
 export async function listEvents() {
@@ -36,7 +36,7 @@ export async function listEvents() {
   const over = (e) => String(e.lastDay || e.dayOne) < today;
   return events
     .filter(Boolean)
-    .map((e) => withLeadPhone(e, roster))
+    .map((e) => withLead(e, roster))
     .sort((a, b) => {
       if (over(a) !== over(b)) return over(a) ? 1 : -1;
       const cmp = String(a.dayOne).localeCompare(String(b.dayOne));
@@ -45,17 +45,27 @@ export async function listEvents() {
 }
 
 /**
- * Events saved before board members carried phone numbers have none on their
- * contact block, which left the agreement's ONGIA contact number blank. Fill it
- * from the board list on read, so an old event needs no re-saving.
+ * The lead board member IS the ONGIA contact — the name, address and number on
+ * the agreement, and where replies go. Records saved before that rule, or saved
+ * when someone else was lead, kept a stale contact block: the Quebec City event
+ * still named the previous lead and carried their phone number after the lead
+ * changed. Reconcile on read, so no event needs re-saving to be right, and a
+ * number belonging to somebody else is never printed as the lead's.
  */
-function withLeadPhone(event, roster) {
-  if (!event || event.contact?.phone) return event;
-  const email = event.contact?.email || event.reviewer?.email;
-  if (!email) return event;
-  const phone = (roster ?? []).find((m) => String(m.email).toLowerCase() === email.toLowerCase())?.phone;
-  if (!phone) return event;
-  return { ...event, contact: { ...(event.contact ?? {}), phone } };
+function withLead(event, roster) {
+  const lead = event?.reviewer;
+  if (!lead?.email) return event;
+  const was = event.contact ?? {};
+  const fromRoster = (roster ?? []).find((m) => String(m.email).toLowerCase() === String(lead.email).toLowerCase())?.phone;
+  const contact = {
+    name: lead.name || was.name || "",
+    email: lead.email,
+    // The number is this person's, from the board list. A number left behind by a
+    // previous lead is dropped rather than printed under the new lead's name.
+    phone: lead.phone || fromRoster || "",
+  };
+  if (contact.name === was.name && contact.email === was.email && contact.phone === (was.phone ?? "")) return event;
+  return { ...event, contact };
 }
 
 export async function putPresenter(presenter) {
