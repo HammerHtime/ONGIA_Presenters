@@ -131,6 +131,8 @@
   .chipstat b{color:var(--ink);font-weight:700;margin-right:4px;font-variant-numeric:tabular-nums} .chipstat b small{color:var(--muted);font-weight:400}
   .chipstat.hot{background:var(--wait-bg);border-color:var(--wait)} .chipstat.hot b{color:var(--wait)}
   .chipstat.good{background:var(--done-bg);border-color:var(--done)} .chipstat.good b{color:var(--done)}
+  .cardacts{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;margin-left:auto}
+  @media (max-width:700px){.cardacts{margin-left:0;justify-content:flex-start;width:100%;margin-top:8px}}
   .evcard{cursor:pointer} .evcard:hover{box-shadow:0 6px 20px rgba(18,22,31,.08)}
   .hstrip{display:flex;gap:6px 18px;flex-wrap:wrap;font-size:13px;color:var(--ink-mid)} .hstrip .dot{display:inline-block;width:9px;height:9px;border-radius:999px;margin-right:6px;vertical-align:1px}
   .hstrip small{display:block;color:var(--muted);font-size:11.5px;margin-left:15px}
@@ -179,6 +181,8 @@
   .btn-late{background:var(--late-bg);color:var(--late);border:1px solid var(--late)}
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy-deep);color:#fff;
     padding:11px 18px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9}
+  .reloadbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--gold);color:var(--ink);border:0;
+    font:inherit;font-size:13.5px;font-weight:600;padding:11px 18px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:10;cursor:pointer}
 </style>
 </head>
 <body>
@@ -303,22 +307,25 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
-      <div class="row3">
-        <div class="field"><label for="e-cname">ONGIA contact</label><input id="e-cname" value="${esc(ev?.contact?.name ?? "")}" placeholder="Barb Konkle"></div>
-        <div class="field"><label for="e-cemail">Contact email</label><input id="e-cemail" type="email" value="${esc(ev?.contact?.email ?? "")}" placeholder="training@ongia.ca"></div>
-        <div class="field"><label for="e-cphone">Contact number</label><input id="e-cphone" value="${esc(ev?.contact?.phone ?? "")}" placeholder="(306) 555-0100"></div>
-      </div>
       <div class="field"><label>Board members for this event</label>
-        <p class="hint" style="margin:0 0 6px">Tick everyone who should be kept informed. Mark one as <b>lead</b> — they review each agreement, set what ONGIA covers, confirm travel dates and sign.</p>
+        <p class="hint" style="margin:0 0 6px">Tick everyone who should be kept informed. Mark one as <b>lead</b>: they are the ONGIA contact presenters see and reply to, and they review each agreement, set what ONGIA covers, confirm travel dates and sign.</p>
         <div class="board" id="board">${boardRows(roster, ev?.board ?? [])}</div>
-        <div class="addrow"><input id="nb-name" placeholder="Add someone: name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
+        <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
+        <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
       </div>
-      <div class="field"><label for="e-folder">SharePoint folder — paste the folder link or path</label>
-        <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles/Shared Documents/ONGIA Board/…">
-        <p class="hint" id="folderhint" style="margin:6px 0 0"></p></div>
-      <div class="field"><label for="e-upload">Materials upload link (optional)</label>
-        <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
-        <p class="hint" style="margin:6px 0 0">Leave blank and the app creates the folder and an upload-only link itself. If you paste one, it must be a SharePoint <b>Request files</b> link — the app refuses anything that would let presenters see the folder.</p></div>
+      <div class="field" style="max-width:320px"><label for="e-cphone">Lead's phone number (optional, printed on the PDF)</label><input id="e-cphone" value="${esc(ev?.contact?.phone ?? "")}" placeholder="(306) 555-0100"></div>
+      <div class="field"><label>Where files go</label>
+        <p class="hint" id="folderhint" style="margin:0"></p>
+        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">${ev ? "Change the folder or the upload link" : "Use an existing folder or upload link instead"}</a></p>
+        <div id="adv" hidden>
+          <div class="field" style="margin-top:12px"><label for="e-folder">SharePoint folder (link or path)</label>
+            <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles/Shared Documents/ONGIA Board/…">
+            <p class="hint" style="margin:6px 0 0">Paste the folder's link from the SharePoint address bar, or a path such as ONGIA Board/ONGIA Training/2027/2027 Winnipeg. Clear it to go back to the app's own folder.</p></div>
+          <div class="field" style="margin-bottom:0"><label for="e-upload">Presenter upload link</label>
+            <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
+            <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link; the app refuses anything that would let presenters see the folder. Clear it and the app makes a fresh upload-only link for the folder above.</p></div>
+        </div>
+      </div>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
@@ -328,7 +335,7 @@ function eventFormScreen(existing = null) {
     </div></div>`;
 
   const $ = (id) => document.getElementById(id);
-  const day1 = $("e-day1"), last = $("e-last"), preview = $("preview"), city = $("e-city"), folder = $("e-folder"), folderhint = $("folderhint");
+  const day1 = $("e-day1"), last = $("e-last"), preview = $("preview"), city = $("e-city"), folder = $("e-folder"), upload = $("e-upload"), folderhint = $("folderhint");
 
   // Folder convention: year, then "year City". Shown as the default so a blank field is never a surprise.
   const convention = () => {
@@ -338,12 +345,20 @@ function eventFormScreen(existing = null) {
   const showFolderHint = () => {
     const conv = convention();
     folder.placeholder = conv || "ONGIA Board/ONGIA Training/2027/2027 Winnipeg";
-    const val = folder.value.trim();
-    folderhint.textContent = val
-      ? (/^https?:/i.test(val) ? "A link: the app will work out the folder from it when you save." : `Will file to ${val.replace(/^(Shared Documents|Documents)\//i, "")}`)
-      : conv ? `Left blank, the app uses ${conv} and can create it for you from the event page.` : "Left blank, the app builds the path from the year and city.";
+    const val = folder.value.trim(), link = upload.value.trim();
+    const stored = ev ? (ev.sharePointFolderUrl || ev.sharePointFolder || "") : "";
+    let where;
+    if (val && val === stored) where = `Signed agreements are filed to ${ev.sharePointFolder}.`;
+    else if (val) where = /^https?:/i.test(val) ? "Signed agreements are filed to the folder behind that link; the app works out its path when you save." : `Signed agreements are filed to ${val.replace(/^(Shared Documents|Documents)\//i, "")}.`;
+    else if (conv) where = `When you save, the app creates ${conv} in SharePoint.`;
+    else where = "Once the city and dates are in, the app creates the SharePoint folder itself.";
+    const up = link && ev && link === ev.materialsUploadUrl ? " Presenters already have an upload-only link for it."
+      : link ? " Presenters upload to the link you pasted, once the app has checked it is upload-only."
+      : " Presenters get an upload-only link the app makes for that folder. Nothing to paste.";
+    folderhint.textContent = where + up;
   };
-  city.oninput = showFolderHint; folder.oninput = showFolderHint;
+  city.oninput = showFolderHint; folder.oninput = showFolderHint; upload.oninput = showFolderHint;
+  $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) folder.focus(); };
 
   // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
   const boardEl = $("board");
@@ -354,6 +369,7 @@ function eventFormScreen(existing = null) {
     if (!picked.some((r) => r.querySelector("input[type=radio]").checked) && picked[0]) picked[0].querySelector("input[type=radio]").checked = true;
     rows.forEach((r) => { const on = r.querySelector(".pick").checked; const radio = r.querySelector("input[type=radio]"); if (!on) radio.checked = false; r.classList.toggle("lead", radio.checked); radio.disabled = !on; });
   });
+  $("nb-toggle").onclick = (e) => { e.preventDefault(); const r = $("nb-row"); r.hidden = !r.hidden; if (!r.hidden) $("nb-name").focus(); };
   $("nb-add").onclick = async () => {
     const name = $("nb-name").value.trim(), email = $("nb-email").value.trim();
     if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Name and a valid email, please.");
@@ -392,7 +408,7 @@ function eventFormScreen(existing = null) {
     const body = {
       title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
       dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
-      contactName: val("e-cname"), contactEmail: val("e-cemail"), contactPhone: val("e-cphone"),
+      contactPhone: val("e-cphone"),
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
@@ -420,14 +436,15 @@ function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
-  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>
-    <button class="chip" id="edit">Edit event</button>
-    <button class="chip" id="mailall">Email all outstanding</button>
-    <button class="chip solid" id="add">Add presenters</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
-  document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
-  document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
-  document.getElementById("mailall").onclick = async () => {
+  // Wired after the card renders (the buttons live on it, not in the top bar).
+  const wireActions = () => {
+    document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
+    document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
+    document.getElementById("mailall").onclick = mailAll;
+  };
+  const mailAll = async () => {
     const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
     if (!presenters.length) return toast("No presenters yet.");
     if (!outstanding.length) return toast("Everyone has submitted.");
@@ -511,7 +528,8 @@ function eventScreen(data) {
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
       <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}
         ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
-      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}</div></div>
+      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}</div>
+      <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Not submitted</div><div class="v">${c.invited + c.opened}</div></div>
@@ -532,6 +550,7 @@ function eventScreen(data) {
              <button class="mini" id="rescan">Check uploads now</button>
              ${scan?.unmatched?.length ? `<div class="porg" style="margin-top:6px"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
+        <dt>Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : "<i>no lead yet — replies go to the Conference Speakers mailbox</i>"}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="filters">${chips}</div>
@@ -557,6 +576,7 @@ function eventScreen(data) {
     };
   }
 
+  wireActions();
   ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
   ROOT.querySelectorAll("[data-mat]").forEach((b) => {
     b.onclick = async () => {
@@ -698,8 +718,9 @@ function nextLine(ev, c) {
   const next = items.find((x) => x.days >= 0);
   const when = (x) => x.days === 0 ? "today" : x.days > 0 ? `in ${x.days} day${x.days === 1 ? "" : "s"}` : `${-x.days} day${x.days === -1 ? "" : "s"} ago`;
   const parts = [];
+  if (!c.total) parts.push("<b>No presenters yet.</b> Open the event to add them.");
   if (late.length) parts.push(`<span class="pill late">overdue</span> ${late.map((x) => `${esc(x.l.replace(" due", ""))}: ${x.open} outstanding (${when(x)})`).join(" · ")}`);
-  if (next) parts.push(`${late.length ? "<br>" : ""}<b>${esc(next.l)}</b> ${esc(fmtDate(next.iso))} · ${when(next)}`);
+  if (next) parts.push(`${parts.length ? "<br>" : ""}<b>${esc(next.l)}</b> ${esc(fmtDate(next.iso))} · ${when(next)}`);
   if (!parts.length) parts.push("This event is in the past.");
   return `<div style="font-size:13.5px;line-height:1.7">${parts.join(" ")}</div>`;
 }
@@ -1014,6 +1035,29 @@ window.addEventListener("hashchange", () => {
   if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); render(); }
 });
 render();
+
+// A tab left open for days keeps running old code and shows old wording. When the tab
+// comes back into view, compare the served page's ETag with the one we loaded.
+{
+  let etag = null;
+  const check = async () => {
+    try {
+      const r = await fetch(location.pathname, { method: "HEAD", cache: "no-store" });
+      const tag = r.headers.get("etag");
+      if (!tag) return;
+      if (etag === null) { etag = tag; return; }
+      if (tag !== etag && !document.getElementById("reloadbar")) {
+        const bar = document.createElement("button"); bar.id = "reloadbar"; bar.className = "reloadbar"; bar.type = "button";
+        bar.textContent = "This page has been updated. Tap to reload.";
+        bar.onclick = () => location.reload();
+        document.body.append(bar);
+      }
+    } catch { /* offline or blocked: nothing to do */ }
+  };
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  setInterval(check, 10 * 60 * 1000);
+}
 </script>
 </body>
 </html>

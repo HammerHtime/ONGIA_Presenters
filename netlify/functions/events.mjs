@@ -66,6 +66,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayOne)) return "Day one must be a date, as YYYY-MM-DD.";
   const lastDay = /^\d{4}-\d{2}-\d{2}$/.test(text(body.lastDay, 10)) ? text(body.lastDay, 10) : dayOne;
   if (lastDay < dayOne) return "The event cannot end before it starts.";
+  const before = { folder: event.sharePointFolder ?? "", link: event.materialsUploadUrl ?? "", appMade: !!event.materialsLinkCheck?.createdByApp };
 
   Object.assign(event, {
     title,
@@ -101,8 +102,11 @@ async function applyDetails(event, body, { creating = false } = {}) {
   const lead = board.find((m) => m.lead);
   event.board = board;
   event.reviewer = lead ? { name: lead.name, email: lead.email } : { name: "", email: "" };
-  // The lead coordinates presenters; unless someone else is named, they are the contact too.
-  if (lead && !event.contact.name && !event.contact.email) event.contact = { name: lead.name, email: lead.email, phone: event.contact.phone || "" };
+  // The lead is the ONGIA contact presenters see and reply to. Older clients could name
+  // someone else; that still works, but the form no longer offers it.
+  if (lead && (!text(body.contactName, 120) || !text(body.contactEmail, 200))) {
+    event.contact = { name: lead.name, email: lead.email, phone: text(body.contactPhone, 60) };
+  }
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
 
   // The materials link is the one thing presenters receive that points at
@@ -113,7 +117,10 @@ async function applyDetails(event, body, { creating = false } = {}) {
     if (check.verdict === "exposes-folder") {
       return `That materials link would let presenters open the folder (it is a "${check.type}" link${check.scope ? `, ${check.scope}` : ""}). In SharePoint, right-click the folder → Request files, and paste that link instead.`;
     }
-    event.materialsLinkCheck = { verdict: check.verdict, type: check.type ?? null, reason: check.reason ?? null, at: new Date().toISOString() };
+    event.materialsLinkCheck = {
+      verdict: check.verdict, type: check.type ?? null, reason: check.reason ?? null, at: new Date().toISOString(),
+      createdByApp: before.appMade && event.materialsUploadUrl === before.link,
+    };
   } else {
     event.materialsLinkCheck = null;
   }
@@ -135,6 +142,13 @@ async function applyDetails(event, body, { creating = false } = {}) {
   } catch (e) {
     return e.message;
   }
+
+  // An upload link the app made belongs to the folder it was made on. If the folder
+  // moved, drop it so a fresh one is made for the new folder.
+  if (event.materialsLinkCheck?.createdByApp && event.sharePointFolder !== before.folder) {
+    event.materialsUploadUrl = "";
+    event.materialsLinkCheck = null;
+  }
   if (creating) event.createdAt = event.updatedAt;
   return null;
 }
@@ -146,6 +160,15 @@ async function updateEvent(id, body) {
   const problem = await applyDetails(event, body);
   if (problem) return fail(problem);
   await putEvent(event);
+  // Same as on create: no link means the app makes the folder and an upload-only link.
+  if (!event.materialsUploadUrl && graphConfigured()) {
+    try {
+      await provisionUpload(event);
+    } catch (e) {
+      event.provisioningError = e.message;
+    }
+    await putEvent(event);
+  }
   return json({ event, deadlinesReadable: readableDeadlines(event) });
 }
 

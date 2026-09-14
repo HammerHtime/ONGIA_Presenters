@@ -7,12 +7,14 @@ presenter and filed to SharePoint.
 ## Flow
 
 1. Coordinator creates an **event** (`/admin.html`): title, city, venue, dates,
-   ONGIA contact, the board members involved (one marked **lead** — they review
-   and sign; all are notified), the event's SharePoint folder (a pasted link or
-   path; blank uses `ONGIA Board/ONGIA Training/<year>/<year> <City>`), and
-   optionally the first presenters. With Microsoft connected the app creates the
-   folder and an upload-only (Request files) link itself; a pasted link is
-   accepted only if it is upload-only. Deadlines are derived
+   the board members involved (one marked **lead** — they are the contact
+   presenters reply to, and they review and sign; all are notified), and
+   optionally the first presenters. Nothing about SharePoint is typed: the app
+   creates `ONGIA Board/ONGIA Training/<year>/<year> <City>` and an upload-only
+   (Request files) link itself. A "use an existing folder or upload link"
+   toggle on the form takes a pasted folder link/path or a Request-files link;
+   a pasted link is accepted only if it is upload-only, and an app-made link is
+   re-made if the folder is later moved. Deadlines are derived
    from day one of training (agreement −90 days, draft materials −50, final
    materials −30; weekends, statutory holidays and the Dec 24–Jan 1 shutdown
    pull each one back to the previous working day).
