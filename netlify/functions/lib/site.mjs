@@ -6,5 +6,7 @@
 export function siteUrl(req) {
   const configured = process.env.APP_URL || process.env.URL;
   if (configured) return configured.replace(/\/+$/, "");
-  return new URL(req.url).origin;
+  // Callers that have no request (the email layout asking for the logo's address)
+  // must not bring the whole send down when APP_URL is unset.
+  try { return new URL(req.url).origin; } catch { return ""; }
 }

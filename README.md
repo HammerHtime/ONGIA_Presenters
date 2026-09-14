@@ -100,3 +100,27 @@ by the link's token, so a shared device never shows one presenter's answers to
 another, and it is deleted the moment the agreement is sent. A record on the
 server that is newer than the device copy wins, which covers signing on a second
 device.
+
+## What the desk flags
+
+The admin home opens with **Needs you now**, built from the events list alone:
+agreements waiting for a signature (each links straight to that presenter),
+presenters whose link was never sent, agreements that never reached SharePoint,
+emails that could not be sent, blocked events, and overdue agreements. When
+there is nothing, it says so.
+
+Three states used to hide:
+
+- **Never sent.** A presenter with no mail history gets no reminders, ever. They
+  now have their own state, filter, count and a line in the board's overdue
+  digest.
+- **Blocked event.** No lead, no upload link or no SharePoint folder each break
+  something quietly (no contact on the agreement, no materials reminders at all,
+  nothing filed). The event page names them and offers the fix.
+- **Approved but not filed.** A filing failure no longer counts as finished; the
+  row carries **Retry filing**.
+
+Rows say how hard the desk has chased and when the next automatic reminder goes
+out. **Called them** logs a phone call and pauses reminders for a week, since
+after four emails a call is what works. Navy means waiting on ONGIA, amber
+waiting on the presenter, so the two read differently in greyscale.

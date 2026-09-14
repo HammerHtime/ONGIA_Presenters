@@ -114,7 +114,8 @@ export function layout({ heading, lines, button, buttons = [], footer }) {
   return `<!doctype html><html><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
     <div style="background:#0e1a35;color:#fff;padding:18px 24px;border-bottom:3px solid #b8922a">
-      <img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="168" height="28" style="display:block;border:0;height:28px;width:auto">
+      ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="168" height="28" style="display:block;border:0;height:28px;width:auto">`
+        : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:#d9ae4b">.</span></div>`}
       <div style="margin-top:8px;font-size:12px;color:#d9ae4b;letter-spacing:.14em;text-transform:uppercase">Knowledge · Network · Impact</div>
     </div>
     <div style="padding:24px;font-size:15px">
