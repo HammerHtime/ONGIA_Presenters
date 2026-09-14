@@ -30,10 +30,18 @@ export async function listEvents() {
   const { blobs } = await store().list({ prefix: "event:" });
   const events = await Promise.all(blobs.map((b) => read(b.key)));
   const roster = (await getRoster()) ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  // Soonest first. An event that has finished drops below the upcoming ones,
+  // most recent first, rather than sitting at the top of the list for ever.
+  const over = (e) => String(e.lastDay || e.dayOne) < today;
   return events
     .filter(Boolean)
     .map((e) => withLeadPhone(e, roster))
-    .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)));
+    .sort((a, b) => {
+      if (over(a) !== over(b)) return over(a) ? 1 : -1;
+      const cmp = String(a.dayOne).localeCompare(String(b.dayOne));
+      return over(a) ? -cmp : cmp;
+    });
 }
 
 /**
