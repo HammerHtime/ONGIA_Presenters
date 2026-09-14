@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ONGIA Presenter Agreement Desk</title>
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/favicon-180.png">
+<meta name="theme-color" content="#0e1a35">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
@@ -33,8 +36,8 @@
 
   .bar{background:var(--navy-deep);color:#fff;padding:13px 20px;display:flex;align-items:center;
        gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10}
-  .bar .mark{font-family:var(--fu);font-weight:600;letter-spacing:.18em;font-size:17px}
-  .bar .mark span{color:var(--gold-light)}
+  .bar .logo{height:28px;width:auto;display:block;flex:none}
+  @media (max-width:480px){.bar .logo{height:23px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
   .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .chip{border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;
@@ -192,6 +195,10 @@
   .mini.ghost{background:transparent}
   .pill.late{background:var(--late-bg);color:var(--late)}
   .btn-late{background:var(--late-bg);color:var(--late);border:1px solid var(--late)}
+  .signin-brand{background:var(--navy-deep);padding:22px 20px 18px;text-align:center;border-bottom:3px solid var(--gold)}
+  .signin-brand img{height:39px;width:auto;display:inline-block}
+  .signin-brand span{display:block;margin-top:9px;font-family:var(--fu);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:rgba(255,255,255,.66)}
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy-deep);color:#fff;
     padding:11px 18px;border-radius:999px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9}
   .reloadbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--gold);color:var(--ink);border:0;
@@ -201,7 +208,7 @@
 <body>
 
 <div class="bar">
-  <span class="mark">ONGIA<span>.</span></span>
+  <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA" width="168" height="28">
   <span class="sub">Presenter Agreement Desk</span>
   <span class="right" id="barright"></span>
 </div>
@@ -233,6 +240,8 @@ async function api(path, options = {}) {
 function signInScreen(message) {
   BARRIGHT.innerHTML = "";
   ROOT.innerHTML = `<div class="card" style="max-width:420px;margin:40px auto">
+    <div class="signin-brand"><img src="/assets/ongia-logo.png" alt="ONGIA" width="232" height="39">
+      <span>Presenter Agreement Desk</span></div>
     <div class="card-head"><div><h2>Sign in</h2>
       <div class="s">The admin key for this site.</div></div></div>
     <div class="card-body">
