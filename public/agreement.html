@@ -153,6 +153,21 @@
   .btn-gold{background:var(--gold);color:#1c1608;flex:1}
   .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink-mid)}
 
+  /* A failed check marks the control it is about, not just the list at the bottom. */
+  .field.err>label,.qblock.err>.qtext,.consent.err>h3{color:var(--bad)}
+  .field.err input,.field.err textarea,.field.err .datebtn{border-color:var(--bad);background:#fdf3f1}
+  .qblock.err,.consent.err{border-left:3px solid var(--bad);padding-left:11px}
+  .attest.err{border-color:var(--bad);background:#fdf3f1}
+  .errmark{display:block;margin-top:7px;font-size:12.5px;font-weight:600;color:var(--bad)}
+  .problems a{color:var(--bad);text-decoration:underline;text-underline-offset:2px}
+  /* Sent back for changes is routine, not an error the presenter made. */
+  .returned{margin:0 0 14px;background:var(--gold-pale);border:1px solid var(--gold);border-radius:14px;padding:14px 16px}
+  .returned b{display:block;color:var(--warn);font-size:15px}
+  .returned p{margin:6px 0 0;font-size:14px;color:var(--ink-mid)}
+  .returned .btn{margin-top:12px;width:100%;font-size:15px;padding:12px 18px}
+  /* Full-width stacked actions: wrapped labels in a pill turn it into an ellipse. */
+  .done-actions{display:flex;flex-direction:column;gap:10px;margin:18px 0 0}
+  .done-actions .btn{flex:none;width:100%;display:block;text-decoration:none;text-align:center;white-space:nowrap}
   .problems{margin-top:14px;background:var(--bad-bg);border:1px solid var(--bad);border-radius:14px;padding:13px 15px}
   .problems b{color:var(--bad);font-size:14px}
   .problems ul{margin:7px 0 0;padding-left:20px;font-size:14px;color:var(--ink-mid)}
@@ -205,7 +220,8 @@ en: {
   chooseDate: "Choose a date", prevMonth: "Previous month", nextMonth: "Next month", onOrAfter: (d) => `On or after ${d}`, done: "Done",
   yes: "Yes", no: "No",
   inside: "Inside ONGIA<br>(paid members only)", social: "Social media &amp;<br>public platforms",
-  returnedTitle: "ONGIA sent this back with a note", returnedHint: "Your answers are saved — adjust what's needed and sign again.",
+  returnedTitle: "ONGIA asked for one change", returnedHint: "Your answers are saved — adjust what's needed and sign again.",
+  returnedGo: "Take me to what needs changing",
   presentingAt: (t) => `You're presenting at ${t}`,
   hello: (f) => `Hello ${f}. Everything below is already set by ONGIA. Read it over, then five short steps.`,
   submittedNote: (d) => `You submitted this on ${d}. You can change anything and sign again.`,
@@ -261,6 +277,8 @@ en: {
   vCovT: "Tell us whether your agency covers transportation.", vCovH: "Tell us whether your agency covers accommodation.",
   vCovM: "Tell us whether your agency covers meals.", vCovO: "Tell us whether your agency covers any other cost.",
   vCopy: "Please confirm the copyright statement.", vMedia: "Please answer every media-sharing line.",
+  vMediaRow: (row) => `Answer both columns for &ldquo;${row}&rdquo;.`,
+  longStep: "The longest step — about two minutes.", errNeeds: "Needs an answer",
   vStanding: "Please confirm you are in good standing with your agency.", vSign: "Please type your name to sign.", vAgree: "Please confirm your electronic signature.",
   shotBig: "Your headshot is over 5 MB, so it wasn't attached — email it to us instead.",
   shotFail: "Your answers went through, but the headshot didn't upload — email it to us instead.",
@@ -278,7 +296,8 @@ fr: {
   chooseDate: "Choisir une date", prevMonth: "Mois précédent", nextMonth: "Mois suivant", onOrAfter: (d) => `À partir du ${d}`, done: "OK",
   yes: "Oui", no: "Non",
   inside: "Interne à ONGIA<br>(membres payants seulement)", social: "Médias sociaux et<br>plateformes publiques",
-  returnedTitle: "ONGIA vous a renvoyé ce formulaire avec une note", returnedHint: "Vos réponses sont conservées — apportez les corrections demandées et signez de nouveau.",
+  returnedTitle: "ONGIA demande une correction", returnedHint: "Vos réponses sont conservées — apportez les corrections demandées et signez de nouveau.",
+  returnedGo: "Aller à ce qui doit être corrigé",
   presentingAt: (t) => `Vous présentez à ${t}`,
   hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA. Lisez-les, puis suivez cinq courtes étapes.`,
   submittedNote: (d) => `Vous avez envoyé ce formulaire le ${d}. Vous pouvez modifier vos réponses et signer de nouveau.`,
@@ -334,6 +353,8 @@ fr: {
   vCovT: "Indiquez si votre organisation assume le transport.", vCovH: "Indiquez si votre organisation assume l'hébergement.",
   vCovM: "Indiquez si votre organisation assume les repas.", vCovO: "Indiquez si votre organisation assume d'autres frais.",
   vCopy: "Veuillez confirmer la déclaration sur le droit d'auteur.", vMedia: "Veuillez répondre à chaque ligne sur le partage de contenu.",
+  vMediaRow: (row) => `Répondez aux deux colonnes pour &laquo;&nbsp;${row}&nbsp;&raquo;.`,
+  longStep: "L'étape la plus longue — environ deux minutes.", errNeeds: "Réponse requise",
   vStanding: "Veuillez confirmer que vous êtes en règle auprès de votre organisation.", vSign: "Veuillez taper votre nom pour signer.", vAgree: "Veuillez confirmer votre signature électronique.",
   shotBig: "Votre photo dépasse 5 Mo et n'a pas été jointe — envoyez-la-nous par courriel.",
   shotFail: "Vos réponses ont été reçues, mais la photo n'a pas pu être téléversée — envoyez-la-nous par courriel.",
@@ -419,7 +440,7 @@ const fmtDate = (v) => { const d = parseISO(v); return d ? t("fmt", t("days")[d.
 
 function dateField(id, label, key) {
   const val = S[key], open = S.openCal === key;
-  let h = `<div class="field"><label for="${id}">${label}</label>
+  let h = `<div class="field" id="b-${id}"><label for="${id}">${label}</label>
     <button type="button" class="datebtn" id="${id}" data-cal="${key}" aria-expanded="${open}">
       <span class="dv${val ? "" : " empty"}">${val ? esc(fmtDate(val)) : t("chooseDate")}</span>
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -471,7 +492,7 @@ function seg(key, opts, path) {
 const YESNO = () => [{ v:"yes", t:t("yes") }, { v:"no", t:t("no") }];
 
 function consentRow(label, row) {
-  return `<div class="consent"><h3>${label}</h3>
+  return `<div class="consent" id="c-${row}"><h3>${label}</h3>
     <div class="surface"><span class="sname">${t("inside")}</span>
       ${seg("media", YESNO(), ["media", row, "internal"])}</div>
     <div class="surface"><span class="sname">${t("social")}</span>
@@ -528,35 +549,36 @@ function stepMarkup() {
     case 3: {
       let h = `<div class="card"><h2>${t("titles")[3]}</h2>
         <p class="lede">${t("travelLede", esc(fmtDate(ev.travelWindow.from)), esc(fmtDate(ev.travelWindow.to)))}</p>
-        <div class="qblock"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`;
+        <p class="hint" style="margin-top:-6px">${t("longStep")}</p>
+        <div class="qblock" id="q-travel"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`;
       if (S.travel === "yes") h += dateField("f-tf", t("arriving"), "travelFrom") + dateField("f-tt", t("departing"), "travelTo");
-      h += `<div class="qblock"><p class="qtext">${t("needHotel")}</p>${seg("hotel", YESNO())}</div>`;
+      h += `<div class="qblock" id="q-hotel"><p class="qtext">${t("needHotel")}</p>${seg("hotel", YESNO())}</div>`;
       if (S.hotel === "yes") h += dateField("f-hf", t("checkin"), "hotelFrom") + dateField("f-ht", t("checkout"), "hotelTo");
       h += `</div>`;
 
       h += `<div class="card"><h2>${t("shared")}</h2>
         <p class="blurb">${t("blurb1")}</p>
         <p class="blurb">${t("blurb2")}</p>
-        <div class="qblock"><p class="qtext">${t("covTransport")}</p>
+        <div class="covers" style="margin-top:13px">${t("covers")}</div>
+        <div class="qblock" id="q-cov-transport"><p class="qtext">${t("covTransport")}</p>
           ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`;
       if (S.hotel === "yes") {
-        h += `<div class="qblock"><p class="qtext">${t("covHotel")}</p>
+        h += `<div class="qblock" id="q-cov-hotel"><p class="qtext">${t("covHotel")}</p>
           ${seg("expenses", YESNO(), ["expenses", "hotel"])}</div>`;
-      } else {
+      } else if (S.hotel === "no") {
         h += `<div class="qblock"><p class="qtext">${t("hotelTitle")}</p>
-          <p class="hint">${S.hotel === "no" ? t("hotelSkipped") : t("hotelFirst")}</p></div>`;
+          <p class="hint">${t("hotelSkipped")}</p></div>`;
       }
-      h += `<div class="qblock"><p class="qtext">${t("covMeals")}</p>
+      h += `<div class="qblock" id="q-cov-meals"><p class="qtext">${t("covMeals")}</p>
           ${seg("expenses", YESNO(), ["expenses", "meals"])}
           <p class="hint">${t("mealsHint")}</p></div>
-        <div class="qblock"><p class="qtext">${t("covOther")}</p>
+        <div class="qblock" id="q-cov-other"><p class="qtext">${t("covOther")}</p>
           ${seg("expenses", YESNO(), ["expenses", "other"])}`;
       if (S.expenses.other === "yes") {
         h += `<div class="field"><label for="f-other">${t("whatIsIt")}</label>
           <input id="f-other" type="text" data-bind="expenses.otherText" value="${esc(S.expenses.otherText)}" placeholder="${t("otherPh")}"></div>`;
       }
-      h += `</div>
-        <div class="covers">${t("covers")}</div></div>`;
+      h += `</div></div>`;
       return h;
     }
 
@@ -619,9 +641,9 @@ function finalMarkup() {
       <div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
       <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
     </div>
-    <p style="margin:18px 0 0;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-      <a class="btn btn-gold" style="display:inline-block;text-decoration:none" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>
-      ${ev.materialsUploadUrl ? `<a class="btn btn-primary" style="display:inline-block;text-decoration:none" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a>` : ""}</p>
+    <div class="done-actions">
+      <a class="btn btn-gold" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>
+      ${ev.materialsUploadUrl ? `<a class="btn btn-primary" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a>` : ""}</div>
     <p class="hint" style="margin-top:16px;text-align:center;letter-spacing:0;text-transform:none">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
 }
 
@@ -637,8 +659,10 @@ function render(done) {
   }
   const bars = Array.from({ length: 6 }, (_, i) =>
     `<i class="${i < S.step ? "done" : i === S.step ? "on" : ""}"></i>`).join("");
-  const problems = S.problems.length
-    ? `<div class="problems" role="alert"><b>${t("notQuite")}</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`
+  const probs = S.problems.map((p) => (typeof p === "string" ? { msg: p, at: null } : p));
+  const problems = probs.length
+    ? `<div class="problems" role="alert"><b>${t("notQuite")}</b><ul>${probs.map((p) =>
+        `<li>${p.at ? `<a href="#" data-goto="${esc(p.at)}">${p.msg}</a>` : p.msg}</li>`).join("")}</ul></div>`
     : "";
   const nav = `<div class="nav">
       ${S.step > 0 ? `<button type="button" class="btn btn-ghost" id="back">${t("back")}</button>` : ""}
@@ -647,7 +671,9 @@ function render(done) {
 
   const keep = lastStep === S.step ? window.scrollY : null;
   const banner = DATA.presenter.returnNote
-    ? `<div class="problems" style="margin:0 0 14px" role="status"><b>${t("returnedTitle")}</b><p style="margin:6px 0 0">${esc(DATA.presenter.returnNote)}</p><p style="margin:6px 0 0;font-size:13px">${t("returnedHint")}</p></div>`
+    ? `<div class="returned" role="status"><b>${t("returnedTitle")}</b><p>${esc(DATA.presenter.returnNote)}</p>
+        <p style="font-size:13px">${t("returnedHint")}</p>
+        ${S.step !== returnStep() ? `<button type="button" class="btn btn-primary" id="returned-go">${t("returnedGo")}</button>` : ""}</div>`
     : DATA.presenter.status === "submitted" && DATA.presenter.submittedAt
       ? `<div class="flag" style="margin:0 0 14px"><span>✓</span><div><p style="margin:0">${t("submittedNote", esc(fmtDate(toISO(new Date(DATA.presenter.submittedAt)))))}</p></div></div>` : "";
   const focusId = document.activeElement?.id;
@@ -655,7 +681,21 @@ function render(done) {
   // Re-rendering replaces the DOM; put keyboard focus back where it was.
   if (focusId) { const again = document.getElementById(focusId); if (again) again.focus({ preventScroll: true }); }
   STEPCOUNT.textContent = t("stepOf", S.step + 1);
-  if (keep !== null) window.scrollTo(0, keep); else window.scrollTo(0, 0);
+
+  // Mark every control a check complained about, then take the presenter to the first.
+  let firstErr = null;
+  for (const p of probs) {
+    if (!p.at) continue;
+    const el = document.getElementById(p.at);
+    const block = el?.closest(".field, .qblock, .consent, .attest, .upload") ?? el;
+    if (!block || block.classList.contains("err")) continue;
+    block.classList.add("err");
+    if (!block.querySelector(".errmark")) block.insertAdjacentHTML("beforeend", `<span class="errmark">${t("errNeeds")}</span>`);
+    firstErr ??= block;
+  }
+  if (firstErr) firstErr.scrollIntoView({ block: "center", behavior: "smooth" });
+  else if (keep !== null) window.scrollTo(0, keep);
+  else window.scrollTo(0, 0);
   lastStep = S.step;
 
   if (S.openCal) {
@@ -667,48 +707,64 @@ function render(done) {
   }
 }
 
+/**
+ * A presenter sent back for changes should not have to press Continue through
+ * their own biography to reach the thing ONGIA asked about. Read the note.
+ */
+function returnStep() {
+  const note = String(DATA?.presenter?.returnNote ?? "").toLowerCase();
+  if (/\b(date|dates|travel|hotel|flight|arriv|depart|check|cost|expense|meal|transport|pay|paid|cover)/.test(note)) return 3;
+  if (/\b(sign|signature|standing|headshot|photo|consent|permission|copyright)/.test(note)) return 5;
+  if (/\b(phone|email|name|organi)/.test(note)) return 1;
+  return 2;
+}
+
 /* ---------- validation, mirroring the server ---------- */
 function validate() {
+  // Each problem carries the id of the control it is about, so the step can mark
+  // that control and scroll to it instead of leaving a list at the foot of the page.
   const out = [];
+  const add = (msg, at) => out.push({ msg, at });
   if (S.step === 1) {
-    if (!S.first.trim() || !S.last.trim()) out.push(t("vName"));
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) out.push(t("vEmail"));
+    if (!S.first.trim() || !S.last.trim()) add(t("vName"), S.first.trim() ? "f-last" : "f-first");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) add(t("vEmail"), "f-email");
   }
   if (S.step === 2) {
-    if (!S.talk.trim()) out.push(t("vTalk"));
-    if (words(S.bio) < 20) out.push(t("vBio"));
-    if (!S.outline.trim()) out.push(t("vOutline"));
+    if (!S.talk.trim()) add(t("vTalk"), "f-talk");
+    if (words(S.bio) < 20) add(t("vBio"), "f-bio");
+    if (!S.outline.trim()) add(t("vOutline"), "f-outline");
   }
   if (S.step === 3) {
-    if (!S.travel) out.push(t("vTravel"));
-    if (!S.hotel) out.push(t("vHotel"));
+    if (!S.travel) add(t("vTravel"), "q-travel");
+    if (!S.hotel) add(t("vHotel"), "q-hotel");
     const win = DATA.event.travelWindow;
-    const check = (on, from, to, what) => {
+    const check = (on, from, to, what, at) => {
       if (!on) return;
-      if (!from || !to) out.push(t("vBoth", what));
-      else if (to < from) out.push(t("vOrder", what));
-      else if (from < win.from || to > win.to) out.push(t("vWindow", what, fmtDate(win.from), fmtDate(win.to)));
+      if (!from || !to) add(t("vBoth", what), at);
+      else if (to < from) add(t("vOrder", what), at);
+      else if (from < win.from || to > win.to) add(t("vWindow", what, fmtDate(win.from), fmtDate(win.to)), at);
     };
-    check(S.travel === "yes", S.travelFrom, S.travelTo, t("travelWord"));
-    check(S.hotel === "yes", S.hotelFrom, S.hotelTo, t("hotelWord"));
-    if (!S.expenses.transport) out.push(t("vCovT"));
-    if (S.hotel === "yes" && !S.expenses.hotel) out.push(t("vCovH"));
-    if (!S.expenses.meals) out.push(t("vCovM"));
-    if (!S.expenses.other) out.push(t("vCovO"));
-    if (S.expenses.other === "yes" && !S.expenses.otherText.trim()) out.push(t("otherNeeded"));
+    check(S.travel === "yes", S.travelFrom, S.travelTo, t("travelWord"), S.travelFrom ? "b-f-tt" : "b-f-tf");
+    check(S.hotel === "yes", S.hotelFrom, S.hotelTo, t("hotelWord"), S.hotelFrom ? "b-f-ht" : "b-f-hf");
+    if (!S.expenses.transport) add(t("vCovT"), "q-cov-transport");
+    if (S.hotel === "yes" && !S.expenses.hotel) add(t("vCovH"), "q-cov-hotel");
+    if (!S.expenses.meals) add(t("vCovM"), "q-cov-meals");
+    if (!S.expenses.other) add(t("vCovO"), "q-cov-other");
+    if (S.expenses.other === "yes" && !S.expenses.otherText.trim()) add(t("otherNeeded"), "f-other");
   }
   if (S.step === 4) {
-    if (!S.copyright) out.push(t("vCopy"));
-    for (const row of ["photo", "materials", "summary"])
-      for (const s of ["internal", "public"])
-        if (!S.media[row]?.[s]) { out.push(t("vMedia")); break; }
+    if (!S.copyright) add(t("vCopy"), "f-copy");
+    // Name the rows that are unanswered rather than asking for "every line".
+    for (const [row, label] of [["photo", t("photos")], ["materials", t("materials")], ["summary", t("summary")]])
+      if (!S.media[row]?.internal || !S.media[row]?.public) add(t("vMediaRow", label), `c-${row}`);
   }
   if (S.step === 5) {
-    if (!S.goodStanding) out.push(t("vStanding"));
-    if (!S.signature.trim()) out.push(t("vSign"));
-    if (!S.agreed) out.push(t("vAgree"));
+    if (!S.goodStanding) add(t("vStanding"), "f-standing");
+    if (!S.signature.trim()) add(t("vSign"), "f-sign");
+    if (!S.agreed) add(t("vAgree"), "f-agree");
   }
-  return [...new Set(out)];
+  const seen = new Set();
+  return out.filter((p) => !seen.has(p.msg) && seen.add(p.msg));
 }
 
 let FILE = null;
@@ -786,6 +842,16 @@ ROOT.addEventListener("click", (e) => {
   if (e.target.closest("[data-cal-close]")) { S.openCal = null; S.calMonth = null; render(); return; }
 
   if (e.target.id === "back") { S.problems = []; S.step = Math.max(0, S.step - 1); render(); return; }
+  const goto = e.target.closest?.("[data-goto]");
+  if (goto) {
+    e.preventDefault();
+    const el = document.getElementById(goto.dataset.goto);
+    const block = el?.closest(".field, .qblock, .consent, .attest, .upload") ?? el;
+    block?.scrollIntoView({ block: "center", behavior: "smooth" });
+    (el?.matches?.("input, textarea, button") ? el : block?.querySelector("input, textarea, button"))?.focus({ preventScroll: true });
+    return;
+  }
+  if (e.target.id === "returned-go") { S.step = returnStep(); S.problems = []; render(); return; }
   if (e.target.id === "next") {
     const problems = validate();
     if (problems.length) { S.problems = problems; render(); return; }
@@ -799,7 +865,7 @@ ROOT.addEventListener("input", (e) => {
   const t0 = e.target;
   if (t0.id === "f-shot") {
     FILE = t0.files?.[0] ?? null;
-    if (FILE && FILE.size > 5 * 1024 * 1024) { FILE = null; S.headshotName = ""; S.problems = [t("shotBig")]; render(); return; }
+    if (FILE && FILE.size > 5 * 1024 * 1024) { FILE = null; S.headshotName = ""; S.problems = [{ msg: t("shotBig"), at: "shot-tile" }]; render(); return; }
     S.headshotName = FILE?.name ?? ""; S.problems = []; render(); return;
   }
   const bind = t0.dataset?.bind;
