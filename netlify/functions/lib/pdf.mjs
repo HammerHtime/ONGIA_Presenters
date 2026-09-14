@@ -201,8 +201,8 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.heading("PRESENTER AGREEMENT & AUTHORIZATIONS");
   p.tickLine(
     true,
-    "The presentation/training presented is my work, or I have received all permissions required to use any " +
-      "copyrighted material or intellectual property presented.",
+    "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use " +
+      "any copyrighted material, images, content, or other intellectual property included in it.",
     RED
   );
   p.tickLine(
