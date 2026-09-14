@@ -1,4 +1,5 @@
 import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
+import { formatPhone } from "./lib/phone.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
 import { formatDate, describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
@@ -149,7 +150,7 @@ async function submit(req, event, presenter) {
   // The language they filled the form in; their emails follow it. The filed PDF stays English.
   presenter.language = body.language === "fr" ? "fr" : "en";
   presenter.submission = {
-    phone: text(body.phone, 60),
+    phone: formatPhone(text(body.phone, 60)),
     talk,
     bio,
     outline,

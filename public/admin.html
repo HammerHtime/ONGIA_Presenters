@@ -314,7 +314,7 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
         <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
       </div>
-      <div class="field" style="max-width:320px"><label for="e-cphone">Lead's phone number (optional, printed on the PDF)</label><input id="e-cphone" value="${esc(ev?.contact?.phone ?? "")}" placeholder="(306) 555-0100"></div>
+      <div class="field" style="max-width:320px"><label for="e-cphone">Lead's phone number (optional, printed on the PDF)</label><input id="e-cphone" type="tel" value="${esc(formatPhone(ev?.contact?.phone ?? ""))}" placeholder="306-555-0100"></div>
       <div class="field"><label>Where files go</label>
         <p class="hint" id="folderhint" style="margin:0"></p>
         <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">${ev ? "Change the folder or the upload link" : "Use an existing folder or upload link instead"}</a></p>
@@ -359,6 +359,7 @@ function eventFormScreen(existing = null) {
     folderhint.textContent = where + up;
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint; upload.oninput = showFolderHint;
+  $("e-cphone").oninput = (e) => formatPhoneInput(e.target);
   $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) folder.focus(); };
 
   // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
@@ -772,6 +773,35 @@ function rosterScreen(members) {
 
 /* ---------- shared helpers ---------- */
 let toastTimer;
+// 4165550100 → 416-555-0100 as it is typed; an extension survives as " x123".
+function formatPhone(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  if (/^\+(?!1)/.test(s)) return s;
+  const m = s.match(/(?:x|ext\.?|poste|#)\s*(\d{0,6})\s*$/i);
+  let ext = m ? m[1] : "", hasExt = !!m;
+  let digits = (m ? s.slice(0, m.index) : s).replace(/\D/g, "");
+  if (digits.length === 11 && digits[0] === "1") digits = digits.slice(1);
+  digits = digits.slice(0, 10); // a mask, so stray extra digits are dropped; an extension needs an "x"
+  const a = digits.slice(0, 3), b = digits.slice(3, 6), c = digits.slice(6, 10);
+  let out = a; if (b) out += "-" + b; if (c) out += "-" + c;
+  if (hasExt) out += " x" + ext;
+  return out.trim();
+}
+// Reformat a phone input in place, keeping the caret after the same digit the user was on.
+function formatPhoneInput(el) {
+  const before = el.value, pos = el.selectionStart ?? before.length;
+  const after = formatPhone(before);
+  if (after === before) return after;
+  const digitsBefore = before.slice(0, pos).replace(/\D/g, "").length;
+  el.value = after;
+  let i = 0, seen = 0;
+  while (i < after.length && seen < digitsBefore) { if (/\d/.test(after[i])) seen++; i++; }
+  if (pos >= before.length) i = after.length;
+  try { el.setSelectionRange(i, i); } catch { /* not all input types allow it */ }
+  return after;
+}
+
 function toast(msg) {
   document.querySelectorAll(".toast").forEach((t) => t.remove());
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t);

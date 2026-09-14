@@ -368,6 +368,35 @@ const S = {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 const words = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
 const fullName = () => `${S.first} ${S.last}`.trim();
+// 4165550100 → 416-555-0100 as it is typed; an extension survives as " x123".
+function formatPhone(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  if (/^\+(?!1)/.test(s)) return s;
+  const m = s.match(/(?:x|ext\.?|poste|#)\s*(\d{0,6})\s*$/i);
+  let ext = m ? m[1] : "", hasExt = !!m;
+  let digits = (m ? s.slice(0, m.index) : s).replace(/\D/g, "");
+  if (digits.length === 11 && digits[0] === "1") digits = digits.slice(1);
+  digits = digits.slice(0, 10); // a mask, so stray extra digits are dropped; an extension needs an "x"
+  const a = digits.slice(0, 3), b = digits.slice(3, 6), c = digits.slice(6, 10);
+  let out = a; if (b) out += "-" + b; if (c) out += "-" + c;
+  if (hasExt) out += " x" + ext;
+  return out.trim();
+}
+// Reformat a phone input in place, keeping the caret after the same digit the user was on.
+function formatPhoneInput(el) {
+  const before = el.value, pos = el.selectionStart ?? before.length;
+  const after = formatPhone(before);
+  if (after === before) return after;
+  const digitsBefore = before.slice(0, pos).replace(/\D/g, "").length;
+  el.value = after;
+  let i = 0, seen = 0;
+  while (i < after.length && seen < digitsBefore) { if (/\d/.test(after[i])) seen++; i++; }
+  if (pos >= before.length) i = after.length;
+  try { el.setSelectionRange(i, i); } catch { /* not all input types allow it */ }
+  return after;
+}
+
 const fileName = () => `${(S.last || "Surname").trim()}_Presenter Agreement.pdf`;
 
 /* ---------- dates ---------- */
@@ -469,7 +498,7 @@ function stepMarkup() {
       </div>
       <p class="hint" id="fnhint">${t("filedAs", esc(fileName()))}</p>
       <div class="row2">
-        <div class="field"><label for="f-phone">${t("phone")}</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel"></div>
+        <div class="field"><label for="f-phone">${t("phone")}</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel" placeholder="416-555-0100"></div>
         <div class="field"><label for="f-email">${t("email")}</label><input id="f-email" type="email" data-bind="email" value="${esc(S.email)}" autocomplete="email"></div>
       </div>
       <div class="field"><label for="f-org">${t("org")}</label><input id="f-org" type="text" data-bind="organization" value="${esc(S.organization)}" autocomplete="organization"></div>
@@ -767,7 +796,7 @@ ROOT.addEventListener("input", (e) => {
   }
   const bind = t0.dataset?.bind;
   if (!bind) return;
-  const value = t0.type === "checkbox" ? t0.checked : t0.value;
+  const value = t0.type === "checkbox" ? t0.checked : bind === "phone" ? formatPhoneInput(t0) : t0.value;
   if (bind.includes(".")) {
     const keys = bind.split(".");
     let node = S;
@@ -826,7 +855,7 @@ document.addEventListener("keydown", (e) => {
     if (out.draft) {
       const d = out.draft;
       Object.assign(S, {
-        phone: d.phone ?? "", talk: d.talk ?? "", bio: d.bio ?? "", outline: d.outline ?? "",
+        phone: formatPhone(d.phone ?? ""), talk: d.talk ?? "", bio: d.bio ?? "", outline: d.outline ?? "",
         travel: d.travel ?? null, travelFrom: d.travelFrom ?? "", travelTo: d.travelTo ?? "",
         hotel: d.hotel ?? null, hotelFrom: d.hotelFrom ?? "", hotelTo: d.hotelTo ?? "",
         expenses: { ...S.expenses, ...(d.expenses ?? {}) },

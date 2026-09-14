@@ -1,4 +1,5 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
+import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
@@ -80,7 +81,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
     contact: {
       name: text(body.contactName, 120),
       email: text(body.contactEmail, 200),
-      phone: text(body.contactPhone, 60),
+      phone: formatPhone(text(body.contactPhone, 60)),
     },
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
@@ -105,7 +106,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
   // The lead is the ONGIA contact presenters see and reply to. Older clients could name
   // someone else; that still works, but the form no longer offers it.
   if (lead && (!text(body.contactName, 120) || !text(body.contactEmail, 200))) {
-    event.contact = { name: lead.name, email: lead.email, phone: text(body.contactPhone, 60) };
+    event.contact = { name: lead.name, email: lead.email, phone: formatPhone(text(body.contactPhone, 60)) };
   }
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
 
