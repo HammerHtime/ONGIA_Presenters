@@ -20,14 +20,34 @@ export async function putEvent(event) {
   return event;
 }
 
-export const getEvent = (id) => read(`event:${id}`);
+export const getEvent = async (id) => {
+  const event = await read(`event:${id}`);
+  if (!event || event.contact?.phone) return event;
+  return withLeadPhone(event, (await getRoster()) ?? []);
+};
 
 export async function listEvents() {
   const { blobs } = await store().list({ prefix: "event:" });
   const events = await Promise.all(blobs.map((b) => read(b.key)));
+  const roster = (await getRoster()) ?? [];
   return events
     .filter(Boolean)
+    .map((e) => withLeadPhone(e, roster))
     .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)));
+}
+
+/**
+ * Events saved before board members carried phone numbers have none on their
+ * contact block, which left the agreement's ONGIA contact number blank. Fill it
+ * from the board list on read, so an old event needs no re-saving.
+ */
+function withLeadPhone(event, roster) {
+  if (!event || event.contact?.phone) return event;
+  const email = event.contact?.email || event.reviewer?.email;
+  if (!email) return event;
+  const phone = (roster ?? []).find((m) => String(m.email).toLowerCase() === email.toLowerCase())?.phone;
+  if (!phone) return event;
+  return { ...event, contact: { ...(event.contact ?? {}), phone } };
 }
 
 export async function putPresenter(presenter) {
