@@ -329,14 +329,12 @@ function eventFormScreen(existing = null) {
       <div class="field" style="max-width:340px"><label for="e-cphone">Lead's phone number <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(printed on the agreement)</span></label>
         <input id="e-cphone" type="tel" value="${esc(formatPhone(ev?.contact?.phone ?? ""))}" placeholder="306-555-0100">
         <p class="hint" id="cphonehint" style="margin:6px 0 0"></p></div>
-      <div class="field"><label>Where files go</label>
-        <p class="hint" id="folderhint" style="margin:0"></p>
-        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">${ev ? "Change the folder or the upload link" : "Use an existing folder or upload link instead"}</a></p>
+      <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
+        <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
+        <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
+        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
         <div id="adv" hidden>
-          <div class="field" style="margin-top:12px"><label for="e-folder">SharePoint folder (link or path)</label>
-            <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/ONGIABoardMembersFiles/Shared Documents/ONGIA Board/…">
-            <p class="hint" style="margin:6px 0 0">Paste the folder's link from the SharePoint address bar, or a path such as ONGIA Board/ONGIA Training/2027/2027 Winnipeg. Clear it to go back to the app's own folder.</p></div>
-          <div class="field" style="margin-bottom:0"><label for="e-upload">Presenter upload link</label>
+          <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
             <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
             <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link; the app refuses anything that would let presenters see the folder. Clear it and the app makes a fresh upload-only link for the folder above.</p></div>
         </div>
@@ -362,11 +360,13 @@ function eventFormScreen(existing = null) {
     folder.placeholder = conv || "ONGIA Board/ONGIA Training/2027/2027 Winnipeg";
     const val = folder.value.trim(), link = upload.value.trim();
     const stored = ev ? (ev.sharePointFolderUrl || ev.sharePointFolder || "") : "";
+    const year = day1.value.slice(0, 4) || "2027";
+    const inside = ` Inside it, each agreement is filed to Presenter Agreements / <presenter name> ${year}.`;
     let where;
-    if (val && val === stored) where = `Signed agreements are filed to ${ev.sharePointFolder}.`;
-    else if (val) where = /^https?:/i.test(val) ? "Signed agreements are filed to the folder behind that link; the app works out its path when you save." : `Signed agreements are filed to ${val.replace(/^(Shared Documents|Documents)\//i, "")}.`;
-    else if (conv) where = `When you save, the app creates ${conv} in SharePoint.`;
-    else where = "Once the city and dates are in, the app creates the SharePoint folder itself.";
+    if (val && val === stored) where = `Using ${ev.sharePointFolder}.` + inside;
+    else if (val) where = (/^https?:/i.test(val) ? "Using the folder behind that link; the app works out its path when you save." : `Using ${val.replace(/^(Shared Documents|Documents)\//i, "")}.`) + inside;
+    else if (conv) where = `Left blank, the app creates ${conv} in SharePoint.` + inside;
+    else where = "Paste the event's folder link, or leave this blank and the app creates the folder itself.";
     const up = link && ev && link === ev.materialsUploadUrl ? " Presenters already have an upload-only link for it."
       : link ? " Presenters upload to the link you pasted, once the app has checked it is upload-only."
       : " Presenters get an upload-only link the app makes for that folder. Nothing to paste.";
@@ -386,7 +386,7 @@ function eventFormScreen(existing = null) {
       : typed === lead.phone ? `From the board list, for ${lead.name}.`
       : `Saved to the board list for ${lead.name}.`;
   }
-  $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) folder.focus(); };
+  $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) upload.focus(); };
 
   // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
   const boardEl = $("board");

@@ -29,7 +29,7 @@ presenter and filed to SharePoint.
    signs by typing their name.
 4. A board member opens **Review**, ticks what **ONGIA** covers, signs.
    Only then is the final PDF generated, emailed to the presenter, filed to
-   `<event folder>/<First Last>/<Last>_Presenter Agreement.pdf` (plus the
+   `<event folder>/Presenter Agreements/<First Last> <year>/<Last>_Presenter Agreement.pdf` (plus the
    headshot) and the board notified.
 
 ## Reminders

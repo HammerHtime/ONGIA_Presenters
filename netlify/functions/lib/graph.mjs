@@ -195,10 +195,32 @@ export async function ensureEventFolder(folderPath) {
     } catch (e) {
       if (e.status !== 404) throw e;
       if (!parent) throw new Error(`"${seg}" does not exist at the top of the library; the app only creates folders inside an existing top-level folder.`);
+      // The year folder may already hold this event under a different word order.
+      // Use it rather than making a near-duplicate beside it.
+      const twin = await siblingFolderLike(token, drive, parent, seg);
+      if (twin) { item = twin; current = `${parent}/${twin.name}`; continue; }
       item = await ensureChildFolder(token, drive, parent, seg);
     }
   }
-  return { path, url: item.webUrl, created: true };
+  // `current` is the path as it really is in the library, which can differ from the
+  // one asked for when an existing folder was reused.
+  return { path: current, url: item.webUrl, created: true };
+}
+
+/**
+ * A child folder of parentPath made of the same words as `name`, in any order
+ * and any case — "Toronto 2026" for "2026 Toronto". Returns null if there is none.
+ */
+async function siblingFolderLike(token, drive, parentPath, name) {
+  const key = (s) => String(s).toLowerCase().split(/[\s_-]+/).filter(Boolean).sort().join(" ");
+  const want = key(name);
+  if (!want) return null;
+  try {
+    const page = await graph(token, `/drives/${drive}/root:/${encodePath(parentPath)}:/children?$select=id,name,webUrl,folder&$top=200`);
+    return (page.value ?? []).find((it) => it.folder && key(it.name) === want) ?? null;
+  } catch {
+    return null; // listing is a convenience; fall through to creating the folder
+  }
 }
 
 async function ensureChildFolder(token, drive, parentPath, name) {
@@ -251,6 +273,9 @@ async function upload(token, drive, path, bytes, contentType) {
  * { folderUrl, files: [{name, url}] } or { skipped, reason }. Throws on a
  * real failure (bad folder, missing grant) so the caller can record it.
  */
+/** Signed agreements are kept together, one folder per presenter and year. */
+export const AGREEMENTS_FOLDER = "Presenter Agreements";
+
 export async function fileAgreement({ event, presenter, pdf, headshot }) {
   if (!graphConfigured()) return { skipped: true, reason: "Microsoft credentials are not set on this site." };
   const eventFolder = normaliseFolder(event.sharePointFolder);
@@ -267,9 +292,12 @@ export async function fileAgreement({ event, presenter, pdf, headshot }) {
     throw e;
   }
 
-  const personFolder = safeFileName(`${presenter.first} ${presenter.last}`);
-  const folder = await ensureChildFolder(token, drive, eventFolder, personFolder);
-  const base = `${eventFolder}/${personFolder}`;
+  // <event folder>/Presenter Agreements/<First Last> <year>/<Last>_Presenter Agreement.pdf
+  const year = String(event.dayOne ?? "").slice(0, 4);
+  const personFolder = safeFileName(`${presenter.first} ${presenter.last}${year ? ` ${year}` : ""}`);
+  await ensureChildFolder(token, drive, eventFolder, AGREEMENTS_FOLDER);
+  const folder = await ensureChildFolder(token, drive, `${eventFolder}/${AGREEMENTS_FOLDER}`, personFolder);
+  const base = `${eventFolder}/${AGREEMENTS_FOLDER}/${personFolder}`;
   const last = safeFileName(presenter.last, "Presenter");
 
   const files = [];
