@@ -83,7 +83,7 @@
   .presenter{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
     background:var(--sunk);border:1px solid var(--border);border-radius:16px;padding:13px 15px;margin-bottom:10px}
   @media(max-width:660px){.presenter{grid-template-columns:auto 1fr}.presenter .act{grid-column:2}}
-  .av{width:42px;height:42px;border-radius:999px;display:grid;place-items:center;background:var(--navy);
+  .av{flex:0 0 42px;width:42px;height:42px;border-radius:999px;display:grid;place-items:center;background:var(--navy);
       color:var(--gold-light);font-family:var(--fu);font-size:15px}
   .pname{font-weight:700;font-size:15px}
   .porg{font-size:12.5px;color:var(--muted)}
@@ -95,6 +95,9 @@
   .pill.done{background:var(--done-bg);color:var(--done)}
   .pill.wait{background:var(--wait-bg);color:var(--wait)}
   .pill.late{background:var(--late-bg);color:var(--late)}
+  /* Navy means "waiting on ONGIA" — it survives greyscale and colour blindness. */
+  .pill.you{background:var(--navy);color:#fff}
+  .pill.idle{background:var(--sunk);color:var(--muted);box-shadow:inset 0 0 0 1px var(--border)}
   .mini{border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink-mid);
     font-size:12.5px;font-weight:600;padding:7px 14px;cursor:pointer}
   .mini:hover{border-color:var(--navy);color:var(--navy)}
@@ -120,9 +123,11 @@
   .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
-  .trow{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) auto;gap:14px;align-items:center;
+  .trow{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) auto;gap:14px;align-items:start;
     background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:8px}
   .trow .who{display:flex;gap:12px;align-items:center;min-width:0} .trow .who>div{min-width:0}
+  .trow .cell .pill{max-width:100%;white-space:normal;text-align:left}
+  .trow .act{padding-top:2px}
   .trow .cell .cl{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
   .trow .act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   .mini.mat{white-space:nowrap}
@@ -140,6 +145,32 @@
   .chipstat b{color:var(--ink);font-weight:700;margin-right:4px;font-variant-numeric:tabular-nums} .chipstat b small{color:var(--muted);font-weight:400}
   .chipstat.hot{background:var(--wait-bg);border-color:var(--wait)} .chipstat.hot b{color:var(--wait)}
   .chipstat.good{background:var(--done-bg);border-color:var(--done)} .chipstat.good b{color:var(--done)}
+  .chipstat.you{background:var(--navy);border-color:var(--navy);color:#fff} .chipstat.you b{color:var(--gold-light)}
+  .chipstat.stop{background:var(--late-bg);border-color:var(--late)} .chipstat.stop b{color:var(--late)}
+  /* What needs a person today, across every event. */
+  .needs{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+    overflow:hidden;margin-bottom:18px}
+  .needs>h2{background:var(--navy-deep);color:#fff;font-family:var(--fu);font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;padding:12px 20px;border-bottom:3px solid var(--gold)}
+  .needs .nrow{display:flex;gap:12px;align-items:flex-start;padding:13px 20px;border-bottom:1px solid var(--hair);font-size:14px;line-height:1.5}
+  .needs .nrow:last-child{border-bottom:0}
+  .needs .nrow .why{flex:1;min-width:0}
+  .needs .nrow b{display:block}
+  .needs .nrow .who{color:var(--muted);font-size:13px;margin-top:2px}
+  .needs .nrow .mini{flex:none}
+  .needs .nrow.stop{background:var(--late-bg)} .needs .nrow.stop b{color:var(--late)}
+  .needs .nrow.act b{color:var(--navy)}
+  .needs .allclear{padding:15px 20px;font-size:14px;color:var(--ink-mid)}
+  @media (max-width:560px){.needs .nrow{flex-direction:column;gap:9px}.needs .nrow .mini{align-self:flex-start}}
+  /* Configuration that is read once, not on every visit. */
+  .settings{border-top:1px solid var(--hair);margin-top:18px}
+  .settings>summary{cursor:pointer;padding:13px 0 3px;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--muted)}
+  .blocked{margin-top:12px;background:var(--late-bg);border:1px solid var(--late);border-radius:14px;padding:13px 15px;font-size:13.5px}
+  .blocked>b{color:var(--late)} .blocked .brow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-top:8px}
+  .blocked .brow span{flex:1;min-width:190px}
+  .sendfail{margin:0 0 12px;background:var(--late-bg);border:1px solid var(--late);border-radius:14px;padding:12px 15px;font-size:13.5px}
+  .sendfail b{color:var(--late)}
   .cardacts{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;margin-left:auto}
   @media (max-width:700px){.cardacts{margin-left:0;justify-content:flex-start;width:100%;margin-top:8px}}
   .evcard{cursor:pointer} .evcard:hover{box-shadow:0 6px 20px rgba(18,22,31,.08)}
@@ -150,6 +181,7 @@
     .tiles{grid-template-columns:repeat(3,1fr)} .tile{padding:10px 12px} .tile .k{font-size:9px;letter-spacing:.1em} .tile .v{font-size:22px}
     .hstrip small{display:none}
   }
+  @media (max-width:700px){.tiles{display:none}}
   @media (max-width:820px){.tlist{display:block}.trow{grid-template-columns:1fr 1fr}.trow .who{grid-column:1/-1}.trow .act{grid-column:1/-1;justify-content:flex-start}}
   @media (max-width:480px){.trow{grid-template-columns:1fr}}
 
@@ -278,18 +310,22 @@ function listScreen(events) {
     return;
   }
 
-  ROOT.innerHTML = `<div class="card" style="margin-bottom:14px"><div class="card-body" id="health" style="padding-top:11px;padding-bottom:11px"><span class="empty" style="padding:0;font-size:13px">Checking email and SharePoint…</span></div></div>` + events.map((ev) => {
+  ROOT.innerHTML = needsCard(events)
+    + `<div class="card" style="margin-bottom:14px"><div class="card-body" id="health" style="padding-top:11px;padding-bottom:11px"><span class="empty" style="padding:0;font-size:13px">Checking email and SharePoint…</span></div></div>`
+    + events.map((ev) => {
     const c = ev.counts;
-    const outstanding = c.total - c.approved;
     const md = ev.materials?.draft ?? 0, mf = ev.materials?.final ?? 0;
+    const blockers = blockersOf(ev);
     return `<div class="card evcard" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <div class="card-head"><div><h2>${esc(ev.title)}</h2>
-        <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div>
-        <span class="mini gold" style="margin-left:auto">Open</span></div>
+        <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div></div>
       <div class="stats">
         <span class="chipstat"><b>${c.total}</b>presenter${c.total === 1 ? "" : "s"}</span>
-        <span class="chipstat${c.invited + c.opened ? " hot" : ""}"><b>${c.invited + c.opened}</b>not submitted</span>
-        <span class="chipstat${c.submitted ? " hot" : ""}"><b>${c.submitted}</b>need${c.submitted === 1 ? "s" : ""} review</span>
+        ${blockers.length ? `<span class="chipstat stop" title="${esc(blockers.map((b) => b.short).join(", "))}"><b>${blockers.length}</b>blocking ${blockers.length === 1 ? "problem" : "problems"}</span>` : ""}
+        ${c.uninvited ? `<span class="chipstat stop"><b>${c.uninvited}</b>link never sent</span>` : ""}
+        ${c.failed ? `<span class="chipstat stop"><b>${c.failed}</b>not filed</span>` : ""}
+        <span class="chipstat${c.invited + c.opened ? " hot" : ""}"><b>${c.invited + c.opened}</b>waiting on them</span>
+        <span class="chipstat${c.submitted ? " you" : ""}"><b>${c.submitted}</b>for you to review</span>
         <span class="chipstat${c.approved && c.approved === c.total ? " good" : ""}"><b>${c.approved}</b>final</span>
         <span class="chipstat"><b>${md}<small>/${c.total}</small></b>draft materials</span>
         <span class="chipstat"><b>${mf}<small>/${c.total}</small></b>final materials</span>
@@ -302,6 +338,72 @@ function listScreen(events) {
   ROOT.querySelectorAll("[data-open]").forEach((b) => {
     b.onclick = () => { view = { name: "event", eventId: b.dataset.open }; render(); };
   });
+  ROOT.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+  ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = (e) => {
+    e.stopPropagation(); const [eid, pid] = b.dataset.goreview.split("|");
+    view = { name: "review", eventId: eid, presenterId: pid }; render();
+  }; });
+}
+
+/**
+ * What stops an event working at all. These are quiet failures: with no lead
+ * nobody is named on the agreement and nobody is cued to review; with no upload
+ * link the materials reminders never fire; with no folder nothing is filed.
+ */
+function blockersOf(ev) {
+  const out = [];
+  if (!ev.reviewer?.name) out.push({ short: "no lead", title: "No lead board member",
+    why: "Nobody is named on the agreement, nobody is prompted to review, and replies go to the speakers mailbox.", fix: "Pick a lead", act: "edit" });
+  if (!ev.materialsUploadUrl) out.push({ short: "no upload link", title: "No upload link",
+    why: "Presenters have nowhere to put their slides, and materials reminders are switched off for this event.", fix: "Create upload link", act: "mklink" });
+  if (!ev.sharePointFolder) out.push({ short: "no SharePoint folder", title: "No SharePoint folder",
+    why: "Approved agreements will not be filed anywhere.", fix: "Create it", act: "mkfolder" });
+  return out;
+}
+
+/**
+ * The front page of the desk: everything that is true, known to the app, and
+ * otherwise invisible until someone opens each event in turn.
+ */
+function needsCard(events) {
+  const today = new Date().toISOString().slice(0, 10);
+  const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+  const rows = [];
+  const names = (list, max = 4) => {
+    const n = list.map((x) => esc(x.name));
+    return n.length <= max ? n.join(", ") : `${n.slice(0, max).join(", ")} and ${n.length - max} more`;
+  };
+  for (const ev of events) {
+    const a = ev.attention ?? {};
+    const where = `${esc(ev.city)} · ${esc(ev.title)}`;
+    for (const pr of a.review ?? []) rows.push({ cls: "act", rank: 0,
+      title: "Waiting for your signature", who: `${esc(pr.name)} — ${where}`, label: "Review", goreview: `${ev.id}|${pr.id}` });
+    if ((a.uninvited ?? []).length) rows.push({ cls: "stop", rank: 1,
+      title: `${a.uninvited.length} presenter${a.uninvited.length === 1 ? " has" : "s have"} never been sent a link`,
+      who: `${names(a.uninvited)} — ${where}. No reminder will ever reach them.`, label: "Open event", goev: ev.id });
+    if ((a.failed ?? []).length) rows.push({ cls: "stop", rank: 2,
+      title: `${a.failed.length} signed agreement${a.failed.length === 1 ? "" : "s"} never reached SharePoint`,
+      who: `${names(a.failed)} — ${where}`, label: "Open event", goev: ev.id });
+    if ((a.sendFailed ?? []).length) rows.push({ cls: "stop", rank: 2,
+      title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`,
+      who: `${names(a.sendFailed)} — ${where}`, label: "Open event", goev: ev.id });
+    const blockers = blockersOf(ev);
+    if (blockers.length) rows.push({ cls: "stop", rank: 3,
+      title: `Event is blocked: ${blockers.map((b) => b.short).join(", ")}`,
+      who: `${where}${ev.deadlines?.agreement ? ` · agreements due ${esc(fmtDate(ev.deadlines.agreement))}` : ""}`, label: "Open event", goev: ev.id });
+    const due = ev.deadlines?.agreement;
+    const out = (a.outstanding ?? []).length;
+    if (due && days(due) < 0 && out) rows.push({ cls: "stop", rank: 4,
+      title: `${out} agreement${out === 1 ? "" : "s"} overdue by ${-days(due)} day${days(due) === -1 ? "" : "s"}`,
+      who: `${names(a.outstanding)} — ${where}`, label: "Open event", goev: ev.id });
+  }
+  rows.sort((a, b) => a.rank - b.rank);
+  const live = events.filter((e) => (e.lastDay || e.dayOne) >= today).length;
+  const body = rows.length
+    ? rows.map((r) => `<div class="nrow ${r.cls}"><div class="why"><b>${r.title}</b><div class="who">${r.who}</div></div>
+        <button class="mini${r.goreview ? " gold" : ""}" ${r.goreview ? `data-goreview="${esc(r.goreview)}"` : `data-goev="${esc(r.goev)}"`}>${r.label}</button></div>`).join("")
+    : `<div class="allclear">Nothing needs you today. ${live} event${live === 1 ? "" : "s"} on the rails.</div>`;
+  return `<div class="needs"><h2>Needs you now</h2>${body}</div>`;
 }
 
 /* ---------- new event ---------- */
@@ -507,18 +609,55 @@ function eventScreen(data) {
   const daysTo = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const short = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
 
-  // One line that says where each agreement stands and when it last moved.
-  const agreementCell = (p) => {
-    const mails = p.mail?.length ?? 0;
-    const lastMail = mails ? `emailed ${mails}× · last ${short(p.mail.at(-1).at)}` : "never emailed";
-    if (p.status === "approved") {
-      const filed = p.delivery?.filing?.ok;
-      return { bucket: "final", pill: `<span class="pill done">Final</span>${filed ? "" : ` <span class="pill late">Not filed</span>`}`, sub: `approved ${short(p.approvedAt)}${filed ? " · filed" : " · filing failed — open Details"}` };
+  // The reminder cadence, mirrored from netlify/functions/lib/reminders.mjs so a
+  // row can say when the next automatic nudge goes out — or that it is paused.
+  const NUDGE_DAYS = [-28, -14, -7, -4, -2, -1, 0];
+  const overdueDay = (off) => off > 0 && (off <= 14 ? off % 3 === 0 : off % 7 === 0);
+  const addDays = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
+  const nextReminder = (p) => {
+    if (p.status === "submitted" || p.status === "approved") return null;
+    if (!(p.mail ?? []).some((m) => m.type !== "called")) return null;   // never invited: nothing is scheduled
+    const due = ev.deadlines?.agreement;
+    if (!due) return null;
+    const calls = (p.mail ?? []).filter((m) => m.type === "called");
+    const pausedTo = calls.length ? addDays(calls.at(-1).at.slice(0, 10), 7) : null;
+    for (let k = 0; k <= 180; k++) {
+      const d = addDays(today, k);
+      if (pausedTo && d < pausedTo) continue;
+      const off = Math.round((Date.parse(d) - Date.parse(due)) / 86400000);
+      if (NUDGE_DAYS.includes(off) || overdueDay(off)) return d;
     }
-    if (p.status === "submitted") return { bucket: "review", pill: `<span class="pill wait">Needs review</span>`, sub: `submitted ${short(p.submittedAt)}` };
-    if (p.status === "returned") return { bucket: "progress", pill: `<span class="pill late">Sent back</span>`, sub: `${short(p.review?.returnedAt)} · waiting for changes` };
-    if (p.openedAt) return { bucket: "progress", pill: `<span class="pill wait">Opened, not finished</span>`, sub: `opened ${short(p.openedAt)} · ${lastMail}` };
-    return { bucket: "notstarted", pill: `<span class="pill wait">Not opened</span>`, sub: lastMail };
+    return null;
+  };
+
+  // One line that says where each agreement stands, who it is waiting on, and
+  // how hard the desk has already chased.
+  const agreementCell = (p) => {
+    const mails = (p.mail ?? []).filter((m) => m.type !== "called");
+    const calls = (p.mail ?? []).filter((m) => m.type === "called");
+    const n = mails.length;
+    const calledLine = calls.length ? ` · called ${short(calls.at(-1).at)}` : "";
+    const nextLine = () => { const d = nextReminder(p); return d ? ` · next reminder ${short(d)}` : ""; };
+    if (p.status === "approved") {
+      const filing = p.delivery?.filing;
+      if (filing && filing.ok === false) return { bucket: "failed",
+        pill: `<span class="pill done">Final</span> <span class="pill late">Not filed</span>`,
+        sub: `approved ${short(p.approvedAt)} · never reached SharePoint${filing.error ? ` — ${esc(filing.error)}` : ""}` };
+      return { bucket: "final", pill: `<span class="pill done">Final</span>`, sub: `approved ${short(p.approvedAt)}${filing?.ok ? " · filed" : ""}` };
+    }
+    if (p.status === "submitted") return { bucket: "review", pill: `<span class="pill you">Needs review</span>`, sub: `submitted ${short(p.submittedAt)} · waiting on ONGIA` };
+    // Nobody has ever sent this person their link: no reminder will ever chase them.
+    if (!n) return { bucket: "uninvited", pill: `<span class="pill late">Never sent</span>`,
+      sub: p.lastSendError ? `could not be emailed — ${esc(p.lastSendError.why)}` : "no link sent yet · no reminder will chase them" };
+    const hard = n >= 4;
+    const chased = `${n} reminder${n === 1 ? "" : "s"}`;
+    if (p.status === "returned") return { bucket: "progress", pill: `<span class="pill late">Sent back</span>`,
+      sub: `${short(p.review?.returnedAt)} · waiting for changes${calledLine}` };
+    const callPill = hard && !calls.length ? `<div style="margin-top:5px"><span class="pill late">Call them</span></div>` : "";
+    if (p.openedAt) return { bucket: "progress", pill: `<span class="pill ${hard ? "late" : "wait"}">Opened, not finished</span>${callPill}`,
+      sub: `opened ${short(p.openedAt)} · ${chased}, last ${short(mails.at(-1).at)}${calledLine}${nextLine()}` };
+    return { bucket: "notstarted", pill: `<span class="pill ${hard ? "late" : "wait"}">Not opened</span>${callPill}`,
+      sub: `${chased}, last ${short(mails.at(-1).at)}${calledLine}${nextLine()}` };
   };
 
   // Draft and final materials, detected from uploads or ticked by hand.
@@ -530,12 +669,17 @@ function eventScreen(data) {
       const late = !at && deadline && daysTo(deadline) < 0;
       const soon = !at && deadline && daysTo(deadline) >= 0 && daysTo(deadline) <= 14;
       const cls = at ? "done" : late ? "late" : soon ? "wait" : "";
-      const text = at ? `${label} ✓ ${short(at)}${manual ? "" : " (upload)"}` : `${label} –${late ? " overdue" : soon ? ` due ${short(deadline)}` : ""}`;
+      const over = late ? -daysTo(deadline) : 0;
+      const text = at ? `${label} ✓ ${short(at)}${manual ? "" : " (upload)"}`
+        : late ? `${label} – overdue ${over} day${over === 1 ? "" : "s"}`
+        : deadline ? `${label} – due ${short(deadline)}${soon ? ` (${daysTo(deadline)} days)` : ""}`
+        : `${label} – not set`;
       return `<button class="mini mat ${cls}" data-mat="${esc(p.id)}" data-key="${key}" data-on="${at ? "0" : "1"}" title="${at ? "Click to clear" : "Click to mark received"}">${text}</button>`;
     };
     const missing = (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14);
+    const none = !m.draft && !m.final;
     return {
-      missing,
+      missing, none,
       html: `${chip("Draft", m.draft, m.draftManual, "draft", due.draft)} ${chip("Final", m.final, m.finalManual, "final", due.final)}` +
         (files.length ? `<div class="porg">${files.length} file${files.length === 1 ? "" : "s"} uploaded · latest ${short(files[0].at)}</div>` : ""),
     };
@@ -543,9 +687,9 @@ function eventScreen(data) {
 
   const enriched = presenters.map((p) => ({ p, a: agreementCell(p), m: matCell(p) }));
   const filter = view.filter ?? "all";
-  const show = enriched.filter(({ a, m }) =>
-    filter === "all" || (filter === "materials" ? m.missing : a.bucket === filter));
-  const count = (f) => enriched.filter(({ a, m }) => f === "materials" ? m.missing : a.bucket === f).length;
+  const inFilter = ({ a, m }, f) => f === "all" ? true : f === "materials" ? m.missing : f === "nomaterials" ? m.none : a.bucket === f;
+  const show = enriched.filter((row) => inFilter(row, filter));
+  const count = (f) => enriched.filter((row) => inFilter(row, f)).length;
 
   const rows = show.length ? show.map(({ p, a, m }) => {
     const initials = `${p.first[0] ?? ""}${p.last[0] ?? ""}`.toUpperCase();
@@ -559,40 +703,61 @@ function eventScreen(data) {
       <div class="cell"><div class="cl">Materials</div>${m.html}</div>
       <div class="act">
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
-        ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${p.mail?.length ? "Remind" : "Email link"}</button>` : ""}
+        ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${(p.mail ?? []).some((m) => m.type !== "called") ? "Email again" : "Email link"}</button>` : ""}
+        ${p.status !== "approved" && p.status !== "submitted" && (p.mail ?? []).some((m) => m.type !== "called")
+          ? `<button class="mini" data-called="${esc(p.id)}" title="Log a phone call — pauses the automatic reminders for a week">Called them</button>` : ""}
         ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
+        ${a.bucket === "failed" ? `<button class="mini" data-refile="${esc(p.id)}">Retry filing</button>` : ""}
         ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : `<button class="mini ghost" data-remove="${esc(p.id)}" title="Remove presenter">✕</button>`}
       </div></div>`;
   }).join("") : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`;
 
-  const chips = [["all", "All"], ["notstarted", "Not started"], ["progress", "Waiting on presenter"], ["review", "Needs review"], ["final", "Final"], ["materials", "Materials missing"]]
+  // The exception cuts only appear when there is an exception to show.
+  const chips = [["all", "All", true], ["uninvited", "Link never sent", false], ["notstarted", "Not started", true],
+    ["progress", "Waiting on presenter", true], ["review", "For you to review", true], ["final", "Final", true],
+    ["failed", "Not filed", false], ["materials", "Materials due within 2 weeks", false], ["nomaterials", "No materials yet", false]]
+    .filter(([k, , always]) => always || count(k) > 0 || filter === k)
     .map(([k, l]) => `<button class="fchip${filter === k ? " on" : ""}" data-filter="${k}">${l}${k === "all" ? "" : ` <b>${count(k)}</b>`}</button>`).join("");
 
   const draftGot = enriched.filter(({ p }) => mstat[p.id]?.draft).length;
   const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
   const nextDl = [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]]
     .map(([k, l]) => ({ l, iso: k === "dayOne" ? ev.dayOne : ev.deadlines?.[k] })).filter((x) => x.iso).map((x) => ({ ...x, d: daysTo(x.iso) }));
-  const upcoming = nextDl.find((x) => x.d >= 0) ?? nextDl.at(-1);
   const overdue = nextDl.filter((x) => x.d < 0 && x.l !== "Training starts" && (x.l.startsWith("Agreements") ? c.invited + c.opened : x.l.startsWith("Draft") ? presenters.length - draftGot : presenters.length - finalGot) > 0);
+  // When something is late, the bold line says so. It used to announce the next
+  // future deadline while a red box two lines down said the last one was missed.
+  const upcoming = overdue[0] ?? nextDl.find((x) => x.d >= 0) ?? nextDl.at(-1);
+  const blockers = blockersOf(ev);
+  const sendFailed = presenters.filter((p) => p.lastSendError);
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
       <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}
         ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
-      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}</div>
+      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}
+      ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
+        <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
-      <div class="tile"><div class="k">Not submitted</div><div class="v">${c.invited + c.opened}</div></div>
-      <div class="tile accent"><div class="k">Needs review</div><div class="v">${c.submitted}</div></div>
-      <div class="tile"><div class="k">Final</div><div class="v">${c.approved}</div></div>
+      <div class="tile"><div class="k">Waiting on them</div><div class="v">${count("notstarted") + count("progress") + count("uninvited")}</div></div>
+      <div class="tile accent"><div class="k">For you to review</div><div class="v">${count("review")}</div></div>
+      <div class="tile"><div class="k">Final</div><div class="v">${count("final") + count("failed")}</div></div>
       <div class="tile"><div class="k">Draft materials</div><div class="v">${draftGot}<small>/${c.total}</small></div></div>
       <div class="tile"><div class="k">Final materials</div><div class="v">${finalGot}<small>/${c.total}</small></div></div>
     </div>
     <div class="card-body">
-      <dl class="kv" style="margin:0 0 16px">
+      <dl class="kv" style="margin:0 0 14px">
         <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))}</dd>
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
+      </dl>
+      ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
+        <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
+        <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
+      <div class="filters">${chips}</div>
+      <div class="tlist">${rows}</div>
+      <details class="settings"><summary>Event settings and diagnostics</summary>
+      <dl class="kv" style="margin:12px 0 0">
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
           ${ev.sharePointFolderUrl ? ` · <a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">Open</a>` : ` · <button class="mini" id="mkfolder">Create it in SharePoint</button>`}</dd>
         <dt>Uploads</dt><dd>${!ev.materialsUploadUrl ? `<i>no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</i> <button class="mini" id="mklink">Create upload link</button>`
@@ -604,14 +769,13 @@ function eventScreen(data) {
         <dt>Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<span class="pill late">no lead</span> Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
-      <div class="filters">${chips}</div>
-      <div class="tlist">${rows}</div>
-      <div class="note" style="margin-top:22px"><b>Test emails</b> (temporary, for checking the weekly summary): 
+      <div class="note" style="margin-top:18px"><b>Test emails</b> (temporary, for checking the weekly summary): 
         <span style="display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:8px">
           <button class="mini" id="digest-lead">Send summary to lead${ev.reviewer?.name ? ` (${esc(ev.reviewer.name)})` : ""}</button>
           <button class="mini" id="digest-board">Send summary to president &amp; VP</button>
         </span></div>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
+      </details>
     </div></div>`;
 
   for (const [id, to] of [["digest-lead", "lead"], ["digest-board", "board"]]) {
@@ -628,6 +792,38 @@ function eventScreen(data) {
   }
 
   wireActions();
+  // A blocked event's fix buttons drive the same actions as the settings block.
+  ROOT.querySelectorAll("[data-fix]").forEach((b) => {
+    b.onclick = () => {
+      const act = b.dataset.fix;
+      if (act === "edit") { view = { name: "edit", eventId: ev.id }; render(); return; }
+      const target = document.getElementById(act === "mklink" ? "mklink" : "mkfolder");
+      const box = document.querySelector(".settings");
+      if (box) box.open = true;
+      if (target) { target.scrollIntoView({ block: "center", behavior: "smooth" }); target.click(); }
+      else toast("Open Event settings to finish this.");
+    };
+  });
+  ROOT.querySelectorAll("[data-called]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Saving…";
+      try {
+        await api(`/invite?id=${encodeURIComponent(ev.id)}&called=1`, { method: "POST", body: JSON.stringify({ presenterIds: [b.dataset.called] }) });
+        toast("Call logged. Automatic reminders pause for a week.");
+        render();
+      } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Called them"; }
+    };
+  });
+  ROOT.querySelectorAll("[data-refile]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Filing…";
+      try {
+        const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.refile)}&action=redeliver`, { method: "POST", body: JSON.stringify({ all: false }) });
+        toast(out.presenter?.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.presenter?.delivery?.filing?.error ?? "unknown"}`);
+        render();
+      } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Retry filing"; }
+    };
+  });
   ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
   ROOT.querySelectorAll("[data-mat]").forEach((b) => {
     b.onclick = async () => {
@@ -881,10 +1077,10 @@ async function invite(eventId, presenterIds, remind) {
     const out = await api(`/invite?id=${encodeURIComponent(eventId)}`, {
       method: "POST", body: JSON.stringify({ presenterIds: presenterIds ?? undefined, remind: !!remind }),
     });
-    const bits = [];
-    if (out.sent.length) bits.push(`Sent to ${out.sent.map((s) => s.name).join(", ")}`);
-    if (out.failed.length) bits.push(`Not sent: ${out.failed.map((f) => `${f.name} (${f.why})`).join("; ")}`);
-    toast(bits.join(" · ") || "Nothing to send.");
+    // Successes are a toast; failures are kept on the presenter and shown in the
+    // red box on the event, because a toast that vanishes is not a report.
+    if (out.failed.length) toast(`${out.sent.length} sent, ${out.failed.length} could not be sent — see the red box below.`);
+    else toast(out.sent.length ? `Sent to ${out.sent.map((x) => x.name).join(", ")}.` : "Nothing to send.");
     render();
   } catch (e) { toast(e.message); }
 }

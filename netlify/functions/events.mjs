@@ -261,11 +261,20 @@ async function showList() {
     events.map(async (event) => {
       const people = await listPresenters(event.id);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
+      const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
       return {
         ...event,
         counts: countStatuses(people),
         presenterCount: people.length,
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
+        // Enough to name a problem on the dashboard without opening the event.
+        attention: {
+          review: who((p) => p.status === "submitted"),
+          uninvited: who((p) => p.status !== "approved" && p.status !== "submitted" && !p.mail?.length),
+          failed: who((p) => p.status === "approved" && p.delivery?.filing && p.delivery.filing.ok === false),
+          sendFailed: who((p) => !!p.lastSendError),
+          outstanding: who((p) => p.status !== "approved" && p.status !== "submitted"),
+        },
       };
     })
   );
@@ -280,12 +289,17 @@ async function showEvent(id) {
 }
 
 export function countStatuses(presenters) {
-  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0 };
+  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0, uninvited: 0, failed: 0 };
   for (const p of presenters) {
     if (p.status === "approved") counts.approved++;
     else if (p.status === "submitted") counts.submitted++;
     else if (p.openedAt) counts.opened++;
     else counts.invited++;
+    // Nobody has ever sent this person their link, so no reminder will ever chase
+    // them: only a person can fix it.
+    if (p.status !== "approved" && p.status !== "submitted" && !p.mail?.length) counts.uninvited++;
+    // Signed and approved, but the copy never reached SharePoint.
+    if (p.status === "approved" && p.delivery && p.delivery.filing && p.delivery.filing.ok === false) counts.failed++;
   }
   return counts;
 }

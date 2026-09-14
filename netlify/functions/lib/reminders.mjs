@@ -61,6 +61,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     for (const p of digestOnly ? [] : outstanding) {
       if (!p.mail?.length) continue; // never invited: that's the coordinator's call, not a reminder
       if (alreadyToday(p, today)) continue;
+      if (calledRecently(p, today)) continue;
       const shouldNudge = PRESENTER_DAYS.includes(dayOffset) || overdueDay(dayOffset);
       if (!shouldNudge) continue;
       plan.push({
@@ -94,6 +95,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
           const st = materialsStatus(p, event.materialsScan ?? null);
           if (st[key]) continue;
           if (alreadyToday(p, today)) continue;
+          if (calledRecently(p, today)) continue;
           const fr = p.language === "fr";
           plan.push({
             kind: "materials",
@@ -139,22 +141,31 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     }
 
     const overdue = outstanding.filter((p) => p.mail?.length);
+    // Nobody ever sent these people a link. No reminder will ever reach them, so
+    // the board digest is the only place this can surface.
+    const neverSent = outstanding.filter((p) => !p.mail?.length);
     const boardDay = dayOffset >= BOARD_FIRST && (dayOffset - BOARD_FIRST) % OVERDUE_EVERY === 0;
     const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
-    if (!digestOnly && boardDay && overdue.length && recipients.length && event.lastBoardDigest !== today) {
+    if (!digestOnly && boardDay && (overdue.length || neverSent.length) && recipients.length && event.lastBoardDigest !== today) {
       plan.push({
         kind: "board",
         event: event.title,
         to: recipients.join(", "),
-        name: `${overdue.length} outstanding`,
+        name: `${overdue.length + neverSent.length} outstanding`,
         why: `${dayOffset} days past the agreement deadline`,
         send: async () => {
-          const heading = `${overdue.length} presenter agreement${overdue.length === 1 ? "" : "s"} still outstanding — ${event.title}`;
-          const lines = [
-            `The agreement deadline for <b>${esc(event.title)}</b> was ${esc(formatDate(due))}. Still not submitted:`,
-            `<ul>${overdue.map((p) => `<li>${esc(p.first)} ${esc(p.last)}${p.organization ? ` — ${esc(p.organization)}` : ""} (${p.openedAt ? "opened, not finished" : "never opened"}; emailed ${p.mail.length}×)</li>`).join("")}</ul>`,
-            `Each has been reminded automatically. A phone call from someone they know usually works better than a fourth email.`,
-          ];
+          const total = overdue.length + neverSent.length;
+          const heading = `${total} presenter agreement${total === 1 ? "" : "s"} still outstanding — ${event.title}`;
+          const lines = [`The agreement deadline for <b>${esc(event.title)}</b> was ${esc(formatDate(due))}. Still not submitted:`];
+          if (overdue.length) {
+            lines.push(`<ul>${overdue.map((p) => `<li>${esc(p.first)} ${esc(p.last)}${p.organization ? ` — ${esc(p.organization)}` : ""} (${p.openedAt ? "opened, not finished" : "never opened"}; emailed ${p.mail.length}×)</li>`).join("")}</ul>`);
+            lines.push(`Each has been reminded automatically. A phone call from someone they know usually works better than a fourth email.`);
+          }
+          if (neverSent.length) {
+            lines.push(`<b>${neverSent.length} ${neverSent.length === 1 ? "person has" : "people have"} never been sent a link</b>, so no reminder will reach ${neverSent.length === 1 ? "them" : "them"}:`);
+            lines.push(`<ul>${neverSent.map((p) => `<li>${esc(p.first)} ${esc(p.last)}${p.organization ? ` — ${esc(p.organization)}` : ""}${p.lastSendError ? ` — last attempt failed: ${esc(p.lastSendError.why)}` : ""}</li>`).join("")}</ul>`);
+            lines.push(`Open the event and use <b>Email link</b> to send theirs.`);
+          }
           const out = await sendMail({ to: recipients, subject: heading, html: layout({ heading, lines, button: { label: "Open the event", href: `${origin}/admin.html` } }), text: heading });
           if (out.skipped) throw new Error(out.reason);
           event.lastBoardDigest = today;
@@ -199,3 +210,6 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const daysBetween = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
 const alreadyToday = (p, today) => (p.mail ?? []).some((m) => m.at?.startsWith(today));
+// Someone spoke to them. Stop emailing for a week; the desk has done its job.
+const calledRecently = (p, today) =>
+  (p.mail ?? []).some((m) => m.type === "called" && m.at && daysBetween(m.at.slice(0, 10), today) < 7);
