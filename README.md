@@ -7,9 +7,12 @@ presenter and filed to SharePoint.
 ## Flow
 
 1. Coordinator creates an **event** (`/admin.html`): title, city, venue, dates,
-   the board members involved (one marked **lead** — they are the contact
-   presenters reply to, and they review and sign; all are notified), and
-   optionally the first presenters. Nothing about SharePoint is typed: the app
+   the board members involved (exactly one marked **lead**, which is required —
+   they are the contact presenters reply to and whose name, email and phone
+   print on the agreement; they review and sign; all are notified), and
+   optionally the first presenters. Each board member on the roster
+   (`/api/roster`) can carry a phone number, which fills the lead's number in by
+   itself; a number typed on the event form is saved back to the roster. Nothing about SharePoint is typed: the app
    creates `ONGIA Board/ONGIA Training/<year>/<year> <City>` and an upload-only
    (Request files) link itself. A "use an existing folder or upload link"
    toggle on the form takes a pasted folder link/path or a Request-files link;
@@ -78,3 +81,11 @@ dashboard shows what didn't land, and **Retry** re-runs just those parts.
 `npm run dev:mock` serves the site and functions on http://localhost:8788 against
 an in-memory store (admin key `testkey`). Email and SharePoint are skipped unless
 the real environment variables are set, so it's safe for clicking through.
+
+## Typed signatures
+
+A presenter or board member signs by typing their name. It is drawn in a script
+face (Great Vibes, SIL Open Font Licence — `public/assets/fonts/OFL-GreatVibes.txt`)
+on the signature line, with the plain typed name printed beside it so the
+signature is always legible. The PDF falls back to an italic face if the font
+file is missing from the bundle.

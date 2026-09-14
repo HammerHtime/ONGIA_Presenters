@@ -131,9 +131,10 @@
   .upload input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
   .upload:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
+  @font-face{font-family:"Signature";src:url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype");font-display:swap}
   .sig{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:15px}
-  .sig .typed{font-family:var(--fd);font-size:27px;color:var(--navy);border-bottom:1.5px solid var(--border);
-    padding-bottom:7px;min-height:42px;word-break:break-word}
+  .sig .typed{font-family:"Signature",var(--fd),cursive;font-size:38px;line-height:1.15;color:var(--navy);border-bottom:1.5px solid var(--border);
+    padding:4px 6px 6px;min-height:52px;word-break:break-word}
   .sig .meta{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11.5px;color:var(--muted);
     font-family:var(--fu);letter-spacing:.1em;text-transform:uppercase}
 

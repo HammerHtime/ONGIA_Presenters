@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
-import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey } from "./lib/store.mjs";
+import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
@@ -91,7 +91,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
   // reviews and signs; everyone picked is notified. Older clients that still
   // send reviewerName/notify are folded into the same shape.
   const board = (Array.isArray(body.board) ? body.board : [])
-    .map((m) => ({ name: text(m.name, 120), email: text(m.email, 200), lead: m.lead === true }))
+    .map((m) => ({ name: text(m.name, 120), email: text(m.email, 200), phone: formatPhone(text(m.phone, 60)), lead: m.lead === true }))
     .filter((m) => m.name && isEmail(m.email))
     .slice(0, 20);
   if (!board.length && text(body.reviewerName, 120)) {
@@ -101,12 +101,19 @@ async function applyDetails(event, body, { creating = false } = {}) {
   if (board.length && !board.some((m) => m.lead)) board[0].lead = true;
   if (board.filter((m) => m.lead).length > 1) return "Only one board member can be the lead.";
   const lead = board.find((m) => m.lead);
+  // Every event needs someone presenters can reach; the PDF and every email depend on it.
+  if (!lead) return "Pick the board members for this event and mark one as the lead. Presenters reply to the lead, and their name goes on the agreement.";
+  // A phone typed on the roster fills in by itself; one typed on the form wins.
+  if (!lead.phone) {
+    const roster = (await getRoster()) ?? [];
+    lead.phone = roster.find((m) => m.email.toLowerCase() === lead.email.toLowerCase())?.phone ?? "";
+  }
   event.board = board;
-  event.reviewer = lead ? { name: lead.name, email: lead.email } : { name: "", email: "" };
+  event.reviewer = { name: lead.name, email: lead.email, phone: lead.phone };
   // The lead is the ONGIA contact presenters see and reply to. Older clients could name
   // someone else; that still works, but the form no longer offers it.
-  if (lead && (!text(body.contactName, 120) || !text(body.contactEmail, 200))) {
-    event.contact = { name: lead.name, email: lead.email, phone: formatPhone(text(body.contactPhone, 60)) };
+  if (!text(body.contactName, 120) || !text(body.contactEmail, 200)) {
+    event.contact = { name: lead.name, email: lead.email, phone: formatPhone(text(body.contactPhone, 60)) || lead.phone };
   }
   event.notify = board.filter((m) => !m.lead).map((m) => m.email);
 

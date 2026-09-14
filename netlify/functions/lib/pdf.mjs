@@ -26,12 +26,19 @@ const ASSET_DIRS = [
   "/var/task/public/assets",
 ];
 const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-banner.jpg"))) ?? ASSET_DIRS[0];
+// Typed signatures are drawn in a script face (Great Vibes, SIL Open Font Licence; see assets/fonts/OFL-GreatVibes.txt).
+const SCRIPT_FONT = path.join(ASSETS, "fonts", "GreatVibes-Regular.ttf");
 
 // Letter, in points.
 const PAGE_W = 612;
 const PAGE_H = 792;
 const MARGIN = 42;
 const BODY_W = PAGE_W - MARGIN * 2;
+// The footer band sits on every page; nothing may be drawn over it. Content that
+// runs past BOTTOM moves to a new page instead of spilling (long bios did that).
+const BAND_H = (85 / 1241) * PAGE_W;
+const TOP = 18;
+const BOTTOM = PAGE_H - BAND_H - 6;
 
 // ONGIA's palette.
 const INK = "#12161f";
@@ -71,7 +78,8 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
     doc.on("error", reject);
   });
 
-  const p = new Painter(doc);
+  const p = new Painter(doc, band);
+  if (existsSync(SCRIPT_FONT)) { doc.registerFont("Script", SCRIPT_FONT); p.script = true; }
 
   /* ------------------------------------------------------------ page one */
   // Banner: 1056×288 source scaled to the full page width.
@@ -125,11 +133,10 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.heading("PRESENTATION OUTLINE");
   p.box(`${s.talk}\n\n${s.outline}`, { minHeight: 70 });
 
-  p.band(band);
-
   /* ------------------------------------------------------------ page two */
-  doc.addPage();
-  p.y = 24;
+  // Logistics starts a fresh page, as on the paper form. If a long biography or
+  // outline already ran onto a second page, carry on there rather than leave it near-empty.
+  if (p.page === 1) p.newPage(); else p.gap(8);
 
   p.heading("LOGISTICS AND COSTING");
   p.para(
@@ -226,14 +233,19 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
       `and confirmed the information above is accurate. Submission reference ${presenter.reference}.`
   );
 
+  // The ONGIA contact is the event's lead board member. An event approved with no
+  // lead falls back to whoever approved it, reached through the speakers mailbox.
+  const contact = event.contact?.name || event.contact?.email
+    ? event.contact
+    : { name: approval.name, email: event.reviewer?.email || process.env.MS_MAIL_FROM || "", phone: "" };
   p.heading("ONGIA CONTACT INFORMATION");
   p.kvRow([
-    ["Name:", event.contact?.name || "—", 160],
-    ["Email:", event.contact?.email || "—", 170],
+    ["Name:", contact.name || "—", 160],
+    ["Email:", contact.email || "—", 170],
   ]);
-  p.kvRow([["Contact Number:", event.contact?.phone || "—", 130]]);
+  p.kvRow([["Contact Number:", contact.phone || "—", 130]]);
 
-  p.gap(6);
+  p.gap(3);
   p.label("This document has been reviewed and approved by:", true, NAVY);
   p.kvRow([
     ["Name:", approval.name, 160, false, NAVY],
@@ -248,7 +260,7 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
       `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails it to the presenter.`
   );
 
-  p.band(band);
+  p.finish();
   doc.end();
   return finished;
 }
@@ -269,20 +281,42 @@ function stamp(isoString) {
  * Nothing here is clever — it's the HTML layout, expressed as coordinates.
  */
 class Painter {
-  constructor(doc) {
+  constructor(doc, band) {
     this.doc = doc;
+    this.band = band;
     this.y = 0;
+    this.page = 1;
+    this.script = false;
   }
 
   gap(n) { this.y += n; }
 
+  /** Room left above the footer band on this page. */
+  room() { return BOTTOM - this.y; }
+
+  /** Start a new page if the next block of height h would run into the band. */
+  ensure(h) { if (this.y + h > BOTTOM) this.newPage(); }
+
+  drawBand() { this.doc.image(this.band, 0, PAGE_H - BAND_H, { width: PAGE_W }); }
+
+  newPage() {
+    this.drawBand();
+    this.doc.addPage();
+    this.page += 1;
+    this.y = TOP;
+  }
+
+  finish() { this.drawBand(); }
+
   heading(text) {
-    this.y += 5;
+    this.ensure(48); // a heading never sits alone at the foot of a page
+    this.y += 3;
     this.doc.font("Helvetica").fontSize(12).fillColor(GOLD).text(text, MARGIN, this.y, { width: BODY_W, lineBreak: false });
-    this.y += 15;
+    this.y += 14;
   }
 
   label(text, bold = false, color = INK) {
+    this.ensure(24);
     this.doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(8.7).fillColor(color)
       .text(text, MARGIN, this.y, { width: BODY_W });
     this.y += 12;
@@ -291,6 +325,7 @@ class Painter {
   para(text) {
     this.doc.font("Helvetica").fontSize(8.7).fillColor(INK);
     const h = this.doc.heightOfString(text, { width: BODY_W, lineGap: 1.4 });
+    this.ensure(h + 5);
     this.doc.text(text, MARGIN, this.y, { width: BODY_W, lineGap: 1.4 });
     this.y += h + 5;
   }
@@ -298,6 +333,7 @@ class Painter {
   small(text) {
     this.doc.font("Helvetica").fontSize(8.2).fillColor(INK);
     const h = this.doc.heightOfString(text, { width: BODY_W });
+    this.ensure(h + 4);
     this.doc.text(text, MARGIN, this.y, { width: BODY_W });
     this.y += h + 4;
   }
@@ -305,6 +341,7 @@ class Painter {
   tiny(text) {
     this.doc.font("Helvetica").fontSize(7.4).fillColor(MUTED);
     const h = this.doc.heightOfString(text, { width: 470 });
+    this.ensure(h + 4);
     this.doc.text(text, MARGIN, this.y, { width: 470 });
     this.y += h + 4;
   }
@@ -312,6 +349,7 @@ class Painter {
   note(text) {
     this.doc.font("Helvetica").fontSize(8).fillColor(GOLD);
     const h = this.doc.heightOfString(text, { width: BODY_W });
+    this.ensure(h + 6);
     this.doc.text(text, MARGIN, this.y + 3, { width: BODY_W });
     this.y += h + 6;
   }
@@ -322,6 +360,7 @@ class Painter {
    */
   kvRow(pairs) {
     const doc = this.doc;
+    this.ensure(15);
     let x = MARGIN;
     const colW = BODY_W / pairs.length;
     for (const [label, value, valueW, boldLabel = false, color = INK] of pairs) {
@@ -338,23 +377,57 @@ class Painter {
     this.y += 15;
   }
 
+  /**
+   * A bordered text box. Text that will not fit above the band continues in a
+   * second box on the next page, split between paragraphs (or, for one huge
+   * paragraph, between words) so nothing is ever drawn off the page.
+   */
   box(text, { minHeight = 0 } = {}) {
     const doc = this.doc;
     const pad = 7;
-    doc.font("Helvetica").fontSize(8.7).fillColor(INK);
-    const th = doc.heightOfString(text, { width: BODY_W - pad * 2, lineGap: 1.2 });
-    const h = Math.max(minHeight, th + pad * 2);
-    doc.rect(MARGIN, this.y, BODY_W, h).lineWidth(0.8).strokeColor(INK).stroke();
-    doc.text(text, MARGIN + pad, this.y + pad, { width: BODY_W - pad * 2, lineGap: 1.2 });
-    this.y += h + 4;
+    const opts = { width: BODY_W - pad * 2, lineGap: 1.2 };
+    const font = () => doc.font("Helvetica").fontSize(8.7).fillColor(INK);
+    const height = (str) => { font(); return doc.heightOfString(str, opts); };
+    // Largest k such that the first k items, joined, fit in `avail` points.
+    const fit = (items, joiner, avail) => {
+      let lo = 0, hi = items.length;
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (height(items.slice(0, mid).join(joiner)) <= avail) lo = mid; else hi = mid - 1; }
+      return lo;
+    };
+    let pending = String(text ?? "").split("\n");
+    let whole = true;
+    while (pending.length) {
+      const fullPage = BOTTOM - TOP - pad * 2 - 4;
+      let avail = this.room() - pad * 2 - 4;
+      if (avail < 60 && avail < fullPage) { this.newPage(); avail = this.room() - pad * 2 - 4; }
+      let take = fit(pending, "\n", avail);
+      if (take === 0) {
+        // One paragraph taller than the space left: break it between words.
+        const words = pending[0].split(" ");
+        const n = Math.max(1, fit(words, " ", avail));
+        const head = words.slice(0, n).join(" "), tail = words.slice(n).join(" ");
+        pending = [head, ...(tail ? [tail] : []), ...pending.slice(1)];
+        take = 1;
+      }
+      const chunk = pending.slice(0, take).join("\n");
+      pending = pending.slice(take);
+      const h = Math.max(whole && !pending.length ? minHeight : 0, height(chunk) + pad * 2);
+      doc.rect(MARGIN, this.y, BODY_W, h).lineWidth(0.8).strokeColor(INK).stroke();
+      font();
+      doc.text(chunk, MARGIN + pad, this.y + pad, opts);
+      this.y += h + 4;
+      whole = false;
+      if (pending.length) this.newPage();
+    }
   }
 
   bullets(items) {
     const doc = this.doc;
     doc.font("Helvetica").fontSize(8.7).fillColor(INK);
     for (const item of items) {
-      doc.text("•", MARGIN + 6, this.y, { lineBreak: false });
       const h = doc.heightOfString(item, { width: BODY_W - 20 });
+      this.ensure(h + 2);
+      doc.text("•", MARGIN + 6, this.y, { lineBreak: false });
       doc.text(item, MARGIN + 18, this.y, { width: BODY_W - 20 });
       this.y += h + 2;
     }
@@ -376,9 +449,11 @@ class Painter {
 
   tickLine(on, text, color = INK) {
     const doc = this.doc;
-    this.tick(MARGIN, this.y + 1, on);
     doc.font("Helvetica-Bold").fontSize(8.7).fillColor(color);
     const h = doc.heightOfString(text, { width: BODY_W - 16 });
+    this.ensure(h + 4);
+    this.tick(MARGIN, this.y + 1, on);
+    doc.font("Helvetica-Bold").fontSize(8.7).fillColor(color);
     doc.text(text, MARGIN + 16, this.y, { width: BODY_W - 16 });
     this.y += h + 4;
   }
@@ -388,6 +463,7 @@ class Painter {
     const doc = this.doc;
     const widths = fractions.map((f) => f * BODY_W);
     const rowH = 15;
+    this.ensure(rowH * (rows.length + 1) + 3);
     let y = this.y;
 
     const cell = (x, w, text, bold, align = "center", color = INK) => {
@@ -431,6 +507,7 @@ class Painter {
     const doc = this.doc;
     const widths = [0.35 * BODY_W, 0.35 * BODY_W, 0.30 * BODY_W];
     const rowH = 15;
+    this.ensure(rowH * (rows.length + 1) + 3);
     let y = this.y;
     const rule = (yy) => doc.moveTo(MARGIN, yy).lineTo(MARGIN + BODY_W, yy).lineWidth(0.8).strokeColor(INK).stroke();
 
@@ -461,13 +538,29 @@ class Painter {
     this.y = y + 3;
   }
 
+  /**
+   * A typed electronic signature: the name in a script face sitting on the
+   * signature line, with the plain typed name beside it so it stays legible.
+   */
   signature(label, name, color = INK) {
     const doc = this.doc;
-    doc.font("Helvetica-Bold").fontSize(8.7).fillColor(color).text(label, MARGIN, this.y + 8, { lineBreak: false });
-    const lx = MARGIN + 52;
-    doc.font("Helvetica-Oblique").fontSize(15).fillColor(NAVY).text(name ?? "", lx + 4, this.y, { lineBreak: false });
-    doc.moveTo(lx, this.y + 19).lineTo(lx + 250, this.y + 19).lineWidth(0.8).strokeColor(INK).stroke();
-    this.y += 24;
+    this.ensure(30);
+    const text = String(name ?? "");
+    const lx = MARGIN + 52, lineW = 250, lineY = this.y + 24;
+    doc.font("Helvetica-Bold").fontSize(8.7).fillColor(color).text(label, MARGIN, lineY - 11, { lineBreak: false });
+    if (this.script && text) {
+      let size = 23;
+      doc.font("Script").fontSize(size);
+      const w = doc.widthOfString(text);
+      if (w > lineW - 10) { size = Math.max(11, (size * (lineW - 10)) / w); doc.fontSize(size); }
+      const ascent = ((doc._font?.ascender ?? 800) / 1000) * size;
+      doc.fillColor(NAVY).text(text, lx + 6, lineY - ascent - 1, { lineBreak: false });
+    } else {
+      doc.font("Helvetica-Oblique").fontSize(15).fillColor(NAVY).text(text, lx + 4, lineY - 17, { lineBreak: false });
+    }
+    doc.moveTo(lx, lineY).lineTo(lx + lineW, lineY).lineWidth(0.8).strokeColor(INK).stroke();
+    if (text) doc.font("Helvetica").fontSize(7).fillColor(MUTED).text(`typed: ${text}`, lx + lineW + 8, lineY - 8, { width: BODY_W - (lx - MARGIN) - lineW - 8, lineBreak: false, ellipsis: true });
+    this.y = lineY + 3;
   }
 
   stamp(text) {
@@ -475,15 +568,14 @@ class Painter {
     const pad = 6;
     doc.font("Helvetica").fontSize(7.6).fillColor(MUTED);
     const h = doc.heightOfString(text, { width: BODY_W - pad * 2 }) + pad * 2;
-    this.y += 6;
+    // Close the gap above rather than send one closing note to a page of its own.
+    const gap = this.y + h + 6 <= BOTTOM ? 6 : 1;
+    this.ensure(h + gap);
+    this.y += gap;
     doc.rect(MARGIN, this.y, BODY_W, h).fillAndStroke("#f9f4e6", GOLD);
     doc.fillColor(MUTED).text(text, MARGIN + pad, this.y + pad, { width: BODY_W - pad * 2 });
     this.y += h + 4;
   }
 
   /** Footer band pinned to the page foot. */
-  band(image) {
-    const h = (85 / 1241) * PAGE_W;
-    this.doc.image(image, 0, PAGE_H - h, { width: PAGE_W });
-  }
 }

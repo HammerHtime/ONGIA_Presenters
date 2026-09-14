@@ -1,11 +1,12 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
+import { formatPhone } from "./lib/phone.mjs";
 import { getRoster, putRoster } from "./lib/store.mjs";
 
 /**
  * The board roster the event form picks from. Seeded once from the ONGIA
  * directory; edited here rather than typed into every event.
  *
- *   GET /api/roster          { members: [{ name, email }] }
+ *   GET /api/roster          { members: [{ name, email, phone }] }
  *   PUT /api/roster          replace the list
  */
 const SEED = [
@@ -24,7 +25,7 @@ const SEED = [
   ["Sebastien Pitre", "RegionalDirEastern@ongia.ca"],
   ["Stephen Hammond", "s.hammond@ongia.ca"],
   ["Tyler Zrymiak", "regionaldirectorc@ongia.ca"],
-].map(([name, email]) => ({ name, email }));
+].map(([name, email]) => ({ name, email, phone: "" }));
 
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -33,7 +34,8 @@ export default async (req) => {
   if (req.method === "GET") {
     let members = await getRoster();
     if (!members) { members = SEED; await putRoster(members); }
-    return json({ members });
+    // Rows stored before phones existed have none; answer with the field present.
+    return json({ members: members.map((m) => ({ phone: "", ...m })) });
   }
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
@@ -43,7 +45,7 @@ export default async (req) => {
     for (const row of rows.slice(0, 100)) {
       const name = text(row.name, 120), email = text(row.email, 200);
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
-      members.push({ name, email });
+      members.push({ name, email, phone: formatPhone(text(row.phone, 60)) });
     }
     await putRoster(members);
     return json({ members });

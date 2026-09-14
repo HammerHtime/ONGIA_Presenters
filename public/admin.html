@@ -167,8 +167,12 @@
   .member label.leadpick{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
   .member input[type=radio]{width:16px;height:16px;padding:0;margin:0;border:0;background:none;accent-color:var(--gold);-webkit-appearance:radio;appearance:auto}
   .addrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
+  .addrow:has(#rb-phone){grid-template-columns:1fr 1fr 1fr auto}
+  .member:has(.rphone){grid-template-columns:auto 1fr auto auto}
+  .member .rphone{width:150px;padding:6px 9px;font-size:12.5px;border:1px solid var(--border);border-radius:9px;background:var(--sunk);font-family:inherit}
+  @media (max-width:560px){.member:has(.rphone){grid-template-columns:auto 1fr auto}.member .rphone{grid-column:2/-1;width:100%}}
   [hidden]{display:none!important}
-  @media (max-width:560px){.addrow{grid-template-columns:1fr}}
+  @media (max-width:560px){.addrow,.addrow:has(#rb-phone){grid-template-columns:1fr}}
   .daterow{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:13.5px;margin-top:8px}
   .daterow .req{color:var(--muted);font-size:12px;margin-bottom:8px} .daterow .req b{color:var(--ink)}
   .daterow .row2 .field{margin:0}
@@ -179,8 +183,10 @@
   .stat .dot{width:10px;height:10px;border-radius:999px;margin-top:5px;flex:none;background:var(--muted)}
   .stat.ok .dot{background:var(--done)} .stat.err .dot{background:var(--late)} .stat.skip .dot{background:var(--wait)}
   .stat small{display:block;color:var(--muted)}
-  .sigbox{margin-top:14px;border-bottom:2px solid var(--navy);padding:6px 4px;font-family:var(--fd,"DM Serif Display",serif);
-    font-size:26px;min-height:40px;color:var(--navy)}
+  @font-face{font-family:"Signature";src:url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype");font-display:swap}
+  .sigbox{margin-top:14px;border-bottom:2px solid var(--navy);padding:6px 8px;font-family:"Signature",var(--fd,"DM Serif Display",serif),cursive;
+    font-size:38px;line-height:1.15;min-height:52px;color:var(--navy)}
+  .script{font-family:"Signature",var(--fd,"DM Serif Display",serif),cursive;font-size:26px;line-height:1;color:var(--navy);vertical-align:-3px}
   .attest{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13.5px;line-height:1.5;cursor:pointer}
   .attest input{width:20px;height:20px;accent-color:var(--gold);flex:none;margin-top:1px}
   .mini.ghost{background:transparent}
@@ -320,7 +326,9 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
         <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
       </div>
-      <div class="field" style="max-width:320px"><label for="e-cphone">Lead's phone number (optional, printed on the PDF)</label><input id="e-cphone" type="tel" value="${esc(formatPhone(ev?.contact?.phone ?? ""))}" placeholder="306-555-0100"></div>
+      <div class="field" style="max-width:340px"><label for="e-cphone">Lead's phone number <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(printed on the agreement)</span></label>
+        <input id="e-cphone" type="tel" value="${esc(formatPhone(ev?.contact?.phone ?? ""))}" placeholder="306-555-0100">
+        <p class="hint" id="cphonehint" style="margin:6px 0 0"></p></div>
       <div class="field"><label>Where files go</label>
         <p class="hint" id="folderhint" style="margin:0"></p>
         <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">${ev ? "Change the folder or the upload link" : "Use an existing folder or upload link instead"}</a></p>
@@ -365,7 +373,19 @@ function eventFormScreen(existing = null) {
     folderhint.textContent = where + up;
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint; upload.oninput = showFolderHint;
-  $("e-cphone").oninput = (e) => formatPhoneInput(e.target);
+  const cphone = $("e-cphone"), cphonehint = $("cphonehint");
+  let cphoneTouched = !!cphone.value.trim();
+  cphone.oninput = (e) => { cphoneTouched = true; formatPhoneInput(e.target); showLeadPhone(); };
+  // The lead's number lives on the board roster, so it fills in by itself next time.
+  function showLeadPhone() {
+    const lead = readBoard().find((m) => m.lead);
+    if (!lead) { cphonehint.textContent = "Pick a lead above and their stored number fills in here."; return; }
+    if (!cphoneTouched && lead.phone && cphone.value.trim() !== lead.phone) cphone.value = lead.phone;
+    const typed = cphone.value.trim();
+    cphonehint.textContent = !typed ? `No number stored for ${lead.name}. Type one and it is kept for next time.`
+      : typed === lead.phone ? `From the board list, for ${lead.name}.`
+      : `Saved to the board list for ${lead.name}.`;
+  }
   $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) folder.focus(); };
 
   // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
@@ -376,6 +396,7 @@ function eventFormScreen(existing = null) {
     const picked = rows.filter((r) => r.querySelector(".pick").checked);
     if (!picked.some((r) => r.querySelector("input[type=radio]").checked) && picked[0]) picked[0].querySelector("input[type=radio]").checked = true;
     rows.forEach((r) => { const on = r.querySelector(".pick").checked; const radio = r.querySelector("input[type=radio]"); if (!on) radio.checked = false; r.classList.toggle("lead", radio.checked); radio.disabled = !on; });
+    showLeadPhone();
   });
   $("nb-toggle").onclick = (e) => { e.preventDefault(); const r = $("nb-row"); r.hidden = !r.hidden; if (!r.hidden) $("nb-name").focus(); };
   $("nb-add").onclick = async () => {
@@ -386,11 +407,11 @@ function eventFormScreen(existing = null) {
       ROSTER = out.members; roster.splice(0, roster.length, ...out.members);
       const chosen = readBoard();
       boardEl.innerHTML = boardRows(roster, [...chosen, { name, email, lead: !chosen.length }]);
-      $("nb-name").value = ""; $("nb-email").value = ""; toast(`${name} added.`);
+      $("nb-name").value = ""; $("nb-email").value = ""; showLeadPhone(); toast(`${name} added.`);
     } catch (e) { toast(e.message); }
   };
   const readBoard = () => [...boardEl.querySelectorAll(".member")].filter((r) => r.querySelector(".pick").checked)
-    .map((r) => ({ name: r.dataset.name, email: r.dataset.email, lead: r.querySelector("input[type=radio]").checked }));
+    .map((r) => ({ name: r.dataset.name, email: r.dataset.email, phone: r.dataset.phone || "", lead: r.querySelector("input[type=radio]").checked }));
 
   const showDeadlines = async () => {
     showFolderHint();
@@ -408,6 +429,7 @@ function eventFormScreen(existing = null) {
   };
   day1.onchange = showDeadlines;
   if (ev) showDeadlines(); else showFolderHint();
+  showLeadPhone();
 
   $("create").onclick = async (e) => {
     if (busy) return;
@@ -421,7 +443,19 @@ function eventFormScreen(existing = null) {
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
     if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
-    if (!body.board.length && !confirm("No board member is ticked, so nobody will be emailed when presenters submit. Save anyway?")) { busy = false; e.target.disabled = false; return; }
+    const leadRow = body.board.find((m) => m.lead);
+    if (!leadRow) {
+      $("problem").innerHTML = `<div class="bad"><b>Pick a lead.</b> Tick the board members for this event and mark one as the lead. Presenters reply to them, and their name and number go on the agreement.</div>`;
+      $("board").scrollIntoView({ behavior: "smooth", block: "center" });
+      busy = false; e.target.disabled = false; return;
+    }
+    // Remember the lead's number on the board list so it fills in next time.
+    if (body.contactPhone && body.contactPhone !== leadRow.phone) {
+      const next = ROSTER.map((m) => (m.email.toLowerCase() === leadRow.email.toLowerCase() ? { ...m, phone: body.contactPhone } : m));
+      if (next.some((m) => m.email.toLowerCase() === leadRow.email.toLowerCase())) {
+        try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; } catch { /* the event still saves */ }
+      }
+    }
     try {
       const out = ev
         ? await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })
@@ -558,7 +592,7 @@ function eventScreen(data) {
              <button class="mini" id="rescan">Check uploads now</button>
              ${scan?.unmatched?.length ? `<div class="porg" style="margin-top:6px"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
-        <dt>Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : "<i>no lead yet — replies go to the Conference Speakers mailbox</i>"}</dd>
+        <dt>Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<span class="pill late">no lead</span> Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="filters">${chips}</div>
@@ -742,9 +776,10 @@ function boardRows(roster, chosen) {
   const extras = chosen.filter((m) => !roster.some((r) => r.email.toLowerCase() === m.email.toLowerCase()));
   return [...roster, ...extras].map((m) => {
     const c = byEmail.get(m.email.toLowerCase());
-    return `<div class="member${c?.lead ? " lead" : ""}" data-name="${esc(m.name)}" data-email="${esc(m.email)}">
+    const phone = c?.phone || m.phone || "";
+    return `<div class="member${c?.lead ? " lead" : ""}" data-name="${esc(m.name)}" data-email="${esc(m.email)}" data-phone="${esc(phone)}">
       <input type="checkbox" class="pick"${c ? " checked" : ""} aria-label="Include ${esc(m.name)}">
-      <div>${esc(m.name)}<div class="em">${esc(m.email)}</div></div>
+      <div>${esc(m.name)}<div class="em">${esc(m.email)}${phone ? " · " + esc(phone) : ""}</div></div>
       <label class="leadpick"><input type="radio" name="lead"${c?.lead ? " checked" : ""}${c ? "" : " disabled"}> Lead</label>
     </div>`;
   }).join("");
@@ -761,19 +796,37 @@ function parsePeople(textBlock) {
 function rosterScreen(members) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
-  const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span><div>${esc(m.name)}<div class="em">${esc(m.email)}</div></div>
+  const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span>
+    <div>${esc(m.name)}<div class="em">${esc(m.email)}</div></div>
+    <input class="rphone" type="tel" data-phone="${i}" value="${esc(formatPhone(m.phone ?? ""))}" placeholder="phone (optional)" aria-label="Phone number for ${esc(m.name)}">
     <button class="mini ghost" data-del="${i}" title="Remove">✕</button></div>`).join("");
   ROOT.innerHTML = `<div class="card"><div class="card-head"><div><h2>Board members</h2>
-    <div class="s">The list the event form picks from. Removing someone here doesn't change events already created.</div></div></div>
+    <div class="s">The list the event form picks from. A number stored here fills in by itself when that person is the lead on an event. Removing someone doesn't change events already created.</div></div></div>
     <div class="card-body"><div class="board">${rows || `<div class="empty">Nobody yet.</div>`}</div>
-      <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><button class="mini gold" id="rb-add">Add</button></div>
+      <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="ph-save">Save numbers</button></div>
+      <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><input id="rb-phone" type="tel" placeholder="Phone (optional)"><button class="mini gold" id="rb-add">Add</button></div>
     </div></div>`;
   const save = async (next) => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; rosterScreen(ROSTER); } catch (e) { toast(e.message); } };
+  // Numbers are saved in place — no re-render, so the cursor stays where you put it.
+  const savePhones = async () => {
+    const next = members.map((m, i) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${i}"]`)?.value.trim() ?? m.phone ?? "" }));
+    try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; members.splice(0, members.length, ...ROSTER); toast("Numbers saved."); }
+    catch (e) { toast(e.message); }
+  };
   ROOT.querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => { const m = members[+b.dataset.del]; if (confirm(`Remove ${m.name} from the list?`)) save(members.filter((_, i) => i !== +b.dataset.del)); }; });
+  const boxes = [...ROOT.querySelectorAll("[data-phone]")];
+  boxes.forEach((el, i) => {
+    el.oninput = () => formatPhoneInput(el);
+    // Enter (or Tab) drops to the next name, so a list can be filled in one pass.
+    el.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); (boxes[i + 1] ?? el).focus(); if (!boxes[i + 1]) savePhones(); } };
+  });
+  ROOT.querySelector("#ph-save").onclick = savePhones;
+  document.getElementById("rb-phone").oninput = (e) => formatPhoneInput(e.target);
   document.getElementById("rb-add").onclick = () => {
     const name = document.getElementById("rb-name").value.trim(), email = document.getElementById("rb-email").value.trim();
+    const phone = document.getElementById("rb-phone").value.trim();
     if (!name || !email) return toast("Name and email, please.");
-    save([...members, { name, email }]);
+    save([...members, { name, email, phone }]);
   };
 }
 
@@ -877,7 +930,7 @@ function reviewScreen(data) {
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>
         <dt>Headshot</dt><dd>${headshot ? `${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB)` : "<i>not uploaded</i>"}</dd>
-        <dt>Signed</dt><dd>${esc(s.signature)} · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
+        <dt>Signed</dt><dd><span class="script">${esc(s.signature)}</span> <span class="porg">(typed as “${esc(s.signature)}”)</span> · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
       </dl>
       <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${esc(s.bio)}</div></div>
       <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${esc(s.outline)}</div></div>`}
@@ -920,6 +973,7 @@ function reviewScreen(data) {
         <div class="field"><label for="r-role">Title / role</label><input id="r-role" value="${esc(sessionStorage.getItem("ongia-approver-role") ?? "")}" placeholder="President, ONGIA"></div>
       </div>
       <div class="sigbox" id="sigline">&nbsp;</div>
+      ${!ev.reviewer?.name && !ev.contact?.name ? `<div class="note">This event has no lead board member, so the PDF will show you as the ONGIA contact, reached through the speakers mailbox. To name someone else, edit the event and pick a lead first.</div>` : ""}
       <label class="attest"><input type="checkbox" id="r-attest"><span>My typed name is my electronic signature. Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button></div>
