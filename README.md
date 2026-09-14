@@ -21,9 +21,13 @@ presenter and filed to SharePoint.
    toggle on the form takes a pasted folder link/path or a Request-files link;
    a pasted link is accepted only if it is upload-only, and an app-made link is
    re-made if the folder is later moved. Deadlines are derived
-   from day one of training (agreement −90 days, draft materials −50, final
-   materials −30; weekends, statutory holidays and the Dec 24–Jan 1 shutdown
-   pull each one back to the previous working day).
+   from day one of training. ONGIA's defaults are agreement −90 days, draft
+   materials −50, final −30, and the event form lets each one be set per event:
+   a regional half-day does not need ninety days' notice. The dates redraw as the
+   numbers change, and the order is enforced (agreements before draft, draft
+   before final). Events saved before this use the defaults. Whatever the
+   numbers, weekends, statutory holidays and the Dec 24–Jan 1 shutdown pull each
+   date back to the previous working day.
 2. Coordinator adds presenters (name, email, organization). Each gets a unique
    link `/a/<token>` — no account, no password. "Email link" sends it.
 3. Presenter fills in the form (English or French — a switch in the top bar;

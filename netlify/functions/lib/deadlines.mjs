@@ -15,11 +15,37 @@
  * nobody reads costs a chase.
  */
 
+/**
+ * How far ahead each thing is wanted, in days before day one. These are the
+ * defaults for a full national event; a half-day regional session does not need
+ * ninety days' notice, so an event can carry its own.
+ */
 export const OFFSETS = {
   agreement: 90, // signed agreement back
   draft: 50, // draft materials for review
   final: 30, // final, production-ready materials
 };
+
+/** An event's offsets, falling back to the defaults for events saved without any. */
+export function offsetsOf(event) {
+  const o = event?.offsets ?? {};
+  const pick = (k) => (Number.isInteger(o[k]) && o[k] >= 1 && o[k] <= 365 ? o[k] : OFFSETS[k]);
+  return { agreement: pick("agreement"), draft: pick("draft"), final: pick("final") };
+}
+
+/**
+ * Refuse a set that would read as nonsense on the agreement, which tells the
+ * presenter to send draft materials for review and then a final version.
+ * Returns null when they are usable, or the sentence to show the coordinator.
+ */
+export function offsetsProblem(o) {
+  for (const [k, label] of [["agreement", "Agreements"], ["draft", "Draft materials"], ["final", "Final materials"]]) {
+    if (!Number.isInteger(o[k]) || o[k] < 1 || o[k] > 365) return `${label}: give a whole number of days between 1 and 365.`;
+  }
+  if (o.agreement < o.draft) return "Agreements have to be due before draft materials, so use a larger number of days.";
+  if (o.draft < o.final) return "Draft materials have to be due before final materials, so use a larger number of days.";
+  return null;
+}
 
 const SHUTDOWN_FROM = [12, 24]; // inclusive
 const SHUTDOWN_TO = [1, 1]; // inclusive
@@ -126,12 +152,13 @@ export function deadline(dayOne, daysBefore) {
   throw new Error("No working day found within 40 days — check the event date.");
 }
 
-/** All three deadlines for an event, derived from day one of the training. */
-export function deadlinesFor(dayOne) {
+/** All three deadlines for an event, derived from day one and its own offsets. */
+export function deadlinesFor(dayOne, offsets = OFFSETS) {
+  const o = { ...OFFSETS, ...(offsets ?? {}) };
   return {
-    agreement: deadline(dayOne, OFFSETS.agreement),
-    draft: deadline(dayOne, OFFSETS.draft),
-    final: deadline(dayOne, OFFSETS.final),
+    agreement: deadline(dayOne, o.agreement),
+    draft: deadline(dayOne, o.draft),
+    final: deadline(dayOne, o.final),
   };
 }
 
@@ -184,6 +211,7 @@ export function describeEvent(event) {
     travelWindow: travelWindow(event),
     dayOneReadable: formatDate(event.dayOne),
     lastDayReadable: formatDate(event.lastDay),
+    offsets: offsetsOf(event),
     deadlinesReadable: {
       agreement: formatDate(event.deadlines.agreement),
       draft: formatDate(event.deadlines.draft),

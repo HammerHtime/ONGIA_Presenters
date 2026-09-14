@@ -106,10 +106,17 @@
   .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
 
   .dates{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:14px}
-  .drow{background:var(--sunk);padding:11px 14px;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .drow{background:var(--sunk);padding:11px 14px;display:grid;grid-template-columns:1fr auto auto;
+    gap:10px 12px;align-items:center}
   .drow dt{font-size:13px;color:var(--muted)}
   .drow dt span{display:block;font-size:11.5px;color:var(--muted);opacity:.8}
-  .drow dd{margin:0;font-size:13.5px;font-weight:600;text-align:right}
+  .drow dd{margin:0;font-size:13.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .daysback{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .daysback input{width:68px;padding:6px 8px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+  @media (max-width:480px){
+    .drow{grid-template-columns:1fr auto}
+    .drow dd{grid-column:1/-1;text-align:left;font-size:15px}
+  }
 
   .note{margin-top:14px;background:var(--gold-pale);border:1px solid var(--gold);border-radius:14px;
         padding:12px 15px;font-size:13.5px;line-height:1.55;color:var(--ink-mid)}
@@ -436,7 +443,7 @@ function eventFormScreen(existing = null) {
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${ev ? "Edit event" : "New training event"}</h2>
-      <div class="s">${ev ? "Change anything below. Deadlines are recalculated from day one." : "Deadlines are worked out from day one of the training — you never type them."}</div></div></div>
+      <div class="s">${ev ? "Change anything below. The three deadlines are recalculated from day one." : "Set how far ahead each deadline falls; the dates are worked back from day one of the training."}</div></div></div>
     <div class="card-body">
       <div class="row2">
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
@@ -542,22 +549,62 @@ function eventFormScreen(existing = null) {
   const readBoard = () => [...boardEl.querySelectorAll(".member")].filter((r) => r.querySelector(".pick").checked)
     .map((r) => ({ name: r.dataset.name, email: r.dataset.email, phone: r.dataset.phone || "", lead: r.querySelector("input[type=radio]").checked }));
 
+  // How far ahead each thing is wanted. ONGIA's defaults suit a national event;
+  // a regional half-day can pull them in. The dates redraw as the numbers change.
+  const OFFSET_ROWS = [
+    ["agreement", "Agreements due back", "the signed agreement"],
+    ["draft", "Draft materials", "for the board to read"],
+    ["final", "Final materials", "production-ready, no more changes"],
+  ];
+  const offsets = { agreement: 90, draft: 50, final: 30, ...(ev?.offsets ?? {}) };
+  let deadlineRun = 0;
+
+  const drawDeadlines = (out, busy) => {
+    preview.innerHTML = `<dl class="dates">${OFFSET_ROWS.map(([k, label, sub]) => `
+      <div class="drow"><dt>${label}<span>${sub}</span></dt>
+        <label class="daysback"><input type="number" min="1" max="365" step="1" id="off-${k}" value="${offsets[k]}" aria-label="${label}: days before day one"> days before</label>
+        <dd>${busy ? "…" : esc(out?.readable?.[k] ?? "—")}</dd></div>`).join("")}
+    </dl>${out?.moved?.length ? `<div class="note">${out.moved.map(esc).join("<br>")}</div>` : ""}`;
+    for (const [k] of OFFSET_ROWS) {
+      const el = $(`off-${k}`);
+      el.oninput = () => { const n = Math.round(Number(el.value)); if (n >= 1 && n <= 365) { offsets[k] = n; showDeadlines(); } };
+    }
+  };
+
   const showDeadlines = async () => {
     showFolderHint();
-    if (!day1.value) { preview.innerHTML = ""; return; }
+    if (!day1.value) { drawDeadlines(null, false); return; }
     if (!last.value || last.value < day1.value) last.value = day1.value;
-    preview.innerHTML = `<p class="hint">Working out deadlines…</p>`;
+    const order = offsets.agreement < offsets.draft
+      ? "Agreements are due before draft materials, so use a larger number of days for them."
+      : offsets.draft < offsets.final
+        ? "Draft materials are due before final materials, so use a larger number of days for them."
+        : null;
+    const run = ++deadlineRun;
+    const focused = document.activeElement?.id;
+    drawDeadlines(null, true);
+    if (focused?.startsWith("off-")) $(focused)?.focus();
+    if (order) {
+      drawDeadlines(null, false);
+      preview.insertAdjacentHTML("beforeend", `<p class="hint" style="margin-top:8px;color:var(--late)">${esc(order)}</p>`);
+      if (focused?.startsWith("off-")) $(focused)?.focus();
+      return;
+    }
     try {
-      const out = await api(`/deadlines?dayOne=${day1.value}`);
-      preview.innerHTML = `<dl class="dates">
-        <div class="drow"><dt>Agreements due back<span>90 days before</span></dt><dd>${esc(out.readable.agreement)}</dd></div>
-        <div class="drow"><dt>Draft materials<span>50 days before</span></dt><dd>${esc(out.readable.draft)}</dd></div>
-        <div class="drow"><dt>Final materials<span>30 days before</span></dt><dd>${esc(out.readable.final)}</dd></div>
-      </dl>${out.moved.length ? `<div class="note">${out.moved.map(esc).join("<br>")}</div>` : ""}`;
-    } catch (e) { preview.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+      const q = OFFSET_ROWS.map(([k]) => `${k}=${offsets[k]}`).join("&");
+      const out = await api(`/deadlines?dayOne=${day1.value}&${q}`);
+      if (run !== deadlineRun) return;             // a later keystroke already won
+      drawDeadlines(out, false);
+      if (focused?.startsWith("off-")) $(focused)?.focus();
+    } catch (e) {
+      if (run !== deadlineRun) return;
+      drawDeadlines(null, false);
+      preview.insertAdjacentHTML("beforeend", `<div class="bad" style="margin-top:8px">${esc(e.message)}</div>`);
+      if (focused?.startsWith("off-")) $(focused)?.focus();
+    }
   };
   day1.onchange = showDeadlines;
-  if (ev) showDeadlines(); else showFolderHint();
+  showDeadlines();
   showLeadPhone();
 
   $("create").onclick = async (e) => {
@@ -567,6 +614,7 @@ function eventFormScreen(existing = null) {
     const body = {
       title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
       dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
+      offsets,
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
     };
@@ -740,6 +788,7 @@ function eventScreen(data) {
   const upcoming = overdue[0] ?? nextDl.find((x) => x.d >= 0) ?? nextDl.at(-1);
   const blockers = blockersOf(ev);
   const sendFailed = presenters.filter((p) => p.lastSendError);
+  const off = { agreement: 90, draft: 50, final: 30, ...(ev.offsets ?? {}) };
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
@@ -759,8 +808,8 @@ function eventScreen(data) {
     </div>
     <div class="card-body">
       <dl class="kv" style="margin:0 0 14px">
-        <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))}</dd>
-        <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} · ${esc(fmtDate(ev.deadlines?.final))}</dd>
+        <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))} <span class="porg">${off.agreement} days before day one</span></dd>
+        <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} <span class="porg">${off.draft} days</span> · ${esc(fmtDate(ev.deadlines?.final))} <span class="porg">${off.final} days</span></dd>
       </dl>
       ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>

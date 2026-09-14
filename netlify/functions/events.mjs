@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
-import { deadlinesFor, formatDate } from "./lib/deadlines.mjs";
+import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
@@ -67,6 +67,19 @@ async function applyDetails(event, body, { creating = false } = {}) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayOne)) return "Day one must be a date, as YYYY-MM-DD.";
   const lastDay = /^\d{4}-\d{2}-\d{2}$/.test(text(body.lastDay, 10)) ? text(body.lastDay, 10) : dayOne;
   if (lastDay < dayOne) return "The event cannot end before it starts.";
+
+  // How far ahead this event wants each thing. A regional half-day does not need
+  // the ninety days a national summit does, so the numbers travel with the event.
+  const num = (v, fallback) => (v === undefined || v === null || v === "" ? fallback : Math.round(Number(v)));
+  const current = offsetsOf(event);
+  const offsets = {
+    agreement: num(body.offsets?.agreement, current.agreement),
+    draft: num(body.offsets?.draft, current.draft),
+    final: num(body.offsets?.final, current.final),
+  };
+  const offsetTrouble = offsetsProblem(offsets);
+  if (offsetTrouble) return offsetTrouble;
+
   const before = { folder: event.sharePointFolder ?? "", link: event.materialsUploadUrl ?? "", appMade: !!event.materialsLinkCheck?.createdByApp };
 
   Object.assign(event, {
@@ -76,8 +89,9 @@ async function applyDetails(event, body, { creating = false } = {}) {
     dayOne,
     lastDay,
     sessionMinutes: Number(body.sessionMinutes) || event.sessionMinutes || 70,
-    // Derived, never typed. Change a training date and all three move with it.
-    deadlines: deadlinesFor(dayOne),
+    offsets,
+    // Derived, never typed. Change a training date or an offset and all three move.
+    deadlines: deadlinesFor(dayOne, offsets),
     contact: { name: "", email: "", phone: "" },
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
