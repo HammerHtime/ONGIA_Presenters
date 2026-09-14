@@ -89,15 +89,43 @@ async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments
 
 /** The person replies should reach: the event's lead board member, else the ONGIA contact. */
 export function coordinatorOf(event) {
-  if (event?.reviewer?.email) return { name: event.reviewer.name || event.reviewer.email, email: event.reviewer.email };
-  if (event?.contact?.email || event?.contact?.name) return { name: event.contact.name || event.contact.email, email: event.contact.email || "" };
-  return { name: "ONGIA", email: "" };
+  const phone = event?.reviewer?.phone || event?.contact?.phone || "";
+  if (event?.reviewer?.email) return { name: event.reviewer.name || event.reviewer.email, email: event.reviewer.email, phone };
+  if (event?.contact?.email || event?.contact?.name) return { name: event.contact.name || event.contact.email, email: event.contact.email || "", phone };
+  return { name: "ONGIA", email: "", phone: "" };
+}
+
+/**
+ * Who the presenter is actually dealing with, at the foot of every message: the
+ * event's lead board member, by name, address and number. Replies already go to
+ * them (every send sets reply-to), and this says so.
+ */
+function signatureBlock(contact, event, lang = "en") {
+  if (!contact?.name) return "";
+  const bits = [];
+  if (contact.email) bits.push(`<a href="mailto:${esc(contact.email)}" style="color:#1a2f5e">${esc(contact.email)}</a>`);
+  if (contact.phone) bits.push(`<a href="tel:${esc(String(contact.phone).replace(/[^\d+x]/gi, ""))}" style="color:#1a2f5e;text-decoration:none">${esc(contact.phone)}</a>`);
+  const replies = {
+    en: `Replies to this email go straight to ${esc(contact.name)}.`,
+    fr: `Les réponses à ce courriel sont acheminées directement à ${esc(contact.name)}.`,
+  };
+  const role = {
+    en: `ONGIA${event?.title ? ` — lead for ${esc(event.title)}` : ""}`,
+    fr: `ONGIA${event?.title ? ` — responsable de ${esc(event.title)}` : ""}`,
+  };
+  const langs = lang === "both" ? ["en", "fr"] : [lang];
+  return `<div style="margin:24px 0 0;padding-top:15px;border-top:1px solid #ddd7c8;font-size:13px;color:#4a5563;line-height:1.6">
+    <div style="font-weight:700;color:#12161f;font-size:14px">${esc(contact.name)}</div>
+    <div>${role[langs[0]]}</div>
+    ${bits.length ? `<div>${bits.join(" &middot; ")}</div>` : ""}
+    ${langs.map((l) => `<div style="margin-top:6px;color:#767f92">${replies[l]}</div>`).join("")}
+  </div>`;
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
-export function layout({ heading, lines, button, buttons = [], footer }) {
+export function layout({ heading, lines, button, buttons = [], footer, contact, event, lang = "en" }) {
   const paras = lines.map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
   // The primary button keeps its raw URL underneath for mail clients that strip
   // buttons; secondary ones (file uploads) are just a button — the address is
@@ -122,12 +150,14 @@ export function layout({ heading, lines, button, buttons = [], footer }) {
       <h1 style="font-size:22px;margin:0 0 16px;color:#1a2f5e">${esc(heading)}</h1>
       ${paras}${cta}${extra}
       ${footer ? `<p style="margin:20px 0 0;font-size:13px;color:#767f92;line-height:1.5">${footer}</p>` : ""}
+      ${contact ? signatureBlock(contact, event, lang) : ""}
     </div>
   </div></body></html>`;
 }
 
-const plain = (heading, lines, href) =>
-  [heading, "", ...lines.map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : ""].join("\n");
+const plain = (heading, lines, href, contact) =>
+  [heading, "", ...lines.map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : "",
+    contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : ""].join("\n");
 
 /**
  * The message a presenter gets with their link — and, with `remind`, the chase-up.
@@ -159,11 +189,11 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
     `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.`,
     `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`,
   ];
-  const footer = `Questions? Reply to this email to reach ${esc(coordinatorOf(event).name)}. / Des questions? Répondez à ce courriel pour joindre ${esc(coordinatorOf(event).name)}.`;
   return {
     subject: heading,
-    html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link }, footer }),
-    text: plain(heading, lines, link),
+    html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link },
+      contact: coordinatorOf(event), event, lang: "both" }),
+    text: plain(heading, lines, link, coordinatorOf(event)),
   };
 }
 
@@ -188,7 +218,8 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
       `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
       `Référence ${esc(presenter.reference)}.`,
     ];
-    return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, footer: `Répondez à ce courriel pour joindre ${esc(coordinatorOf(event).name)}.` }), text: plain(heading, lines, event.materialsUploadUrl) };
+    return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, contact: coordinatorOf(event), event, lang: "fr" }),
+      text: plain(heading, lines, event.materialsUploadUrl, coordinatorOf(event)) };
   }
   const heading = `Your signed presenter agreement — ${event.title}`;
   const covered = coverage.length ? coverage.join(", ") : "no costs (your agency is covering them)";
@@ -202,8 +233,8 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
   ];
   return {
     subject: heading,
-    html: layout({ heading, lines, buttons: uploadBtn, footer: `Reply to this email to reach ${esc(coordinatorOf(event).name)}.` }),
-    text: plain(heading, lines, event.materialsUploadUrl),
+    html: layout({ heading, lines, buttons: uploadBtn, contact: coordinatorOf(event), event }),
+    text: plain(heading, lines, event.materialsUploadUrl, coordinatorOf(event)),
   };
 }
 
@@ -219,8 +250,8 @@ export function reviewNeededMail({ event, presenter, adminUrl }) {
   ];
   return {
     subject: heading,
-    html: layout({ heading, lines, button: { label: "Open the review", href: adminUrl } }),
-    text: plain(heading, lines, adminUrl),
+    html: layout({ heading, lines, button: { label: "Open the review", href: adminUrl }, contact: coordinatorOf(event), event }),
+    text: plain(heading, lines, adminUrl, coordinatorOf(event)),
   };
 }
 
@@ -233,7 +264,7 @@ export function approvedNoticeMail({ event, presenter, approval, coverage, filin
       ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
       : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,
   ];
-  return { subject: heading, html: layout({ heading, lines }), text: plain(heading, lines) };
+  return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };
 }
 
 /** When a board member sends an agreement back for changes. */
@@ -246,7 +277,8 @@ export function returnedMail({ event, presenter, link, note }) {
       `<i>${esc(note)}</i>`,
       `Vos réponses sont conservées — ouvrez le lien, apportez la correction et signez de nouveau.`,
     ];
-    return { subject: heading, html: layout({ heading, lines, button: { label: "Mettre à jour mon entente", href: link } }), text: plain(heading, lines, link) };
+    return { subject: heading, html: layout({ heading, lines, button: { label: "Mettre à jour mon entente", href: link }, contact: coordinatorOf(event), event, lang: "fr" }),
+      text: plain(heading, lines, link, coordinatorOf(event)) };
   }
   const heading = `A change is needed on your presenter agreement — ${event.title}`;
   const lines = [
@@ -257,8 +289,8 @@ export function returnedMail({ event, presenter, link, note }) {
   ];
   return {
     subject: heading,
-    html: layout({ heading, lines, button: { label: "Update my agreement", href: link } }),
-    text: plain(heading, lines, link),
+    html: layout({ heading, lines, button: { label: "Update my agreement", href: link }, contact: coordinatorOf(event), event }),
+    text: plain(heading, lines, link, coordinatorOf(event)),
   };
 }
 

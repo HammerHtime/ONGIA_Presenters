@@ -110,7 +110,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
                 ? [`Bonjour ${esc(p.first)},`, `Un rappel amical : votre ${labelFr.toLowerCase()} pour <b>${esc(event.title)}</b> est attendue le <b>${due}</b>${off > 0 ? " et nous ne l'avons pas encore reçue" : ""}.`, `Le bouton ci-dessous ouvre le dossier de dépôt d'ONGIA — déposez-y vos fichiers, rien d'autre à faire.`]
                 : [`Hello ${esc(p.first)},`, `A friendly reminder: your ${label.toLowerCase()} for <b>${esc(event.title)}</b> ${off > 0 ? "were due" : "are due"} <b>${due}</b>${off > 0 ? " and haven't arrived yet" : ""}.`, `The button below opens ONGIA's drop folder for this event — add your files there and you're done.`];
               const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, subject: heading, text: heading,
-                html: layout({ heading, lines, buttons: [{ href: event.materialsUploadUrl, label: fr ? "Téléverser le matériel" : "Upload Material" }] }) });
+                html: layout({ heading, lines, buttons: [{ href: event.materialsUploadUrl, label: fr ? "Téléverser le matériel" : "Upload Material" }],
+                  contact: coordinatorOf(event), event, lang: fr ? "fr" : "en" }) });
               if (out.skipped) throw new Error(out.reason);
               p.mail = [...(p.mail ?? []), { type: `materials-${key}`, at: new Date().toISOString(), id: out.id }];
               await putPresenter(p);
@@ -166,7 +167,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
             lines.push(`<ul>${neverSent.map((p) => `<li>${esc(p.first)} ${esc(p.last)}${p.organization ? ` — ${esc(p.organization)}` : ""}${p.lastSendError ? ` — last attempt failed: ${esc(p.lastSendError.why)}` : ""}</li>`).join("")}</ul>`);
             lines.push(`Open the event and use <b>Email link</b> to send theirs.`);
           }
-          const out = await sendMail({ to: recipients, subject: heading, html: layout({ heading, lines, button: { label: "Open the event", href: `${origin}/admin.html` } }), text: heading });
+          const out = await sendMail({ to: recipients, subject: heading,
+            html: layout({ heading, lines, button: { label: "Open the event", href: `${origin}/admin.html` }, contact: coordinatorOf(event), event }), text: heading });
           if (out.skipped) throw new Error(out.reason);
           event.lastBoardDigest = today;
           await putEvent(event);
