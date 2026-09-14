@@ -225,6 +225,8 @@ en: {
   presentingAt: (t) => `You're presenting at ${t}`,
   hello: (f) => `Hello ${f}. Everything below is already set by ONGIA. Read it over, then five short steps.`,
   submittedNote: (d) => `You submitted this on ${d}. You can change anything and sign again.`,
+  restored: "Picked up where you left off — your answers are still here.",
+  keepsHere: "You can close this and come back later on the same phone. Your answers stay on this device until you send them.",
   hotelFirst: "Answer the hotel question above first.", otherNeeded: "Tell us what the other cost is.",
   finalWord: "Final", boardWillSee: "ONGIA will pick this up shortly", pageTitle: "ONGIA Presenter Agreement",
   errInvalidLink: "This link isn't valid. Check it came from ONGIA, or ask us for a new one.",
@@ -301,6 +303,8 @@ fr: {
   presentingAt: (t) => `Vous présentez à ${t}`,
   hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA. Lisez-les, puis suivez cinq courtes étapes.`,
   submittedNote: (d) => `Vous avez envoyé ce formulaire le ${d}. Vous pouvez modifier vos réponses et signer de nouveau.`,
+  restored: "Nous avons repris là où vous vous étiez arrêté — vos réponses sont toujours là.",
+  keepsHere: "Vous pouvez fermer cette page et y revenir plus tard sur le même téléphone. Vos réponses restent sur cet appareil jusqu'à l'envoi.",
   hotelFirst: "Répondez d'abord à la question sur l'hôtel ci-dessus.", otherNeeded: "Précisez de quels autres frais il s'agit.",
   finalWord: "Définitive", boardWillSee: "ONGIA en prendra connaissance sous peu", pageTitle: "Entente de conférencier ONGIA",
   errInvalidLink: "Ce lien n'est pas valide. Vérifiez qu'il provient bien d'ONGIA ou demandez-nous un nouveau lien.",
@@ -380,6 +384,37 @@ LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
 
 const LAST_STEP = 5;
 let DATA = null, DONE = null;
+
+/**
+ * A biography is 250 words typed with thumbs. Phones discard background tabs,
+ * and the form only reaches the server when it is signed, so answers are kept
+ * on the device as they are typed and restored on the way back in.
+ * Keyed by the link's token: a shared tablet never shows one presenter's
+ * answers to another. Cleared the moment the agreement is sent.
+ */
+const DRAFT_KEY = `ongia-draft-${TOKEN}`;
+const DRAFT_FIELDS = ["step", "first", "last", "email", "phone", "organization", "talk", "bio", "outline",
+  "travel", "travelFrom", "travelTo", "hotel", "hotelFrom", "hotelTo", "expenses",
+  "copyright", "goodStanding", "media", "signature", "agreed"];
+let restoredNote = false;
+
+function saveDraft() {
+  if (!DATA || DATA.presenter.status === "approved") return;
+  try {
+    const keep = { savedAt: new Date().toISOString() };
+    for (const k of DRAFT_FIELDS) keep[k] = S[k];
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(keep));
+  } catch { /* private window, or no room: the form still works */ }
+}
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d === "object" ? d : null;
+  } catch { return null; }
+}
 let sending = false;
 const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
@@ -521,6 +556,7 @@ function stepMarkup() {
 
     case 1: return `<div class="card"><h2>${t("titles")[1]}</h2>
       <p class="lede">${t("introduced")}</p>
+      <p class="hint" style="margin:-6px 0 2px">${t("keepsHere")}</p>
       <div class="row2">
         <div class="field"><label for="f-first">${t("first")}</label><input id="f-first" type="text" data-bind="first" value="${esc(S.first)}" autocomplete="given-name"></div>
         <div class="field"><label for="f-last">${t("last")}</label><input id="f-last" type="text" data-bind="last" value="${esc(S.last)}" autocomplete="family-name"></div>
@@ -670,6 +706,8 @@ function render(done) {
         ${sending ? t("sending") : S.step === LAST_STEP ? t("submit") : t("cont")}</button></div>`;
 
   const keep = lastStep === S.step ? window.scrollY : null;
+  const restored = restoredNote
+    ? `<div class="flag" style="margin:0 0 14px"><span>💾</span><div><p style="margin:0">${t("restored")}</p></div></div>` : "";
   const banner = DATA.presenter.returnNote
     ? `<div class="returned" role="status"><b>${t("returnedTitle")}</b><p>${esc(DATA.presenter.returnNote)}</p>
         <p style="font-size:13px">${t("returnedHint")}</p>
@@ -677,7 +715,7 @@ function render(done) {
     : DATA.presenter.status === "submitted" && DATA.presenter.submittedAt
       ? `<div class="flag" style="margin:0 0 14px"><span>✓</span><div><p style="margin:0">${t("submittedNote", esc(fmtDate(toISO(new Date(DATA.presenter.submittedAt)))))}</p></div></div>` : "";
   const focusId = document.activeElement?.id;
-  ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${banner}${stepMarkup()}${problems}${nav}</div>`;
+  ROOT.innerHTML = `<div class="wrap"><div class="steps">${bars}</div>${restored}${banner}${stepMarkup()}${problems}${nav}</div>`;
   // Re-rendering replaces the DOM; put keyboard focus back where it was.
   if (focusId) { const again = document.getElementById(focusId); if (again) again.focus({ preventScroll: true }); }
   STEPCOUNT.textContent = t("stepOf", S.step + 1);
@@ -697,6 +735,7 @@ function render(done) {
   else if (keep !== null) window.scrollTo(0, keep);
   else window.scrollTo(0, 0);
   lastStep = S.step;
+  saveDraft();
 
   if (S.openCal) {
     const cal = ROOT.querySelector(".cal");
@@ -794,7 +833,7 @@ async function submit() {
       body: JSON.stringify({ ...S, headshotName: S.headshotName, language: LANG }),
     });
     const out = await res.json();
-    if (res.ok) { out.headshotWarning = await uploadHeadshot(); sending = false; render(out); return; }
+    if (res.ok) { clearDraft(); out.headshotWarning = await uploadHeadshot(); sending = false; render(out); return; }
     sending = false;
     S.problems = out.problems ?? [serverText(out.error)];
     render();
@@ -807,6 +846,8 @@ async function submit() {
 
 /* ---------- events ---------- */
 ROOT.addEventListener("click", (e) => {
+  // Any deliberate action means they have seen the "picked up where you left off" note.
+  if (e.target.closest("button, [data-set], .attest, .upload")) restoredNote = false;
   const set = e.target.closest("[data-set]");
   if (set) {
     const path = set.dataset.path;
@@ -851,8 +892,9 @@ ROOT.addEventListener("click", (e) => {
     (el?.matches?.("input, textarea, button") ? el : block?.querySelector("input, textarea, button"))?.focus({ preventScroll: true });
     return;
   }
-  if (e.target.id === "returned-go") { S.step = returnStep(); S.problems = []; render(); return; }
+  if (e.target.id === "returned-go") { restoredNote = false; S.step = returnStep(); S.problems = []; render(); return; }
   if (e.target.id === "next") {
+    restoredNote = false;
     const problems = validate();
     if (problems.length) { S.problems = problems; render(); return; }
     S.problems = [];
@@ -862,6 +904,7 @@ ROOT.addEventListener("click", (e) => {
 });
 
 ROOT.addEventListener("input", (e) => {
+  restoredNote = false;
   const t0 = e.target;
   if (t0.id === "f-shot") {
     FILE = t0.files?.[0] ?? null;
@@ -936,6 +979,22 @@ document.addEventListener("keydown", (e) => {
         copyright: !!d.copyright, goodStanding: !!d.goodStanding, media: d.media ?? S.media,
         signature: d.signature ?? "", headshotName: d.headshotName ?? "",
       });
+    }
+
+    // Unsent answers held on this device win, unless the record on the server is
+    // newer — which means they signed somewhere else since this draft was saved.
+    const local = loadDraft();
+    const serverAt = out.presenter.submittedAt ?? out.presenter.review?.returnedAt ?? null;
+    if (local && (!serverAt || !local.savedAt || local.savedAt > serverAt)) {
+      for (const k of DRAFT_FIELDS) if (local[k] !== undefined) S[k] = local[k];
+      S.expenses = { transport: null, hotel: null, meals: null, other: null, otherText: "", ...(local.expenses ?? {}) };
+      S.step = Math.min(Math.max(Number(local.step) || 0, 0), LAST_STEP);
+      S.problems = [];
+      // The chosen headshot file cannot be kept, so never claim one is attached.
+      S.headshotName = out.draft?.headshotName ?? "";
+      restoredNote = S.step > 0 || !!String(S.talk || S.bio || S.signature).trim();
+    } else if (local) {
+      clearDraft();
     }
     render();
   } catch {

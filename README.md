@@ -89,3 +89,14 @@ face (Great Vibes, SIL Open Font Licence — `public/assets/fonts/OFL-GreatVibes
 on the signature line, with the plain typed name printed beside it so the
 signature is always legible. The PDF falls back to an italic face if the font
 file is missing from the bundle.
+
+## Unsent answers
+
+The presenter form keeps answers in the browser's local storage as they are
+typed, under `ongia-draft-<token>`, and restores them on the way back in. Phones
+discard background tabs and the form only reaches the server when it is signed,
+so without this a 250-word biography is lost on a tab switch. The copy is keyed
+by the link's token, so a shared device never shows one presenter's answers to
+another, and it is deleted the moment the agreement is sent. A record on the
+server that is newer than the device copy wins, which covers signing on a second
+device.
