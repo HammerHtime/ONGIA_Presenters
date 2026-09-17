@@ -61,7 +61,7 @@ const fmt = (v) => (v ? formatDate(v) : "");
 const yes = (v) => v === "yes";
 
 /** Build the PDF and resolve to a Buffer. */
-export async function buildAgreementPdf({ event, presenter, approval }) {
+export async function buildAgreementPdf({ event, presenter, approval, headshot }) {
   const { banner, band } = await assets();
   const s = presenter.submission;
   const review = presenter.review ?? { ongiaCovers: {} };
@@ -98,7 +98,11 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
     ["Time Slot:", presenter.timeSlot || "To be confirmed", 110],
   ]);
 
+  // The presenter's own photo sits beside their details, the way it does on the
+  // programme. The rows narrow while it is there so nothing runs underneath it.
+  const photoTop = p.y + 3;
   p.heading("PRESENTER INFORMATION");
+  if (headshot?.bytes?.byteLength) p.photo(headshot.bytes, { top: photoTop, w: 84, h: 104 });
   p.kvRow([
     ["Name:", `${presenter.first} ${presenter.last}`, 160],
     ["Contact #:", s.phone || "—", 110],
@@ -110,6 +114,7 @@ export async function buildAgreementPdf({ event, presenter, approval }) {
   p.gap(4);
   p.label("Biography (250–300 words)", true);
   p.label("(This biography may be used to introduce you at the ONGIA event)");
+  p.clearPhoto();
   p.box(s.bio);
 
   p.heading("PRESENTATION INFORMATION");
@@ -287,9 +292,45 @@ class Painter {
     this.y = 0;
     this.page = 1;
     this.script = false;
+    this.inset = 0;        // right margin reserved by a floated photo
+    this.photoBottom = 0;
   }
 
   gap(n) { this.y += n; }
+
+  /** Usable width, narrowed while something floats in the right margin. */
+  bodyW() { return BODY_W - this.inset; }
+
+  /**
+   * The presenter's headshot, floated into the right margin from `top`. Rows
+   * drawn after this are narrowed until clearPhoto(). A picture that pdfkit
+   * cannot read is skipped: an unreadable upload must not cost them the PDF.
+   */
+  photo(bytes, { top, w = 84, h = 104 } = {}) {
+    const doc = this.doc;
+    const x = MARGIN + BODY_W - w;
+    if (top + h > BOTTOM) return;
+    try {
+      doc.save();
+      doc.rect(x, top, w, h).clip();
+      doc.image(bytes, x, top, { cover: [w, h], align: "center", valign: "center" });
+      doc.restore();
+    } catch {
+      doc.restore();
+      return;
+    }
+    doc.rect(x, top, w, h).lineWidth(0.8).strokeColor(RULE).stroke();
+    this.inset = w + 16;
+    this.photoBottom = top + h;
+  }
+
+  /** Stop reserving the right margin, and clear the photo vertically. */
+  clearPhoto() {
+    if (!this.inset) return;
+    this.inset = 0;
+    this.y = Math.max(this.y, this.photoBottom + 8);
+    this.photoBottom = 0;
+  }
 
   /** Room left above the footer band on this page. */
   room() { return BOTTOM - this.y; }
@@ -318,7 +359,7 @@ class Painter {
   label(text, bold = false, color = INK) {
     this.ensure(24);
     this.doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(8.7).fillColor(color)
-      .text(text, MARGIN, this.y, { width: BODY_W });
+      .text(text, MARGIN, this.y, { width: this.bodyW() });
     this.y += 12;
   }
 
@@ -362,7 +403,7 @@ class Painter {
     const doc = this.doc;
     this.ensure(15);
     let x = MARGIN;
-    const colW = BODY_W / pairs.length;
+    const colW = this.bodyW() / pairs.length;
     for (const [label, value, valueW, boldLabel = false, color = INK] of pairs) {
       doc.font(boldLabel ? "Helvetica-Bold" : "Helvetica").fontSize(8.7).fillColor(color);
       doc.text(label, x, this.y, { lineBreak: false });

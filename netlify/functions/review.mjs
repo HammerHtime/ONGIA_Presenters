@@ -101,7 +101,8 @@ async function approve(event, presenter, body, origin) {
   await putPresenter(presenter);
 
   const approval = { name: approverName, role: approverRole, approvedAt: now };
-  const pdf = await buildAgreementPdf({ event, presenter, approval });
+  const shot = await getHeadshot(event.id, presenter.id).catch(() => null);
+  const pdf = await buildAgreementPdf({ event, presenter, approval, headshot: shot });
   await putPdf(`${event.id}:${presenter.id}`, pdf);
 
   presenter.delivery = {};
@@ -141,7 +142,8 @@ async function redeliver(event, presenter, body, origin) {
   let pdf = await getPdf(`${event.id}:${presenter.id}`).then((b) => (b ? Buffer.from(b) : null));
   if (!pdf) {
     const approval = { ...(presenter.review?.approver ?? { name: "ONGIA", role: "" }), approvedAt: presenter.review?.approvedAt ?? presenter.approvedAt };
-    pdf = await buildAgreementPdf({ event, presenter, approval });
+    const shot = await getHeadshot(event.id, presenter.id).catch(() => null);
+    pdf = await buildAgreementPdf({ event, presenter, approval, headshot: shot });
     await putPdf(`${event.id}:${presenter.id}`, pdf);
   }
 

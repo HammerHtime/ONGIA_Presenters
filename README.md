@@ -36,7 +36,10 @@ presenter and filed to SharePoint.
    signs by typing their name.
 4. A board member opens **Review**, ticks what **ONGIA** covers, signs.
    Only then is the final PDF generated, emailed to the presenter, filed to
-   `<event folder>/Presenter Agreements/<First Last> <year>/<Last>_Presenter Agreement.pdf` (plus the
+   `<event folder>/Presenter Agreements/<First Last> <year>/<Last>_Presenter Agreement.pdf`,
+   with their headshot beside it as `<Last>_Headshot.jpg`. The headshot is also
+   embedded in the PDF, beside the presenter's details on page one; an image
+   pdfkit cannot read is skipped rather than costing them the document (plus the
    headshot) and the board notified.
 
 ## Reminders
