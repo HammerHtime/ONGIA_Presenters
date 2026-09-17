@@ -1204,7 +1204,10 @@ function reviewScreen(data) {
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>
-        <dt>Headshot</dt><dd>${headshot ? `${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB)` : "<i>not uploaded</i>"}</dd>
+        <dt>Headshot</dt><dd>${headshot
+          ? `<img id="shot-img" alt="" style="display:block;width:96px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:var(--sunk);margin-bottom:6px">
+             <span class="porg">${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB) — this appears on the agreement</span>`
+          : "<i>not uploaded — the agreement will have no photo</i>"}</dd>
         <dt>Signed</dt><dd><span class="script">${esc(s.signature)}</span> <span class="porg">(typed as “${esc(s.signature)}”)</span> · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
       </dl>
       <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${esc(s.bio)}</div></div>
@@ -1266,6 +1269,15 @@ function reviewScreen(data) {
 
   ROOT.innerHTML = submission + (s.talk || approved ? decision : "");
   if (!s.talk && !approved) return;
+
+  // An <img src> cannot carry the admin header, so fetch it and hand over a blob.
+  const shotImg = document.getElementById("shot-img");
+  if (shotImg) {
+    fetch(`/api/headshot?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { headers: { "x-admin-key": KEY } })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error("no image"))))
+      .then((blob) => { shotImg.src = URL.createObjectURL(blob); })
+      .catch(() => { shotImg.remove(); });
+  }
 
   if (approved) {
     document.getElementById("pdf").onclick = () => openPdf(ev.id, p.id);
