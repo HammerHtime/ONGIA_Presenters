@@ -134,3 +134,15 @@ Rows say how hard the desk has chased and when the next automatic reminder goes
 out. **Called them** logs a phone call and pauses reminders for a week, since
 after four emails a call is what works. Navy means waiting on ONGIA, amber
 waiting on the presenter, so the two read differently in greyscale.
+
+## Headshots
+
+A photo straight off a phone is often 3–20 MB, and the upload refuses anything
+over 5 MB, so presenters were being turned away at the last step. The form now
+re-sizes the picture in the browser and offers it at a few sizes with the real
+file size of each, the way a phone's own share sheet does: Small (640px long
+edge), Medium (1280px) and Original, with Original disabled and marked when it
+is over the limit. The largest size that will actually send is chosen for them,
+and a thumbnail shows what they picked. Nothing leaves the device until they
+sign. The image is drawn through a canvas, so EXIF rotation is applied and the
+result is always a baseline JPEG.

@@ -136,6 +136,19 @@
   .upload .s{font-size:12.5px;color:#5c6577;margin-top:3px}
   .upload input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
   .upload:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  /* Pick a size the way a phone's share sheet does, with the real file size. */
+  .sizes{margin-top:10px}
+  .sizes .lab{font-size:12.5px;color:var(--ink-mid);margin-bottom:6px}
+  .sizes .row{display:flex;gap:8px;flex-wrap:wrap}
+  .sizes button{flex:1 1 150px;min-height:56px;text-align:left;padding:9px 13px;border-radius:13px;cursor:pointer;
+    border:1.5px solid var(--border);background:var(--sunk);color:var(--ink);font:inherit;font-size:14px;font-weight:600}
+  .sizes button span{display:block;font-weight:400;font-size:12px;color:#5c6577;margin-top:2px;
+    font-variant-numeric:tabular-nums}
+  .sizes button[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
+  .sizes button[aria-pressed="true"] span{color:rgba(255,255,255,.75)}
+  .sizes button[disabled]{opacity:.5;cursor:not-allowed}
+  .upload .thumb{width:74px;height:92px;object-fit:cover;border-radius:10px;display:block;margin:0 auto 6px;
+    border:1px solid var(--border);background:#fff}
 
   @font-face{font-family:"Signature";src:url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype");font-display:swap}
   .sig{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:15px}
@@ -259,6 +272,10 @@ en: {
   photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
   lastStep: (d) => `Last step. Due back by ${d}.`, addHeadshot: "Add your headshot", tapReplace: "Tap to replace",
   headshotHint: ".png or .jpeg — used to introduce you and on ongia.ca", typeName: "Type your full name to sign", eSig: "Electronic signature",
+  shotReady: "Getting it ready…", shotSend: "Send at",
+  sizeSmall: "Small", sizeMedium: "Medium", sizeOriginal: "Original",
+  shotTooBig: "too big to send", shotUnreadable: "That image couldn't be read. Try another photo.",
+  shotPicked: (label, size) => `${label} · ${size}`,
   standing: "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
   agreed: "This typed name is my electronic signature, and the information above is accurate.",
   doneTitle: "Thank you — that's submitted", doneP: "ONGIA has your agreement. One more step happens on our side before it's final.",
@@ -337,6 +354,10 @@ fr: {
   photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
   lastStep: (d) => `Dernière étape. À retourner d'ici le ${d}.`, addHeadshot: "Ajoutez votre photo portrait", tapReplace: "Touchez pour remplacer",
   headshotHint: ".png ou .jpeg — pour vous présenter et pour le site ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
+  shotReady: "Préparation…", shotSend: "Envoyer en",
+  sizeSmall: "Petit", sizeMedium: "Moyen", sizeOriginal: "Taille réelle",
+  shotTooBig: "trop volumineux", shotUnreadable: "Impossible de lire cette image. Essayez une autre photo.",
+  shotPicked: (label, size) => `${label} · ${size}`,
   standing: "Je confirme être actuellement en règle auprès de mon organisation et ne faire l'objet d'aucune procédure disciplinaire ni d'aucune enquête, de quelque nature que ce soit.",
   agreed: "Ce nom tapé constitue ma signature électronique et les renseignements ci-dessus sont exacts.",
   doneTitle: "Merci — c'est envoyé", doneP: "ONGIA a reçu votre entente. Il reste une étape de notre côté avant qu'elle soit définitive.",
@@ -632,10 +653,11 @@ function stepMarkup() {
     case 5: return `<div class="card"><h2>${t("titles")[5]}</h2>
       <p class="lede">${t("lastStep", esc(fmtDate(dl.agreement)))}</p>
       <label class="upload" for="f-shot" tabindex="0" role="button" id="shot-tile">
-        <div class="big">${S.headshotName ? "✅" : "📷"}</div>
+        ${SHOT?.previewUrl ? `<img class="thumb" src="${SHOT.previewUrl}" alt="">` : `<div class="big">${S.headshotName ? "✅" : "📷"}</div>`}
         <div class="t">${S.headshotName ? esc(S.headshotName) : t("addHeadshot")}</div>
         <div class="s">${S.headshotName ? t("tapReplace") : t("headshotHint")}</div>
         <input id="f-shot" type="file" accept="image/png,image/jpeg" tabindex="-1"></label>
+      ${sizePicker()}
       <div class="field"><label for="f-sign">${t("typeName")}</label>
         <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
       <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
@@ -807,10 +829,99 @@ function validate() {
 }
 
 let FILE = null;
+/**
+ * A photo straight off a phone is often 3–6 MB, which used to be rejected
+ * outright. Instead the picture is re-sized here, in the browser, and offered
+ * at a few sizes with the real file size of each — the way a phone's own share
+ * sheet does it. Nothing leaves the device until they pick one and sign.
+ */
+let SHOT = null;   // { name, choice, variants: [{ key, label, w, h, blob, size, tooBig }] }
+const SHOT_LIMIT = 5 * 1024 * 1024;
+
+const prettyBytes = (n) => n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+
+async function decodeImage(file) {
+  if (window.createImageBitmap) {
+    try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch {}
+    try { return await createImageBitmap(file); } catch {}
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("decode"));
+      img.src = url;
+    });
+  } finally { setTimeout(() => URL.revokeObjectURL(url), 10000); }
+}
+
+async function shrink(bmp, longEdge) {
+  const src = Math.max(bmp.width || bmp.naturalWidth, bmp.height || bmp.naturalHeight);
+  const scale = Math.min(1, longEdge / src);
+  const w = Math.max(1, Math.round((bmp.width || bmp.naturalWidth) * scale));
+  const h = Math.max(1, Math.round((bmp.height || bmp.naturalHeight) * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(bmp, 0, 0, w, h);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.82));
+  return blob ? { blob, w, h, size: blob.size } : null;
+}
+
+async function prepareShot(file) {
+  SHOT = { name: file.name, choice: null, variants: [], busy: true };
+  S.headshotName = file.name;
+  S.problems = [];
+  render();
+  let bmp;
+  try { bmp = await decodeImage(file); } catch {
+    SHOT = null; FILE = null; S.headshotName = "";
+    S.problems = [{ msg: t("shotUnreadable"), at: "shot-tile" }];
+    render(); return;
+  }
+  const full = Math.max(bmp.width || bmp.naturalWidth, bmp.height || bmp.naturalHeight);
+  const variants = [];
+  for (const [key, label, edge] of [["small", t("sizeSmall"), 640], ["medium", t("sizeMedium"), 1280]]) {
+    if (full <= edge && variants.length) continue;          // no point offering a size it already is
+    const out = await shrink(bmp, edge).catch(() => null);
+    if (out) variants.push({ key, label, ...out, name: jpegName(file.name) });
+  }
+  variants.push({ key: "original", label: t("sizeOriginal"), w: bmp.width || bmp.naturalWidth,
+    h: bmp.height || bmp.naturalHeight, blob: file, size: file.size, name: file.name, tooBig: file.size > SHOT_LIMIT });
+  bmp.close?.();
+  // The biggest one that will actually send, so nobody has to think about it.
+  const best = [...variants].reverse().find((v) => !v.tooBig) ?? variants[0];
+  SHOT = { name: file.name, choice: best.key, variants, busy: false };
+  chooseShot(best.key, false);
+  render();
+}
+
+const jpegName = (name) => `${String(name).replace(/\.[^.]+$/, "") || "headshot"}.jpg`;
+
+function chooseShot(key, redraw = true) {
+  const v = SHOT?.variants.find((x) => x.key === key);
+  if (!v || v.tooBig) return;
+  SHOT.choice = key;
+  FILE = new File([v.blob], v.name, { type: v.blob.type || "image/jpeg" });
+  S.headshotName = v.name;
+  // A thumbnail of the smallest version: they should see what they are sending.
+  if (SHOT.previewUrl) URL.revokeObjectURL(SHOT.previewUrl);
+  const thumb = SHOT.variants.find((x) => !x.tooBig) ?? v;
+  SHOT.previewUrl = URL.createObjectURL(thumb.blob);
+  if (redraw) render();
+}
+
+function sizePicker() {
+  if (!SHOT) return "";
+  if (SHOT.busy) return `<p class="hint" style="margin-top:10px">${t("shotReady")}</p>`;
+  return `<div class="sizes"><div class="lab">${t("shotSend")}</div><div class="row">${SHOT.variants.map((v) => `
+    <button type="button" data-shot="${esc(v.key)}" aria-pressed="${SHOT.choice === v.key}"${v.tooBig ? " disabled" : ""}>
+      ${esc(v.label)}<span>${v.w} × ${v.h} · ${v.tooBig ? t("shotTooBig") : prettyBytes(v.size)}</span></button>`).join("")}</div></div>`;
+}
 // Returns a translation key so the warning follows a later language switch.
 async function uploadHeadshot() {
   if (!FILE) return null;
-  if (FILE.size > 5 * 1024 * 1024) return "shotBig";
+  if (FILE.size > SHOT_LIMIT) return "shotBig";
   try {
     const res = await fetch(`/api/headshot?t=${encodeURIComponent(TOKEN)}`, {
       method: "POST",
@@ -892,6 +1003,8 @@ ROOT.addEventListener("click", (e) => {
     (el?.matches?.("input, textarea, button") ? el : block?.querySelector("input, textarea, button"))?.focus({ preventScroll: true });
     return;
   }
+  const sizeBtn = e.target.closest?.("[data-shot]");
+  if (sizeBtn) { e.preventDefault(); chooseShot(sizeBtn.dataset.shot); return; }
   if (e.target.id === "returned-go") { restoredNote = false; S.step = returnStep(); S.problems = []; render(); return; }
   if (e.target.id === "next") {
     restoredNote = false;
@@ -907,9 +1020,12 @@ ROOT.addEventListener("input", (e) => {
   restoredNote = false;
   const t0 = e.target;
   if (t0.id === "f-shot") {
-    FILE = t0.files?.[0] ?? null;
-    if (FILE && FILE.size > 5 * 1024 * 1024) { FILE = null; S.headshotName = ""; S.problems = [{ msg: t("shotBig"), at: "shot-tile" }]; render(); return; }
-    S.headshotName = FILE?.name ?? ""; S.problems = []; render(); return;
+    const picked = t0.files?.[0] ?? null;
+    if (SHOT?.previewUrl) URL.revokeObjectURL(SHOT.previewUrl);
+    FILE = null;
+    if (!picked) { SHOT = null; S.headshotName = ""; S.problems = []; render(); return; }
+    prepareShot(picked);
+    return;
   }
   const bind = t0.dataset?.bind;
   if (!bind) return;
