@@ -201,7 +201,8 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot }
     "Business casual dress is the minimum requirement",
     "All PowerPoint text must be at least 22-point",
   ]);
-  p.small(`Headshot received with this agreement: ${s.headshotName ? "Yes — " + s.headshotName : "Not yet"}`);
+  p.small(`Headshot received with this agreement: ${s.headshotName ? "Yes — " + s.headshotName : "Not yet"}`
+    + (headshot?.bytes?.byteLength && !p.photoDrawn ? " (the image could not be read, so it is not shown above)" : ""));
 
   p.heading("PRESENTER AGREEMENT & AUTHORIZATIONS");
   p.tickLine(
@@ -294,6 +295,7 @@ class Painter {
     this.script = false;
     this.inset = 0;        // right margin reserved by a floated photo
     this.photoBottom = 0;
+    this.photoDrawn = false;
   }
 
   gap(n) { this.y += n; }
@@ -311,9 +313,10 @@ class Painter {
     const x = MARGIN + BODY_W - w;
     if (top + h > BOTTOM) return;
     try {
+      const src = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
       doc.save();
       doc.rect(x, top, w, h).clip();
-      doc.image(bytes, x, top, { cover: [w, h], align: "center", valign: "center" });
+      doc.image(src, x, top, { cover: [w, h], align: "center", valign: "center" });
       doc.restore();
     } catch {
       doc.restore();
@@ -322,6 +325,7 @@ class Painter {
     doc.rect(x, top, w, h).lineWidth(0.8).strokeColor(RULE).stroke();
     this.inset = w + 16;
     this.photoBottom = top + h;
+    this.photoDrawn = true;
   }
 
   /** Stop reserving the right margin, and clear the photo vertically. */

@@ -14,6 +14,7 @@ import { safeFileName } from "./lib/ids.mjs";
  *   POST /api/review?event=…&presenter=…&action=approve     set what ONGIA covers, sign, issue the final PDF
  *   POST /api/review?event=…&presenter=…&action=return      send it back to the presenter with a note
  *   POST /api/review?event=…&presenter=…&action=redeliver   retry email / SharePoint filing for an approved one
+ *       body { all?, only?, rebuild? } — rebuild regenerates the PDF from the record and refiles it
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -139,7 +140,11 @@ async function redeliver(event, presenter, body, origin) {
   // The decision is saved before the PDF is built, so a failure in between
   // leaves an approved presenter with no file. Everything needed to rebuild
   // it is on the record, so rebuild rather than refuse.
-  let pdf = await getPdf(`${event.id}:${presenter.id}`).then((b) => (b ? Buffer.from(b) : null));
+  // `rebuild` regenerates the document from the record, so an agreement approved
+  // before a change to the template can pick it up without being re-approved.
+  let pdf = body.rebuild === true
+    ? null
+    : await getPdf(`${event.id}:${presenter.id}`).then((b) => (b ? Buffer.from(b) : null));
   if (!pdf) {
     const approval = { ...(presenter.review?.approver ?? { name: "ONGIA", role: "" }), approvedAt: presenter.review?.approvedAt ?? presenter.approvedAt };
     const shot = await getHeadshot(event.id, presenter.id).catch(() => null);
@@ -153,10 +158,12 @@ async function redeliver(event, presenter, body, origin) {
     ? { presenterEmail: true, filing: true, boardEmail: true }
     : { presenterEmail: !d.presenterEmail?.ok, filing: !d.filing?.ok, boardEmail: !d.boardEmail?.ok };
   if (body.only) which[body.only] = true;
+  // A rebuilt document is not the one already filed, so refile it.
+  if (body.rebuild === true) which.filing = true;
 
   await deliver(event, presenter, pdf, origin, which);
   await putPresenter(presenter);
-  return json({ ok: true, delivery: presenter.delivery, retried: which });
+  return json({ ok: true, delivery: presenter.delivery, retried: which, rebuilt: body.rebuild === true });
 }
 
 /** Email the presenter, file to SharePoint, tell the board — each recorded separately. */

@@ -1231,7 +1231,9 @@ function reviewScreen(data) {
       <h2 style="margin-top:18px;font-size:16px">Delivery</h2>
       <div id="delivery">${deliveryMarkup(p.delivery)}</div>
       <div class="actions"><button class="btn btn-ghost" id="redeliver">Retry what didn't land</button>
+        <button class="btn btn-ghost" id="rebuild">Rebuild the PDF</button>
         <button class="btn btn-ghost" id="redeliver-all">Resend everything</button></div>
+      <p class="hint">Rebuild regenerates this agreement from the record and refiles it to SharePoint, so one approved before a change to the document picks it up. It does not email the presenter.</p>
     </div></div>`
   : `<div class="card" style="margin-top:16px">
     <div class="card-head"><div><h2>Board decision</h2>
@@ -1267,18 +1269,19 @@ function reviewScreen(data) {
 
   if (approved) {
     document.getElementById("pdf").onclick = () => openPdf(ev.id, p.id);
-    const redo = (all) => async (e) => {
+    const redo = (body, label) => async (e) => {
       e.target.disabled = true; e.target.textContent = "Working…";
       try {
         const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}&action=redeliver`,
-          { method: "POST", body: JSON.stringify({ all }) });
+          { method: "POST", body: JSON.stringify(body) });
         document.getElementById("delivery").innerHTML = deliveryMarkup(out.delivery);
-        toast("Done — see delivery status.");
+        toast(out.rebuilt ? "Rebuilt and refiled — open the PDF to check it." : "Done — see delivery status.");
       } catch (err) { toast(err.message); }
-      e.target.disabled = false; e.target.textContent = all ? "Resend everything" : "Retry what didn't land";
+      e.target.disabled = false; e.target.textContent = label;
     };
-    document.getElementById("redeliver").onclick = redo(false);
-    document.getElementById("redeliver-all").onclick = redo(true);
+    document.getElementById("redeliver").onclick = redo({ all: false }, "Retry what didn't land");
+    document.getElementById("rebuild").onclick = redo({ rebuild: true }, "Rebuild the PDF");
+    document.getElementById("redeliver-all").onclick = redo({ all: true }, "Resend everything");
     return;
   }
 
