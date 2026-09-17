@@ -1160,9 +1160,9 @@ async function invite(eventId, presenterIds, remind) {
 }
 
 /** Fetch with the admin header, then open — a plain link can't carry the key. */
-async function openPdf(eventId, presenterId) {
+async function openPdf(eventId, presenterId, preview = false) {
   try {
-    const res = await fetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1`,
+    const res = await fetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1${preview ? "&preview=1" : ""}`,
       { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
     const url = URL.createObjectURL(await res.blob());
@@ -1262,7 +1262,9 @@ function reviewScreen(data) {
       ${!ev.reviewer?.name && !ev.contact?.name ? `<div class="note">This event has no lead board member, so the PDF will show you as the ONGIA contact, reached through the speakers mailbox. To name someone else, edit the event and pick a lead first.</div>` : ""}
       <label class="attest"><input type="checkbox" id="r-attest"><span>My typed name is my electronic signature. Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
       <div id="problem"></div>
-      <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button></div>
+      <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button>
+        <button class="btn btn-ghost" id="preview">Preview the agreement</button></div>
+      <p class="hint">Preview opens the document as it will read, photo and all, stamped DRAFT. It approves nothing, emails nobody and files nothing.</p>
       <hr style="border:0;border-top:1px solid var(--hair);margin:20px 0">
       <div class="field"><label for="r-return">Send it back</label>
         <textarea id="r-return" placeholder="The hotel dates don't match the training days — please check them."></textarea>
@@ -1322,6 +1324,12 @@ function reviewScreen(data) {
   ROOT.querySelectorAll("[data-cover]").forEach((c) => c.addEventListener("change", readback));
   ROOT.querySelectorAll("#r-tf, #r-tt, #r-hf, #r-ht").forEach((d) => d.addEventListener("change", readback));
   readback();
+
+  document.getElementById("preview").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "Building…";
+    await openPdf(ev.id, p.id, true);
+    e.target.disabled = false; e.target.textContent = "Preview the agreement";
+  };
 
   document.getElementById("approve").onclick = async (e) => {
     const problem = document.getElementById("problem");

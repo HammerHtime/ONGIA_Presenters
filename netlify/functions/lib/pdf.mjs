@@ -61,13 +61,13 @@ const fmt = (v) => (v ? formatDate(v) : "");
 const yes = (v) => v === "yes";
 
 /** Build the PDF and resolve to a Buffer. */
-export async function buildAgreementPdf({ event, presenter, approval, headshot }) {
+export async function buildAgreementPdf({ event, presenter, approval, headshot, preview = false }) {
   const { banner, band } = await assets();
   const s = presenter.submission;
   const review = presenter.review ?? { ongiaCovers: {} };
 
   const doc = new PDFDocument({ size: "LETTER", margin: 0, info: {
-    Title: `${presenter.last}_Presenter Agreement`,
+    Title: `${preview ? "DRAFT " : ""}${presenter.last}_Presenter Agreement`,
     Author: "ONGIA Presenter Agreement Desk",
     Subject: `${event.title} — presenter agreement, ${presenter.first} ${presenter.last}`,
   }});
@@ -78,7 +78,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot }
     doc.on("error", reject);
   });
 
-  const p = new Painter(doc, band);
+  const p = new Painter(doc, band, preview);
   if (existsSync(SCRIPT_FONT)) { doc.registerFont("Script", SCRIPT_FONT); p.script = true; }
 
   /* ------------------------------------------------------------ page one */
@@ -86,6 +86,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot }
   const bannerH = (288 / 1056) * PAGE_W;
   doc.image(banner, 0, 0, { width: PAGE_W });
   p.y = bannerH + 8;
+  if (preview) p.ribbon();
 
   p.heading("EVENT DETAILS");
   p.kvRow([
@@ -252,19 +253,28 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot }
   p.kvRow([["Contact Number:", contact.phone || "—", 130]]);
 
   p.gap(3);
-  p.label("This document has been reviewed and approved by:", true, NAVY);
-  p.kvRow([
-    ["Name:", approval.name, 160, false, NAVY],
-    ["Title/Role:", approval.role, 150, false, NAVY],
-  ]);
-  p.kvRow([["Date:", fmt(approval.approvedAt?.slice(0, 10)), 90, false, NAVY]]);
-  p.signature("Signature:", approval.name, NAVY);
+  if (preview) {
+    p.label("This document has NOT been approved.", true, RED);
+    p.small("The approving board member's name, title, date and signature are added here when the agreement is approved.");
+    p.stamp(
+      `DRAFT PREVIEW — how the agreement will read once a board member approves it. Nothing has been issued, ` +
+        `emailed or filed. The ONGIA expenses column is completed at approval, so it shows unticked here.`
+    );
+  } else {
+    p.label("This document has been reviewed and approved by:", true, NAVY);
+    p.kvRow([
+      ["Name:", approval.name, 160, false, NAVY],
+      ["Title/Role:", approval.role, 150, false, NAVY],
+    ]);
+    p.kvRow([["Date:", fmt(approval.approvedAt?.slice(0, 10)), 90, false, NAVY]]);
+    p.signature("Signature:", approval.name, NAVY);
 
-  p.stamp(
-    `FINAL COPY — issued on ${fmt(approval.approvedAt?.slice(0, 10))} when ${approval.name} approved it. ` +
-      `Presenter submitted ${fmt(s.signedAt?.slice(0, 10))}; ONGIA cost coverage was set at review, not by the presenter. ` +
-      `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails it to the presenter.`
-  );
+    p.stamp(
+      `FINAL COPY — issued on ${fmt(approval.approvedAt?.slice(0, 10))} when ${approval.name} approved it. ` +
+        `Presenter submitted ${fmt(s.signedAt?.slice(0, 10))}; ONGIA cost coverage was set at review, not by the presenter. ` +
+        `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails it to the presenter.`
+    );
+  }
 
   p.finish();
   doc.end();
@@ -287,9 +297,10 @@ function stamp(isoString) {
  * Nothing here is clever — it's the HTML layout, expressed as coordinates.
  */
 class Painter {
-  constructor(doc, band) {
+  constructor(doc, band, preview = false) {
     this.doc = doc;
     this.band = band;
+    this.preview = preview;
     this.y = 0;
     this.page = 1;
     this.script = false;
@@ -349,6 +360,18 @@ class Painter {
     this.doc.addPage();
     this.page += 1;
     this.y = TOP;
+    if (this.preview) this.ribbon();
+  }
+
+  /** A preview must never be mistaken for the issued agreement, on any page. */
+  ribbon() {
+    const doc = this.doc;
+    const h = 17;
+    doc.rect(0, this.y, PAGE_W, h).fill(RED);
+    doc.font("Helvetica-Bold").fontSize(8.5).fillColor("#ffffff")
+       .text("DRAFT PREVIEW — NOT APPROVED, NOT ISSUED, NOT SENT", MARGIN, this.y + 4.6,
+             { width: BODY_W, align: "center", lineBreak: false, characterSpacing: 0.8 });
+    this.y += h + 8;
   }
 
   finish() { this.drawBand(); }
