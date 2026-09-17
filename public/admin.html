@@ -74,6 +74,12 @@
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
   .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+  dialog.sheet{border:1px solid var(--border);border-radius:16px;background:var(--card);color:var(--ink);
+               padding:0;width:min(520px,calc(100vw - 28px));box-shadow:0 24px 60px rgba(0,0,0,.28)}
+  dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
+  dialog.sheet h2{margin:0;font-size:19px}
+  dialog.sheet .sheet-head{padding:18px 20px 0}
+  dialog.sheet .sheet-body{padding:0 20px 20px}
 
   .btn{border-radius:999px;padding:12px 24px;font-weight:700;font-size:15px;border:1px solid transparent;cursor:pointer}
   .btn-navy{background:var(--navy);color:#fff}
@@ -773,6 +779,7 @@ function eventScreen(data) {
       <div class="cell"><div class="cl">Materials</div>${m.html}</div>
       <div class="act">
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
+        <button class="mini" data-edit="${esc(p.id)}" title="Correct their name, email or organization">Edit</button>
         ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${(p.mail ?? []).some((m) => m.type !== "called") ? "Email again" : "Email link"}</button>` : ""}
         ${p.status !== "approved" && p.status !== "submitted" && (p.mail ?? []).some((m) => m.type !== "called")
           ? `<button class="mini" data-called="${esc(p.id)}" title="Log a phone call — pauses the automatic reminders for a week">Called them</button>` : ""}
@@ -847,7 +854,27 @@ function eventScreen(data) {
         </span></div>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
       </details>
-    </div></div>`;
+    </div></div>
+    <dialog class="sheet" id="pedit">
+      <form method="dialog">
+        <div class="sheet-head"><h2>Correct this presenter</h2>
+          <p class="hint" style="margin-top:6px">Their agreement link does not change, and anything they have already
+            filled in is kept. Only what you type here is corrected.</p></div>
+        <div class="sheet-body">
+          <div class="row2">
+            <div class="field"><label for="pe-first">First name</label><input id="pe-first" required autocomplete="off"></div>
+            <div class="field"><label for="pe-last">Last name</label><input id="pe-last" required autocomplete="off"></div>
+          </div>
+          <div class="field"><label for="pe-email">Email</label><input id="pe-email" type="email" required autocomplete="off"></div>
+          <div class="field"><label for="pe-org">Organization</label><input id="pe-org" autocomplete="off"></div>
+          <div id="pe-warn"></div>
+          <div class="actions" style="margin-top:18px">
+            <button class="btn btn-gold" id="pe-save" value="save">Save the correction</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>`;
 
   for (const [id, to] of [["digest-lead", "lead"], ["digest-board", "board"]]) {
     const b = document.getElementById(id);
@@ -942,6 +969,47 @@ function eventScreen(data) {
     try { await api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "DELETE" }); toast("Event deleted."); view = { name: "list" }; render(); }
     catch (e) { toast(e.message); }
   };
+  const pedit = document.getElementById("pedit");
+  ROOT.querySelectorAll("[data-edit]").forEach((b) => {
+    b.onclick = () => {
+      const p = presenters.find((x) => x.id === b.dataset.edit);
+      if (!p) return;
+      pedit.dataset.presenter = p.id;
+      document.getElementById("pe-first").value = p.first ?? "";
+      document.getElementById("pe-last").value = p.last ?? "";
+      document.getElementById("pe-email").value = p.email ?? "";
+      document.getElementById("pe-org").value = p.organization ?? "";
+      // Say up front what a correction will and won't reach.
+      const sent = (p.mail ?? []).some((m) => m.type !== "called");
+      document.getElementById("pe-warn").innerHTML =
+        p.status === "approved"
+          ? `<div class="note" style="margin-top:14px">This agreement is already final and filed. Correcting it here does not
+             change the PDF in SharePoint — use <b>Rebuild the PDF</b> on their details screen if the document itself is wrong.</div>`
+          : sent
+            ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving,
+               use <b>Email link</b> on their row to send it to the corrected one.</div>`
+            : "";
+      pedit.showModal();
+      document.getElementById("pe-email").focus();
+    };
+  });
+  pedit?.addEventListener("close", async () => {
+    if (pedit.returnValue !== "save") return;
+    const id = pedit.dataset.presenter;
+    const body = {
+      first: document.getElementById("pe-first").value.trim(),
+      last: document.getElementById("pe-last").value.trim(),
+      email: document.getElementById("pe-email").value.trim(),
+      organization: document.getElementById("pe-org").value.trim(),
+    };
+    try {
+      const out = await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(id)}`,
+        { method: "PUT", body: JSON.stringify(body) });
+      toast(out.emailChanged ? `Corrected — their link now goes to ${out.presenter.email}.` : "Corrected.");
+      render();
+    } catch (e) { toast(e.message); }
+  });
+
   ROOT.querySelectorAll("[data-remove]").forEach((b) => {
     b.onclick = async () => {
       const p = presenters.find((x) => x.id === b.dataset.remove);

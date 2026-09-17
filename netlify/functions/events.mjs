@@ -41,7 +41,8 @@ export default async (req) => {
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
-    return updateEvent(id, body);
+    const presenterId = url.searchParams.get("presenter");
+    return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body);
   }
   if (req.method === "DELETE") {
     const presenterId = url.searchParams.get("presenter");
@@ -206,6 +207,44 @@ async function deleteEvent(id) {
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length });
+}
+
+/**
+ * Correct a presenter's details after the fact. A mistyped address used to mean
+ * removing them and starting over, which threw away their link — and, if they had
+ * already filled the form in, their answers. The token is deliberately untouched,
+ * so a link that is already out keeps working.
+ */
+async function updatePresenter(id, presenterId, body) {
+  const presenter = await getPresenter(id, presenterId);
+  if (!presenter) return fail("No such presenter.", 404);
+
+  const first = text(body.first, 80);
+  const last = text(body.last, 80);
+  const email = text(body.email, 200);
+  if (!first || !last) return fail("A presenter needs a first and last name.");
+  if (!isEmail(email)) return fail(`"${email}" is not an email address.`);
+
+  const before = { first: presenter.first, last: presenter.last, email: presenter.email };
+  presenter.first = first;
+  presenter.last = last;
+  presenter.email = email;
+  presenter.organization = text(body.organization, 200);
+  if (body.language === "en" || body.language === "fr") presenter.language = body.language;
+  // A corrected address clears the bounce, so the row stops shouting about a send
+  // that failed to somewhere that no longer applies.
+  if (before.email !== email) delete presenter.lastSendError;
+  presenter.updatedAt = new Date().toISOString();
+  await putPresenter(presenter);
+
+  return json({
+    ok: true,
+    presenter,
+    emailChanged: before.email !== email,
+    nameChanged: before.first !== first || before.last !== last,
+    // The filed PDF carries the details as they were at approval.
+    filed: presenter.status === "approved",
+  });
 }
 
 async function removePresenter(id, presenterId) {
