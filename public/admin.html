@@ -18,6 +18,9 @@
     --navy:#1a2f5e; --navy-deep:#0e1a35;
     --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
     --border:#ddd7c8; --hair:rgba(18,22,31,.10);
+    /* The line around a card or a row. Deliberately darker than --border,
+       which stays soft for buttons, inputs and chips. */
+    --edge:#bfb49a; --lift:0 1px 3px rgba(14,26,53,.07);
     --done:#2f6b4f; --done-bg:#e2efe7;
     --wait:#9a6a12; --wait-bg:#f8ecd5;
     --late:#a33328; --late-bg:#f7e3e0;
@@ -45,16 +48,17 @@
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
 
   .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 70px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;
+  .card{background:var(--card);border:1.5px solid var(--edge);border-radius:20px;
         box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
-  .card-head{background:var(--sand);padding:17px 22px;border-bottom:1px solid var(--border);
+  .card-head{background:var(--sand);padding:17px 22px;border-bottom:1.5px solid var(--edge);
              display:flex;gap:14px;align-items:center;flex-wrap:wrap}
   .card-head>div:first-child{flex:1 1 200px;min-width:0}
   .card-head h2{font-family:var(--fd);font-size:22px}
   .card-head .s{font-size:13.5px;color:var(--muted);margin-top:2px}
   .card-body{padding:20px 22px}
 
-  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.5px;background:var(--edge);
+         border-bottom:1.5px solid var(--edge)}
   .tile{background:var(--sunk);padding:15px 18px}
   .tile .k{font-family:var(--fu);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
   .tile .v{font-family:var(--fd);font-size:32px;line-height:1.05;margin-top:3px;font-variant-numeric:tabular-nums}
@@ -74,7 +78,7 @@
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
   .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
-  dialog.sheet{border:1px solid var(--border);border-radius:16px;background:var(--card);color:var(--ink);
+  dialog.sheet{border:1.5px solid var(--edge);border-radius:16px;background:var(--card);color:var(--ink);
                padding:0;width:min(520px,calc(100vw - 28px));box-shadow:0 24px 60px rgba(0,0,0,.28)}
   dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
   dialog.sheet h2{margin:0;font-size:19px}
@@ -89,7 +93,7 @@
   .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 
   .presenter{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
-    background:var(--sunk);border:1px solid var(--border);border-radius:16px;padding:13px 15px;margin-bottom:10px}
+    background:var(--sunk);border:1.5px solid var(--edge);border-radius:16px;padding:13px 15px;margin-bottom:10px}
   @media(max-width:660px){.presenter{grid-template-columns:auto 1fr}.presenter .act{grid-column:2}}
   .av{flex:0 0 42px;width:42px;height:42px;border-radius:999px;display:grid;place-items:center;background:var(--navy);
       color:var(--gold-light);font-family:var(--fu);font-size:15px}
@@ -129,6 +133,8 @@
   .bad{margin-top:14px;background:var(--late-bg);border:1px solid var(--late);border-radius:14px;
        padding:12px 15px;font-size:13.5px;color:var(--ink-mid)}
   .bad b{color:var(--late)}
+  .bad .num{display:inline-block;background:var(--late);color:#fff;border-radius:7px;padding:0 8px;
+            font-weight:700;font-variant-numeric:tabular-nums;line-height:1.5}
   .links{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:13px;
     font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;word-break:break-all;line-height:1.8}
   .empty{padding:40px 20px;text-align:center;color:var(--muted)}
@@ -139,7 +145,8 @@
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
   .trow{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) auto;gap:14px;align-items:start;
-    background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:8px}
+    background:var(--card);border:1.5px solid var(--edge);border-radius:16px;padding:12px 14px;margin-bottom:8px;
+    box-shadow:var(--lift)}
   .trow .who{display:flex;gap:12px;align-items:center;min-width:0} .trow .who>div{min-width:0}
   .trow .cell .pill{max-width:100%;white-space:normal;text-align:left}
   .trow .act{padding-top:2px}
@@ -149,7 +156,7 @@
   /* The six steps of one presenter's agreement, in the order they happen.
      Squares are ONGIA's move, circles are the presenter's. */
   .steps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px 15px;
-         margin-top:11px;padding-top:10px;border-top:1px dashed var(--border)}
+         margin-top:11px;padding-top:10px;border-top:1px dashed var(--edge)}
   .scount{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
           color:var(--muted);white-space:nowrap}
   .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
@@ -188,7 +195,7 @@
   .chipstat.you{background:var(--navy);border-color:var(--navy);color:#fff} .chipstat.you b{color:var(--gold-light)}
   .chipstat.stop{background:var(--late-bg);border-color:var(--late)} .chipstat.stop b{color:var(--late)}
   /* What needs a person today, across every event. */
-  .needs{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+  .needs{background:var(--card);border:1.5px solid var(--edge);border-radius:20px;box-shadow:var(--shadow);
     overflow:hidden;margin-bottom:18px}
   .needs>h2{background:var(--navy-deep);color:#fff;font-family:var(--fu);font-size:12px;letter-spacing:.16em;
     text-transform:uppercase;padding:12px 20px;border-bottom:3px solid var(--gold)}
@@ -895,7 +902,14 @@ function eventScreen(data) {
   const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
   const nextDl = [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]]
     .map(([k, l]) => ({ l, iso: k === "dayOne" ? ev.dayOne : ev.deadlines?.[k] })).filter((x) => x.iso).map((x) => ({ ...x, d: daysTo(x.iso) }));
-  const overdue = nextDl.filter((x) => x.d < 0 && x.l !== "Training starts" && (x.l.startsWith("Agreements") ? c.invited + c.opened : x.l.startsWith("Draft") ? presenters.length - draftGot : presenters.length - finalGot) > 0);
+  // How many people each missed deadline is actually still waiting on. The
+  // agreement line counts anyone who has not submitted — including one that was
+  // sent back — which is the same set "Email all outstanding" writes to.
+  const stillOut = (label) => label.startsWith("Agreements")
+    ? presenters.filter((p) => p.status !== "submitted" && p.status !== "approved").length
+    : label.startsWith("Draft") ? presenters.length - draftGot : presenters.length - finalGot;
+  const overdue = nextDl.filter((x) => x.d < 0 && x.l !== "Training starts" && stillOut(x.l) > 0)
+    .map((x) => ({ ...x, out: stillOut(x.l) }));
   // When something is late, the bold line says so. It used to announce the next
   // future deadline while a red box two lines down said the last one was missed.
   const upcoming = overdue[0] ?? nextDl.find((x) => x.d >= 0) ?? nextDl.at(-1);
@@ -907,7 +921,7 @@ function eventScreen(data) {
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
       <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}
         ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
-      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) and some are still outstanding.`).join("<br>")}</div>` : ""}
+      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}
       ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
