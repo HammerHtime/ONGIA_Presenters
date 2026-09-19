@@ -144,38 +144,41 @@
   .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
-  .trow{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) auto;gap:14px;align-items:start;
+  .trow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) fit-content(230px);gap:14px;align-items:start;
     background:var(--card);border:1.5px solid var(--edge);border-radius:16px;padding:12px 14px;margin-bottom:8px;
     box-shadow:var(--lift)}
-  .trow .who{display:flex;gap:12px;align-items:center;min-width:0} .trow .who>div{min-width:0}
+  .trow>*{min-width:0}
+  .trow .who{display:flex;gap:12px;align-items:flex-start;min-width:0} .trow .who>div{min-width:0}
+  .trow .who .pname,.trow .who .porg,.trow .who .ptalk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .trow .cell .pill{max-width:100%;white-space:normal;text-align:left}
   .trow .act{padding-top:2px}
   .trow .cell .cl{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
   .trow .act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-  .mini.mat{white-space:nowrap}
   /* The six steps of one presenter's agreement, in the order they happen.
      Squares are ONGIA's move, circles are the presenter's. */
   .steps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px 15px;
          margin-top:11px;padding-top:10px;border-top:1px dashed var(--edge)}
   .scount{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
           color:var(--muted);white-space:nowrap}
-  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;
+        background:none;border:0;padding:0;font-family:inherit;line-height:1.5}
+  button.step{cursor:pointer} button.step:hover{color:var(--ink)} button.step:hover i{border-color:var(--ink-mid)}
   .step i{flex:none;width:14px;height:14px;border-radius:999px;border:1.5px solid var(--border);
           background:var(--sunk);display:grid;place-items:center;font-size:9px;font-weight:700;
           line-height:1;color:transparent}
-  .step.mine i{border-radius:4px}
-  .step.done{color:var(--done)} .step.done i{background:var(--done);border-color:var(--done);color:#fff}
+  /* Done keeps its green tick — that is the thing being watched for — but the
+     label goes quiet, so a finished row reads as calm rather than as six greens. */
+  .step.done i{background:var(--done);border-color:var(--done);color:#fff}
   .step.done i::after{content:"\2713"}
-  .step.soon{color:var(--wait)} .step.soon i{border-color:var(--wait);background:var(--wait-bg)}
-  .step.late{color:var(--late)} .step.late i{border-color:var(--late);background:var(--late-bg)}
+  .step.soon i{border-color:var(--wait);background:var(--wait-bg)}
+  /* Red is spent only on a step this row is behind its peers on. A date the whole
+     event has missed is the event's problem and the banner says it once. */
+  .step.late{color:var(--late);font-weight:600} .step.late i{border-color:var(--late);background:var(--late)}
+  .step.late i::after{content:"!";color:#fff}
   .step.you{color:var(--navy);font-weight:700} .step.you i{border-color:var(--navy);background:var(--navy);color:#fff}
   .step.you i::after{content:"\2022"}
-  .steplegend{font-size:12px;color:var(--muted);margin:0 0 10px}
-  .steplegend i{display:inline-block;width:11px;height:11px;border:1.5px solid var(--border);
-                background:var(--sunk);vertical-align:-1px;margin:0 3px}
-  .steplegend i.sq{border-radius:4px} .steplegend i.ci{border-radius:999px}
   @supports (grid-template-columns: subgrid){
-    .tlist{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) max-content;column-gap:14px}
+    .tlist{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) fit-content(230px);column-gap:14px}
     .tlist>.trow{grid-column:1/-1;grid-template-columns:subgrid}
     .tlist>.empty{grid-column:1/-1}
     .tlist>.thead{grid-column:1/-1;display:grid;grid-template-columns:subgrid;padding:0 14px 5px;
@@ -183,8 +186,7 @@
     .tlist>.trow .cl{display:none}
   }
   @media (max-width:820px){.tlist>.thead{display:none}.tlist>.trow .cl{display:block}}
-  .mini.mat{font-size:11.5px;padding:5px 10px;background:var(--sunk)} .mini.mat.done{background:var(--done-bg);color:var(--done);border-color:var(--done)}
-  .mini.mat.late{background:var(--late-bg);color:var(--late);border-color:var(--late)} .mini.mat.wait{background:var(--wait-bg);color:var(--wait);border-color:var(--wait)}
+  @media (max-width:480px){.trow .act{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}}
   .tile .v small{font-size:14px;color:var(--muted);font-weight:400}
   /* events list: one wrapping row of small figures instead of six tiles */
   .stats{display:flex;flex-wrap:wrap;gap:6px 8px;padding:12px 22px;border-top:1px solid var(--hair)}
@@ -241,11 +243,11 @@
   /* Fingers, not pointers: nothing that changes data below the 44px floor. */
   @media (pointer:coarse){
     .mini,.fchip{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px}
-    .mini.mat{min-height:44px;padding:0 13px;text-align:left}
+    button.step{min-height:44px;padding:0 4px}
     .member input[type=checkbox],.member input[type=radio]{width:22px;height:22px}
     .member .rphone{min-height:44px}
   }
-  @media (max-width:820px){.tlist{display:block}.trow{grid-template-columns:1fr 1fr}.trow .who{grid-column:1/-1}.trow .act{grid-column:1/-1;justify-content:flex-start}}
+  @media (max-width:820px){.tlist{display:block}.trow{grid-template-columns:1fr}.trow .who{grid-column:1/-1}.trow .act{grid-column:1/-1;justify-content:flex-start}}
   @media (max-width:480px){.trow{grid-template-columns:1fr}}
 
   /* review screen */
@@ -780,52 +782,78 @@ function eventScreen(data) {
    * Grey is not started, amber is coming up, red is past its date, green is done.
    */
   const STEPS = [
-    { key: "link", label: "Link sent", mine: true },
-    { key: "agreement", label: "Agreement", mine: false },
-    { key: "photo", label: "Headshot", mine: false },
-    { key: "approved", label: "Approved", mine: true },
-    { key: "draft", label: "Draft material", mine: false },
-    { key: "final", label: "Final material", mine: false },
+    { key: "link", label: "Link sent" },
+    { key: "agreement", label: "Agreement" },
+    { key: "photo", label: "Headshot" },
+    { key: "approved", label: "Approved" },
+    { key: "draft", label: "Draft material" },
+    { key: "final", label: "Final material" },
   ];
 
-  const stepsOf = (p) => {
+  // What has happened, with no judgement attached yet — the judgement needs to
+  // see the whole list first.
+  const stepFacts = (p) => {
     const m = mstat[p.id] ?? {};
-    const due = ev.deadlines ?? {};
     const sentMail = (p.mail ?? []).filter((x) => x.type !== "called");
     const inHand = p.status === "submitted" || p.status === "approved";
-    const at = {
+    return { inHand, at: {
       link: sentMail.length ? sentMail[0].at : null,
       agreement: inHand ? p.submittedAt : null,
       photo: inHand && p.submission?.headshotName ? p.submittedAt : null,
       approved: p.status === "approved" ? p.approvedAt : null,
       draft: m.draft ?? null,
       final: m.final ?? null,
-    };
+    } };
+  };
+  const FACTS = new Map(presenters.map((p) => [p.id, stepFacts(p)]));
+  // A deadline every single row has missed is the event's problem, and the
+  // banner above states it once. Painting it red on all six rows spends the
+  // loudest colour on the least useful fact and camouflages the row that is
+  // genuinely behind its peers. So event-wide lateness reads amber; only an
+  // exception earns red.
+  const everyoneOut = {};
+  for (const s of STEPS) {
+    everyoneOut[s.key] = presenters.length > 1 && presenters.every((p) => !FACTS.get(p.id).at[s.key]);
+  }
+
+  const stepsOf = (p) => {
+    const due = ev.deadlines ?? {};
+    const { at, inHand } = FACTS.get(p.id);
     const by = { link: due.agreement, agreement: due.agreement, photo: due.agreement,
                  approved: null, draft: due.draft, final: due.final };
     return STEPS.map((s) => {
       const done = Boolean(at[s.key]);
       const deadline = by[s.key];
       const left = deadline ? daysTo(deadline) : null;
+      const overdue = left !== null && left < 0;
       // Approving has no date of its own. It is ONGIA's move the moment an
       // agreement lands, and nothing downstream can happen until it is made.
       const state = done ? "done"
         : s.key === "approved" ? (p.status === "submitted" ? "you" : "todo")
         // The photo arrives with the agreement, so until that is in it is not
-        // separately outstanding — flagging it red would just repeat the line
-        // above. Once the agreement IS in without one, it is missing for good
-        // unless the agreement goes back, and that is worth the red.
+        // separately outstanding. Once the agreement IS in without one it is
+        // missing for good unless the agreement goes back — that earns red.
         : s.key === "photo" ? (inHand ? "late" : "todo")
-        : left === null ? "todo"
-        : left < 0 ? "late"
-        : left <= 14 ? "soon"
+        : overdue ? (everyoneOut[s.key] ? "soon" : "late")
+        : left !== null && left <= 14 ? "soon"
         : "todo";
       return { ...s, done, state, at: at[s.key], deadline };
     });
   };
 
   const stepTitle = (s, p) => {
-    if (s.done) return `${s.label} — done ${short(s.at)}`;
+    const mat = s.key === "draft" || s.key === "final";
+    const files = mat ? (materials?.files?.[p.id] ?? []) : [];
+    const seen = files.length ? ` · ${files.length} file${files.length === 1 ? "" : "s"} in the folder, latest ${short(files[0].at)}` : "";
+    const click = mat ? (s.done ? " · click to clear" : " · click to mark it received") : "";
+    if (s.done) {
+      const how = mat ? (mstat[p.id]?.[`${s.key}Manual`] ? " (ticked by hand)" : " (upload)") : "";
+      return `${s.label} — done ${short(s.at)}${how}${seen}${click}`;
+    }
+    if (mat && s.deadline) {
+      const d = daysTo(s.deadline);
+      return `${s.label} — ${d < 0 ? `overdue ${-d} day${d === -1 ? "" : "s"}` : `due ${short(s.deadline)}`}${seen}${click}`;
+    }
     if (s.state === "you") return `${s.label} — waiting on ONGIA: review and sign it`;
     if (s.key === "approved") return `${s.label} — nothing to approve until the agreement is in`;
     if (s.key === "photo") return p.status === "submitted" || p.status === "approved"
@@ -839,35 +867,31 @@ function eventScreen(data) {
 
   const stepsHtml = (p) => {
     const st = stepsOf(p);
-    const n = st.filter((s) => s.done).length;
+    const out = st.filter((s) => !s.done);
+    // Draft and final stay clickable, the way the old Materials chips were, so
+    // a file that arrived outside the drop folder can still be ticked by hand.
+    const one = (s) => {
+      const body = `<i></i>${esc(s.label)}`;
+      const attrs = `class="step ${s.state}" title="${esc(stepTitle(s, p))}"`;
+      return s.key === "draft" || s.key === "final"
+        ? `<button type="button" ${attrs} data-mat="${esc(p.id)}" data-key="${s.key}" data-on="${s.done ? "0" : "1"}">${body}</button>`
+        : `<span ${attrs}>${body}</span>`;
+    };
     return `<div class="steps">
-      <span class="scount">${n} of ${st.length}</span>
-      ${st.map((s) => `<span class="step ${s.state}${s.mine ? " mine" : ""}" title="${esc(stepTitle(s, p))}"><i></i>${esc(s.label)}</span>`).join("")}
+      <span class="scount">${out.length ? `${out.length} outstanding` : "all done"}</span>
+      ${st.map(one).join("")}
     </div>`;
   };
 
   // Draft and final materials, detected from uploads or ticked by hand.
+  // Which filter cuts this presenter falls into. The Draft/Final chips this used
+  // to draw are the Draft/Final steps now, so only the flags are left.
   const matCell = (p) => {
     const m = mstat[p.id] ?? {};
-    const files = materials?.files?.[p.id] ?? [];
     const due = ev.deadlines ?? {};
-    const chip = (label, at, manual, key, deadline) => {
-      const late = !at && deadline && daysTo(deadline) < 0;
-      const soon = !at && deadline && daysTo(deadline) >= 0 && daysTo(deadline) <= 14;
-      const cls = at ? "done" : late ? "late" : soon ? "wait" : "";
-      const over = late ? -daysTo(deadline) : 0;
-      const text = at ? `${label} ✓ ${short(at)}${manual ? "" : " (upload)"}`
-        : late ? `${label} – overdue ${over} day${over === 1 ? "" : "s"}`
-        : deadline ? `${label} – due ${short(deadline)}${soon ? ` (${daysTo(deadline)} days)` : ""}`
-        : `${label} – not set`;
-      return `<button class="mini mat ${cls}" data-mat="${esc(p.id)}" data-key="${key}" data-on="${at ? "0" : "1"}" title="${at ? "Click to clear" : "Click to mark received"}">${text}</button>`;
-    };
-    const missing = (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14);
-    const none = !m.draft && !m.final;
     return {
-      missing, none,
-      html: `${chip("Draft", m.draft, m.draftManual, "draft", due.draft)} ${chip("Final", m.final, m.finalManual, "final", due.final)}` +
-        (files.length ? `<div class="porg">${files.length} file${files.length === 1 ? "" : "s"} uploaded · latest ${short(files[0].at)}</div>` : ""),
+      missing: (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14),
+      none: !m.draft && !m.final,
     };
   };
 
@@ -883,10 +907,9 @@ function eventScreen(data) {
     return `<div class="trow">
       <div class="who"><div class="av">${esc(initials)}</div>
         <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}</div>
-          <div class="porg">${esc(p.organization || p.email)}</div>
+          <div class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</div>
           ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
       <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
-      <div class="cell"><div class="cl">Materials</div>${m.html}</div>
       <div class="act">
         <button class="mini" data-copy="${esc(link)}">Copy link</button>
         <button class="mini" data-edit="${esc(p.id)}" title="Correct their name, email or organization">Edit</button>
@@ -951,10 +974,7 @@ function eventScreen(data) {
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
       <div class="filters">${chips}</div>
-      <p class="steplegend">Every row ends with the six steps of that agreement.
-        <i class="sq"></i> squares are ONGIA's move, <i class="ci"></i> circles are the presenter's.
-        Grey is not started, amber is coming up, red is past its date, green is done — hover any step for its date.</p>
-      <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span>Materials</span><span></span></div>` : ""}${rows}</div>
+      <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
       <details class="settings"><summary>Event settings and diagnostics</summary>
       <dl class="kv" style="margin:12px 0 0">
         <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
