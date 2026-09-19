@@ -806,36 +806,40 @@ function eventScreen(data) {
     } };
   };
   const FACTS = new Map(presenters.map((p) => [p.id, stepFacts(p)]));
-  // A deadline every single row has missed is the event's problem, and the
-  // banner above states it once. Painting it red on all six rows spends the
-  // loudest colour on the least useful fact and camouflages the row that is
-  // genuinely behind its peers. So event-wide lateness reads amber; only an
-  // exception earns red.
-  const everyoneOut = {};
-  for (const s of STEPS) {
-    everyoneOut[s.key] = presenters.length > 1 && presenters.every((p) => !FACTS.get(p.id).at[s.key]);
-  }
 
+  /**
+   * Only the NEXT thing a presenter owes is coloured; everything behind it stays
+   * grey. One loud step per row points at the next action, and a presenter who
+   * has not signed yet is not separately nagged about slides they cannot send.
+   *
+   * Every part of this is decided from the row alone. An earlier version judged
+   * lateness by comparing a row with its neighbours, which meant ticking one
+   * presenter's draft repainted five other rows — right in the data, alarming on
+   * screen, and impossible to reason about.
+   */
   const stepsOf = (p) => {
     const due = ev.deadlines ?? {};
     const { at, inHand } = FACTS.get(p.id);
     const by = { link: due.agreement, agreement: due.agreement, photo: due.agreement,
                  approved: null, draft: due.draft, final: due.final };
-    return STEPS.map((s) => {
+    const next = STEPS.findIndex((s) => !at[s.key]);
+    return STEPS.map((s, i) => {
       const done = Boolean(at[s.key]);
       const deadline = by[s.key];
       const left = deadline ? daysTo(deadline) : null;
-      const overdue = left !== null && left < 0;
-      // Approving has no date of its own. It is ONGIA's move the moment an
-      // agreement lands, and nothing downstream can happen until it is made.
+      // Waiting on the board is the one state that always shows, wherever it
+      // sits: it is the only step that asks something of the person reading.
+      const yours = s.key === "approved" && p.status === "submitted";
       const state = done ? "done"
-        : s.key === "approved" ? (p.status === "submitted" ? "you" : "todo")
-        // The photo arrives with the agreement, so until that is in it is not
-        // separately outstanding. Once the agreement IS in without one it is
-        // missing for good unless the agreement goes back — that earns red.
+        : yours ? "you"
+        : i !== next ? "todo"
+        // The photo arrives with the agreement, so it only counts as missing
+        // once the agreement is in without one — and then it stays missing
+        // unless the agreement goes back, which earns the red.
         : s.key === "photo" ? (inHand ? "late" : "todo")
-        : overdue ? (everyoneOut[s.key] ? "soon" : "late")
-        : left !== null && left <= 14 ? "soon"
+        : left === null ? "todo"
+        : left < 0 ? "late"
+        : left <= 14 ? "soon"
         : "todo";
       return { ...s, done, state, at: at[s.key], deadline };
     });
