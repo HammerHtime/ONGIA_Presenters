@@ -146,6 +146,27 @@
   .trow .cell .cl{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
   .trow .act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   .mini.mat{white-space:nowrap}
+  /* The six steps of one presenter's agreement, in the order they happen.
+     Squares are ONGIA's move, circles are the presenter's. */
+  .steps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px 15px;
+         margin-top:11px;padding-top:10px;border-top:1px dashed var(--border)}
+  .scount{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+          color:var(--muted);white-space:nowrap}
+  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+  .step i{flex:none;width:14px;height:14px;border-radius:999px;border:1.5px solid var(--border);
+          background:var(--sunk);display:grid;place-items:center;font-size:9px;font-weight:700;
+          line-height:1;color:transparent}
+  .step.mine i{border-radius:4px}
+  .step.done{color:var(--done)} .step.done i{background:var(--done);border-color:var(--done);color:#fff}
+  .step.done i::after{content:"\2713"}
+  .step.soon{color:var(--wait)} .step.soon i{border-color:var(--wait);background:var(--wait-bg)}
+  .step.late{color:var(--late)} .step.late i{border-color:var(--late);background:var(--late-bg)}
+  .step.you{color:var(--navy);font-weight:700} .step.you i{border-color:var(--navy);background:var(--navy);color:#fff}
+  .step.you i::after{content:"\2022"}
+  .steplegend{font-size:12px;color:var(--muted);margin:0 0 10px}
+  .steplegend i{display:inline-block;width:11px;height:11px;border:1.5px solid var(--border);
+                background:var(--sunk);vertical-align:-1px;margin:0 3px}
+  .steplegend i.sq{border-radius:4px} .steplegend i.ci{border-radius:999px}
   @supports (grid-template-columns: subgrid){
     .tlist{display:grid;grid-template-columns:minmax(180px,1.3fr) minmax(150px,1fr) minmax(170px,1.1fr) max-content;column-gap:14px}
     .tlist>.trow{grid-column:1/-1;grid-template-columns:subgrid}
@@ -736,6 +757,79 @@ function eventScreen(data) {
       sub: `${chased}, last ${short(mails.at(-1).at)}${calledLine}${nextLine()}` };
   };
 
+  /**
+   * The six things that have to happen for one presenter, in the order they
+   * happen. Two are ONGIA's move (sending the link, approving); four are the
+   * presenter's (the signed agreement, their photo, draft and final material).
+   * Grey is not started, amber is coming up, red is past its date, green is done.
+   */
+  const STEPS = [
+    { key: "link", label: "Link sent", mine: true },
+    { key: "agreement", label: "Agreement", mine: false },
+    { key: "photo", label: "Headshot", mine: false },
+    { key: "approved", label: "Approved", mine: true },
+    { key: "draft", label: "Draft material", mine: false },
+    { key: "final", label: "Final material", mine: false },
+  ];
+
+  const stepsOf = (p) => {
+    const m = mstat[p.id] ?? {};
+    const due = ev.deadlines ?? {};
+    const sentMail = (p.mail ?? []).filter((x) => x.type !== "called");
+    const inHand = p.status === "submitted" || p.status === "approved";
+    const at = {
+      link: sentMail.length ? sentMail[0].at : null,
+      agreement: inHand ? p.submittedAt : null,
+      photo: inHand && p.submission?.headshotName ? p.submittedAt : null,
+      approved: p.status === "approved" ? p.approvedAt : null,
+      draft: m.draft ?? null,
+      final: m.final ?? null,
+    };
+    const by = { link: due.agreement, agreement: due.agreement, photo: due.agreement,
+                 approved: null, draft: due.draft, final: due.final };
+    return STEPS.map((s) => {
+      const done = Boolean(at[s.key]);
+      const deadline = by[s.key];
+      const left = deadline ? daysTo(deadline) : null;
+      // Approving has no date of its own. It is ONGIA's move the moment an
+      // agreement lands, and nothing downstream can happen until it is made.
+      const state = done ? "done"
+        : s.key === "approved" ? (p.status === "submitted" ? "you" : "todo")
+        // The photo arrives with the agreement, so until that is in it is not
+        // separately outstanding — flagging it red would just repeat the line
+        // above. Once the agreement IS in without one, it is missing for good
+        // unless the agreement goes back, and that is worth the red.
+        : s.key === "photo" ? (inHand ? "late" : "todo")
+        : left === null ? "todo"
+        : left < 0 ? "late"
+        : left <= 14 ? "soon"
+        : "todo";
+      return { ...s, done, state, at: at[s.key], deadline };
+    });
+  };
+
+  const stepTitle = (s, p) => {
+    if (s.done) return `${s.label} — done ${short(s.at)}`;
+    if (s.state === "you") return `${s.label} — waiting on ONGIA: review and sign it`;
+    if (s.key === "approved") return `${s.label} — nothing to approve until the agreement is in`;
+    if (s.key === "photo") return p.status === "submitted" || p.status === "approved"
+      ? "No headshot — the agreement has no photo. Send it back if you need one."
+      : "Headshot — comes in with the signed agreement";
+    if (!s.deadline) return `${s.label} — no date set on this event`;
+    const d = daysTo(s.deadline);
+    return d < 0 ? `${s.label} — overdue ${-d} day${d === -1 ? "" : "s"} (was due ${short(s.deadline)})`
+      : `${s.label} — due ${short(s.deadline)}${d <= 14 ? ` (${d} day${d === 1 ? "" : "s"})` : ""}`;
+  };
+
+  const stepsHtml = (p) => {
+    const st = stepsOf(p);
+    const n = st.filter((s) => s.done).length;
+    return `<div class="steps">
+      <span class="scount">${n} of ${st.length}</span>
+      ${st.map((s) => `<span class="step ${s.state}${s.mine ? " mine" : ""}" title="${esc(stepTitle(s, p))}"><i></i>${esc(s.label)}</span>`).join("")}
+    </div>`;
+  };
+
   // Draft and final materials, detected from uploads or ticked by hand.
   const matCell = (p) => {
     const m = mstat[p.id] ?? {};
@@ -786,7 +880,8 @@ function eventScreen(data) {
         ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
         ${a.bucket === "failed" ? `<button class="mini" data-refile="${esc(p.id)}">Retry filing</button>` : ""}
         ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : `<button class="mini ghost" data-remove="${esc(p.id)}" title="Remove presenter">✕</button>`}
-      </div></div>`;
+      </div>
+      ${stepsHtml(p)}</div>`;
   }).join("") : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`;
 
   // The exception cuts only appear when there is an exception to show.
@@ -833,6 +928,9 @@ function eventScreen(data) {
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
       <div class="filters">${chips}</div>
+      <p class="steplegend">Every row ends with the six steps of that agreement.
+        <i class="sq"></i> squares are ONGIA's move, <i class="ci"></i> circles are the presenter's.
+        Grey is not started, amber is coming up, red is past its date, green is done — hover any step for its date.</p>
       <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span>Materials</span><span></span></div>` : ""}${rows}</div>
       <details class="settings"><summary>Event settings and diagnostics</summary>
       <dl class="kv" style="margin:12px 0 0">
