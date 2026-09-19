@@ -604,16 +604,32 @@ function eventFormScreen(existing = null) {
   const offsets = { agreement: 90, draft: 50, final: 30, ...(ev?.offsets ?? {}) };
   let deadlineRun = 0;
 
-  const drawDeadlines = (out, busy) => {
+  // The inputs are built once and then left alone. Rebuilding them on every
+  // keystroke destroyed the field being typed into: refocusing the replacement
+  // put the caret back at the start, so typing 60 produced 06.
+  const drawSkeleton = () => {
     preview.innerHTML = `<dl class="dates">${OFFSET_ROWS.map(([k, label, sub]) => `
       <div class="drow"><dt>${label}<span>${sub}</span></dt>
         <label class="daysback"><input type="number" min="1" max="365" step="1" id="off-${k}" value="${offsets[k]}" aria-label="${label}: days before day one"> days before</label>
-        <dd>${busy ? "…" : esc(out?.readable?.[k] ?? "—")}</dd></div>`).join("")}
-    </dl>${out?.moved?.length ? `<div class="note">${out.moved.map(esc).join("<br>")}</div>` : ""}`;
+        <dd id="dd-${k}">—</dd></div>`).join("")}
+    </dl><div id="dl-note"></div>`;
     for (const [k] of OFFSET_ROWS) {
-      const el = $(`off-${k}`);
-      el.oninput = () => { const n = Math.round(Number(el.value)); if (n >= 1 && n <= 365) { offsets[k] = n; showDeadlines(); } };
+      $(`off-${k}`).oninput = () => {
+        const n = Math.round(Number($(`off-${k}`).value));
+        if (n >= 1 && n <= 365) { offsets[k] = n; showDeadlines(); }
+      };
     }
+  };
+
+  // Only the dates and the note below them change as the numbers do.
+  const drawDeadlines = (out, busy, note = "") => {
+    if (!$("dd-agreement")) drawSkeleton();
+    for (const [k] of OFFSET_ROWS) {
+      const dd = $(`dd-${k}`);
+      if (dd) dd.textContent = busy ? "…" : (out?.readable?.[k] ?? "—");
+    }
+    const box = $("dl-note");
+    if (box) box.innerHTML = (out?.moved?.length ? `<div class="note">${out.moved.map(esc).join("<br>")}</div>` : "") + note;
   };
 
   const showDeadlines = async () => {
@@ -626,13 +642,9 @@ function eventFormScreen(existing = null) {
         ? "Draft materials are due before final materials, so use a larger number of days for them."
         : null;
     const run = ++deadlineRun;
-    const focused = document.activeElement?.id;
     drawDeadlines(null, true);
-    if (focused?.startsWith("off-")) $(focused)?.focus();
     if (order) {
-      drawDeadlines(null, false);
-      preview.insertAdjacentHTML("beforeend", `<p class="hint" style="margin-top:8px;color:var(--late)">${esc(order)}</p>`);
-      if (focused?.startsWith("off-")) $(focused)?.focus();
+      drawDeadlines(null, false, `<p class="hint" style="margin-top:8px;color:var(--late)">${esc(order)}</p>`);
       return;
     }
     try {
@@ -640,12 +652,9 @@ function eventFormScreen(existing = null) {
       const out = await api(`/deadlines?dayOne=${day1.value}&${q}`);
       if (run !== deadlineRun) return;             // a later keystroke already won
       drawDeadlines(out, false);
-      if (focused?.startsWith("off-")) $(focused)?.focus();
     } catch (e) {
       if (run !== deadlineRun) return;
-      drawDeadlines(null, false);
-      preview.insertAdjacentHTML("beforeend", `<div class="bad" style="margin-top:8px">${esc(e.message)}</div>`);
-      if (focused?.startsWith("off-")) $(focused)?.focus();
+      drawDeadlines(null, false, `<div class="bad" style="margin-top:8px">${esc(e.message)}</div>`);
     }
   };
   day1.onchange = showDeadlines;
