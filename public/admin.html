@@ -252,9 +252,13 @@
 
   /* review screen */
   .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px;margin-top:12px;align-items:baseline}
-  .kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500;white-space:pre-wrap;word-break:break-word}
+  .kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500;word-break:break-word}
   .kv dt.top{align-self:start}
-  .shotcell{display:block;white-space:normal}
+  .shotcell{display:block}
+  /* A value that is more than a phrase: each part on its own line, one left edge. */
+  .kv dd .stack{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+  .kv dd .line,.note .line{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+  .kv dd .said{font-weight:400;color:var(--muted)}
   .shotcell img{display:block;width:96px;height:120px;object-fit:cover;border-radius:10px;
                 border:1px solid var(--border);background:var(--sunk);margin-bottom:5px}
   @media (max-width:560px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}}
@@ -981,22 +985,15 @@ function eventScreen(data) {
       <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
       <details class="settings"><summary>Event settings and diagnostics</summary>
       <dl class="kv" style="margin:12px 0 0">
-        <dt>Files to</dt><dd>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}
-          <div style="margin-top:6px">${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
-        <dt>Uploads</dt><dd>${!ev.materialsUploadUrl ? `<i>no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</i> <button class="mini" id="mklink">Create upload link</button>`
-          : `${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}
-             ${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}
-             <button class="mini" id="rescan">Check uploads now</button>
-             ${scan?.unmatched?.length ? `<div class="porg" style="margin-top:6px"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</dd>
+        <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
+        <dt class="top">Uploads</dt><dd><div class="stack">${!ev.materialsUploadUrl
+          ? `<span class="said">no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</span><button class="mini" id="mklink">Create upload link</button>`
+          : `<div class="line">${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}<span class="said">${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}</span></div><button class="mini" id="rescan">Check uploads now</button>${scan?.unmatched?.length ? `<div class="porg"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</div></dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
-        <dt>Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<span class="pill late">no lead</span> Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.`}</dd>
+        <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
-      <div class="note" style="margin-top:18px"><b>Test emails</b> (temporary, for checking the weekly summary): 
-        <span style="display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <button class="mini" id="digest-lead">Send summary to lead${ev.reviewer?.name ? ` (${esc(ev.reviewer.name)})` : ""}</button>
-          <button class="mini" id="digest-board">Send summary to president &amp; VP</button>
-        </span></div>
+      <div class="note" style="margin-top:18px"><div><b>Test emails</b> — temporary, for checking the weekly summary.</div><div class="line" style="margin-top:9px"><button class="mini" id="digest-lead">Send summary to lead${ev.reviewer?.name ? ` (${esc(ev.reviewer.name)})` : ""}</button><button class="mini" id="digest-board">Send summary to president &amp; VP</button></div></div>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
       </details>
     </div></div>
