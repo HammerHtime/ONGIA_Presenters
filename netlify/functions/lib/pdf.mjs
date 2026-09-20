@@ -180,7 +180,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
       ["Meals (Receipts Req.)", !!oc.meals, yes(ex.meals)],
       ex.other === "yes"
         ? [`Other: ${ex.otherText || "—"}`, !!oc.other, true]
-        : ["Other:", "not required"],
+        : ["Other:", "none claimed"],
     ]
   );
   p.note(
@@ -547,13 +547,18 @@ class Painter {
     y += rowH;
     rule(MARGIN, MARGIN + BODY_W, y);
 
+    // A row whose second cell is a string has nothing to tick: the note is set
+    // across both tick columns, and the divider between them is left out of that
+    // band so the line does not run through the middle of the words.
+    const merged = [];
     for (const r of rows) {
       x = MARGIN;
       cell(x, widths[0], r[0], false, "left");
       x += widths[0];
-      if (r[1] === "not required") {
+      if (typeof r[1] === "string") {
+        merged.push([y, y + rowH]);
         doc.font("Helvetica-Oblique").fontSize(8.5).fillColor(MUTED)
-          .text("not required", x, y + 4, { width: widths[1] + widths[2], align: "center", lineBreak: false });
+          .text(r[1], x, y + 4, { width: widths[1] + widths[2], align: "center", lineBreak: false, ellipsis: true });
       } else {
         this.tick(x + widths[1] / 2 - 4.5, y + 3, !!r[1]);
         this.tick(x + widths[1] + widths[2] / 2 - 4.5, y + 3, !!r[2]);
@@ -561,10 +566,18 @@ class Painter {
       y += rowH;
       rule(MARGIN, MARGIN + BODY_W, y);
     }
-    // verticals
+    // verticals — the inner one breaks around any merged band
+    const top = this.y;
     x = MARGIN;
     for (let i = 0; i <= widths.length; i++) {
-      doc.moveTo(x, this.y).lineTo(x, y).lineWidth(0.8).strokeColor(INK).stroke();
+      const inner = i > 0 && i < widths.length;
+      const gaps = inner && i === widths.length - 1 ? merged : [];
+      let from = top;
+      for (const [g0, g1] of gaps) {
+        if (g0 > from) doc.moveTo(x, from).lineTo(x, g0).lineWidth(0.8).strokeColor(INK).stroke();
+        from = g1;
+      }
+      if (y > from) doc.moveTo(x, from).lineTo(x, y).lineWidth(0.8).strokeColor(INK).stroke();
       if (i < widths.length) x += widths[i];
     }
     this.y = y + 3;
