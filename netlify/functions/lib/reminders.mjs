@@ -1,6 +1,6 @@
 import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta } from "./store.mjs";
 import { describeEvent, formatDate } from "./deadlines.mjs";
-import { sendMail, invitationMail, layout, coordinatorOf } from "./mail.mjs";
+import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
 import { weeklyDigestMail } from "./mail.mjs";
 import { countStatuses } from "../events.mjs";
@@ -78,6 +78,34 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
           await putPresenter(p);
         },
       });
+    }
+
+    // Room and equipment: asked at approval, chased until it arrives. Same
+    // cadence as the materials, against the same date, because that is when the
+    // venue starts setting rooms up.
+    if (!digestOnly) {
+      const avDue = event.deadlines.draft;
+      const avOff = daysBetween(avDue, today);
+      if (MATERIALS_DAYS.includes(avOff) || overdueDay(avOff)) {
+        for (const p of people.filter((x) => x.status === "approved" && !x.av)) {
+          if (alreadyToday(p, today)) continue;
+          if (calledRecently(p, today)) continue;
+          plan.push({
+            kind: "room",
+            event: event.title,
+            to: p.email,
+            name: `${p.first} ${p.last}`,
+            why: `room and equipment ${avOff < 0 ? `${-avOff} days before the room is set` : avOff === 0 ? "due today" : `${avOff} days overdue`}`,
+            send: async () => {
+              const mail = avRequestMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: true, due: avDue });
+              const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, ...mail });
+              if (out.skipped) throw new Error(out.reason);
+              p.mail = [...(p.mail ?? []), { type: "av-reminder", at: new Date().toISOString(), id: out.id }];
+              await putPresenter(p);
+            },
+          });
+        }
+      }
     }
 
     // Materials chase-ups for everyone whose agreement is in.

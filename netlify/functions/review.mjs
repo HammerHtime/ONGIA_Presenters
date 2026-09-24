@@ -3,7 +3,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
 import { describeEvent, travelWindow, rangeProblem, formatDate } from "./lib/deadlines.mjs";
-import { sendMail, finalCopyMail, approvedNoticeMail, returnedMail, coordinatorOf } from "./lib/mail.mjs";
+import { sendMail, finalCopyMail, avRequestMail, approvedNoticeMail, returnedMail, coordinatorOf } from "./lib/mail.mjs";
 import { fileAgreement } from "./lib/graph.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 
@@ -186,6 +186,19 @@ async function deliver(event, presenter, pdf, origin, which) {
     presenter.delivery.presenterEmail = await attempt(() =>
       sendMail({ to: presenter.email, replyTo: coordinatorOf(event).email || undefined, attachments: [{ filename, content: pdf }], ...mail })
     );
+
+    // The room-and-equipment ask goes as its own message rather than a
+    // paragraph inside the agreement email, so it can be chased on its own and
+    // so the signed copy is not competing with a request for attention.
+    if (!presenter.av) {
+      const avMail = avRequestMail({ event: ev, presenter, link: `${origin}/a/${presenter.token}`, due: event.deadlines?.draft });
+      presenter.delivery.avRequest = await attempt(() =>
+        sendMail({ to: presenter.email, replyTo: coordinatorOf(event).email || undefined, ...avMail })
+      );
+      if (presenter.delivery.avRequest?.ok) {
+        presenter.mail = [...(presenter.mail ?? []), { type: "av-request", at: new Date().toISOString(), id: presenter.delivery.avRequest.id }];
+      }
+    }
   }
 
   if (which.boardEmail) {

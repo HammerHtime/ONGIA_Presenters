@@ -22,9 +22,44 @@ export default async (req) => {
 
   const { event, presenter } = found;
   if (req.method === "GET") return showForm(event, presenter);
-  if (req.method === "POST") return submit(req, event, presenter);
+  if (req.method === "POST") {
+    return url.searchParams.get("av") ? submitAv(req, event, presenter) : submit(req, event, presenter);
+  }
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * Room and equipment. Every line is optional — the venue would rather have six
+ * answers than none — so anything unrecognised is dropped and reads as "not
+ * specified" wherever it is shown.
+ */
+export function cleanAv(body) {
+  const oneOf = (value, allowed) => (allowed.includes(value) ? value : null);
+  return {
+    laptop: oneOf(body?.laptop, ["own", "house"]),
+    plug: body?.laptop === "own" ? oneOf(body?.plug, ["hdmi", "usbc", "other", "unsure"]) : null,
+    mic: oneOf(body?.mic, ["lapel", "handheld", "podium", "none"]),
+    sound: yesNo(body?.sound) || null,
+    clicker: yesNo(body?.clicker) || null,
+    internet: yesNo(body?.internet) || null,
+    handouts: yesNo(body?.handouts) || null,
+    seating: oneOf(body?.seating, ["theatre", "classroom", "rounds", "any"]),
+    notes: text(body?.notes, 600),
+  };
+}
+
+/** The follow-up form. Only an approved presenter has one to fill in. */
+async function submitAv(req, event, presenter) {
+  if (presenter.status !== "approved") {
+    return fail("Room and equipment is asked once your agreement is approved.", 409);
+  }
+  const body = await req.json().catch(() => null);
+  if (!body) return fail("Expected a JSON body.");
+  presenter.av = cleanAv(body);
+  presenter.avAt = new Date().toISOString();
+  await putPresenter(presenter);
+  return json({ ok: true, av: presenter.av, avAt: presenter.avAt });
+}
 
 async function showForm(event, presenter) {
   // Opening the link is itself a signal — it separates "never looked" from
@@ -67,6 +102,10 @@ async function showForm(event, presenter) {
       headshot: presenter.headshot ?? null,
       // Set when a board member sent it back; the form shows it at the top.
       returnNote: presenter.status === "returned" ? presenter.review?.returnNote : null,
+      // Room and equipment: asked only once the agreement is approved, because
+      // a presenter ninety days out does not yet know what their deck will do.
+      av: presenter.av ?? null,
+      avAt: presenter.avAt ?? null,
     },
     // What they typed last time, so a half-finished form isn't lost.
     draft: presenter.submission ?? null,
@@ -134,20 +173,6 @@ async function submit(req, event, presenter) {
     }
   }
 
-  // Room and equipment. Every line is optional — an agreement must never be
-  // held up over a microphone — so anything unrecognised is simply dropped and
-  // reads as "not specified" wherever it is shown.
-  const oneOf = (value, allowed) => (allowed.includes(value) ? value : null);
-  const av = {
-    mic: oneOf(body?.av?.mic, ["lapel", "handheld", "podium", "none"]),
-    laptop: oneOf(body?.av?.laptop, ["own", "house"]),
-    plug: body?.av?.laptop === "own" ? oneOf(body?.av?.plug, ["hdmi", "usbc", "other", "unsure"]) : null,
-    sound: yesNo(body?.av?.sound) || null,
-    clicker: yesNo(body?.av?.clicker) || null,
-    seating: oneOf(body?.av?.seating, ["theatre", "classroom", "rounds", "any"]),
-    notes: text(body?.av?.notes, 600),
-  };
-
   const signature = text(body.signature, 160);
   if (!signature) problems.push("Please type your name to sign.");
   if (body.agreed !== true) problems.push("Please confirm your electronic signature.");
@@ -176,7 +201,6 @@ async function submit(req, event, presenter) {
     hotelFrom: hotel === "yes" ? hotelFrom : "",
     hotelTo: hotel === "yes" ? hotelTo : "",
     expenses,
-    av,
     copyright: true,
     goodStanding: true,
     media,

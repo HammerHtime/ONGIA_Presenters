@@ -197,6 +197,48 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
   };
 }
 
+/**
+ * Room and equipment, asked once the agreement is approved. A presenter three
+ * months out does not know what their deck will do; by approval they usually
+ * do. Same link they already have, so there is nothing new to find.
+ */
+export function avRequestMail({ event, presenter, link, remind = false, due = "" }) {
+  const lang = presenter.language === "fr" ? "fr" : "en";
+  const first = esc(presenter.first);
+  const title = esc(event.title);
+  const by = due ? esc(formatDateIn(due, lang)) : "";
+  if (lang === "fr") {
+    const heading = remind
+      ? `Rappel : vos besoins techniques pour ${event.title}`
+      : `Votre entente est signée — une dernière question`;
+    const lines = remind
+      ? [`Bonjour ${first},`,
+         `Il nous manque encore vos besoins techniques pour <b>${title}</b>.` + (by ? ` La préparation des salles commence avant le <b>${by}</b>.` : ""),
+         `Une minute suffit : le micro, votre ordinateur, le son, la disposition de la salle.`]
+      : [`Bonjour ${first},`,
+         `Votre entente de conférencier pour <b>${title}</b> est signée et classée. Merci.`,
+         `Il reste une chose : dites-nous comment vous voulez la salle, pour que tout soit prêt à votre arrivée.` + (by ? ` Idéalement d'ici le <b>${by}</b>.` : ""),
+         `Une minute environ : le micro, votre ordinateur, le son, la disposition.`];
+    return { subject: heading,
+      html: layout({ heading, lines, buttons: [{ href: link, label: "Configurer ma salle" }], contact: coordinatorOf(event), event, lang: "fr" }),
+      text: plain(heading, lines, link, coordinatorOf(event)) };
+  }
+  const heading = remind
+    ? `Reminder: your room and equipment for ${event.title}`
+    : `Your agreement is signed — one last question`;
+  const lines = remind
+    ? [`Hello ${first},`,
+       `We still need your room and equipment details for <b>${title}</b>.` + (by ? ` The venue starts setting rooms up ahead of <b>${by}</b>.` : ""),
+       `It takes about a minute: the microphone, your laptop, sound, and how you want the room laid out.`]
+    : [`Hello ${first},`,
+       `Your presenter agreement for <b>${title}</b> is signed and filed. Thank you.`,
+       `One thing left: tell us how you want the room set up, so the venue has it ready before you walk in.` + (by ? ` Ideally by <b>${by}</b>.` : ""),
+       `It takes about a minute: the microphone, your laptop, sound, and the layout.`];
+  return { subject: heading,
+    html: layout({ heading, lines, buttons: [{ href: link, label: "Set up my room" }], contact: coordinatorOf(event), event }),
+    text: plain(heading, lines, link, coordinatorOf(event)) };
+}
+
 /** Sent to the presenter with the signed final copy attached. */
 export function finalCopyMail({ event, presenter, approval, coverage }) {
   const lang = presenter.language === "fr" ? "fr" : "en";

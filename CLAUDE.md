@@ -22,6 +22,24 @@ shown to do what was asked. Every change:
 Never report something as fixed on the strength of a local test plus a
 successful deploy.
 
+## Own the output, not just the code
+
+Andrew should never be the one who discovers that an email is ugly on a phone,
+that the wording is off, or that it never arrived. For every change:
+
+- **Audit the diff.** Read it back adversarially before calling it done.
+- **Produce the actual artefact.** Not a unit test standing in for it — the real
+  PDF, the real page, the real email, from real data.
+- **For anything that emails:** render the message at phone width and look at
+  it. Check the layout, the font sizes, the tap targets, and that it reads well
+  in both languages. Run the wording through the `humanizer` skill and correct
+  what it flags.
+- **If a send fails**, it does not get buried in a log. Add it to
+  `reports/AUDIT-NEEDS-ANDREW.md` with what failed, why, and the fix — so the
+  gap is visible without him testing for it.
+
+He owns the decisions. I own the code, the output, the wording and the layout.
+
 ## How to test against production
 
 Netlify Functions read live Blobs, so the only honest check uses real records.

@@ -275,6 +275,18 @@ en: {
   avSeatingHint: "A preference, not a promise — some rooms are shared between sessions.",
   avNotes: "Anything else the AV crew should know?",
   avNotesHint: "Optional. A flip chart, a second screen, standing rather than seated — whatever helps.",
+  avInternet: "Do you need internet in the room?",
+  avInternetHint: "Only if something in your session is live — a website, a stream, a demo.",
+  avHandouts: "Are you handing anything out on paper?",
+  avHandoutsHint: "So there is a table for it, and we know whether printing is needed.",
+  avHead: "One last thing: your room",
+  avIntro: (t2) => `Your agreement for <b>${t2}</b> is signed and filed. All that is left is how you want the room set up, so the venue has it ready before you walk in.`,
+  avMinutes: "Takes about a minute. You can change any of it later from this same link.",
+  avSend: "Send this to ONGIA", avSending: "Sending…",
+  avThanks: "Thank you — that is everything",
+  avThanksP: "ONGIA has your room and equipment. Change anything below and send it again if your plans move.",
+  avEdit: "Change my answers", avSaved: (d) => `Sent ${d}.`,
+  avAgreementLink: "Your signed agreement",
   travelLede: (a, b) => `Tell us what you need arranged for the training event. Dates can run from the day before training to the day after — <b>${a}</b> to <b>${b}</b>. ONGIA confirms the final dates when your agreement is approved.`,
   needTravel: "Will you need travel arranged?", arriving: "Arriving", departing: "Departing",
   needHotel: "Will you need hotel accommodation?", checkin: "Check-in", checkout: "Check-out",
@@ -374,6 +386,18 @@ fr: {
   avSeatingHint: "Une préférence, pas une promesse — certaines salles servent à plusieurs séances.",
   avNotes: "Autre chose à signaler à l'équipe audiovisuelle?",
   avNotesHint: "Facultatif. Un tableau, un deuxième écran, présenter debout — ce qui vous aide.",
+  avInternet: "Avez-vous besoin d'Internet dans la salle?",
+  avInternetHint: "Seulement si une partie de votre séance est en direct — un site, une diffusion, une démonstration.",
+  avHandouts: "Distribuerez-vous des documents papier?",
+  avHandoutsHint: "Pour prévoir une table, et savoir s'il faut imprimer.",
+  avHead: "Dernière chose : votre salle",
+  avIntro: (t2) => `Votre entente pour <b>${t2}</b> est signée et classée. Il ne reste que la configuration de la salle, pour que tout soit prêt à votre arrivée.`,
+  avMinutes: "Une minute environ. Vous pourrez tout modifier plus tard depuis ce même lien.",
+  avSend: "Envoyer à ONGIA", avSending: "Envoi…",
+  avThanks: "Merci — c'est tout",
+  avThanksP: "ONGIA a vos besoins techniques. Modifiez ce qui suit et renvoyez-le si vos plans changent.",
+  avEdit: "Modifier mes réponses", avSaved: (d) => `Envoyé le ${d}.`,
+  avAgreementLink: "Votre entente signée",
   travelLede: (a, b) => `Indiquez-nous ce qu'il faut organiser pour la formation. Les dates peuvent aller de la veille au lendemain de la formation — du <b>${a}</b> au <b>${b}</b>. ONGIA confirmera les dates définitives lors de l'approbation de votre entente.`,
   needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Arrivée", departing: "Départ",
   needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", checkin: "Arrivée à l'hôtel", checkout: "Départ de l'hôtel",
@@ -437,7 +461,7 @@ const serverText = (msg) => /isn't valid/.test(msg ?? "") ? t("errInvalidLink") 
 function setLang(l) {
   LANG = l; try { localStorage.setItem("ongia-lang", l); } catch {}
   document.documentElement.lang = l; LANGBTN.textContent = t("other"); document.title = t("pageTitle");
-  if (DATA) { if (DATA.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); STEPCOUNT.textContent = t("finalWord"); } else if (DONE) render(DONE); else render(); }
+  if (DATA) { if (DATA.presenter.status === "approved") renderApproved(); else if (DONE) render(DONE); else render(); }
 }
 LANGBTN.textContent = t("other");
 LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
@@ -476,6 +500,9 @@ function loadDraft() {
   } catch { return null; }
 }
 let sending = false;
+// An approved presenter sees the room-and-equipment form until they send it,
+// and can come back to change it from the final screen.
+let AVVIEW = false;
 const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
   first: "", last: "", email: "", phone: "", organization: "",
@@ -643,21 +670,6 @@ function stepMarkup() {
       <div class="field"><label for="f-outline">${t("outline")}</label>
         <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
         <p class="hint">${t("outlineHint")}</p></div>
-      </div>
-      <div class="card"><h2>${t("avTitle")}</h2>
-      <p class="lede">${t("avLede")}</p>
-      <div class="qblock"><p class="qtext">${t("avMic")}</p>${seg("av", opts("avMicOpts"), ["av", "mic"])}</div>
-      <div class="qblock"><p class="qtext">${t("avLaptop")}</p>${seg("av", opts("avLaptopOpts"), ["av", "laptop"])}</div>
-      ${S.av.laptop === "own" ? `<div class="qblock"><p class="qtext">${t("avPlug")}</p>${seg("av", opts("avPlugOpts"), ["av", "plug"])}
-        <p class="hint">${t("avPlugHint")}</p></div>` : ""}
-      <div class="qblock"><p class="qtext">${t("avSound")}</p>${seg("av", YESNO(), ["av", "sound"])}
-        <p class="hint">${t("avSoundHint")}</p></div>
-      <div class="qblock"><p class="qtext">${t("avClicker")}</p>${seg("av", YESNO(), ["av", "clicker"])}</div>
-      <div class="qblock"><p class="qtext">${t("avSeating")}</p>${seg("av", opts("avSeatingOpts"), ["av", "seating"])}
-        <p class="hint">${t("avSeatingHint")}</p></div>
-      <div class="field"><label for="f-avnotes">${t("avNotes")}</label>
-        <textarea id="f-avnotes" data-bind="av.notes" rows="2">${esc(S.av.notes)}</textarea>
-        <p class="hint">${t("avNotesHint")}</p></div>
       </div>`;
     }
 
@@ -747,6 +759,55 @@ function doneMarkup(result) {
     <p class="ref">${t("reference", esc(result.reference))}</p></div>`;
 }
 
+/**
+ * Room and equipment, asked once the agreement is signed and filed. It lives on
+ * the same link the presenter already has — no second account, no second
+ * password, and it stays editable so a change of plan does not need an email.
+ */
+function avMarkup() {
+  const ev = DATA.event, me = DATA.presenter;
+  const sent = Boolean(me.avAt);
+  const head = sent
+    ? `<div class="card done-screen" style="padding-bottom:22px"><div class="tick">✓</div>
+        <h2>${t("avThanks")}</h2><p>${t("avThanksP")}</p>
+        <p class="ref">${t("avSaved", esc(fmtDate(toISO(new Date(me.avAt)))))}</p></div>`
+    : `<div class="card"><h2>${t("avHead")}</h2>
+        <p class="lede">${t("avIntro", esc(ev.title))}</p>
+        <p class="hint" style="margin-top:-4px">${t("avMinutes")}</p></div>`;
+
+  return `<div class="wrap">${head}
+    <div class="card">
+      <div class="qblock"><p class="qtext">${t("avLaptop")}</p>${seg("av", opts("avLaptopOpts"), ["av", "laptop"])}</div>
+      ${S.av.laptop === "own" ? `<div class="qblock"><p class="qtext">${t("avPlug")}</p>${seg("av", opts("avPlugOpts"), ["av", "plug"])}
+        <p class="hint">${t("avPlugHint")}</p></div>` : ""}
+      <div class="qblock"><p class="qtext">${t("avMic")}</p>${seg("av", opts("avMicOpts"), ["av", "mic"])}</div>
+      <div class="qblock"><p class="qtext">${t("avSound")}</p>${seg("av", YESNO(), ["av", "sound"])}
+        <p class="hint">${t("avSoundHint")}</p></div>
+      <div class="qblock"><p class="qtext">${t("avClicker")}</p>${seg("av", YESNO(), ["av", "clicker"])}</div>
+      <div class="qblock"><p class="qtext">${t("avInternet")}</p>${seg("av", YESNO(), ["av", "internet"])}
+        <p class="hint">${t("avInternetHint")}</p></div>
+      <div class="qblock"><p class="qtext">${t("avHandouts")}</p>${seg("av", YESNO(), ["av", "handouts"])}
+        <p class="hint">${t("avHandoutsHint")}</p></div>
+      <div class="qblock"><p class="qtext">${t("avSeating")}</p>${seg("av", opts("avSeatingOpts"), ["av", "seating"])}
+        <p class="hint">${t("avSeatingHint")}</p></div>
+      <div class="field"><label for="f-avnotes">${t("avNotes")}</label>
+        <textarea id="f-avnotes" data-bind="av.notes" rows="2">${esc(S.av.notes)}</textarea>
+        <p class="hint">${t("avNotesHint")}</p></div>
+      <div class="done-actions" style="margin-top:18px">
+        <button type="button" class="btn btn-gold" id="av-send"${sending ? " disabled" : ""}>${sending ? t("avSending") : t("avSend")}</button>
+        <a class="btn btn-ghost" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("avAgreementLink")}</a>
+      </div>
+    </div></div>`;
+}
+
+function renderApproved() {
+  const me = DATA.presenter;
+  if (me.av) S.av = { ...S.av, ...me.av, notes: me.av.notes ?? "" };
+  ROOT.innerHTML = (!me.avAt || AVVIEW) ? avMarkup() : finalMarkup();
+  STEPCOUNT.textContent = t("finalWord");
+  window.scrollTo(0, 0);
+}
+
 /** Once a board member has approved, the link becomes the place to get the final copy. */
 function finalMarkup() {
   const ev = DATA.event, me = DATA.presenter, dl = ev.deadlinesIso;
@@ -759,7 +820,8 @@ function finalMarkup() {
     </div>
     <div class="done-actions">
       <a class="btn btn-gold" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>
-      ${ev.materialsUploadUrl ? `<a class="btn btn-primary" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a>` : ""}</div>
+      ${ev.materialsUploadUrl ? `<a class="btn btn-primary" href="${esc(ev.materialsUploadUrl)}" target="_blank" rel="noopener">${t("upload")}</a>` : ""}
+      <button type="button" class="btn btn-ghost" id="av-open">${t("avEdit")}</button></div>
     <p class="hint" style="margin-top:16px;text-align:center;letter-spacing:0;text-transform:none">${t("refQuestions", esc(me.reference), esc(ev.contact?.name || "ONGIA"))}</p></div></div>`;
 }
 
@@ -1013,8 +1075,30 @@ async function submit() {
   }
 }
 
+async function sendAv() {
+  sending = true; renderApproved();
+  try {
+    const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}&av=1`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(S.av),
+    });
+    const out = await res.json();
+    sending = false;
+    if (!res.ok) { alert(serverText(out.error)); renderApproved(); return; }
+    DATA.presenter.av = out.av;
+    DATA.presenter.avAt = out.avAt;
+    AVVIEW = false;
+    renderApproved();
+  } catch {
+    sending = false;
+    alert(t("netFail"));
+    renderApproved();
+  }
+}
+
 /* ---------- events ---------- */
 ROOT.addEventListener("click", (e) => {
+  if (e.target.closest("#av-send")) { sendAv(); return; }
+  if (e.target.closest("#av-open")) { AVVIEW = true; renderApproved(); return; }
   // Any deliberate action means they have seen the "picked up where you left off" note.
   if (e.target.closest("button, [data-set], .attest, .upload")) restoredNote = false;
   const set = e.target.closest("[data-set]");
@@ -1033,7 +1117,9 @@ ROOT.addEventListener("click", (e) => {
     // answer must not survive a change of mind.
     if (path === "av.laptop" && value !== "own") S.av.plug = null;
     S.problems = [];
-    render();
+    // The same segmented controls serve the step form and the room-and-equipment
+    // screen, so the redraw has to match whichever one is on.
+    if (DATA?.presenter.status === "approved") renderApproved(); else render();
     return;
   }
   const cal = e.target.closest("[data-cal]");
@@ -1139,7 +1225,7 @@ document.addEventListener("keydown", (e) => {
     DATA = out;
     let remembered = null; try { remembered = localStorage.getItem("ongia-lang"); } catch {}
     if (out.presenter.language && !remembered) setLang(out.presenter.language);
-    if (out.presenter.status === "approved") { ROOT.innerHTML = finalMarkup(); STEPCOUNT.textContent = t("finalWord"); return; }
+    if (out.presenter.status === "approved") { renderApproved(); return; }
     Object.assign(S, {
       first: out.presenter.first ?? "",
       last: out.presenter.last ?? "",

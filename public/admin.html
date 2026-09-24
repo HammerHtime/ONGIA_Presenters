@@ -795,6 +795,7 @@ function eventScreen(data) {
     { key: "agreement", label: "Agreement" },
     { key: "photo", label: "Headshot" },
     { key: "approved", label: "Approved" },
+    { key: "room", label: "Room & kit" },
     { key: "draft", label: "Draft material" },
     { key: "final", label: "Final material" },
   ];
@@ -810,6 +811,7 @@ function eventScreen(data) {
       agreement: inHand ? p.submittedAt : null,
       photo: inHand && p.submission?.headshotName ? p.submittedAt : null,
       approved: p.status === "approved" ? p.approvedAt : null,
+      room: p.avAt ?? null,
       draft: m.draft ?? null,
       final: m.final ?? null,
     } };
@@ -829,8 +831,10 @@ function eventScreen(data) {
   const stepsOf = (p) => {
     const due = ev.deadlines ?? {};
     const { at, inHand } = FACTS.get(p.id);
+    // Room and equipment is asked at approval and wanted when the venue starts
+    // setting rooms up, which is the draft-materials date.
     const by = { link: due.agreement, agreement: due.agreement, photo: due.agreement,
-                 approved: null, draft: due.draft, final: due.final };
+                 approved: null, room: due.draft, draft: due.draft, final: due.final };
     const next = STEPS.findIndex((s) => !at[s.key]);
     return STEPS.map((s, i) => {
       const done = Boolean(at[s.key]);
@@ -1395,15 +1399,17 @@ const AV_WORDS = {
   plug: { hdmi: "HDMI", usbc: "USB-C", other: "Other connector", unsure: "Connector unknown" },
   seating: { theatre: "Theatre", classroom: "Classroom", rounds: "Round tables", any: "Any layout" },
 };
-function avSummary(av) {
+function avSummary(av, at) {
   const a = av ?? {};
   const bits = [AV_WORDS.mic[a.mic], AV_WORDS.laptop[a.laptop], AV_WORDS.plug[a.plug],
     a.sound === "yes" ? "Needs sound" : a.sound === "no" ? "No sound" : null,
     a.clicker === "yes" ? "Slide advancer" : null,
     AV_WORDS.seating[a.seating]].filter(Boolean);
-  if (!bits.length && !a.notes) return "<i>nothing requested</i>";
+  if (!at) return `<span class="pill late">not sent back yet</span>`;
+  if (!bits.length && !a.notes) return "<i>answered — nothing requested</i>";
   return `<div class="stack">${bits.length ? `<span>${bits.map(esc).join(" · ")}</span>` : ""}`
-    + `${a.notes ? `<span class="said">${esc(a.notes)}</span>` : ""}</div>`;
+    + `${a.notes ? `<span class="said">${esc(a.notes)}</span>` : ""}`
+    + `<span class="said">sent ${esc(fmtDate(String(at).slice(0, 10)).replace(/^\w+ /, ""))}</span></div>`;
 }
 const COSTS = [
   ["transport", "Transportation (ground/air)"],
@@ -1438,7 +1444,7 @@ function reviewScreen(data) {
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
         <dt>Language</dt><dd>${p.language === "fr" ? "Français — their emails go out in French; the filed PDF is English" : "English"}</dd>
         <dt>Good standing</dt><dd>${s.goodStanding ? "Confirmed — in good standing, no disciplinary proceedings or investigation" : "<b style=\"color:var(--late)\">Not confirmed</b> (submitted before this question existed)"}</dd>
-        <dt class="top">Room &amp; equipment</dt><dd>${avSummary(s.av)}</dd>
+        <dt class="top">Room &amp; equipment</dt><dd>${avSummary(p.av, p.avAt)}</dd>
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>

@@ -142,7 +142,9 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   // Room and equipment, so the filed agreement is the one place the venue's AV
   // crew has to look. Every line is optional; a presenter who skipped them all
   // gets no section rather than a page of "not specified".
-  const av = s.av ?? {};
+  // Answered after approval, so an agreement issued today has none. A rebuild
+  // once the answers arrive picks the section up.
+  const av = presenter.av ?? {};
   const AV_WORDS = {
     mic: { lapel: "Clip-on", handheld: "Handheld", podium: "At the podium", none: "None needed" },
     laptop: { own: "Their own laptop", house: "The room's computer" },
