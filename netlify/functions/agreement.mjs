@@ -134,6 +134,20 @@ async function submit(req, event, presenter) {
     }
   }
 
+  // Room and equipment. Every line is optional — an agreement must never be
+  // held up over a microphone — so anything unrecognised is simply dropped and
+  // reads as "not specified" wherever it is shown.
+  const oneOf = (value, allowed) => (allowed.includes(value) ? value : null);
+  const av = {
+    mic: oneOf(body?.av?.mic, ["lapel", "handheld", "podium", "none"]),
+    laptop: oneOf(body?.av?.laptop, ["own", "house"]),
+    plug: body?.av?.laptop === "own" ? oneOf(body?.av?.plug, ["hdmi", "usbc", "other", "unsure"]) : null,
+    sound: yesNo(body?.av?.sound) || null,
+    clicker: yesNo(body?.av?.clicker) || null,
+    seating: oneOf(body?.av?.seating, ["theatre", "classroom", "rounds", "any"]),
+    notes: text(body?.av?.notes, 600),
+  };
+
   const signature = text(body.signature, 160);
   if (!signature) problems.push("Please type your name to sign.");
   if (body.agreed !== true) problems.push("Please confirm your electronic signature.");
@@ -162,6 +176,7 @@ async function submit(req, event, presenter) {
     hotelFrom: hotel === "yes" ? hotelFrom : "",
     hotelTo: hotel === "yes" ? hotelTo : "",
     expenses,
+    av,
     copyright: true,
     goodStanding: true,
     media,

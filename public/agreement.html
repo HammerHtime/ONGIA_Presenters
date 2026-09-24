@@ -258,6 +258,23 @@ en: {
   talkTitle: "Presentation title", bio: "Biography",
   bioCount: (n) => `${n} words — aim for 250 to 300. Used to introduce you at the event.`,
   outline: "Presentation outline", outlineHint: "What you'll cover, in a short paragraph.",
+  avTitle: "Room and equipment",
+  avLede: "So the venue's AV crew can set your room up before you walk in. Every answer is optional — skip anything you don't mind either way.",
+  avMic: "Which microphone suits you?",
+  avMicOpts: [["lapel", "Clip-on"], ["handheld", "Handheld"], ["podium", "At the podium"], ["none", "None needed"]],
+  avLaptop: "Whose laptop will you present from?",
+  avLaptopOpts: [["own", "I'll bring mine"], ["house", "The room's computer"]],
+  avPlug: "How does your laptop connect?",
+  avPlugOpts: [["hdmi", "HDMI"], ["usbc", "USB-C"], ["other", "Something else"], ["unsure", "Not sure"]],
+  avPlugHint: "If you're not sure, bring your own adapter as well — meeting rooms vary.",
+  avSound: "Does your presentation play audio or video?",
+  avSoundHint: "Sound has to be patched through the room separately, so the crew needs to know in advance.",
+  avClicker: "Would you like a slide advancer?",
+  avSeating: "How would you like the room laid out?",
+  avSeatingOpts: [["theatre", "Theatre"], ["classroom", "Classroom"], ["rounds", "Round tables"], ["any", "No preference"]],
+  avSeatingHint: "A preference, not a promise — some rooms are shared between sessions.",
+  avNotes: "Anything else the AV crew should know?",
+  avNotesHint: "Optional. A flip chart, a second screen, standing rather than seated — whatever helps.",
   travelLede: (a, b) => `Tell us what you need arranged for the training event. Dates can run from the day before training to the day after — <b>${a}</b> to <b>${b}</b>. ONGIA confirms the final dates when your agreement is approved.`,
   needTravel: "Will you need travel arranged?", arriving: "Arriving", departing: "Departing",
   needHotel: "Will you need hotel accommodation?", checkin: "Check-in", checkout: "Check-out",
@@ -340,6 +357,23 @@ fr: {
   talkTitle: "Titre de la présentation", bio: "Biographie",
   bioCount: (n) => `${n} mots — visez 250 à 300. Servira à vous présenter lors de l'événement.`,
   outline: "Plan de la présentation", outlineHint: "Ce que vous aborderez, en un court paragraphe.",
+  avTitle: "Salle et équipement",
+  avLede: "Pour que l'équipe audiovisuelle prépare la salle avant votre arrivée. Toutes les réponses sont facultatives — passez ce qui vous est égal.",
+  avMic: "Quel microphone vous convient?",
+  avMicOpts: [["lapel", "Cravate"], ["handheld", "À main"], ["podium", "Au lutrin"], ["none", "Aucun"]],
+  avLaptop: "Depuis quel ordinateur présenterez-vous?",
+  avLaptopOpts: [["own", "J'apporte le mien"], ["house", "Celui de la salle"]],
+  avPlug: "Comment votre ordinateur se branche-t-il?",
+  avPlugOpts: [["hdmi", "HDMI"], ["usbc", "USB-C"], ["other", "Autre"], ["unsure", "Je ne sais pas"]],
+  avPlugHint: "Dans le doute, apportez aussi votre adaptateur — les salles varient.",
+  avSound: "Votre présentation contient-elle du son ou de la vidéo?",
+  avSoundHint: "Le son doit être raccordé séparément à la salle; l'équipe doit le savoir à l'avance.",
+  avClicker: "Souhaitez-vous une télécommande de présentation?",
+  avSeating: "Quelle disposition de salle préférez-vous?",
+  avSeatingOpts: [["theatre", "Théâtre"], ["classroom", "Classe"], ["rounds", "Tables rondes"], ["any", "Sans préférence"]],
+  avSeatingHint: "Une préférence, pas une promesse — certaines salles servent à plusieurs séances.",
+  avNotes: "Autre chose à signaler à l'équipe audiovisuelle?",
+  avNotesHint: "Facultatif. Un tableau, un deuxième écran, présenter debout — ce qui vous aide.",
   travelLede: (a, b) => `Indiquez-nous ce qu'il faut organiser pour la formation. Les dates peuvent aller de la veille au lendemain de la formation — du <b>${a}</b> au <b>${b}</b>. ONGIA confirmera les dates définitives lors de l'approbation de votre entente.`,
   needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Arrivée", departing: "Départ",
   needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", checkin: "Arrivée à l'hôtel", checkout: "Départ de l'hôtel",
@@ -419,7 +453,7 @@ let DATA = null, DONE = null;
  * answers to another. Cleared the moment the agreement is sent.
  */
 const DRAFT_KEY = `ongia-draft-${TOKEN}`;
-const DRAFT_FIELDS = ["step", "first", "last", "email", "phone", "organization", "talk", "bio", "outline",
+const DRAFT_FIELDS = ["step", "first", "last", "email", "phone", "organization", "talk", "bio", "outline", "av",
   "travel", "travelFrom", "travelTo", "hotel", "hotelFrom", "hotelTo", "expenses",
   "copyright", "goodStanding", "media", "signature", "agreed"];
 let restoredNote = false;
@@ -446,6 +480,7 @@ const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
   first: "", last: "", email: "", phone: "", organization: "",
   talk: "", bio: "", outline: "",
+  av: { mic: null, laptop: null, plug: null, sound: null, clicker: null, seating: null, notes: "" },
   travel: null, travelFrom: "", travelTo: "",
   hotel: null, hotelFrom: "", hotelTo: "",
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
@@ -551,6 +586,9 @@ function seg(key, opts, path) {
       aria-pressed="${current === o.v}">${o.t}</button>`).join("") + `</div>`;
 }
 const YESNO = () => [{ v:"yes", t:t("yes") }, { v:"no", t:t("no") }];
+// The AV choices are written as [value, label] pairs in the copy table so the
+// English and French lists stay side by side and cannot drift apart.
+const opts = (key) => t(key).map(([v, label]) => ({ v, t: esc(label) }));
 
 function consentRow(label, row) {
   return `<div class="consent" id="c-${row}"><h3>${label}</h3>
@@ -605,6 +643,21 @@ function stepMarkup() {
       <div class="field"><label for="f-outline">${t("outline")}</label>
         <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
         <p class="hint">${t("outlineHint")}</p></div>
+      </div>
+      <div class="card"><h2>${t("avTitle")}</h2>
+      <p class="lede">${t("avLede")}</p>
+      <div class="qblock"><p class="qtext">${t("avMic")}</p>${seg("av", opts("avMicOpts"), ["av", "mic"])}</div>
+      <div class="qblock"><p class="qtext">${t("avLaptop")}</p>${seg("av", opts("avLaptopOpts"), ["av", "laptop"])}</div>
+      ${S.av.laptop === "own" ? `<div class="qblock"><p class="qtext">${t("avPlug")}</p>${seg("av", opts("avPlugOpts"), ["av", "plug"])}
+        <p class="hint">${t("avPlugHint")}</p></div>` : ""}
+      <div class="qblock"><p class="qtext">${t("avSound")}</p>${seg("av", YESNO(), ["av", "sound"])}
+        <p class="hint">${t("avSoundHint")}</p></div>
+      <div class="qblock"><p class="qtext">${t("avClicker")}</p>${seg("av", YESNO(), ["av", "clicker"])}</div>
+      <div class="qblock"><p class="qtext">${t("avSeating")}</p>${seg("av", opts("avSeatingOpts"), ["av", "seating"])}
+        <p class="hint">${t("avSeatingHint")}</p></div>
+      <div class="field"><label for="f-avnotes">${t("avNotes")}</label>
+        <textarea id="f-avnotes" data-bind="av.notes" rows="2">${esc(S.av.notes)}</textarea>
+        <p class="hint">${t("avNotesHint")}</p></div>
       </div>`;
     }
 
@@ -976,6 +1029,9 @@ ROOT.addEventListener("click", (e) => {
     } else S[set.dataset.set] = value;
     if (set.dataset.set === "hotel" && value === "no") { S.hotelFrom = ""; S.hotelTo = ""; S.expenses.hotel = null; }
     if (set.dataset.set === "travel" && value === "no") { S.travelFrom = ""; S.travelTo = ""; }
+    // The connector question only applies to their own laptop, so a stale
+    // answer must not survive a change of mind.
+    if (path === "av.laptop" && value !== "own") S.av.plug = null;
     S.problems = [];
     render();
     return;

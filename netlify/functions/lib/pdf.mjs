@@ -139,6 +139,31 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.heading("PRESENTATION OUTLINE");
   p.box(`${s.talk}\n\n${s.outline}`, { minHeight: 70 });
 
+  // Room and equipment, so the filed agreement is the one place the venue's AV
+  // crew has to look. Every line is optional; a presenter who skipped them all
+  // gets no section rather than a page of "not specified".
+  const av = s.av ?? {};
+  const AV_WORDS = {
+    mic: { lapel: "Clip-on", handheld: "Handheld", podium: "At the podium", none: "None needed" },
+    laptop: { own: "Their own laptop", house: "The room's computer" },
+    plug: { hdmi: "HDMI", usbc: "USB-C", other: "Something else", unsure: "Not sure — bringing an adapter" },
+    seating: { theatre: "Theatre", classroom: "Classroom", rounds: "Round tables", any: "No preference" },
+  };
+  const avRows = [
+    ["Microphone:", AV_WORDS.mic[av.mic], 150],
+    ["Presenting from:", AV_WORDS.laptop[av.laptop], 150],
+    ["Connection:", AV_WORDS.plug[av.plug], 150],
+    ["Sound from the presentation:", av.sound ? cap(av.sound) : null, 90],
+    ["Slide advancer:", av.clicker ? cap(av.clicker) : null, 90],
+    ["Room layout:", AV_WORDS.seating[av.seating], 150],
+  ].filter(([, value]) => value);
+  if (avRows.length || av.notes) {
+    p.heading("ROOM AND EQUIPMENT");
+    for (let i = 0; i < avRows.length; i += 2) p.kvRow(avRows.slice(i, i + 2));
+    if (av.notes) { p.label("Also requested:"); p.box(av.notes); }
+    p.small("Answered by the presenter for the venue's audio-visual crew. Blank lines were left as no preference.");
+  }
+
   /* ------------------------------------------------------------ page two */
   // Logistics starts a fresh page, as on the paper form. If a long biography or
   // outline already ran onto a second page, carry on there rather than leave it near-empty.
