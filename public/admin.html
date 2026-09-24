@@ -296,7 +296,12 @@
   .stat .dot{width:10px;height:10px;border-radius:999px;margin-top:5px;flex:none;background:var(--muted)}
   .stat.ok .dot{background:var(--done)} .stat.err .dot{background:var(--late)} .stat.skip .dot{background:var(--wait)}
   .stat small{display:block;color:var(--muted)}
-  @font-face{font-family:"Signature";src:url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype");font-display:swap}
+  /* Subset to Latin + Latin-1 + Latin Extended-A: everything a typed name needs.
+     The full .ttf stays on disk for pdfkit, which draws the same signature into
+     the PDF server-side, and is listed second so an exotic glyph still resolves. */
+  @font-face{font-family:"Signature";font-display:swap;
+    src:url(/assets/fonts/GreatVibes-Regular.woff2) format("woff2"),
+        url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype")}
   .sigbox{margin-top:14px;border-bottom:2px solid var(--navy);padding:6px 8px;font-family:"Signature",var(--fd,"DM Serif Display",serif),cursive;
     font-size:38px;line-height:1.15;min-height:52px;color:var(--navy)}
   .script{font-family:"Signature",var(--fd,"DM Serif Display",serif),cursive;font-size:26px;line-height:1;color:var(--navy);vertical-align:-3px}

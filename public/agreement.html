@@ -150,7 +150,12 @@
   .upload .thumb{width:74px;height:92px;object-fit:cover;border-radius:10px;display:block;margin:0 auto 6px;
     border:1px solid var(--border);background:#fff}
 
-  @font-face{font-family:"Signature";src:url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype");font-display:swap}
+  /* Subset to Latin + Latin-1 + Latin Extended-A: everything a typed name needs.
+     The full .ttf stays on disk for pdfkit, which draws the same signature into
+     the PDF server-side, and is listed second so an exotic glyph still resolves. */
+  @font-face{font-family:"Signature";font-display:swap;
+    src:url(/assets/fonts/GreatVibes-Regular.woff2) format("woff2"),
+        url(/assets/fonts/GreatVibes-Regular.ttf) format("truetype")}
   .sig{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:15px}
   .sig .typed{font-family:"Signature",var(--fd),cursive;font-size:38px;line-height:1.15;color:var(--navy);border-bottom:1.5px solid var(--border);
     padding:4px 6px 6px;min-height:52px;word-break:break-word}

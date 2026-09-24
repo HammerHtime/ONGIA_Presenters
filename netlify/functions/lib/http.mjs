@@ -1,3 +1,4 @@
+import { tokensMatch } from "./ids.mjs";
 /** Small helpers so every function answers in the same shape. */
 
 export const json = (body, status = 200) =>
@@ -18,7 +19,9 @@ export function requireAdmin(req) {
   const expected = process.env.ADMIN_KEY;
   if (!expected) return "ADMIN_KEY is not set on this site, so admin screens are locked.";
   const supplied = req.headers.get("x-admin-key") ?? "";
-  if (supplied !== expected) return "Not authorized.";
+  // Constant-time, so the key cannot be recovered a character at a time by
+  // measuring how long a wrong one takes to reject.
+  if (!tokensMatch(supplied, expected)) return "Not authorized.";
   return null;
 }
 
