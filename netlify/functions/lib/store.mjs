@@ -9,6 +9,17 @@ import { getStore } from "@netlify/blobs";
  *   event:<id>                  the event record
  *   presenter:<eventId>:<id>    one presenter on that event
  *   token:<token>               pointer to { eventId, presenterId }
+ *   sponsor:<id>                one sponsor, with the events they attend
+ *   sponsortoken:<token>        pointer to { sponsorId }
+ *
+ * A sponsor is deliberately NOT stored under an event. One company signs one
+ * agreement and one logo, once, and then appears on several events' lists, so
+ * the record is top-level and each event it attends is an entry inside it.
+ *
+ * Requirements are held once on the sponsor and inherited by every event. An
+ * event entry only carries its own set when the sponsor has said something
+ * changed for that one — so `events[id].requirements ?? sponsor.requirements`
+ * is what the venue gets.
  */
 const store = () => getStore({ name: "ongia-agreements", consistency: "strong" });
 
@@ -80,6 +91,44 @@ export async function putPresenter(presenter) {
 }
 
 export const getPresenter = (eventId, id) => read(`presenter:${eventId}:${id}`);
+
+/* ---------------------------------------------------------------- sponsors */
+
+export async function putSponsor(sponsor) {
+  await write(`sponsor:${sponsor.id}`, sponsor);
+  if (sponsor.token) await write(`sponsortoken:${sponsor.token}`, { sponsorId: sponsor.id });
+  return sponsor;
+}
+
+export const getSponsor = (id) => read(`sponsor:${id}`);
+
+export async function listSponsors() {
+  const { blobs } = await store().list({ prefix: "sponsor:" });
+  const rows = await Promise.all(blobs.map((b) => read(b.key)));
+  return rows.filter(Boolean).sort((a, b) => (a.company ?? "").localeCompare(b.company ?? ""));
+}
+
+/** The sponsors coming to one event, in company order. */
+export async function listEventSponsors(eventId) {
+  const all = await listSponsors();
+  return all.filter((s) => s.events?.[eventId]);
+}
+
+/** Resolve a sponsor's link token to the sponsor. */
+export async function resolveSponsorToken(tok) {
+  if (!tok) return null;
+  const pointer = await read(`sponsortoken:${tok}`);
+  if (!pointer) return null;
+  const sponsor = await getSponsor(pointer.sponsorId);
+  return sponsor ? { sponsor } : null;
+}
+
+/** Whoever the board has put in charge of sponsorship, for all of ONGIA. */
+export async function sponsorLead() {
+  const roster = (await getRoster()) ?? [];
+  const lead = roster.find((m) => m.sponsorLead);
+  return lead ? { name: lead.name, email: lead.email, phone: lead.phone ?? "" } : null;
+}
 
 export async function listPresenters(eventId) {
   const { blobs } = await store().list({ prefix: `presenter:${eventId}:` });

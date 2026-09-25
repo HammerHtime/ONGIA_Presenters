@@ -35,7 +35,7 @@ export default async (req) => {
     let members = await getRoster();
     if (!members) { members = SEED; await putRoster(members); }
     // Rows stored before phones existed have none; answer with the field present.
-    return json({ members: members.map((m) => ({ phone: "", ...m })) });
+    return json({ members: members.map((m) => ({ phone: "", sponsorLead: false, ...m })) });
   }
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
@@ -45,8 +45,12 @@ export default async (req) => {
     for (const row of rows.slice(0, 100)) {
       const name = text(row.name, 120), email = text(row.email, 200);
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
-      members.push({ name, email, phone: formatPhone(text(row.phone, 60)) });
+      members.push({ name, email, phone: formatPhone(text(row.phone, 60)), sponsorLead: row.sponsorLead === true });
     }
+    // One person carries sponsorship for all of ONGIA, so the flag is a radio,
+    // not a checkbox: the last one ticked wins and the rest are cleared.
+    const leadAt = members.findIndex((m) => m.sponsorLead);
+    members.forEach((m, i) => { m.sponsorLead = i === leadAt; });
     await putRoster(members);
     return json({ members });
   }

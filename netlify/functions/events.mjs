@@ -90,6 +90,9 @@ async function applyDetails(event, body, { creating = false } = {}) {
     dayOne,
     lastDay,
     sessionMinutes: Number(body.sessionMinutes) || event.sessionMinutes || 70,
+    // Not every ONGIA event suits a sponsor table, so an event says whether it
+    // should appear on the list a sponsor picks from.
+    sponsorsWelcome: body.sponsorsWelcome === undefined ? (event.sponsorsWelcome ?? false) : body.sponsorsWelcome === true,
     offsets,
     // Derived, never typed. Change a training date or an offset and all three move.
     deadlines: deadlinesFor(dayOne, offsets),
