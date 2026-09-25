@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
-import { listSponsors, getSponsor, putSponsor, listEvents, deleteKey, sponsorLead } from "./lib/store.mjs";
+import { listSponsors, getSponsor, putSponsor, listEvents, deleteKey, sponsorLead, getMeta, putMeta, getRoster, putRoster } from "./lib/store.mjs";
+import { resolveFolderInput } from "./lib/graph.mjs";
 import { token } from "./lib/ids.mjs";
 import { sendMail, sponsorWelcomeMail, coordinatorOf } from "./lib/mail.mjs";
 import { siteUrl } from "./lib/site.mjs";
@@ -25,6 +26,15 @@ export default async (req) => {
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
 
+  if (url.searchParams.get("settings")) {
+    if (req.method === "GET") return json(await settings());
+    if (req.method === "PUT") {
+      const body = await req.json().catch(() => null);
+      if (!body) return fail("Expected a JSON body.");
+      return saveSettings(body);
+    }
+    return fail("Method not allowed.", 405);
+  }
   if (req.method === "GET") return id ? showOne(id) : showAll();
   if (req.method === "POST") {
     const body = await req.json().catch(() => null);
@@ -39,6 +49,50 @@ export default async (req) => {
   if (req.method === "DELETE") return removeSponsor(id);
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * Sponsorship is run by one board member and filed to one folder, both of which
+ * change from time to time, so they are settings rather than constants.
+ */
+async function settings() {
+  const [roster, folder] = await Promise.all([getRoster(), getMeta("sponsorship")]);
+  return {
+    lead: await sponsorLead(),
+    roster: (roster ?? []).map((m) => ({ name: m.name, email: m.email, sponsorLead: m.sponsorLead === true })),
+    folder: folder ?? { input: "", path: "", url: "", checkedAt: null, error: null },
+  };
+}
+
+async function saveSettings(body) {
+  // The lead is whoever is chosen now; the rest are cleared, because only one
+  // person can be the answer to "who is handling sponsorship".
+  if (body.leadEmail !== undefined) {
+    const roster = (await getRoster()) ?? [];
+    const wanted = String(body.leadEmail ?? "").toLowerCase();
+    if (wanted && !roster.some((m) => m.email.toLowerCase() === wanted)) {
+      return fail("That board member isn't on the roster.");
+    }
+    roster.forEach((m) => { m.sponsorLead = m.email.toLowerCase() === wanted; });
+    await putRoster(roster);
+  }
+
+  if (body.folder !== undefined) {
+    const input = text(body.folder, 800);
+    let folder = { input, path: "", url: "", checkedAt: new Date().toISOString(), error: null };
+    if (input) {
+      // A pasted sharing link only Graph can read. If it cannot be read now,
+      // the address is still kept so nobody has to find it again.
+      try {
+        const out = await resolveFolderInput(input);
+        folder = { ...folder, path: out.path, url: out.url || input };
+      } catch (e) {
+        folder.error = e.message;
+      }
+    }
+    await putMeta("sponsorship", folder);
+  }
+  return json(await settings());
+}
 
 /** Sponsors plus the events they could be asked about, for the admin list. */
 async function showAll() {

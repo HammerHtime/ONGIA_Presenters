@@ -379,9 +379,10 @@ function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events) {
-  BARRIGHT.innerHTML = `<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="sponsors">Sponsors</button><button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
+  document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
 
   if (!events.length) {
@@ -509,6 +510,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
         <div class="field"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" min="15" step="5" value="${v("sessionMinutes", 70)}"></div>
       </div>
+      <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>
       <div class="row2">
         <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date" value="${v("dayOne")}"></div>
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
@@ -682,6 +684,7 @@ function eventFormScreen(existing = null) {
       offsets,
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
+      sponsorsWelcome: $("e-sponsors")?.checked === true,
     };
     if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
     const leadRow = body.board.find((m) => m.lead);
@@ -706,6 +709,138 @@ function eventFormScreen(existing = null) {
       $("problem").innerHTML = `<div class="bad"><b>Couldn't save it.</b> ${esc(err.message)}</div>`;
     }
   };
+}
+
+/* ---------- sponsors ---------- */
+function sponsorsScreen(list, settings) {
+  const { sponsors, events } = list;
+  const lead = settings.lead;
+  const folder = settings.folder ?? {};
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+
+  const STATUS = {
+    invited: ["wait", "Pack not back"],
+    submitted: ["you", "Needs review"],
+    approved: ["done", "Signed"],
+    returned: ["late", "Sent back"],
+  };
+  const rows = sponsors.length ? sponsors.map((sp) => {
+    const [cls, label] = STATUS[sp.status] ?? ["wait", sp.status];
+    const going = Object.entries(sp.events ?? {}).filter(([, v]) => v?.attending !== "no");
+    const names = going.map(([id]) => events.find((e) => e.id === id)?.title).filter(Boolean);
+    return `<div class="trow">
+      <div class="who"><div class="av">${esc((sp.company[0] ?? "?").toUpperCase())}</div>
+        <div><div class="pname">${esc(sp.company)}</div>
+          <div class="porg" title="${esc(sp.email)}">${esc(sp.first)} ${esc(sp.last)} · ${esc(sp.email)}</div>
+          ${names.length ? `<div class="ptalk">${esc(names.join(" · "))}</div>` : `<div class="ptalk">no events chosen yet</div>`}</div></div>
+      <div class="cell"><div class="cl">Sponsorship</div><span class="pill ${cls}">${esc(label)}</span>
+        <div class="porg">${sp.logoName ? esc(sp.logoName) : "no logo yet"}</div></div>
+      <div class="act">
+        <button class="mini" data-scopy="${esc(location.origin)}/s/${esc(sp.token)}">Copy link</button>
+        <button class="mini" data-sedit="${esc(sp.id)}">Edit</button>
+        ${sp.status === "approved" ? "" : `<button class="mini ghost" data-sdel="${esc(sp.id)}" title="Remove sponsor">✕</button>`}
+      </div></div>`;
+  }).join("") : `<div class="empty">No sponsors yet. Add one and the desk thanks them straight away.</div>`;
+
+  ROOT.innerHTML = `<div class="card">
+    <div class="card-head"><div><h2>Sponsors</h2>
+      <div class="s">One company, one agreement, one logo — then they appear on every event they attend.</div></div>
+      <div class="cardacts"><button class="mini" id="s-add">Add a sponsor</button></div></div>
+    <div class="card-body">
+      ${!events.length ? `<div class="note">No event is open to sponsors yet. Edit an event and tick <b>open to sponsors</b> — a regional half-day usually is not.</div>` : ""}
+      <dl class="kv" style="margin:0 0 16px">
+        <dt class="top">Sponsorship lead</dt><dd><div class="stack">
+          <select id="s-lead" style="max-width:320px">
+            <option value="">— nobody chosen —</option>
+            ${settings.roster.map((m) => `<option value="${esc(m.email)}"${m.sponsorLead ? " selected" : ""}>${esc(m.name)}</option>`).join("")}
+          </select>
+          <span class="said">${lead ? `Sponsors reply to ${esc(lead.name)}, and their name goes on the agreement.` : "Until someone is chosen, sponsor emails have no one to reply to."}</span>
+        </div></dd>
+        <dt class="top">Files to</dt><dd><div class="stack">
+          <input id="s-folder" value="${esc(folder.input ?? "")}" placeholder="Paste the SharePoint folder link, or type its path" style="max-width:520px">
+          ${folder.path ? `<span class="said">Resolved to <b>${esc(folder.path)}</b>.</span>` : ""}
+          ${folder.error ? `<span class="said" style="color:var(--late)">${esc(folder.error)}</span>` : ""}
+          <button class="mini" id="s-savefolder">Save the folder</button>
+        </div></dd>
+      </dl>
+      <div class="tlist">${rows}</div>
+    </div></div>
+    <dialog class="sheet" id="sedit">
+      <form method="dialog">
+        <div class="sheet-head"><h2 id="sedit-title">Add a sponsor</h2>
+          <p class="hint" style="margin-top:6px">They get a thank-you straight away, with a link to tell us which
+            events they are coming to, their logo, and what they need at their table.</p></div>
+        <div class="sheet-body">
+          <div class="field"><label for="se-company">Company</label><input id="se-company" required autocomplete="off"></div>
+          <div class="row2">
+            <div class="field"><label for="se-first">Contact first name</label><input id="se-first" required autocomplete="off"></div>
+            <div class="field"><label for="se-last">Contact last name</label><input id="se-last" required autocomplete="off"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label for="se-email">Email</label><input id="se-email" type="email" required autocomplete="off"></div>
+            <div class="field"><label for="se-phone">Phone</label><input id="se-phone" type="tel" autocomplete="off"></div>
+          </div>
+          <div class="actions" style="margin-top:18px">
+            <button class="btn btn-gold" id="se-save" value="save">Save</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>`;
+
+  const dlg = document.getElementById("sedit");
+  const fill = (sp) => {
+    dlg.dataset.id = sp?.id ?? "";
+    document.getElementById("sedit-title").textContent = sp ? "Correct this sponsor" : "Add a sponsor";
+    for (const [id, v] of [["se-company", sp?.company], ["se-first", sp?.first], ["se-last", sp?.last],
+                           ["se-email", sp?.email], ["se-phone", sp?.phone]]) document.getElementById(id).value = v ?? "";
+  };
+  document.getElementById("s-add").onclick = () => { fill(null); dlg.showModal(); document.getElementById("se-company").focus(); };
+  ROOT.querySelectorAll("[data-sedit]").forEach((b) => {
+    b.onclick = () => { fill(sponsors.find((x) => x.id === b.dataset.sedit)); dlg.showModal(); };
+  });
+  dlg.addEventListener("close", async () => {
+    if (dlg.returnValue !== "save") return;
+    const body = {
+      company: document.getElementById("se-company").value.trim(),
+      first: document.getElementById("se-first").value.trim(),
+      last: document.getElementById("se-last").value.trim(),
+      email: document.getElementById("se-email").value.trim(),
+      phone: document.getElementById("se-phone").value.trim(),
+    };
+    const id = dlg.dataset.id;
+    try {
+      await api(id ? `/sponsors?id=${encodeURIComponent(id)}` : "/sponsors", { method: id ? "PUT" : "POST", body: JSON.stringify(body) });
+      toast(id ? "Corrected." : `Added — ${body.company} has been thanked.`);
+      render();
+    } catch (e) { toast(e.message); }
+  });
+
+  document.getElementById("s-lead").onchange = async (e) => {
+    try { await api("/sponsors?settings=1", { method: "PUT", body: JSON.stringify({ leadEmail: e.target.value }) }); toast("Sponsorship lead set."); render(); }
+    catch (err) { toast(err.message); }
+  };
+  document.getElementById("s-savefolder").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "Saving…";
+    try { await api("/sponsors?settings=1", { method: "PUT", body: JSON.stringify({ folder: document.getElementById("s-folder").value.trim() }) }); toast("Folder saved."); render(); }
+    catch (err) { toast(err.message); e.target.disabled = false; e.target.textContent = "Save the folder"; }
+  };
+  ROOT.querySelectorAll("[data-scopy]").forEach((b) => {
+    b.onclick = async () => {
+      try { await navigator.clipboard.writeText(b.dataset.scopy); b.textContent = "Copied"; }
+      catch { prompt("Copy this link:", b.dataset.scopy); }
+      setTimeout(() => (b.textContent = "Copy link"), 1600);
+    };
+  });
+  ROOT.querySelectorAll("[data-sdel]").forEach((b) => {
+    b.onclick = async () => {
+      const sp = sponsors.find((x) => x.id === b.dataset.sdel);
+      if (!confirm(`Remove ${sp.company}? Their link stops working.`)) return;
+      try { await api(`/sponsors?id=${encodeURIComponent(sp.id)}`, { method: "DELETE" }); toast("Removed."); render(); }
+      catch (e) { toast(e.message); }
+    };
+  });
 }
 
 /* ---------- one event ---------- */
@@ -1661,6 +1796,10 @@ async function render() {
     if (view.name === "new") { await loadRoster(); return eventFormScreen(); }
     if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
     if (view.name === "roster") return rosterScreen(await loadRoster());
+    if (view.name === "sponsors") {
+      const [list, settings] = await Promise.all([api("/sponsors"), api("/sponsors?settings=1")]);
+      return sponsorsScreen(list, settings);
+    }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
       const [data, materials] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null)]);
