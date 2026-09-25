@@ -48,3 +48,24 @@ you the delivery record. Roughly two minutes.
 
 **The fix.** Edit the event, mark one board member as lead, and re-create the
 upload link. I can walk it with you, but the choice of lead is yours.
+
+---
+
+## 3. The sponsor folder link resolves to a training year, not a sponsors folder
+
+**Status:** saved and working on production. Possibly not the folder you meant.
+
+The link you pasted resolves to:
+
+    ONGIA Board/ONGIA Training/2027
+
+That is the 2027 training year folder. Every other folder the app files into is
+a named event folder inside a year — `ONGIA Board/ONGIA Training/2026/2026
+Regina Symposium`. Filing sponsors here would drop logos and signed
+sponsorship agreements loose into the 2027 folder, beside the event folders
+rather than inside one of them.
+
+**What I need.** Either confirm that is where sponsors should go, or paste a
+link to the folder you actually want — for example a `Sponsors` folder. The
+app resolves it the moment you save it on the Sponsors tab, so it is one paste
+either way.
