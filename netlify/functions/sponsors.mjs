@@ -6,6 +6,10 @@ import { token } from "./lib/ids.mjs";
 import { sendMail, sponsorWelcomeMail, coordinatorOf } from "./lib/mail.mjs";
 import { siteUrl } from "./lib/site.mjs";
 
+// Flipped on when public/sponsor.html and the /s/* redirect ship. Until then a
+// sponsor is thanked without being sent to a page that does not exist.
+const SPONSOR_FORM_LIVE = false;
+
 /**
  * Sponsors.
  *
@@ -153,8 +157,10 @@ async function addSponsor(body, origin) {
   // Thanking them is the point of adding them, so it goes straight away rather
   // than waiting for a separate "send" click that someone would forget.
   const lead = await sponsorLead();
+  // The token is minted now so nothing has to change later, but the link is only
+  // put in front of a sponsor once /s/ actually serves the form.
   const link = `${origin}/s/${sponsor.token}`;
-  const mail = sponsorWelcomeMail({ sponsor, link, lead });
+  const mail = sponsorWelcomeMail({ sponsor, link: SPONSOR_FORM_LIVE ? link : "", lead });
   sponsor.delivery = { welcome: await sendMail({ to: sponsor.email, replyTo: lead?.email || undefined, ...mail })
     .then((r) => ({ ok: !r.skipped, ...r, at: new Date().toISOString() }))
     .catch((e) => ({ ok: false, error: e.message, at: new Date().toISOString() })) };

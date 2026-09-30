@@ -208,12 +208,16 @@ export function sponsorWelcomeMail({ sponsor, link, lead }) {
     `Hello ${who},`,
     `Thank you for supporting ONGIA. Your contribution puts training in front of the people who need it — police, corrections, educators and social workers working on street gangs, youth violence and human trafficking.`,
     `To get ${esc(sponsor.company)} set up, we need three things: which of our events you plan to attend, your logo, and what you need at your table.`,
-    `The button below opens a short form. It takes a few minutes, and you can come back to it later on the same link.`,
+    link
+      ? `The button below opens a short form. It takes a few minutes, and you can come back to it later on the same link.`
+      : `We will send you a short form for those shortly. Nothing is needed from you today.`,
   ];
   const contact = lead ?? { name: "ONGIA", email: process.env.MS_MAIL_FROM ?? "", phone: "" };
   return {
     subject: heading,
-    html: layout({ heading, lines, buttons: [{ href: link, label: "Set up our sponsorship" }], contact, event: null }),
+    // No link until the form it points at exists. A thank-you that opens a 404
+    // is worse than a thank-you that asks them to wait.
+    html: layout({ heading, lines, buttons: link ? [{ href: link, label: "Set up our sponsorship" }] : [], contact, event: null }),
     text: plain(heading, lines, link, contact),
   };
 }
