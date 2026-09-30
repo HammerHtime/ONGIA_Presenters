@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { todayIso } from "./deadlines.mjs";
 
 /**
  * Storage sits on Netlify Blobs rather than a database: this is a few hundred
@@ -41,7 +42,7 @@ export async function listEvents() {
   const { blobs } = await store().list({ prefix: "event:" });
   const events = await Promise.all(blobs.map((b) => read(b.key)));
   const roster = (await getRoster()) ?? [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   // Soonest first. An event that has finished drops below the upcoming ones,
   // most recent first, rather than sitting at the top of the list for ever.
   const over = (e) => String(e.lastDay || e.dayOne) < today;

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { tokensMatch } from "./ids.mjs";
 /** Small helpers so every function answers in the same shape. */
 
@@ -19,9 +20,11 @@ export function requireAdmin(req) {
   const expected = process.env.ADMIN_KEY;
   if (!expected) return "ADMIN_KEY is not set on this site, so admin screens are locked.";
   const supplied = req.headers.get("x-admin-key") ?? "";
-  // Constant-time, so the key cannot be recovered a character at a time by
-  // measuring how long a wrong one takes to reject.
-  if (!tokensMatch(supplied, expected)) return "Not authorized.";
+  // Hashed first, then compared in constant time. The hash makes both sides the
+  // same length, so a wrong key of the wrong length is refused exactly like a
+  // wrong key of the right one and the length of ADMIN_KEY stays private.
+  const digest = (v) => createHash("sha256").update(String(v)).digest("hex");
+  if (!tokensMatch(digest(supplied), digest(expected))) return "Not authorized.";
   return null;
 }
 

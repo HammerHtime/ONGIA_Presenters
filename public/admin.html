@@ -38,7 +38,8 @@
   :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:8px}
 
   .bar{background:var(--navy-deep);color:#fff;padding:13px 20px;display:flex;align-items:center;
-       gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10}
+       gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;
+       padding-top:calc(12px + env(safe-area-inset-top,0px))}
   .bar .logo{height:28px;width:auto;display:block;flex:none}
   @media (max-width:480px){.bar .logo{height:23px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
@@ -1140,7 +1141,6 @@ function eventScreen(data) {
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
-      <div class="note" style="margin-top:18px"><div><b>Test emails</b> — temporary, for checking the weekly summary.</div><div class="line" style="margin-top:9px"><button class="mini" id="digest-lead">Send summary to lead${ev.reviewer?.name ? ` (${esc(ev.reviewer.name)})` : ""}</button><button class="mini" id="digest-board">Send summary to president &amp; VP</button></div></div>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
       </details>
     </div></div>
@@ -1164,19 +1164,6 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`;
-
-  for (const [id, to] of [["digest-lead", "lead"], ["digest-board", "board"]]) {
-    const b = document.getElementById(id);
-    b.onclick = async () => {
-      b.disabled = true; const label = b.textContent; b.textContent = "Sending…";
-      try {
-        const out = await api(`/reminders?digest=1&event=${encodeURIComponent(ev.id)}&to=${to}`, { method: "POST" });
-        const r = out.results?.[0];
-        toast(r?.sent ? `Sent to ${r.to}.` : `Not sent: ${r?.error ?? "nothing to send"}`);
-      } catch (e) { toast(e.message); }
-      b.disabled = false; b.textContent = label;
-    };
-  }
 
   wireActions();
   // A blocked event's fix buttons drive the same actions as the settings block.

@@ -16,6 +16,24 @@
  */
 
 /**
+ * ONGIA runs out of Ontario, so "today" means today in Toronto — not in UTC.
+ * Every other date in this app is a calendar date (YYYY-MM-DD) with no time on
+ * it, and comparing those against a UTC clock puts the desk into tomorrow from
+ * about 8pm Eastern: an event on its last day would sort into the past that
+ * evening, and a reminder run by hand after dinner would use tomorrow's date.
+ * The scheduled job escapes it only by accident, running at 14:00 UTC when the
+ * two dates happen to agree.
+ */
+export const DESK_TZ = "America/Toronto";
+export function todayIso(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DESK_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const at = (type) => parts.find((p) => p.type === type).value;
+  return `${at("year")}-${at("month")}-${at("day")}`;
+}
+
+/**
  * How far ahead each thing is wanted, in days before day one. These are the
  * defaults for a full national event; a half-day regional session does not need
  * ninety days' notice, so an event can carry its own.

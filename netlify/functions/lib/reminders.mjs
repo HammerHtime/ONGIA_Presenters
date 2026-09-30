@@ -1,5 +1,5 @@
 import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta } from "./store.mjs";
-import { describeEvent, formatDate } from "./deadlines.mjs";
+import { describeEvent, formatDate, todayIso } from "./deadlines.mjs";
 import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
 import { weeklyDigestMail } from "./mail.mjs";
@@ -237,7 +237,6 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const todayIso = () => new Date().toISOString().slice(0, 10);
 const daysBetween = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
 const alreadyToday = (p, today) => (p.mail ?? []).some((m) => m.at?.startsWith(today));
 // Someone spoke to them. Stop emailing for a week; the desk has done its job.
