@@ -13,6 +13,11 @@
   status = 200
 
 [[redirects]]
+  from = "/s/*"
+  to = "/sponsor.html"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200

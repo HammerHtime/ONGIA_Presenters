@@ -42,7 +42,7 @@ createServer(async (req, res) => {
       res.writeHead(out.status, Object.fromEntries(out.headers));
       return res.end(Buffer.from(await out.arrayBuffer()));
     }
-    let file = url.pathname === "/" ? "/index.html" : url.pathname.startsWith("/a/") ? "/agreement.html" : url.pathname;
+    let file = url.pathname === "/" ? "/index.html" : url.pathname.startsWith("/a/") ? "/agreement.html" : url.pathname.startsWith("/s/") ? "/sponsor.html" : url.pathname;
     const full = path.join(ROOT, "public", path.normalize(file));
     if (!full.startsWith(path.join(ROOT, "public"))) { res.writeHead(403); return res.end(); }
     try { await stat(full); } catch { res.writeHead(404); return res.end("not found"); }

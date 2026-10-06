@@ -1,4 +1,4 @@
-import { json, fail, text, requireAdmin } from "./lib/http.mjs";
+import { json, fail, requireAdmin, fileName } from "./lib/http.mjs";
 import { resolveToken, putPresenter, putHeadshot, getHeadshot, getEvent, getPresenter } from "./lib/store.mjs";
 
 /**
@@ -53,7 +53,7 @@ export default async (req) => {
   const type = sniff(bytes);
   if (!type) return fail("That file isn't a .png or .jpeg image.", 415);
 
-  const name = text(decodeURIComponent(req.headers.get("x-file-name") ?? ""), 200) || (type === "image/png" ? "headshot.png" : "headshot.jpg");
+  const name = fileName(req.headers.get("x-file-name"), type === "image/png" ? "headshot.png" : "headshot.jpg");
   await putHeadshot(event.id, presenter.id, bytes, { type, name });
 
   presenter.headshot = { name, type, size: bytes.byteLength, at: new Date().toISOString() };

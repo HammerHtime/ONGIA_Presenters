@@ -168,6 +168,16 @@ export async function getHeadshot(eventId, presenterId) {
   return { bytes: got.data, type: got.metadata?.type ?? "image/jpeg", name: got.metadata?.name ?? "headshot.jpg" };
 }
 
+export async function putLogo(sponsorId, bytes, meta) {
+  await store().set(`logo:${sponsorId}`, bytes, { metadata: meta });
+}
+
+export async function getLogo(sponsorId) {
+  const got = await store().getWithMetadata(`logo:${sponsorId}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, type: got.metadata?.type ?? "image/png", name: got.metadata?.name ?? "logo.png" };
+}
+
 /** Remove a key outright — used when an event or presenter is deleted. */
 export const deleteKey = (key) => store().delete(key);
 

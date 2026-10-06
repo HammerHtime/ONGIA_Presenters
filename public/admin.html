@@ -738,7 +738,7 @@ function sponsorsScreen(list, settings) {
       <div class="cell"><div class="cl">Sponsorship</div><span class="pill ${cls}">${esc(label)}</span>
         <div class="porg">${sp.logoName ? esc(sp.logoName) : "no logo yet"}</div></div>
       <div class="act">
-        <button class="mini" disabled title="The sponsor form is not built yet — their link will work once it is">Link not ready</button>
+        <button class="mini" data-scopy="${esc(`${location.origin}/s/${sp.token}`)}">Copy link</button>
         <button class="mini" data-sedit="${esc(sp.id)}">Edit</button>
         ${sp.status === "approved" ? "" : `<button class="mini ghost" data-sdel="${esc(sp.id)}" title="Remove sponsor">✕</button>`}
       </div></div>`;
@@ -749,9 +749,6 @@ function sponsorsScreen(list, settings) {
       <div class="s">One company, one agreement, one logo — then they appear on every event they attend.</div></div>
       <div class="cardacts"><button class="mini" id="s-add">Add a sponsor</button></div></div>
     <div class="card-body">
-      <div class="note"><b>The sponsor's own form is not built yet.</b> Adding a sponsor stores them and sends a
-        thank-you, but it does not yet send them anywhere to fill anything in — so nobody receives a dead link.
-        The form, the lead's review and the signed sponsorship are the next pieces.</div>
       ${!events.length ? `<div class="note">No event is open to sponsors yet. Edit an event and tick <b>open to sponsors</b> — a regional half-day usually is not.</div>` : ""}
       <dl class="kv" style="margin:0 0 16px">
         <dt class="top">Sponsorship lead</dt><dd><div class="stack">

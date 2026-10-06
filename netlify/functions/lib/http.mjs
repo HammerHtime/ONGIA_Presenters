@@ -33,4 +33,16 @@ export const text = (value, max = 2000) => String(value ?? "").trim().slice(0, m
 
 export const yesNo = (value) => (value === "yes" || value === "no" ? value : null);
 
+/**
+ * A filename arrives url-encoded in a header. decodeURIComponent throws on a
+ * malformed escape, which would turn a bad header into a 500, so a name that
+ * will not decode is simply taken as it came.
+ */
+export function fileName(header, fallback) {
+  const raw = String(header ?? "");
+  let name;
+  try { name = decodeURIComponent(raw); } catch { name = raw; }
+  return text(name.replace(/[\\/]/g, "").replace(/[\u0000-\u001f]/g, ""), 200) || fallback;
+}
+
 export const isEmail = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value ?? "").trim());

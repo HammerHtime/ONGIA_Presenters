@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA Sponsorship</title>
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/favicon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#767f92;
+    --navy:#1a2f5e; --navy-deep:#0e1a35;
+    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --border:#ddd7c8; --edge:#bfb49a; --hair:rgba(18,22,31,.10);
+    --done:#2f6b4f; --done-bg:#e2efe7;
+    --bad:#a33328; --bad-bg:#f7e3e0;
+    --fd:"DM Serif Display",Georgia,serif;
+    --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --fu:"Oswald","Arial Narrow",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.55;
+       -webkit-font-smoothing:antialiased}
+  .bar{background:var(--navy-deep);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;
+       border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;
+       padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .bar .logo{height:26px;width:auto;display:block;flex:none}
+  .bar .who{font-family:var(--fu);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-left:auto}
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:var(--card);border:1.5px solid var(--edge);border-radius:18px;padding:20px 18px;margin-bottom:14px;
+        box-shadow:0 1px 3px rgba(14,26,53,.07)}
+  h1{font-family:var(--fd);font-weight:400;font-size:clamp(23px,6vw,30px);line-height:1.15;margin:0 0 8px}
+  h2{font-family:var(--fd);font-weight:400;font-size:21px;margin:0 0 10px}
+  .lede{color:var(--ink-mid);margin:0 0 4px}
+  .hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+  .banner{display:block;width:calc(100% + 36px);margin:-20px -18px 16px;border-radius:18px 18px 0 0}
+
+  .qblock{padding:14px 0;border-top:1px solid var(--hair)}
+  .qblock:first-of-type{border-top:0;padding-top:4px}
+  .qtext{font-weight:500;margin:0 0 10px}
+  .seg{display:flex;flex-wrap:wrap;gap:8px}
+  .seg button{flex:1 1 0;min-width:84px;min-height:48px;border-radius:999px;border:1.5px solid var(--border);
+              background:var(--sunk);color:var(--ink-mid);font:inherit;font-weight:500;cursor:pointer;padding:8px 14px}
+  .seg button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .field{margin-top:14px}
+  .field label{display:block;font-family:var(--fu);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+               color:var(--muted);margin-bottom:6px}
+  input,textarea,select{width:100%;font:inherit;font-size:16px;background:var(--sunk);color:var(--ink);
+        border:1.5px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
+  textarea{min-height:76px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:430px){.row2{grid-template-columns:1fr}}
+
+  .ev{border:1.5px solid var(--border);border-radius:14px;padding:13px 14px;margin-top:10px;background:var(--sunk)}
+  .ev.on{border-color:var(--navy);background:var(--card)}
+  .ev .pick{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+  .ev .pick input{width:24px;height:24px;flex:none;margin:2px 0 0;-webkit-appearance:auto;appearance:auto}
+  .ev .name{font-weight:700}
+  .ev .when{font-size:13.5px;color:var(--muted)}
+
+  .upload{display:block;border:1.5px dashed var(--border);border-radius:14px;padding:18px;text-align:center;
+          background:var(--sunk);cursor:pointer;min-height:92px}
+  .upload b{display:block;color:var(--ink)}
+  .upload.on{border-style:solid;border-color:var(--done);background:var(--done-bg)}
+  .upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .logoprev{max-height:72px;max-width:100%;display:block;margin:0 auto 8px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;border-radius:999px;
+       padding:14px 26px;font:inherit;font-weight:700;border:1.5px solid transparent;cursor:pointer;width:100%}
+  .btn-gold{background:var(--gold);color:#1c1608}
+  .btn[disabled]{opacity:.55}
+  .problems{background:var(--bad-bg);border:1.5px solid var(--bad);border-radius:14px;padding:13px 15px;margin-bottom:14px}
+  .problems ul{margin:8px 0 0;padding-left:20px} .problems li{margin:4px 0}
+  .flag{display:flex;gap:11px;background:var(--gold-pale);border:1.5px solid var(--gold);border-radius:14px;
+        padding:13px 15px;margin-bottom:14px}
+  .tick{width:46px;height:46px;border-radius:999px;background:var(--done);color:#fff;display:grid;place-items:center;
+        font-size:24px;margin:0 auto 12px}
+  .done{text-align:center}
+</style>
+</head>
+<body>
+<div class="bar">
+  <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA">
+  <span class="who" id="stepcount"></span>
+</div>
+<div id="root"><div class="wrap"><div class="card"><p class="lede">Loading…</p></div></div></div>
+
+<script type="module">
+const ROOT = document.getElementById("root");
+const STEPCOUNT = document.getElementById("stepcount");
+const TOKEN = location.pathname.startsWith("/s/") ? location.pathname.slice(3) : new URLSearchParams(location.search).get("t");
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const fmt = (iso) => {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(iso ?? "")) return iso ?? "";
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()]} ${d} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`;
+};
+
+let DATA = null, LOGO = null, sending = false;
+const S = {
+  phone: "", signature: "", problems: [],
+  picked: {},                       // eventId -> { loadIn, loadOut }
+  req: { tables: 1, chairs: 2, skirting: null, power: null, extension: null,
+         internet: null, banner: null, shipping: null, staff: 2, notes: "" },
+  logoName: "",
+};
+
+const YESNO = [{ v: "yes", t: "Yes" }, { v: "no", t: "No" }];
+const seg = (path, opts) => {
+  const cur = path.reduce((o, k) => o?.[k], S);
+  return `<div class="seg">` + opts.map((o) =>
+    `<button type="button" data-path="${path.join(".")}" data-val="${o.v}" aria-pressed="${cur === o.v}">${o.t}</button>`).join("") + `</div>`;
+};
+
+function eventsCard() {
+  return `<div class="card"><h2>Which events are you coming to?</h2>
+    <p class="lede">Tick each one. We only list the events that have room for sponsor tables.</p>
+    ${DATA.events.length ? DATA.events.map((e) => {
+      const on = Boolean(S.picked[e.id]);
+      return `<div class="ev${on ? " on" : ""}">
+        <label class="pick"><input type="checkbox" data-ev="${esc(e.id)}"${on ? " checked" : ""}>
+          <span><span class="name">${esc(e.title)}</span><br>
+          <span class="when">${esc(e.city)}${e.venue ? " · " + esc(e.venue) : ""} · ${esc(e.dayOneLong)}${e.lastDay !== e.dayOne ? " – " + esc(e.lastDayLong) : ""}</span></span></label>
+        ${on ? `<div class="row2" style="margin-top:12px">
+          <div class="field" style="margin:0"><label for="in-${esc(e.id)}">Load in</label>
+            <input id="in-${esc(e.id)}" type="date" data-load="in" data-ev="${esc(e.id)}"
+              min="${esc(e.window.from)}" max="${esc(e.window.to)}" value="${esc(S.picked[e.id].loadIn)}"></div>
+          <div class="field" style="margin:0"><label for="out-${esc(e.id)}">Load out</label>
+            <input id="out-${esc(e.id)}" type="date" data-load="out" data-ev="${esc(e.id)}"
+              min="${esc(e.window.from)}" max="${esc(e.window.to)}" value="${esc(S.picked[e.id].loadOut)}"></div>
+        </div>
+        <p class="hint">Anywhere from ${esc(fmt(e.window.from))} to ${esc(fmt(e.window.to))}.</p>` : ""}
+      </div>`;
+    }).join("") : `<p class="hint">ONGIA has not opened any events to sponsors yet. We will be in touch when the dates are set.</p>`}
+  </div>`;
+}
+
+function logoCard() {
+  const have = Boolean(S.logoName);
+  return `<div class="card"><h2>Your logo</h2>
+    <p class="lede">We use it on the event programme, the screens between sessions, and our website.</p>
+    <label class="upload${have ? " on" : ""}" id="logodrop">
+      <input type="file" id="logofile" accept="image/png,image/jpeg,image/svg+xml">
+      ${LOGO?.preview ? `<img class="logoprev" src="${LOGO.preview}" alt="">` : ""}
+      <b>${have ? esc(S.logoName) : "Choose your logo"}</b>
+      <span class="hint">${have ? "Tap to choose a different one." : "PNG, JPEG or SVG. The highest resolution you have, up to 5 MB."}</span>
+    </label>
+  </div>`;
+}
+
+function needsCard() {
+  const r = S.req;
+  return `<div class="card"><h2>What do you need at your table?</h2>
+    <p class="lede">So the venue has it set up before you arrive. The same answers are used for every event you ticked — tell us later if one differs.</p>
+    <div class="row2" style="margin-top:12px">
+      <div class="field" style="margin:0"><label for="f-tables">Tables</label>
+        <input id="f-tables" type="number" min="0" max="10" inputmode="numeric" data-req="tables" value="${esc(r.tables ?? "")}"></div>
+      <div class="field" style="margin:0"><label for="f-chairs">Chairs</label>
+        <input id="f-chairs" type="number" min="0" max="20" inputmode="numeric" data-req="chairs" value="${esc(r.chairs ?? "")}"></div>
+    </div>
+    <p class="hint">Standard tables are 6 ft. Zero is a fine answer if you bring your own.</p>
+    <div class="qblock"><p class="qtext">Do you need power at the table?</p>${seg(["req","power"], YESNO)}</div>
+    <div class="qblock"><p class="qtext">Do you need an extension cord?</p>${seg(["req","extension"], YESNO)}
+      <p class="hint">Say yes if your gear will not reach a wall from where the table lands.</p></div>
+    <div class="qblock"><p class="qtext">Do you need internet?</p>${seg(["req","internet"], YESNO)}
+      <p class="hint">Only if something you are showing is live.</p></div>
+    <div class="qblock"><p class="qtext">Do you want the table skirted?</p>${seg(["req","skirting"], YESNO)}</div>
+    <div class="qblock"><p class="qtext">Are you bringing a banner or stand?</p>${seg(["req","banner"], YESNO)}
+      <p class="hint">So we leave floor space beside your table rather than putting you tight against a wall.</p></div>
+    <div class="qblock"><p class="qtext">Are you shipping anything to the venue ahead of time?</p>${seg(["req","shipping"], YESNO)}
+      <p class="hint">If yes, we will send you the receiving address and the date it can arrive.</p></div>
+    <div class="field"><label for="f-staff">How many people will be at your table?</label>
+      <input id="f-staff" type="number" min="0" max="50" inputmode="numeric" data-req="staff" value="${esc(r.staff ?? "")}"></div>
+    <p class="hint">For badges and catering numbers.</p>
+    <div class="field"><label for="f-notes">Anything else we should know?</label>
+      <textarea id="f-notes" data-req="notes">${esc(r.notes)}</textarea></div>
+  </div>`;
+}
+
+function signCard() {
+  return `<div class="card"><h2>Confirm and send</h2>
+    <div class="row2">
+      <div class="field" style="margin:0"><label for="f-phone">Best phone number</label>
+        <input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" placeholder="416-555-0100"></div>
+      <div class="field" style="margin:0"><label for="f-sign">Type your name</label>
+        <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(DATA.sponsor.first + " " + DATA.sponsor.last)}"></div>
+    </div>
+    <p class="hint">Typing your name confirms these are ${esc(DATA.sponsor.company)}'s requirements. ONGIA's sponsorship
+      lead reviews them and confirms what we can provide.</p>
+    <button type="button" class="btn btn-gold" id="send" style="margin-top:16px"${sending ? " disabled" : ""}>
+      ${sending ? "Sending…" : "Send this to ONGIA"}</button>
+  </div>`;
+}
+
+function formMarkup() {
+  const sp = DATA.sponsor;
+  const problems = S.problems.length
+    ? `<div class="problems" role="alert"><b>Not quite there yet</b><ul>${S.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>` : "";
+  const returned = sp.returnNote
+    ? `<div class="flag"><span>✎</span><div><b>ONGIA asked for one change</b><p style="margin:4px 0 0">${esc(sp.returnNote)}</p></div></div>` : "";
+  return `<div class="wrap">
+    <div class="card">
+      <img class="banner" src="/assets/ongia-banner-sponsor.jpg" alt="" width="1056" height="288">
+      <h1>Thank you for sponsoring ONGIA</h1>
+      <p class="lede">Hello ${esc(sp.first)}. We need three things from ${esc(sp.company)}: which events you are
+        coming to, your logo, and what you need at your table. It takes a few minutes, and you can come back to
+        this link later.</p>
+    </div>
+    ${returned}${problems}
+    ${eventsCard()}${logoCard()}${needsCard()}${signCard()}
+  </div>`;
+}
+
+function doneMarkup() {
+  const sp = DATA.sponsor;
+  const names = DATA.events.filter((e) => sp.events?.[e.id]).map((e) => e.title);
+  return `<div class="wrap"><div class="card done">
+    <div class="tick">✓</div>
+    <h1>That's everything</h1>
+    <p class="lede">Thank you. ${esc(DATA.lead?.name ?? "ONGIA")} will check what you have asked for and confirm
+      what we can provide.</p>
+    <p class="hint" style="margin-top:14px">${names.length ? esc(names.join(" · ")) : ""}</p>
+    <p class="hint">Something changed? Reply to the email that brought you here and we will reopen it.</p>
+  </div></div>`;
+}
+
+function render() {
+  const sp = DATA.sponsor;
+  const done = sp.status === "submitted" || sp.status === "approved";
+  ROOT.innerHTML = done ? doneMarkup() : formMarkup();
+  STEPCOUNT.textContent = done ? (sp.status === "approved" ? "Signed" : "Sent") : "Sponsorship";
+  wire();
+}
+
+function wire() {
+  ROOT.querySelectorAll("[data-ev]").forEach((el) => {
+    if (el.type === "checkbox") {
+      el.onchange = () => {
+        const id = el.dataset.ev;
+        if (el.checked) {
+          const e = DATA.events.find((x) => x.id === id);
+          S.picked[id] = { loadIn: e.dayOne, loadOut: e.lastDay };
+        } else delete S.picked[id];
+        S.problems = [];
+        render();
+      };
+    }
+  });
+  ROOT.querySelectorAll("[data-load]").forEach((el) => {
+    el.onchange = () => {
+      const row = S.picked[el.dataset.ev];
+      if (!row) return;
+      if (el.dataset.load === "in") {
+        row.loadIn = el.value;
+        // Pulling load-in past load-out drags load-out with it, and the box has
+        // to show that — a silent state change sends a date they never saw.
+        if (row.loadOut < row.loadIn) {
+          row.loadOut = row.loadIn;
+          const out = document.getElementById(`out-${el.dataset.ev}`);
+          if (out) out.value = row.loadOut;
+        }
+      } else row.loadOut = el.value;
+    };
+  });
+  ROOT.querySelectorAll("[data-path]").forEach((b) => {
+    b.onclick = () => {
+      const keys = b.dataset.path.split(".");
+      let node = S;
+      for (const k of keys.slice(0, -1)) node = node[k] ??= {};
+      node[keys.at(-1)] = b.dataset.val;
+      S.problems = [];
+      render();
+    };
+  });
+  ROOT.querySelectorAll("[data-req]").forEach((el) => {
+    el.oninput = () => { S.req[el.dataset.req] = el.type === "number" ? el.value : el.value; };
+  });
+  ROOT.querySelectorAll("[data-bind]").forEach((el) => {
+    el.oninput = () => { S[el.dataset.bind] = el.value; };
+  });
+  const file = document.getElementById("logofile");
+  if (file) file.onchange = () => uploadLogo(file.files?.[0]);
+  const send = document.getElementById("send");
+  if (send) send.onclick = submit;
+}
+
+async function uploadLogo(f) {
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { S.problems = ["That file is over 5 MB. Please send a smaller one."]; render(); return; }
+  try {
+    const res = await fetch(`/api/sponsor?t=${encodeURIComponent(TOKEN)}&logo=1`, {
+      method: "POST",
+      headers: { "content-type": f.type || "application/octet-stream", "x-file-name": encodeURIComponent(f.name) },
+      body: f,
+    });
+    const out = await res.json();
+    if (!res.ok) { S.problems = [out.error ?? "That logo could not be saved."]; render(); return; }
+    S.logoName = out.logo.name;
+    LOGO = { preview: URL.createObjectURL(f) };
+    S.problems = [];
+    render();
+  } catch { S.problems = ["The logo could not be sent. Check your connection and try again."]; render(); }
+}
+
+async function submit() {
+  if (sending) return;
+  sending = true; render();
+  try {
+    const res = await fetch(`/api/sponsor?t=${encodeURIComponent(TOKEN)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        phone: S.phone,
+        signature: S.signature,
+        requirements: S.req,
+        events: Object.entries(S.picked).map(([id, v]) => ({ id, ...v })),
+      }),
+    });
+    const out = await res.json();
+    sending = false;
+    if (!res.ok) { S.problems = out.problems ?? [out.error ?? "Something went wrong."]; render(); window.scrollTo(0, 0); return; }
+    DATA.sponsor.status = "submitted";
+    DATA.sponsor.events = Object.fromEntries(Object.entries(S.picked).map(([id, v]) => [id, { attending: "yes", ...v }]));
+    render();
+    window.scrollTo(0, 0);
+  } catch {
+    sending = false;
+    S.problems = ["That did not send. Check your connection and try again."];
+    render();
+  }
+}
+
+(async function start() {
+  try {
+    const res = await fetch(`/api/sponsor?t=${encodeURIComponent(TOKEN)}`);
+    const out = await res.json();
+    if (!res.ok) {
+      ROOT.innerHTML = `<div class="wrap"><div class="card"><h1>This link isn't valid</h1>
+        <p class="lede">${esc(out.error ?? "Check it came from ONGIA, or ask us for a new one.")}</p></div></div>`;
+      return;
+    }
+    DATA = out;
+    const sp = out.sponsor;
+    S.phone = sp.phone ?? "";
+    S.logoName = sp.logoName ?? "";
+    if (sp.requirements) S.req = { ...S.req, ...sp.requirements };
+    for (const [id, v] of Object.entries(sp.events ?? {})) {
+      if (v?.attending !== "no") S.picked[id] = { loadIn: v.loadIn ?? "", loadOut: v.loadOut ?? "" };
+    }
+    render();
+  } catch {
+    ROOT.innerHTML = `<div class="wrap"><div class="card"><h1>Could not load</h1>
+      <p class="lede">Check your connection and reload.</p></div></div>`;
+  }
+})();
+</script>
+</body>
+</html>

@@ -197,6 +197,26 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
   };
 }
 
+/** Tells the sponsorship lead a pack has landed and needs their eye. */
+export function sponsorReviewNeededMail({ sponsor, events, adminUrl, lead }) {
+  const heading = `${sponsor.company} has sent their sponsorship details`;
+  const names = events.map((e) => `${esc(e.title)} (${esc(e.city)})`);
+  const lines = [
+    `Hello ${esc(lead?.name?.split(" ")[0] ?? "there")},`,
+    `${esc(sponsor.company)} has filled in what they need. ${esc(sponsor.first)} ${esc(sponsor.last)} signed for them.`,
+    names.length === 1
+      ? `They are coming to <b>${names[0]}</b>.`
+      : `They are coming to <b>${names.length}</b> events: ${names.join(", ")}.`,
+    `Have a look at what they have asked for — tables, power, internet and the rest — and confirm what ONGIA can provide.`,
+  ];
+  const contact = lead ?? { name: "ONGIA", email: "", phone: "" };
+  return {
+    subject: heading,
+    html: layout({ heading, lines, buttons: [{ href: adminUrl, label: "See what they need" }], contact, event: null }),
+    text: plain(heading, lines, adminUrl, contact),
+  };
+}
+
 /**
  * Sent the moment a sponsor is added. It thanks them first, because that is
  * what the message is for, and asks second.
@@ -215,8 +235,6 @@ export function sponsorWelcomeMail({ sponsor, link, lead }) {
   const contact = lead ?? { name: "ONGIA", email: process.env.MS_MAIL_FROM ?? "", phone: "" };
   return {
     subject: heading,
-    // No link until the form it points at exists. A thank-you that opens a 404
-    // is worse than a thank-you that asks them to wait.
     html: layout({ heading, lines, buttons: link ? [{ href: link, label: "Set up our sponsorship" }] : [], contact, event: null }),
     text: plain(heading, lines, link, contact),
   };
