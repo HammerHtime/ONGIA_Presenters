@@ -1,0 +1,15 @@
+{
+  "name": "ONGIA Events",
+  "short_name": "ONGIA Events",
+  "description": "ONGIA's desk for training events: presenters, agreements, attendees, letters and the hotel.",
+  "start_url": "/admin.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12284b",
+  "theme_color": "#0e1a35",
+  "icons": [
+    { "src": "/assets/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
