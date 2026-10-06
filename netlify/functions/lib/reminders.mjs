@@ -1,4 +1,6 @@
-import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta } from "./store.mjs";
+import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta, getLetter } from "./store.mjs";
+import { checklistOf } from "./checklist.mjs";
+import { letterProblems, eventProblems, datesOf } from "./letters.mjs";
 import { describeEvent, formatDate, todayIso } from "./deadlines.mjs";
 import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
@@ -160,10 +162,14 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
         ["Final materials", event.deadlines.final, people.filter((p, i) => !mats[i].final)],
       ].map(([label, due, missing]) => ({ label, due: formatDate(due), days: daysBetween(due, today), names: missing.map((p) => `${p.first} ${p.last}`) }));
       const overdueItems = items.filter((x) => x.days > 0 && x.names.length);
-      const nextItem = [...items.map((x) => ({ label: `${x.label} due`, due: x.due, days: -x.days })), { label: "Training starts", due: formatDate(event.dayOne), days: -daysBetween(event.dayOne, today) }]
+      // A deadline nobody still owes is not "next": with no presenters, or all
+      // of them in, the next thing is whatever someone actually has to do.
+      const nextItem = [...items.filter((x) => x.names.length).map((x) => ({ label: `${x.label} due`, due: x.due, days: -x.days })), { label: "Training starts", due: formatDate(event.dayOne), days: -daysBetween(event.dayOne, today) }]
         .filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0] ?? null;
       digestSections.push({
-        event: ev, counts, materials: materialsSummary, overdue: overdueItems, next: nextItem,
+        // The whole run of days, "Mon 9 Nov – Thu 12 Nov 2026", not just the first.
+        event: { ...ev, datesReadable: datesOf(event) }, counts, materials: materialsSummary, overdue: overdueItems, next: nextItem,
+        jobs: await jobsFor(event, today),
         rows: people.map((p) => ({ name: `${p.first} ${p.last}`, status: p.status })),
         adminUrl: `${origin}/admin.html#event/${encodeURIComponent(event.id)}`,
       });
@@ -234,6 +240,26 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     catch (e) { results.push({ ...summary, sent: false, error: e.message }); }
   }
   return { today, dry, count: results.length, results };
+}
+
+/**
+ * The desk's own jobs on one event, for the Monday summary: how many are done,
+ * and every one still open — late first, then by date, then the undated ones.
+ * A job that sends a letter by itself says whether it actually will.
+ */
+async function jobsFor(event, today) {
+  const { tasks, counts } = checklistOf(event, today);
+  const open = [];
+  for (const t of tasks.filter((x) => !x.na && !x.done)) {
+    let auto = null;
+    if (t.auto) {
+      const letter = event.letters?.[t.auto] ? await getLetter(event.letters[t.auto]) : null;
+      const problems = letter ? [...letterProblems(letter), ...eventProblems(letter, event)] : [];
+      auto = !letter ? "no letter picked on the event yet" : problems.length ? `held back: ${problems[0]}` : "sends by itself";
+    }
+    open.push({ what: t.what, due: t.dueReadable, days: t.days, late: t.late, scheduled: t.scheduled, auto });
+  }
+  return { total: counts.total, done: counts.done, late: counts.late, open };
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

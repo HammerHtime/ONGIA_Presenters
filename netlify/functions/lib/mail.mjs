@@ -141,7 +141,9 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
     `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:#1a2f5e;color:#fff;text-decoration:none;
         font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
     (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
-  return `<!doctype html><html><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f">
+  // The viewport line and the text-size lock stop phone mail apps from blowing
+  // up paragraphs while leaving tables and buttons small beside them.
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
     <div style="background:#0e1a35;color:#fff;padding:18px 24px;border-bottom:3px solid #b8922a">
       ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="168" height="28" style="display:block;border:0;height:28px;width:auto">`
@@ -428,44 +430,113 @@ function describeDates(presenter, lang = "en") {
  * Monday summary for the lead board member: where every presenter stands,
  * what's overdue, what's next, and a button into the event on the admin page.
  */
+/**
+ * The Monday summary for the president and the VP: every upcoming event,
+ * soonest first. Each event leads with the jobs still open — late ones in red
+ * — then where the presenters are. Built for a phone: one column, two-column
+ * tables at most, nothing that needs scrolling sideways.
+ */
 export function weeklyDigestMail({ sections, adminUrl }) {
-  const totalFinal = sections.reduce((n, s) => n + s.counts.approved, 0);
-  const totalAll = sections.reduce((n, s) => n + s.counts.total, 0);
-  const anyOverdue = sections.some((s) => s.overdue.length);
+  sections = [...sections].sort((a, b) => String(a.event.dayOne ?? "").localeCompare(String(b.event.dayOne ?? "")));
+  // Plain text: layout() escapes the heading, and the subject is not HTML.
   const heading = sections.length === 1
-    ? `Weekly summary: ${esc(sections[0].event.title)}`
+    ? `Weekly summary: ${sections[0].event.title}`
     : `Weekly summary: ${sections.length} training events`;
-  void totalFinal; void totalAll; void anyOverdue;
+
+  const C = { navy: "#1a2f5e", ink: "#12161f", body: "#2c3448", grey: "#767f92", rule: "#e9e4d8", late: "#a33328", gold: "#b8922a" };
+  const label = (text) => `<div style="margin:16px 0 6px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${C.gold};font-weight:700">${text}</div>`;
   // Two columns only: label left, number right. Four columns fold badly on a phone.
-  const row = (label, value, last = false) =>
-    `<tr><td style="padding:7px 0;font-size:15px;color:#2c3448;${last ? "" : "border-bottom:1px solid #e9e4d8"}">${label}</td>
-     <td style="padding:7px 0;font-size:15px;text-align:right;white-space:nowrap;font-weight:700;color:#12161f;${last ? "" : "border-bottom:1px solid #e9e4d8"}">${value}</td></tr>`;
-  const of = (n, total) => `${n} <span style="font-weight:400;color:#767f92">of ${total}</span>`;
-  const lines = [`Monday summary of every upcoming training event. Each section has a button that opens the event on the admin page.`];
-  for (const s of sections) {
-    const { event, counts, materials, overdue, next, rows } = s;
-    const numbers = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:8px 0 12px">
-      ${row("Presenters", counts.total)}
-      ${row("Not submitted", counts.invited + counts.opened)}
-      ${row("Needs review", counts.submitted)}
-      ${row("Final", counts.approved)}
-      ${row("Draft materials received", of(materials.draft, counts.total))}
-      ${row("Final materials received", of(materials.final, counts.total), true)}</table>`;
-    let block = `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">
-      <div style="font-size:18px;font-weight:700;color:#1a2f5e;margin:0 0 2px">${esc(event.title)}</div>
-      <div style="font-size:13px;color:#767f92;margin-bottom:4px">${esc(event.city)} · ${esc(event.dayOneReadable)}${event.reviewer?.name ? ` · lead ${esc(event.reviewer.name)}` : ""}</div>${numbers}`;
-    if (overdue.length) block += `<div style="margin:6px 0;font-size:14px"><b style="color:#a33328">Overdue:</b> ${overdue.map((o) => `${esc(o.label)} were due ${esc(o.due)} (${o.days} day${o.days === 1 ? "" : "s"} ago) — still outstanding: ${o.names.map(esc).join(", ")}`).join("<br>")}</div>`;
-    if (counts.submitted) block += `<div style="margin:6px 0;font-size:14px"><b>Ready to approve:</b> ${rows.filter((r) => r.status === "submitted").map((r) => esc(r.name)).join(", ")}.</div>`;
-    if (next) block += `<div style="margin:6px 0;font-size:14px"><b>Next:</b> ${esc(next.label)} ${esc(next.due)}, ${next.days === 0 ? "today" : `in ${next.days} day${next.days === 1 ? "" : "s"}`}.</div>`;
-    block += `<p style="margin:12px 0 0"><a href="${esc(s.adminUrl)}" style="background:#1a2f5e;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;display:inline-block;font-size:14px">Open ${esc(event.city)}</a></p>`;
-    lines.push(block);
+  const row = (left, right, last = false) =>
+    `<tr><td style="padding:7px 8px 7px 0;font-size:15px;color:${C.body};${last ? "" : `border-bottom:1px solid ${C.rule}`}">${left}</td>
+     <td style="padding:7px 0;font-size:15px;text-align:right;white-space:nowrap;font-weight:700;color:${C.ink};${last ? "" : `border-bottom:1px solid ${C.rule}`}">${right}</td></tr>`;
+  const table = (rows) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 8px">${rows.join("")}</table>`;
+  const of = (n, total) => `${n} <span style="font-weight:400;color:${C.grey}">of ${total}</span>`;
+  const when = (j) => j.days === 0 ? "today" : j.days === 1 ? "tomorrow" : j.days > 1 ? `in ${j.days} days` : `${-j.days} day${j.days === -1 ? "" : "s"} ago`;
+  const jobLine = (j) => j.late
+    ? `${esc(j.what)} <span style="color:${C.late}">was due ${esc(j.due)} (${when(j)})</span>`
+    : `${esc(j.what)} <span style="color:${C.grey}">${esc(j.due)}, ${when(j)}${j.auto ? ` · ${esc(j.auto)}` : ""}</span>`;
+  const jobsState = (jobs) => !jobs?.total ? "no job list"
+    : jobs.late ? `<span style="color:${C.late}">${jobs.late} late</span>`
+    : jobs.open.length ? `${jobs.open.length} to do` : "all done";
+
+  let html = `<p style="margin:0 0 14px;line-height:1.55">Every upcoming training event, soonest first. Under each one: the jobs still open, then where the presenters are.</p>`;
+  const text = [heading, "", "Every upcoming training event, soonest first.", ""];
+
+  if (sections.length > 1) {
+    html += label("At a glance") + table(sections.map((s, i) => row(
+      `<b style="color:${C.navy}">${esc(s.event.title)}</b><br><span style="font-size:13px;color:${C.grey}">${esc(s.event.city)} · ${esc(s.event.datesReadable || s.event.dayOneReadable)}</span>`,
+      jobsState(s.jobs), i === sections.length - 1)));
+    for (const s of sections) text.push(`- ${s.event.title} (${s.event.datesReadable || s.event.dayOneReadable}): ${jobsState(s.jobs).replace(/<[^>]+>/g, "")}`);
+    text.push("");
   }
-  lines.push(`<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">Presenters who haven't submitted, and those whose materials are missing, are being reminded automatically.`);
-  return {
-    subject: heading,
-    html: layout({ heading, lines, footer: `This summary goes out every Monday while there are upcoming events. Sign in with the admin key to open an event.` }),
-    text: plain(heading, lines, adminUrl),
-  };
+
+  for (const s of sections) {
+    const { event, counts, materials, overdue, next, rows, jobs } = s;
+    html += `<hr style="border:0;border-top:1px solid #ddd7c8;margin:22px 0 16px">
+      <div style="font-size:18px;font-weight:700;color:${C.navy};margin:0 0 2px">${esc(event.title)}</div>
+      <div style="font-size:13px;color:${C.grey}">${esc(event.city)} · ${esc(event.datesReadable || event.dayOneReadable)}${event.reviewer?.name ? ` · lead ${esc(event.reviewer.name)}` : ""}</div>`;
+    text.push("------------------------------", event.title, `${event.city} · ${event.datesReadable || event.dayOneReadable}${event.reviewer?.name ? ` · lead ${event.reviewer.name}` : ""}`, "");
+
+    // The desk's own jobs.
+    if (!jobs?.total) {
+      html += label("Jobs") + `<p style="margin:0 0 8px;font-size:14px;color:${C.grey}">No job list on this event yet. Open it and press <b>Use the standard list</b>.</p>`;
+      text.push("JOBS: no job list on this event yet.", "");
+    } else if (!jobs.open.length) {
+      html += label(`Jobs · all ${jobs.total} done`);
+      text.push(`JOBS: all ${jobs.total} done.`, "");
+    } else {
+      html += label(`Jobs · ${jobs.done} of ${jobs.total} done`);
+      text.push(`JOBS: ${jobs.done} of ${jobs.total} done. Still open:`);
+      const dated = jobs.open.filter((j) => j.scheduled), undated = jobs.open.filter((j) => !j.scheduled);
+      if (dated.length) {
+        html += `<ul style="margin:0 0 8px;padding-left:20px;font-size:14px;line-height:1.45">${dated.map((j) =>
+          `<li style="margin:0 0 6px${j.late ? `;color:${C.late}` : ""}">${jobLine(j)}</li>`).join("")}</ul>`;
+        for (const j of dated) text.push(j.late ? `  ! ${j.what}: was due ${j.due} (${when(j)})` : `  - ${j.what}: ${j.due}, ${when(j)}${j.auto ? ` (${j.auto})` : ""}`);
+      }
+      if (undated.length) {
+        html += `<p style="margin:0 0 8px;font-size:14px;line-height:1.5"><span style="color:${C.grey}">No date yet:</span> ${undated.map((j) => esc(j.what)).join(" · ")}</p>`;
+        text.push(`  No date yet: ${undated.map((j) => j.what).join("; ")}`);
+      }
+      text.push("");
+    }
+
+    // The presenters.
+    html += label("Presenters");
+    if (!counts.total) {
+      html += `<p style="margin:0 0 8px;font-size:14px;color:${C.grey}">No presenters added yet.</p>`;
+      text.push("PRESENTERS: none added yet.");
+    } else {
+      html += table([
+        row("Presenters", counts.total),
+        row("Not submitted", counts.invited + counts.opened),
+        row("Needs review", counts.submitted),
+        row("Final", counts.approved),
+        row("Draft materials received", of(materials.draft, counts.total)),
+        row("Final materials received", of(materials.final, counts.total), true)]);
+      text.push(`PRESENTERS: ${counts.total}. Not submitted ${counts.invited + counts.opened}, needs review ${counts.submitted}, final ${counts.approved}.`,
+        `Materials received: draft ${materials.draft} of ${counts.total}, final ${materials.final} of ${counts.total}.`);
+    }
+    for (const o of overdue) {
+      html += `<div style="margin:6px 0;font-size:14px"><b style="color:${C.late}">Overdue:</b> ${esc(o.label)} were due ${esc(o.due)} (${o.days} day${o.days === 1 ? "" : "s"} ago). Still outstanding: ${o.names.map(esc).join(", ")}</div>`;
+      text.push(`Overdue: ${o.label} were due ${o.due} (${o.days} days ago). Still outstanding: ${o.names.join(", ")}`);
+    }
+    if (counts.submitted) {
+      const ready = rows.filter((r) => r.status === "submitted").map((r) => r.name);
+      html += `<div style="margin:6px 0;font-size:14px"><b>Ready to approve:</b> ${ready.map(esc).join(", ")}.</div>`;
+      text.push(`Ready to approve: ${ready.join(", ")}.`);
+    }
+    if (next) {
+      const inDays = next.days === 0 ? "today" : `in ${next.days} day${next.days === 1 ? "" : "s"}`;
+      html += `<div style="margin:6px 0;font-size:14px"><b>Next:</b> ${esc(next.label)} ${esc(next.due)}, ${inDays}.</div>`;
+      text.push(`Next: ${next.label} ${next.due}, ${inDays}.`);
+    }
+    html += `<p style="margin:14px 0 0"><a href="${esc(s.adminUrl)}" style="background:${C.navy};color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;display:inline-block;font-size:14px">Open ${esc(event.city || event.title)}</a></p>`;
+    text.push(`Open: ${s.adminUrl}`, "");
+  }
+  html += `<hr style="border:0;border-top:1px solid #ddd7c8;margin:22px 0 14px"><p style="margin:0;font-size:14px;line-height:1.5">Presenters who haven't submitted, and those whose materials are missing, are being reminded automatically.</p>`;
+  text.push("------------------------------", "Presenters who haven't submitted, and those whose materials are missing, are being reminded automatically.", "", adminUrl);
+  const footer = `This summary goes out every Monday while there are upcoming events. Sign in with the admin key to open an event.`;
+  return { subject: heading, html: layout({ heading, bodyHtml: html, footer }), text: [...text, "", footer].join("\n") };
 }
 
 export function describeAgency(expenses) {

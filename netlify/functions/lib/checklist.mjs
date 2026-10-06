@@ -1,6 +1,7 @@
 import { getMeta } from "./store.mjs";
 import { token } from "./ids.mjs";
 import { deadline, whyNotWorking, todayIso, formatDate } from "./deadlines.mjs";
+import { fitsTitle } from "./titles.mjs";
 
 /**
  * The jobs that are ONGIA's rather than a presenter's. Every one is stored as
@@ -20,6 +21,9 @@ export const STARTER = [
   { what: "Contract signed", daysBefore: null },
   { what: "Wix event set up and ready", daysBefore: null },
   { what: "Car rental booked", daysBefore: null },
+  // Andrew: "for events titled RBH ITP, there is a task for booking VIA Rail
+  // train tickets." A job, not a letter, and only on those events.
+  { what: "Book VIA Rail train tickets", daysBefore: null, onlyFor: "RBH ITP" },
   { what: "Presenter and hotel guest names given to the hotel", daysBefore: null },
   { what: "Food ordered and arranged", daysBefore: null },
   { what: "AV confirmed and arranged", daysBefore: null },
@@ -34,13 +38,28 @@ export async function taskTemplate() {
   return Array.isArray(saved?.tasks) && saved.tasks.length ? saved.tasks : STARTER;
 }
 
-/** The same list, ready to sit on a brand-new event. */
-export async function starterTasks(now = new Date()) {
+/** One template row as a job on an event. */
+const asTask = (t, at) => ({ id: token(8), what: t.what, daysBefore: t.daysBefore, auto: t.auto, done: false, doneAt: null, na: false, addedAt: at });
+
+/**
+ * The list a brand-new event starts with: everything on the template that fits
+ * its title. A job marked for RBH ITP events only is left off everything else.
+ */
+export async function starterTasks(title, now = new Date()) {
   const at = now.toISOString();
-  return (await taskTemplate()).map((t) => ({
-    id: token(8), what: t.what, daysBefore: t.daysBefore, auto: t.auto,
-    done: false, doneAt: null, na: false, addedAt: at,
-  }));
+  return (await taskTemplate()).filter((t) => fitsTitle(t.onlyFor, title)).map((t) => asTask(t, at));
+}
+
+/**
+ * An event renamed INTO a kind it was not before — "Montreal training" becomes
+ * "RBH ITP Montreal" — picks up that kind's own jobs. Only on that change: a
+ * job Andrew deleted from an event that was always RBH ITP stays deleted.
+ */
+export async function jobsForRename(event, oldTitle, now = new Date()) {
+  const have = new Set((event.tasks ?? []).map((t) => t.what.toLowerCase()));
+  return (await taskTemplate())
+    .filter((t) => t.onlyFor && !fitsTitle(t.onlyFor, oldTitle) && fitsTitle(t.onlyFor, event.title) && !have.has(t.what.toLowerCase()))
+    .map((t) => asTask(t, now.toISOString()));
 }
 
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);

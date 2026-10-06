@@ -307,6 +307,17 @@
     .job .when{grid-column:2/-1;text-align:left}
     .job .jact{grid-column:3;grid-row:1}
   }
+  /* A row of the standard list: wording, days, before/after, remove — one line
+     on a wide screen; on a phone the wording takes its own line above. */
+  .job.tjob{grid-template-columns:1fr auto auto auto;align-items:center}
+  .job.tjob [data-tdays]{width:108px}
+  @media (max-width:560px){
+    .job.tjob{grid-template-columns:auto 1fr auto}
+    .job.tjob [data-twhat]{grid-column:1/3;grid-row:1}
+    .job.tjob .jact{grid-column:3;grid-row:1}
+    .job.tjob [data-tdays]{grid-column:1;grid-row:2;width:96px}
+    .job.tjob [data-twhen]{grid-column:2/-1;grid-row:2;min-width:0;width:100%}
+  }
   @media print{.job .jact,.jobadd{display:none!important}}
 
   /* ---------- who is coming ----------
@@ -1165,12 +1176,20 @@ function wireTemplate() {
   if (!host || !box) return;
   let loaded = false;
 
-  const rowHtml = (t = { what: "", daysBefore: 30 }) => `<div class="job" data-trow style="border-radius:12px;margin-bottom:6px;background:var(--sunk)">
-      <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout" style="grid-column:1/3">
-      <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${Math.abs(t.daysBefore)}" style="width:86px">
-      <select data-twhen style="width:auto"><option value="before"${t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${t.daysBefore < 0 ? " selected" : ""}>after the last day</option></select>
+  // A job with no date yet shows an empty box, never 0: 0 would mean "on day
+  // one", and saving would quietly give every undated job that date. The two
+  // letter jobs and any "RBH ITP only" job carry their marking through a save.
+  const rowHtml = (t = { what: "", daysBefore: null }) => {
+    const dated = Number.isFinite(t.daysBefore);
+    const tags = [t.auto ? "sends the " + (t.auto === "survey" ? "survey" : "welcome letter") + " by itself" : "", t.onlyFor ? `${esc(t.onlyFor)} events only` : ""].filter(Boolean);
+    return `<div class="job tjob" data-trow data-auto="${esc(t.auto ?? "")}" data-only="${esc(t.onlyFor ?? "")}" style="border-radius:12px;margin-bottom:6px;background:var(--sunk)">
+      <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout">
+      <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${dated ? Math.abs(t.daysBefore) : ""}" placeholder="no date">
+      <select data-twhen style="width:auto"><option value="before"${!dated || t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${dated && t.daysBefore < 0 ? " selected" : ""}>after the last day</option></select>
       <div class="jact"><button type="button" data-tdel title="Remove this job">&#10005;</button></div>
+      ${tags.length ? `<div class="hint" style="grid-column:1/-1;margin:0">${tags.join(" · ")}</div>` : ""}
     </div>`;
+  };
 
   const wireRow = (row) => { row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; }; };
   const addRow = (t) => {
@@ -1204,14 +1223,17 @@ function wireTemplate() {
   document.getElementById("tmpl-save").onclick = async (e) => {
     const btn = e.currentTarget;
     const tasks = [...host.querySelectorAll("[data-trow]")].map((row) => {
-      const n = Math.abs(Number(row.querySelector("[data-tdays]").value));
+      const raw = row.querySelector("[data-tdays]").value.trim();
+      const n = raw === "" ? null : Math.abs(Number(raw));
       return {
         what: row.querySelector("[data-twhat]").value.trim(),
-        daysBefore: row.querySelector("[data-twhen]").value === "after" ? -n : n,
+        daysBefore: n === null ? null : row.querySelector("[data-twhen]").value === "after" ? -n : n,
+        auto: row.dataset.auto || undefined,
+        onlyFor: row.dataset.only || undefined,
       };
     });
-    const bad = tasks.filter((t) => !t.what || !Number.isFinite(t.daysBefore));
-    if (bad.length) { said.textContent = "Every row needs wording and a number."; said.style.color = "var(--late)"; return; }
+    const bad = tasks.filter((t) => !t.what || (t.daysBefore !== null && !Number.isFinite(t.daysBefore)));
+    if (bad.length) { said.textContent = "Every row needs wording. Leave the days empty if there is no date yet."; said.style.color = "var(--late)"; return; }
     btn.disabled = true; said.style.color = ""; said.textContent = "Saving…";
     try {
       const out = await api("/tasks?template=1", { method: "PUT", body: JSON.stringify({ tasks }) });

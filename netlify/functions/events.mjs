@@ -8,7 +8,7 @@ import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
-import { starterTasks, checklistOf } from "./lib/checklist.mjs";
+import { starterTasks, checklistOf, jobsForRename } from "./lib/checklist.mjs";
 
 /**
  * Events and their presenters.
@@ -189,8 +189,12 @@ async function updateEvent(id, body) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
+  const oldTitle = event.title;
   const problem = await applyDetails(event, body);
   if (problem) return fail(problem);
+  // Only an event that already has a checklist gains jobs from a rename; one
+  // that never had the list is left for Andrew to add it whole.
+  if (event.tasks?.length) event.tasks.push(...await jobsForRename(event, oldTitle));
   await putEvent(event);
   // Same as on create: no link means the app makes the folder and an upload-only link.
   if (!event.materialsUploadUrl && graphConfigured()) {
@@ -403,7 +407,7 @@ async function createEvent(body, origin) {
   // The desk's own checklist comes with the event, so nobody has to remember to
   // ask for it. Every job is stored as days before day one, so moving the
   // training moves the whole list with it.
-  event.tasks = await starterTasks();
+  event.tasks = await starterTasks(event.title);
   await putEvent(event);
 
   // With Microsoft connected, a new event gets its folder and upload link

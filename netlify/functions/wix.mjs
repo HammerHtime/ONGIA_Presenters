@@ -187,7 +187,7 @@ async function importEvent(wixEventId) {
     // already refuses to send anything for an event with no lead.
     board: [],
     contact: { name: "", email: "", phone: "" },
-    tasks: await starterTasks(),
+    tasks: await starterTasks(match.title),
     wix: { eventId: match.id, title: match.title, url: match.url, linkedAt: new Date().toISOString() },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

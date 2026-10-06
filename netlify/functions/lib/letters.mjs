@@ -1,5 +1,6 @@
 import { formatDate } from "./deadlines.mjs";
 import { layout, coordinatorOf } from "./mail.mjs";
+import { fitsTitle } from "./titles.mjs";
 
 /**
  * Letters Andrew writes once and reuses: the welcome letter and the survey.
@@ -77,13 +78,8 @@ export function letterProblems(letter) {
   return [...new Set(out)];
 }
 
-/**
- * A letter written for one kind of training — the RBH ITP week in Montreal —
- * carries the words that name those events ("RBH ITP"), and only an event whose
- * title has them in it can use it. Case and extra spaces do not matter.
- */
-const squash = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
-export const fitsEvent = (letter, event) => !squash(letter?.onlyFor) || squash(event?.title).includes(squash(letter.onlyFor));
+/** A letter written for one kind of training (see titles.mjs) goes to those events only. */
+export const fitsEvent = (letter, event) => fitsTitle(letter?.onlyFor, event?.title);
 
 /** What a particular event is missing for this letter to be filled in. */
 export function eventProblems(letter, event) {

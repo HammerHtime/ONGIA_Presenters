@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, text } from "./lib/http.mjs";
 import { getEvent, putEvent, putMeta } from "./lib/store.mjs";
 import { taskTemplate, checklistOf } from "./lib/checklist.mjs";
+import { fitsTitle } from "./lib/titles.mjs";
 import { token } from "./lib/ids.mjs";
 
 /**
@@ -85,7 +86,11 @@ export default async (req) => {
 
 async function saveTemplate(body) {
   const rows = (Array.isArray(body.tasks) ? body.tasks : []).slice(0, MAX_TASKS)
-    .map((t) => ({ what: cleanWhat(t.what), daysBefore: cleanDays(t.daysBefore), auto: t.auto || undefined }))
+    .map((t) => ({ what: cleanWhat(t.what), daysBefore: cleanDays(t.daysBefore),
+      // The two jobs that send a letter, and jobs for one kind of event only,
+      // keep those markings through an edit of the list.
+      auto: t.auto === "welcome" || t.auto === "survey" ? t.auto : undefined,
+      onlyFor: text(t.onlyFor, 80) || undefined }))
     // Wording is required; a date is not. A row with junk where the number
     // should be is dropped rather than stored as a date nobody meant.
     .filter((t) => t.what && t.daysBefore !== undefined)
@@ -113,7 +118,7 @@ async function seed(event) {
   const rows = await taskTemplate();
   const have = new Set(event.tasks.map((t) => t.what.toLowerCase()));
   const room = MAX_TASKS - event.tasks.length;
-  const added = rows.filter((r) => !have.has(r.what.toLowerCase())).slice(0, Math.max(room, 0))
+  const added = rows.filter((r) => fitsTitle(r.onlyFor, event.title) && !have.has(r.what.toLowerCase())).slice(0, Math.max(room, 0))
     .map((r) => ({ id: token(8), what: r.what, daysBefore: r.daysBefore, auto: r.auto, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() }));
   if (!added.length) return json({ ok: true, added: 0, ...list(event) });
   event.tasks.push(...added);
