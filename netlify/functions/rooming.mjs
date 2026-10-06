@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, isEmail, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters, getRoster } from "./lib/store.mjs";
-import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard } from "./lib/rooming.mjs";
+import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard, typeOf } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -10,6 +10,7 @@ import { token } from "./lib/ids.mjs";
  *   GET  /api/rooming?event=…                 the list, who has not answered, what changed since it was sent
  *   GET  /api/rooming?event=…&csv=1[&keys=…]  the same as a spreadsheet
  *   PUT  /api/rooming?event=…                 the guests added by hand ({ guests: [...] })
+ *   PUT  /api/rooming?event=…&listed=1        how one presenter is listed ({ id, type })
  *   POST /api/rooming?event=…&upload=1        read a spreadsheet of rooms, nothing saved ({ csv })
  *   POST /api/rooming?event=…&upload=1&save=1 add the good rows from it ({ csv })
  *   POST /api/rooming?event=…&preview=1       the email, not sent ({ keys })
@@ -41,6 +42,17 @@ export default async (req) => {
       return new Response(mail.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
     }
     return json(state(event, rows, waiting, board));
+  }
+
+  if (req.method === "PUT" && url.searchParams.get("listed")) {
+    if (!rows.some((r) => r.who === "presenter" && r.key === body?.id)) return fail("That presenter is not on the rooming list.", 404);
+    const type = typeOf(body?.type);
+    if (!type) return fail("Pick how they are listed: Board Member, Presenter, Volunteer or ONGIA Guest.");
+    event.roomingTypes = { ...(event.roomingTypes ?? {}) };
+    if (type === "Presenter") delete event.roomingTypes[body.id]; else event.roomingTypes[body.id] = type;
+    await putEvent(event);
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    return json(state(event, again.rows, again.waiting, board));
   }
 
   if (req.method === "PUT") {

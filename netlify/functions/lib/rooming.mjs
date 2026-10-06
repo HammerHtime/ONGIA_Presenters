@@ -53,6 +53,13 @@ export function guestWindow(event) {
   return { from: shift(event.dayOne, -GUEST_SPAN), to: shift(last, GUEST_SPAN) };
 }
 
+/**
+ * How a presenter is listed on the rooming list. Someone on the desk as a
+ * presenter can still be listed as, say, a board member; their dates and who
+ * pays still come from their agreement.
+ */
+const listedAs = (event, id) => event.roomingTypes?.[id] ?? "Presenter";
+
 export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = []) {
   const rows = [], waiting = [];
   for (const p of presenters) {
@@ -61,12 +68,12 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
     if (p.status === "approved") {
       const h = p.review?.hotel;
       if (!h) continue;                                       // approved, no room needed
-      rows.push({ key: p.id, who: "presenter", type: "Presenter", name, organization: p.organization ?? "",
+      rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
         checkIn: h.from, checkOut: h.to, nights: nights(h.from, h.to),
         billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true });
     } else if (p.status === "submitted") {
       if (s.hotel !== "yes") continue;
-      rows.push({ key: p.id, who: "presenter", type: "Presenter", name, organization: p.organization ?? "",
+      rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
         checkIn: s.hotelFrom, checkOut: s.hotelTo, nights: nights(s.hotelFrom, s.hotelTo),
         billing: "To confirm", confirmed: false, why: "agreement not approved yet" });
     } else {

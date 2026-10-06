@@ -1950,7 +1950,7 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
-    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog()
+    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
     + checklistCard(ev, checklist) + jobDialog()
     + attendeesCard(ev, guests) + wixDialog();
 
@@ -2396,8 +2396,9 @@ function roomingCard(ev, R, C = null) {
     const [cls, word] = BILL[r.billing] ?? ["", r.billing];
     return `<label class="room${r.confirmed ? "" : " unconf"}">
       <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
-      <div class="rn">${esc(r.name)}${r.who === "guest" ? ` <button type="button" class="gedit" data-gedit="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>` : ""}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
-        esc(r.organization || "")].filter(Boolean).join(" · ")}${r.board ? " · on the board" : ""}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
+      <div class="rn">${esc(r.name)} <button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button><div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
+        r.who === "presenter" && r.type !== "Presenter" ? "presenting" : "",
+        esc(r.organization || "")].filter(Boolean).join(" · ")}${r.board && r.type !== "Board Member" ? " · on the board" : ""}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
       <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))}<small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
       <span class="rb ${cls}">${esc(word)}</span></label>`;
   };
@@ -2452,6 +2453,22 @@ function roomingCard(ev, R, C = null) {
       </details>
     </div></div>`;
 }
+
+/** A presenter's row: only how they are listed is the desk's; the rest is their agreement's. */
+const presenterListDialog = () => `<dialog class="sheet" id="pldlg" style="max-width:460px;width:calc(100% - 24px)">
+  <form method="dialog">
+    <div class="sheet-head"><h2 id="pl-title">How they are listed</h2>
+      <p class="hint" style="margin-top:6px">They are on this event as a presenter, so their nights and who pays come from
+        their agreement. Here you choose how they show on the rooming list.</p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="pl-type">Listed as</label><select id="pl-type"></select></div>
+      <p class="hint" id="pl-said" style="color:var(--late)"></p>
+      <div class="actions geacts" style="justify-content:flex-end">
+        <span class="gekeep"><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          <button class="btn btn-gold" id="pl-save" type="button">Save</button></span>
+      </div>
+    </div>
+  </form></dialog>`;
 
 /** Changing someone added on the desk: who they are, their nights, who pays. */
 const guestDialog = () => `<dialog class="sheet" id="gedlg" style="max-width:560px;width:calc(100% - 24px)">
@@ -2656,6 +2673,31 @@ function wireRooming(ev, R) {
     if (!g || !confirm(`Take ${g.name} off the rooming list?`)) return;
     try { await api(q, { method: "PUT", body: JSON.stringify({ guests: R.guests.filter((x) => x.id !== editing) }) }); gd.close(); render(); }
     catch (err) { document.getElementById("ge-said").textContent = err.message; }
+  };
+
+  // A presenter's row: how they are listed, nothing else.
+  const pd = document.getElementById("pldlg");
+  let listing = null;
+  document.querySelectorAll("[data-pedit]").forEach((b) => {
+    b.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const r = R.rows.find((x) => x.key === b.dataset.pedit);
+      if (!r || !pd) return;
+      listing = r.key;
+      document.getElementById("pl-title").textContent = `How ${r.name} is listed`;
+      document.getElementById("pl-type").innerHTML = GUEST_TYPES.map((t) => `<option${t === r.type ? " selected" : ""}>${t}</option>`).join("");
+      document.getElementById("pl-said").textContent = "";
+      pd.showModal();
+    };
+  });
+  const plSave = document.getElementById("pl-save");
+  if (plSave) plSave.onclick = async () => {
+    plSave.disabled = true;
+    try {
+      await api(`${q}&listed=1`, { method: "PUT", body: JSON.stringify({ id: listing, type: document.getElementById("pl-type").value }) });
+      pd.close(); toast("Saved."); render();
+    } catch (err) { document.getElementById("pl-said").textContent = err.message; }
+    plSave.disabled = false;
   };
 
   // Who someone is can be changed in place: a slip in a spreadsheet, or a person saved before the four types.
