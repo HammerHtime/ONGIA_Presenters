@@ -125,8 +125,10 @@ function signatureBlock(contact, event, lang = "en") {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
-export function layout({ heading, lines, button, buttons = [], footer, contact, event, lang = "en" }) {
-  const paras = lines.map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
+export function layout({ heading, lines = [], bodyHtml = null, button, buttons = [], footer, contact, event, lang = "en" }) {
+  // bodyHtml is for letters that carry their own structure — headings, lists —
+  // and must not be wrapped paragraph by paragraph.
+  const paras = bodyHtml ?? lines.map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
   // The primary button keeps its raw URL underneath for mail clients that strip
   // buttons; secondary ones (file uploads) are just a button — the address is
   // long, ugly and nobody types it.

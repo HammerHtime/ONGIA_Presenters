@@ -1,6 +1,7 @@
 import { runReminders } from "./lib/reminders.mjs";
 import { sweepWix } from "./wix.mjs";
 import { runHotelReminders } from "./lib/hotel.mjs";
+import { runLetterRounds } from "./lib/sendletters.mjs";
 import { listEvents } from "./lib/store.mjs";
 
 /** Daily at 14:00 UTC (morning across Canada). Netlify invokes this; it has no URL. */
@@ -24,5 +25,12 @@ export default async () => {
   const hotel = await runHotelReminders(await listEvents()).catch((e) => [{ error: e.message }]);
   for (const r of hotel) console.log(`hotel ${r.days ?? "?"}-day for ${r.title ?? r.event}: ${r.error ?? `${r.sent} sent, ${r.failed ?? 0} failed`}`);
 
-  return new Response(JSON.stringify({ ...out, wix, hotel }), { headers: { "content-type": "application/json" } });
+  // Welcome letters and surveys. A letter with a problem in it is held back
+  // and the reason logged, rather than sent with a blank or a note left in.
+  const letters = await runLetterRounds(await listEvents()).catch((e) => [{ error: e.message }]);
+  for (const r of letters.filter((x) => !x.skipped || x.blocked)) {
+    console.log(`${r.kind ?? "letter"} for ${r.title ?? r.event}: ${r.error ?? (r.blocked ? `held back — ${r.blocked[0]}` : `${r.sent} sent, ${r.failed ?? 0} failed`)}`);
+  }
+
+  return new Response(JSON.stringify({ ...out, wix, hotel, letters }), { headers: { "content-type": "application/json" } });
 };

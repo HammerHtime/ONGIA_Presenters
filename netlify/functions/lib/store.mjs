@@ -194,5 +194,14 @@ export const putMeta = (key, value) => write(`meta:${key}`, value);
 export const getAttendees = (eventId) => read(`attendees:${eventId}`);
 export const putAttendees = (eventId, value) => write(`attendees:${eventId}`, value);
 
+/** Letters Andrew writes once and points events at — welcome, survey. */
+export const getLetter = (id) => read(`letter:${id}`);
+export const putLetter = (letter) => write(`letter:${letter.id}`, letter);
+export async function listLetters() {
+  const { blobs } = await store().list({ prefix: "letter:" });
+  const rows = await Promise.all(blobs.map((b) => read(b.key)));
+  return rows.filter(Boolean).sort((a, b) => (a.kind ?? "").localeCompare(b.kind ?? "") || (a.name ?? "").localeCompare(b.name ?? ""));
+}
+
 export const getRoster = () => read("roster:board");
 export const putRoster = (members) => write("roster:board", members);

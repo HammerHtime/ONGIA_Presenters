@@ -102,6 +102,11 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // The cut-off is what the attendee reminders count back from, so it is a
     // date on the event rather than a job on a checklist.
     hotel: cleanHotel(body.hotel, event.hotel),
+    // Which saved letter each automatic email uses, and the survey's address.
+    // No letter chosen means that email does not go — the choice is the switch.
+    letters: cleanLetters(body.letters, event.letters),
+    surveyLink: body.surveyLink === undefined ? (event.surveyLink ?? "")
+      : (/^https?:\/\//i.test(text(body.surveyLink, 800)) ? text(body.surveyLink, 800) : ""),
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
   });
@@ -382,6 +387,12 @@ function cleanHotel(given, had) {
     notes: text(given?.notes, 600),
   };
   return Object.values(out).some(Boolean) ? out : null;
+}
+
+function cleanLetters(given, had) {
+  if (given === undefined) return had ?? {};
+  const id = (v) => (/^[a-z0-9]{4,40}$/i.test(String(v ?? "")) ? String(v) : null);
+  return { welcome: id(given?.welcome), survey: id(given?.survey) };
 }
 
 async function createEvent(body, origin) {

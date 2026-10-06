@@ -1,6 +1,8 @@
 import { json, fail, requireAdmin, text } from "./lib/http.mjs";
-import { getEvent, getAttendees, putAttendees, deleteKey } from "./lib/store.mjs";
-import { readCsv, merge, tally } from "./lib/attendees.mjs";
+import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
+import { readCsv, merge, tally, writeableTo } from "./lib/attendees.mjs";
+import { letterDue } from "./lib/sendletters.mjs";
+import { letterProblems, eventProblems } from "./lib/letters.mjs";
 
 /**
  * The people coming to a training event.
@@ -47,7 +49,33 @@ async function show(event) {
     syncedAt: stored.syncedAt ?? null,
     lastImport: stored.lastImport ?? null,
     wix: event.wix ?? null,
+    letters: await letterStatus(event, stored),
   };
+}
+
+/**
+ * For each automatic letter: which one, when it goes, how many it reaches, and
+ * anything that would stop it — so a held-back letter is visible on the event
+ * long before the night it would have gone.
+ */
+async function letterStatus(event, stored) {
+  const out = {};
+  const people = stored.people ?? [];
+  for (const kind of ["welcome", "survey"]) {
+    const id = event.letters?.[kind];
+    const letter = id ? await getLetter(id) : null;
+    const due = letterDue(event, kind);
+    out[kind] = {
+      chosen: Boolean(letter),
+      name: letter?.name ?? null,
+      on: due.on ?? null,
+      why: due.due ? "due now" : due.why,
+      reaches: writeableTo(people).length,
+      had: people.filter((p) => (p.sent ?? []).includes(kind)).length,
+      problems: letter ? [...letterProblems(letter), ...eventProblems(letter, event)] : [],
+    };
+  }
+  return out;
 }
 
 async function takeCsv(req, event) {

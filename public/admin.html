@@ -335,6 +335,32 @@
   @media (max-width:560px){.guest{grid-template-columns:1fr auto}.guest .src{grid-column:2}}
   @media print{.guestmore,.wixbar button{display:none!important}}
 
+  /* ---------- letters ---------- */
+  .lstrip{display:grid;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;margin:0 0 12px}
+  .lrow{display:grid;grid-template-columns:130px 1fr;gap:10px;background:var(--sunk);padding:9px 14px;font-size:13px;color:var(--ink-mid)}
+  .lrow b{color:var(--ink)}
+  .lrow.bad{background:var(--late-bg)} .lrow.bad span{color:var(--late)}
+  .lrow.good{background:var(--done-bg)} .lrow.good span{color:var(--done)}
+  @media (max-width:560px){.lrow{grid-template-columns:1fr;gap:2px}}
+  .lgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+  @media (max-width:900px){.lgrid{grid-template-columns:1fr}}
+  .lpick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .lpick button{border-radius:999px;border:1px solid var(--border);background:var(--sunk);padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-mid)}
+  .lpick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .lpick button .warn{color:var(--late);margin-left:6px}
+  .lpick button.on .warn{color:#ffb4a8}
+  #l-body{min-height:300px;font-size:14.5px;line-height:1.6}
+  .blanks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .blanks button{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;border:1px solid var(--border);
+    background:var(--card);border-radius:7px;padding:3px 8px;cursor:pointer;color:var(--navy)}
+  .blanks button:hover{border-color:var(--navy)}
+  .lprev{border:1.5px solid var(--edge);border-radius:16px;overflow:hidden;background:#f2efe8}
+  .lprev iframe{display:block;width:100%;height:640px;border:0;background:#f2efe8}
+  .lmeta{font-size:13px;color:var(--muted);margin:0 0 8px}
+  .lprobs{margin:0 0 10px}
+  .lprobs div{background:var(--late-bg);border:1px solid var(--late);color:var(--late);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:6px}
+  .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
+
   /* Configuration that is read once, not on every visit. */
   .settings{border-top:1px solid var(--hair);margin-top:18px}
   .settings>summary{cursor:pointer;padding:13px 0 3px;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
@@ -523,9 +549,10 @@ function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events) {
-  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
+  document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
@@ -708,6 +735,21 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-hnotes">Anything else from the contract</label>
           <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>
       </details>
+      <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink) ? " open" : ""}>
+        <summary>Letters to attendees</summary>
+        <p class="hint" style="margin-top:10px">Pick which saved letter this event sends. The day each one goes is the
+          date on the event's checklist — move the job there and the letter moves with it. "None" means it does not go.</p>
+        <div class="row2" style="margin-top:12px">
+          <div class="field" style="margin:0"><label for="e-lwelcome">Welcome letter</label>
+            <select id="e-lwelcome">${letterOptions("welcome", ev?.title, ev?.letters?.welcome)}</select></div>
+          <div class="field" style="margin:0"><label for="e-lsurvey">Survey</label>
+            <select id="e-lsurvey">${letterOptions("survey", ev?.title, ev?.letters?.survey)}</select></div>
+        </div>
+        <div class="field"><label for="e-survey">Survey link</label>
+          <input id="e-survey" type="url" value="${esc(ev?.surveyLink ?? "")}" placeholder="https://forms.office.com/…">
+          <p class="hint" style="margin:6px 0 0">The survey letter's button goes here. Without it the survey does not send.
+            Write and change the letters themselves on the <b>Letters</b> screen.</p></div>
+      </details>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
@@ -749,6 +791,15 @@ function eventFormScreen(existing = null) {
     if (el) el.addEventListener("input", showHotelHint);
   });
   showHotelHint();
+
+  // Letters written for one kind of training appear only once the title says
+  // it is that kind. Whatever is picked stays picked while the title is typed.
+  $("e-title").addEventListener("input", () => {
+    for (const [id, kind] of [["e-lwelcome", "welcome"], ["e-lsurvey", "survey"]]) {
+      const box = $(id);
+      if (box) box.innerHTML = letterOptions(kind, $("e-title").value, box.value);
+    }
+  });
 
   // Folder convention: year, then "year City". Shown as the default so a blank field is never a surprise.
   const convention = () => {
@@ -891,6 +942,8 @@ function eventFormScreen(existing = null) {
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
       hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"),
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
+      letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
+      surveyLink: val("e-survey"),
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
@@ -1115,7 +1168,7 @@ function wireTemplate() {
   const rowHtml = (t = { what: "", daysBefore: 30 }) => `<div class="job" data-trow style="border-radius:12px;margin-bottom:6px;background:var(--sunk)">
       <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout" style="grid-column:1/3">
       <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${Math.abs(t.daysBefore)}" style="width:86px">
-      <select data-twhen style="width:auto"><option value="before"${t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${t.daysBefore < 0 ? " selected" : ""}>after day one</option></select>
+      <select data-twhen style="width:auto"><option value="before"${t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${t.daysBefore < 0 ? " selected" : ""}>after the last day</option></select>
       <div class="jact"><button type="button" data-tdel title="Remove this job">&#10005;</button></div>
     </div>`;
 
@@ -1869,7 +1922,7 @@ function eventScreen(data) {
 function offsetWords(n) {
   if (!Number.isFinite(n)) return "no date yet";
   if (n === 0) return "on day one";
-  return n > 0 ? `${n} day${n === 1 ? "" : "s"} before` : `${-n} day${n === -1 ? "" : "s"} after`;
+  return n > 0 ? `${n} day${n === 1 ? "" : "s"} before` : `${-n} day${n === -1 ? "" : "s"} after it ends`;
 }
 
 /**
@@ -1977,6 +2030,27 @@ function wireChecklist(ev) {
   };
 }
 
+/** Saved letters, fetched before the event form draws so it can offer them. */
+let LETTER_CHOICES = [];
+const loadLetterChoices = async () => { LETTER_CHOICES = (await api("/letters").catch(() => ({ letters: [] }))).letters ?? []; };
+
+/** Same rule as the server: a letter with "only for" words fits an event whose title has them. */
+const squash = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+const letterFits = (l, title) => !squash(l.onlyFor) || squash(title).includes(squash(l.onlyFor));
+
+/**
+ * The choices for one letter box on the event form: the letters that fit this
+ * title. One already chosen that no longer fits — the event was renamed — stays
+ * in the list, marked, so a save never quietly swaps it for something else.
+ */
+function letterOptions(kind, title, chosen) {
+  const mine = LETTER_CHOICES.filter((l) => (kind === "survey") === (l.kind === "survey"));
+  return `<option value="">None — don't send one</option>` + mine
+    .filter((l) => letterFits(l, title) || l.id === chosen)
+    .map((l) => `<option value="${esc(l.id)}"${l.id === chosen ? " selected" : ""}>${esc(l.name)}${
+      !letterFits(l, title) ? ` (only for ${esc(l.onlyFor)} events)` : l.problems?.length ? " (needs attention)" : ""}</option>`).join("");
+}
+
 /** The checklist the screen is currently showing, for the edit dialog to read. */
 let CHECKLIST = null;
 const data_checklist = () => CHECKLIST;
@@ -1990,8 +2064,8 @@ const jobDialog = () => `<dialog class="sheet" id="jobdlg">
       <div class="field"><label for="j-what">The job</label><input id="j-what" maxlength="160" autocomplete="off" placeholder="Confirm the room layout"></div>
       <div class="row2">
         <div class="field"><label for="j-days">Days</label><input id="j-days" type="number" min="0" max="730" inputmode="numeric"></div>
-        <div class="field"><label for="j-when">Before or after day one</label>
-          <select id="j-when"><option value="before">before day one</option><option value="after">after day one</option></select></div>
+        <div class="field"><label for="j-when">Before day one, or after the last day</label>
+          <select id="j-when"><option value="before">before day one</option><option value="after">after the last day</option></select></div>
       </div>
       <p class="hint" id="j-why" style="color:var(--late)"></p>
       <div class="actions" style="justify-content:flex-end">
@@ -2060,12 +2134,28 @@ function attendeesCard(ev, guests) {
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
       ${bar}
+      ${lettersStrip(guests.letters)}
       <div id="g-said">${GUEST_NOTE
         ? `<div class="${GUEST_NOTE.bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(GUEST_NOTE.msg)}</div>` : ""}</div>
       ${people.length ? `<div class="guests">${rows}</div>
         ${people.length > SHOW_GUESTS ? `<div class="guestmore">and ${people.length - SHOW_GUESTS} more — the full list prints and is what the letters use</div>` : ""}`
         : `<div class="empty">Nobody on the list yet. Link the event to your website, or import a spreadsheet.</div>`}
     </div></div>`;
+}
+
+/** One line per automatic letter: which, when, to how many — or what is holding it back. */
+function lettersStrip(L) {
+  if (!L) return "";
+  const row = (kind, label) => {
+    const x = L[kind];
+    if (!x?.chosen) return `<div class="lrow"><b>${label}</b><span>none chosen — edit the event to pick one, or it will not go</span></div>`;
+    const when = x.on ? fmtDate(x.on) : "no date on the checklist";
+    if (x.problems.length) return `<div class="lrow bad"><b>${label}</b><span>${esc(x.name)} · held back: ${esc(x.problems[0])}</span></div>`;
+    if (x.had && x.had >= x.reaches) return `<div class="lrow good"><b>${label}</b><span>${esc(x.name)} · sent to all ${x.had}</span></div>`;
+    const tail = x.why === "due now" ? "goes tonight" : /^not until/.test(x.why) ? `goes ${esc(when)}` : esc(x.why);
+    return `<div class="lrow"><b>${label}</b><span>${esc(x.name)} · ${tail} · ${x.reaches} ${x.reaches === 1 ? "person" : "people"}${x.had ? `, ${x.had} already had it` : ""}</span></div>`;
+  };
+  return `<div class="lstrip">${row("welcome", "Welcome letter")}${row("survey", "Survey")}</div>`;
 }
 
 const wixDialog = () => `<dialog class="sheet" id="wixdlg">
@@ -2150,6 +2240,190 @@ function wireAttendees(ev) {
       file.value = "";
     };
   }
+}
+
+/* ---------- letters ---------- */
+
+/**
+ * Saved letters: written once, picked by every event that uses them. The form
+ * is built once per letter and never rebuilt while typing — only the preview
+ * and the problem list redraw — so the caret stays where it is.
+ */
+function lettersScreen(data, events, pickId = null) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const letters = data.letters;
+  const blanks = data.blanks;
+  const upcoming = events.filter((e) => (e.lastDay || e.dayOne) >= todayIso()).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
+  const pickable = upcoming.length ? upcoming : events;
+  let current = letters.find((l) => l.id === pickId) ?? letters.find((l) => l.kind !== "survey") ?? letters[0] ?? null;
+  let dirty = false;
+
+  // Events this letter can be used on come first, so the preview opens on one.
+  const eventChoices = (l) => {
+    const fit = pickable.filter((e) => letterFits(l ?? {}, e.title)), rest = pickable.filter((e) => !letterFits(l ?? {}, e.title));
+    return [...fit, ...rest].map((e) => `<option value="${esc(e.id)}">${esc(e.title)} · ${esc(fmtDate(e.dayOne))}</option>`).join("")
+      || `<option value="">No events yet</option>`;
+  };
+
+  const pickBar = () => `<div class="lpick">${letters.map((l) => `<button data-lpick="${esc(l.id)}" class="${current?.id === l.id ? "on" : ""}">
+      ${esc(l.name)} <small style="opacity:.7">${l.kind === "survey" ? "survey" : "welcome"}${l.onlyFor ? ` · ${esc(l.onlyFor)} only` : ""}</small>${l.problems?.length ? `<span class="warn" title="${esc(l.problems[0])}">!</span>` : ""}</button>`).join("")}
+      <button data-lpick="">+ New letter</button></div>`;
+
+  const editor = (l) => `
+    <div class="field" style="margin-top:0"><label for="l-name">Name</label>
+      <input id="l-name" value="${esc(l?.name ?? "")}" placeholder="Welcome — National Gang Summit"></div>
+    <div class="row2">
+      <div class="field" style="margin:0"><label for="l-kind">Sent as</label>
+        <select id="l-kind"><option value="welcome"${l?.kind !== "survey" ? " selected" : ""}>Welcome letter — before the event</option>
+          <option value="survey"${l?.kind === "survey" ? " selected" : ""}>Survey — after the event</option></select></div>
+      <div class="field" style="margin:0"><label for="l-subject">Subject</label>
+        <input id="l-subject" value="${esc(l?.subject ?? "")}" placeholder="Welcome to {event}"></div>
+    </div>
+    <div class="field"><label for="l-only">Only for events with these words in the title <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
+      <input id="l-only" value="${esc(l?.onlyFor ?? "")}" placeholder="RBH ITP">
+      <p class="hint" style="margin:6px 0 0">Leave it empty for a letter any event can use. Filled in, only events whose title
+        has these words can pick it, and it will never go to any other event.</p></div>
+    <div class="field"><label for="l-body">The letter</label>
+      <textarea id="l-body" spellcheck="true">${esc(l?.body ?? "")}</textarea>
+      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph. A line in [square brackets] is a note to
+        yourself — the letter will not go while one is left in. Click a blank to put it where your cursor is:</p>
+      <div class="blanks">${blanks.map((b) => `<button type="button" data-blank="${esc(b.name)}" title="${esc(b.means)}">{${esc(b.name)}}</button>`).join("")}</div></div>
+    <div class="row2">
+      <div class="field" style="margin:0"><label for="l-blabel">Button words <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
+        <input id="l-blabel" value="${esc(l?.buttonLabel ?? "")}" placeholder="Take the survey"></div>
+      <div class="field" style="margin:0"><label for="l-blink">Button goes to</label>
+        <input id="l-blink" value="${esc(l?.buttonLink ?? "")}" placeholder="{surveyLink}"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-gold" id="l-save">${l?.id ? "Save the letter" : "Save as a new letter"}</button>
+      ${l?.id ? `<button class="btn btn-ghost" id="l-del">Delete</button>` : ""}
+      <span class="hint" id="l-said" style="align-self:center"></span>
+    </div>
+    ${l?.usedBy?.length ? `<p class="hint">Used by ${l.usedBy.map((e) => esc(e.title)).join(", ")}. Saving changes what those events send.</p>` : ""}`;
+
+  const side = `
+    <div class="field" style="margin-top:0"><label for="l-event">See it filled in for</label>
+      <select id="l-event">${eventChoices(current)}</select></div>
+    <p class="lmeta" id="l-meta"></p>
+    <div class="lprobs" id="l-probs"></div>
+    <div class="lprev"><iframe id="l-frame" title="The email as it will look" sandbox=""></iframe></div>
+    <div class="row2" style="margin-top:14px;align-items:end">
+      <div class="field" style="margin:0"><label for="l-to">Send a test to</label>
+        <input id="l-to" type="email" placeholder="you@ongia.ca"></div>
+      <div><button class="btn btn-navy" id="l-test" style="width:100%">Send a test</button></div>
+    </div>
+    <p class="hint" id="l-tsaid">A test goes to that one address, marked [TEST], and counts as nobody having had the letter.</p>`;
+
+  const draw = () => {
+    ROOT.innerHTML = `<div class="card"><div class="card-head"><div><h2>Letters</h2>
+        <div class="s">Written once, used by every event that picks them. Blanks in {curly brackets} are filled in for each event and each person.</div></div></div>
+      <div class="card-body">${pickBar()}
+        <div class="lgrid"><div>${editor(current)}</div><div>${side}</div></div></div></div>`;
+    wire();
+  };
+
+  const fields = () => ({
+    name: document.getElementById("l-name").value,
+    kind: document.getElementById("l-kind").value,
+    subject: document.getElementById("l-subject").value,
+    body: document.getElementById("l-body").value,
+    buttonLabel: document.getElementById("l-blabel").value,
+    buttonLink: document.getElementById("l-blink").value,
+    onlyFor: document.getElementById("l-only").value,
+  });
+
+  let timer = null, seq = 0;
+  const refresh = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      const eventId = document.getElementById("l-event")?.value;
+      try {
+        const out = await api("/letters?preview=1", { method: "POST", body: JSON.stringify({ letter: fields(), eventId }) });
+        if (mine !== seq) return;   // a newer keystroke has already asked
+        const probs = document.getElementById("l-probs");
+        probs.innerHTML = out.problems?.length
+          ? out.problems.map((p) => `<div>${esc(p)}</div>`).join("")
+          : out.html ? `<div class="lok">Nothing wrong with it. This is exactly what goes out.</div>` : "";
+        document.getElementById("l-meta").innerHTML = out.to
+          ? `Goes to <b>${out.to.count}</b> ${out.to.count === 1 ? "person" : "people"} on this event${out.when ? `, on <b>${esc(fmtDate(out.when))}</b>` : ""}. Shown addressed to ${esc(out.to.sample)}.`
+          : esc(out.note ?? "");
+        if (out.html) document.getElementById("l-frame").srcdoc = out.html;
+        const ev = events.find((e) => e.id === eventId);
+        const to = document.getElementById("l-to");
+        if (!to.value && ev?.contact?.email) to.placeholder = ev.contact.email;
+      } catch (e) {
+        document.getElementById("l-probs").innerHTML = `<div>${esc(e.message)}</div>`;
+      }
+    }, 350);
+  };
+
+  function wire() {
+    let lastBox = document.getElementById("l-body");
+    for (const id of ["l-name", "l-kind", "l-subject", "l-only", "l-body", "l-blabel", "l-blink"]) {
+      const el = document.getElementById(id);
+      el.addEventListener("input", () => { dirty = true; refresh(); });
+      el.addEventListener("change", () => { dirty = true; refresh(); });
+      if (id === "l-subject" || id === "l-body" || id === "l-blink") el.addEventListener("focus", () => { lastBox = el; });
+    }
+    document.getElementById("l-event").onchange = refresh;
+
+    ROOT.querySelectorAll("[data-blank]").forEach((b) => {
+      b.onclick = () => {
+        const box = lastBox;
+        const at = box.selectionStart ?? box.value.length, end = box.selectionEnd ?? at;
+        box.setRangeText(`{${b.dataset.blank}}`, at, end, "end");
+        box.focus();
+        box.dispatchEvent(new Event("input"));
+      };
+    });
+
+    ROOT.querySelectorAll("[data-lpick]").forEach((b) => {
+      b.onclick = () => {
+        if (dirty && !confirm("You have changes that are not saved. Leave them?")) return;
+        current = b.dataset.lpick ? letters.find((l) => l.id === b.dataset.lpick) : { kind: "welcome", name: "", subject: "", body: "", buttonLabel: "", buttonLink: "" };
+        dirty = false;
+        draw();
+      };
+    });
+
+    document.getElementById("l-save").onclick = async (e) => {
+      const btn = e.currentTarget, said = document.getElementById("l-said");
+      btn.disabled = true; said.textContent = "Saving…";
+      try {
+        const out = current?.id
+          ? await api(`/letters?id=${encodeURIComponent(current.id)}`, { method: "PUT", body: JSON.stringify(fields()) })
+          : await api("/letters", { method: "POST", body: JSON.stringify(fields()) });
+        dirty = false;
+        view = { name: "letters", pick: out.letter.id };
+        toast(out.letter.problems?.length ? "Saved — but it will not send until the problems are fixed." : "Saved.");
+        render();
+      } catch (err) { said.textContent = err.message; btn.disabled = false; }
+    };
+
+    const del = document.getElementById("l-del");
+    if (del) del.onclick = async () => {
+      if (!confirm(`Delete "${current.name}"?`)) return;
+      try { await api(`/letters?id=${encodeURIComponent(current.id)}`, { method: "DELETE" }); toast("Deleted."); view = { name: "letters" }; render(); }
+      catch (err) { document.getElementById("l-said").textContent = err.message; }
+    };
+
+    document.getElementById("l-test").onclick = async (e) => {
+      const btn = e.currentTarget, said = document.getElementById("l-tsaid"), toBox = document.getElementById("l-to");
+      const to = toBox.value.trim() || toBox.placeholder;
+      if (!/@/.test(to) || to === "you@ongia.ca") { said.textContent = "Type the address the test should go to."; return; }
+      btn.disabled = true; said.textContent = `Sending to ${to}…`;
+      try {
+        await api("/letters?test=1", { method: "POST", body: JSON.stringify({ letter: fields(), eventId: document.getElementById("l-event").value, to }) });
+        said.textContent = `Sent to ${to}. It will arrive marked [TEST].`;
+      } catch (err) { said.textContent = err.message; }
+      btn.disabled = false;
+    };
+    refresh();
+  }
+
+  draw();
 }
 
 /* ---------- add presenters ---------- */
@@ -2627,11 +2901,15 @@ function deliveryMarkup(d = {}) {
 async function render() {
   if (!KEY) return signInScreen();
   try {
-    if (view.name === "new") { await loadRoster(); return eventFormScreen(); }
-    if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
+    if (view.name === "new") { await Promise.all([loadRoster(), loadLetterChoices()]); return eventFormScreen(); }
+    if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster(), loadLetterChoices()]); return eventFormScreen(data); }
     if (view.name === "year") {
       const { events } = await api("/events");
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
+    }
+    if (view.name === "letters") {
+      const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
+      return lettersScreen(data, events, view.pick ?? null);
     }
     if (view.name === "roster") return rosterScreen(await loadRoster());
     if (view.name === "sponsors" && SPONSORS_ON) {
