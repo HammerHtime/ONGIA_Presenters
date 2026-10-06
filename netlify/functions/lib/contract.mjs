@@ -70,7 +70,7 @@ Date kinds:
 - cancellation: the first day of each new cancellation charge (one entry per change, not the last day of the old one).
 - other: any other date that needs action.
 
-For each date, quote the contract's own words in "quote" (one sentence at most) and give the page number if you can tell. Write "what" in plain English, under twelve words. When the contract gives a deadline relative to arrival ("30 days prior to arrival"), work out the calendar date from the contract's arrival date and say so in "what". Leave out the nights of the stay themselves and the date the contract was signed. Give the rate as written, including currency, room type and taxes if stated.
+For each date, quote the contract's own words in "quote" (one sentence at most) and give the page number if you can tell. Write "what" in plain English, under twelve words. When the contract gives a deadline relative to arrival ("30 days prior to arrival"), work out the calendar date from the contract's arrival date and say so in "what". Leave out the nights of the stay themselves and the date the contract was signed. Give "rate" as an attendee booking a room should see it, because it goes into emails to attendees: the price, the room type and "plus taxes" (naming the taxes briefly if the contract lists them), under 100 characters. Never put commissions, rebates, attrition or any other term between ONGIA and the hotel in "rate"; if the rate includes a commission, say so in "notes" instead.
 
 Never give a date the contract does not support. If something is unclear — two different cut-off dates, a deadline with no date, a year that does not match the event — say so briefly in "notes"; otherwise leave "notes" empty.`;
 
@@ -80,6 +80,32 @@ const isDate = (s) => {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 };
 const clip = (s, n) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+
+/**
+ * The rate as attendees will read it. Anything about commission or rebates is
+ * ONGIA's business with the hotel, not theirs, so a clause mentioning it is
+ * dropped even if Claude slips one in; and a long rate is shortened at a whole
+ * word rather than cut mid-word.
+ */
+export function cleanRate(raw, max = 120) {
+  const INTERNAL = "(?:commis|rebate|kick-?back|override|attrition|concession)";
+  let r = String(raw ?? "").replace(/\s+/g, " ").trim()
+    // a bracketed aside that mentions it
+    .replace(new RegExp(`\\s*\\([^()]*${INTERNAL}[^()]*\\)`, "gi"), "")
+    // the clause that mentions it, from its comma or semicolon to the next one
+    .replace(new RegExp(`[;,]\\s*[^;,()]*${INTERNAL}[^;,()]*`, "gi"), "")
+    // or the same clause at the very start
+    .replace(new RegExp(`^[^;,()]*${INTERNAL}[^;,()]*[;,]\\s*`, "i"), "")
+    .replace(/[\s;,]+$/, "");
+  // Still tangled up in it (inside brackets, say): no rate beats a leaked one.
+  if (new RegExp(INTERNAL, "i").test(r)) return "";
+  if (r.length > max) {
+    r = r.slice(0, max + 1);
+    r = r.slice(0, Math.max(r.lastIndexOf(" "), 1)).replace(/[\s;,(]+$/, "");
+    if ((r.match(/\(/g) ?? []).length > (r.match(/\)/g) ?? []).length) r = r.replace(/\s*\([^)]*$/, "");
+  }
+  return r;
+}
 
 /**
  * Tidy what came back and check it against the event. A date that cannot be
@@ -111,7 +137,7 @@ export function tidy(raw, event, today = todayIso()) {
     city: clip(raw?.city, 80) || null,
     meetingFirst: first,
     meetingLast: last,
-    rate: clip(raw?.rate, 120) || null,
+    rate: cleanRate(raw?.rate) || null,
     arrival: isDate(raw?.arrival) ? raw.arrival : null,
     departure: isDate(raw?.departure) ? raw.departure : null,
     dates,
