@@ -26,6 +26,7 @@ export default async (req) => {
 
   const url = new URL(req.url);
   if (req.method === "GET") {
+    if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80));
     if (url.searchParams.get("events")) return showWixEvents();
     return json({ connected: wixConfigured(), ...(await wixHealth()) });
   }
@@ -44,6 +45,28 @@ export default async (req) => {
   }
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * How many people are registered for one Wix event, and whether the records
+ * carry what a letter needs — without returning anybody's name or address.
+ * A count proves the connection; the list itself belongs on the event screen,
+ * behind the admin key, not in a diagnostic.
+ */
+async function countGuests(wixEventId) {
+  if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
+  if (!wixEventId) return fail("Which Wix event?");
+  const all = await listWixGuests({ eventId: wixEventId, type: null });
+  const of = (t) => all.filter((g) => g.guestType === t).length;
+  return json({
+    eventId: wixEventId,
+    total: all.length,
+    attending: all.filter((g) => g.status === "ATTENDING").length,
+    notAttending: all.filter((g) => g.status === "NOT_ATTENDING").length,
+    waitlist: all.filter((g) => g.status === "IN_WAITLIST").length,
+    withEmail: all.filter((g) => g.email).length,
+    withName: all.filter((g) => g.first || g.last).length,
+  });
+}
 
 /** Wix's events, each marked with the desk event it already belongs to. */
 async function showWixEvents() {

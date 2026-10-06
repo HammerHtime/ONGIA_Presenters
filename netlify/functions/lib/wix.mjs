@@ -134,6 +134,7 @@ function tidyGuest(g) {
     // attendance status. The rolled-up one is what the desk acts on.
     status: g.attendanceStatus ?? "",
     rsvp: g.additionalDetails?.rsvpStatus ?? "",
+    guestType: g.guestType ?? "",
     checkedIn: d.checkedIn === true,
     totalGuests: g.totalGuests ?? 1,
     updatedAt: g.updatedDate ?? g.createdDate ?? null,
