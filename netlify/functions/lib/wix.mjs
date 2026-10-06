@@ -27,6 +27,16 @@ export function wixConfigured() {
   return Boolean(process.env.WIX_API_KEY && process.env.WIX_SITE_ID);
 }
 
+/**
+ * The WIX_* variable names this function can actually see. Names only, never
+ * values — a secret must not be readable from a diagnostic. It catches the two
+ * failures that look identical from outside: a typo in the name, and a Netlify
+ * variable whose scope excludes Functions.
+ */
+export function wixEnvNames() {
+  return Object.keys(process.env).filter((k) => /^WIX/i.test(k)).sort();
+}
+
 /** Which half of the connection is absent — naming both is no help at all. */
 export function wixMissing() {
   const gone = [];
@@ -182,8 +192,12 @@ export async function wixHealth() {
   }
   if (gone.length === 1) {
     const here = gone[0] === "WIX_API_KEY" ? "WIX_SITE_ID" : "WIX_API_KEY";
-    return { ok: false, missing: gone,
-      reason: `Not connected — ${here} is set but ${gone[0]} is missing. If you have just added it, Netlify only reads new variables on a new deploy.` };
+    const seen = wixEnvNames();
+    const near = seen.filter((k) => k !== here);
+    return { ok: false, missing: gone, seen,
+      reason: `Not connected — ${here} is set but ${gone[0]} is missing.`
+        + (near.length ? ` This function can see ${near.join(", ")}, so check the spelling.` : "")
+        + ` If you have just added it: Netlify only reads a new variable on a new deploy, and the variable's scope must include Functions.` };
   }
   const shape = wixSiteIdLooksWrong();
   if (shape) return { ok: false, reason: shape };
