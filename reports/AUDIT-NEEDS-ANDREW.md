@@ -88,3 +88,28 @@ still is.
 The three things that were waiting on you — no event ticked open, nobody named
 as sponsorship lead, and neither sponsor email watched landing in a real inbox
 — all come back the day the flag flips. Nothing to do until then.
+
+---
+
+## 7. 37 Summit registrations have no email address
+
+**Parked at Andrew's request on 6 October, not resolved.** Recorded here so it
+is not lost before November.
+
+Pulled live from Wix: the **National Gang Summit (Toronto, 9–12 Nov 2026)** has
+**420 registrations, of which 383 carry an email address and 37 do not**. The
+other three upcoming events are clean — Victoria 12/12, Virtual 84/84,
+Edmundston 88/88.
+
+Andrew's reaction was that this should be impossible, as email is a required
+field on the registration form. So either the form has a path that does not
+require it, or those 37 arrived by some other route — an import, a manual add,
+or a registration type that does not collect one.
+
+**Why it matters:** those 37 people cannot receive the welcome letter, the
+hotel cut-off reminder, or the post-event survey. Nothing would have announced
+that; they would simply have been skipped.
+
+**To check it:** `/api/wix?count=<wix event id>` now breaks the figures down by
+registration type and says which types are missing an address, which should
+distinguish a form setting from a bare import.

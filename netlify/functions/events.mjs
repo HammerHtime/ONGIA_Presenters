@@ -98,6 +98,10 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // Derived, never typed. Change a training date or an offset and all three move.
     deadlines: deadlinesFor(dayOne, offsets),
     contact: { name: "", email: "", phone: "" },
+    // The room block: where to book, and the day the contracted rate ends.
+    // The cut-off is what the attendee reminders count back from, so it is a
+    // date on the event rather than a job on a checklist.
+    hotel: cleanHotel(body.hotel, event.hotel),
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
   });
@@ -358,6 +362,26 @@ export function countStatuses(presenters) {
     if (p.status === "approved" && p.delivery && p.delivery.filing && p.delivery.filing.ok === false) counts.failed++;
   }
   return counts;
+}
+
+/**
+ * A date typed here is a real calendar date, not an offset, because it is the
+ * hotel's date and not ONGIA's — it moves when the hotel says so and not when
+ * the training moves.
+ */
+function cleanHotel(given, had) {
+  if (given === undefined) return had ?? null;
+  const date = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
+  const link = text(given?.link, 800);
+  const out = {
+    name: text(given?.name, 200),
+    link: /^https?:\/\//i.test(link) ? link : "",
+    cutoff: date(given?.cutoff),
+    foodAndBev: date(given?.foodAndBev),
+    rate: text(given?.rate, 120),
+    notes: text(given?.notes, 600),
+  };
+  return Object.values(out).some(Boolean) ? out : null;
 }
 
 async function createEvent(body, origin) {

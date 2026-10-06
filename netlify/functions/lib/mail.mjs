@@ -218,6 +218,34 @@ export function sponsorReviewNeededMail({ sponsor, events, adminUrl, lead }) {
 }
 
 /**
+ * Book your room before the block closes. Goes to everyone still coming, 30,
+ * 15 and 7 days before the cut-off — counted back from the cut-off rather than
+ * the training, so the last one is a genuine last call instead of arriving
+ * after the rate has gone.
+ */
+export function hotelCutoffMail({ event, person, hotel, daysLeft }) {
+  const by = esc(formatDate(hotel.cutoff));
+  const where = esc(hotel.name || "the event hotel");
+  const last = daysLeft <= 7;
+  const heading = last
+    ? `Last few days to book your room for ${event.title}`
+    : `Book your room for ${event.title} by ${formatDate(hotel.cutoff)}`;
+  const lines = [
+    `Hello${person.first ? " " + esc(person.first) : ""},`,
+    `If you have already booked your room at ${where}, nothing to do — ignore this.`,
+    `If you have not: our block closes on <b>${by}</b>${daysLeft > 0 ? `, ${daysLeft} day${daysLeft === 1 ? "" : "s"} from now` : ""}. After that the contracted rate is gone, and rooms are likely to cost more.`,
+    hotel.rate ? `The rate while the block is open is <b>${esc(hotel.rate)}</b>.` : "",
+    `We are looking forward to seeing you at ${esc(event.title)}${event.city ? ` in ${esc(event.city)}` : ""}.`,
+  ].filter(Boolean);
+  const contact = coordinatorOf(event);
+  return {
+    subject: heading,
+    html: layout({ heading, lines, buttons: [{ href: hotel.link, label: "Book your room" }], contact, event }),
+    text: plain(heading, lines, hotel.link, contact),
+  };
+}
+
+/**
  * Sent the moment a sponsor is added. It thanks them first, because that is
  * what the message is for, and asks second.
  */

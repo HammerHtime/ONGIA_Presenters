@@ -684,6 +684,30 @@ function eventFormScreen(existing = null) {
             <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link; the app refuses anything that would let presenters see the folder. Clear it and the app makes a fresh upload-only link for the folder above.</p></div>
         </div>
       </div>
+      <details class="settings" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
+        <summary>Hotel and room block</summary>
+        <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
+          30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
+          arrives while they can book.</p>
+        <div class="row2" style="margin-top:12px">
+          <div class="field" style="margin:0"><label for="e-hotel">Hotel</label>
+            <input id="e-hotel" value="${esc(ev?.hotel?.name ?? "")}" placeholder="Delta Hotels Toronto Airport"></div>
+          <div class="field" style="margin:0"><label for="e-hrate">Rate</label>
+            <input id="e-hrate" value="${esc(ev?.hotel?.rate ?? "")}" placeholder="$189 + tax"></div>
+        </div>
+        <div class="field"><label for="e-hlink">Booking link</label>
+          <input id="e-hlink" type="url" value="${esc(ev?.hotel?.link ?? "")}" placeholder="https://… the hotel's booking page for our block">
+          <p class="hint" style="margin:6px 0 0">This is the link every hotel reminder carries. Without it the reminders do not go.</p></div>
+        <div class="row2">
+          <div class="field" style="margin:0"><label for="e-hcut">Room block cut-off</label>
+            <input id="e-hcut" type="date" value="${esc(ev?.hotel?.cutoff ?? "")}"></div>
+          <div class="field" style="margin:0"><label for="e-hfb">Food and beverage numbers due</label>
+            <input id="e-hfb" type="date" value="${esc(ev?.hotel?.foodAndBev ?? "")}"></div>
+        </div>
+        <p class="hint" id="hotelhint" style="margin:8px 0 0"></p>
+        <div class="field"><label for="e-hnotes">Anything else from the contract</label>
+          <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>
+      </details>
       ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
@@ -694,6 +718,37 @@ function eventFormScreen(existing = null) {
 
   const $ = (id) => document.getElementById(id);
   const day1 = $("e-day1"), last = $("e-last"), preview = $("preview"), city = $("e-city"), folder = $("e-folder"), upload = $("e-upload"), folderhint = $("folderhint");
+
+  // What the hotel dates would actually do, shown as they are typed. The
+  // reminders count back from the cut-off, so the hint has to prove it.
+  const HOTEL_DAYS = [30, 15, 7];
+  const showHotelHint = () => {
+    const hint = $("hotelhint"), cut = $("e-hcut"), link = $("e-hlink");
+    if (!hint) return;
+    const today = todayIso();
+    if (!cut.value) {
+      hint.innerHTML = link.value.trim()
+        ? `Set the cut-off and attendees are reminded ${HOTEL_DAYS.join(", ")} days before it.`
+        : "";
+      hint.style.color = "";
+      return;
+    }
+    const when = HOTEL_DAYS.map((d) => ({ d, iso: new Date(Date.parse(cut.value) - d * 86400000).toISOString().slice(0, 10) }));
+    const gone = when.filter((w) => w.iso < today);
+    const after = day1.value && cut.value > day1.value;
+    const parts = [`Attendees would be reminded ${when.map((w) => `<b>${esc(fmtDate(w.iso).replace(/^\w+ /, ""))}</b>`).join(", ")}.`];
+    if (!link.value.trim()) parts.push("No booking link yet, so none of them would go.");
+    if (gone.length === when.length) parts.push("All three dates have passed — nothing would be sent.");
+    else if (gone.length) parts.push(`${gone.length} of them ${gone.length === 1 ? "has" : "have"} already passed; the rest still go.`);
+    if (after) parts.push("The cut-off falls after the training starts, which is unusual — worth checking the contract.");
+    hint.innerHTML = parts.join(" ");
+    hint.style.color = (!link.value.trim() || gone.length || after) ? "var(--wait)" : "";
+  };
+  ["e-hcut", "e-hlink", "e-day1"].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener("input", showHotelHint);
+  });
+  showHotelHint();
 
   // Folder convention: year, then "year City". Shown as the default so a blank field is never a surprise.
   const convention = () => {
@@ -834,6 +889,8 @@ function eventFormScreen(existing = null) {
       offsets,
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
+      hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"),
+               cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
