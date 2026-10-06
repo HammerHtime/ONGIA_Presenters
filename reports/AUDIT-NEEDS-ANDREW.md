@@ -72,42 +72,19 @@ either way.
 
 ---
 
-## 4. No event is open to sponsors, so the sponsor form has nothing to offer
+## 4–6. Sponsorship — parked (was: no open events, no lead, emails unproved)
 
-**Status:** the form is live and proved. It just has an empty list to show.
+**Closed, not fixed.** You said on 6 October you do not need sponsors in the
+short term, so the Sponsors tab, its screen and the *open to sponsors* tick on
+the event form are hidden behind a single flag (`SPONSORS_ON` in
+`public/admin.html`). Nothing sponsor-related can be reached from the desk and
+nothing sends: the nightly reminder job has no sponsor code in it at all.
 
-The sponsor's form only lists events with **open to sponsors** ticked, and
-right now that is **none of them**. A sponsor who opens their link today is
-told "ONGIA has not opened any events to sponsors yet. We will be in touch
-when the dates are set." — honest, but not what you want them to see.
+The functions, the sponsor's own form and their 100-odd tests are all still in
+the repo and still pass. Turning it back on is that one line, and anything
+already stored was left untouched — an event that was marked open to sponsors
+still is.
 
-**The fix.** Edit each event that will have sponsor tables and tick *open to
-sponsors*. A regional half-day usually is not one.
-
----
-
-## 5. Nobody is the sponsorship lead
-
-**Status:** blocks the handoff, not the form.
-
-Sponsors can fill the form in without a lead, but the email that says *"so-and-so
-has sent their sponsorship details"* has nowhere to go, and their thank-you has
-nobody to reply to. The dropdown on the Sponsors tab is sitting on *— nobody
-chosen —*.
-
-**The fix.** Sponsors tab, pick a board member from the dropdown. One click.
-
----
-
-## 6. The sponsor emails have not been proved on production either
-
-**Status:** same shape as item 1, and it clears the same way.
-
-Both sponsor emails — the thank-you when you add one, and the *"they have sent
-their details"* note to the sponsorship lead — are wired, rendered at 375 px
-with no sideways scroll, and carry working links. Neither has been watched
-landing in a real inbox, because adding a real sponsor emails a real company.
-
-**The fix.** Add yourself as a test sponsor on the Sponsors tab once a lead is
-chosen. You will get the thank-you, you can walk the form end to end, and the
-lead will get the review note. That proves the whole chain in one pass.
+The three things that were waiting on you — no event ticked open, nobody named
+as sponsorship lead, and neither sponsor email watched landing in a real inbox
+— all come back the day the flag flips. Nothing to do until then.

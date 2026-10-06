@@ -338,6 +338,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmtDate = (iso) => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso ?? "")) return iso ?? ""; const [y,m,d] = iso.slice(0,10).split("-").map(Number); const dt = new Date(y, m-1, d); return `${DAYS[dt.getDay()]} ${d} ${MONTHS[m-1]} ${y}`; };
 
+/**
+ * Sponsorship is parked. The tab, its screen and the "open to sponsors" tick
+ * are hidden, and nothing sponsor-related can be reached from the desk — but
+ * the functions, the sponsor's form and their tests are all still here, so
+ * turning it back on is this one line. Anything already stored is left alone.
+ */
+const SPONSORS_ON = false;
+
 let KEY = sessionStorage.getItem("ongia-admin-key") ?? "";
 let view = { name: "list", eventId: null };
 let busy = false;
@@ -380,10 +388,10 @@ function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events) {
-  BARRIGHT.innerHTML = `<button class="chip" id="sponsors">Sponsors</button><button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
-  document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
+  if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
 
   if (!events.length) {
@@ -511,7 +519,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
         <div class="field"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" min="15" step="5" value="${v("sessionMinutes", 70)}"></div>
       </div>
-      <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>
+      ${SPONSORS_ON ? `<label class="attest" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>` : ""}
       <div class="row2">
         <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date" value="${v("dayOne")}"></div>
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
@@ -685,7 +693,9 @@ function eventFormScreen(existing = null) {
       offsets,
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
-      sponsorsWelcome: $("e-sponsors")?.checked === true,
+      // No tick on the form means "we are not saying", not "no" — otherwise
+      // every save would clear the flag on an event that had it set.
+      sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
     };
     if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
     const leadRow = body.board.find((m) => m.lead);
@@ -1783,7 +1793,7 @@ async function render() {
     if (view.name === "new") { await loadRoster(); return eventFormScreen(); }
     if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
     if (view.name === "roster") return rosterScreen(await loadRoster());
-    if (view.name === "sponsors") {
+    if (view.name === "sponsors" && SPONSORS_ON) {
       const [list, settings] = await Promise.all([api("/sponsors"), api("/sponsors?settings=1")]);
       return sponsorsScreen(list, settings);
     }
