@@ -315,16 +315,21 @@
     .job .when{grid-column:2/-1;text-align:left}
     .job .jact{grid-column:3;grid-row:1}
   }
-  /* A row of the standard list: wording, days, before/after, remove — one line
-     on a wide screen; on a phone the wording takes its own line above. */
+  /* A row of the standard list: wording, days, before/after, then the arrows and
+     remove — one line on a wide screen. On a phone the arrows stand one above
+     the other on the left, so the wording keeps its width: wording and remove
+     on the first line, days and before/after on the second. */
   .job.tjob{grid-template-columns:1fr auto auto auto;align-items:center}
   .job.tjob [data-tdays]{width:108px}
   @media (max-width:560px){
-    .job.tjob{grid-template-columns:auto 1fr auto}
-    .job.tjob [data-twhat]{grid-column:1/3;grid-row:1}
-    .job.tjob .jact{grid-column:3;grid-row:1}
-    .job.tjob [data-tdays]{grid-column:1;grid-row:2;width:96px}
-    .job.tjob [data-twhen]{grid-column:2/-1;grid-row:2;min-width:0;width:100%}
+    .job.tjob{grid-template-columns:auto auto 1fr auto}
+    .job.tjob .jact{display:contents}
+    .job.tjob [data-tup]{grid-column:1;grid-row:1}
+    .job.tjob [data-tdown]{grid-column:1;grid-row:2}
+    .job.tjob [data-twhat]{grid-column:2/4;grid-row:1;min-width:0}
+    .job.tjob [data-tdel]{grid-column:4;grid-row:1}
+    .job.tjob [data-tdays]{grid-column:2;grid-row:2;width:88px}
+    .job.tjob [data-twhen]{grid-column:3/-1;grid-row:2;min-width:0;width:100%}
   }
   @media print{.job .jact,.jobadd{display:none!important}}
 
@@ -1275,8 +1280,9 @@ function yearScreen(events, year) {
 function templateCard() {
   return `<div class="card"><div class="card-body" style="padding-top:6px">
     <details class="settings" id="tmpl"><summary>The standard checklist new events start from</summary>
-      <p class="hint" style="margin-top:10px">Each job is a distance from day one of the training, so one list works
-        for every event whatever its dates. A new event is created with this list already on it.</p>
+      <p class="hint" style="margin-top:10px">Put the jobs in the order they get done; the arrows move a job up or down.
+        A date is optional and counts from day one of the training, so one list works for every event whatever its
+        dates. A new event is created with this list already on it, and an older event offers to catch up.</p>
       <div id="tmplrows" style="margin-top:12px"><p class="hint">Loading…</p></div>
       <div class="actions" style="justify-content:flex-start">
         <button class="mini" id="tmpl-add">Add a job</button>
@@ -1304,12 +1310,23 @@ function wireTemplate() {
       <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout">
       <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${dated ? Math.abs(t.daysBefore) : ""}" placeholder="no date">
       <select data-twhen style="width:auto"><option value="before"${!dated || t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${dated && t.daysBefore < 0 ? " selected" : ""}>after the last day</option></select>
-      <div class="jact"><button type="button" data-tdel title="Remove this job">&#10005;</button></div>
+      <div class="jact"><button type="button" data-tup title="Move up" aria-label="Move up">&#8593;</button><button type="button" data-tdown title="Move down" aria-label="Move down">&#8595;</button><button type="button" data-tdel title="Remove this job" aria-label="Remove this job">&#10005;</button></div>
       ${tags.length ? `<div class="hint" style="grid-column:1/-1;margin:0">${tags.join(" · ")}</div>` : ""}
     </div>`;
   };
 
-  const wireRow = (row) => { row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; }; };
+  // Order matters: the list runs in the order the jobs get done, and events keep it.
+  const wireRow = (row) => {
+    row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; };
+    row.querySelector("[data-tup]").onclick = () => {
+      const prev = row.previousElementSibling;
+      if (prev?.matches("[data-trow]")) { host.insertBefore(row, prev); said.textContent = ""; row.querySelector("[data-tup]").focus(); }
+    };
+    row.querySelector("[data-tdown]").onclick = () => {
+      const next = row.nextElementSibling;
+      if (next?.matches("[data-trow]")) { host.insertBefore(next, row); said.textContent = ""; row.querySelector("[data-tdown]").focus(); }
+    };
+  };
   const addRow = (t) => {
     const wrap = document.createElement("div");
     wrap.innerHTML = rowHtml(t);
@@ -1355,7 +1372,7 @@ function wireTemplate() {
     btn.disabled = true; said.style.color = ""; said.textContent = "Saving…";
     try {
       const out = await api("/tasks?template=1", { method: "PUT", body: JSON.stringify({ tasks }) });
-      said.textContent = `Saved — ${out.template.length} job${out.template.length === 1 ? "" : "s"}. New events start from this.`;
+      said.textContent = `Saved — ${out.template.length} job${out.template.length === 1 ? "" : "s"}. New events start from this; an older event offers to catch up on its own page.`;
     } catch (err) { said.textContent = err.message; said.style.color = "var(--late)"; }
     btn.disabled = false;
   };
@@ -2068,6 +2085,24 @@ function offsetWords(n) {
 }
 
 /**
+ * The standard list has moved on since this event's list was made: say what
+ * updating would do, job by job, before Andrew presses anything.
+ */
+function behindNote(b) {
+  if (!b?.any) return "";
+  const lines = [];
+  if (b.added.length) lines.push(`<b>Adds</b> ${b.added.map(esc).join(" · ")}`);
+  if (b.renamed.length) lines.push(`<b>Renames</b> ${b.renamed.map((r) => `${esc(r.from)} → ${esc(r.to)}`).join(" · ")}`);
+  if (b.removed.length) lines.push(`<b>Takes off</b> ${b.removed.map(esc).join(" · ")} <span class="porg">(not for this kind of event, and not started)</span>`);
+  if (b.reordered) lines.push(`<b>Puts the jobs in order</b>, the order they get done`);
+  return `<div class="note" style="margin:0 0 14px">
+    <div style="margin-bottom:6px">The standard checklist has changed since this list was made. Updating:</div>
+    <ul style="margin:0 0 10px;padding-left:20px">${lines.map((l) => `<li style="margin:0 0 3px">${l}</li>`).join("")}</ul>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="mini gold" id="jsync">Update this list</button>
+      <span class="porg">Ticks, dates and "not needed" marks stay as they are.</span></div></div>`;
+}
+
+/**
  * The jobs that are ONGIA's. Drawn as its own card under the event so it is
  * never confused with what the presenters owe.
  */
@@ -2079,7 +2114,7 @@ function checklistCard(ev, checklist) {
   const { tasks, counts } = checklist;
   // One focus in a long list: the nearest job that is not already late. The
   // late ones are red already and do not need a second mark.
-  const nextId = tasks.find((t) => !t.done && !t.late)?.id ?? null;
+  const nextId = tasks.find((t) => !t.done && !t.na && !t.late)?.id ?? null;
 
   const rows = tasks.map((t) => {
     const when = t.na
@@ -2107,11 +2142,12 @@ function checklistCard(ev, checklist) {
 
   return `<div class="card">
     <div class="card-head"><div><h2>Your checklist</h2>
-      <div class="s">What ONGIA owes this event, not what the presenters owe. Every date counts back from day one, so moving the training moves the list.</div>
+      <div class="s">What ONGIA owes this event, not what the presenters owe, in the order the jobs get done. Every date counts back from day one, so moving the training moves the list.</div>
       <div class="jobsum" style="margin-top:8px">${summary}</div></div>
       <div class="cardacts"><button class="mini jobadd" id="jadd">Add a job</button>
         ${tasks.length ? "" : `<button class="mini jobadd" id="jseed">Use the standard list</button>`}</div></div>
     <div class="card-body">
+      ${tasks.length ? behindNote(checklist.behind) : ""}
       ${tasks.length ? `<div class="jobs">${rows}</div>` : `<div class="empty">Nothing on the list yet.</div>`}
       <p class="hint jobadd">The standard list new events start from is on <b>The year</b> screen.</p>
     </div></div>`;
@@ -2145,13 +2181,27 @@ function wireChecklist(ev) {
     editing = task?.id ?? null;
     document.getElementById("jd-title").textContent = task ? "Change this job" : "Add a job";
     document.getElementById("j-what").value = task?.what ?? "";
-    document.getElementById("j-days").value = task ? Math.abs(task.daysBefore) : 30;
+    // An undated job shows an empty box, never 0: 0 means "on day one", and a
+    // save to fix the wording would quietly give it that date.
+    document.getElementById("j-days").value = Number.isFinite(task?.daysBefore) ? Math.abs(task.daysBefore) : "";
     document.getElementById("j-when").value = task && task.daysBefore < 0 ? "after" : "before";
     document.getElementById("j-why").textContent = "";
   };
   document.getElementById("jadd").onclick = () => { fill(null); dlg.showModal(); document.getElementById("j-what").focus(); };
   const seed = document.getElementById("jseed");
   if (seed) seed.onclick = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&seed=1`, { method: "POST" });
+  const sync = document.getElementById("jsync");
+  if (sync) sync.onclick = async () => {
+    sync.disabled = true;
+    try {
+      const out = await api(`/tasks?event=${encodeURIComponent(ev.id)}&sync=1`, { method: "POST" });
+      const c = out.changes ?? {};
+      const said = [c.added?.length ? `${c.added.length} added` : "", c.renamed?.length ? `${c.renamed.length} renamed` : "",
+        c.removed?.length ? `${c.removed.length} taken off` : ""].filter(Boolean);
+      toast(`Checklist updated${said.length ? `: ${said.join(", ")}` : ""}.`);
+    } catch (e) { toast(e.message); }
+    render();
+  };
   ROOT.querySelectorAll("[data-jedit]").forEach((b) => {
     b.onclick = () => { fill((data_checklist()?.tasks ?? []).find((t) => t.id === b.dataset.jedit)); dlg.showModal(); };
   });
@@ -2159,11 +2209,13 @@ function wireChecklist(ev) {
   document.getElementById("j-save").onclick = async (e) => {
     e.preventDefault();
     const what = document.getElementById("j-what").value.trim();
-    const n = Number(document.getElementById("j-days").value);
+    const raw = document.getElementById("j-days").value.trim();
+    const n = Number(raw);
     const why = document.getElementById("j-why");
     if (!what) { why.textContent = "What is the job?"; return; }
-    if (!Number.isFinite(n) || document.getElementById("j-days").value.trim() === "") { why.textContent = "How many days?"; return; }
-    const daysBefore = document.getElementById("j-when").value === "after" ? -Math.abs(n) : Math.abs(n);
+    // Blank is allowed: most jobs are done in order, not by a date.
+    if (raw !== "" && !Number.isFinite(n)) { why.textContent = "That is not a number of days. Leave it empty if there is no date yet."; return; }
+    const daysBefore = raw === "" ? null : document.getElementById("j-when").value === "after" ? -Math.abs(n) : Math.abs(n);
     const body = JSON.stringify({ what, daysBefore });
     dlg.close();
     await send(editing
@@ -2176,9 +2228,12 @@ function wireChecklist(ev) {
 let LETTER_CHOICES = [];
 const loadLetterChoices = async () => { LETTER_CHOICES = (await api("/letters").catch(() => ({ letters: [] }))).letters ?? []; };
 
-/** Same rule as the server: a letter with "only for" words fits an event whose title has them. */
+/** Same rule as the server: a letter with "only for" words fits an event whose title has them as whole words. */
 const squash = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
-const letterFits = (l, title) => !squash(l.onlyFor) || squash(title).includes(squash(l.onlyFor));
+const letterFits = (l, title) => {
+  const words = squash(l.onlyFor);
+  return !words || new RegExp(`(^|[^a-z0-9])${words.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`).test(squash(title));
+};
 
 /**
  * The choices for one letter box on the event form: the letters that fit this
@@ -2205,7 +2260,7 @@ const jobDialog = () => `<dialog class="sheet" id="jobdlg">
     <div class="sheet-body">
       <div class="field"><label for="j-what">The job</label><input id="j-what" maxlength="160" autocomplete="off" placeholder="Confirm the room layout"></div>
       <div class="row2">
-        <div class="field"><label for="j-days">Days</label><input id="j-days" type="number" min="0" max="730" inputmode="numeric"></div>
+        <div class="field"><label for="j-days">Days</label><input id="j-days" type="number" min="0" max="730" inputmode="numeric" placeholder="no date yet"></div>
         <div class="field"><label for="j-when">Before day one, or after the last day</label>
           <select id="j-when"><option value="before">before day one</option><option value="after">after the last day</option></select></div>
       </div>

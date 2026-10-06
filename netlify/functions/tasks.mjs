@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text } from "./lib/http.mjs";
 import { getEvent, putEvent, putMeta } from "./lib/store.mjs";
-import { taskTemplate, checklistOf } from "./lib/checklist.mjs";
+import { taskTemplate, checklistOf, syncToTemplate, behindTemplate } from "./lib/checklist.mjs";
 import { fitsTitle } from "./lib/titles.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -11,6 +11,7 @@ import { token } from "./lib/ids.mjs";
  *   GET    /api/tasks?event=…            this event's list, with dates worked out
  *   POST   /api/tasks?event=…            add one
  *   POST   /api/tasks?event=…&seed=1     pull in the standard list
+ *   POST   /api/tasks?event=…&sync=1     bring this list up to the standard one
  *   PUT    /api/tasks?event=…&id=…       rename it, move it, tick it
  *   DELETE /api/tasks?event=…&id=…       remove it
  *   GET    /api/tasks?template=1         the standard list every event starts from
@@ -41,13 +42,6 @@ function cleanDays(v) {
   return Number.isFinite(n) && Math.abs(n) <= 730 ? n : undefined;
 }
 
-/** Dated jobs furthest-out first; undated ones keep the order they were written. */
-function byDue(a, b) {
-  const as = Number.isFinite(a.daysBefore), bs = Number.isFinite(b.daysBefore);
-  if (as !== bs) return as ? -1 : 1;
-  return as ? b.daysBefore - a.daysBefore : 0;
-}
-
 export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
@@ -70,9 +64,10 @@ export default async (req) => {
   if (!event) return fail("No such event.", 404);
   event.tasks ??= [];
 
-  if (req.method === "GET") return json(list(event));
+  if (req.method === "GET") return json(await list(event));
   if (req.method === "POST") {
     if (url.searchParams.get("seed")) return seed(event);
+    if (url.searchParams.get("sync")) return sync(event);
     if (!body) return fail("Expected a JSON body.");
     return add(event, body);
   }
@@ -93,13 +88,14 @@ async function saveTemplate(body) {
       onlyFor: text(t.onlyFor, 80) || undefined }))
     // Wording is required; a date is not. A row with junk where the number
     // should be is dropped rather than stored as a date nobody meant.
-    .filter((t) => t.what && t.daysBefore !== undefined)
-    .sort(byDue);
+    // Kept in the order Andrew put them: it is the order the jobs get done.
+    .filter((t) => t.what && t.daysBefore !== undefined);
   await putMeta("eventtasks", { tasks: rows, updatedAt: new Date().toISOString() });
   return json({ ok: true, template: rows });
 }
 
-const list = (event) => checklistOf(event);
+/** The list as the screen draws it, and whether it has fallen behind the standard one. */
+const list = async (event) => ({ ...checklistOf(event), behind: await behindTemplate(event) });
 
 async function add(event, body) {
   if (event.tasks.length >= MAX_TASKS) return fail(`That is already ${MAX_TASKS} jobs on one event.`, 409);
@@ -110,7 +106,7 @@ async function add(event, body) {
   const task = { id: token(8), what, daysBefore, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() };
   event.tasks.push(task);
   await putEvent(event);
-  return json({ ok: true, ...list(event) }, 201);
+  return json({ ok: true, ...await list(event) }, 201);
 }
 
 /** Pull in the standard list, skipping anything already on this event. */
@@ -120,10 +116,17 @@ async function seed(event) {
   const room = MAX_TASKS - event.tasks.length;
   const added = rows.filter((r) => fitsTitle(r.onlyFor, event.title) && !have.has(r.what.toLowerCase())).slice(0, Math.max(room, 0))
     .map((r) => ({ id: token(8), what: r.what, daysBefore: r.daysBefore, auto: r.auto, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() }));
-  if (!added.length) return json({ ok: true, added: 0, ...list(event) });
+  if (!added.length) return json({ ok: true, added: 0, ...await list(event) });
   event.tasks.push(...added);
   await putEvent(event);
-  return json({ ok: true, added: added.length, ...list(event) });
+  return json({ ok: true, added: added.length, ...await list(event) });
+}
+
+/** Renames, adds, drops and reorders as the standard list says; ticks are kept. */
+async function sync(event) {
+  const changes = await syncToTemplate(event, new Date(), MAX_TASKS);
+  await putEvent(event);
+  return json({ ok: true, changes, ...await list(event) });
 }
 
 async function change(event, id, body) {
@@ -150,7 +153,7 @@ async function change(event, id, body) {
     if (task.na) { task.done = false; task.doneAt = null; }
   }
   await putEvent(event);
-  return json({ ok: true, ...list(event) });
+  return json({ ok: true, ...await list(event) });
 }
 
 async function remove(event, id) {
@@ -158,5 +161,5 @@ async function remove(event, id) {
   event.tasks = event.tasks.filter((t) => t.id !== id);
   if (event.tasks.length === before) return fail("No such job.", 404);
   await putEvent(event);
-  return json({ ok: true, ...list(event) });
+  return json({ ok: true, ...await list(event) });
 }

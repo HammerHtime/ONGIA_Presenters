@@ -200,7 +200,7 @@ async function updateEvent(id, body) {
   if (problem) return fail(problem);
   // Only an event that already has a checklist gains jobs from a rename; one
   // that never had the list is left for Andrew to add it whole.
-  if (event.tasks?.length) event.tasks.push(...await jobsForRename(event, oldTitle));
+  if (event.tasks?.length) await jobsForRename(event, oldTitle);
   await putEvent(event);
   // Same as on create: no link means the app makes the folder and an upload-only link.
   if (!event.materialsUploadUrl && graphConfigured()) {

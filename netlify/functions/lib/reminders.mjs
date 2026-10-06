@@ -259,8 +259,12 @@ async function jobsFor(event, today) {
       const problems = letter ? [...letterProblems(letter), ...eventProblems(letter, event)] : [];
       auto = !letter ? "no letter picked on the event yet" : problems.length ? `held back: ${problems[0]}` : "sends by itself";
     }
-    open.push({ what: t.what, due: t.dueReadable, days: t.days, late: t.late, scheduled: t.scheduled, auto });
+    open.push({ what: t.what, due: t.dueReadable, dueIso: t.due, days: t.days, late: t.late, scheduled: t.scheduled, auto });
   }
+  // The checklist itself runs in the order the jobs get done; this summary is
+  // about what is pressing, so the dated ones go by date (the sort is stable:
+  // undated jobs keep their order at the end).
+  open.sort((a, b) => (a.scheduled !== b.scheduled ? (a.scheduled ? -1 : 1) : a.scheduled ? String(a.dueIso ?? "").localeCompare(String(b.dueIso ?? "")) : 0));
   return { total: counts.total, done: counts.done, late: counts.late, open };
 }
 

@@ -12,25 +12,39 @@ import { fitsTitle } from "./titles.mjs";
  * meta:eventtasks and his version is what new events get.
  */
 export const STARTER = [
-  // Andrew's list, in the order he gave it, with the SOW first because he said
-  // it comes first. Only two carry a date — the two he actually named. The rest
-  // have none until he sets one, because a date nobody chose is a date nobody
-  // trusts. The list re-sorts itself as dates get filled in.
-  { what: "SOW sent to RBH", daysBefore: null },
+  // Andrew's jobs, in the order they get done (6 Oct 2026: "try to put them in
+  // order"). The list keeps this order on every event; it is not re-sorted by
+  // date. Only the two letters carry a date — the two he named. The rest have
+  // none until he sets one: a date nobody chose is a date nobody trusts.
+  // Jobs marked RBH appear only on events with RBH in the title.
+  { what: "SOW sent to RBH", daysBefore: null, onlyFor: "RBH" },
   { what: "RFP sent out", daysBefore: null },
   { what: "Contract signed", daysBefore: null },
-  { what: "Wix event set up and ready", daysBefore: null },
+  { what: "Event graphic done", daysBefore: null },                     // before the Wix event
+  { what: "Wix event set up", daysBefore: null },
+  { what: "Board members attending confirmed", daysBefore: null },
+  { what: "Presenter flights booked", daysBefore: null },
+  { what: "Board member flights booked", daysBefore: null },
+  { what: "VIA Rail train tickets booked", daysBefore: null, onlyFor: "RBH" },
+  { what: "Limos booked", daysBefore: null, onlyFor: "RBH" },
   { what: "Car rental booked", daysBefore: null },
-  // Andrew: "for events titled RBH ITP, there is a task for booking VIA Rail
-  // train tickets." A job, not a letter, and only on those events.
-  { what: "Book VIA Rail train tickets", daysBefore: null, onlyFor: "RBH ITP" },
-  { what: "Presenter and hotel guest names given to the hotel", daysBefore: null },
+  { what: "Dinner reservations", daysBefore: null, onlyFor: "RBH" },
+  { what: "Names sent to hotel (presenters, board members, volunteers)", daysBefore: null },
   { what: "Food ordered and arranged", daysBefore: null },
   { what: "AV confirmed and arranged", daysBefore: null },
-  { what: "Board members attending confirmed", daysBefore: null },
+  { what: "Event certificate completed (before the event)", daysBefore: null },
+  { what: "ID cards printed", daysBefore: null },
   { what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" },
   { what: "Survey link sent to attendees", daysBefore: -2, auto: "survey" },
+  { what: "Event certificate sent out (after the event)", daysBefore: null },
 ];
+
+/** Jobs Andrew has renamed: an event's old wording becomes the new one, keeping its tick. */
+export const RENAMED = {
+  "presenter and hotel guest names given to the hotel": "Names sent to hotel (presenters, board members, volunteers)",
+  "wix event set up and ready": "Wix event set up",
+  "book via rail train tickets": "VIA Rail train tickets booked",
+};
 
 /** The desk's own list, or the starter one until it has saved its own. */
 export async function taskTemplate() {
@@ -38,12 +52,15 @@ export async function taskTemplate() {
   return Array.isArray(saved?.tasks) && saved.tasks.length ? saved.tasks : STARTER;
 }
 
+/** Job wording compared the way a person reads it: case and extra spaces do not count. */
+const named = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+
 /** One template row as a job on an event. */
 const asTask = (t, at) => ({ id: token(8), what: t.what, daysBefore: t.daysBefore, auto: t.auto, done: false, doneAt: null, na: false, addedAt: at });
 
 /**
  * The list a brand-new event starts with: everything on the template that fits
- * its title. A job marked for RBH ITP events only is left off everything else.
+ * its title. A job marked for RBH events only is left off everything else.
  */
 export async function starterTasks(title, now = new Date()) {
   const at = now.toISOString();
@@ -52,14 +69,25 @@ export async function starterTasks(title, now = new Date()) {
 
 /**
  * An event renamed INTO a kind it was not before — "Montreal training" becomes
- * "RBH ITP Montreal" — picks up that kind's own jobs. Only on that change: a
- * job Andrew deleted from an event that was always RBH ITP stays deleted.
+ * "RBH Montreal" — picks up that kind's own jobs, each slotted in where it sits
+ * on the standard list. Only on that change: a job Andrew deleted from an event
+ * that was always RBH stays deleted. Changes `event.tasks` in place and returns
+ * the jobs it added.
  */
 export async function jobsForRename(event, oldTitle, now = new Date()) {
-  const have = new Set((event.tasks ?? []).map((t) => t.what.toLowerCase()));
-  return (await taskTemplate())
-    .filter((t) => t.onlyFor && !fitsTitle(t.onlyFor, oldTitle) && fitsTitle(t.onlyFor, event.title) && !have.has(t.what.toLowerCase()))
+  const template = await taskTemplate();
+  const pos = new Map(template.map((t, i) => [named(t.what), i]));
+  const have = new Set((event.tasks ?? []).map((t) => named(t.what)));
+  const fresh = template
+    .filter((t) => t.onlyFor && !fitsTitle(t.onlyFor, oldTitle) && fitsTitle(t.onlyFor, event.title) && !have.has(named(t.what)))
     .map((t) => asTask(t, now.toISOString()));
+  event.tasks ??= [];
+  for (const job of fresh) {
+    const mine = pos.get(named(job.what));
+    const at = event.tasks.findIndex((t) => (pos.get(named(t.what)) ?? Infinity) > mine);
+    event.tasks.splice(at < 0 ? event.tasks.length : at, 0, job);
+  }
+  return fresh;
 }
 
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
@@ -110,17 +138,79 @@ export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne) {
 }
 
 /**
- * Dated jobs in date order, then the ones with no date yet in the order they
- * were written down. Not-applicable jobs sink to the bottom of their group.
+ * The order the jobs get done in, as written on the list; the sort is stable,
+ * so only not-applicable jobs move, to the bottom, out of the way.
  */
 function inOrder(a, b) {
-  if (a.na !== b.na) return a.na ? 1 : -1;
-  if (a.scheduled !== b.scheduled) return a.scheduled ? -1 : 1;
-  if (!a.scheduled) return 0;
-  return b.daysBefore - a.daysBefore;
+  return a.na === b.na ? 0 : a.na ? 1 : -1;
 }
 
-/** An event's checklist, earliest first, with the tally a dashboard needs. */
+/**
+ * Bring an event's checklist up to the standard list without losing anything
+ * done on it:
+ *  - old wording is renamed, and the tick stays with it;
+ *  - jobs it is missing are added;
+ *  - a job for another kind of event (an RBH job on an event without RBH in
+ *    its title) goes, but only if nothing was done with it: not ticked, not
+ *    ruled out, no date set on it;
+ *  - the list takes the standard order. Jobs added to this event alone keep
+ *    their own order, after the standard ones.
+ * Changes `event.tasks` in place and returns what changed, in words.
+ */
+export async function syncToTemplate(event, now = new Date(), max = 60) {
+  const template = await taskTemplate();
+  const pos = new Map(template.map((t, i) => [named(t.what), i]));
+  const tasks = event.tasks ?? [];
+  const changes = { renamed: [], added: [], removed: [] };
+
+  const names = new Set(tasks.map((t) => named(t.what)));
+  for (const t of tasks) {
+    const to = RENAMED[named(t.what)];
+    if (!to || names.has(named(to))) continue;          // the new wording is already there: leave both alone
+    changes.renamed.push({ from: t.what, to });
+    names.delete(named(t.what));
+    names.add(named(to));
+    t.what = to;
+  }
+
+  const kept = tasks.filter((t) => {
+    const std = template[pos.get(named(t.what))];
+    if (!std || fitsTitle(std.onlyFor, event.title)) return true;
+    const untouched = !t.done && !t.na && (t.daysBefore ?? null) === (std.daysBefore ?? null);
+    if (untouched) changes.removed.push(t.what);
+    return !untouched;
+  });
+
+  const have = new Set(kept.map((t) => named(t.what)));
+  for (const t of template) {
+    if (kept.length >= max) break;
+    if (!fitsTitle(t.onlyFor, event.title) || have.has(named(t.what))) continue;
+    kept.push(asTask(t, now.toISOString()));
+    changes.added.push(t.what);
+  }
+
+  const rank = (t) => pos.get(named(t.what)) ?? template.length;
+  event.tasks = kept.map((t, i) => ({ t, i })).sort((a, b) => rank(a.t) - rank(b.t) || a.i - b.i).map(({ t }) => t);
+  return changes;
+}
+
+/**
+ * How far an event's checklist is from the standard list, worked out on a copy
+ * so nothing is saved. `reordered` is true when the jobs it already has would
+ * move.
+ */
+export async function behindTemplate(event) {
+  const copy = { ...event, tasks: (event.tasks ?? []).map((t) => ({ ...t })) };
+  const changes = await syncToTemplate(copy);
+  const stays = new Set(copy.tasks.map((t) => t.id));
+  const before = (event.tasks ?? []).filter((t) => stays.has(t.id)).map((t) => t.id).join();
+  const old = new Set((event.tasks ?? []).map((t) => t.id));
+  const after = copy.tasks.filter((t) => old.has(t.id)).map((t) => t.id).join();
+  const reordered = before !== after;
+  return { ...changes, reordered, any: Boolean(changes.renamed.length || changes.added.length || changes.removed.length || reordered) };
+}
+
+/** An event's checklist, in the order the jobs get done, with the tally a dashboard needs. */
 export function checklistOf(event, today = todayIso()) {
   const tasks = (event.tasks ?? []).map((t) => dressed(t, event.dayOne, today, event.lastDay)).sort(inOrder);
   // "Not applicable" is a decision, not a job, so it is counted apart and never
