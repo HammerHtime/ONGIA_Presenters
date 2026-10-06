@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
-import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster } from "./lib/store.mjs";
+import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
+  getContract, putContract, getContractRead, putContractRead } from "./lib/store.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
@@ -407,6 +408,25 @@ function cleanLetters(given, had) {
   return { welcome: id(given?.welcome), survey: id(given?.survey) };
 }
 
+/**
+ * A contract uploaded on the New event screen was kept as a draft; once the
+ * event exists it becomes the event's contract, with what Claude read from it.
+ * If Claude is still reading, the event remembers the draft and picks the
+ * answer up when it lands (contract.mjs).
+ */
+async function adoptDraftContract(event, draft) {
+  if (!/^[a-z0-9]{16,40}$/i.test(String(draft ?? ""))) return;
+  const key = `draft-${draft}`;
+  const doc = await getContract(key);
+  if (!doc) return;
+  await putContract(event.id, doc.bytes, { name: doc.name, size: doc.size, uploadedAt: doc.uploadedAt });
+  const read = await getContractRead(key);
+  if (read) await putContractRead(event.id, read);
+  await deleteKey(`contract:${key}`);
+  if (read?.state === "reading") event.contractDraft = draft;
+  else await deleteKey(`contractread:${key}`);
+}
+
 async function createEvent(body, origin) {
   const event = { id: null, nextSequence: 1 };
   const problem = await applyDetails(event, body, { creating: true });
@@ -416,6 +436,7 @@ async function createEvent(body, origin) {
   // ask for it. Every job is stored as days before day one, so moving the
   // training moves the whole list with it.
   event.tasks = await starterTasks(event.title);
+  await adoptDraftContract(event, body.contractDraft);
   await putEvent(event);
 
   // With Microsoft connected, a new event gets its folder and upload link

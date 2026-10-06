@@ -9,9 +9,13 @@ import { readContract, whyItFailed } from "./lib/contract.mjs";
  */
 export default async (req) => {
   if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
-  const eventId = new URL(req.url).searchParams.get("event");
-  const [event, doc] = await Promise.all([getEvent(eventId), getContract(eventId)]);
-  if (!event || !doc) return new Response("Nothing to read.", { status: 404 });
+  const params = new URL(req.url).searchParams;
+  // A draft is a contract uploaded on the New event screen, before the event exists.
+  const draft = params.get("draft");
+  if (draft && !/^[a-z0-9]{16,40}$/i.test(draft)) return new Response("Bad draft.", { status: 400 });
+  const eventId = draft ? `draft-${draft}` : params.get("event");
+  const [event, doc] = await Promise.all([draft ? null : getEvent(eventId), getContract(eventId)]);
+  if ((!draft && !event) || !doc) return new Response("Nothing to read.", { status: 404 });
   try {
     const found = await readContract(doc.bytes, event);
     await putContractRead(eventId, { state: "done", at: new Date().toISOString(), name: doc.name, found });

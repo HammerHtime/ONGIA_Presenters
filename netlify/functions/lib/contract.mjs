@@ -29,9 +29,12 @@ const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["hotelName", "rate", "arrival", "departure", "dates", "notes"],
+  required: ["hotelName", "city", "rate", "arrival", "departure", "meetingFirst", "meetingLast", "dates", "notes"],
   properties: {
     hotelName: nullable({ type: "string" }),
+    city: nullable({ type: "string" }),
+    meetingFirst: nullable({ type: "string", format: "date" }),
+    meetingLast: nullable({ type: "string", format: "date" }),
     rate: nullable({ type: "string" }),
     arrival: nullable({ type: "string", format: "date" }),
     departure: nullable({ type: "string", format: "date" }),
@@ -54,7 +57,9 @@ const SCHEMA = {
   },
 };
 
-const SYSTEM = `You read hotel group contracts for ONGIA, a Canadian non-profit that runs training events. Find the hotel's name, the group room rate, the arrival and departure dates of the room block, and every date in the contract that someone at ONGIA has to act on or keep an eye on.
+const SYSTEM = `You read hotel group contracts for ONGIA, a Canadian non-profit that runs training events. Find the hotel's name, the city it is in, the group room rate, the arrival and departure dates of the room block, the days the group's meetings run, and every date in the contract that someone at ONGIA has to act on or keep an eye on.
+
+The meeting days are the training itself: the first and last day the group has meeting space or food and beverage functions booked. Give them as "meetingFirst" and "meetingLast". They usually sit inside the room-block stay (people arrive the night before), so do not just copy the arrival and departure dates; if the contract books no meeting space or functions, leave both empty. Give "city" as city and province, as in "Regina, SK".
 
 Date kinds:
 - cutoff: the last day attendees can book at the group rate, after which unbooked rooms are released (also called the cut-off, release or reservation deadline).
@@ -97,8 +102,13 @@ export function tidy(raw, event, today = todayIso()) {
       if (event?.dayOne && Math.abs(Number(d.date.slice(0, 4)) - Number(event.dayOne.slice(0, 4))) > 1) warn.push("a different year from the event");
       return { ...d, label: KINDS[d.kind], dateReadable: formatDate(d.date), warn };
     });
+  const first = isDate(raw?.meetingFirst) ? raw.meetingFirst : null;
+  const last = isDate(raw?.meetingLast) && first && raw.meetingLast >= first ? raw.meetingLast : first;
   return {
     hotelName: clip(raw?.hotelName, 200) || null,
+    city: clip(raw?.city, 80) || null,
+    meetingFirst: first,
+    meetingLast: last,
     rate: clip(raw?.rate, 120) || null,
     arrival: isDate(raw?.arrival) ? raw.arrival : null,
     departure: isDate(raw?.departure) ? raw.departure : null,
@@ -127,7 +137,7 @@ export async function readContract(pdfBytes, event, { client = null, today = tod
   const data = Buffer.from(pdfBytes).toString("base64");
   const about = event
     ? `This contract is for ${event.title}, ${datesOf(event)}${event.city ? `, in ${event.city}` : ""}. Today is ${formatDate(today)}.`
-    : `Today is ${formatDate(today)}.`;
+    : `The event has not been set up yet: its training days and city will be taken from this contract. Today is ${formatDate(today)}.`;
   const stream = api.beta.messages.stream({
     model: "claude-opus-5-5",
     max_tokens: 16000,

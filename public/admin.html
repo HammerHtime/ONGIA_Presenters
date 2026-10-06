@@ -750,8 +750,11 @@ function eventFormScreen(existing = null) {
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${ev ? "Edit event" : "New training event"}</h2>
-      <div class="s">${ev ? "Change anything below. The three deadlines are recalculated from day one." : "Set how far ahead each deadline falls; the dates are worked back from day one of the training."}</div></div></div>
+      <div class="s">${ev ? "Change anything below. The three deadlines are recalculated from day one."
+        : "Have the hotel contract? Upload it and Claude fills in the training days, the city and the hotel's dates. Then add the title and venue."}</div></div>
+      ${ev ? "" : `<div class="cardacts"><button class="mini solid" id="ct-new" type="button">Upload hotel contract</button></div>`}</div>
     <div class="card-body">
+      ${ev ? "" : `<div class="ctbox" id="ctnewbox" hidden style="margin:0 0 18px"><div id="ct-body"></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden></div>`}
       <div class="row2">
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
         <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
@@ -798,7 +801,7 @@ function eventFormScreen(existing = null) {
           arrives while they can book.</p>
         <div class="ctbox">${ev
           ? `<div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden>`
-          : `<p class="hint" style="margin:0">Once the event is saved you can upload the hotel contract here, and Claude will read its dates for you.</p>`}</div>
+          : `<p class="hint" style="margin:0">Use <b>Upload hotel contract</b> at the top of this form and Claude fills these in for you.</p>`}</div>
         <div class="row2" style="margin-top:12px">
           <div class="field" style="margin:0"><label for="e-hotel">Hotel</label>
             <input id="e-hotel" value="${esc(ev?.hotel?.name ?? "")}" placeholder="Delta Hotels Toronto Airport"></div>
@@ -886,7 +889,9 @@ function eventFormScreen(existing = null) {
     if (el) el.addEventListener("input", showHotelHint);
   });
   showHotelHint();
-  if (ev) wireContract(ev, { $, showHotelHint });
+  // On a new event the contract is held as a draft until Create, then becomes the event's.
+  const draftId = ev ? null : Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, "0")).join("");
+  wireContract(ev, { $, showHotelHint, draftId });
 
   // Letters written for one kind of training appear only once the title says
   // it is that kind. Whatever is picked stays picked while the title is typed.
@@ -1062,6 +1067,7 @@ function eventFormScreen(existing = null) {
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
+      contractDraft: draftId ?? undefined,
     };
     if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
     const leadRow = body.board.find((m) => m.lead);
@@ -2917,10 +2923,13 @@ async function invite(eventId, presenterIds, remind) {
  * up as a ticked list. "Put these in the form" fills the hotel boxes — nothing is
  * saved until Andrew presses Save changes, so every date passes his eye first.
  */
-function wireContract(ev, { $, showHotelHint }) {
+function wireContract(ev, { $, showHotelHint, draftId = null }) {
   const body = $("ct-body"), picker = $("ct-file");
   if (!body || !picker) return;
-  const q = `/contract?event=${encodeURIComponent(ev.id)}`;
+  const q = ev ? `/contract?event=${encodeURIComponent(ev.id)}` : `/contract?draft=${draftId}`;
+  const newBox = $("ctnewbox");
+  if (!ev && $("ct-new")) $("ct-new").onclick = () => picker.click();
+  const span = (a, b) => (!b || a === b ? fmtDate(a) : `${fmtDate(a)} – ${fmtDate(b)}`);
   let timer = null, found = null;
 
   const when = (iso) => (iso ? fmtDate(iso.slice(0, 10)) : "");
@@ -2935,6 +2944,19 @@ function wireContract(ev, { $, showHotelHint }) {
   // ticked, go in the notes with the rest.
   const rowsOf = (f) => {
     const rows = [];
+    // The training days and the city. On a form that already has them and they
+    // differ, they start unticked: moving day one moves every deadline.
+    if (f.meetingFirst) {
+      const d1 = $("e-day1").value, dl = $("e-last").value || d1;
+      const same = d1 === f.meetingFirst && dl === f.meetingLast;
+      rows.push({ key: "days", what: `<b>Training days:</b> ${esc(span(f.meetingFirst, f.meetingLast))}`, on: !d1 || same,
+        quote: f.arrival && f.departure ? `Rooms are booked ${esc(span(f.arrival, f.departure))}, arrival to departure.` : "",
+        warn: d1 && !same ? [`this event is set to ${span(d1, dl)}; tick this only if the contract is right`] : [] });
+    }
+    if (f.city) {
+      const c = $("e-city").value.trim();
+      rows.push({ key: "city", what: `<b>City:</b> ${esc(f.city)}`, on: !c || c === f.city, warn: c && c !== f.city ? [`this event says ${c}`] : [] });
+    }
     if (f.hotelName) rows.push({ key: "name", what: `<b>Hotel:</b> ${esc(f.hotelName)}`, on: true });
     if (f.rate) rows.push({ key: "rate", what: `<b>Rate:</b> ${esc(f.rate)}`, on: true });
     const firsts = new Set();
@@ -2972,7 +2994,7 @@ function wireContract(ev, { $, showHotelHint }) {
         const rows = rowsOf(found);
         html += rows.length
           ? `<p class="hint" style="margin:10px 0 0">Claude read it ${esc(when(r.at))}. Untick anything that is wrong, then press
-              <b>Put these in the form</b>. Nothing is saved until you press <b>Save changes</b>.</p>
+              <b>Put these in the form</b>. Nothing is saved until you press <b>${ev ? "Save changes" : "Create event"}</b>.</p>
             <div class="ctlist">${rows.map((x) => `<label class="ctrow"><input type="checkbox" data-ctrow="${x.key}"${x.on ? " checked" : ""}>
               <span class="ctwhat">${x.what}</span>${x.quote ? `<span class="ctquote">${x.quote}</span>` : ""}${x.warn?.length ? `<span class="ctwarn">Check this: ${esc(x.warn.join("; "))}.</span>` : ""}</label>`).join("")}</div>
             ${found.notes ? `<p class="ctnote"><b>Claude's note:</b> ${esc(found.notes)}</p>` : ""}
@@ -2995,6 +3017,7 @@ function wireContract(ev, { $, showHotelHint }) {
 
   const upload = async (f) => {
     if (!f) return;
+    if (newBox) newBox.hidden = false;
     if (f.size > 5 * 1024 * 1024) { toast("That file is over 5 MB. Save a smaller copy of the PDF and try again."); return; }
     body.innerHTML = `<div class="cthead"><b>Uploading ${esc(f.name)}…</b></div>`;
     try {
@@ -3007,17 +3030,30 @@ function wireContract(ev, { $, showHotelHint }) {
     const rows = body._rows ?? [];
     const ticked = new Set([...body.querySelectorAll("[data-ctrow]:checked")].map((b) => b.dataset.ctrow));
     const said = [], notes = [];
-    const put = (id, value, label) => {
+    const shown = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? fmtDate(v) : v);
+    const put = (id, value, label, { quiet = false } = {}) => {
       const box = $(id);
       if (!box || !value) return;
-      if (box.value && box.value !== value) said.push(`replaced the ${label} (it was ${box.value})`);
-      else if (box.value !== value) said.push(`the ${label}`);
+      if (!quiet) {
+        if (box.value && box.value !== value) said.push(`replaced the ${label} (it was ${shown(box.value)})`);
+        else if (box.value !== value) said.push(`the ${label}`);
+      }
       box.value = value;
       box.dispatchEvent(new Event("input", { bubbles: true }));
+      box.dispatchEvent(new Event("change", { bubbles: true }));
     };
     const boxed = new Set();
     for (const x of rows.filter((x) => ticked.has(x.key))) {
-      if (x.key === "name") put("e-hotel", found.hotelName, "hotel");
+      if (x.key === "days") {
+        // One message for the pair: setting day one also moves the last day on its own.
+        const was = [$("e-day1").value, $("e-last").value];
+        put("e-day1", found.meetingFirst, "", { quiet: true }); put("e-last", found.meetingLast, "", { quiet: true });
+        if (was[0] && (was[0] !== found.meetingFirst || (was[1] || was[0]) !== found.meetingLast)) {
+          said.push(`replaced the training days (they were ${span(was[0], was[1] || was[0])})`);
+        } else if (!was[0]) said.push("the training days");
+      }
+      else if (x.key === "city") put("e-city", found.city, "city");
+      else if (x.key === "name") put("e-hotel", found.hotelName, "hotel");
       else if (x.key === "rate") put("e-hrate", found.rate, "rate");
       else if ((x.date.kind === "cutoff" || x.date.kind === "foodAndBev") && !boxed.has(x.date.kind)) {
         boxed.add(x.date.kind);
@@ -3032,8 +3068,15 @@ function wireContract(ev, { $, showHotelHint }) {
     }
     showHotelHint();
     $("ct-said").innerHTML = said.length
-      ? `Put in the form: ${esc(said.join(", "))}. Check them below, then press <b>Save changes</b>.`
+      ? ev ? `Put in the form: ${esc(said.join(", "))}. Check them below, then press <b>Save changes</b>.`
+        : `Put in the form: ${esc(said.join(", "))}. Now add the <b>title</b> and <b>venue</b>, choose the board members, and press <b>Create event</b>.`
       : "Nothing new to put in — the form already has these.";
+    // On a new event the hotel section is where most of it went; open it so it can be checked.
+    if (!ev) {
+      const d = [...document.querySelectorAll("details")].find((x) => /Hotel and room block/.test(x.querySelector("summary")?.textContent ?? ""));
+      if (d && said.length) d.open = true;
+      if (!$("e-title").value.trim()) $("e-title").focus({ preventScroll: true });
+    }
   };
 
   function wire() {
@@ -3056,7 +3099,7 @@ function wireContract(ev, { $, showHotelHint }) {
       };
     });
   }
-  load();
+  if (ev) load();   // a new event has nothing to load until a contract is chosen
 }
 
 /** Fetch with the admin header, then open — a plain link can't carry the key. */
