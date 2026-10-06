@@ -27,6 +27,27 @@ export function wixConfigured() {
   return Boolean(process.env.WIX_API_KEY && process.env.WIX_SITE_ID);
 }
 
+/** Which half of the connection is absent — naming both is no help at all. */
+export function wixMissing() {
+  const gone = [];
+  if (!process.env.WIX_API_KEY) gone.push("WIX_API_KEY");
+  if (!process.env.WIX_SITE_ID) gone.push("WIX_SITE_ID");
+  return gone;
+}
+
+/**
+ * A site id is a UUID. A key pasted into the wrong box is the likeliest
+ * mistake here, and it is worth saying so before Wix answers with a 403 that
+ * sounds like a permissions problem.
+ */
+export function wixSiteIdLooksWrong() {
+  const id = process.env.WIX_SITE_ID ?? "";
+  if (!id) return null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim())) return null;
+  if (id.startsWith("IST.") || id.length > 60) return "WIX_SITE_ID looks like an API key, not a site id. The site id is the UUID from the dashboard URL.";
+  return `WIX_SITE_ID is not a UUID (got ${id.length} characters). It should look like 8a3f91c2-4d7e-4b16-9f02-1e5c7a9d3b84.`;
+}
+
 async function wix(path, body) {
   if (!wixConfigured()) throw new Error("Wix is not connected on this site — set WIX_API_KEY and WIX_SITE_ID.");
   const res = await fetch(`${API}${path}`, {
@@ -155,7 +176,17 @@ export async function wixGuestsByEvent(opts = {}) {
 
 /** Enough of a check to tell Andrew whether the key works, without side effects. */
 export async function wixHealth() {
-  if (!wixConfigured()) return { ok: false, reason: "Not connected — WIX_API_KEY and WIX_SITE_ID are not set." };
+  const gone = wixMissing();
+  if (gone.length === 2) {
+    return { ok: false, missing: gone, reason: "Not connected — neither WIX_API_KEY nor WIX_SITE_ID is set on this site." };
+  }
+  if (gone.length === 1) {
+    const here = gone[0] === "WIX_API_KEY" ? "WIX_SITE_ID" : "WIX_API_KEY";
+    return { ok: false, missing: gone,
+      reason: `Not connected — ${here} is set but ${gone[0]} is missing. If you have just added it, Netlify only reads new variables on a new deploy.` };
+  }
+  const shape = wixSiteIdLooksWrong();
+  if (shape) return { ok: false, reason: shape };
   try {
     const events = await listWixEvents({ limit: 1 });
     return { ok: true, events: events.length, sample: events[0]?.title ?? "" };
