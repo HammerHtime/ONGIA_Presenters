@@ -4,7 +4,7 @@ Things I could not prove myself, or that failed. Each one says what happened,
 why, and what the fix is. Nothing here should require you to test for it — it
 is here because I hit the edge of what I can verify without your say-so.
 
-Updated 24 September 2026.
+Updated 6 October 2026.
 
 ---
 
@@ -69,3 +69,45 @@ rather than inside one of them.
 link to the folder you actually want — for example a `Sponsors` folder. The
 app resolves it the moment you save it on the Sponsors tab, so it is one paste
 either way.
+
+---
+
+## 4. No event is open to sponsors, so the sponsor form has nothing to offer
+
+**Status:** the form is live and proved. It just has an empty list to show.
+
+The sponsor's form only lists events with **open to sponsors** ticked, and
+right now that is **none of them**. A sponsor who opens their link today is
+told "ONGIA has not opened any events to sponsors yet. We will be in touch
+when the dates are set." — honest, but not what you want them to see.
+
+**The fix.** Edit each event that will have sponsor tables and tick *open to
+sponsors*. A regional half-day usually is not one.
+
+---
+
+## 5. Nobody is the sponsorship lead
+
+**Status:** blocks the handoff, not the form.
+
+Sponsors can fill the form in without a lead, but the email that says *"so-and-so
+has sent their sponsorship details"* has nowhere to go, and their thank-you has
+nobody to reply to. The dropdown on the Sponsors tab is sitting on *— nobody
+chosen —*.
+
+**The fix.** Sponsors tab, pick a board member from the dropdown. One click.
+
+---
+
+## 6. The sponsor emails have not been proved on production either
+
+**Status:** same shape as item 1, and it clears the same way.
+
+Both sponsor emails — the thank-you when you add one, and the *"they have sent
+their details"* note to the sponsorship lead — are wired, rendered at 375 px
+with no sideways scroll, and carry working links. Neither has been watched
+landing in a real inbox, because adding a real sponsor emails a real company.
+
+**The fix.** Add yourself as a test sponsor on the Sponsors tab once a lead is
+chosen. You will get the thank-you, you can walk the form end to end, and the
+lead will get the review note. That proves the whole chain in one pass.
