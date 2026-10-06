@@ -125,6 +125,8 @@ export function eventProblems(letter, event) {
     }
     const v = String(b.from(event, null) ?? "").trim();
     if (!v) out.push(`Uses {${name}} (${b.means}), and ${event.title || "this event"} has none set.`);
+    // "TBD" is a placeholder, not a venue: a letter must not tell everyone the training is "at TBD".
+    else if (name === "venue" && /^(tbd|tba|to be (determined|announced))\.?$/i.test(v)) out.push(`Uses {venue}, and ${event.title || "this event"} still has its venue as "${v}". Set the venue on Edit, or from the agenda.`);
     else if (b.link && !/^https?:\/\//i.test(v)) out.push(`{${name}} on ${event.title} is not a web address.`);
   }
   return [...new Set(out)];
