@@ -96,7 +96,10 @@ function tidyEvent(e) {
     venue: e.location?.name ?? "",
     city: e.location?.address?.city ?? "",
     url: e.eventPageUrl?.url ?? e.eventPageUrl ?? "",
-    registered: e.summaries?.rsvps?.totalCount ?? null,
+    // Wix's DASHBOARD summary reported 0 for an event with 420 registrations,
+    // so whatever that field is, it is not this. The true number comes from
+    // the guest query, and a confidently wrong count is worse than no count.
+    registered: null,
   };
 }
 

@@ -57,14 +57,23 @@ async function countGuests(wixEventId) {
   if (!wixEventId) return fail("Which Wix event?");
   const all = await listWixGuests({ eventId: wixEventId, type: null });
   const of = (t) => all.filter((g) => g.guestType === t).length;
+  const noEmail = all.filter((g) => !g.email);
   return json({
     eventId: wixEventId,
     total: all.length,
     attending: all.filter((g) => g.status === "ATTENDING").length,
     notAttending: all.filter((g) => g.status === "NOT_ATTENDING").length,
     waitlist: all.filter((g) => g.status === "IN_WAITLIST").length,
-    withEmail: all.filter((g) => g.email).length,
+    withEmail: all.length - noEmail.length,
     withName: all.filter((g) => g.first || g.last).length,
+    // Which kind of record is missing an address, which is what decides
+    // whether it is a Wix form setting or a registration that came in bare.
+    byType: { RSVP: of("RSVP"), BUYER: of("BUYER"), TICKET_HOLDER: of("TICKET_HOLDER") },
+    noEmailByType: {
+      RSVP: noEmail.filter((g) => g.guestType === "RSVP").length,
+      BUYER: noEmail.filter((g) => g.guestType === "BUYER").length,
+      TICKET_HOLDER: noEmail.filter((g) => g.guestType === "TICKET_HOLDER").length,
+    },
   });
 }
 
