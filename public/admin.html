@@ -407,6 +407,21 @@
     .gekeep{display:grid;grid-template-columns:1fr 2fr}
     #gedlg .row2{gap:0}
   }
+  /* The agenda card: the file, then one row per training day. */
+  .agfile{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;font-size:14px}
+  .agname{min-width:0;overflow-wrap:anywhere}
+  .agname small{display:block;font-size:12.5px;color:var(--muted)}
+  .agbtns{display:flex;gap:8px}
+  .agread{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;margin:10px 0 0;color:var(--ink-mid)}
+  .agrows{display:grid;gap:6px;margin-top:14px}
+  .agrow{display:grid;grid-template-columns:120px 130px 130px 1fr;gap:10px;align-items:end;background:var(--sunk);border-radius:12px;padding:10px 12px}
+  .agrow label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+  .agday b{display:block;font-size:14px;color:var(--navy)}
+  .agday small{font-size:11.5px;color:var(--muted)}
+  @media (max-width:560px){
+    .agrow{grid-template-columns:1fr 1fr}
+    .agrow .agday,.agrow .agwhere{grid-column:1/-1}
+  }
   .gsheet{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
   .gread{margin-top:10px;font-size:13.5px;line-height:1.55}
   .gread ul{margin:4px 0 8px;padding-left:20px}
@@ -457,7 +472,8 @@
   .ctrow .ctquote{grid-column:2;font-size:12.5px;color:var(--muted);font-style:italic;overflow-wrap:anywhere}
   .ctrow .ctwarn{grid-column:2;font-size:12.5px;color:var(--late)}
   .ctnote{font-size:13px;background:var(--card);border-left:3px solid var(--gold);padding:8px 12px;border-radius:0 10px 10px 0;margin:0 0 12px}
-  .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
+  /* All clear: green, and it must win over the red of the problems box it sits in. */
+  .lok,.lprobs .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
 
   /* Configuration that is read once, not on every visit. */
   .settings{border-top:1px solid var(--hair);margin-top:18px}
@@ -1635,7 +1651,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1952,12 +1968,14 @@ function eventScreen(data) {
     </dialog>`
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
     + checklistCard(ev, checklist) + jobDialog()
+    + agendaCard(ev, agenda)
     + attendeesCard(ev, guests) + wixDialog();
 
   CHECKLIST = checklist;
   wireActions();
   wireChecklist(ev);
   wireRooming(ev, rooming);
+  wireAgenda(ev, agenda);
   wireAttendees(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2709,6 +2727,143 @@ function wireRooming(ev, R) {
   });
 }
 
+/* ---------- the agenda and each day's times ---------- */
+
+/** "8:30 AM" → "08:30" for a time box, and back. */
+const toBox = (t) => {
+  const m = String(t ?? "").match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
+  if (!m) return "";
+  const h = (Number(m[1]) % 12) + (m[3] === "PM" ? 12 : 0);
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+};
+
+/**
+ * The agenda, and the times that go into letters. Claude's reading is a
+ * suggestion shown beside the boxes; only what Andrew saves is used.
+ */
+function agendaCard(ev, A) {
+  if (!A) return `<div class="card"><div class="card-head"><div><h2>Agenda and daily times</h2></div></div>
+    <div class="card-body"><div class="bad"><b>The agenda could not be loaded.</b> Reload the page.</div></div></div>`;
+  const f = A.file, r = A.read;
+  const saved = new Map((A.schedule ?? []).map((d) => [d.date, d]));
+  const found = r?.state === "done" ? r.found : null;
+  const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  const fileLine = !f ? `<span class="porg">No agenda uploaded yet. Upload it as a PDF, up to 3 MB.</span>`
+    : `<div class="agname"><b>${esc(f.name)}</b><small>${esc(kb(f.size))} · uploaded ${esc(fmtDate(f.uploadedAt.slice(0, 10)))}</small></div>`;
+  const reading = r?.state === "reading"
+    ? `<p class="agread"><span class="spin" aria-hidden="true"></span> Claude is reading the agenda for each day's times. This takes up to a minute.</p>`
+    : r?.state === "failed" ? `<div class="bad" style="margin-top:10px">${esc(r.why)} ${f ? `<button class="mini" id="ag-again">Read it again</button>` : ""}</div>`
+    : found ? `<p class="agread">Claude read it: times for ${found.days.length} of ${A.days.length} day${A.days.length === 1 ? "" : "s"}.${found.notes ? ` <span class="porg">${esc(found.notes)}</span>` : ""}</p>` : "";
+  // Offered only before any times are saved: after that the boxes are Andrew's,
+  // and one click must not quietly put the agenda's times back over his.
+  const offerFill = found?.days.length && !saved.size;
+  const tbd = !ev.venue || /^(tbd|tba|to be (determined|announced))$/i.test(ev.venue.trim());
+  const venueOffer = found?.venue && tbd
+    ? `<div class="note" style="margin:12px 0 0">The agenda gives the venue as <b>${esc(found.venue)}</b>${found.address ? `, ${esc(found.address)}` : ""}.
+        <button class="mini gold" id="ag-venue" style="margin-left:6px">Use it as the venue</button></div>` : "";
+  const rows = (A.days ?? []).map((d, i) => {
+    const s0 = saved.get(d) ?? {};
+    return `<div class="agrow" data-agday="${d}">
+      <div class="agday"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b><small>day ${i + 1}</small></div>
+      <div><label for="ag-s${i}">Starts</label><input type="time" id="ag-s${i}" data-ag="start" value="${toBox(s0.start)}"></div>
+      <div><label for="ag-e${i}">Ends</label><input type="time" id="ag-e${i}" data-ag="end" value="${toBox(s0.end)}"></div>
+      <div class="agwhere"><label for="ag-w${i}">Room <span class="porg">(optional)</span></label><input id="ag-w${i}" data-ag="where" maxlength="60" value="${esc(s0.where ?? "")}" placeholder="e.g. Salon A"></div>
+    </div>`;
+  }).join("");
+  return `<div class="card">
+    <div class="card-head"><div><h2>Agenda and daily times</h2>
+      <div class="s">The times each day starts and ends go into letters as {schedule}. A letter set to attach the agenda carries this file.</div></div>
+      <div class="cardacts"><button class="mini${f ? "" : " gold"}" id="ag-up">${f ? "Replace the agenda" : "Upload the agenda"}</button>
+        <input type="file" id="ag-file" accept="application/pdf,.pdf" hidden></div></div>
+    <div class="card-body">
+      <div class="agfile">${fileLine}${f ? `<div class="agbtns"><button class="mini ghost" id="ag-open">Open</button><button class="mini ghost" id="ag-del">Remove</button></div>` : ""}</div>
+      ${reading}${venueOffer}
+      ${A.days?.length ? `<div class="agrows">${rows}</div>
+        <div class="actions" style="justify-content:flex-start;margin-top:12px">
+          <button class="btn btn-gold" id="ag-save" style="padding:9px 20px;font-size:14px">Save the times</button>
+          ${offerFill ? `<button class="mini" id="ag-fill">Fill in what Claude found</button>` : ""}
+          <span class="hint" id="ag-said" style="align-self:center"></span></div>`
+        : `<p class="hint">Set the training dates on Edit first.</p>`}
+    </div></div>`;
+}
+
+let AGENDA_POLL = null;
+function wireAgenda(ev, A) {
+  clearTimeout(AGENDA_POLL);
+  if (!A) return;
+  const q = `/agenda?event=${encodeURIComponent(ev.id)}`;
+  const said = (t, bad = false) => { const el = document.getElementById("ag-said"); if (el) { el.textContent = t; el.style.color = bad ? "var(--late)" : ""; } };
+  const up = document.getElementById("ag-up"), file = document.getElementById("ag-file");
+  if (up && file) {
+    up.onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files?.[0];
+      file.value = "";
+      if (!f) return;
+      up.disabled = true; up.textContent = "Uploading…";
+      try {
+        const res = await fetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
+        render();
+      } catch (e) { toast(e.message); up.disabled = false; up.textContent = A.file ? "Replace the agenda" : "Upload the agenda"; }
+    };
+  }
+  const open = document.getElementById("ag-open");
+  if (open) open.onclick = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error("The agenda could not be opened.");
+      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+    } catch (err) { toast(err.message); }
+  };
+  const del = document.getElementById("ag-del");
+  if (del) del.onclick = async () => {
+    if (!confirm("Take the agenda off this event? The saved times stay.")) return;
+    try { await api(q, { method: "DELETE" }); render(); } catch (e) { toast(e.message); }
+  };
+  const again = document.getElementById("ag-again");
+  if (again) again.onclick = async () => { try { await api(`${q}&again=1`, { method: "POST" }); render(); } catch (e) { toast(e.message); } };
+  // While Claude reads, look again every few seconds; redraw once it is done.
+  if (A.read?.state === "reading") {
+    const tick = async () => {
+      if (view.name !== "event" || view.eventId !== ev.id) return;
+      const now = await api(q).catch(() => null);
+      if (now && now.read?.state !== "reading") render(); else AGENDA_POLL = setTimeout(tick, 3000);
+    };
+    AGENDA_POLL = setTimeout(tick, 3000);
+  }
+  const fill = document.getElementById("ag-fill");
+  if (fill) fill.onclick = () => {
+    for (const d of A.read.found.days) {
+      const row = document.querySelector(`[data-agday="${d.date}"]`);
+      if (!row) continue;
+      row.querySelector('[data-ag="start"]').value = toBox(d.start);
+      row.querySelector('[data-ag="end"]').value = toBox(d.end);
+      row.querySelector('[data-ag="where"]').value = d.where || "";
+    }
+    said("Filled in from the agenda. Check them, then save.");
+  };
+  const venue = document.getElementById("ag-venue");
+  if (venue) venue.onclick = async () => {
+    try { await api(q, { method: "PUT", body: JSON.stringify({ schedule: A.schedule ?? [], venue: A.read.found.venue }) }); toast("Venue set."); render(); }
+    catch (e) { toast(e.message); }
+  };
+  const save = document.getElementById("ag-save");
+  if (save) save.onclick = async () => {
+    const schedule = [...document.querySelectorAll("[data-agday]")].map((row) => ({
+      date: row.dataset.agday,
+      start: row.querySelector('[data-ag="start"]').value,
+      end: row.querySelector('[data-ag="end"]').value,
+      where: row.querySelector('[data-ag="where"]').value,
+    }));
+    save.disabled = true; said("Saving…");
+    try { await api(q, { method: "PUT", body: JSON.stringify({ schedule }) }); toast("Times saved."); render(); }
+    catch (e) { said(e.message, true); save.disabled = false; }
+  };
+}
+
 /** Who is coming to this event, however they got on the list. */
 function attendeesCard(ev, guests) {
   if (!guests) {
@@ -2914,6 +3069,8 @@ function lettersScreen(data, events, pickId = null) {
       <div class="field" style="margin:0"><label for="l-blink">Button goes to</label>
         <input id="l-blink" value="${esc(l?.buttonLink ?? "")}" placeholder="{surveyLink}"></div>
     </div>
+    <label class="attest" style="margin-top:14px"><input type="checkbox" id="l-agenda"${l?.attachAgenda ? " checked" : ""}>
+      <span>Attach the event's agenda. Upload it under Agenda on the event page; the letter will not go to an event without one.</span></label>
     <div class="actions">
       <button class="btn btn-gold" id="l-save">${l?.id ? "Save the letter" : "Save as a new letter"}</button>
       ${l?.id ? `<button class="btn btn-ghost" id="l-del">Delete</button>` : ""}
@@ -2950,6 +3107,7 @@ function lettersScreen(data, events, pickId = null) {
     buttonLabel: document.getElementById("l-blabel").value,
     buttonLink: document.getElementById("l-blink").value,
     onlyFor: document.getElementById("l-only").value,
+    attachAgenda: document.getElementById("l-agenda").checked,
   });
 
   let timer = null, seq = 0;
@@ -2970,6 +3128,7 @@ function lettersScreen(data, events, pickId = null) {
           : out.to
           ? `Goes to <b>${out.to.count}</b> ${out.to.count === 1 ? "person" : "people"} on this event${out.when ? `, on <b>${esc(fmtDate(out.when))}</b>` : ""}. Shown addressed to ${esc(out.to.sample)}.`
           : esc(out.note ?? "");
+        if (out.attached?.length) document.getElementById("l-meta").innerHTML += `<br>Attached: <b>${out.attached.map((a) => esc(a.name)).join(", ")}</b>`;
         if (out.html) document.getElementById("l-frame").srcdoc = out.html;
         const ev = events.find((e) => e.id === eventId);
         const to = document.getElementById("l-to");
@@ -2982,7 +3141,7 @@ function lettersScreen(data, events, pickId = null) {
 
   function wire() {
     let lastBox = document.getElementById("l-body");
-    for (const id of ["l-name", "l-kind", "l-subject", "l-only", "l-body", "l-blabel", "l-blink"]) {
+    for (const id of ["l-name", "l-kind", "l-subject", "l-only", "l-body", "l-blabel", "l-blink", "l-agenda"]) {
       const el = document.getElementById(id);
       el.addEventListener("input", () => { dirty = true; refresh(); });
       el.addEventListener("change", () => { dirty = true; refresh(); });
@@ -3777,16 +3936,17 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests, rooming, contract] = await Promise.all([
+      const [data, materials, checklist, guests, rooming, contract, agenda] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/attendees?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/agenda?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
-      return eventScreen({ ...data, materials, checklist, guests, rooming, contract });
+      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);

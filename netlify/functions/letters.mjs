@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
-import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents } from "./lib/store.mjs";
-import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter } from "./lib/letters.mjs";
+import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents, getAgenda } from "./lib/store.mjs";
+import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor } from "./lib/letters.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -76,6 +76,8 @@ function clean(body) {
     buttonLabel: text(body.buttonLabel, 60),
     buttonLink: text(body.buttonLink, 800),
     onlyFor: text(body.onlyFor, 80),
+    // The welcome letter can carry the event's agenda (uploaded on the event page).
+    attachAgenda: body.attachAgenda === true,
   };
 }
 
@@ -124,6 +126,7 @@ async function preview(body) {
     subject: mail.subject, html: mail.html, text: mail.text,
     to: { count, sample: real ? `${person.first || ""} ${person.last || ""}`.trim() || "the first attendee" : "a sample person" },
     when: due.on ?? null, whenNote: due.due ? "due now" : due.why,
+    attached: letter.attachAgenda && event.agendaFile ? [{ name: event.agendaFile.name, size: event.agendaFile.size }] : [],
     off: event.attendeeMail !== true,
   });
 }
@@ -139,7 +142,8 @@ async function testSend(body) {
   if (problems.length) return fail(`Not sending a test with problems in it: ${problems[0]}`, 422);
   const { person } = await sampleFor(event);
   const mail = renderLetter(letter, event, person);
-  const out = await sendMail({ to, ...mail, subject: `[TEST] ${mail.subject}` });
+  const attachments = await attachmentsFor(letter, event, getAgenda);
+  const out = await sendMail({ to, ...mail, subject: `[TEST] ${mail.subject}`, attachments });
   if (out.skipped) return fail(`The test could not be sent: ${out.reason}`, 503);
   return json({ ok: true, to, id: out.id ?? null });
 }

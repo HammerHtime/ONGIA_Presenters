@@ -201,6 +201,24 @@ export async function contractInfo(eventId) {
 export const getContractRead = (eventId) => read(`contractread:${eventId}`);
 export const putContractRead = (eventId, value) => write(`contractread:${eventId}`, value);
 
+/**
+ * An event's agenda, as uploaded: kept so it can be attached to the welcome
+ * letter and read again. Claude's reading of it is its own small record, the
+ * same as a contract's.
+ */
+export async function putAgenda(eventId, bytes, meta) {
+  await store().set(`agenda:${eventId}`, bytes, { metadata: meta });
+}
+
+export async function getAgenda(eventId) {
+  const got = await store().getWithMetadata(`agenda:${eventId}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, name: got.metadata?.name ?? "agenda.pdf", size: got.metadata?.size ?? got.data.byteLength, uploadedAt: got.metadata?.uploadedAt ?? null };
+}
+
+export const getAgendaRead = (eventId) => read(`agendaread:${eventId}`);
+export const putAgendaRead = (eventId, value) => write(`agendaread:${eventId}`, value);
+
 /** Remove a key outright — used when an event or presenter is deleted. */
 export const deleteKey = (key) => store().delete(key);
 

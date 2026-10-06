@@ -227,7 +227,8 @@ async function deleteEvent(id) {
       deleteKey(`headshot:${id}:${p.id}`),
     ]);
   }
-  await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`)]);
+  await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
+    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length });

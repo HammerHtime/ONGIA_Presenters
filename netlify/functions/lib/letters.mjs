@@ -50,6 +50,26 @@ for (let n = 1; n <= 7; n++) {
   BLANKS[`day${n}`] = { means: `day ${n} of the event, e.g. "Monday, September 28"`, from: (e) => dayOfEvent(e, n), day: n };
 }
 
+/**
+ * Each training day's times, from the schedule saved on the event (the agenda
+ * card on the event page). One line per day: "Tuesday, February 16: 8:30 AM to
+ * 4:30 PM, Salon A". Only days the training actually has are used.
+ */
+export function scheduleLines(e) {
+  const first = e?.dayOne, last = e?.lastDay && e.lastDay >= e?.dayOne ? e.lastDay : first;
+  if (!first) return [];
+  return (e.schedule ?? []).filter((d) => d.date >= first && d.date <= last).map((d) => {
+    const n = Math.round((Date.parse(d.date) - Date.parse(first)) / 86400000) + 1;
+    const times = d.start && d.end ? `${d.start} to ${d.end}` : d.start ? `starts ${d.start}` : d.end ? `ends ${d.end}` : "";
+    return { day: dayOfEvent(e, n), what: [times, d.where].filter(Boolean).join(", ") };
+  }).filter((x) => x.what);
+}
+BLANKS.schedule = {
+  means: "each training day's start and end times and room, from the times saved under Agenda on the event",
+  from: (e) => scheduleLines(e).map((x) => `${x.day}: ${x.what}`).join("; "),
+  block: true,
+};
+
 export function datesOf(e) {
   if (!e?.dayOne) return "";
   if (!e.lastDay || e.lastDay === e.dayOne) return formatDate(e.dayOne);
@@ -89,9 +109,16 @@ export function eventProblems(letter, event) {
     return [`This letter is only for events with "${String(letter.onlyFor).trim()}" in the title, and ${event.title || "this event"} is not one.`];
   }
   const all = `${letter.subject ?? ""}\n${letter.body ?? ""}\n${letter.buttonLink ?? ""}`;
+  if (letter.attachAgenda && !event.agendaFile) {
+    out.push(`This letter attaches the agenda, and ${event.title || "this event"} has no agenda uploaded. Upload it under Agenda on the event page.`);
+  }
   for (const [, name] of all.matchAll(BLANK)) {
     const b = BLANKS[name];
     if (!b || b.optional) continue;
+    if (name === "schedule" && !scheduleLines(event).length) {
+      out.push(`Uses {schedule}, and ${event.title || "this event"} has no times saved yet. Add them under Agenda on the event page.`);
+      continue;
+    }
     if (b.day && b.day > lengthOf(event)) {
       out.push(`Uses {${name}}, but ${event.title || "this event"} only runs ${lengthOf(event)} day${lengthOf(event) === 1 ? "" : "s"}.`);
       continue;
@@ -139,6 +166,7 @@ function htmlOf(text, event, person) {
  * Anything else is an ordinary paragraph, with its line breaks kept.
  */
 const BULLET = /^\s*[*\-•]\s+/;
+const SCHEDULE = /^\s*\{schedule\}\s*$/;
 const DAYLINE = /^\s*\{day[1-7]\}\s*$/;
 const isCaps = (line) => /[A-Z]{3}/.test(line) && !/[a-z]/.test(line.replace(BLANK, "")) && line.trim().length <= 60;
 
@@ -146,6 +174,7 @@ function blocksOf(body) {
   return String(body ?? "").replace(/\r/g, "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
     const lines = p.split("\n").map((l) => l.trimEnd());
     if (lines.length === 1 && isCaps(lines[0]) && !BULLET.test(lines[0])) return { type: "heading", text: lines[0].trim() };
+    if (lines.length === 1 && SCHEDULE.test(lines[0])) return { type: "schedule" };
     // Split the block into runs of bullets and runs of ordinary lines.
     const runs = [];
     for (const line of lines) {
@@ -169,6 +198,9 @@ const H = {
 function bodyHtmlOf(body, event, person) {
   return blocksOf(body).map((b) => {
     if (b.type === "heading") return `<h2 style="${H.heading}">${htmlOf(b.text, event, person)}</h2>`;
+    if (b.type === "schedule") {
+      return scheduleLines(event).map((x) => `<p style="${H.p}"><strong style="${H.day}">${esc(x.day)}</strong>${esc(x.what)}</p>`).join("");
+    }
     return b.runs.map((run) => {
       if (run.bullet) return `<ul style="${H.ul}">${run.lines.map((l) => `<li style="${H.li}">${htmlOf(l, event, person)}</li>`).join("")}</ul>`;
       const parts = run.lines.map((l) => (DAYLINE.test(l) ? `<strong style="${H.day}">${htmlOf(l.trim(), event, person)}</strong>` : htmlOf(l, event, person)));
@@ -184,8 +216,21 @@ function bodyHtmlOf(body, event, person) {
 function bodyTextOf(body, event, person) {
   return blocksOf(body).map((b) => {
     if (b.type === "heading") return fill(b.text, event, person, { html: false }).toUpperCase();
+    if (b.type === "schedule") return scheduleLines(event).map((x) => `${x.day}\n${x.what}`).join("\n\n");
     return b.runs.map((run) => run.lines.map((l) => (run.bullet ? "  • " : "") + fill(l, event, person, { html: false })).join("\n")).join("\n");
   }).join("\n\n");
+}
+
+/**
+ * The files a letter carries for an event: the agenda, when the letter is set
+ * to attach it and the event has one. `getAgenda` is passed in so this file
+ * stays free of storage; a sender fetches the file once for a whole round.
+ */
+export async function attachmentsFor(letter, event, getAgenda) {
+  if (!letter?.attachAgenda || !event?.agendaFile) return [];
+  const doc = await getAgenda(event.id);
+  if (!doc) return [];
+  return [{ filename: doc.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" }];
 }
 
 /** The finished email for one person. */
@@ -205,9 +250,9 @@ export function renderLetter(letter, event, person) {
 }
 
 /**
- * Where a desk starts. Deliberately nothing in them that only Andrew knows —
- * no start times, no parking, no room numbers. He adds those; until he does, a
- * bracketed note stops the letter going.
+ * Where a desk starts. Nothing in them that only Andrew knows: the times come
+ * from the event's saved schedule, the dress code is his (6 Oct 2026: "Dress
+ * code is business casual"), and the welcome letter carries the agenda.
  */
 export const STARTER_LETTERS = [
   {
@@ -216,14 +261,20 @@ export const STARTER_LETTERS = [
     subject: "Welcome to {event}",
     body: [
       "Hello {first},",
-      "Thank you for registering for {event}. We're glad you're coming.",
-      "The training runs {dates} at {venue} in {city}.",
-      "[Add arrival time, parking and anything people should bring, then delete this line.]",
-      "If your plans change and you can't make it, reply to this email and let us know.",
+      "Thank you for registering for {event}. We're glad you're joining us in {city}.",
+      "WHEN AND WHERE",
+      "The training runs {dates} at {venue}.",
+      "{schedule}",
+      "The full agenda is attached.",
+      "DRESS CODE",
+      "Business casual.",
+      "QUESTIONS",
+      "If you have a question, or your plans change and you can't make it, reply to this email and let us know.",
       "See you in {city}.",
     ].join("\n\n"),
     buttonLabel: "",
     buttonLink: "",
+    attachAgenda: true,
   },
   {
     kind: "survey",

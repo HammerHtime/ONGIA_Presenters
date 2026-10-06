@@ -1,8 +1,8 @@
 import { todayIso } from "./deadlines.mjs";
-import { getAttendees, putAttendees, getLetter, getEvent, putEvent } from "./store.mjs";
+import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { checklistOf } from "./checklist.mjs";
-import { letterProblems, eventProblems, renderLetter } from "./letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attachmentsFor } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 
@@ -73,6 +73,11 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: letter.name };
   if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
 
+  // The agenda, if this letter carries it: fetched once for the whole round.
+  const attachments = await attachmentsFor(letter, event, getAgenda);
+  if (letter.attachAgenda && !attachments.length) {
+    return { event: event.id, title: event.title, kind, blocked: ["The letter attaches the agenda, and the agenda file could not be found. Upload it again."] };
+  }
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {
@@ -80,7 +85,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
     await pace();
     const mail = renderLetter(letter, event, person);
     try {
-      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...mail });
+      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...mail, attachments });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       person.sent = [...(person.sent ?? []), kind];
       person.sentAt = { ...(person.sentAt ?? {}), [kind]: new Date().toISOString() };
