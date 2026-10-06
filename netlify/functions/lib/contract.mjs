@@ -58,11 +58,11 @@ const SYSTEM = `You read hotel group contracts for ONGIA, a Canadian non-profit 
 
 Date kinds:
 - cutoff: the last day attendees can book at the group rate, after which unbooked rooms are released (also called the cut-off, release or reservation deadline).
-- foodAndBev: when final food and beverage numbers, guarantees or menu choices are due.
+- foodAndBev: when the final food and beverage numbers (the guarantee) are due. A deadline for choosing menus is "other".
 - roomingList: when the rooming list or guest names are due to the hotel.
 - deposit and payment: when a deposit or payment is due.
 - attrition: when room pickup is reviewed, or the last day the block can be reduced without penalty.
-- cancellation: each date on which cancellation charges change.
+- cancellation: the first day of each new cancellation charge (one entry per change, not the last day of the old one).
 - other: any other date that needs action.
 
 For each date, quote the contract's own words in "quote" (one sentence at most) and give the page number if you can tell. Write "what" in plain English, under twelve words. When the contract gives a deadline relative to arrival ("30 days prior to arrival"), work out the calendar date from the contract's arrival date and say so in "what". Leave out the nights of the stay themselves and the date the contract was signed. Give the rate as written, including currency, room type and taxes if stated.
