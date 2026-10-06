@@ -371,6 +371,14 @@
   .hstrip .hs-ct{font-size:12.5px;color:var(--muted);margin-top:2px}
   .hstrip .hs-acts{display:flex;gap:6px;flex-wrap:wrap}
   .ctbox.flash{animation:ctflash 1.6s ease-out}
+  .spin{display:inline-block;width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--navy);border-radius:50%;
+    animation:spin .8s linear infinite;vertical-align:-3px;margin-right:9px;flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ctbusy{display:flex;align-items:center}
+  .ctbar{height:4px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:10px;position:relative}
+  .ctbar::after{content:"";position:absolute;top:0;bottom:0;width:30%;border-radius:4px;background:var(--gold);animation:ctsweep 1.6s ease-in-out infinite}
+  @keyframes ctsweep{0%{left:-30%}100%{left:100%}}
+  @media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}.ctbar::after{animation-duration:4s}}
   @keyframes ctflash{0%,40%{box-shadow:0 0 0 4px var(--gold)}100%{box-shadow:0 0 0 0 transparent}}
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
@@ -2244,7 +2252,7 @@ function hotelStrip(ev, C) {
   ].filter(Boolean);
   const read = C?.read, file = C?.file;
   const contract = !file ? "No contract uploaded"
-    : read?.state === "reading" ? `Reading ${esc(file.name)}…`
+    : read?.state === "reading" ? `<span class="spin" aria-hidden="true" style="width:12px;height:12px"></span>Claude is reading ${esc(file.name)}…`
     : read?.state === "done" ? `Contract read ${esc(fmtDate(read.at.slice(0, 10)))}`
     : `Contract on file`;
   return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}<div class="hs-ct">${contract}</div></div>
@@ -2986,8 +2994,10 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
           deadlines in it. You check every one before anything is saved.</p>
         <button type="button" class="mini" data-ct="pick">Upload the contract (PDF)</button>`;
     } else if (r?.state === "reading") {
-      html = `<div class="cthead"><b>Reading ${esc(r.name || file?.name || "the contract")}…</b></div>
-        <p class="hint" style="margin:4px 0 0">This usually takes under a minute. You can carry on with the form.</p>`;
+      html = `<div class="cthead ctbusy"><span class="spin" aria-hidden="true"></span><b>Claude is reading ${esc(r.name || file?.name || "the contract")}…</b>
+          <span class="hint" style="margin-left:8px" id="ct-clock" data-since="${esc(r.startedAt ?? "")}"></span></div>
+        <div class="ctbar" role="progressbar" aria-label="Reading the contract"></div>
+        <p class="hint" style="margin:8px 0 0" id="ct-slow">This usually takes under a minute. You can carry on with the form.</p>`;
     } else {
       html = `<div class="cthead"><b>${esc(file?.name ?? "Hotel contract")}</b>${file?.uploadedAt ? ` <span class="ctlinks">· uploaded ${esc(when(file.uploadedAt))}</span>` : ""}</div>
         <div class="ctlinks" style="margin-top:2px">${links(st)}</div>`;
@@ -3011,6 +3021,26 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
     wire();
     // Keep asking while it reads — but only while this form is still on screen.
     if (r?.state === "reading") timer = setTimeout(() => { if (document.body.contains(body)) load(); }, 3000);
+    tick();
+  };
+
+  // The time since Claude started, ticking each second, so a long read never looks frozen.
+  let clock = null;
+  const tick = () => {
+    clearInterval(clock);
+    const el = body.querySelector("#ct-clock");
+    if (!el || !el.dataset.since) return;
+    const show = () => {
+      if (!document.body.contains(el)) return clearInterval(clock);
+      const s = Math.max(0, Math.round((Date.now() - Date.parse(el.dataset.since)) / 1000));
+      el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+      const slow = body.querySelector("#ct-slow");
+      if (slow && s >= 90) slow.textContent = ev
+        ? "Still reading. A long or scanned contract can take a few minutes. You can carry on with the form, or leave and come back: the dates will be waiting."
+        : "Still reading. A long or scanned contract can take a few minutes. Keep this page open and carry on with the form; the dates appear here when Claude is done.";
+    };
+    show();
+    clock = setInterval(show, 1000);
   };
 
   const load = async () => {
@@ -3022,7 +3052,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
     if (!f) return;
     if (newBox) newBox.hidden = false;
     if (f.size > 5 * 1024 * 1024) { toast("That file is over 5 MB. Save a smaller copy of the PDF and try again."); return; }
-    body.innerHTML = `<div class="cthead"><b>Uploading ${esc(f.name)}…</b></div>`;
+    body.innerHTML = `<div class="cthead ctbusy"><span class="spin" aria-hidden="true"></span><b>Uploading ${esc(f.name)}…</b></div><div class="ctbar"></div>`;
     try {
       draw(await api(q, { method: "POST", body: f, headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) } }));
     } catch (e) { toast(e.message); load(); }
