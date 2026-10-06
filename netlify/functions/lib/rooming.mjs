@@ -21,6 +21,12 @@ const nights = (a, b) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) 
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ""));
 const shift = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
 
+/** A name compared the way a person reads it: case, accents, spacing and punctuation do not count. */
+export const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, " ").trim();
+
+/** Whether a name is on the board roster (a list of names). */
+export const onBoard = (name, board = []) => Boolean(sameName(name)) && board.some((b) => sameName(b) === sameName(name));
+
 /** Who a room is for. Andrew's four, in his order (6 Oct 2026). */
 export const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
 
@@ -47,7 +53,7 @@ export function guestWindow(event) {
   return { from: shift(event.dayOne, -GUEST_SPAN), to: shift(last, GUEST_SPAN) };
 }
 
-export function roomingRows(event, presenters, guests = event.roomingGuests ?? []) {
+export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = []) {
   const rows = [], waiting = [];
   for (const p of presenters) {
     const name = `${p.first ?? ""} ${p.last ?? ""}`.trim() || p.email;
@@ -71,6 +77,9 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
     rows.push({ key: g.id, who: "guest", type: g.type ?? null, name: g.name, organization: g.note ?? "",
       checkIn: g.checkIn, checkOut: g.checkOut, nights: nights(g.checkIn, g.checkOut), billing: g.billing, confirmed: true });
   }
+  // Anyone on the ONGIA board is ONGIA's to pay for, always (Andrew, 6 Oct 2026),
+  // whatever an agreement, a spreadsheet or the form said.
+  for (const r of rows) if (onBoard(r.name, board)) { r.billing = "ONGIA"; r.board = true; }
   rows.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.name.localeCompare(b.name));
   return { rows, waiting };
 }
@@ -241,7 +250,6 @@ const who = (v) => {
   if (/guest|self|own|personal|attendee|them|they|individual/.test(s)) return { billing: "Guest" };
   return { problem: `"${v}" under Who pays: write ONGIA or Guest` };
 };
-const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, " ").trim();
 
 /**
  * Read a sheet of rooms. Nothing is saved here: it says who would be added,
@@ -249,7 +257,7 @@ const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/
  * is left out — by name, against the presenters from their agreements, the
  * people added before, and earlier rows of the same sheet.
  */
-export function readRoomsCsv(raw, { win = null, onList = [] } = {}) {
+export function readRoomsCsv(raw, { win = null, onList = [], board = [] } = {}) {
   const table = parseCsv(raw);
   if (!table.length) return { problem: "The file is empty." };
   const cols = {};
@@ -277,11 +285,12 @@ export function readRoomsCsv(raw, { win = null, onList = [] } = {}) {
     if (b.problem) why.push(`check-out: ${b.problem}`);
     if (a.date && b.date && b.date <= a.date) why.push("check-out is not after check-in");
     if (win && a.date && b.date && (a.date < win.from || b.date > win.to)) why.push(`dates must be between ${formatDate(win.from)} and ${formatDate(win.to)}`);
-    const pays = who(cell("billing"));
+    // A board member is ONGIA's to pay for whatever the sheet says.
+    const pays = onBoard(name, board) ? { billing: "ONGIA", board: true } : who(cell("billing"));
     if (pays.problem) why.push(pays.problem);
     if (why.length) { problems.push({ line, name, why: why.join("; ") }); return; }
     seen.set(sameName(name), `already in this sheet, row ${line}`);
-    add.push({ name, type, checkIn: a.date, checkOut: b.date, billing: pays.billing, note: cell("note").slice(0, 120) });
+    add.push({ name, type, checkIn: a.date, checkOut: b.date, billing: pays.billing, note: cell("note").slice(0, 120), ...(pays.board ? { board: true } : {}) });
   });
   return { add, problems, skipped };
 }

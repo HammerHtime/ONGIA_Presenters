@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, isEmail, text } from "./lib/http.mjs";
-import { getEvent, putEvent, listPresenters } from "./lib/store.mjs";
-import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv } from "./lib/rooming.mjs";
+import { getEvent, putEvent, listPresenters, getRoster } from "./lib/store.mjs";
+import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -28,7 +28,9 @@ export default async (req) => {
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
   const body = ["POST", "PUT"].includes(req.method) ? await req.json().catch(() => ({})) : null;
-  const { rows, waiting } = roomingRows(event, await listPresenters(event.id));
+  // The board roster's names: anyone on it is always ONGIA's to pay for.
+  const board = ((await getRoster()) ?? []).map((m) => m.name).filter(Boolean);
+  const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
   const pick = (keys) => (Array.isArray(keys) ? rows.filter((r) => keys.includes(r.key)) : rows.filter((r) => r.confirmed));
 
   if (req.method === "GET") {
@@ -38,7 +40,7 @@ export default async (req) => {
       const name = `rooming-list-${event.title.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.csv`;
       return new Response(mail.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
     }
-    return json(state(event, rows, waiting));
+    return json(state(event, rows, waiting, board));
   }
 
   if (req.method === "PUT") {
@@ -48,16 +50,17 @@ export default async (req) => {
     for (const g of (Array.isArray(body?.guests) ? body.guests : []).slice(0, MAX_GUESTS)) {
       const { guest, problem } = cleanGuest(g, () => token(10), win, had.get(g?.id));
       if (problem) return fail(problem);
+      if (onBoard(guest.name, board)) guest.billing = "ONGIA";
       out.push(guest);
     }
     event.roomingGuests = out;
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id));
-    return json(state(event, again.rows, again.waiting));
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    return json(state(event, again.rows, again.waiting, board));
   }
 
   if (req.method === "POST" && url.searchParams.get("upload")) {
-    const read = readRoomsCsv(String(body?.csv ?? ""), { win: guestWindow(event), onList: rows.map((r) => r.name) });
+    const read = readRoomsCsv(String(body?.csv ?? ""), { win: guestWindow(event), onList: rows.map((r) => r.name), board });
     if (read.problem) return fail(read.problem);
     if (!url.searchParams.get("save")) return json({ ...read, window: guestWindow(event) });
     const room = MAX_GUESTS - (event.roomingGuests ?? []).length;
@@ -66,12 +69,13 @@ export default async (req) => {
     for (const g of read.add) {
       const { guest, problem } = cleanGuest(g, () => token(10), guestWindow(event));
       if (problem) return fail(problem);                  // cannot happen after readRoomsCsv; refuse rather than half-save
+      if (onBoard(guest.name, board)) guest.billing = "ONGIA";
       fresh.push(guest);
     }
     event.roomingGuests = [...(event.roomingGuests ?? []), ...fresh];
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id));
-    return json({ ok: true, added: fresh.length, problems: read.problems, skipped: read.skipped, ...state(event, again.rows, again.waiting) });
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    return json({ ok: true, added: fresh.length, problems: read.problems, skipped: read.skipped, ...state(event, again.rows, again.waiting, board) });
   }
 
   if (req.method === "POST") {
@@ -100,19 +104,21 @@ export default async (req) => {
       const job = (event.tasks ?? []).find((t) => !t.done && !t.na && /hotel/i.test(t.what) && /name|rooming/i.test(t.what));
       if (job) { job.done = true; job.doneAt = now; job.doneBy = "rooming list emailed"; }
       await putEvent(event);
-      return json({ ok: true, to, rows: chosen.length, ticked: job?.what ?? null, ...state(event, rows, waiting) });
+      return json({ ok: true, to, rows: chosen.length, ticked: job?.what ?? null, ...state(event, rows, waiting, board) });
     }
   }
   return fail("Method not allowed.", 405);
 };
 
-function state(event, rows, waiting) {
+function state(event, rows, waiting, board = []) {
   const sent = event.roomingSent ?? null;
   return {
     rows, waiting,
     guests: event.roomingGuests ?? [],
     // The only dates the desk offers for a guest's check-in and check-out.
     window: guestWindow(event),
+    // Board names, offered as the name is typed; ONGIA always pays for them.
+    board,
     hotel: { name: event.hotel?.name ?? "", contact: event.hotel?.contact ?? "" },
     sent: sent ? { at: sent.at, to: sent.to, count: sent.rows.length } : null,
     changes: sent ? changesSince(sent.rows, rows.filter((r) => r.confirmed)) : null,

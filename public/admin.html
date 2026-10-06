@@ -396,6 +396,17 @@
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
   .gform{display:grid;grid-template-columns:2fr 1.3fr 1fr 1.2fr 1.2fr auto;gap:8px;align-items:end;margin-top:10px}
+  .room .gedit{border:1px solid var(--border);background:var(--card);color:var(--ink-mid);cursor:pointer;font:inherit;
+               font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;margin-left:4px;vertical-align:1px}
+  .room .gedit:hover{border-color:var(--navy);color:var(--navy)}
+  .geacts{justify-content:space-between}
+  .gekeep{display:flex;gap:8px}
+  /* On a phone: Save first and full width, Remove last, out of the thumb's way. */
+  @media (max-width:560px){
+    .geacts{flex-direction:column-reverse;align-items:stretch;gap:12px}
+    .gekeep{display:grid;grid-template-columns:1fr 2fr}
+    #gedlg .row2{gap:0}
+  }
   .gsheet{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
   .gread{margin-top:10px;font-size:13.5px;line-height:1.55}
   .gread ul{margin:4px 0 8px;padding-left:20px}
@@ -404,7 +415,9 @@
   @media (max-width:640px){
     .room{grid-template-columns:auto 1fr auto}
     .room .rd{grid-column:2/-1;text-align:left}
-    .room .rb{grid-column:3;grid-row:1}
+    /* The pay pill under the dates, so the name has the row's full width. */
+    .room .rb{grid-column:2/-1;grid-row:3;justify-self:start}
+    .room .rn{grid-column:2/-1}
     .gform{grid-template-columns:1fr 1fr}
     .gform .gname{grid-column:1/-1}
   }
@@ -1937,7 +1950,7 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
-    + roomingCard(ev, rooming, contract) + roomingDialog()
+    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog()
     + checklistCard(ev, checklist) + jobDialog()
     + attendeesCard(ev, guests) + wixDialog();
 
@@ -2339,6 +2352,9 @@ function hotelStrip(ev, C) {
       <button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
 }
 
+/** Names compared the way the server compares them: case, accents and spacing do not count. */
+const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, " ").trim();
+
 /** Who a room is for — the same four the server takes, in Andrew's order. */
 const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
 
@@ -2347,12 +2363,27 @@ const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
  * three days after it. A check-in can't be the last of them, nor a check-out
  * the first. Nothing is picked until Andrew picks it.
  */
-function guestDays(win, end) {
+function guestDays(win, end, ev, chosen = "") {
   if (!win) return `<option value="">Set the training dates first</option>`;
   const days = [];
   for (let d = win.from; d <= win.to; d = new Date(Date.parse(d) + 86400000).toISOString().slice(0, 10)) days.push(d);
   const offer = end === "in" ? days.slice(0, -1) : days.slice(1);
-  return `<option value="">Pick a date</option>` + offer.map((d) => `<option value="${d}">${esc(fmtDate(d))}</option>`).join("");
+  // The training days stand out in the list: grouped under their own heading
+  // and labelled, which every browser shows (a Mac will not colour a menu item;
+  // where a browser will, they are red as well).
+  const first = ev?.dayOne, last = ev?.lastDay && ev.lastDay >= ev.dayOne ? ev.lastDay : ev?.dayOne;
+  const n = (d) => Math.round((Date.parse(d) - Date.parse(first)) / 86400000) + 1;
+  const opt = (d) => {
+    const training = first && d >= first && d <= last;
+    return `<option value="${d}"${d === chosen ? " selected" : ""}${training ? ' style="color:#b3261e;font-weight:700"' : ""}>${esc(fmtDate(d))}${training ? ` · training day ${n(d)}` : ""}</option>`;
+  };
+  const group = (label, list) => (list.length ? `<optgroup label="${label}">${list.map(opt).join("")}</optgroup>` : "");
+  // A date saved earlier that is outside today's window is still shown, so an edit never quietly changes it.
+  const stray = chosen && !offer.includes(chosen) ? `<option value="${chosen}" selected>${esc(fmtDate(chosen))} (outside the window)</option>` : "";
+  return `<option value=""${chosen ? "" : " selected"}>Pick a date</option>${stray}`
+    + group("Before the training", offer.filter((d) => first && d < first))
+    + group("Training days", offer.filter((d) => first && d >= first && d <= last))
+    + group("After the training", offer.filter((d) => first && d > last));
 }
 
 function roomingCard(ev, R, C = null) {
@@ -2365,8 +2396,8 @@ function roomingCard(ev, R, C = null) {
     const [cls, word] = BILL[r.billing] ?? ["", r.billing];
     return `<label class="room${r.confirmed ? "" : " unconf"}">
       <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
-      <div class="rn">${esc(r.name)}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
-        r.who === "guest" ? "added on the desk" : "", esc(r.organization || "")].filter(Boolean).join(" · ")}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
+      <div class="rn">${esc(r.name)}${r.who === "guest" ? ` <button type="button" class="gedit" data-gedit="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>` : ""}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
+        esc(r.organization || "")].filter(Boolean).join(" · ")}${r.board ? " · on the board" : ""}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
       <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))}<small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
       <span class="rb ${cls}">${esc(word)}</span></label>`;
   };
@@ -2401,14 +2432,16 @@ function roomingCard(ev, R, C = null) {
           <div class="rd">${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}</div>
           <button class="mini ghost" data-rmdel="${esc(g.id)}">Remove</button></div>`).join("")}</div>
         <div class="gform">
-          <div class="gname"><label for="rg-name">Name</label><input id="rg-name" placeholder="Jacqulyn Taylor"></div>
+          <div class="gname"><label for="rg-name">Name</label><input id="rg-name" list="rg-board" autocomplete="off" placeholder="Start typing; board names are offered"></div>
+          <datalist id="rg-board">${(R.board ?? []).map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist>
           <div><label for="rg-type">Type</label><select id="rg-type"><option value="">Pick one</option>${GUEST_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></div>
           <div><label for="rg-bill">Who pays</label><select id="rg-bill"><option value="ONGIA">ONGIA</option><option value="Guest">The guest</option></select></div>
-          <div><label for="rg-in">Check-in</label><select id="rg-in">${guestDays(R.window, "in")}</select></div>
-          <div><label for="rg-out">Check-out</label><select id="rg-out">${guestDays(R.window, "out")}</select></div>
+          <div><label for="rg-in">Check-in</label><select id="rg-in">${guestDays(R.window, "in", ev)}</select></div>
+          <div><label for="rg-out">Check-out</label><select id="rg-out">${guestDays(R.window, "out", ev)}</select></div>
           <div><button class="mini" id="rg-add">Add</button></div>
         </div>
         <p class="hint" id="rg-said" style="margin:6px 0 0"></p>
+        <p class="hint" id="rg-boardnote" style="margin:4px 0 0" hidden>On the ONGIA board, so ONGIA pays.</p>
         <div class="gsheet"><button class="mini" id="rg-up">Upload a spreadsheet</button>
           <input type="file" id="rg-file" accept=".csv,text/csv,text/plain" hidden>
           <button class="mini ghost" id="rg-blank">Download the blank sheet</button></div>
@@ -2419,6 +2452,31 @@ function roomingCard(ev, R, C = null) {
       </details>
     </div></div>`;
 }
+
+/** Changing someone added on the desk: who they are, their nights, who pays. */
+const guestDialog = () => `<dialog class="sheet" id="gedlg" style="max-width:560px;width:calc(100% - 24px)">
+  <form method="dialog">
+    <div class="sheet-head"><h2>Change this room</h2></div>
+    <div class="sheet-body">
+      <div class="field"><label for="ge-name">Name</label><input id="ge-name" maxlength="120" autocomplete="off" list="rg-board"></div>
+      <div class="row2">
+        <div class="field"><label for="ge-type">Type</label><select id="ge-type"></select></div>
+        <div class="field"><label for="ge-bill">Who pays</label><select id="ge-bill"><option value="ONGIA">ONGIA</option><option value="Guest">The guest</option></select>
+          <p class="hint" id="ge-boardnote" style="margin:6px 0 0" hidden>On the ONGIA board, so ONGIA pays.</p></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="ge-in">Check-in</label><select id="ge-in"></select></div>
+        <div class="field"><label for="ge-out">Check-out</label><select id="ge-out"></select></div>
+      </div>
+      <div class="field"><label for="ge-note">Note (optional)</label><input id="ge-note" maxlength="120" autocomplete="off" placeholder="e.g. VP Operations"></div>
+      <p class="hint" id="ge-said" style="color:var(--late)"></p>
+      <div class="actions geacts">
+        <button class="btn btn-late" id="ge-del" type="button">Remove from the list</button>
+        <span class="gekeep"><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          <button class="btn btn-gold" id="ge-save" type="button">Save</button></span>
+      </div>
+    </div>
+  </form></dialog>`;
 
 const roomingDialog = () => `<dialog class="sheet" id="rmdlg" style="max-width:720px;width:calc(100% - 24px)">
   <form method="dialog">
@@ -2521,7 +2579,7 @@ function wireRooming(ev, R) {
         const types = GUEST_TYPES.map((t) => [t, out.add.filter((g) => g.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${n} ${t}${n === 1 ? "" : "s"}`).join(", ");
         box.innerHTML = `<div class="note gread" style="margin-top:12px">
           <b>${out.add.length} ${out.add.length === 1 ? "person" : "people"} to add</b>${types ? ` (${esc(types)})` : ""}.
-          ${out.add.length ? list(out.add, (g) => `${esc(g.name)} · ${esc(g.type)} · ${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}${g.billing === "Guest" ? " · guest pays" : ""}`) : ""}
+          ${out.add.length ? list(out.add, (g) => `${esc(g.name)} · ${esc(g.type)} · ${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}${g.board ? " · on the board, ONGIA pays" : g.billing === "Guest" ? " · guest pays" : ""}`) : ""}
           ${out.problems.length ? `<b style="color:var(--late)">${out.problems.length} row${out.problems.length === 1 ? "" : "s"} not added, fix ${out.problems.length === 1 ? "it" : "them"} in the sheet and upload again:</b>
             ${list(out.problems, (p) => `Row ${p.line}${p.name ? `, ${esc(p.name)}` : ""}: ${esc(p.why)}`)}` : ""}
           ${out.skipped.length ? `<b>${out.skipped.length} left out, already on the list:</b>${list(out.skipped, (p) => `Row ${p.line}, ${esc(p.name)} (${esc(p.why)})`)}` : ""}
@@ -2542,6 +2600,64 @@ function wireRooming(ev, R) {
       } catch (err) { box.innerHTML = `<div class="bad">${esc(err.message)}</div>`; }
     };
   }
+  // A board name always means ONGIA pays: the box says so and cannot be changed.
+  const boardLock = (nameId, billId, noteId) => {
+    const nameEl = document.getElementById(nameId), bill = document.getElementById(billId), note = document.getElementById(noteId);
+    if (!nameEl || !bill) return;
+    const check = () => {
+      const on = (R.board ?? []).some((n) => sameName(n) === sameName(nameEl.value) && sameName(n));
+      if (on) bill.value = "ONGIA";
+      bill.disabled = on;
+      if (note) note.hidden = !on;
+    };
+    nameEl.addEventListener("input", check);
+    check();
+    return check;
+  };
+  boardLock("rg-name", "rg-bill", "rg-boardnote");
+  const lockEdit = boardLock("ge-name", "ge-bill", "ge-boardnote");
+
+  // Edit someone added on the desk, from their row on the list.
+  const gd = document.getElementById("gedlg");
+  let editing = null;
+  document.querySelectorAll("[data-gedit]").forEach((b) => {
+    b.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();          // the row is a label: do not tick or untick it
+      const g = R.guests.find((x) => x.id === b.dataset.gedit);
+      if (!g || !gd) return;
+      editing = g.id;
+      document.getElementById("ge-name").value = g.name;
+      document.getElementById("ge-type").innerHTML = (g.type ? "" : `<option value="" selected>Pick one</option>`)
+        + GUEST_TYPES.map((t) => `<option${t === g.type ? " selected" : ""}>${t}</option>`).join("");
+      document.getElementById("ge-bill").value = g.billing === "Guest" ? "Guest" : "ONGIA";
+      document.getElementById("ge-in").innerHTML = guestDays(R.window, "in", ev, g.checkIn);
+      document.getElementById("ge-out").innerHTML = guestDays(R.window, "out", ev, g.checkOut);
+      document.getElementById("ge-note").value = g.note || "";
+      document.getElementById("ge-said").textContent = "";
+      lockEdit?.();
+      gd.showModal();
+    };
+  });
+  const geSave = document.getElementById("ge-save");
+  if (geSave) geSave.onclick = async () => {
+    const said = document.getElementById("ge-said");
+    const list = R.guests.map((g) => (g.id !== editing ? g : { ...g,
+      name: document.getElementById("ge-name").value, type: document.getElementById("ge-type").value,
+      billing: document.getElementById("ge-bill").value, checkIn: document.getElementById("ge-in").value,
+      checkOut: document.getElementById("ge-out").value, note: document.getElementById("ge-note").value }));
+    geSave.disabled = true;
+    try { await api(q, { method: "PUT", body: JSON.stringify({ guests: list }) }); gd.close(); toast("Saved."); render(); }
+    catch (err) { said.textContent = err.message; }
+    geSave.disabled = false;
+  };
+  const geDel = document.getElementById("ge-del");
+  if (geDel) geDel.onclick = async () => {
+    const g = R.guests.find((x) => x.id === editing);
+    if (!g || !confirm(`Take ${g.name} off the rooming list?`)) return;
+    try { await api(q, { method: "PUT", body: JSON.stringify({ guests: R.guests.filter((x) => x.id !== editing) }) }); gd.close(); render(); }
+    catch (err) { document.getElementById("ge-said").textContent = err.message; }
+  };
+
   // Who someone is can be changed in place: a slip in a spreadsheet, or a person saved before the four types.
   document.querySelectorAll("[data-rmtype]").forEach((sel) => {
     sel.onchange = () => saveGuests(R.guests.map((g) => (g.id === sel.dataset.rmtype ? { ...g, type: sel.value } : g)));
