@@ -764,8 +764,12 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-hnotes">Anything else from the contract</label>
           <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>
       </details>
-      <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink) ? " open" : ""}>
-        <summary>Letters to attendees</summary>
+      <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true)) ? " open" : ""}>
+        <summary>Emails to attendees</summary>
+        <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-amail"${!ev || ev.attendeeMail === true ? " checked" : ""}>
+          <span>Email this event's attendees from the desk: the welcome letter, the survey and the hotel reminders</span></label>
+        ${ev && ev.attendeeMail !== true ? `<p class="hint" style="margin:6px 0 0">Off: this event was on the desk before attendee emails existed, so none go
+          unless you tick this.</p>` : ""}
         <p class="hint" style="margin-top:10px">Pick which saved letter this event sends. The day each one goes is the
           date on the event's checklist — move the job there and the letter moves with it. "None" means it does not go.</p>
         <div class="row2" style="margin-top:12px">
@@ -797,6 +801,11 @@ function eventFormScreen(existing = null) {
     const hint = $("hotelhint"), cut = $("e-hcut"), link = $("e-hlink");
     if (!hint) return;
     const today = todayIso();
+    if ((cut.value || link.value.trim()) && !$("e-amail")?.checked) {
+      hint.innerHTML = "Emails to attendees are off for this event (see <b>Emails to attendees</b> below), so no hotel reminders go.";
+      hint.style.color = "var(--wait)";
+      return;
+    }
     if (!cut.value) {
       hint.innerHTML = link.value.trim()
         ? `Set the cut-off and attendees are reminded ${HOTEL_DAYS.join(", ")} days before it.`
@@ -815,6 +824,7 @@ function eventFormScreen(existing = null) {
     hint.innerHTML = parts.join(" ");
     hint.style.color = (!link.value.trim() || gone.length || after) ? "var(--wait)" : "";
   };
+  $("e-amail")?.addEventListener("change", showHotelHint);
   ["e-hcut", "e-hlink", "e-day1"].forEach((id) => {
     const el = $(id);
     if (el) el.addEventListener("input", showHotelHint);
@@ -974,6 +984,7 @@ function eventFormScreen(existing = null) {
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
       surveyLink: val("e-survey"),
+      attendeeMail: $("e-amail")?.checked === true,
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
@@ -2187,6 +2198,8 @@ function attendeesCard(ev, guests) {
 /** One line per automatic letter: which, when, to how many — or what is holding it back. */
 function lettersStrip(L) {
   if (!L) return "";
+  if (L.welcome?.off) return `<div class="lstrip"><div class="lrow"><b>Emails to attendees</b><span>off for this event — no welcome
+    letter, survey or hotel reminder goes. Edit the event to turn them on.</span></div></div>`;
   const row = (kind, label) => {
     const x = L[kind];
     if (!x?.chosen) return `<div class="lrow"><b>${label}</b><span>none chosen — edit the event to pick one, or it will not go</span></div>`;
@@ -2387,7 +2400,9 @@ function lettersScreen(data, events, pickId = null) {
         probs.innerHTML = out.problems?.length
           ? out.problems.map((p) => `<div>${esc(p)}</div>`).join("")
           : out.html ? `<div class="lok">Nothing wrong with it. This is exactly what goes out.</div>` : "";
-        document.getElementById("l-meta").innerHTML = out.to
+        document.getElementById("l-meta").innerHTML = out.off
+          ? `Emails to attendees are off for this event, so this would not go to its <b>${out.to?.count ?? 0}</b> ${(out.to?.count ?? 0) === 1 ? "person" : "people"}.`
+          : out.to
           ? `Goes to <b>${out.to.count}</b> ${out.to.count === 1 ? "person" : "people"} on this event${out.when ? `, on <b>${esc(fmtDate(out.when))}</b>` : ""}. Shown addressed to ${esc(out.to.sample)}.`
           : esc(out.note ?? "");
         if (out.html) document.getElementById("l-frame").srcdoc = out.html;

@@ -32,7 +32,10 @@ function jobFor(event, kind, today) {
 }
 
 /** Whether this kind of letter is due for an event today, and if not, why not. */
+export const MAIL_OFF = "emails to attendees are off for this event";
+
 export function letterDue(event, kind, today = todayIso()) {
+  if (event.attendeeMail !== true) return { due: false, why: MAIL_OFF };
   const letterId = event.letters?.[kind];
   if (!letterId) return { due: false, why: "no letter chosen for this event" };
   const job = jobFor(event, kind, today);

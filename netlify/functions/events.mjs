@@ -102,6 +102,11 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // The cut-off is what the attendee reminders count back from, so it is a
     // date on the event rather than a job on a checklist.
     hotel: cleanHotel(body.hotel, event.hotel),
+    // Whether the desk may email this event's attendees at all — welcome letter,
+    // survey, hotel reminders. Andrew (6 Oct 2026): only events he adds from now
+    // on, never the ones already on the desk unless he says so. So a new event
+    // starts on; one saved before the switch existed has none and stays off.
+    attendeeMail: body.attendeeMail === undefined ? (event.attendeeMail ?? creating) : body.attendeeMail === true,
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),

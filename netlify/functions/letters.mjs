@@ -124,6 +124,7 @@ async function preview(body) {
     subject: mail.subject, html: mail.html, text: mail.text,
     to: { count, sample: real ? `${person.first || ""} ${person.last || ""}`.trim() || "the first attendee" : "a sample person" },
     when: due.on ?? null, whenNote: due.due ? "due now" : due.why,
+    off: event.attendeeMail !== true,
   });
 }
 

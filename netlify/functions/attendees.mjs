@@ -66,6 +66,7 @@ async function letterStatus(event, stored) {
     const letter = id ? await getLetter(id) : null;
     const due = letterDue(event, kind);
     out[kind] = {
+      off: event.attendeeMail !== true,
       chosen: Boolean(letter),
       name: letter?.name ?? null,
       on: due.on ?? null,
