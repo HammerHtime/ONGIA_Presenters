@@ -366,6 +366,12 @@
   .room .rb.ongia{background:var(--navy);border-color:var(--navy);color:#fff}
   .room .rb.tbc{border-style:dashed;color:var(--wait)}
   .roomsent{font-size:13.5px;margin:0 0 10px}
+  .hstrip{display:flex;gap:10px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    background:var(--sunk);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13.5px}
+  .hstrip .hs-ct{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .hstrip .hs-acts{display:flex;gap:6px;flex-wrap:wrap}
+  .ctbox.flash{animation:ctflash 1.6s ease-out}
+  @keyframes ctflash{0%,40%{box-shadow:0 0 0 4px var(--gold)}100%{box-shadow:0 0 0 0 transparent}}
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
@@ -478,6 +484,18 @@
   .readback b{color:var(--navy)}
   .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
   .board{display:grid;gap:6px;margin-top:4px}
+  .bdrop{position:relative}
+  .bdrop>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1px solid var(--border);border-radius:12px;padding:11px 14px;background:var(--card);font-size:14px;min-height:22px}
+  .bdrop>summary::-webkit-details-marker{display:none}
+  .bdrop>summary::after{content:"▾";color:var(--muted);font-size:13px;flex:none}
+  .bdrop[open]>summary{border-color:var(--navy)} .bdrop[open]>summary::after{content:"▴"}
+  .bdrop>summary .none{color:var(--muted)} .bdrop>summary .ld{color:var(--gold);font-size:12px;font-weight:600;margin-left:3px}
+  .bdrop .bpanel{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:var(--card);border:1px solid var(--border);
+    border-radius:14px;box-shadow:0 14px 34px rgba(10,20,40,.2);padding:12px;max-height:min(420px,70vh);overflow:auto}
+  .bdrop .board{gap:4px}
+  .bdrop .member{padding:7px 11px}
+  .bdrop .member .em{display:none}
   .member{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--card);
     border:1px solid var(--border);border-radius:12px;padding:9px 12px;font-size:13.5px}
   .member .em{color:var(--muted);font-size:12px} .member.lead{border-color:var(--gold);background:var(--gold-pale)}
@@ -749,10 +767,17 @@ function eventFormScreen(existing = null) {
       </div>
       <div id="preview"></div>
       <div class="field"><label>Board members for this event</label>
-        <p class="hint" style="margin:0 0 6px">Tick everyone who should be kept informed. Mark one as <b>lead</b>: they are the ONGIA contact presenters see and reply to, and they review each agreement, set what ONGIA covers, confirm travel dates and sign.</p>
-        <div class="board" id="board">${boardRows(roster, ev?.board ?? [])}</div>
-        <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
-        <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
+        <details class="bdrop" id="bdrop">
+          <summary id="bsum"></summary>
+          <div class="bpanel">
+            <p class="hint" style="margin:0 0 8px">Tick everyone who should be kept informed. One is the <b>lead</b>: the ONGIA contact
+              presenters see and reply to, who reviews each agreement, sets what ONGIA covers, confirms travel dates and signs.</p>
+            <div class="board" id="board">${boardRows(roster, ev?.board ?? [])}</div>
+            <p class="hint" style="margin:8px 0 0"><a href="#" id="nb-toggle">Someone missing from this list? Add them</a></p>
+            <div class="addrow" id="nb-row" hidden><input id="nb-name" placeholder="Name"><input id="nb-email" type="email" placeholder="email@ongia.ca"><button class="mini" id="nb-add" type="button">Add to list</button></div>
+            <div style="text-align:right;margin-top:10px"><button class="mini solid" id="bdone" type="button">Done</button></div>
+          </div>
+        </details>
       </div>
       <div class="field"><label>Presenters reach</label>
         <p class="hint" id="cphonehint" style="margin:0"></p></div>
@@ -909,8 +934,22 @@ function eventFormScreen(existing = null) {
   }
   $("adv-toggle").onclick = (e) => { e.preventDefault(); const a = $("adv"); a.hidden = !a.hidden; if (!a.hidden) upload.focus(); };
 
-  // Board picker: tick to include, radio to make lead; ticking the first person makes them lead automatically.
-  const boardEl = $("board");
+  // Board picker: a closed box that names who is picked; open it to tick people
+  // and pick the lead. Ticking the first person makes them lead automatically.
+  const boardEl = $("board"), bdrop = $("bdrop");
+  const showBoardSummary = () => {
+    const picked = readBoard();
+    $("bsum").innerHTML = picked.length
+      ? `<span>${picked.map((m) => `${esc(m.name)}${m.lead ? `<span class="ld">lead</span>` : ""}`).join(", ")}</span>`
+      : `<span class="none">Choose the board members for this event</span>`;
+  };
+  const closeOutside = (e) => {
+    if (!bdrop.isConnected) return document.removeEventListener("click", closeOutside);
+    if (bdrop.open && !bdrop.contains(e.target)) bdrop.open = false;
+  };
+  document.addEventListener("click", closeOutside);
+  bdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") { bdrop.open = false; $("bsum").focus(); } });
+  $("bdone").onclick = () => { bdrop.open = false; };
   boardEl.addEventListener("change", (e) => {
     const rows = [...boardEl.querySelectorAll(".member")];
     if (e.target.type === "radio") rows.forEach((r) => { const on = r.querySelector(".pick"); if (r.querySelector("input[type=radio]").checked) on.checked = true; });
@@ -918,6 +957,7 @@ function eventFormScreen(existing = null) {
     if (!picked.some((r) => r.querySelector("input[type=radio]").checked) && picked[0]) picked[0].querySelector("input[type=radio]").checked = true;
     rows.forEach((r) => { const on = r.querySelector(".pick").checked; const radio = r.querySelector("input[type=radio]"); if (!on) radio.checked = false; r.classList.toggle("lead", radio.checked); radio.disabled = !on; });
     showLeadPhone();
+    showBoardSummary();
   });
   $("nb-toggle").onclick = (e) => { e.preventDefault(); const r = $("nb-row"); r.hidden = !r.hidden; if (!r.hidden) $("nb-name").focus(); };
   $("nb-add").onclick = async () => {
@@ -928,11 +968,14 @@ function eventFormScreen(existing = null) {
       ROSTER = out.members; roster.splice(0, roster.length, ...out.members);
       const chosen = readBoard();
       boardEl.innerHTML = boardRows(roster, [...chosen, { name, email, lead: !chosen.length }]);
-      $("nb-name").value = ""; $("nb-email").value = ""; showLeadPhone(); toast(`${name} added.`);
+      $("nb-name").value = ""; $("nb-email").value = ""; showLeadPhone(); showBoardSummary(); toast(`${name} added.`);
     } catch (e) { toast(e.message); }
   };
-  const readBoard = () => [...boardEl.querySelectorAll(".member")].filter((r) => r.querySelector(".pick").checked)
-    .map((r) => ({ name: r.dataset.name, email: r.dataset.email, phone: r.dataset.phone || "", lead: r.querySelector("input[type=radio]").checked }));
+  function readBoard() {
+    return [...boardEl.querySelectorAll(".member")].filter((r) => r.querySelector(".pick").checked)
+      .map((r) => ({ name: r.dataset.name, email: r.dataset.email, phone: r.dataset.phone || "", lead: r.querySelector("input[type=radio]").checked }));
+  }
+  showBoardSummary();
 
   // How far ahead each thing is wanted. ONGIA's defaults suit a national event;
   // a regional half-day can pull them in. The dates redraw as the numbers change.
@@ -1535,7 +1578,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1850,7 +1893,7 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
-    + roomingCard(ev, rooming) + roomingDialog()
+    + roomingCard(ev, rooming, contract) + roomingDialog()
     + checklistCard(ev, checklist) + jobDialog()
     + attendeesCard(ev, guests) + wixDialog();
 
@@ -2186,7 +2229,24 @@ const BILL = { ONGIA: ["ongia", "ONGIA pays"], Guest: ["", "guest pays"], "To co
 const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
 let ROOMING = null;
 
-function roomingCard(ev, R) {
+function hotelStrip(ev, C) {
+  const h = ev.hotel ?? {};
+  const bits = [
+    h.name ? `<b>${esc(h.name)}</b>` : `<span style="color:var(--muted)">No hotel set yet</span>`,
+    h.cutoff ? `cut-off ${esc(fmtDate(h.cutoff))}` : "",
+    h.foodAndBev ? `food and beverage numbers ${esc(fmtDate(h.foodAndBev))}` : "",
+  ].filter(Boolean);
+  const read = C?.read, file = C?.file;
+  const contract = !file ? "No contract uploaded"
+    : read?.state === "reading" ? `Reading ${esc(file.name)}…`
+    : read?.state === "done" ? `Contract read ${esc(fmtDate(read.at.slice(0, 10)))}`
+    : `Contract on file`;
+  return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}<div class="hs-ct">${contract}</div></div>
+    <div class="hs-acts"><button class="mini" data-hgo="contract">${file ? "Hotel contract" : "Upload the hotel contract"}</button>
+      <button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
+}
+
+function roomingCard(ev, R, C = null) {
   if (!R) return `<div class="card"><div class="card-head"><div><h2>Hotel rooms</h2></div></div>
     <div class="card-body"><div class="bad"><b>The rooming list could not be loaded.</b> Reload the page.</div></div></div>`;
   ROOMING = R;
@@ -2217,6 +2277,7 @@ function roomingCard(ev, R) {
       <div class="cardacts">${R.rows.length ? `<button class="mini" id="rm-csv">Download spreadsheet</button>
         <button class="mini solid" id="rm-send">${R.sent ? "Email the update to the hotel" : "Email it to the hotel"}</button>` : ""}</div></div>
     <div class="card-body">
+      ${hotelStrip(ev, C)}
       ${sent}
       ${R.rows.length ? `<div class="rooms">${R.rows.map(row).join("")}</div>`
         : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
@@ -2255,6 +2316,9 @@ const roomingDialog = () => `<dialog class="sheet" id="rmdlg" style="max-width:7
   </form></dialog>`;
 
 function wireRooming(ev, R) {
+  document.querySelectorAll("[data-hgo]").forEach((b) => {
+    b.onclick = () => { view = { name: "edit", eventId: ev.id, focus: b.dataset.hgo }; render(); };
+  });
   if (!R) return;
   const q = `/rooming?event=${encodeURIComponent(ev.id)}`;
   const keys = () => [...document.querySelectorAll("[data-room]:checked")].map((b) => b.dataset.room);
@@ -3276,7 +3340,19 @@ async function render() {
   if (!KEY) return signInScreen();
   try {
     if (view.name === "new") { await Promise.all([loadRoster(), loadLetterChoices()]); return eventFormScreen(); }
-    if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster(), loadLetterChoices()]); return eventFormScreen(data); }
+    if (view.name === "edit") {
+      const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster(), loadLetterChoices()]);
+      eventFormScreen(data);
+      // Arrived from the event page's hotel buttons: open the hotel section and bring it into view.
+      if (view.focus) {
+        const d = [...document.querySelectorAll("details")].find((x) => /Hotel and room block/.test(x.querySelector("summary")?.textContent ?? ""));
+        if (d) d.open = true;
+        const target = view.focus === "contract" ? document.querySelector(".ctbox") : d;
+        target?.scrollIntoView({ block: "center" });
+        if (view.focus === "contract") target?.classList.add("flash");
+      }
+      return;
+    }
     if (view.name === "year") {
       const { events } = await api("/events");
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
@@ -3292,14 +3368,15 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests, rooming] = await Promise.all([
+      const [data, materials, checklist, guests, rooming, contract] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/attendees?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
-      return eventScreen({ ...data, materials, checklist, guests, rooming });
+      return eventScreen({ ...data, materials, checklist, guests, rooming, contract });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);
