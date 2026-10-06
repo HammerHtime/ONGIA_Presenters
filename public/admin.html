@@ -370,6 +370,16 @@
   .lmeta{font-size:13px;color:var(--muted);margin:0 0 8px}
   .lprobs{margin:0 0 10px}
   .lprobs div{background:var(--late-bg);border:1px solid var(--late);color:var(--late);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:6px}
+  .ctbox{margin-top:12px;border:1px dashed var(--border);border-radius:14px;padding:14px 16px;background:var(--sunk)}
+  .ctbox .cthead{font-size:14px;line-height:1.5}
+  .ctbox .ctlinks{font-size:13px;color:var(--muted)} .ctbox .ctlinks a{color:var(--navy)}
+  .ctlist{margin:10px 0 12px;display:grid;gap:8px}
+  .ctrow{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:start;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .ctrow input{margin-top:3px}
+  .ctrow .ctwhat{font-size:14px} .ctrow .ctwhat b{font-weight:700}
+  .ctrow .ctquote{grid-column:2;font-size:12.5px;color:var(--muted);font-style:italic;overflow-wrap:anywhere}
+  .ctrow .ctwarn{grid-column:2;font-size:12.5px;color:var(--late)}
+  .ctnote{font-size:13px;background:var(--card);border-left:3px solid var(--gold);padding:8px 12px;border-radius:0 10px 10px 0;margin:0 0 12px}
   .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
 
   /* Configuration that is read once, not on every visit. */
@@ -727,6 +737,9 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
           30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
           arrives while they can book.</p>
+        <div class="ctbox">${ev
+          ? `<div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden>`
+          : `<p class="hint" style="margin:0">Once the event is saved you can upload the hotel contract here, and Claude will read its dates for you.</p>`}</div>
         <div class="row2" style="margin-top:12px">
           <div class="field" style="margin:0"><label for="e-hotel">Hotel</label>
             <input id="e-hotel" value="${esc(ev?.hotel?.name ?? "")}" placeholder="Delta Hotels Toronto Airport"></div>
@@ -802,6 +815,7 @@ function eventFormScreen(existing = null) {
     if (el) el.addEventListener("input", showHotelHint);
   });
   showHotelHint();
+  if (ev) wireContract(ev, { $, showHotelHint });
 
   // Letters written for one kind of training appear only once the title says
   // it is that kind. Whatever is picked stays picked while the title is typed.
@@ -2641,6 +2655,154 @@ async function invite(eventId, presenterIds, remind) {
     else toast(out.sent.length ? `Sent to ${out.sent.map((x) => x.name).join(", ")}.` : "Nothing to send.");
     render();
   } catch (e) { toast(e.message); }
+}
+
+/**
+ * The hotel contract box on the event form. Upload the PDF; Claude reads it in
+ * the background while the box asks back every few seconds; what it found comes
+ * up as a ticked list. "Put these in the form" fills the hotel boxes — nothing is
+ * saved until Andrew presses Save changes, so every date passes his eye first.
+ */
+function wireContract(ev, { $, showHotelHint }) {
+  const body = $("ct-body"), picker = $("ct-file");
+  if (!body || !picker) return;
+  const q = `/contract?event=${encodeURIComponent(ev.id)}`;
+  let timer = null, found = null;
+
+  const when = (iso) => (iso ? fmtDate(iso.slice(0, 10)) : "");
+  const links = (st) => [
+    st.file ? `<a href="#" data-ct="open">Open it</a>` : "",
+    st.file && st.read?.state !== "reading" ? `<a href="#" data-ct="again">Read it again</a>` : "",
+    st.read?.state !== "reading" ? `<a href="#" data-ct="pick">${st.file ? "Upload a different one" : "Upload the contract (PDF)"}</a>` : "",
+  ].filter(Boolean).join(" · ");
+
+  // One row per thing found. Only the first cut-off and the first food and
+  // beverage date can go in their boxes; any others start unticked and, if
+  // ticked, go in the notes with the rest.
+  const rowsOf = (f) => {
+    const rows = [];
+    if (f.hotelName) rows.push({ key: "name", what: `<b>Hotel:</b> ${esc(f.hotelName)}`, on: true });
+    if (f.rate) rows.push({ key: "rate", what: `<b>Rate:</b> ${esc(f.rate)}`, on: true });
+    const firsts = new Set();
+    f.dates.forEach((d, i) => {
+      const boxed = d.kind === "cutoff" || d.kind === "foodAndBev";
+      const first = boxed && !firsts.has(d.kind);
+      if (first) firsts.add(d.kind);
+      const warn = [...d.warn];
+      if (boxed && !first) warn.push(`the contract gives more than one ${d.kind === "cutoff" ? "cut-off" : "food and beverage date"}; only one goes in its box`);
+      rows.push({ key: `d${i}`, date: d, on: !boxed || first,
+        what: `<b>${esc(d.label)}:</b> ${esc(d.dateReadable)}${d.what ? ` <span style="color:var(--muted)">— ${esc(d.what)}</span>` : ""}`,
+        quote: d.quote ? `“${esc(d.quote)}”${d.page ? ` (page ${d.page})` : ""}` : "", warn });
+    });
+    return rows;
+  };
+
+  const draw = (st) => {
+    clearTimeout(timer);
+    const r = st.read, file = st.file;
+    let html = "";
+    if (!file && !r) {
+      html = `<div class="cthead"><b>Hotel contract</b></div>
+        <p class="hint" style="margin:4px 0 10px">Upload the PDF and Claude will read the cut-off, the food and beverage date and the other
+          deadlines in it. You check every one before anything is saved.</p>
+        <button type="button" class="mini" data-ct="pick">Upload the contract (PDF)</button>`;
+    } else if (r?.state === "reading") {
+      html = `<div class="cthead"><b>Reading ${esc(r.name || file?.name || "the contract")}…</b></div>
+        <p class="hint" style="margin:4px 0 0">This usually takes under a minute. You can carry on with the form.</p>`;
+    } else {
+      html = `<div class="cthead"><b>${esc(file?.name ?? "Hotel contract")}</b>${file?.uploadedAt ? ` <span class="ctlinks">· uploaded ${esc(when(file.uploadedAt))}</span>` : ""}</div>
+        <div class="ctlinks" style="margin-top:2px">${links(st)}</div>`;
+      if (r?.state === "failed") html += `<div class="lprobs" style="margin:10px 0 0"><div>${esc(r.why)}</div></div>`;
+      if (r?.state === "done") {
+        found = r.found;
+        const rows = rowsOf(found);
+        html += rows.length
+          ? `<p class="hint" style="margin:10px 0 0">Claude read it ${esc(when(r.at))}. Untick anything that is wrong, then press
+              <b>Put these in the form</b>. Nothing is saved until you press <b>Save changes</b>.</p>
+            <div class="ctlist">${rows.map((x) => `<label class="ctrow"><input type="checkbox" data-ctrow="${x.key}"${x.on ? " checked" : ""}>
+              <span class="ctwhat">${x.what}</span>${x.quote ? `<span class="ctquote">${x.quote}</span>` : ""}${x.warn?.length ? `<span class="ctwarn">Check this: ${esc(x.warn.join("; "))}.</span>` : ""}</label>`).join("")}</div>
+            ${found.notes ? `<p class="ctnote"><b>Claude's note:</b> ${esc(found.notes)}</p>` : ""}
+            <button type="button" class="btn btn-navy" data-ct="fill" style="padding:9px 18px;font-size:14px">Put these in the form</button>
+            <p class="hint" id="ct-said" style="margin:8px 0 0"></p>`
+          : `<p class="hint" style="margin:10px 0 0">Claude read it and found no dates to act on.${found.notes ? ` Its note: ${esc(found.notes)}` : ""}</p>`;
+        body._rows = rows;
+      }
+    }
+    body.innerHTML = html;
+    wire();
+    // Keep asking while it reads — but only while this form is still on screen.
+    if (r?.state === "reading") timer = setTimeout(() => { if (document.body.contains(body)) load(); }, 3000);
+  };
+
+  const load = async () => {
+    try { draw(await api(q)); }
+    catch (e) { body.innerHTML = `<div class="lprobs" style="margin:0"><div>${esc(e.message)}</div></div>`; }
+  };
+
+  const upload = async (f) => {
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { toast("That file is over 5 MB. Save a smaller copy of the PDF and try again."); return; }
+    body.innerHTML = `<div class="cthead"><b>Uploading ${esc(f.name)}…</b></div>`;
+    try {
+      draw(await api(q, { method: "POST", body: f, headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) } }));
+    } catch (e) { toast(e.message); load(); }
+  };
+  picker.onchange = () => { upload(picker.files?.[0]); picker.value = ""; };
+
+  const fill = () => {
+    const rows = body._rows ?? [];
+    const ticked = new Set([...body.querySelectorAll("[data-ctrow]:checked")].map((b) => b.dataset.ctrow));
+    const said = [], notes = [];
+    const put = (id, value, label) => {
+      const box = $(id);
+      if (!box || !value) return;
+      if (box.value && box.value !== value) said.push(`replaced the ${label} (it was ${box.value})`);
+      else if (box.value !== value) said.push(`the ${label}`);
+      box.value = value;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const boxed = new Set();
+    for (const x of rows.filter((x) => ticked.has(x.key))) {
+      if (x.key === "name") put("e-hotel", found.hotelName, "hotel");
+      else if (x.key === "rate") put("e-hrate", found.rate, "rate");
+      else if ((x.date.kind === "cutoff" || x.date.kind === "foodAndBev") && !boxed.has(x.date.kind)) {
+        boxed.add(x.date.kind);
+        put(x.date.kind === "cutoff" ? "e-hcut" : "e-hfb", x.date.date, x.date.kind === "cutoff" ? "cut-off" : "food and beverage date");
+      } else notes.push(`${x.date.label}: ${x.date.dateReadable}${x.date.what ? ` — ${x.date.what}` : ""}`);
+    }
+    const notesBox = $("e-hnotes");
+    const fresh = notes.filter((n) => !notesBox.value.includes(n));
+    if (fresh.length) {
+      notesBox.value = [notesBox.value.trim(), ...fresh].filter(Boolean).join("\n");
+      said.push(`${fresh.length} other date${fresh.length === 1 ? "" : "s"} in the notes`);
+    }
+    showHotelHint();
+    $("ct-said").innerHTML = said.length
+      ? `Put in the form: ${esc(said.join(", "))}. Check them below, then press <b>Save changes</b>.`
+      : "Nothing new to put in — the form already has these.";
+  };
+
+  function wire() {
+    body.querySelectorAll("[data-ct]").forEach((a) => {
+      a.onclick = async (e) => {
+        e.preventDefault();
+        const what = a.dataset.ct;
+        if (what === "pick") picker.click();
+        if (what === "fill") fill();
+        if (what === "again") { try { draw(await api(`${q}&again=1`, { method: "POST" })); } catch (err) { toast(err.message); } }
+        if (what === "open") {
+          try {
+            const res = await fetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Could not open it (${res.status})`);
+            const url = URL.createObjectURL(await res.blob());
+            window.open(url, "_blank");
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          } catch (err) { toast(err.message); }
+        }
+      };
+    });
+  }
+  load();
 }
 
 /** Fetch with the admin header, then open — a plain link can't carry the key. */

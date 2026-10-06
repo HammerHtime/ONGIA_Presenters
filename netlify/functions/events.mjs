@@ -221,6 +221,7 @@ async function deleteEvent(id) {
       deleteKey(`headshot:${id}:${p.id}`),
     ]);
   }
+  await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length });
@@ -388,7 +389,7 @@ function cleanHotel(given, had) {
     cutoff: date(given?.cutoff),
     foodAndBev: date(given?.foodAndBev),
     rate: text(given?.rate, 120),
-    notes: text(given?.notes, 600),
+    notes: text(given?.notes, 2000),
   };
   return Object.values(out).some(Boolean) ? out : null;
 }

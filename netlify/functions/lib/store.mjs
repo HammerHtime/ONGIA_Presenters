@@ -178,6 +178,29 @@ export async function getLogo(sponsorId) {
   return { bytes: got.data, type: got.metadata?.type ?? "image/png", name: got.metadata?.name ?? "logo.png" };
 }
 
+/**
+ * The hotel contract for an event, as uploaded, and what Claude made of it.
+ * The file is kept so it can be opened again and re-read; the reading is its
+ * own small record so the screen can ask "done yet?" without the PDF.
+ */
+export async function putContract(eventId, bytes, meta) {
+  await store().set(`contract:${eventId}`, bytes, { metadata: meta });
+}
+
+export async function getContract(eventId) {
+  const got = await store().getWithMetadata(`contract:${eventId}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, name: got.metadata?.name ?? "hotel-contract.pdf", size: got.metadata?.size ?? got.data.byteLength, uploadedAt: got.metadata?.uploadedAt ?? null };
+}
+
+export async function contractInfo(eventId) {
+  const got = await store().getMetadata(`contract:${eventId}`);
+  return got ? { name: got.metadata?.name ?? "hotel-contract.pdf", size: got.metadata?.size ?? null, uploadedAt: got.metadata?.uploadedAt ?? null } : null;
+}
+
+export const getContractRead = (eventId) => read(`contractread:${eventId}`);
+export const putContractRead = (eventId, value) => write(`contractread:${eventId}`, value);
+
 /** Remove a key outright — used when an event or presenter is deleted. */
 export const deleteKey = (key) => store().delete(key);
 

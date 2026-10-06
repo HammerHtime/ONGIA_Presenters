@@ -38,6 +38,11 @@ createServer(async (req, res) => {
       const chunks = []; for await (const c of req) chunks.push(c);
       const body = chunks.length ? Buffer.concat(chunks) : null;
       const request = new Request(url, { method: req.method, headers: req.headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : body, duplex: "half" });
+      // Like Netlify: a "-background" function is answered 202 at once and keeps running.
+      if (url.pathname.slice(5).split("/")[0].endsWith("-background")) {
+        handler(request).catch((e) => console.error(e));
+        res.writeHead(202); return res.end();
+      }
       const out = await handler(request);
       res.writeHead(out.status, Object.fromEntries(out.headers));
       return res.end(Buffer.from(await out.arrayBuffer()));

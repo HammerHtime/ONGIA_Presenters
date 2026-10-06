@@ -1,13 +1,14 @@
 {
   "name": "ongia-presenter-agreements",
   "version": "0.1.0",
-  "description": "ONGIA Presenter Agreement Desk \u2014 presenters sign online, agreements file themselves.",
+  "description": "ONGIA Presenter Agreement Desk — presenters sign online, agreements file themselves.",
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@netlify/blobs": "^8.1.0",
     "pdfkit": "^0.15.1"
   },

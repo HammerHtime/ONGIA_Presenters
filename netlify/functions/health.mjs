@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin } from "./lib/http.mjs";
 import { graphConfigured, checkFolder, graphAccessToken, tokenRoles } from "./lib/graph.mjs";
 import { mailTransport } from "./lib/mail.mjs";
+import { anthropicKey } from "./lib/contract.mjs";
 
 /**
  * Which integrations this deploy can actually use — shown on the admin home so
@@ -21,6 +22,8 @@ export default async (req) => {
     email: transport ? { ok: true, ...transport } : { ok: false, reason: "No email transport: set MS_MAIL_FROM (Microsoft 365) or RESEND_API_KEY" },
     microsoft: graphConfigured() ? { ok: true } : { ok: false, reason: "MS_TENANT_ID / MS_CLIENT_ID / MS_CLIENT_SECRET not all set" },
     sharepoint: null,
+    // Says whether the key is there, never what it is.
+    claude: anthropicKey() ? { ok: true } : { ok: false, reason: "ANTHROPIC_API_KEY is not set, so hotel contracts cannot be read" },
   };
   if (graphConfigured()) {
     out.sharepoint = await checkFolder(folder).then((r) => ({ ok: true, ...r })).catch((e) => ({ ok: false, error: e.message }));

@@ -9,8 +9,13 @@ export function getStore() {
       return v.data;
     },
     async getWithMetadata(key, opts) { const v = mem.get(key); return v ? { data: v.data, metadata: v.metadata } : null; },
+    async getMetadata(key) { const v = mem.get(key); return v ? { metadata: v.metadata ?? {} } : null; },
     async setJSON(key, value) { mem.set(key, { data: JSON.stringify(value), metadata: {} }); },
-    async set(key, data, { metadata } = {}) { mem.set(key, { data: data instanceof ArrayBuffer ? data : Buffer.from(data).buffer.slice(Buffer.from(data).byteOffset, Buffer.from(data).byteOffset + Buffer.from(data).byteLength), metadata }); },
+    async set(key, data, { metadata } = {}) {
+      // Copy once: separate Buffer.from() calls can land at different offsets in Node's pool.
+      const b = data instanceof ArrayBuffer ? null : Buffer.from(data);
+      mem.set(key, { data: b ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) : data, metadata });
+    },
     async delete(key) { mem.delete(key); },
     async list({ prefix }) { return { blobs: [...mem.keys()].filter((k) => k.startsWith(prefix)).map((key) => ({ key })) }; },
   };
