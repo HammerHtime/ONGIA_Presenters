@@ -186,5 +186,13 @@ export const getMeta = (key) => read(`meta:${key}`);
 export const putMeta = (key, value) => write(`meta:${key}`, value);
 
 /** Board roster — one list for the whole desk. */
+/**
+ * The people coming to an event. Kept in their own blob rather than on the
+ * event, because a popular training can carry hundreds of them and the event
+ * record is read on every screen in the desk.
+ */
+export const getAttendees = (eventId) => read(`attendees:${eventId}`);
+export const putAttendees = (eventId, value) => write(`attendees:${eventId}`, value);
+
 export const getRoster = () => read("roster:board");
 export const putRoster = (members) => write("roster:board", members);
