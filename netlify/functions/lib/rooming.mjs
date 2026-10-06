@@ -1,4 +1,5 @@
 import { formatDate } from "./deadlines.mjs";
+import { parseCsv } from "./attendees.mjs";
 import { datesOf } from "./letters.mjs";
 import { layout, coordinatorOf } from "./mail.mjs";
 
@@ -20,6 +21,20 @@ const nights = (a, b) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) 
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ""));
 const shift = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
 
+/** Who a room is for. Andrew's four, in his order (6 Oct 2026). */
+export const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
+
+/** "board", "Board member", "SPEAKER" → one of the four; anything else is null. */
+export function typeOf(v) {
+  const s = String(v ?? "").toLowerCase().replace(/[^a-z]+/g, " ").trim();
+  if (!s) return null;
+  if (/^board( member)?s?$|^director$/.test(s)) return "Board Member";
+  if (/^(presenter|speaker|trainer|facilitator)s?$/.test(s)) return "Presenter";
+  if (/^volunteers?$/.test(s)) return "Volunteer";
+  if (/^(ongia )?guests?$/.test(s)) return "ONGIA Guest";
+  return null;
+}
+
 /**
  * The nights a room can be booked for someone who is not a presenter: three
  * days before the training to three days after it (Andrew, 6 Oct 2026: "that's
@@ -40,12 +55,12 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
     if (p.status === "approved") {
       const h = p.review?.hotel;
       if (!h) continue;                                       // approved, no room needed
-      rows.push({ key: p.id, who: "presenter", name, organization: p.organization ?? "",
+      rows.push({ key: p.id, who: "presenter", type: "Presenter", name, organization: p.organization ?? "",
         checkIn: h.from, checkOut: h.to, nights: nights(h.from, h.to),
         billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true });
     } else if (p.status === "submitted") {
       if (s.hotel !== "yes") continue;
-      rows.push({ key: p.id, who: "presenter", name, organization: p.organization ?? "",
+      rows.push({ key: p.id, who: "presenter", type: "Presenter", name, organization: p.organization ?? "",
         checkIn: s.hotelFrom, checkOut: s.hotelTo, nights: nights(s.hotelFrom, s.hotelTo),
         billing: "To confirm", confirmed: false, why: "agreement not approved yet" });
     } else {
@@ -53,7 +68,7 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
     }
   }
   for (const g of guests) {
-    rows.push({ key: g.id, who: "guest", name: g.name, organization: g.note ?? "",
+    rows.push({ key: g.id, who: "guest", type: g.type ?? null, name: g.name, organization: g.note ?? "",
       checkIn: g.checkIn, checkOut: g.checkOut, nights: nights(g.checkIn, g.checkOut), billing: g.billing, confirmed: true });
   }
   rows.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.name.localeCompare(b.name));
@@ -92,13 +107,17 @@ export function changesSince(previous, rows) {
 export function cleanGuest(g, makeId, win = null, had = null) {
   const name = String(g?.name ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!name) return { problem: "Each guest needs a name." };
+  // Who they are is required for anyone new; someone saved before the four
+  // types existed keeps no type rather than being given a wrong one.
+  const type = typeOf(g?.type);
+  if (!type && !had) return { problem: `${name}: pick who they are (${GUEST_TYPES.join(", ")}).` };
   if (!isDate(g?.checkIn) || !isDate(g?.checkOut)) return { problem: `${name} needs a check-in and a check-out date.` };
   if (g.checkOut <= g.checkIn) return { problem: `${name}: check-out must be after check-in.` };
   const unchanged = had && had.checkIn === g.checkIn && had.checkOut === g.checkOut;
   if (win && !unchanged && (g.checkIn < win.from || g.checkOut > win.to)) {
     return { problem: `${name}: rooms can be booked from ${formatDate(win.from)} to ${formatDate(win.to)}, three days either side of the training.` };
   }
-  return { guest: { id: /^[a-z0-9]{6,20}$/i.test(String(g.id ?? "")) ? g.id : makeId(), name, checkIn: g.checkIn, checkOut: g.checkOut,
+  return { guest: { id: /^[a-z0-9]{6,20}$/i.test(String(g.id ?? "")) ? g.id : makeId(), name, type: type ?? null, checkIn: g.checkIn, checkOut: g.checkOut,
     billing: g.billing === "Guest" ? "Guest" : "ONGIA", note: String(g?.note ?? "").trim().slice(0, 120) } };
 }
 
@@ -155,4 +174,114 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : "",
   ].join("\n");
   return { subject, html, text, csv: roomingCsv(event, rows) };
+}
+
+/* ---------- a spreadsheet of rooms ---------- */
+
+/** The columns of the sheet, in the order the blank one is handed out. */
+export const ROOMS_CSV_HEADER = ["Name", "Type", "Check-in", "Check-out", "Who pays", "Note"];
+
+const COLUMNS = {
+  name: [/^(full\s*)?name$/i, /^guest(\s*name)?$/i],
+  first: [/^first(\s*name)?$/i],
+  last: [/^(last(\s*name)?|surname)$/i],
+  type: [/^(guest\s*)?type$/i, /^role$/i, /^category$/i],
+  checkIn: [/^check[\s-]*in(\s*date)?$/i, /^arriv(al|e|ing)(\s*date)?$/i, /^in$/i],
+  checkOut: [/^check[\s-]*out(\s*date)?$/i, /^depart(ure|ing)?(\s*date)?$/i, /^out$/i],
+  billing: [/^who\s*pays\??$/i, /^billing$/i, /^bill(ed)?\s*to$/i, /^paid\s*by$/i, /^payment$/i],
+  note: [/^notes?$/i, /^organi[sz]ation$/i, /^agency$/i, /^comments?$/i],
+};
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const real = (y, m, d) => {
+  const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const t = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(t.getTime()) && t.toISOString().slice(0, 10) === iso ? iso : null;
+};
+const fullYear = (y) => (String(y).length === 2 ? 2000 + Number(y) : Number(y));
+
+/**
+ * A date as a spreadsheet writes it. 2027-02-15, 15 Feb 2027, Feb 15 2027 and
+ * Mon 15 Feb 2027 are read as they are. 15/02/2027 and 02/15/2027 depend on
+ * the computer that saved the sheet, so both readings are tried and the one
+ * inside the event's window wins; if both fit, the row is put back to Andrew
+ * rather than guessed.
+ */
+export function readDate(v, win) {
+  const s = String(v ?? "").trim().replace(/,/g, " ").replace(/\s+/g, " ");
+  if (!s) return { problem: "no date" };
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return real(m[1], m[2], m[3]) ? { date: real(m[1], m[2], m[3]) } : { problem: `"${s}" is not a real date` };
+  m = s.match(/^(?:[a-z]+ )?(\d{1,2}) ([a-z]+)\.? (\d{2,4})$/i) ?? null;
+  if (m && MONTHS.includes(m[2].slice(0, 3).toLowerCase())) {
+    const d = real(fullYear(m[3]), MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()) + 1, m[1]);
+    return d ? { date: d } : { problem: `"${s}" is not a real date` };
+  }
+  m = s.match(/^(?:[a-z]+ )?([a-z]+)\.? (\d{1,2})(?:st|nd|rd|th)? (\d{2,4})$/i);
+  if (m && MONTHS.includes(m[1].slice(0, 3).toLowerCase())) {
+    const d = real(fullYear(m[3]), MONTHS.indexOf(m[1].slice(0, 3).toLowerCase()) + 1, m[2]);
+    return d ? { date: d } : { problem: `"${s}" is not a real date` };
+  }
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (m) {
+    const y = fullYear(m[3]);
+    const both = [...new Set([real(y, m[1], m[2]), real(y, m[2], m[1])].filter(Boolean))];
+    const inside = win ? both.filter((d) => d >= win.from && d <= win.to) : both;
+    if (inside.length === 1) return { date: inside[0] };
+    if (inside.length > 1) return { problem: `"${s}" could be ${formatDate(inside[0])} or ${formatDate(inside[1])}; write it as ${inside[0]}` };
+    if (both.length) return { date: both[0] };                    // outside the window either way: the window check says so
+    return { problem: `"${s}" is not a real date` };
+  }
+  return { problem: `"${s}" is not a date the desk can read; write it as 2027-02-15` };
+}
+
+const who = (v) => {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s || /ongia|master|company|org/.test(s)) return { billing: "ONGIA" };
+  if (/guest|self|own|personal|attendee|them|they|individual/.test(s)) return { billing: "Guest" };
+  return { problem: `"${v}" under Who pays: write ONGIA or Guest` };
+};
+const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, " ").trim();
+
+/**
+ * Read a sheet of rooms. Nothing is saved here: it says who would be added,
+ * whose row has a problem (and what), and who is already on the list and so
+ * is left out — by name, against the presenters from their agreements, the
+ * people added before, and earlier rows of the same sheet.
+ */
+export function readRoomsCsv(raw, { win = null, onList = [] } = {}) {
+  const table = parseCsv(raw);
+  if (!table.length) return { problem: "The file is empty." };
+  const cols = {};
+  table[0].forEach((cell, i) => {
+    for (const [k, res] of Object.entries(COLUMNS)) if (cols[k] === undefined && res.some((re) => re.test(String(cell).trim()))) cols[k] = i;
+  });
+  const missing = [cols.name === undefined && cols.first === undefined ? "Name" : "", cols.type === undefined ? "Type" : "",
+    cols.checkIn === undefined ? "Check-in" : "", cols.checkOut === undefined ? "Check-out" : ""].filter(Boolean);
+  if (missing.length) return { problem: `The sheet needs these columns: ${ROOMS_CSV_HEADER.slice(0, 4).join(", ")}. Missing: ${missing.join(", ")}. Download the blank sheet to start from.` };
+
+  const seen = new Map(onList.map((n) => [sameName(n), "already on the rooming list"]));
+  const add = [], problems = [], skipped = [];
+  table.slice(1).forEach((row, i) => {
+    const line = i + 2;
+    const cell = (k) => (cols[k] === undefined ? "" : String(row[cols[k]] ?? "").trim());
+    const name = (cell("name") || `${cell("first")} ${cell("last")}`).replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!name) { problems.push({ line, name: "", why: "no name" }); return; }
+    const already = seen.get(sameName(name));
+    if (already) { skipped.push({ line, name, why: already }); return; }
+    const why = [];
+    const type = typeOf(cell("type"));
+    if (!type) why.push(cell("type") ? `"${cell("type")}" under Type: use ${GUEST_TYPES.join(", ")}` : `no Type (${GUEST_TYPES.join(", ")})`);
+    const a = readDate(cell("checkIn"), win), b = readDate(cell("checkOut"), win);
+    if (a.problem) why.push(`check-in: ${a.problem}`);
+    if (b.problem) why.push(`check-out: ${b.problem}`);
+    if (a.date && b.date && b.date <= a.date) why.push("check-out is not after check-in");
+    if (win && a.date && b.date && (a.date < win.from || b.date > win.to)) why.push(`dates must be between ${formatDate(win.from)} and ${formatDate(win.to)}`);
+    const pays = who(cell("billing"));
+    if (pays.problem) why.push(pays.problem);
+    if (why.length) { problems.push({ line, name, why: why.join("; ") }); return; }
+    seen.set(sameName(name), `already in this sheet, row ${line}`);
+    add.push({ name, type, checkIn: a.date, checkOut: b.date, billing: pays.billing, note: cell("note").slice(0, 120) });
+  });
+  return { add, problems, skipped };
 }
