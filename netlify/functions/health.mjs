@@ -2,6 +2,8 @@ import { json, fail, requireAdmin } from "./lib/http.mjs";
 import { graphConfigured, checkFolder, graphAccessToken, tokenRoles } from "./lib/graph.mjs";
 import { mailTransport } from "./lib/mail.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
+import { siteOrigin } from "./lib/nightly.mjs";
+import { getMeta } from "./lib/store.mjs";
 
 /**
  * Which integrations this deploy can actually use — shown on the admin home so
@@ -24,6 +26,9 @@ export default async (req) => {
     sharepoint: null,
     // Says whether the key is there, never what it is.
     claude: anthropicKey() ? { ok: true } : { ok: false, reason: "ANTHROPIC_API_KEY is not set, so hotel contracts cannot be read" },
+    // The morning run starts its background work at this address, and email links use it.
+    site: siteOrigin() ? { ok: true, url: siteOrigin() } : { ok: false, reason: "Neither APP_URL nor URL is set, so the morning run cannot start in the background" },
+    nightly: await getMeta("nightly").catch(() => null),
   };
   if (graphConfigured()) {
     out.sharepoint = await checkFolder(folder).then((r) => ({ ok: true, ...r })).catch((e) => ({ ok: false, error: e.message }));

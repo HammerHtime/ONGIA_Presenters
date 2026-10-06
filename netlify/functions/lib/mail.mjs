@@ -53,11 +53,19 @@ async function sendViaGraph({ to, cc, replyTo, subject, html, text, attachments 
       contentBytes: Buffer.from(a.content).toString("base64"),
     })),
   };
-  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(GRAPH_MAILBOX)}/sendMail`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ message, saveToSentItems: true }),
-  });
+  // When Microsoft says "too many" (429), wait as long as it asks — at most a
+  // minute — and try again, twice, before calling it a failure.
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(GRAPH_MAILBOX)}/sendMail`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ message, saveToSentItems: true }),
+    });
+    if (res.status !== 429 || attempt >= 2) break;
+    const wait = Math.min(Number(res.headers.get("retry-after")) || 30, 60);
+    await new Promise((r) => setTimeout(r, wait * 1000));
+  }
   if (res.status !== 202) {
     const body = await res.json().catch(() => ({}));
     const code = body.error?.code ?? res.status;

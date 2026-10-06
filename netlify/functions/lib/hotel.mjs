@@ -2,6 +2,7 @@ import { todayIso } from "./deadlines.mjs";
 import { getAttendees, putAttendees } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { sendMail, hotelCutoffMail } from "./mail.mjs";
+import { pacer, timeLeft } from "./bulk.mjs";
 
 /**
  * Reminding attendees to book a room before the block closes.
@@ -13,6 +14,9 @@ import { sendMail, hotelCutoffMail } from "./mail.mjs";
  */
 export const HOTEL_DAYS = [30, 15, 7];
 
+// A round that could not finish on its day — a big list, a failed night — is
+// still sent for up to three days after, but never once the next round is due.
+export const CATCH_UP_DAYS = 3;
 const dayBefore = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOString().slice(0, 10);
 
 /** Which reminder, if any, is due for this event today. */
@@ -20,8 +24,11 @@ export function hotelDueToday(event, today = todayIso()) {
   const h = event?.hotel;
   if (!h?.cutoff || !h?.link) return null;
   if (today > h.cutoff) return null;                    // the block has closed
-  for (const days of HOTEL_DAYS) {
-    if (dayBefore(h.cutoff, days) === today) return days;
+  for (let i = 0; i < HOTEL_DAYS.length; i++) {
+    const on = dayBefore(h.cutoff, HOTEL_DAYS[i]);
+    const next = i + 1 < HOTEL_DAYS.length ? dayBefore(h.cutoff, HOTEL_DAYS[i + 1]) : dayBefore(h.cutoff, -1);
+    const until = [dayBefore(on, -CATCH_UP_DAYS), next].sort()[0];
+    if (today >= on && today < until) return HOTEL_DAYS[i];
   }
   return null;
 }
@@ -31,7 +38,7 @@ export function hotelDueToday(event, today = todayIso()) {
  * re-run, a second deploy or a manual push cannot send it twice — and someone
  * who registers after the 30-day mark still gets the 15 and the 7.
  */
-export async function sendHotelRound(event, days, { dry = false, today = todayIso() } = {}) {
+export async function sendHotelRound(event, days, { dry = false, today = todayIso(), deadline = null, pace = pacer() } = {}) {
   const h = event.hotel;
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const people = writeableTo(stored.people ?? []);
@@ -41,9 +48,11 @@ export async function sendHotelRound(event, days, { dry = false, today = todayIs
   if (dry) return { event: event.id, days, would: owed.length };
 
   const daysLeft = Math.round((Date.parse(h.cutoff) - Date.parse(today)) / 86400000);
-  let sent = 0, failed = 0;
+  let sent = 0, failed = 0, left = 0;
   const problems = [];
   for (const person of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
     const mail = hotelCutoffMail({ event, person, hotel: h, daysLeft });
     try {
       const out = await sendMail({ to: person.email, ...mail });
@@ -51,18 +60,19 @@ export async function sendHotelRound(event, days, { dry = false, today = todayIs
       person.sent = [...(person.sent ?? []), round];
       person.sentAt = { ...(person.sentAt ?? {}), [round]: new Date().toISOString() };
       sent++;
+      // Saved at once: a run stopped part-way never sends anyone this round twice.
+      await putAttendees(event.id, stored);
     } catch (e) {
       problems.push({ email: person.email, why: e.message });
       failed++;
     }
   }
-  // Written once at the end: a hundred sends should not be a hundred writes.
   await putAttendees(event.id, {
     ...stored,
     people: stored.people,
-    hotelRounds: { ...(stored.hotelRounds ?? {}), [round]: { at: new Date().toISOString(), sent, failed } },
+    hotelRounds: { ...(stored.hotelRounds ?? {}), [round]: { at: new Date().toISOString(), sent, failed, left } },
   });
-  return { event: event.id, title: event.title, days, sent, failed, problems: problems.slice(0, 10) };
+  return { event: event.id, title: event.title, days, sent, failed, left, problems: problems.slice(0, 10) };
 }
 
 /** Every event whose reminder falls today. Called by the nightly job. */

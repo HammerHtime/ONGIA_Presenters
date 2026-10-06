@@ -4,6 +4,7 @@ import { writeableTo } from "./attendees.mjs";
 import { checklistOf } from "./checklist.mjs";
 import { letterProblems, eventProblems, renderLetter } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
+import { pacer, timeLeft } from "./bulk.mjs";
 
 /**
  * Sending the welcome letter and the survey.
@@ -47,8 +48,13 @@ export function letterDue(event, kind, today = todayIso()) {
 /**
  * One round of one letter for one event. With `dry`, says who would get it and
  * what is wrong, and sends nothing.
+ *
+ * Each person is saved as having had it the moment their email goes, so a run
+ * that is stopped part-way — Netlify stops every function at its time limit —
+ * never sends anyone a second copy. Past the `deadline` no new send starts;
+ * whoever is left is still owed and goes in the next run.
  */
-export async function sendLetterRound(event, kind, { dry = false, today = todayIso() } = {}) {
+export async function sendLetterRound(event, kind, { dry = false, today = todayIso(), deadline = null, pace = pacer() } = {}) {
   const due = letterDue(event, kind, today);
   if (!due.due) return { event: event.id, title: event.title, kind, skipped: due.why };
 
@@ -64,9 +70,11 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: letter.name };
   if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
 
-  let sent = 0, failed = 0;
+  let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
     const mail = renderLetter(letter, event, person);
     try {
       const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...mail });
@@ -74,6 +82,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       person.sent = [...(person.sent ?? []), kind];
       person.sentAt = { ...(person.sentAt ?? {}), [kind]: new Date().toISOString() };
       sent++;
+      await putAttendees(event.id, stored);
     } catch (e) {
       trouble.push({ email: person.email, why: e.message });
       failed++;
@@ -81,12 +90,12 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   }
   await putAttendees(event.id, {
     ...stored,
-    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, letter: letter.name } },
+    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: letter.name } },
   });
 
   // The checklist job ticks itself once everyone owed has had it. A round with
-  // failures leaves it open, so it is still visibly not done.
-  if (sent && !failed) {
+  // failures, or people still to go, leaves it open, so it is visibly not done.
+  if (sent && !failed && !left) {
     const fresh = await getEvent(event.id);
     const job = (fresh.tasks ?? []).find((t) => t.id === due.jobId);
     if (job && !job.done) {
@@ -96,7 +105,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       await putEvent(fresh);
     }
   }
-  return { event: event.id, title: event.title, kind, letter: letter.name, sent, failed, trouble: trouble.slice(0, 10) };
+  return { event: event.id, title: event.title, kind, letter: letter.name, sent, failed, left, trouble: trouble.slice(0, 10) };
 }
 
 /** Every event, both letters. Called by the nightly job. */
