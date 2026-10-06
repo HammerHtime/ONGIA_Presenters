@@ -212,6 +212,66 @@
   .needs .nrow.act b{color:var(--navy)}
   .needs .allclear{padding:15px 20px;font-size:14px;color:var(--ink-mid)}
   @media (max-width:560px){.needs .nrow{flex-direction:column;gap:9px}.needs .nrow .mini{align-self:flex-start}}
+  /* ---------- the year at a glance ----------
+     Twelve month tracks, each one a 1-to-31 scale. An event is a band sitting
+     where it falls; its deadlines are ticks in the strip underneath. Empty
+     months are drawn too — the gaps are half the point. */
+  .yearhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .yearhead .yr{font-family:var(--fd);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+  .ynav{border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink-mid);
+        width:34px;height:34px;cursor:pointer;font-size:15px;line-height:1;flex:none}
+  .ynav:hover:not([disabled]){border-color:var(--navy);color:var(--navy)}
+  .ynav[disabled]{opacity:.35;cursor:default}
+  .months{display:grid;gap:1px;background:var(--border);border-top:1.5px solid var(--edge)}
+  .mrow{background:var(--card);display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:stretch;
+        padding:9px 22px 9px 16px}
+  .mrow.quiet{background:var(--sunk)}
+  .mrow.now{box-shadow:inset 3px 0 0 var(--gold)}
+  .mname{font-family:var(--fu);font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+         padding-top:5px;white-space:nowrap}
+  .mrow.now .mname{color:var(--gold)}
+  .mtrack{position:relative;min-height:30px;display:flex;flex-direction:column;gap:3px;justify-content:center}
+  .mweek{position:absolute;inset:0;pointer-events:none;background-size:100% 100%;border-radius:7px;overflow:hidden}
+  .lane{position:relative;height:25px}
+  .band{position:absolute;top:0;height:25px;border-radius:7px;background:var(--navy);color:#fff;
+        font-size:11.5px;font-weight:700;line-height:25px;padding:0 8px;white-space:nowrap;overflow:hidden;
+        text-overflow:ellipsis;cursor:pointer;border:0;font-family:inherit;text-align:left;min-width:14px}
+  .band:hover{background:var(--navy-deep)}
+  .band.past{background:var(--muted)} .band.past:hover{background:var(--ink-mid)}
+  .band.runs{background:var(--gold);color:#1c1608}
+  .ticks{position:relative;height:13px;border-top:1px solid var(--hair);margin-top:1px}
+  .tick{position:absolute;width:3px;border-radius:2px;cursor:help;bottom:2px}
+  .tick.agreement{height:5px;background:var(--gold)}
+  .tick.draft{height:8px;background:var(--wait)}
+  .tick.final{height:11px;background:var(--navy)}
+  .tick.late{background:var(--late);width:4px}
+  /* A short event cannot hold its own name, so the name sits beside the bar. */
+  .blabel{position:absolute;top:0;height:25px;line-height:25px;font-size:11.5px;font-weight:700;
+          color:var(--ink-mid);white-space:nowrap;pointer-events:none}
+  .blabel.left{transform:translateX(-100%);padding-right:7px}
+  .blabel.right{padding-left:7px}
+  .blabel.past{color:var(--muted);font-weight:600}
+  .ylegend{display:flex;gap:7px 16px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:12px 22px 0}
+  .ylegend span{display:inline-flex;align-items:center;gap:6px}
+  .ylegend i{width:11px;height:11px;border-radius:2px;flex:none;display:inline-block;align-self:center}
+  /* The weeks that will hurt: two events at once, a deadline while you are away. */
+  .crunch .nrow b{color:var(--wait)}
+  .crunch .nrow.stop b{color:var(--late)}
+  @media (min-width:821px){.yrlist .trow{grid-template-columns:minmax(190px,1.4fr) minmax(210px,1fr) fit-content(150px)}}
+  .ydates{display:flex;gap:4px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .ydates b{color:var(--ink-mid);font-weight:600}
+  .ydates .od{color:var(--late);font-weight:700}
+  @media (max-width:640px){
+    .mrow{grid-template-columns:1fr;gap:4px;padding:10px 16px}
+    .mname{padding-top:0}
+    .band{font-size:11px;padding:0 6px}
+  }
+  @media print{
+    .bar,.ynav,.ylegend,.needs{display:none!important}
+    .card{box-shadow:none;break-inside:avoid}
+    .months{break-inside:avoid}
+  }
+
   /* Configuration that is read once, not on every visit. */
   .settings{border-top:1px solid var(--hair);margin-top:18px}
   .settings>summary{cursor:pointer;padding:13px 0 3px;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
@@ -339,6 +399,18 @@ const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MONTHS = ["Jan","Feb",
 const fmtDate = (iso) => { if (!/^\d{4}-\d{2}-\d{2}/.test(iso ?? "")) return iso ?? ""; const [y,m,d] = iso.slice(0,10).split("-").map(Number); const dt = new Date(y, m-1, d); return `${DAYS[dt.getDay()]} ${d} ${MONTHS[m-1]} ${y}`; };
 
 /**
+ * Today in Toronto, where the desk is, not in UTC. Between midnight and 5am a
+ * UTC date reads as tomorrow, which would have shown a deadline as overdue a
+ * day early. The server already computes it this way; now the page agrees.
+ */
+const DESK_TZ = "America/Toronto";
+const todayIso = (now = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: DESK_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const at = (t) => parts.find((x) => x.type === t).value;
+  return `${at("year")}-${at("month")}-${at("day")}`;
+};
+
+/**
  * Sponsorship is parked. The tab, its screen and the "open to sponsors" tick
  * are hidden, and nothing sponsor-related can be reached from the desk — but
  * the functions, the sponsor's form and their tests are all still here, so
@@ -388,8 +460,9 @@ function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events) {
-  BARRIGHT.innerHTML = `${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
+  document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
@@ -459,7 +532,7 @@ function blockersOf(ev) {
  * otherwise invisible until someone opens each event in turn.
  */
 function needsCard(events) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const rows = [];
   const names = (list, max = 4) => {
@@ -722,6 +795,249 @@ function eventFormScreen(existing = null) {
   };
 }
 
+/* ---------- the year ----------
+   One screen that answers "what is coming, and when am I overloaded?".
+   Everything here is derived from events that already exist — no new data. */
+const MONTH_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const yearOf  = (iso) => Number(String(iso ?? "").slice(0, 4));
+const monthOf = (iso) => Number(String(iso ?? "").slice(5, 7));
+const dayOf   = (iso) => Number(String(iso ?? "").slice(8, 10));
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+const isDate = (iso) => /^\d{4}-\d{2}-\d{2}/.test(iso ?? "");
+const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+
+/** Saturdays and Sundays, shaded, so a run of training days reads at a glance. */
+function weekendWash(y, m) {
+  const D = daysInMonth(y, m), stops = [];
+  for (let d = 1; d <= D; d++) {
+    const wd = new Date(y, m - 1, d).getDay();
+    const col = wd === 0 || wd === 6 ? "rgba(18,22,31,.032)" : "transparent";
+    stops.push(`${col} ${((d - 1) / D * 100).toFixed(3)}%`, `${col} ${(d / D * 100).toFixed(3)}%`);
+  }
+  return `linear-gradient(90deg,${stops.join(",")})`;
+}
+
+/** The three dates an event counts back to, and whether each still has work behind it. */
+function deadlinesOf(ev) {
+  const c = ev.counts ?? { total: 0, invited: 0, opened: 0, approved: 0 };
+  return [
+    { key: "agreement", label: "Agreements", iso: ev.deadlines?.agreement, left: (c.invited ?? 0) + (c.opened ?? 0) },
+    { key: "draft", label: "Draft materials", iso: ev.deadlines?.draft, left: (c.total ?? 0) - (ev.materials?.draft ?? 0) },
+    { key: "final", label: "Final materials", iso: ev.deadlines?.final, left: (c.total ?? 0) - (ev.materials?.final ?? 0) },
+  ].filter((d) => isDate(d.iso));
+}
+
+/** Which years this desk has anything in — training dates and deadlines alike. */
+function yearsWithWork(events) {
+  const years = new Set();
+  for (const ev of events) {
+    if (isDate(ev.dayOne)) years.add(yearOf(ev.dayOne));
+    if (isDate(ev.lastDay)) years.add(yearOf(ev.lastDay));
+    for (const d of deadlinesOf(ev)) years.add(yearOf(d.iso));
+  }
+  return [...years].sort((a, b) => a - b);
+}
+
+/** Open on the year the next event falls in, not on an empty current year. */
+function defaultYear(events, today) {
+  const upcoming = events.filter((e) => isDate(e.lastDay ?? e.dayOne) && (e.lastDay ?? e.dayOne) >= today)
+    .map((e) => yearOf(e.dayOne)).sort((a, b) => a - b);
+  if (upcoming.length) return upcoming[0];
+  const years = yearsWithWork(events);
+  return years.length ? years[years.length - 1] : yearOf(today);
+}
+
+/** The weeks that will hurt, named plainly rather than left to be spotted. */
+function crunchOf(events, year, today) {
+  const inYear = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year)
+    .sort((a, b) => a.dayOne.localeCompare(b.dayOne));
+  const out = [];
+  const span = (e) => ({ from: e.dayOne, to: e.lastDay && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne });
+
+  for (let i = 0; i < inYear.length; i++) {
+    for (let j = i + 1; j < inYear.length; j++) {
+      const a = span(inYear[i]), b = span(inYear[j]);
+      if (a.from <= b.to && b.from <= a.to) {
+        out.push({ stop: true, what: `${inYear[i].title} and ${inYear[j].title} overlap`,
+          when: `${fmtDate(b.from)} — you cannot be at both.`, id: inYear[j].id });
+      } else if (b.from > a.to && daysBetween(a.to, b.from) <= 2) {
+        out.push({ stop: false, what: `${inYear[i].title} runs straight into ${inYear[j].title}`,
+          when: `${daysBetween(a.to, b.from)} day${daysBetween(a.to, b.from) === 1 ? "" : "s"} between them — ${fmtDate(a.to)} to ${fmtDate(b.from)}.`, id: inYear[j].id });
+      }
+    }
+  }
+
+  // A deadline landing while you are away at something else.
+  for (const ev of events) {
+    for (const d of deadlinesOf(ev)) {
+      if (yearOf(d.iso) !== year || d.left <= 0) continue;
+      for (const other of inYear) {
+        if (other.id === ev.id) continue;
+        const o = span(other);
+        if (d.iso >= o.from && d.iso <= o.to) {
+          out.push({ stop: false, what: `${d.label.toLowerCase()} for ${ev.title} fall due while you are at ${other.title}`,
+            when: `${fmtDate(d.iso)} · ${d.left} outstanding.`, id: ev.id });
+        }
+      }
+    }
+  }
+
+  // Three or more deadlines inside one week.
+  const marks = events.flatMap((ev) => deadlinesOf(ev).filter((d) => yearOf(d.iso) === year && d.left > 0)
+    .map((d) => ({ ...d, title: ev.title, id: ev.id })));
+  marks.sort((a, b) => a.iso.localeCompare(b.iso));
+  for (let i = 0; i < marks.length; i++) {
+    const week = marks.filter((m) => m.iso >= marks[i].iso && daysBetween(marks[i].iso, m.iso) <= 6);
+    if (week.length >= 3 && (i === 0 || daysBetween(marks[i - 1].iso, marks[i].iso) > 6)) {
+      out.push({ stop: false, what: `${week.length} deadlines inside one week`,
+        when: `${fmtDate(week[0].iso)} to ${fmtDate(week[week.length - 1].iso)} · ${[...new Set(week.map((m) => m.title))].join(", ")}.`, id: week[0].id });
+    }
+  }
+  return out;
+}
+
+function yearScreen(events, year) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="printyear">Print</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  document.getElementById("printyear").onclick = () => window.print();
+
+  const today = todayIso();
+  const years = yearsWithWork(events);
+  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year)
+    .sort((a, b) => a.dayOne.localeCompare(b.dayOne));
+
+  const trainingDays = mine.reduce((n, e) => n + (isDate(e.lastDay) ? daysBetween(e.dayOne, e.lastDay) + 1 : 1), 0);
+  const cities = new Set(mine.map((e) => (e.city ?? "").trim()).filter(Boolean)).size;
+  const presenters = mine.reduce((n, e) => n + (e.counts?.total ?? 0), 0);
+  const outstanding = mine.reduce((n, e) => n + ((e.counts?.total ?? 0) - (e.counts?.approved ?? 0)), 0);
+
+  const head = `<div class="card"><div class="card-head">
+      <div class="yearhead">
+        <button class="ynav" id="yprev" ${years.some((y) => y < year) ? "" : "disabled"} title="Earlier year">&#8249;</button>
+        <span class="yr">${year}</span>
+        <button class="ynav" id="ynext" ${years.some((y) => y > year) ? "" : "disabled"} title="Later year">&#8250;</button>
+      </div>
+      <div style="flex:1"></div></div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Events</div><div class="v">${mine.length}</div></div>
+      <div class="tile"><div class="k">Training days</div><div class="v">${trainingDays}</div></div>
+      <div class="tile"><div class="k">Cities</div><div class="v">${cities}</div></div>
+      <div class="tile"><div class="k">Presenters</div><div class="v">${presenters}</div></div>
+      <div class="tile${outstanding ? " accent" : ""}"><div class="k">Agreements out</div><div class="v">${outstanding}</div></div>
+    </div>
+    ${monthsMarkup(events, year, today)}
+    <div class="ylegend">
+      <span><i style="background:var(--navy);height:13px;border-radius:4px"></i>Training dates</span>
+      <span><i style="background:var(--gold);width:3px;height:5px"></i>Agreements due</span>
+      <span><i style="background:var(--wait);width:3px;height:8px"></i>Draft materials due</span>
+      <span><i style="background:var(--navy);width:3px;height:11px"></i>Final materials due</span>
+      <span><i style="background:var(--late);width:4px;height:13px"></i>Overdue</span>
+      <span style="color:var(--muted)">Shaded columns are weekends.</span>
+    </div>
+    <div class="card-body" style="padding-top:10px"></div></div>`;
+
+  const crunch = crunchOf(events, year, today);
+  const crunchCard = crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
+    ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}">
+      <div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div>
+      <button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : "";
+
+  ROOT.innerHTML = head + crunchCard + listForYear(mine, today, year);
+
+  document.getElementById("yprev").onclick = () => { view = { name: "year", year: Math.max(...years.filter((y) => y < year)) }; render(); };
+  document.getElementById("ynext").onclick = () => { view = { name: "year", year: Math.min(...years.filter((y) => y > year)) }; render(); };
+  ROOT.querySelectorAll("[data-goev]").forEach((b) => {
+    b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); };
+  });
+}
+
+/** Twelve tracks. An event is a band where it falls; its deadlines are ticks below. */
+function monthsMarkup(events, year, today) {
+  const rows = [];
+  for (let m = 1; m <= 12; m++) {
+    const D = daysInMonth(year, m);
+    const pct = (d) => ((d - 1) / D) * 100;
+
+    // Every event that touches this month, clipped to it.
+    const segs = events.filter((e) => isDate(e.dayOne)).map((e) => {
+      const from = e.dayOne, to = isDate(e.lastDay) && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne;
+      const first = `${year}-${String(m).padStart(2, "0")}-01`;
+      const last = `${year}-${String(m).padStart(2, "0")}-${String(D).padStart(2, "0")}`;
+      if (to < first || from > last) return null;
+      return { ev: e, a: from < first ? 1 : dayOf(from), b: to > last ? D : dayOf(to),
+               runs: from <= today && today <= to, past: to < today,
+               // An event running across a month boundary is named once, in the
+               // month it starts; the tail is just the bar continuing.
+               starts: from >= first };
+    }).filter(Boolean).sort((x, y) => x.a - y.a || x.b - y.b);
+
+    // One line per event, so a short bar's name never runs under the next bar.
+    // Only a crowded month packs them, and then names sit inside the bars.
+    const crowded = segs.length > 4;
+    const lanes = [];
+    for (const seg of segs) {
+      const lane = crowded ? lanes.find((rowSegs) => rowSegs[rowSegs.length - 1].b < seg.a) : null;
+      if (lane) lane.push(seg); else lanes.push([seg]);
+    }
+
+    const marks = events.flatMap((e) => deadlinesOf(e)
+      .filter((d) => yearOf(d.iso) === year && monthOf(d.iso) === m)
+      .map((d) => ({ ...d, ev: e, late: d.iso < today && d.left > 0 })));
+
+    const isNow = yearOf(today) === year && monthOf(today) === m;
+    rows.push(`<div class="mrow${segs.length || marks.length ? "" : " quiet"}${isNow ? " now" : ""}">
+      <div class="mname">${MONTH_LONG[m - 1]}</div>
+      <div class="mtrack">
+        ${segs.length ? `<div class="mweek" style="background-image:${weekendWash(year, m)}"></div>` : ""}
+        ${isNow ? `<div style="position:absolute;top:0;bottom:0;left:${pct(dayOf(today)) + (100 / D) / 2}%;width:2px;background:var(--gold);opacity:.9;pointer-events:none" title="Today"></div>` : ""}
+        ${lanes.length ? lanes.map((lane) => `<div class="lane">${lane.map((seg) => {
+          const width = ((seg.b - seg.a + 1) / D) * 100;
+          const name = esc(seg.ev.city || seg.ev.title);
+          const tip = `${esc(seg.ev.title)} · ${esc(seg.ev.city ?? "")} · ${esc(fmtDate(seg.ev.dayOne))}${seg.ev.lastDay && seg.ev.lastDay !== seg.ev.dayOne ? " – " + esc(fmtDate(seg.ev.lastDay)) : ""}`;
+          // Wide enough to hold the name, or the name goes alongside — on the
+          // left when the bar is near the end of the month, so it never clips.
+          const inside = width >= 17 || crowded;
+          const side = seg.a / D > 0.62 ? "left" : "right";
+          const at = side === "left" ? pct(seg.a) : pct(seg.a) + width;
+          return `<button class="band${seg.runs ? " runs" : seg.past ? " past" : ""}" data-goev="${esc(seg.ev.id)}"
+            style="left:${pct(seg.a)}%;width:${width}%" title="${tip}">${inside && seg.starts ? name : ""}</button>`
+            + (!inside && seg.starts ? `<span class="blabel ${side}${seg.past ? " past" : ""}" style="left:${at}%">${name}</span>` : "");
+        }).join("")}</div>`).join("") : `<div class="lane"></div>`}
+        <div class="ticks">${marks.map((mk) => `<i class="tick ${mk.key}${mk.late ? " late" : ""}"
+          style="left:${pct(dayOf(mk.iso)) + (100 / D) / 2}%"
+          title="${esc(mk.label)} for ${esc(mk.ev.title)} — ${esc(fmtDate(mk.iso))}${mk.left > 0 ? ` · ${mk.left} outstanding` : " · all in"}"></i>`).join("")}</div>
+      </div></div>`);
+  }
+  return `<div class="months">${rows.join("")}</div>`;
+}
+
+/** The same year as a plain list — what you read, and what prints. */
+function listForYear(mine, today, year) {
+  if (!mine.length) {
+    return `<div class="card"><div class="empty">Nothing in ${year} yet. Create an event and it appears here.</div></div>`;
+  }
+  const rows = mine.map((ev) => {
+    const c = ev.counts ?? { total: 0, approved: 0 };
+    const when = `${fmtDate(ev.dayOne)}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + fmtDate(ev.lastDay) : ""}`;
+    const dates = deadlinesOf(ev).map((d) => {
+      const late = d.iso < today && d.left > 0;
+      return `<span class="${late ? "od" : ""}">${esc(d.label)} <b>${esc(fmtDate(d.iso).replace(/^\w+ /, ""))}</b>${late ? ` · ${d.left} out` : ""}</span>`;
+    }).join("");
+    const lead = ev.contact?.name || ev.reviewer?.name || "";
+    return `<div class="trow">
+      <div class="who"><div><div class="pname">${esc(ev.title)}</div>
+        <div class="porg">${esc(ev.city ?? "")}${ev.venue ? " · " + esc(ev.venue) : ""}</div>
+        ${lead ? `<div class="ptalk">Lead: ${esc(lead)}</div>` : ""}</div></div>
+      <div class="cell"><div class="cl">When</div><div style="font-weight:600">${esc(when)}</div>
+        <div class="ydates" style="margin-top:5px">${dates}</div></div>
+      <div class="act"><span class="chipstat"><b>${c.approved}<small>/${c.total}</small></b>signed</span>
+        <button class="mini" data-goev="${esc(ev.id)}">Open</button></div></div>`;
+  }).join("");
+  return `<div class="card"><div class="card-head"><div><h2>${year} in order</h2>
+      <div class="s">${mine.length} event${mine.length === 1 ? "" : "s"}, earliest first.</div></div></div>
+    <div class="card-body"><div class="tlist yrlist">${rows}</div></div></div>`;
+}
+
 /* ---------- sponsors ---------- */
 function sponsorsScreen(list, settings) {
   const { sponsors, events } = list;
@@ -875,7 +1191,7 @@ function eventScreen(data) {
     await invite(ev.id, null, outstanding.some((p) => p.mail?.length));
   };
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const daysTo = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const short = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
 
@@ -1382,7 +1698,7 @@ async function healthStrip() {
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
 function nextLine(ev, c) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const d = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const items = [["Agreements due", ev.deadlines?.agreement, c.invited + c.opened], ["Draft materials due", ev.deadlines?.draft, c.total - (ev.materials?.draft ?? 0)],
     ["Final materials due", ev.deadlines?.final, c.total - (ev.materials?.final ?? 0)], ["Training starts", ev.dayOne, 0]].filter((x) => x[1]).map(([l, iso, open]) => ({ l, iso, open, days: d(iso) }));
@@ -1792,6 +2108,10 @@ async function render() {
   try {
     if (view.name === "new") { await loadRoster(); return eventFormScreen(); }
     if (view.name === "edit") { const [data] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), loadRoster()]); return eventFormScreen(data); }
+    if (view.name === "year") {
+      const { events } = await api("/events");
+      return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
+    }
     if (view.name === "roster") return rosterScreen(await loadRoster());
     if (view.name === "sponsors" && SPONSORS_ON) {
       const [list, settings] = await Promise.all([api("/sponsors"), api("/sponsors?settings=1")]);
