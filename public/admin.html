@@ -309,6 +309,32 @@
   }
   @media print{.job .jact,.jobadd{display:none!important}}
 
+  /* ---------- who is coming ----------
+     Attendees arrive from Wix or from a CSV, and the row says which, because
+     a Wix sweep is allowed to retire its own people and not anybody else's. */
+  .guests{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:4px}
+  .guest{background:var(--sunk);display:grid;grid-template-columns:1fr auto auto;gap:8px 14px;
+         align-items:center;padding:9px 14px;font-size:14px}
+  .guest .gw{min-width:0}
+  .guest .gn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .guest .ge{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .guest.out .gn{color:var(--muted);text-decoration:line-through}
+  .guest .src{font-family:var(--fu);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+              color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px;background:var(--card)}
+  .guestmore{padding:10px 14px;background:var(--sunk);font-size:13px;color:var(--muted);text-align:center}
+  .wixbar{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted);
+          background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px}
+  .wixbar b{color:var(--ink)}
+  .wixbar .grow{flex:1;min-width:120px}
+  .wixev{display:grid;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;max-height:320px;overflow-y:auto}
+  .wixev button{display:block;width:100%;text-align:left;background:var(--sunk);border:0;padding:11px 13px;
+                cursor:pointer;font:inherit;font-size:14px}
+  .wixev button:hover:not([disabled]){background:var(--gold-pale)}
+  .wixev button[disabled]{opacity:.55;cursor:default}
+  .wixev .ws{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+  @media (max-width:560px){.guest{grid-template-columns:1fr auto}.guest .src{grid-column:2}}
+  @media print{.guestmore,.wixbar button{display:none!important}}
+
   /* Configuration that is read once, not on every visit. */
   .settings{border-top:1px solid var(--hair);margin-top:18px}
   .settings>summary{cursor:pointer;padding:13px 0 3px;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
@@ -539,7 +565,7 @@ function listScreen(events) {
 
   ROOT.querySelectorAll(".evcard").forEach((card) => { card.onkeydown = (e) => { if (e.key === "Enter") card.click(); }; });
   ROOT.querySelectorAll("[data-open]").forEach((b) => {
-    b.onclick = () => { view = { name: "event", eventId: b.dataset.open }; render(); };
+    b.onclick = () => { GUEST_NOTE = null; view = { name: "event", eventId: b.dataset.open }; render(); };
   });
   ROOT.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); view = { name: "event", eventId: b.dataset.goev }; render(); }; });
   ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = (e) => {
@@ -1316,7 +1342,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1631,11 +1657,13 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
-    + checklistCard(ev, checklist) + jobDialog();
+    + checklistCard(ev, checklist) + jobDialog()
+    + attendeesCard(ev, guests) + wixDialog();
 
   CHECKLIST = checklist;
   wireActions();
   wireChecklist(ev);
+  wireAttendees(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -1915,6 +1943,157 @@ const jobDialog = () => `<dialog class="sheet" id="jobdlg">
       </div>
     </div>
   </form></dialog>`;
+
+/* ---------- who is coming ---------- */
+
+/**
+ * What the last import or pull said. The card redraws when it finishes, which
+ * used to wipe the message before anyone could read it — so it survives one
+ * redraw and is cleared on the next visit to the screen.
+ */
+let GUEST_NOTE = null;
+
+const GUEST_WORDS = {
+  ATTENDING: ["done", "coming"],
+  NOT_ATTENDING: ["idle", "not coming"],
+  IN_WAITLIST: ["wait", "waitlist"],
+  WITHDRAWN: ["late", "withdrawn"],
+};
+const SHOW_GUESTS = 25;
+
+/** Who is coming to this event, however they got on the list. */
+function attendeesCard(ev, guests) {
+  if (!guests) {
+    return `<div class="card"><div class="card-head"><div><h2>Who is coming</h2></div></div>
+      <div class="card-body"><div class="bad"><b>The attendee list could not be loaded.</b> Reload the page.</div></div></div>`;
+  }
+  const { people, counts, syncedAt, wix } = guests;
+  const chip = (n, cls, word) => (n ? `<span class="chipstat${cls}"><b>${n}</b>${word}</span>` : "");
+
+  const rows = people.slice(0, SHOW_GUESTS).map((p) => {
+    const [cls, word] = GUEST_WORDS[p.status] ?? ["idle", String(p.status ?? "").toLowerCase()];
+    const name = [p.first, p.last].filter(Boolean).join(" ") || p.email;
+    return `<div class="guest${p.status === "WITHDRAWN" ? " out" : ""}">
+      <div class="gw"><div class="gn">${esc(name)}</div><div class="ge">${esc(p.email)}${p.organization ? " · " + esc(p.organization) : ""}</div></div>
+      <span class="pill ${cls}" style="font-size:10px;padding:3px 9px">${esc(word)}</span>
+      <span class="src" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</span>
+    </div>`;
+  }).join("");
+
+  // Linked to Wix, or not — the bar says which and offers the next move.
+  const bar = wix?.eventId
+    ? `<div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
+        <button class="mini" id="g-sync">Pull from Wix now</button>
+        <button class="mini ghost" id="g-unlink">Unlink</button></div>`
+    : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
+        <button class="mini" id="g-link">Link to a Wix event</button></div>`;
+
+  return `<div class="card">
+    <div class="card-head"><div><h2>Who is coming</h2>
+      <div class="s">The people the welcome letter and the survey go to. Pulled from the website nightly, or imported from a spreadsheet.</div>
+      <div class="jobsum" style="margin-top:8px">
+        ${chip(counts.attending, " good", "coming")}
+        ${chip(counts.waitlist, " hot", "on the waitlist")}
+        ${chip(counts.notAttending, "", "not coming")}
+        ${chip(counts.withdrawn, " stop", "withdrew")}
+        ${counts.total ? `<span class="chipstat"><b>${counts.fromWix}</b>from the website</span>` : ""}
+        ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
+      </div></div>
+      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>
+        <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
+    <div class="card-body">
+      ${bar}
+      <div id="g-said">${GUEST_NOTE
+        ? `<div class="${GUEST_NOTE.bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(GUEST_NOTE.msg)}</div>` : ""}</div>
+      ${people.length ? `<div class="guests">${rows}</div>
+        ${people.length > SHOW_GUESTS ? `<div class="guestmore">and ${people.length - SHOW_GUESTS} more — the full list prints and is what the letters use</div>` : ""}`
+        : `<div class="empty">Nobody on the list yet. Link the event to your website, or import a spreadsheet.</div>`}
+    </div></div>`;
+}
+
+const wixDialog = () => `<dialog class="sheet" id="wixdlg">
+  <form method="dialog">
+    <div class="sheet-head"><h2>Link to a Wix event</h2>
+      <p class="hint" style="margin-top:6px">Registrations for the event you pick will arrive here, tonight and every
+        night. Nothing is written back to your website.</p></div>
+    <div class="sheet-body">
+      <div id="wixlist"><p class="hint">Asking your website…</p></div>
+      <div class="actions" style="justify-content:flex-end"><button class="btn btn-ghost" value="cancel">Close</button></div>
+    </div>
+  </form></dialog>`;
+
+function wireAttendees(ev) {
+  const said = document.getElementById("g-said");
+  if (!said) return;
+  const note = (msg, bad = false) => {
+    GUEST_NOTE = { msg, bad };
+    said.innerHTML = `<div class="${bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(msg)}</div>`;
+  };
+  const run = async (path, init, done) => {
+    try { const out = await api(path, init); if (done) note(done(out)); setTimeout(render, 900); }
+    catch (e) { note(e.message, true); }
+  };
+
+  const sync = document.getElementById("g-sync");
+  if (sync) sync.onclick = () => {
+    sync.disabled = true; sync.textContent = "Pulling…";
+    run(`/wix?event=${encodeURIComponent(ev.id)}`, { method: "POST" },
+      (o) => `Pulled ${o.read} from the website — ${o.added} new, ${o.changed} changed${o.withdrawn ? `, ${o.withdrawn} withdrew` : ""}.`);
+  };
+
+  const unlink = document.getElementById("g-unlink");
+  if (unlink) unlink.onclick = () => {
+    if (!confirm("Stop pulling registrations for this event? The people already on the list are kept.")) return;
+    run(`/wix?event=${encodeURIComponent(ev.id)}&unlink=1`, { method: "PUT" }, () => "Unlinked.");
+  };
+
+  const link = document.getElementById("g-link");
+  const dlg = document.getElementById("wixdlg");
+  if (link && dlg) link.onclick = async () => {
+    const list = document.getElementById("wixlist");
+    list.innerHTML = `<p class="hint">Asking your website…</p>`;
+    dlg.showModal();
+    try {
+      const { events } = await api("/wix?events=1");
+      if (!events.length) { list.innerHTML = `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      list.innerHTML = `<div class="wixev">${events.map((w) => `
+        <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
+          <b>${esc(w.title)}</b>
+          <span class="ws">${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.city ? " · " + esc(w.city) : ""}${w.registered !== null ? ` · ${w.registered} registered` : ""}
+            ${w.linkedTo ? ` · already linked to ${esc(w.linkedTo.title)}` : ""}</span>
+        </button>`).join("")}</div>`;
+      list.querySelectorAll("[data-wix]").forEach((b) => {
+        b.onclick = async () => {
+          dlg.close();
+          run(`/wix?event=${encodeURIComponent(ev.id)}&link=${encodeURIComponent(b.dataset.wix)}`, { method: "PUT" },
+            (o) => `Linked. Pulled ${o.read} registration${o.read === 1 ? "" : "s"} straight away.`);
+        };
+      });
+    } catch (e) {
+      list.innerHTML = `<div class="bad">${esc(e.message)}</div>`;
+    }
+  };
+
+  // A spreadsheet goes up as plain text; the desk works out the columns.
+  const pick = document.getElementById("g-csv"), file = document.getElementById("g-file");
+  if (pick && file) {
+    pick.onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      note(`Reading ${f.name}…`);
+      try {
+        const out = await api(`/attendees?event=${encodeURIComponent(ev.id)}&csv=1`,
+          { method: "POST", headers: { "content-type": "text/csv" }, body: await f.text() });
+        const n = out.skipped?.length ?? 0;
+        const skipped = n ? ` ${n} row${n === 1 ? " had" : "s had"} no usable email and ${n === 1 ? "was" : "were"} left out.` : "";
+        note(`${out.added} added, ${out.changed} updated.${skipped}`);
+        setTimeout(render, 1400);
+      } catch (e) { note(e.message, true); }
+      file.value = "";
+    };
+  }
+}
 
 /* ---------- add presenters ---------- */
 function addScreen(eventId) {
@@ -2404,12 +2583,13 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist] = await Promise.all([
+      const [data, materials, checklist, guests] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/attendees?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
-      return eventScreen({ ...data, materials, checklist });
+      return eventScreen({ ...data, materials, checklist, guests });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);
