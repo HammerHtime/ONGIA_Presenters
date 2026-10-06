@@ -2395,7 +2395,9 @@ function roomingCard(ev, R, C = null) {
         <summary>Add people by hand or from a spreadsheet${R.guests.length ? ` (${R.guests.length} added)` : ""}</summary>
         <p class="hint" style="margin-top:8px">Board members, volunteers, ONGIA guests, and any presenter who is not on the desk.
           Presenters with an agreement come onto the list by themselves.</p>
-        <div id="rm-guests">${R.guests.map((g) => `<div class="room"><span></span><div class="rn">${esc(g.name)}<div class="ro">${[esc(g.type || "type not set"), esc(g.note || "")].filter(Boolean).join(" · ")}</div></div>
+        <div id="rm-guests">${R.guests.map((g) => `<div class="room"><span></span><div class="rn">${esc(g.name)}<div class="ro">
+          <select data-rmtype="${esc(g.id)}" aria-label="Who ${esc(g.name)} is" style="width:auto;padding:3px 8px;font-size:12.5px;margin:3px 0">
+            ${g.type ? "" : `<option value="" selected>Type not set</option>`}${GUEST_TYPES.map((t) => `<option${t === g.type ? " selected" : ""}>${t}</option>`).join("")}</select>${g.note ? ` · ${esc(g.note)}` : ""}</div></div>
           <div class="rd">${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}</div>
           <button class="mini ghost" data-rmdel="${esc(g.id)}">Remove</button></div>`).join("")}</div>
         <div class="gform">
@@ -2540,6 +2542,10 @@ function wireRooming(ev, R) {
       } catch (err) { box.innerHTML = `<div class="bad">${esc(err.message)}</div>`; }
     };
   }
+  // Who someone is can be changed in place: a slip in a spreadsheet, or a person saved before the four types.
+  document.querySelectorAll("[data-rmtype]").forEach((sel) => {
+    sel.onchange = () => saveGuests(R.guests.map((g) => (g.id === sel.dataset.rmtype ? { ...g, type: sel.value } : g)));
+  });
   document.querySelectorAll("[data-rmdel]").forEach((b) => {
     b.onclick = (e) => { e.preventDefault(); saveGuests(R.guests.filter((g) => g.id !== b.dataset.rmdel)); };
   });
