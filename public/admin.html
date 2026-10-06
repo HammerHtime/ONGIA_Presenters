@@ -272,6 +272,43 @@
     .months{break-inside:avoid}
   }
 
+  /* ---------- the desk's own checklist ----------
+     Not what a presenter owes; what Andrew owes. A row is a tick, a job and
+     the date it falls on, worked back from day one like every other date here. */
+  .jobs{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:4px;
+        max-width:820px}
+  .job{background:var(--sunk);display:grid;grid-template-columns:auto 1fr auto auto;gap:10px 14px;
+       align-items:center;padding:10px 14px}
+  .job.done{background:var(--done-bg)}
+  .job.late{background:var(--late-bg)}
+  /* Ruled out, but still on the page — so it reads as decided, not forgotten. */
+  .job.na{background:var(--card)}
+  .job.na .what{color:var(--muted);text-decoration:line-through}
+  .job.na .when{color:var(--muted);font-style:italic}
+  .job.na input{opacity:.4}
+  .when .nodate{color:var(--muted);font-weight:500}
+  .what .auto{display:inline-block;margin-left:8px;font-family:var(--fu);font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--navy);background:var(--sand);border:1px solid var(--border);
+    border-radius:999px;padding:1px 8px;vertical-align:1px}
+  .job.next{box-shadow:inset 3px 0 0 var(--navy)}
+  .job .what{font-size:14px;min-width:0;overflow-wrap:anywhere}
+  .job.done .what{color:var(--muted);text-decoration:line-through}
+  .job .when{font-size:13px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .job .when b{font-weight:600}
+  .job .when span{display:block;font-size:11.5px;color:var(--muted)}
+  .job.late .when b{color:var(--late)}
+  .job .jact{display:flex;gap:5px}
+  .job .jact button{border:1px solid var(--border);background:var(--card);color:var(--ink-mid);cursor:pointer;
+                    font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;line-height:1.3}
+  .job .jact button:hover{border-color:var(--navy);color:var(--navy)}
+  .jobsum{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+  @media (max-width:560px){
+    .job{grid-template-columns:auto 1fr auto;row-gap:6px}
+    .job .when{grid-column:2/-1;text-align:left}
+    .job .jact{grid-column:3;grid-row:1}
+  }
+  @media print{.job .jact,.jobadd{display:none!important}}
+
   /* Configuration that is read once, not on every visit. */
   .settings{border-top:1px solid var(--hair);margin-top:18px}
   .settings>summary{cursor:pointer;padding:13px 0 3px;font-family:var(--fu);font-size:11px;letter-spacing:.13em;
@@ -562,6 +599,11 @@ function needsCard(events) {
     if (due && days(due) < 0 && out) rows.push({ cls: "stop", rank: 4,
       title: `${out} agreement${out === 1 ? "" : "s"} overdue by ${-days(due)} day${days(due) === -1 ? "" : "s"}`,
       who: `${names(a.outstanding)} — ${where}`, label: "Open event", goev: ev.id });
+    // ONGIA's own jobs, which nobody else is going to chase.
+    const k = ev.checklist;
+    if (k?.late) rows.push({ cls: "stop", rank: 5,
+      title: `${k.late} job${k.late === 1 ? "" : "s"} on your own checklist overdue`,
+      who: `${where} · ${k.done} of ${k.total} done`, label: "Open event", goev: ev.id });
   }
   rows.sort((a, b) => a.rank - b.rank);
   const live = events.filter((e) => (e.lastDay || e.dayOne) >= today).length;
@@ -882,6 +924,15 @@ function crunchOf(events, year, today) {
     }
   }
 
+  // Jobs that are ONGIA's own, already past their date.
+  for (const ev of inYear) {
+    const late = ev.checklist?.late ?? 0;
+    if (late) {
+      out.push({ stop: false, what: `${late} job${late === 1 ? "" : "s"} on your own checklist for ${ev.title} ${late === 1 ? "is" : "are"} overdue`,
+        when: `${ev.checklist.done} of ${ev.checklist.total} done · ${fmtDate(ev.dayOne)}.`, id: ev.id });
+    }
+  }
+
   // Three or more deadlines inside one week.
   const marks = events.flatMap((ev) => deadlinesOf(ev).filter((d) => yearOf(d.iso) === year && d.left > 0)
     .map((d) => ({ ...d, title: ev.title, id: ev.id })));
@@ -942,13 +993,96 @@ function yearScreen(events, year) {
       <div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div>
       <button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : "";
 
-  ROOT.innerHTML = head + crunchCard + listForYear(mine, today, year);
+  ROOT.innerHTML = head + crunchCard + listForYear(mine, today, year) + templateCard();
 
+  wireTemplate();
   document.getElementById("yprev").onclick = () => { view = { name: "year", year: Math.max(...years.filter((y) => y < year)) }; render(); };
   document.getElementById("ynext").onclick = () => { view = { name: "year", year: Math.min(...years.filter((y) => y > year)) }; render(); };
   ROOT.querySelectorAll("[data-goev]").forEach((b) => {
     b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); };
   });
+}
+
+/**
+ * The standard checklist. Every new event starts from this, and an older event
+ * can pull it in. Edited rarely, so it is folded away until it is wanted.
+ */
+function templateCard() {
+  return `<div class="card"><div class="card-body" style="padding-top:6px">
+    <details class="settings" id="tmpl"><summary>The standard checklist new events start from</summary>
+      <p class="hint" style="margin-top:10px">Each job is a distance from day one of the training, so one list works
+        for every event whatever its dates. A new event is created with this list already on it.</p>
+      <div id="tmplrows" style="margin-top:12px"><p class="hint">Loading…</p></div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="mini" id="tmpl-add">Add a job</button>
+        <button class="btn btn-gold" id="tmpl-save" style="padding:9px 20px;font-size:14px">Save the list</button>
+        <span class="hint" id="tmpl-said" style="align-self:center"></span>
+      </div>
+    </details></div></div>`;
+}
+
+/** Rows are built once and never redrawn while typing — a rebuild eats the caret. */
+function wireTemplate() {
+  const host = document.getElementById("tmplrows");
+  const said = document.getElementById("tmpl-said");
+  const box = document.getElementById("tmpl");
+  if (!host || !box) return;
+  let loaded = false;
+
+  const rowHtml = (t = { what: "", daysBefore: 30 }) => `<div class="job" data-trow style="border-radius:12px;margin-bottom:6px;background:var(--sunk)">
+      <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout" style="grid-column:1/3">
+      <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${Math.abs(t.daysBefore)}" style="width:86px">
+      <select data-twhen style="width:auto"><option value="before"${t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${t.daysBefore < 0 ? " selected" : ""}>after day one</option></select>
+      <div class="jact"><button type="button" data-tdel title="Remove this job">&#10005;</button></div>
+    </div>`;
+
+  const wireRow = (row) => { row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; }; };
+  const addRow = (t) => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = rowHtml(t);
+    const row = wrap.firstElementChild;
+    host.appendChild(row);
+    wireRow(row);
+    return row;
+  };
+
+  const load = async () => {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const { template } = await api("/tasks?template=1");
+      host.innerHTML = "";
+      if (!template.length) host.innerHTML = `<p class="hint">Nothing on the standard list yet.</p>`;
+      template.forEach((t) => addRow(t));
+    } catch (e) { host.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+  };
+  box.addEventListener("toggle", () => { if (box.open) load(); });
+  if (box.open) load();
+
+  document.getElementById("tmpl-add").onclick = () => {
+    if (!loaded) return;
+    host.querySelector(".hint")?.remove();
+    addRow().querySelector("[data-twhat]").focus();
+  };
+
+  document.getElementById("tmpl-save").onclick = async (e) => {
+    const btn = e.currentTarget;
+    const tasks = [...host.querySelectorAll("[data-trow]")].map((row) => {
+      const n = Math.abs(Number(row.querySelector("[data-tdays]").value));
+      return {
+        what: row.querySelector("[data-twhat]").value.trim(),
+        daysBefore: row.querySelector("[data-twhen]").value === "after" ? -n : n,
+      };
+    });
+    const bad = tasks.filter((t) => !t.what || !Number.isFinite(t.daysBefore));
+    if (bad.length) { said.textContent = "Every row needs wording and a number."; said.style.color = "var(--late)"; return; }
+    btn.disabled = true; said.style.color = ""; said.textContent = "Saving…";
+    try {
+      const out = await api("/tasks?template=1", { method: "PUT", body: JSON.stringify({ tasks }) });
+      said.textContent = `Saved — ${out.template.length} job${out.template.length === 1 ? "" : "s"}. New events start from this.`;
+    } catch (err) { said.textContent = err.message; said.style.color = "var(--late)"; }
+    btn.disabled = false;
+  };
 }
 
 /** Twelve tracks. An event is a band where it falls; its deadlines are ticks below. */
@@ -1011,6 +1145,15 @@ function monthsMarkup(events, year, today) {
   return `<div class="months">${rows.join("")}</div>`;
 }
 
+/** How the desk's own jobs are going on one event, in one chip. */
+function jobsChip(ev) {
+  const k = ev.checklist;
+  if (!k || !k.total) return "";
+  if (k.late) return `<span class="chipstat stop"><b>${k.late}</b>job${k.late === 1 ? "" : "s"} overdue</span>`;
+  const cls = k.done === k.total ? " good" : k.soon ? " hot" : "";
+  return `<span class="chipstat${cls}"><b>${k.done}<small>/${k.total}</small></b>jobs done</span>`;
+}
+
 /** The same year as a plain list — what you read, and what prints. */
 function listForYear(mine, today, year) {
   if (!mine.length) {
@@ -1031,6 +1174,7 @@ function listForYear(mine, today, year) {
       <div class="cell"><div class="cl">When</div><div style="font-weight:600">${esc(when)}</div>
         <div class="ydates" style="margin-top:5px">${dates}</div></div>
       <div class="act"><span class="chipstat"><b>${c.approved}<small>/${c.total}</small></b>signed</span>
+        ${jobsChip(ev)}
         <button class="mini" data-goev="${esc(ev.id)}">Open</button></div></div>`;
   }).join("");
   return `<div class="card"><div class="card-head"><div><h2>${year} in order</h2>
@@ -1172,7 +1316,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials } = data;
+  const { event: ev, presenters, counts: c, materials, checklist } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1486,9 +1630,12 @@ function eventScreen(data) {
           </div>
         </div>
       </form>
-    </dialog>`;
+    </dialog>`
+    + checklistCard(ev, checklist) + jobDialog();
 
+  CHECKLIST = checklist;
   wireActions();
+  wireChecklist(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -1630,6 +1777,144 @@ function eventScreen(data) {
     b.onclick = () => { view = { name: "review", eventId: ev.id, presenterId: b.dataset.review }; render(); };
   });
 }
+
+/* ---------- the desk's own checklist ---------- */
+
+/** "120 days before day one" / "21 days after" / "on day one". */
+function offsetWords(n) {
+  if (!Number.isFinite(n)) return "no date yet";
+  if (n === 0) return "on day one";
+  return n > 0 ? `${n} day${n === 1 ? "" : "s"} before` : `${-n} day${n === -1 ? "" : "s"} after`;
+}
+
+/**
+ * The jobs that are ONGIA's. Drawn as its own card under the event so it is
+ * never confused with what the presenters owe.
+ */
+function checklistCard(ev, checklist) {
+  if (!checklist) {
+    return `<div class="card"><div class="card-head"><div><h2>Your checklist</h2></div></div>
+      <div class="card-body"><div class="bad"><b>The checklist could not be loaded.</b> Reload the page.</div></div></div>`;
+  }
+  const { tasks, counts } = checklist;
+  // One focus in a long list: the nearest job that is not already late. The
+  // late ones are red already and do not need a second mark.
+  const nextId = tasks.find((t) => !t.done && !t.late)?.id ?? null;
+
+  const rows = tasks.map((t) => {
+    const when = t.na
+      ? `<span>not needed for this one</span>`
+      : t.scheduled
+        ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b><span>${esc(offsetWords(t.daysBefore))}${t.late ? ` · ${-t.days} day${t.days === -1 ? "" : "s"} ago` : ""}</span>`
+        : `<b class="nodate">No date yet</b><span>set one on Edit</span>`;
+    return `<div class="job${t.na ? " na" : t.done ? " done" : t.late ? " late" : ""}${t.id === nextId ? " next" : ""}">
+      <input type="checkbox" data-tick="${esc(t.id)}"${t.done ? " checked" : ""}${t.na ? " disabled" : ""} aria-label="${esc(t.what)}">
+      <div class="what">${esc(t.what)}${t.auto ? `<span class="auto" title="The desk sends this one — you do not have to">sends itself</span>` : ""}</div>
+      <div class="when">${when}</div>
+      <div class="jact"><button data-jna="${esc(t.id)}" data-was="${t.na ? "1" : "0"}" title="${t.na ? "Put this job back on the event" : "This event does not need this job"}">${t.na ? "Put back" : "Not needed"}</button>
+        <button data-jedit="${esc(t.id)}" title="Change the wording or the date">Edit</button>
+        <button data-jdel="${esc(t.id)}" title="Remove this job for good" aria-label="Remove ${esc(t.what)}">&#10005;</button></div>
+    </div>`;
+  }).join("");
+
+  const summary = counts.total || counts.na
+    ? `<span class="chipstat${counts.total && counts.done === counts.total ? " good" : ""}"><b>${counts.done}<small>/${counts.total}</small></b>done</span>`
+      + (counts.late ? `<span class="chipstat stop"><b>${counts.late}</b>overdue</span>` : "")
+      + (counts.soon ? `<span class="chipstat hot"><b>${counts.soon}</b>in the next two weeks</span>` : "")
+      + (counts.undated ? `<span class="chipstat"><b>${counts.undated}</b>with no date yet</span>` : "")
+      + (counts.na ? `<span class="chipstat"><b>${counts.na}</b>not needed</span>` : "")
+    : "";
+
+  return `<div class="card">
+    <div class="card-head"><div><h2>Your checklist</h2>
+      <div class="s">What ONGIA owes this event, not what the presenters owe. Every date counts back from day one, so moving the training moves the list.</div>
+      <div class="jobsum" style="margin-top:8px">${summary}</div></div>
+      <div class="cardacts"><button class="mini jobadd" id="jadd">Add a job</button>
+        ${tasks.length ? "" : `<button class="mini jobadd" id="jseed">Use the standard list</button>`}</div></div>
+    <div class="card-body">
+      ${tasks.length ? `<div class="jobs">${rows}</div>` : `<div class="empty">Nothing on the list yet.</div>`}
+      <p class="hint jobadd">The standard list new events start from is on <b>The year</b> screen.</p>
+    </div></div>`;
+}
+
+/** Ticking, adding, changing and removing — each one writes and redraws. */
+function wireChecklist(ev) {
+  const send = async (path, init) => {
+    try { await api(path, init); render(); }
+    catch (e) { toast(e.message); render(); }
+  };
+  ROOT.querySelectorAll("[data-tick]").forEach((box) => {
+    box.onchange = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(box.dataset.tick)}`,
+      { method: "PUT", body: JSON.stringify({ done: box.checked }) });
+  });
+  ROOT.querySelectorAll("[data-jna]").forEach((b) => {
+    b.onclick = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(b.dataset.jna)}`,
+      { method: "PUT", body: JSON.stringify({ na: b.dataset.was !== "1" }) });
+  });
+  ROOT.querySelectorAll("[data-jdel]").forEach((b) => {
+    b.onclick = () => {
+      if (!confirm("Remove this job from the checklist?")) return;
+      send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(b.dataset.jdel)}`, { method: "DELETE" });
+    };
+  });
+
+  const dlg = document.getElementById("jobdlg");
+  if (!dlg) return;
+  let editing = null;
+  const fill = (task) => {
+    editing = task?.id ?? null;
+    document.getElementById("jd-title").textContent = task ? "Change this job" : "Add a job";
+    document.getElementById("j-what").value = task?.what ?? "";
+    document.getElementById("j-days").value = task ? Math.abs(task.daysBefore) : 30;
+    document.getElementById("j-when").value = task && task.daysBefore < 0 ? "after" : "before";
+    document.getElementById("j-why").textContent = "";
+  };
+  document.getElementById("jadd").onclick = () => { fill(null); dlg.showModal(); document.getElementById("j-what").focus(); };
+  const seed = document.getElementById("jseed");
+  if (seed) seed.onclick = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&seed=1`, { method: "POST" });
+  ROOT.querySelectorAll("[data-jedit]").forEach((b) => {
+    b.onclick = () => { fill((data_checklist()?.tasks ?? []).find((t) => t.id === b.dataset.jedit)); dlg.showModal(); };
+  });
+
+  document.getElementById("j-save").onclick = async (e) => {
+    e.preventDefault();
+    const what = document.getElementById("j-what").value.trim();
+    const n = Number(document.getElementById("j-days").value);
+    const why = document.getElementById("j-why");
+    if (!what) { why.textContent = "What is the job?"; return; }
+    if (!Number.isFinite(n) || document.getElementById("j-days").value.trim() === "") { why.textContent = "How many days?"; return; }
+    const daysBefore = document.getElementById("j-when").value === "after" ? -Math.abs(n) : Math.abs(n);
+    const body = JSON.stringify({ what, daysBefore });
+    dlg.close();
+    await send(editing
+      ? `/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(editing)}`
+      : `/tasks?event=${encodeURIComponent(ev.id)}`, { method: editing ? "PUT" : "POST", body });
+  };
+}
+
+/** The checklist the screen is currently showing, for the edit dialog to read. */
+let CHECKLIST = null;
+const data_checklist = () => CHECKLIST;
+
+const jobDialog = () => `<dialog class="sheet" id="jobdlg">
+  <form method="dialog">
+    <div class="sheet-head"><h2 id="jd-title">Add a job</h2>
+      <p class="hint" style="margin-top:6px">Dates are kept as a distance from day one of the training, so if the
+        event moves, this moves with it.</p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="j-what">The job</label><input id="j-what" maxlength="160" autocomplete="off" placeholder="Confirm the room layout"></div>
+      <div class="row2">
+        <div class="field"><label for="j-days">Days</label><input id="j-days" type="number" min="0" max="730" inputmode="numeric"></div>
+        <div class="field"><label for="j-when">Before or after day one</label>
+          <select id="j-when"><option value="before">before day one</option><option value="after">after day one</option></select></div>
+      </div>
+      <p class="hint" id="j-why" style="color:var(--late)"></p>
+      <div class="actions" style="justify-content:flex-end">
+        <button class="btn btn-ghost" value="cancel">Cancel</button>
+        <button class="btn btn-gold" id="j-save" value="save">Save</button>
+      </div>
+    </div>
+  </form></dialog>`;
 
 /* ---------- add presenters ---------- */
 function addScreen(eventId) {
@@ -2119,8 +2404,12 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials] = await Promise.all([api(`/events?id=${encodeURIComponent(view.eventId)}`), api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null)]);
-      return eventScreen({ ...data, materials });
+      const [data, materials, checklist] = await Promise.all([
+        api(`/events?id=${encodeURIComponent(view.eventId)}`),
+        api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+      ]);
+      return eventScreen({ ...data, materials, checklist });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);

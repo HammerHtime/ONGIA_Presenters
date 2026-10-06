@@ -8,6 +8,7 @@ import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
+import { starterTasks, checklistOf } from "./lib/checklist.mjs";
 
 /**
  * Events and their presenters.
@@ -318,6 +319,9 @@ async function showList() {
         ...event,
         counts: countStatuses(people),
         presenterCount: people.length,
+        // The desk's own jobs, tallied here so the year view and the attention
+        // strip do not have to redo the working-day arithmetic in the browser.
+        checklist: checklistOf(event).counts,
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
         // Enough to name a problem on the dashboard without opening the event.
         attention: {
@@ -361,6 +365,10 @@ async function createEvent(body, origin) {
   const problem = await applyDetails(event, body, { creating: true });
   if (problem) return fail(problem);
   event.id = eventId(event.dayOne.slice(0, 4), event.city);
+  // The desk's own checklist comes with the event, so nobody has to remember to
+  // ask for it. Every job is stored as days before day one, so moving the
+  // training moves the whole list with it.
+  event.tasks = await starterTasks();
   await putEvent(event);
 
   // With Microsoft connected, a new event gets its folder and upload link
