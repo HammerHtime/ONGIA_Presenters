@@ -103,7 +103,9 @@ export function tidy(raw, event, today = todayIso()) {
       return { ...d, label: KINDS[d.kind], dateReadable: formatDate(d.date), warn };
     });
   const first = isDate(raw?.meetingFirst) ? raw.meetingFirst : null;
-  const last = isDate(raw?.meetingLast) && first && raw.meetingLast >= first ? raw.meetingLast : first;
+  // No last day in the contract stays no last day: copying the first one in
+  // would quietly make it a one-day training.
+  const last = isDate(raw?.meetingLast) && first && raw.meetingLast >= first ? raw.meetingLast : null;
   return {
     hotelName: clip(raw?.hotelName, 200) || null,
     city: clip(raw?.city, 80) || null,

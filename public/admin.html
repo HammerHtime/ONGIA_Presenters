@@ -2948,10 +2948,13 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
     // differ, they start unticked: moving day one moves every deadline.
     if (f.meetingFirst) {
       const d1 = $("e-day1").value, dl = $("e-last").value || d1;
-      const same = d1 === f.meetingFirst && dl === f.meetingLast;
-      rows.push({ key: "days", what: `<b>Training days:</b> ${esc(span(f.meetingFirst, f.meetingLast))}`, on: !d1 || same,
-        quote: f.arrival && f.departure ? `Rooms are booked ${esc(span(f.arrival, f.departure))}, arrival to departure.` : "",
-        warn: d1 && !same ? [`this event is set to ${span(d1, dl)}; tick this only if the contract is right`] : [] });
+      const same = d1 === f.meetingFirst && (!f.meetingLast || dl === f.meetingLast);
+      const warn = [];
+      if (!f.meetingLast) warn.push("the contract does not say when the training ends; set the last day yourself");
+      if (d1 && !same) warn.push(`this event is set to ${span(d1, dl)}; tick this only if the contract is right`);
+      rows.push({ key: "days", what: f.meetingLast ? `<b>Training days:</b> ${esc(span(f.meetingFirst, f.meetingLast))}`
+          : `<b>Training starts:</b> ${esc(fmtDate(f.meetingFirst))}`, on: !d1 || same,
+        quote: f.arrival && f.departure ? `Rooms are booked ${esc(span(f.arrival, f.departure))}, arrival to departure.` : "", warn });
     }
     if (f.city) {
       const c = $("e-city").value.trim();
@@ -3047,10 +3050,13 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
       if (x.key === "days") {
         // One message for the pair: setting day one also moves the last day on its own.
         const was = [$("e-day1").value, $("e-last").value];
-        put("e-day1", found.meetingFirst, "", { quiet: true }); put("e-last", found.meetingLast, "", { quiet: true });
-        if (was[0] && (was[0] !== found.meetingFirst || (was[1] || was[0]) !== found.meetingLast)) {
-          said.push(`replaced the training days (they were ${span(was[0], was[1] || was[0])})`);
-        } else if (!was[0]) said.push("the training days");
+        put("e-day1", found.meetingFirst, "", { quiet: true });
+        if (found.meetingLast) put("e-last", found.meetingLast, "", { quiet: true });
+        const what = found.meetingLast ? "the training days" : "day one (set the last day yourself: the contract does not give it)";
+        if (was[0] && (was[0] !== found.meetingFirst || (found.meetingLast && (was[1] || was[0]) !== found.meetingLast))) {
+          said.push(`replaced ${found.meetingLast ? "the training days" : "day one"} (${found.meetingLast ? "they were" : "it was"} ${span(was[0], found.meetingLast ? (was[1] || was[0]) : null)})`);
+          if (!found.meetingLast) said.push("set the last day yourself: the contract does not give it");
+        } else if (!was[0]) said.push(what);
       }
       else if (x.key === "city") put("e-city", found.city, "city");
       else if (x.key === "name") put("e-hotel", found.hotelName, "hotel");
