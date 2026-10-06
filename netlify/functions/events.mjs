@@ -395,6 +395,8 @@ function cleanHotel(given, had) {
     foodAndBev: date(given?.foodAndBev),
     rate: text(given?.rate, 120),
     notes: text(given?.notes, 2000),
+    // Where the rooming list goes: the hotel's group sales or reservations address.
+    contact: isEmail(text(given?.contact, 200)) ? text(given?.contact, 200) : "",
   };
   return Object.values(out).some(Boolean) ? out : null;
 }

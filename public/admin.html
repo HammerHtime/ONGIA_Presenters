@@ -352,6 +352,32 @@
   .wixev button[disabled]{opacity:.55;cursor:default}
   .wixev .ws{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
   @media (max-width:560px){.guest{grid-template-columns:1fr auto}.guest .src{grid-column:2}}
+  .mini.solid{background:var(--navy);border-color:var(--navy);color:#fff}
+  /* Hotel rooms: one row per room — tick, who, the nights, who pays. */
+  .rooms{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:4px}
+  .room{background:var(--sunk);display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 14px;align-items:center;padding:10px 14px}
+  .room.unconf{background:var(--card)}
+  .room .rn{font-weight:600;min-width:0;overflow-wrap:anywhere}
+  .room .ro{font-size:12.5px;color:var(--muted)}
+  .room .rd{font-size:13.5px;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+  .room .rd small{display:block;color:var(--muted);font-size:12px}
+  .room .rb{font-family:var(--fu);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:3px 9px;
+    border:1px solid var(--border);color:var(--ink-mid);white-space:nowrap}
+  .room .rb.ongia{background:var(--navy);border-color:var(--navy);color:#fff}
+  .room .rb.tbc{border-style:dashed;color:var(--wait)}
+  .roomsent{font-size:13.5px;margin:0 0 10px}
+  .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
+  .roomchg ul{margin:6px 0 0;padding-left:18px}
+  .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .gform{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:10px}
+  .gform label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+  @media (max-width:640px){
+    .room{grid-template-columns:auto 1fr auto}
+    .room .rd{grid-column:2/-1;text-align:left}
+    .room .rb{grid-column:3;grid-row:1}
+    .gform{grid-template-columns:1fr 1fr}
+    .gform .gname{grid-column:1/-1}
+  }
   @media print{.guestmore,.wixbar button{display:none!important}}
 
   /* ---------- letters ---------- */
@@ -754,6 +780,8 @@ function eventFormScreen(existing = null) {
           <div class="field" style="margin:0"><label for="e-hrate">Rate</label>
             <input id="e-hrate" value="${esc(ev?.hotel?.rate ?? "")}" placeholder="$189 + tax"></div>
         </div>
+        <div class="field"><label for="e-hcontact">Hotel contact email <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(group sales — where the rooming list goes)</span></label>
+          <input id="e-hcontact" type="email" value="${esc(ev?.hotel?.contact ?? "")}" placeholder="groupsales@hotel.com"></div>
         <div class="field"><label for="e-hlink">Booking link</label>
           <input id="e-hlink" type="url" value="${esc(ev?.hotel?.link ?? "")}" placeholder="https://… the hotel's booking page for our block">
           <p class="hint" style="margin:6px 0 0">This is the link every hotel reminder carries. Without it the reminders do not go.</p></div>
@@ -983,7 +1011,7 @@ function eventFormScreen(existing = null) {
       offsets,
       board: readBoard(),
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
-      hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"),
+      hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
       surveyLink: val("e-survey"),
@@ -1507,7 +1535,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1822,12 +1850,14 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
+    + roomingCard(ev, rooming) + roomingDialog()
     + checklistCard(ev, checklist) + jobDialog()
     + attendeesCard(ev, guests) + wixDialog();
 
   CHECKLIST = checklist;
   wireActions();
   wireChecklist(ev);
+  wireRooming(ev, rooming);
   wireAttendees(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2146,6 +2176,143 @@ const GUEST_WORDS = {
   WITHDRAWN: ["late", "withdrawn"],
 };
 const SHOW_GUESTS = 25;
+
+/**
+ * Hotel rooms: the rooming list, from the agreements and from anyone added by
+ * hand. Ticked rows are what the email and the spreadsheet carry; rows not yet
+ * approved start unticked, because their dates may still change.
+ */
+const BILL = { ONGIA: ["ongia", "ONGIA pays"], Guest: ["", "guest pays"], "To confirm": ["tbc", "to confirm"] };
+const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+let ROOMING = null;
+
+function roomingCard(ev, R) {
+  if (!R) return `<div class="card"><div class="card-head"><div><h2>Hotel rooms</h2></div></div>
+    <div class="card-body"><div class="bad"><b>The rooming list could not be loaded.</b> Reload the page.</div></div></div>`;
+  ROOMING = R;
+  const conf = R.rows.filter((r) => r.confirmed);
+  const nightsAll = conf.reduce((n, r) => n + r.nights, 0);
+  const row = (r) => {
+    const [cls, word] = BILL[r.billing] ?? ["", r.billing];
+    return `<label class="room${r.confirmed ? "" : " unconf"}">
+      <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
+      <div class="rn">${esc(r.name)}<div class="ro">${r.who === "guest" ? `added by hand${r.organization ? " · " + esc(r.organization) : ""}`
+        : esc(r.organization || "presenter")}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
+      <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))}<small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
+      <span class="rb ${cls}">${esc(word)}</span></label>`;
+  };
+  const sent = R.sent
+    ? `<p class="roomsent">Sent to <b>${esc(R.sent.to)}</b> on ${esc(fmtDate(R.sent.at.slice(0, 10)))} (${R.sent.count} room${R.sent.count === 1 ? "" : "s"}).</p>
+       ${R.changes?.length ? `<div class="roomchg"><b>Since then:</b><ul>${R.changes.map((c) => `<li>${esc(c.text)}</li>`).join("")}</ul>
+         The hotel does not know yet. Send the update and the email will list these changes.</div>` : ""}`
+    : "";
+  const waiting = R.waiting.length
+    ? `<p class="roomwait">Not answered yet, so they may still need a room: ${R.waiting.map((w) => esc(w.name)).join(", ")}.</p>` : "";
+  return `<div class="card" id="roomcard">
+    <div class="card-head"><div><h2>Hotel rooms</h2>
+      <div class="s">From the presenters' agreements — the dates and billing the board approved — plus anyone you add.${R.hotel.name ? ` At ${esc(R.hotel.name)}.` : ""}</div>
+      ${conf.length ? `<div class="jobsum" style="margin-top:8px"><span class="chipstat"><b>${conf.length}</b>room${conf.length === 1 ? "" : "s"}</span>
+        <span class="chipstat"><b>${nightsAll}</b>room night${nightsAll === 1 ? "" : "s"}</span>
+        ${R.rows.length > conf.length ? `<span class="chipstat hot"><b>${R.rows.length - conf.length}</b>awaiting approval</span>` : ""}</div>` : ""}</div>
+      <div class="cardacts">${R.rows.length ? `<button class="mini" id="rm-csv">Download spreadsheet</button>
+        <button class="mini solid" id="rm-send">${R.sent ? "Email the update to the hotel" : "Email it to the hotel"}</button>` : ""}</div></div>
+    <div class="card-body">
+      ${sent}
+      ${R.rows.length ? `<div class="rooms">${R.rows.map(row).join("")}</div>`
+        : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
+      ${waiting}
+      <details class="settings" style="margin-top:12px"${R.guests.length ? "" : ""}>
+        <summary>Someone who is not a presenter${R.guests.length ? ` (${R.guests.length} added)` : ""}</summary>
+        <p class="hint" style="margin-top:8px">A board member, staff, a guest — anyone else ONGIA is booking a room for.</p>
+        <div id="rm-guests">${R.guests.map((g) => `<div class="room"><span></span><div class="rn">${esc(g.name)}<div class="ro">${esc(g.note || "")}</div></div>
+          <div class="rd">${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}</div>
+          <button class="mini ghost" data-rmdel="${esc(g.id)}">Remove</button></div>`).join("")}</div>
+        <div class="gform">
+          <div class="gname"><label for="rg-name">Name</label><input id="rg-name" placeholder="Jacqulyn Taylor"></div>
+          <div><label for="rg-in">Check-in</label><input id="rg-in" type="date" value="${esc(ev.dayOne ?? "")}"></div>
+          <div><label for="rg-out">Check-out</label><input id="rg-out" type="date" value="${esc(ev.lastDay ?? ev.dayOne ?? "")}"></div>
+          <div><label for="rg-bill">Who pays</label><select id="rg-bill"><option value="ONGIA">ONGIA</option><option value="Guest">The guest</option></select></div>
+          <div><button class="mini" id="rg-add">Add</button></div>
+        </div>
+        <p class="hint" id="rg-said" style="margin:6px 0 0"></p>
+      </details>
+    </div></div>`;
+}
+
+const roomingDialog = () => `<dialog class="sheet" id="rmdlg" style="max-width:720px;width:calc(100% - 24px)">
+  <form method="dialog">
+    <div class="sheet-head"><h2>Email the rooming list</h2>
+      <p class="hint" style="margin-top:6px" id="rm-cc"></p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="rm-to">To</label><input id="rm-to" type="email" placeholder="groupsales@hotel.com"></div>
+      <div class="lprev" style="margin-top:10px"><iframe id="rm-frame" title="The email as the hotel will see it" sandbox="" style="width:100%;height:420px;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe></div>
+      <p class="hint" id="rm-said" style="margin-top:10px"></p>
+      <div class="actions" style="justify-content:flex-end">
+        <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn btn-gold" id="rm-go" type="button">Send it</button>
+      </div>
+    </div>
+  </form></dialog>`;
+
+function wireRooming(ev, R) {
+  if (!R) return;
+  const q = `/rooming?event=${encodeURIComponent(ev.id)}`;
+  const keys = () => [...document.querySelectorAll("[data-room]:checked")].map((b) => b.dataset.room);
+
+  const csv = document.getElementById("rm-csv");
+  if (csv) csv.onclick = async () => {
+    try {
+      const res = await fetch(`/api${q}&csv=1&keys=${encodeURIComponent(keys().join(","))}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
+      const url = URL.createObjectURL(await res.blob());
+      const a = Object.assign(document.createElement("a"), { href: url, download: `rooming-list-${ev.title.replace(/[^\w]+/g, "-").toLowerCase()}.csv` });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (e) { toast(e.message); }
+  };
+
+  const open = document.getElementById("rm-send");
+  if (open) open.onclick = async () => {
+    const chosen = keys();
+    if (!chosen.length) { toast("Tick at least one room to send."); return; }
+    const dlg = document.getElementById("rmdlg"), said = document.getElementById("rm-said");
+    said.textContent = "";
+    try {
+      const pv = await api(`${q}&preview=1`, { method: "POST", body: JSON.stringify({ keys: chosen }) });
+      document.getElementById("rm-to").value = pv.to || "";
+      document.getElementById("rm-cc").textContent = `${pv.rows} room${pv.rows === 1 ? "" : "s"}, with the list attached as a spreadsheet.${pv.cc ? ` A copy goes to ${pv.cc}, and the hotel's reply comes back to them.` : ""}`;
+      document.getElementById("rm-frame").srcdoc = pv.html;
+      dlg.showModal();
+    } catch (e) { toast(e.message); }
+  };
+  const go = document.getElementById("rm-go");
+  if (go) go.onclick = async () => {
+    const said = document.getElementById("rm-said"), to = document.getElementById("rm-to").value.trim();
+    if (!/@/.test(to)) { said.textContent = "Type the hotel's address."; return; }
+    go.disabled = true; said.textContent = `Sending to ${to}…`;
+    try {
+      const out = await api(`${q}&send=1`, { method: "POST", body: JSON.stringify({ keys: keys(), to }) });
+      document.getElementById("rmdlg").close();
+      toast(`Sent to ${out.to}.${out.ticked ? ` "${out.ticked}" is ticked.` : ""}`);
+      render();
+    } catch (e) { said.textContent = e.message; go.disabled = false; }
+  };
+
+  const saveGuests = async (list) => {
+    const said = document.getElementById("rg-said");
+    try { await api(q, { method: "PUT", body: JSON.stringify({ guests: list }) }); render(); }
+    catch (e) { said.textContent = e.message; said.style.color = "var(--late)"; }
+  };
+  const add = document.getElementById("rg-add");
+  if (add) add.onclick = (e) => {
+    e.preventDefault();
+    saveGuests([...R.guests, { name: document.getElementById("rg-name").value, checkIn: document.getElementById("rg-in").value,
+      checkOut: document.getElementById("rg-out").value, billing: document.getElementById("rg-bill").value }]);
+  };
+  document.querySelectorAll("[data-rmdel]").forEach((b) => {
+    b.onclick = (e) => { e.preventDefault(); saveGuests(R.guests.filter((g) => g.id !== b.dataset.rmdel)); };
+  });
+}
 
 /** Who is coming to this event, however they got on the list. */
 function attendeesCard(ev, guests) {
@@ -3125,13 +3292,14 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests] = await Promise.all([
+      const [data, materials, checklist, guests, rooming] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/attendees?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
-      return eventScreen({ ...data, materials, checklist, guests });
+      return eventScreen({ ...data, materials, checklist, guests, rooming });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
     return listScreen((await api("/events")).events);
