@@ -137,6 +137,13 @@
     .drow dd{grid-column:1/-1;text-align:left;font-size:15px}
   }
 
+  /* Each event card's dates: one wrapping line, the date first so the eye can run down it. */
+  .kdates{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;line-height:1.5;color:var(--ink-mid);
+          padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--border)}
+  .kdates .kl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);align-self:center}
+  .kdates .kd b{font-weight:650;color:var(--navy)}
+  .kdates .kd.cut b{color:var(--gold-deep,#8a6d1c)}
+  .kdates .kd.late,.kdates .kd.late b{color:var(--late)}
   .note{margin-top:14px;background:var(--gold-pale);border:1px solid var(--gold);border-radius:14px;
         padding:12px 15px;font-size:13.5px;line-height:1.55;color:var(--ink-mid)}
   .bad{margin-top:14px;background:var(--late-bg);border:1px solid var(--late);border-radius:14px;
@@ -672,7 +679,7 @@ function listScreen(events) {
         <span class="chipstat"><b>${md}<small>/${c.total}</small></b>draft materials</span>
         <span class="chipstat"><b>${mf}<small>/${c.total}</small></b>final materials</span>
       </div>
-      <div class="card-body" style="padding-top:10px;padding-bottom:12px">${nextLine(ev, c)}</div>
+      <div class="card-body" style="padding-top:10px;padding-bottom:12px">${datesLine(ev)}${nextLine(ev, c)}</div>
     </div>`;
   }).join("");
 
@@ -1309,7 +1316,7 @@ function wireTemplate() {
     return `<div class="job tjob" data-trow data-auto="${esc(t.auto ?? "")}" data-only="${esc(t.onlyFor ?? "")}" style="border-radius:12px;margin-bottom:6px;background:var(--sunk)">
       <input data-twhat type="text" maxlength="160" value="${esc(t.what)}" placeholder="Confirm the room layout">
       <input data-tdays type="number" min="0" max="730" inputmode="numeric" value="${dated ? Math.abs(t.daysBefore) : ""}" placeholder="no date">
-      <select data-twhen style="width:auto"><option value="before"${!dated || t.daysBefore >= 0 ? " selected" : ""}>before day one</option><option value="after"${dated && t.daysBefore < 0 ? " selected" : ""}>after the last day</option></select>
+      <select data-twhen style="width:auto"><option value="before"${t.from !== "cutoff" && (!dated || t.daysBefore >= 0) ? " selected" : ""}>before day one</option><option value="after"${t.from !== "cutoff" && dated && t.daysBefore < 0 ? " selected" : ""}>after the last day</option><option value="cutoff"${t.from === "cutoff" ? " selected" : ""}>before the hotel cut-off</option></select>
       <div class="jact"><button type="button" data-tup title="Move up" aria-label="Move up">&#8593;</button><button type="button" data-tdown title="Move down" aria-label="Move down">&#8595;</button><button type="button" data-tdel title="Remove this job" aria-label="Remove this job">&#10005;</button></div>
       ${tags.length ? `<div class="hint" style="grid-column:1/-1;margin:0">${tags.join(" · ")}</div>` : ""}
     </div>`;
@@ -1360,9 +1367,11 @@ function wireTemplate() {
     const tasks = [...host.querySelectorAll("[data-trow]")].map((row) => {
       const raw = row.querySelector("[data-tdays]").value.trim();
       const n = raw === "" ? null : Math.abs(Number(raw));
+      const from = row.querySelector("[data-twhen]").value;
       return {
         what: row.querySelector("[data-twhat]").value.trim(),
-        daysBefore: n === null ? null : row.querySelector("[data-twhen]").value === "after" ? -n : n,
+        daysBefore: n === null ? null : from === "after" ? -n : n,
+        from: from === "cutoff" ? "cutoff" : undefined,
         auto: row.dataset.auto || undefined,
         onlyFor: row.dataset.only || undefined,
       };
@@ -2094,6 +2103,7 @@ function behindNote(b) {
   if (b.added.length) lines.push(`<b>Adds</b> ${b.added.map(esc).join(" · ")}`);
   if (b.renamed.length) lines.push(`<b>Renames</b> ${b.renamed.map((r) => `${esc(r.from)} → ${esc(r.to)}`).join(" · ")}`);
   if (b.removed.length) lines.push(`<b>Takes off</b> ${b.removed.map(esc).join(" · ")} <span class="porg">(not for this kind of event, and not started)</span>`);
+  if (b.dated?.length) lines.push(`<b>Gives dates to</b> ${b.dated.map((d) => `${esc(d.what)} (${esc(d.when)})`).join(" · ")}`);
   if (b.reordered) lines.push(`<b>Puts the jobs in order</b>, the order they get done`);
   return `<div class="note" style="margin:0 0 14px">
     <div style="margin-bottom:6px">The standard checklist has changed since this list was made. Updating:</div>
@@ -2120,8 +2130,10 @@ function checklistCard(ev, checklist) {
     const when = t.na
       ? `<span>not needed for this one</span>`
       : t.scheduled
-        ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b><span>${esc(offsetWords(t.daysBefore))}${t.late ? ` · ${-t.days} day${t.days === -1 ? "" : "s"} ago` : ""}</span>`
-        : `<b class="nodate">No date yet</b><span>set one on Edit</span>`;
+        ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b><span>${esc(t.when ?? offsetWords(t.daysBefore))}${t.late ? ` · ${-t.days} day${t.days === -1 ? "" : "s"} ago` : ""}</span>`
+        : t.waiting === "cutoff"
+          ? `<b class="nodate">Waits for the hotel cut-off</b><span>${esc(t.when)}; add the cut-off under hotel details</span>`
+          : `<b class="nodate">No date yet</b><span>set one on Edit</span>`;
     return `<div class="job${t.na ? " na" : t.done ? " done" : t.late ? " late" : ""}${t.id === nextId ? " next" : ""}">
       <input type="checkbox" data-tick="${esc(t.id)}"${t.done ? " checked" : ""}${t.na ? " disabled" : ""} aria-label="${esc(t.what)}">
       <div class="what">${esc(t.what)}${t.auto ? `<span class="auto" title="The desk sends this one — you do not have to">sends itself</span>` : ""}</div>
@@ -2184,7 +2196,7 @@ function wireChecklist(ev) {
     // An undated job shows an empty box, never 0: 0 means "on day one", and a
     // save to fix the wording would quietly give it that date.
     document.getElementById("j-days").value = Number.isFinite(task?.daysBefore) ? Math.abs(task.daysBefore) : "";
-    document.getElementById("j-when").value = task && task.daysBefore < 0 ? "after" : "before";
+    document.getElementById("j-when").value = task?.from === "cutoff" ? "cutoff" : task && task.daysBefore < 0 ? "after" : "before";
     document.getElementById("j-why").textContent = "";
   };
   document.getElementById("jadd").onclick = () => { fill(null); dlg.showModal(); document.getElementById("j-what").focus(); };
@@ -2197,7 +2209,7 @@ function wireChecklist(ev) {
       const out = await api(`/tasks?event=${encodeURIComponent(ev.id)}&sync=1`, { method: "POST" });
       const c = out.changes ?? {};
       const said = [c.added?.length ? `${c.added.length} added` : "", c.renamed?.length ? `${c.renamed.length} renamed` : "",
-        c.removed?.length ? `${c.removed.length} taken off` : ""].filter(Boolean);
+        c.removed?.length ? `${c.removed.length} taken off` : "", c.dated?.length ? `${c.dated.length} given a date` : ""].filter(Boolean);
       toast(`Checklist updated${said.length ? `: ${said.join(", ")}` : ""}.`);
     } catch (e) { toast(e.message); }
     render();
@@ -2215,8 +2227,9 @@ function wireChecklist(ev) {
     if (!what) { why.textContent = "What is the job?"; return; }
     // Blank is allowed: most jobs are done in order, not by a date.
     if (raw !== "" && !Number.isFinite(n)) { why.textContent = "That is not a number of days. Leave it empty if there is no date yet."; return; }
-    const daysBefore = raw === "" ? null : document.getElementById("j-when").value === "after" ? -Math.abs(n) : Math.abs(n);
-    const body = JSON.stringify({ what, daysBefore });
+    const from = document.getElementById("j-when").value;
+    const daysBefore = raw === "" ? null : from === "after" ? -Math.abs(n) : Math.abs(n);
+    const body = JSON.stringify({ what, daysBefore, from: from === "cutoff" ? "cutoff" : "" });
     dlg.close();
     await send(editing
       ? `/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(editing)}`
@@ -2261,8 +2274,8 @@ const jobDialog = () => `<dialog class="sheet" id="jobdlg">
       <div class="field"><label for="j-what">The job</label><input id="j-what" maxlength="160" autocomplete="off" placeholder="Confirm the room layout"></div>
       <div class="row2">
         <div class="field"><label for="j-days">Days</label><input id="j-days" type="number" min="0" max="730" inputmode="numeric" placeholder="no date yet"></div>
-        <div class="field"><label for="j-when">Before day one, or after the last day</label>
-          <select id="j-when"><option value="before">before day one</option><option value="after">after the last day</option></select></div>
+        <div class="field"><label for="j-when">Counted from</label>
+          <select id="j-when"><option value="before">before day one</option><option value="after">after the last day</option><option value="cutoff">before the hotel cut-off</option></select></div>
       </div>
       <p class="hint" id="j-why" style="color:var(--late)"></p>
       <div class="actions" style="justify-content:flex-end">
@@ -2300,9 +2313,16 @@ let ROOMING = null;
 
 function hotelStrip(ev, C) {
   const h = ev.hotel ?? {};
+  // The job counted from the cut-off — names to the hotel — said next to it.
+  const namesDue = () => {
+    const j = (CHECKLIST?.tasks ?? []).find((t) => t.from === "cutoff" && !t.na);
+    if (!j || !j.due) return "";
+    return j.done ? `names sent ✓` : `<span${j.late ? ' style="color:var(--late)"' : ""}>names due ${esc(fmtDate(j.due))}</span>`;
+  };
   const bits = [
     h.name ? `<b>${esc(h.name)}</b>` : `<span style="color:var(--muted)">No hotel set yet</span>`,
     h.cutoff ? `cut-off ${esc(fmtDate(h.cutoff))}` : "",
+    namesDue(),
     h.foodAndBev ? `food and beverage numbers ${esc(fmtDate(h.foodAndBev))}` : "",
   ].filter(Boolean);
   const read = C?.read, file = C?.file;
@@ -2313,6 +2333,19 @@ function hotelStrip(ev, C) {
   return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}<div class="hs-ct">${contract}</div></div>
     <div class="hs-acts"><button class="mini" data-hgo="contract">${file ? "Hotel contract" : "Upload the hotel contract"}</button>
       <button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
+}
+
+/**
+ * The only dates offered for a guest's room: three days before the training to
+ * three days after it. A check-in can't be the last of them, nor a check-out
+ * the first. Nothing is picked until Andrew picks it.
+ */
+function guestDays(win, end) {
+  if (!win) return `<option value="">Set the training dates first</option>`;
+  const days = [];
+  for (let d = win.from; d <= win.to; d = new Date(Date.parse(d) + 86400000).toISOString().slice(0, 10)) days.push(d);
+  const offer = end === "in" ? days.slice(0, -1) : days.slice(1);
+  return `<option value="">Pick a date</option>` + offer.map((d) => `<option value="${d}">${esc(fmtDate(d))}</option>`).join("");
 }
 
 function roomingCard(ev, R, C = null) {
@@ -2359,8 +2392,8 @@ function roomingCard(ev, R, C = null) {
           <button class="mini ghost" data-rmdel="${esc(g.id)}">Remove</button></div>`).join("")}</div>
         <div class="gform">
           <div class="gname"><label for="rg-name">Name</label><input id="rg-name" placeholder="Jacqulyn Taylor"></div>
-          <div><label for="rg-in">Check-in</label><input id="rg-in" type="date" value="${esc(ev.dayOne ?? "")}"></div>
-          <div><label for="rg-out">Check-out</label><input id="rg-out" type="date" value="${esc(ev.lastDay ?? ev.dayOne ?? "")}"></div>
+          <div><label for="rg-in">Check-in</label><select id="rg-in">${guestDays(R.window, "in")}</select></div>
+          <div><label for="rg-out">Check-out</label><select id="rg-out">${guestDays(R.window, "out")}</select></div>
           <div><label for="rg-bill">Who pays</label><select id="rg-bill"><option value="ONGIA">ONGIA</option><option value="Guest">The guest</option></select></div>
           <div><button class="mini" id="rg-add">Add</button></div>
         </div>
@@ -2851,6 +2884,19 @@ async function healthStrip() {
 }
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
+/**
+ * The hotel cut-off and every dated job still to do, soonest first, so each
+ * event's card shows what is coming without opening it. A cut-off that has
+ * passed is left off; a job that is late stays, in red.
+ */
+function datesLine(ev) {
+  const items = (ev.dates ?? []).filter((d) => d.kind !== "cutoff" || !d.passed);
+  if (!items.length) return "";
+  const day = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+  return `<div class="kdates"><span class="kl">Dates</span>${items.map((d) =>
+    `<span class="kd${d.late ? " late" : d.kind === "cutoff" ? " cut" : ""}"><b>${esc(day(d.date))}</b> ${esc(d.what)}${d.late ? " (late)" : ""}</span>`).join("")}</div>`;
+}
+
 function nextLine(ev, c) {
   const today = todayIso();
   const d = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
@@ -3510,6 +3556,7 @@ async function render() {
         api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
+      CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       return eventScreen({ ...data, materials, checklist, guests, rooming, contract });
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));

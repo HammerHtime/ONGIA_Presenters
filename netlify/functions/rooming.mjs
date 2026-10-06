@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, isEmail, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters } from "./lib/store.mjs";
-import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest } from "./lib/rooming.mjs";
+import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -38,8 +38,10 @@ export default async (req) => {
 
   if (req.method === "PUT") {
     const out = [];
+    const win = guestWindow(event);
+    const had = new Map((event.roomingGuests ?? []).map((g) => [g.id, g]));
     for (const g of (Array.isArray(body?.guests) ? body.guests : []).slice(0, 50)) {
-      const { guest, problem } = cleanGuest(g, () => token(10));
+      const { guest, problem } = cleanGuest(g, () => token(10), win, had.get(g?.id));
       if (problem) return fail(problem);
       out.push(guest);
     }
@@ -86,6 +88,8 @@ function state(event, rows, waiting) {
   return {
     rows, waiting,
     guests: event.roomingGuests ?? [],
+    // The only dates the desk offers for a guest's check-in and check-out.
+    window: guestWindow(event),
     hotel: { name: event.hotel?.name ?? "", contact: event.hotel?.contact ?? "" },
     sent: sent ? { at: sent.at, to: sent.to, count: sent.rows.length } : null,
     changes: sent ? changesSince(sent.rows, rows.filter((r) => r.confirmed)) : null,

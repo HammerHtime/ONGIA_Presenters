@@ -18,6 +18,19 @@ import { layout, coordinatorOf } from "./mail.mjs";
 
 const nights = (a, b) => Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86400000));
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ""));
+const shift = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
+
+/**
+ * The nights a room can be booked for someone who is not a presenter: three
+ * days before the training to three days after it (Andrew, 6 Oct 2026: "that's
+ * all my options should be"). Null when the event has no dates yet.
+ */
+export const GUEST_SPAN = 3;
+export function guestWindow(event) {
+  if (!isDate(event?.dayOne)) return null;
+  const last = isDate(event.lastDay) && event.lastDay >= event.dayOne ? event.lastDay : event.dayOne;
+  return { from: shift(event.dayOne, -GUEST_SPAN), to: shift(last, GUEST_SPAN) };
+}
 
 export function roomingRows(event, presenters, guests = event.roomingGuests ?? []) {
   const rows = [], waiting = [];
@@ -71,12 +84,20 @@ export function changesSince(previous, rows) {
   return out;
 }
 
-/** A guest typed in on the desk, checked before it is kept. */
-export function cleanGuest(g, makeId) {
+/**
+ * A guest typed in on the desk, checked before it is kept. New or changed
+ * dates must sit inside the event's window; a guest saved earlier with the same
+ * dates is let through, so moving the training never blocks adding the next one.
+ */
+export function cleanGuest(g, makeId, win = null, had = null) {
   const name = String(g?.name ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!name) return { problem: "Each guest needs a name." };
   if (!isDate(g?.checkIn) || !isDate(g?.checkOut)) return { problem: `${name} needs a check-in and a check-out date.` };
   if (g.checkOut <= g.checkIn) return { problem: `${name}: check-out must be after check-in.` };
+  const unchanged = had && had.checkIn === g.checkIn && had.checkOut === g.checkOut;
+  if (win && !unchanged && (g.checkIn < win.from || g.checkOut > win.to)) {
+    return { problem: `${name}: rooms can be booked from ${formatDate(win.from)} to ${formatDate(win.to)}, three days either side of the training.` };
+  }
   return { guest: { id: /^[a-z0-9]{6,20}$/i.test(String(g.id ?? "")) ? g.id : makeId(), name, checkIn: g.checkIn, checkOut: g.checkOut,
     billing: g.billing === "Guest" ? "Guest" : "ONGIA", note: String(g?.note ?? "").trim().slice(0, 120) } };
 }

@@ -9,7 +9,7 @@ import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
-import { starterTasks, checklistOf, jobsForRename } from "./lib/checklist.mjs";
+import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checklist.mjs";
 
 /**
  * Events and their presenters.
@@ -342,6 +342,8 @@ async function showList() {
         // The desk's own jobs, tallied here so the year view and the attention
         // strip do not have to redo the working-day arithmetic in the browser.
         checklist: checklistOf(event).counts,
+        // The hotel cut-off and the dated jobs still to do, for the event's card.
+        dates: keyDates(event),
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
         // Enough to name a problem on the dashboard without opening the event.
         attention: {

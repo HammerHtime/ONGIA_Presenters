@@ -24,6 +24,8 @@ import { token } from "./lib/ids.mjs";
 
 const MAX_TASKS = 60;
 const cleanWhat = (v) => text(v, 160);
+// What a job's days count from: day one (nothing stored), or the hotel cut-off.
+const cleanFrom = (v) => (v === "cutoff" ? "cutoff" : undefined);
 
 /**
  * Three answers, not two: null means "no date chosen yet", which is a real
@@ -85,11 +87,14 @@ async function saveTemplate(body) {
       // The two jobs that send a letter, and jobs for one kind of event only,
       // keep those markings through an edit of the list.
       auto: t.auto === "welcome" || t.auto === "survey" ? t.auto : undefined,
-      onlyFor: text(t.onlyFor, 80) || undefined }))
+      onlyFor: text(t.onlyFor, 80) || undefined,
+      from: cleanFrom(t.from) }))
+    .map((t) => (Number.isFinite(t.daysBefore) ? t : { ...t, from: undefined }))
     // Wording is required; a date is not. A row with junk where the number
-    // should be is dropped rather than stored as a date nobody meant.
+    // should be is dropped rather than stored as a date nobody meant, and so is
+    // one "after" the hotel cut-off, which only counts backwards.
     // Kept in the order Andrew put them: it is the order the jobs get done.
-    .filter((t) => t.what && t.daysBefore !== undefined);
+    .filter((t) => t.what && t.daysBefore !== undefined && !(t.from && t.daysBefore < 0));
   await putMeta("eventtasks", { tasks: rows, updatedAt: new Date().toISOString() });
   return json({ ok: true, template: rows });
 }
@@ -103,7 +108,9 @@ async function add(event, body) {
   const daysBefore = cleanDays(body.daysBefore);
   if (!what) return fail("What is the job?");
   if (daysBefore === undefined) return fail("That is not a number of days. Leave it blank if there is no date yet.");
-  const task = { id: token(8), what, daysBefore, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() };
+  const from = Number.isFinite(daysBefore) ? cleanFrom(body.from) : undefined;
+  if (from && daysBefore < 0) return fail("A job can only be before the hotel cut-off, not after it.");
+  const task = { id: token(8), what, daysBefore, ...(from ? { from } : {}), done: false, doneAt: null, na: false, addedAt: new Date().toISOString() };
   event.tasks.push(task);
   await putEvent(event);
   return json({ ok: true, ...await list(event) }, 201);
@@ -115,7 +122,7 @@ async function seed(event) {
   const have = new Set(event.tasks.map((t) => t.what.toLowerCase()));
   const room = MAX_TASKS - event.tasks.length;
   const added = rows.filter((r) => fitsTitle(r.onlyFor, event.title) && !have.has(r.what.toLowerCase())).slice(0, Math.max(room, 0))
-    .map((r) => ({ id: token(8), what: r.what, daysBefore: r.daysBefore, auto: r.auto, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() }));
+    .map((r) => ({ id: token(8), what: r.what, daysBefore: r.daysBefore, from: r.from, auto: r.auto, done: false, doneAt: null, na: false, addedAt: new Date().toISOString() }));
   if (!added.length) return json({ ok: true, added: 0, ...await list(event) });
   event.tasks.push(...added);
   await putEvent(event);
@@ -142,6 +149,12 @@ async function change(event, id, body) {
     if (daysBefore === undefined) return fail("That is not a number of days. Leave it blank if there is no date yet.");
     task.daysBefore = daysBefore;
   }
+  if ("from" in body) {
+    const from = cleanFrom(body.from);
+    if (from) task.from = from; else delete task.from;
+  }
+  if (!Number.isFinite(task.daysBefore)) delete task.from;
+  if (task.from && task.daysBefore < 0) return fail("A job can only be before the hotel cut-off, not after it.");
   if (body.done !== undefined) {
     task.done = body.done === true;
     task.doneAt = task.done ? new Date().toISOString() : null;

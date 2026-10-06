@@ -14,9 +14,12 @@ import { fitsTitle } from "./titles.mjs";
 export const STARTER = [
   // Andrew's jobs, in the order they get done (6 Oct 2026: "try to put them in
   // order"). The list keeps this order on every event; it is not re-sorted by
-  // date. Only the two letters carry a date — the two he named. The rest have
-  // none until he sets one: a date nobody chose is a date nobody trusts.
-  // Jobs marked RBH appear only on events with RBH in the title.
+  // date. Only the jobs he gave a date carry one: the two letters, food two
+  // weeks before, ID cards ten days before, and the hotel names before the
+  // cut-off. The rest have none
+  // until he sets one: a date nobody chose is a date nobody trusts.
+  // Jobs marked RBH appear only on events with RBH in the title. A job marked
+  // from "cutoff" counts back from the hotel's room-block cut-off, not day one.
   { what: "SOW sent to RBH", daysBefore: null, onlyFor: "RBH" },
   { what: "RFP sent out", daysBefore: null },
   { what: "Contract signed", daysBefore: null },
@@ -29,11 +32,11 @@ export const STARTER = [
   { what: "Limos booked", daysBefore: null, onlyFor: "RBH" },
   { what: "Car rental booked", daysBefore: null },
   { what: "Dinner reservations", daysBefore: null, onlyFor: "RBH" },
-  { what: "Names sent to hotel (presenters, board members, volunteers)", daysBefore: null },
-  { what: "Food ordered and arranged", daysBefore: null },
+  { what: "Names sent to hotel (presenters, board members, volunteers)", daysBefore: 1, from: "cutoff" },   // before the cut-off
+  { what: "Food ordered and arranged", daysBefore: 14 },                // two weeks before day one
   { what: "AV confirmed and arranged", daysBefore: null },
   { what: "Event certificate completed (before the event)", daysBefore: null },
-  { what: "ID cards printed", daysBefore: null },
+  { what: "ID cards printed", daysBefore: 10 },                         // ten days before day one
   { what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" },
   { what: "Survey link sent to attendees", daysBefore: -2, auto: "survey" },
   { what: "Event certificate sent out (after the event)", daysBefore: null },
@@ -56,7 +59,16 @@ export async function taskTemplate() {
 const named = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** One template row as a job on an event. */
-const asTask = (t, at) => ({ id: token(8), what: t.what, daysBefore: t.daysBefore, auto: t.auto, done: false, doneAt: null, na: false, addedAt: at });
+const asTask = (t, at) => ({ id: token(8), what: t.what, daysBefore: t.daysBefore, from: t.from, auto: t.auto, done: false, doneAt: null, na: false, addedAt: at });
+
+/** "14 days before", "1 day before the hotel cut-off", "2 days after it ends". */
+export function offsetWords(daysBefore, from) {
+  if (!Number.isFinite(daysBefore)) return "no date yet";
+  const n = Math.abs(daysBefore), d = `${n} day${n === 1 ? "" : "s"}`;
+  if (from === "cutoff") return n === 0 ? "on the hotel cut-off" : `${d} before the hotel cut-off`;
+  if (daysBefore === 0) return "on day one";
+  return daysBefore > 0 ? `${d} before` : `${d} after it ends`;
+}
 
 /**
  * The list a brand-new event starts with: everything on the template that fits
@@ -116,19 +128,27 @@ export function taskDue(dayOne, daysBefore, lastDay = dayOne) {
  * One stored job, plus everything a screen needs worked out for it.
  *
  * A job with no daysBefore has no date yet — it is on the list but unscheduled,
- * which is a real state and not an error. A job marked not applicable stays on
- * the event so it is visibly ruled out rather than quietly missing, and is
- * never late, never soon, and never counted.
+ * which is a real state and not an error. A job counted from the hotel cut-off
+ * has no date until the event has a cut-off; it says it is waiting for one. A
+ * job marked not applicable stays on the event so it is visibly ruled out
+ * rather than quietly missing, and is never late, never soon, and never counted.
  */
-export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne) {
-  const scheduled = Number.isFinite(task.daysBefore);
-  const due = scheduled && dayOne ? taskDue(dayOne, task.daysBefore, lastDay) : null;
+export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne, cutoff = null) {
+  const fromCutoff = task.from === "cutoff";
+  const numbered = Number.isFinite(task.daysBefore);
+  const scheduled = numbered && (!fromCutoff || Boolean(cutoff));
+  // Before the cut-off means before it: never after, whatever was typed.
+  const due = !scheduled ? null
+    : fromCutoff ? deadline(cutoff, Math.max(task.daysBefore, 0))
+    : dayOne ? taskDue(dayOne, task.daysBefore, lastDay) : null;
   const days = due ? Math.round((Date.parse(due) - Date.parse(today)) / 86400000) : null;
   const live = !task.na && !task.done;
   return {
     ...task,
     na: task.na === true,
     scheduled,
+    waiting: fromCutoff && numbered && !cutoff ? "cutoff" : null,
+    when: offsetWords(task.daysBefore, task.from),
     due,
     dueReadable: due ? formatDate(due) : "",
     days,
@@ -161,7 +181,7 @@ export async function syncToTemplate(event, now = new Date(), max = 60) {
   const template = await taskTemplate();
   const pos = new Map(template.map((t, i) => [named(t.what), i]));
   const tasks = event.tasks ?? [];
-  const changes = { renamed: [], added: [], removed: [] };
+  const changes = { renamed: [], added: [], removed: [], dated: [] };
 
   const names = new Set(tasks.map((t) => named(t.what)));
   for (const t of tasks) {
@@ -180,6 +200,16 @@ export async function syncToTemplate(event, now = new Date(), max = 60) {
     if (untouched) changes.removed.push(t.what);
     return !untouched;
   });
+
+  // A job still waiting for a date takes the one the standard list now gives it.
+  // One with a date of its own keeps it, and a job done or ruled out is left be.
+  for (const t of kept) {
+    const std = template[pos.get(named(t.what))];
+    if (!std || !Number.isFinite(std.daysBefore) || Number.isFinite(t.daysBefore) || t.done || t.na) continue;
+    t.daysBefore = std.daysBefore;
+    if (std.from) t.from = std.from; else delete t.from;
+    changes.dated.push({ what: t.what, when: offsetWords(std.daysBefore, std.from) });
+  }
 
   const have = new Set(kept.map((t) => named(t.what)));
   for (const t of template) {
@@ -207,12 +237,28 @@ export async function behindTemplate(event) {
   const old = new Set((event.tasks ?? []).map((t) => t.id));
   const after = copy.tasks.filter((t) => old.has(t.id)).map((t) => t.id).join();
   const reordered = before !== after;
-  return { ...changes, reordered, any: Boolean(changes.renamed.length || changes.added.length || changes.removed.length || reordered) };
+  return { ...changes, reordered, any: Boolean(changes.renamed.length || changes.added.length || changes.removed.length || changes.dated.length || reordered) };
+}
+
+/**
+ * The dates on an event worth seeing without opening it: the hotel cut-off and
+ * every dated job still to do, soonest first. Done and ruled-out jobs are left
+ * off; a job's bracketed note is dropped so the line stays short.
+ */
+export function keyDates(event, today = todayIso()) {
+  const out = [];
+  const cut = event.hotel?.cutoff;
+  if (cut) out.push({ what: "Hotel cut-off", date: cut, readable: formatDate(cut), passed: cut < today, late: false, kind: "cutoff" });
+  for (const t of checklistOf(event, today).tasks) {
+    if (!t.due || t.done || t.na) continue;
+    out.push({ what: t.what.replace(/\s*\([^)]*\)\s*$/, ""), date: t.due, readable: t.dueReadable, passed: false, late: t.late, kind: "job" });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /** An event's checklist, in the order the jobs get done, with the tally a dashboard needs. */
 export function checklistOf(event, today = todayIso()) {
-  const tasks = (event.tasks ?? []).map((t) => dressed(t, event.dayOne, today, event.lastDay)).sort(inOrder);
+  const tasks = (event.tasks ?? []).map((t) => dressed(t, event.dayOne, today, event.lastDay, event.hotel?.cutoff ?? null)).sort(inOrder);
   // "Not applicable" is a decision, not a job, so it is counted apart and never
   // counts against the total — three of four done should not read as three of five.
   const live = tasks.filter((t) => !t.na);
