@@ -341,8 +341,11 @@ async function submit() {
     const res = await fetch(`/api/sponsor?t=${encodeURIComponent(TOKEN)}`);
     const out = await res.json();
     if (!res.ok) {
+      // The heading already says it; the paragraph should carry the rest, not
+      // repeat the sentence back at them.
+      const why = String(out.error ?? "").replace(/^This link isn't valid\.\s*/, "").trim();
       ROOT.innerHTML = `<div class="wrap"><div class="card"><h1>This link isn't valid</h1>
-        <p class="lede">${esc(out.error ?? "Check it came from ONGIA, or ask us for a new one.")}</p></div></div>`;
+        <p class="lede">${esc(why || "Check it came from ONGIA, or ask us for a new one.")}</p></div></div>`;
       return;
     }
     DATA = out;
