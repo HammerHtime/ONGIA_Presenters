@@ -1,7 +1,8 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
-  getContract, putContract, getContractRead, putContractRead } from "./lib/store.mjs";
+  getContract, putContract, getContractRead, putContractRead, getInbox } from "./lib/store.mjs";
+import { inboxCounts, inboxConfigured, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
@@ -228,7 +229,7 @@ async function deleteEvent(id) {
     ]);
   }
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
-    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`)]);
+    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length });
@@ -333,7 +334,7 @@ async function showList() {
   const events = await listEvents();
   const withCounts = await Promise.all(
     events.map(async (event) => {
-      const people = await listPresenters(event.id);
+      const [people, box] = await Promise.all([listPresenters(event.id), getInbox(event.id)]);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
       return {
@@ -346,6 +347,8 @@ async function showList() {
         // The hotel cut-off and the dated jobs still to do, for the event's card.
         dates: keyDates(event),
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
+        // What the night's read of Andrew's email left open on this event.
+        inbox: inboxCounts(box),
         // Enough to name a problem on the dashboard without opening the event.
         attention: {
           review: who((p) => p.status === "submitted"),
@@ -357,7 +360,8 @@ async function showList() {
       };
     })
   );
-  return json({ events: withCounts });
+  const unfiled = inboxConfigured() ? inboxCounts(await getInbox(UNFILED)) : null;
+  return json({ events: withCounts, inbox: { connected: inboxConfigured(), unfiled } });
 }
 
 async function showEvent(id) {

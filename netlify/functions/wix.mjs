@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
-import { wixConfigured, wixHealth, listWixEvents, listWixGuests, wixGuestsByEvent } from "./lib/wix.mjs";
+import { wixConfigured, wixHealth, listWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
 import { eventId as makeEventId } from "./lib/ids.mjs";
 import { deadlinesFor, offsetsOf } from "./lib/deadlines.mjs";
@@ -108,7 +108,7 @@ async function unlink(event) {
 /** Pull one event's guests. The sweep is the same thing, for every linked event. */
 async function syncOne(event) {
   if (!event.wix?.eventId) return fail("This event is not linked to a Wix event yet.", 409);
-  const guests = await listWixGuests({ eventId: event.wix.eventId });
+  const guests = attendeesOf(await listWixGuests({ eventId: event.wix.eventId, type: null }));
   return json({ ok: true, ...(await absorb(event.id, guests)) });
 }
 
@@ -144,11 +144,11 @@ export async function sweepWix() {
   const events = (await listEvents()).filter((e) => e.wix?.eventId);
   if (!events.length) return { skipped: true, reason: "No event is linked to Wix yet." };
 
-  const byWixId = await wixGuestsByEvent();
+  const byWixId = await wixGuestsByEvent({ type: null });
   const done = [];
   for (const event of events) {
     try {
-      const out = await absorb(event.id, byWixId.get(event.wix.eventId) ?? []);
+      const out = await absorb(event.id, attendeesOf(byWixId.get(event.wix.eventId) ?? []));
       done.push({ event: event.id, title: event.title, ...out });
     } catch (e) {
       done.push({ event: event.id, title: event.title, error: e.message });
@@ -194,7 +194,7 @@ async function importEvent(wixEventId) {
     updatedAt: new Date().toISOString(),
   };
   await putEvent(event);
-  const guests = await listWixGuests({ eventId: match.id });
+  const guests = attendeesOf(await listWixGuests({ eventId: match.id, type: null }));
   const out = await absorb(event.id, guests);
   return json({ ok: true, event, ...out,
     next: "Open the event and pick a board member as the lead — nothing is sent until there is one." }, 201);

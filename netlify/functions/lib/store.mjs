@@ -217,6 +217,9 @@ export async function getAgenda(eventId) {
 }
 
 export const getAgendaRead = (eventId) => read(`agendaread:${eventId}`);
+// What the night's email read filed against an event (or `_unfiled`): short notes and links only.
+export const getInbox = (eventId) => read(`inbox:${eventId}`);
+export const putInbox = (eventId, value) => write(`inbox:${eventId}`, value);
 export const putAgendaRead = (eventId, value) => write(`agendaread:${eventId}`, value);
 
 /** Remove a key outright — used when an event or presenter is deleted. */

@@ -317,6 +317,40 @@
                     font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;line-height:1.3}
   .job .jact button:hover{border-color:var(--navy);color:var(--navy)}
   .jobsum{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+
+  /* ---------- from your email ----------
+     What the night's read of Andrew's mail filed on this event: who needs
+     something from him, who he is waiting on, and hotel offers. */
+  .ib h3{font-family:var(--fu);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+         margin:16px 0 6px;font-weight:700}
+  .ib h3:first-child{margin-top:4px}
+  .ib h3 b{color:var(--ink);margin-left:4px}
+  .ibrows{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;max-width:820px}
+  .ibrow{background:var(--sunk);display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;padding:11px 14px}
+  .ibrow.you{background:var(--card);box-shadow:inset 3px 0 0 var(--navy)}
+  .ibrow.soon{box-shadow:inset 3px 0 0 var(--late)}
+  .ibrow .what{font-size:14px;min-width:0;overflow-wrap:anywhere}
+  .ibrow .what b{font-weight:700}
+  .ibrow .meta{font-size:12px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+  .ibrow .meta .ok{color:var(--done);font-weight:600}
+  .ibrow .meta .warn,.ibrow .offer .warn{color:var(--late);font-weight:600}
+  .ibrow .offer{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:4px}
+  .ibrow>div:first-child{min-width:0}
+  .ibrow .offer span{overflow-wrap:anywhere} .ibrow .offer span i{font-style:normal;color:var(--muted);white-space:nowrap}
+  .ibact{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .ibact button,.ibact a{border:1px solid var(--border);background:var(--card);color:var(--ink-mid);cursor:pointer;text-decoration:none;
+                 font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;line-height:1.3;white-space:nowrap}
+  .ibact button:hover,.ibact a:hover{border-color:var(--navy);color:var(--navy)}
+  .ibact .ibdone{background:var(--navy);border-color:var(--navy);color:#fff}
+  .ibact .ibdone:hover{color:#fff;opacity:.9}
+  .ibdonelist{margin-top:14px} .ibdonelist summary{cursor:pointer;font-size:13px;color:var(--muted)}
+  .ibdonelist .ibrow{background:var(--done-bg)} .ibdonelist .ibrow .what{color:var(--muted)}
+  .ibempty{font-size:14px;color:var(--muted);padding:6px 0}
+  @media (max-width:560px){
+    .ibrow{grid-template-columns:1fr}
+    .ibact{justify-content:flex-start}
+    .ibact button,.ibact a{padding:9px 13px;font-size:13px}
+  }
   @media (max-width:560px){
     .job{grid-template-columns:auto 1fr auto;row-gap:6px}
     .job .when{grid-column:2/-1;text-align:left}
@@ -674,7 +708,7 @@ function signInScreen(message) {
 }
 
 /* ---------- events list ---------- */
-function listScreen(events) {
+function listScreen(events, inbox = null) {
   BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
@@ -693,7 +727,7 @@ function listScreen(events) {
   }
 
   ROOT.innerHTML = `<div class="healthwrap" id="health"><div class="hstrip">Checking email and SharePoint…</div></div>`
-    + needsCard(events)
+    + needsCard(events, inbox)
     + events.map((ev) => {
     const c = ev.counts;
     const md = ev.materials?.draft ?? 0, mf = ev.materials?.final ?? 0;
@@ -708,6 +742,8 @@ function listScreen(events) {
         ${c.failed ? `<span class="chipstat stop"><b>${c.failed}</b>not filed</span>` : ""}
         <span class="chipstat${c.invited + c.opened ? " hot" : ""}"><b>${c.invited + c.opened}</b>waiting on them</span>
         <span class="chipstat${c.submitted ? " you" : ""}"><b>${c.submitted}</b>for you to review</span>
+        ${ev.inbox?.you ? `<span class="chipstat you"><b>${ev.inbox.you}</b>email${ev.inbox.you === 1 ? "" : "s"} waiting on you</span>` : ""}
+        ${ev.inbox?.offers ? `<span class="chipstat hot"><b>${ev.inbox.offers}</b>hotel offer${ev.inbox.offers === 1 ? "" : "s"}</span>` : ""}
         <span class="chipstat${c.approved && c.approved === c.total ? " good" : ""}"><b>${c.approved}</b>final</span>
         <span class="chipstat"><b>${md}<small>/${c.total}</small></b>draft materials</span>
         <span class="chipstat"><b>${mf}<small>/${c.total}</small></b>final materials</span>
@@ -721,6 +757,7 @@ function listScreen(events) {
     b.onclick = () => { GUEST_NOTE = null; view = { name: "event", eventId: b.dataset.open }; render(); };
   });
   ROOT.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+  ROOT.querySelectorAll("[data-gounfiled]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); view = { name: "unfiled" }; render(); }; });
   ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = (e) => {
     e.stopPropagation(); const [eid, pid] = b.dataset.goreview.split("|");
     view = { name: "review", eventId: eid, presenterId: pid }; render();
@@ -747,7 +784,7 @@ function blockersOf(ev) {
  * The front page of the desk: everything that is true, known to the app, and
  * otherwise invisible until someone opens each event in turn.
  */
-function needsCard(events) {
+function needsCard(events, inbox = null) {
   const today = todayIso();
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const rows = [];
@@ -778,17 +815,26 @@ function needsCard(events) {
     if (due && days(due) < 0 && out) rows.push({ cls: "stop", rank: 4,
       title: `${out} agreement${out === 1 ? "" : "s"} overdue by ${-days(due)} day${days(due) === -1 ? "" : "s"}`,
       who: `${names(a.outstanding)} — ${where}`, label: "Open event", goev: ev.id });
+    // Mail the night's read filed here that nobody from ONGIA has answered.
+    const ib = ev.inbox ?? {};
+    if (ib.you) rows.push({ cls: "act", rank: 1,
+      title: `${ib.you} email${ib.you === 1 ? "" : "s"} waiting on your reply`,
+      who: `${where}${ib.replied ? ` · plus ${ib.replied} you replied to with something still to do` : ""}`, label: "Open event", goev: ev.id });
     // ONGIA's own jobs, which nobody else is going to chase.
     const k = ev.checklist;
     if (k?.late) rows.push({ cls: "stop", rank: 5,
       title: `${k.late} job${k.late === 1 ? "" : "s"} on your own checklist overdue`,
       who: `${where} · ${k.done} of ${k.total} done`, label: "Open event", goev: ev.id });
   }
+  const un = inbox?.unfiled;
+  if (un && un.you + un.them + un.offers) rows.push({ cls: "act", rank: 6,
+    title: `${un.you + un.them + un.offers} email item${un.you + un.them + un.offers === 1 ? "" : "s"} about events not on the desk yet`,
+    who: [un.offers ? `${un.offers} hotel offer${un.offers === 1 ? "" : "s"}` : "", un.you ? `${un.you} waiting on you` : ""].filter(Boolean).join(" · ") || "Add the event, then move them onto it", label: "See them", unfiled: true });
   rows.sort((a, b) => a.rank - b.rank);
   const live = events.filter((e) => (e.lastDay || e.dayOne) >= today).length;
   const body = rows.length
     ? rows.map((r) => `<div class="nrow ${r.cls}"><div class="why"><b>${r.title}</b><div class="who">${r.who}</div></div>
-        <button class="mini${r.goreview ? " gold" : ""}" ${r.goreview ? `data-goreview="${esc(r.goreview)}"` : `data-goev="${esc(r.goev)}"`}>${r.label}</button></div>`).join("")
+        <button class="mini${r.goreview ? " gold" : ""}" ${r.goreview ? `data-goreview="${esc(r.goreview)}"` : r.unfiled ? `data-gounfiled="1"` : `data-goev="${esc(r.goev)}"`}>${r.label}</button></div>`).join("")
     : `<div class="allclear">Nothing needs you today. ${live} event${live === 1 ? "" : "s"} on the rails.</div>`;
   return `<div class="needs"><h2>Needs you now</h2>${body}</div>`;
 }
@@ -1651,7 +1697,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, allEvents } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -1966,6 +2012,7 @@ function eventScreen(data) {
         </div>
       </form>
     </dialog>`
+    + inboxCard(ev, inbox) + inboxDialogs()
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
     + checklistCard(ev, checklist) + jobDialog()
     + agendaCard(ev, agenda)
@@ -1976,6 +2023,7 @@ function eventScreen(data) {
   wireChecklist(ev);
   wireRooming(ev, rooming);
   wireAgenda(ev, agenda);
+  wireInbox(ev, inbox, allEvents);
   wireAttendees(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2741,6 +2789,149 @@ const toBox = (t) => {
  * The agenda, and the times that go into letters. Claude's reading is a
  * suggestion shown beside the boxes; only what Andrew saves is used.
  */
+/* ---------- from your email ---------- */
+// The day it arrived, in Toronto: a message at 9pm Eastern is stamped the next day in UTC.
+const mailDay = (iso) => (iso ? fmtDate(todayIso(new Date(iso))).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
+const daysTo = (iso) => Math.round((Date.parse(iso) - Date.parse(todayIso())) / 86400000);
+// A plain date (a hold date) is already a Toronto day: no time zone to convert.
+const plainDay = (d) => fmtDate(d).replace(/^\w+ /, "").replace(/ \d{4}$/, "");
+
+function inboxCard(ev, IB) {
+  const title = ev.id === "_unfiled" ? "Email about events not on the desk" : "From your email";
+  if (!IB) return `<div class="card" id="inbox"><div class="card-head"><div><h2>${title}</h2></div></div>
+    <div class="card-body"><div class="bad"><b>Your email items could not be loaded.</b> Reload the page.</div></div></div>`;
+  const open = IB.items.filter((x) => x.status === "open");
+  const you = open.filter((x) => x.kind === "you"), them = open.filter((x) => x.kind === "them"), offers = open.filter((x) => x.kind === "offer");
+  const done = IB.items.filter((x) => x.status === "done");
+  const outlook = (x) => x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">Open in Outlook</a>` : "";
+  const acts = (x, label = "Done") => `<div class="ibact">${outlook(x)}<button class="ibdone" data-ibdone="${esc(x.id)}">${label}</button><button data-ibmore="${esc(x.id)}" aria-label="More for this item">More</button></div>`;
+  const guess = (x) => ev.id === "_unfiled" && x.guess ? ` · <b>About: ${esc(x.guess)}</b>` : "";
+  const youRow = (x) => `<div class="ibrow you"><div><div class="what"><b>${esc(x.who || x.from)}</b> — ${esc(x.note)}</div>
+      <div class="meta">${x.byHand ? "Added by you" : `Received ${esc(mailDay(x.received))}`}${x.subject ? ` · ${esc(x.subject)}` : ""}${guess(x)}${x.repliedAt ? ` · <span class="ok">You replied ${esc(mailDay(x.repliedAt))}</span>` : x.byHand ? "" : ` · <span class="warn">no reply yet</span>`}</div></div>${acts(x)}</div>`;
+  const themRow = (x) => `<div class="ibrow"><div><div class="what"><b>${esc(x.who || "—")}</b> — ${esc(x.note)}</div>
+      <div class="meta">${x.byHand ? "Added by you" : `You asked ${esc(mailDay(x.received))}`}${x.subject ? ` · ${esc(x.subject)}` : ""}${guess(x)}</div></div>${acts(x, "Got it")}</div>`;
+  const offerRow = (x) => {
+    const o = x.offer ?? {};
+    const hold = o.holdUntil ? daysTo(o.holdUntil) : null;
+    const holdTxt = hold === null ? "" : hold < 0 ? `<span class="warn">hold ended ${esc(plainDay(o.holdUntil))}</span>` : `<span class="${hold <= 7 ? "warn" : ""}">held until ${esc(plainDay(o.holdUntil))}${hold <= 7 ? ` (${hold === 0 ? "today" : `${hold} day${hold === 1 ? "" : "s"}`})` : ""}</span>`;
+    return `<div class="ibrow${hold !== null && hold <= 7 ? " soon" : ""}"><div><div class="what"><b>${esc(o.hotel || x.who)}</b></div>
+      <div class="offer">${o.rate ? `<span><i>Rooms</i> ${esc(o.rate)}</span>` : ""}${o.fbMinimum ? `<span><i>F&amp;B min</i> ${esc(o.fbMinimum)}</span>` : ""}${o.meetingRoom ? `<span><i>Meeting room</i> ${esc(o.meetingRoom)}</span>` : ""}${holdTxt ? `<span>${holdTxt}</span>` : ""}</div>
+      <div class="meta">${o.notes ? `${esc(o.notes)} · ` : ""}From ${esc(x.who || x.from)}, ${esc(mailDay(x.received))}${guess(x)}</div></div>${acts(x, "Decided")}</div>`;
+  };
+  const section = (label, rows, fn) => rows.length ? `<h3>${label}<b>${rows.length}</b></h3><div class="ibrows">${rows.map(fn).join("")}</div>` : "";
+  const last = IB.last?.at ? `last read ${esc(mailDay(IB.last.at))}` : "not read yet";
+  const sub = !IB.connected
+    ? `Not switched on yet: the desk needs permission to read ${esc(IB.mailbox || "your mailbox")} in Microsoft 365.`
+    : `Read every night from ${esc(IB.mailbox)} · ${last}. Only a short note is kept, never the email itself.`;
+  const status = IB.running ? `<p class="agread"><span class="spin" aria-hidden="true"></span> Reading your email now. This takes a minute or two.</p>`
+    : IB.runError ? `<div class="bad" style="margin-top:0">${esc(IB.runError)}</div>`
+    : IB.last?.lastError ? `<div class="bad" style="margin-top:0">The last read had a problem: ${esc(IB.last.lastError)}</div>` : "";
+  const body = you.length + them.length + offers.length
+    ? section("Waiting on you", you, youRow) + section("Waiting on them", them, themRow) + section("Hotel offers", offers, offerRow)
+    : `<p class="ibempty">${IB.connected && IB.last?.at ? "Nothing open from your email for this event." : "Nothing here yet."}</p>`;
+  const doneList = done.length ? `<details class="ibdonelist"><summary>Done (${done.length})</summary><div class="ibrows" style="margin-top:8px">${done.map((x) =>
+    `<div class="ibrow"><div><div class="what"><b>${esc(x.offer?.hotel || x.who || "—")}</b> — ${esc(x.note)}</div>
+      <div class="meta">${x.doneBy && x.doneBy !== "you" ? esc(x.doneBy) : "Ticked off"} ${esc(mailDay(x.doneAt))}</div></div>
+      <div class="ibact">${outlook(x)}<button data-ibopen="${esc(x.id)}">Reopen</button></div></div>`).join("")}</div></details>` : "";
+  return `<div class="card" id="inbox">
+    <div class="card-head"><div><h2>${title}</h2><div class="s">${sub}</div></div>
+      <div class="cardacts">${ev.id === "_unfiled" ? "" : `<button class="mini" id="ibadd">Add a note</button>`}${IB.connected ? `<button class="mini" id="ibrun"${IB.running ? " disabled" : ""}>Check email now</button>` : ""}</div></div>
+    <div class="card-body ib">${status}${body}${doneList}</div></div>`;
+}
+
+function inboxDialogs() {
+  return `<dialog class="sheet" id="ibdlg"><form method="dialog">
+      <div class="sheet-head"><h2>Add a note</h2><p class="hint" style="margin-top:6px">For something that came by phone or in person. It sits with the email items until you tick it off.</p></div>
+      <div class="sheet-body">
+        <div class="field"><label for="ib-who">Who</label><input id="ib-who" maxlength="120" autocomplete="off" placeholder="e.g. Jaclyn Austin, Delta Toronto Airport"></div>
+        <div class="field"><label for="ib-note">What needs doing</label><input id="ib-note" maxlength="240" required autocomplete="off" placeholder="e.g. Send her the final room count"></div>
+        <div class="field"><label>Who is it waiting on?</label>
+          <label class="attest" style="margin-top:4px"><input type="radio" name="ib-kind" value="you" checked> Me — they need something from me</label>
+          <label class="attest" style="margin-top:4px"><input type="radio" name="ib-kind" value="them"> Them — I am waiting on them</label></div>
+        <div class="actions" style="margin-top:18px"><button class="btn btn-gold" value="save">Add it</button><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div>
+      </div></form></dialog>
+    <dialog class="sheet" id="ibmore"><form method="dialog">
+      <div class="sheet-head"><h2>This item</h2><p class="hint" style="margin-top:6px" id="ibm-what"></p></div>
+      <div class="sheet-body">
+        <div class="field"><label for="ibm-to">Belongs to a different event?</label><select id="ibm-to"></select></div>
+        <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+          <button class="btn btn-gold" value="move">Move it</button>
+          <button class="btn btn-ghost" value="dismiss">Not about an event — hide it</button>
+          <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div>
+      </div></form></dialog>`;
+}
+
+let INBOX_POLL = null;
+function wireInbox(ev, IB, events = []) {
+  clearTimeout(INBOX_POLL);
+  if (!IB) return;
+  const q = `/inbox?event=${encodeURIComponent(ev.id)}`;
+  const item = (id) => IB.items.find((x) => x.id === id);
+  const set = async (id, body) => { try { await api(`${q}&item=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }); render(); } catch (e) { toast(e.message); } };
+  ROOT.querySelectorAll("[data-ibdone]").forEach((b) => { b.onclick = () => set(b.dataset.ibdone, { status: "done" }); });
+  ROOT.querySelectorAll("[data-ibopen]").forEach((b) => { b.onclick = () => set(b.dataset.ibopen, { status: "open" }); });
+
+  const more = document.getElementById("ibmore");
+  ROOT.querySelectorAll("[data-ibmore]").forEach((b) => {
+    b.onclick = () => {
+      const x = item(b.dataset.ibmore);
+      document.getElementById("ibm-what").textContent = `${x.offer?.hotel || x.who || ""} — ${x.note}`;
+      const opts = events.filter((e) => e.id !== ev.id).map((e) => `<option value="${esc(e.id)}">${esc(e.city)} · ${esc(e.title)} (${esc(fmtDate(e.dayOne).replace(/^\w+ /, ""))})</option>`);
+      if (ev.id !== "_unfiled") opts.push(`<option value="_unfiled">None of these — not on the desk yet</option>`);
+      document.getElementById("ibm-to").innerHTML = opts.join("");
+      more.returnValue = "";
+      more.onclose = () => {
+        if (more.returnValue === "move") set(x.id, { moveTo: document.getElementById("ibm-to").value });
+        else if (more.returnValue === "dismiss") set(x.id, { status: "dismissed" });
+      };
+      more.showModal();
+    };
+  });
+
+  const dlg = document.getElementById("ibdlg"), add = document.getElementById("ibadd");
+  if (add && dlg) add.onclick = () => {
+    dlg.querySelector("form").reset();
+    dlg.returnValue = "";
+    dlg.onclose = async () => {
+      if (dlg.returnValue !== "save") return;
+      const kind = dlg.querySelector('input[name="ib-kind"]:checked')?.value ?? "you";
+      try {
+        await api(q, { method: "POST", body: JSON.stringify({ who: document.getElementById("ib-who").value, note: document.getElementById("ib-note").value, kind }) });
+        render();
+      } catch (e) { toast(e.message); }
+    };
+    dlg.showModal();
+  };
+
+  const run = document.getElementById("ibrun");
+  if (run) run.onclick = async () => {
+    run.disabled = true; run.textContent = "Starting…";
+    try { await api("/inbox?run=1", { method: "POST" }); render(); } catch (e) { toast(e.message); run.disabled = false; run.textContent = "Check email now"; }
+  };
+  // While the read runs, look again every few seconds; redraw when it is done.
+  if (IB.running) {
+    const tick = async () => {
+      if (view.name !== "event" && view.name !== "unfiled") return;
+      try {
+        const now = await api(q);
+        if (!now.running) return render();
+      } catch {}
+      INBOX_POLL = setTimeout(tick, 5000);
+    };
+    INBOX_POLL = setTimeout(tick, 5000);
+  }
+}
+
+/* The email items about events that are not on the desk yet. */
+function unfiledScreen(IB, events) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const ev = { id: "_unfiled", title: "Not on the desk yet" };
+  ROOT.innerHTML = `<div class="note" style="margin-bottom:14px">These came in about events that are not on the desk yet. Add the event with <b>New event</b>,
+      then use <b>More</b> on each item to move it there. Or tick it off if it is handled.</div>` + inboxCard(ev, IB) + inboxDialogs();
+  wireInbox(ev, IB, events);
+}
+
 function agendaCard(ev, A) {
   if (!A) return `<div class="card"><div class="card-head"><div><h2>Agenda and daily times</h2></div></div>
     <div class="card-body"><div class="bad"><b>The agenda could not be loaded.</b> Reload the page.</div></div></div>`;
@@ -3936,7 +4127,7 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests, rooming, contract, agenda] = await Promise.all([
+      const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
@@ -3944,12 +4135,19 @@ async function render() {
         api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/agenda?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        api("/events").catch(() => ({ events: [] })),
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
-      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda });
+      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, allEvents: list.events ?? [] });
+    }
+    if (view.name === "unfiled") {
+      const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);
+      return unfiledScreen(inbox, list.events ?? []);
     }
     if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
-    return listScreen((await api("/events")).events);
+    const list = await api("/events");
+    return listScreen(list.events, list.inbox);
   } catch (e) {
     if (/not auth|ADMIN_KEY/i.test(e.message)) { KEY = ""; sessionStorage.removeItem("ongia-admin-key"); return signInScreen(e.message); }
     BARRIGHT.innerHTML = `<button class="chip" id="home">All events</button>`;

@@ -138,6 +138,8 @@ function tidyGuest(g) {
     status: g.attendanceStatus ?? "",
     rsvp: g.additionalDetails?.rsvpStatus ?? "",
     guestType: g.guestType ?? "",
+    // Ties a ticket holder to the buyer who paid for the order.
+    orderNumber: g.orderNumber ?? "",
     checkedIn: d.checkedIn === true,
     totalGuests: g.totalGuests ?? 1,
     updatedAt: g.updatedDate ?? g.createdDate ?? null,
@@ -175,6 +177,30 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
     if (!cursor || !(out.guests ?? []).length) break;
   }
   return guests;
+}
+
+/**
+ * The people actually coming, out of every guest record Wix has for an event.
+ *
+ * A free event has one RSVP per person. A ticketed one has a BUYER per order
+ * and a TICKET_HOLDER per ticket: the holders are who attends, while a buyer
+ * is often an assistant booking for a whole unit. So the desk takes the RSVPs
+ * and the ticket holders, and falls back to an order's buyer only when one of
+ * that order's tickets was bought without the holder's email, so somebody
+ * still gets the letters to pass on.
+ */
+export function attendeesOf(guests) {
+  const rsvp = guests.filter((g) => g.guestType === "RSVP" || !g.guestType);
+  const holders = guests.filter((g) => g.guestType === "TICKET_HOLDER");
+  const orphanOrders = new Set(holders.filter((g) => !g.email && g.orderNumber).map((g) => g.orderNumber));
+  const buyers = guests.filter((g) => g.guestType === "BUYER" && g.orderNumber && orphanOrders.has(g.orderNumber));
+  const seen = new Set();
+  return [...rsvp, ...holders, ...buyers].filter((g) => {
+    if (!g.email) return false;
+    if (seen.has(g.email)) return false;
+    seen.add(g.email);
+    return true;
+  });
 }
 
 /** The whole site's guests, grouped by the Wix event they belong to. */
