@@ -352,6 +352,16 @@
   .ibdonelist{margin-top:14px} .ibdonelist summary{cursor:pointer;font-size:13px;color:var(--muted)}
   .ibempty{font-size:14px;color:var(--muted);padding:6px 0}
   .ibshowall{margin-top:8px}
+  /* The email cards fold up: the heading is the switch, and still shows the counts. */
+  details.ibfold>summary{list-style:none;cursor:pointer}
+  details.ibfold>summary::-webkit-details-marker{display:none}
+  details.ibfold:not([open])>summary.card-head{border-bottom:0}
+  details.ibfold>summary .ibcount{font-family:var(--fu);font-size:12px;font-weight:700;color:var(--ink-mid);white-space:nowrap}
+  details.ibfold>summary .ibcount .chase{color:var(--wait)}
+  details.ibfold>summary .ibcaret{display:inline-block;width:28px;height:28px;border-radius:999px;border:1px solid var(--border);background:var(--card);
+    text-align:center;line-height:26px;font-size:13px;color:var(--ink-mid);transition:transform .15s;flex:none}
+  details.ibfold[open]>summary .ibcaret{transform:rotate(180deg)}
+  details.ibfold>summary:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
   @media (max-width:560px){
     .ibrow{grid-template-columns:auto 1fr auto;padding:12px 10px 12px 12px}
     .ibrow .when{grid-column:2/-1;grid-row:2;text-align:left}
@@ -2873,11 +2883,28 @@ function inboxCard(ev, IB) {
   const doneList = older.length ? `<details class="ibdonelist"><summary>Done earlier (${older.length})</summary><div class="ibrows" style="margin-top:8px">${older.map((x) => ibRow(x, ev)).join("")}</div></details>` : "";
   const sub = !IB.connected ? `Not switched on yet: the desk needs permission to read ${esc(IB.mailbox || "your mailbox")}.`
     : `From ${esc(IB.mailbox)}, ${IB.last?.at ? `checked ${esc(mailDay(IB.last.at))}` : "not checked yet"}. Tick what is done.`;
-  return `<div class="card" id="inbox">
-    <div class="card-head"><div><h2>${title}</h2><div class="s">${sub}</div></div></div>
+  const openN = (rows) => rows.filter(({ x }) => x.status === "open").length;
+  const chaseN = them.filter(({ x }) => x.status === "open" && ibUrgency(x).chase).length;
+  return `<details class="card ibfold" id="inbox" data-fold="event"${foldOpen("event") ? " open" : ""}>
+    ${foldHead(title, sub, openN(todo), chaseN, openN(them))}
     <div class="card-body ib">${status}${body}${doneList}
       <div class="ibfoot">${ev.id === "_unfiled" ? "" : `<button class="mini" id="ibadd">Add a note</button>`}${IB.connected ? `<button class="mini" id="ibrun"${IB.running ? " disabled" : ""}>Check email now</button>` : ""}
-        <span>Only a short note is kept, never the email itself.</span></div></div></div>`;
+        <span>Only a short note is kept, never the email itself.</span></div></div></details>`;
+}
+
+// Whether a folded email card is open, per browser. Private windows may refuse storage: then it just opens.
+const foldKey = (id) => `ongia-fold-${id}`;
+const foldOpen = (id) => { try { return localStorage.getItem(foldKey(id)) !== "closed"; } catch { return true; } };
+function wireFolds() {
+  ROOT.querySelectorAll("details.ibfold[data-fold]").forEach((d) => {
+    d.ontoggle = () => { try { localStorage.setItem(foldKey(d.dataset.fold), d.open ? "open" : "closed"); } catch {} };
+  });
+}
+/** The heading of a folding email card: title, a line under it, the counts, and the open/close mark. */
+function foldHead(title, line, todoN, chaseN, themN) {
+  const counts = [todoN ? `${todoN} to do` : "", chaseN ? `<span class="chase">${chaseN} to chase</span>` : themN ? `${themN} waiting` : ""].filter(Boolean).join(" · ") || "nothing open";
+  return `<summary class="card-head"><div><h2>${title}</h2>${line ? `<div class="s">${line}</div>` : ""}</div>
+    <span class="ibcount">${counts}</span><span class="ibcaret" aria-hidden="true">▾</span></summary>`;
 }
 
 /** The home page's list: every event's email to-dos in one place, most urgent first. */
@@ -2893,11 +2920,11 @@ function homeInboxCard(events, inbox) {
   const list = (rows, id) => `<div class="ibrows" id="${id}">${rows.map(({ x, ev }, i) => (i === HOME_ROWS ? `<div class="ibmorerows" hidden>` : "") + ibRow(x, ev, { showEvent: true })).join("")}${rows.length > HOME_ROWS ? "</div>" : ""}</div>
     ${rows.length > HOME_ROWS ? `<button class="mini ibshowall" data-ibshow="${id}">Show all ${rows.length}</button>` : ""}`;
   const chase = them.filter(({ x }) => x.status === "open" && ibUrgency(x).chase).length;
-  return `<div class="card" id="homeinbox"><div class="card-head"><div><h2>Your email to-dos</h2>
-      <div class="s">Every event, most urgent first. Tick what is done; it stays crossed out today, then folds away.</div></div></div>
+  return `<details class="card ibfold" id="homeinbox" data-fold="home"${foldOpen("home") ? " open" : ""}>
+    ${foldHead("Your email to-dos", "Every event, most urgent first. Tick what is done; it stays crossed out today, then folds away.", open(todo), chase, open(them))}
     <div class="card-body ib">${todo.length ? `<h3>To do<b>${open(todo)}</b></h3>${list(todo, "hib-todo")}` : ""}
       ${them.length ? `<h3>Waiting on others<b>${open(them)}</b>${chase ? ` <span style="color:var(--wait);letter-spacing:.06em">· ${chase} to chase</span>` : ""}</h3>${list(them, "hib-them")}` : ""}
-    </div></div>`;
+    </div></details>`;
 }
 
 function inboxDialogs() {
@@ -2926,6 +2953,7 @@ let INBOX_POLL = null;
 /** Ticks, ⋯, notes and "check now", wherever the rows are drawn (an event, home, unfiled). */
 function wireInbox(items, events = [], { eventId = null, running = false } = {}) {
   clearTimeout(INBOX_POLL);
+  wireFolds();
   const evOf = (el) => el.closest("[data-ibev]")?.dataset.ibev || eventId;
   const set = async (ev, id, body) => { try { await api(`/inbox?event=${encodeURIComponent(ev)}&item=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }); render(); } catch (e) { toast(e.message); render(); } };
   ROOT.querySelectorAll("[data-ibtick]").forEach((b) => { b.onchange = () => set(evOf(b), b.dataset.ibtick, { status: b.checked ? "done" : "open" }); });
