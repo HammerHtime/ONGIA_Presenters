@@ -59,7 +59,10 @@ export default async (req) => {
       if (!STATUSES.has(body.status)) return fail("Status must be open, done or dismissed.");
       item.status = body.status;
       item.doneAt = body.status === "open" ? null : new Date().toISOString();
+      item.closedAt = item.doneAt;
       item.doneBy = body.status === "open" ? null : "you";
+      // Reopening a reply Claude judged finished means it was not: keep it open for good.
+      if (body.status === "open" && item.replyCheck === "checked") item.stillToDo = true;
     }
     await putInbox(eventId, { ...box, updatedAt: new Date().toISOString() });
     return json(await status(eventId));

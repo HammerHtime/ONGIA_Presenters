@@ -106,6 +106,19 @@ Rules:
 
 /* ---------- Microsoft Graph ---------- */
 
+/** The text of an email: Outlook sends HTML unless asked otherwise. */
+export function textOf(content, type = "html") {
+  let t = String(content ?? "");
+  if (/html/i.test(type) || /<\/?(html|body|div|p|br|table|span)\b/i.test(t)) {
+    t = t.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&rsquo;|&lsquo;/g, "'")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  }
+  return t.replace(/[ \t\u00a0]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 const pick = (m) => ({
   id: m.id,
   conversationId: m.conversationId,
@@ -114,13 +127,14 @@ const pick = (m) => ({
   to: (m.toRecipients ?? []).concat(m.ccRecipients ?? []).map((r) => String(r.emailAddress?.address ?? "").toLowerCase()),
   at: m.receivedDateTime ?? m.sentDateTime ?? "",
   webLink: m.webLink ?? "",
-  body: String(m.body?.content ?? m.bodyPreview ?? ""),
+  // Only what this message adds, not the thread quoted beneath it.
+  body: textOf(m.uniqueBody?.content ?? m.body?.content ?? m.bodyPreview ?? "", (m.uniqueBody ?? m.body)?.contentType),
 });
 
 /** Every message in the mailbox since `sinceIso`, in and out, newest first; `full` adds the text body. */
 async function messagesSince(get, mailbox, sinceIso, { full = false, cap = 1000 } = {}) {
   const select = ["id", "conversationId", "subject", "from", "toRecipients", "ccRecipients", "receivedDateTime", "sentDateTime", "webLink", "isDraft"]
-    .concat(full ? ["body"] : []).join(",");
+    .concat(full ? ["uniqueBody"] : []).join(",");
   let path = `/users/${encodeURIComponent(mailbox)}/messages?$filter=receivedDateTime ge ${sinceIso} and isDraft eq false`
     + `&$select=${select}&$orderby=receivedDateTime desc&$top=50`;
   const out = [];
@@ -215,9 +229,10 @@ export function itemsFrom(answer, msg, eventIds, now = new Date().toISOString())
 
 /**
  * Work out from the mailbox who has answered whom. A "you" item gets
- * `repliedAt` once Andrew writes in that conversation after it arrived; it stays
- * open, because replying is often not the whole job (the caterer still has to
- * be told). A "them" item closes itself when someone else writes back.
+ * `repliedAt` once Andrew writes in that conversation after it arrived, and is
+ * queued for checkReplies, which reads his reply and decides whether it did the
+ * whole job (answering David is not telling the caterer). A "them" item closes
+ * itself when someone else writes back.
  */
 export function trackReplies(items, mail, mailbox) {
   const byConv = new Map();
@@ -232,14 +247,83 @@ export function trackReplies(items, mail, mailbox) {
     const later = (byConv.get(it.conversationId) ?? []).filter((m) => String(m.at) > String(it.received));
     if (it.kind === "you" && !it.repliedAt) {
       const mine = later.filter((m) => m.from.email === mailbox).sort((a, b) => String(a.at).localeCompare(String(b.at)))[0];
-      if (mine) { it.repliedAt = mine.at; changed++; }
+      if (mine) { it.repliedAt = mine.at; it.replyId = mine.id; it.replyCheck = "pending"; changed++; }
     }
     if (it.kind === "them") {
       const theirs = later.filter((m) => m.from.email && m.from.email !== mailbox).sort((a, b) => String(a.at).localeCompare(String(b.at)))[0];
-      if (theirs) { it.status = "done"; it.doneAt = theirs.at; it.doneBy = `${theirs.from.name || theirs.from.email} replied`; changed++; }
+      if (theirs) { it.status = "done"; it.doneAt = theirs.at; it.closedAt = new Date().toISOString(); it.doneBy = `${theirs.from.name || theirs.from.email} replied`; changed++; }
     }
   }
   return changed;
+}
+
+/* ---------- did his reply do the job? ---------- */
+
+export const REPLY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["checks"],
+  properties: {
+    checks: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["n", "done", "remaining"],
+        properties: { n: { type: "integer" }, done: { type: "boolean" }, remaining: nullable({ type: "string" }) },
+      },
+    },
+  },
+};
+
+export const REPLY_SYSTEM = `Andrew Hammond, President of ONGIA (a Canadian non-profit that runs training events), keeps a to-do list made from his email. For each item you are given the to-do and the reply Andrew later wrote in that conversation, with who it went to. Decide whether his reply finished the job.
+
+- "done": true only if the reply itself does everything the to-do asks: he answered the question, confirmed, agreed, declined, or sent what was asked for.
+- If the to-do needs something done with someone else (tell the caterer or the hotel, add a person to the rooming list, pay an invoice) and the reply does not show it was done (that person copied, or Andrew saying he has done it), "done" is false.
+- A reply that only says he will look into it, or thanks them, is not done.
+- When "done" is false, "remaining" is one short line in your own words saying what is still to do, like "Tell the caterer: no grains." When "done" is true, "remaining" is null.
+- Never include details of an investigation, intelligence, an informant, or anything that identifies a victim, a trafficking survivor or a minor.
+Return one entry for every item, with its "n".`;
+
+/** Ask Claude about a batch of { item, reply } pairs. `client` is for tests. */
+export async function checkReplies(pairs, { client = null } = {}) {
+  const api = client ?? new Anthropic({ apiKey: anthropicKey() });
+  const brief = pairs.map(({ item, reply }, i) => `<item n="${i + 1}">
+To-do: ${item.who ? `${item.who}: ` : ""}${item.note}
+Andrew's reply, to ${reply.to.slice(0, 6).join(", ") || "(not shown)"}, on ${String(reply.at).slice(0, 10)}:
+${String(reply.body).trim().slice(0, 1500) || "(empty)"}
+</item>`).join("\n\n");
+  const stream = api.beta.messages.stream({
+    model: "claude-opus-5-5",
+    max_tokens: 4000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "low", format: { type: "json_schema", schema: REPLY_SCHEMA } },
+    system: REPLY_SYSTEM,
+    messages: [{ role: "user", content: brief }],
+  });
+  const message = await stream.finalMessage();
+  if (message.stop_reason === "refusal") throw new Error("Claude declined to check these replies.");
+  if (message.stop_reason === "max_tokens") throw new Error("Claude's answer about these replies was cut off.");
+  const text = message.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  try { return JSON.parse(text).checks ?? []; } catch { throw new Error("Claude's answer about these replies could not be read."); }
+}
+
+/** One answer applied to its item. Returns true when it changed. */
+export function applyReplyCheck(item, answer) {
+  if (!answer || typeof answer.done !== "boolean") return false;
+  item.replyCheck = "checked";
+  if (answer.done) {
+    item.status = "done";
+    item.doneAt = item.repliedAt;
+    item.closedAt = new Date().toISOString();
+    item.doneBy = "your reply";
+  } else {
+    const left = clip(answer.remaining, 240);
+    if (left) { item.wasNote = item.wasNote ?? item.note; item.note = left; }
+    item.stillToDo = true;
+  }
+  return true;
 }
 
 /* ---------- the night's run ---------- */
@@ -314,14 +398,51 @@ export async function runInbox({ get = null, client = null, deadline = null, now
     const mail = await messagesSince(graphGetter, mailbox, from, { cap: 2000 }).catch((e) => { console.log(`inbox: reply check skipped: ${e.message}`); return []; });
     for (const box of boxes.values()) replied += trackReplies(box.items, mail, mailbox);
   }
+  // Read each new reply of his and decide whether it finished the item.
+  const byId = new Map(fresh.map((m) => [m.id, m]));
+  const waiting = [...boxes.values()].flatMap((b) => b.items)
+    .filter((x) => x.status === "open" && x.kind === "you" && x.replyCheck === "pending" && x.replyId).slice(0, 30);
+  let closed = 0;
+  for (let i = 0; i < waiting.length; i += 10) {
+    if (deadline && Date.now() > deadline) break;
+    const pairs = [];
+    for (const item of waiting.slice(i, i + 10)) {
+      let reply = byId.get(item.replyId);
+      if (!reply) {
+        reply = await graphGetter(`/users/${encodeURIComponent(mailbox)}/messages/${encodeURIComponent(item.replyId)}?$select=id,conversationId,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,webLink,uniqueBody`)
+          .then(pick).catch(() => null);
+      }
+      if (reply) pairs.push({ item, reply });
+    }
+    if (!pairs.length) continue;
+    try {
+      const answers = await checkReplies(pairs, { client });
+      pairs.forEach(({ item }, k) => { if (applyReplyCheck(item, answers.find((a) => a?.n === k + 1)) && item.status === "done") closed++; });
+    } catch (e) { errors++; lastError = e.message; console.log(`inbox: reply check failed: ${e.message}`); }
+  }
+
   for (const [k, box] of boxes) if (box.items.length || filed.has(k)) await putInbox(k, { ...box, updatedAt: at });
 
   for (const [id, when] of Object.entries(seen)) if (when < daysAgo(KEEP_SEEN_DAYS, now)) delete seen[id];
   const added = [...filed.values()].reduce((n, l) => n + l.length, 0);
   const left = fresh.filter((m) => !seen[m.id]).map((m) => String(m.at)).sort();
-  const summary = { lastRunAt: at, read, added, replied, errors, lastError, left: left.length, mailbox };
+  const summary = { lastRunAt: at, read, added, replied, closed, errors, lastError, left: left.length, mailbox };
   await putMeta("inbox", { ...summary, backlogFrom: left.length ? new Date(Date.parse(left[0]) - 60000).toISOString() : null, seen });
   return summary;
+}
+
+/**
+ * What the home page's to-do list needs: everything open, plus anything closed
+ * in the last day, so a tick (his, or Claude reading his reply overnight) stays
+ * on screen crossed out, with Undo, before it folds away.
+ */
+export function inboxForList(box, now = Date.now()) {
+  const recent = (x) => x.status === "done" && x.closedAt && now - Date.parse(x.closedAt) < 86400000;
+  return (box?.items ?? []).filter((x) => x.status === "open" || recent(x)).map((x) => ({
+    id: x.id, kind: x.kind, who: x.who, note: x.note, subject: x.subject, link: x.link, received: x.received,
+    repliedAt: x.repliedAt ?? null, stillToDo: !!x.stillToDo, offer: x.offer ?? null, guess: x.guess ?? null,
+    status: x.status, doneAt: x.doneAt ?? null, closedAt: x.closedAt ?? null, doneBy: x.doneBy ?? null, byHand: !!x.byHand,
+  }));
 }
 
 /** Counts for an event's card on the home page. */

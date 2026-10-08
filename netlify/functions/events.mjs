@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
   getContract, putContract, getContractRead, putContractRead, getInbox } from "./lib/store.mjs";
-import { inboxCounts, inboxConfigured, UNFILED } from "./lib/inbox.mjs";
+import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
@@ -349,6 +349,7 @@ async function showList() {
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
         // What the night's read of Andrew's email left open on this event.
         inbox: inboxCounts(box),
+        inboxItems: inboxForList(box),
         // Enough to name a problem on the dashboard without opening the event.
         attention: {
           review: who((p) => p.status === "submitted"),
@@ -360,8 +361,8 @@ async function showList() {
       };
     })
   );
-  const unfiled = inboxConfigured() ? inboxCounts(await getInbox(UNFILED)) : null;
-  return json({ events: withCounts, inbox: { connected: inboxConfigured(), unfiled } });
+  const unfiledBox = inboxConfigured() ? await getInbox(UNFILED) : null;
+  return json({ events: withCounts, inbox: { connected: inboxConfigured(), unfiled: unfiledBox ? inboxCounts(unfiledBox) : null, unfiledItems: inboxForList(unfiledBox) } });
 }
 
 async function showEvent(id) {
