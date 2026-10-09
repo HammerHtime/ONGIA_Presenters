@@ -186,7 +186,7 @@ export async function triageBatch(batch, events, mailbox, { client = null, today
     }],
   });
   const message = await stream.finalMessage();
-  if (message.stop_reason === "refusal") throw new Error("Claude declined to sort this batch of email.");
+  if (message.stop_reason === "refusal") throw Object.assign(new Error("Claude declined to sort this batch of email."), { refused: true });
   if (message.stop_reason === "max_tokens") throw new Error("Claude's answer about this batch of email was cut off.");
   const text = message.content.filter((b) => b.type === "text").map((b) => b.text).join("");
   try { return JSON.parse(text).messages ?? []; } catch { throw new Error("Claude's answer about this batch of email could not be read."); }
@@ -362,22 +362,39 @@ export async function runInbox({ get = null, client = null, deadline = null, now
   const ids = new Set(upcoming.map((e) => e.id));
 
   const filed = new Map();   // event id -> new items
-  let read = 0, errors = 0, lastError = null;
+  let read = 0, errors = 0, declined = 0, lastError = null;
   for (let i = 0; i < fresh.length; i += BATCH) {
     if (deadline && Date.now() > deadline) break;
     const batch = fresh.slice(i, i + BATCH);
-    let answers;
-    try { answers = await triageBatch(batch, upcoming, mailbox, { client, today: at.slice(0, 10) }); }
-    catch (e) { errors++; lastError = e.message; console.log(`inbox: batch failed: ${e.message}`); continue; }
-    batch.forEach((m, k) => {
-      const a = answers.find((x) => x?.n === k + 1);
+    const file = (m, a) => {
       for (const { event, item } of itemsFrom(a, m, ids, at)) {
         if (!filed.has(event)) filed.set(event, []);
         filed.get(event).push(item);
       }
       seen[m.id] = at;
       read++;
-    });
+    };
+    let answers;
+    try { answers = await triageBatch(batch, upcoming, mailbox, { client, today: at.slice(0, 10) }); }
+    catch (e) {
+      if (!e.refused) { errors++; lastError = e.message; console.log(`inbox: batch failed: ${e.message}`); continue; }
+      // A decline is about one message, not the batch: sort them one at a time.
+      // The one Claude still will not sort goes on the list for Andrew to read
+      // himself (usually law-enforcement material), and is never retried.
+      for (const m of batch) {
+        if (deadline && Date.now() > deadline) break;
+        try {
+          const one = await triageBatch([m], upcoming, mailbox, { client, today: at.slice(0, 10) });
+          file(m, one.find((x) => x?.n === 1));
+        } catch (e2) {
+          if (!e2.refused) { errors++; lastError = e2.message; continue; }
+          file(m, { event: null, guess: null, items: [{ kind: "you", who: m.from.name || m.from.email, note: "Could not be sorted automatically. Read it yourself.", offer: null }] });
+          declined++;
+        }
+      }
+      continue;
+    }
+    batch.forEach((m, k) => file(m, answers.find((x) => x?.n === k + 1)));
   }
 
   // Reply tracking reads the whole window once, without bodies.
@@ -426,7 +443,7 @@ export async function runInbox({ get = null, client = null, deadline = null, now
   for (const [id, when] of Object.entries(seen)) if (when < daysAgo(KEEP_SEEN_DAYS, now)) delete seen[id];
   const added = [...filed.values()].reduce((n, l) => n + l.length, 0);
   const left = fresh.filter((m) => !seen[m.id]).map((m) => String(m.at)).sort();
-  const summary = { lastRunAt: at, read, added, replied, closed, errors, lastError, left: left.length, mailbox };
+  const summary = { lastRunAt: at, read, added, replied, closed, declined, errors, lastError, left: left.length, mailbox };
   await putMeta("inbox", { ...summary, backlogFrom: left.length ? new Date(Date.parse(left[0]) - 60000).toISOString() : null, seen });
   return summary;
 }
