@@ -318,6 +318,21 @@
   .job .jact button:hover{border-color:var(--navy);color:var(--navy)}
   .jobsum{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
 
+  /* ---------- attendee emails: on or off, at the top of an event ---------- */
+  .mailsw{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1.5px solid var(--edge);font-size:13.5px}
+  .mailsw.on{background:var(--done-bg)} .mailsw.off{background:var(--sunk)}
+  .mailsw b{display:block;font-size:14px} .mailsw span{color:var(--muted)}
+  .mailsw.on b{color:var(--done)}
+  .sw{position:relative;flex:none;cursor:pointer}
+  .sw input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .sw .track{display:block;width:46px;height:26px;border-radius:999px;background:var(--border);transition:background .15s;position:relative}
+  .sw .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s}
+  .sw input:checked + .track{background:var(--done)}
+  .sw input:checked + .track .knob{left:23px}
+  .sw input:focus-visible + .track{outline:2px solid var(--navy);outline-offset:2px}
+  .sw input:disabled + .track{opacity:.6}
+  @media (max-width:560px){.mailsw{padding:12px 16px}}
+
   /* ---------- from your email ----------
      The same shape as the checklist: a tick, who and what, and when it has to
      be done by. A tick crosses the row out where it is; it folds away a day later. */
@@ -1972,6 +1987,7 @@ function eventScreen(data) {
       ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
+    ${mailSwitch(ev, guests)}
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Waiting on them</div><div class="v">${count("notstarted") + count("progress") + count("uninvited")}</div></div>
@@ -2035,6 +2051,7 @@ function eventScreen(data) {
   wireRooming(ev, rooming);
   wireAgenda(ev, agenda);
   wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
+  wireMailSwitch(ev);
   wireAttendees(ev);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2800,6 +2817,35 @@ const toBox = (t) => {
  * The agenda, and the times that go into letters. Claude's reading is a
  * suggestion shown beside the boxes; only what Andrew saves is used.
  */
+/* ---------- attendee emails: the switch at the top of an event ---------- */
+function mailSwitch(ev, guests) {
+  const on = ev.attendeeMail === true;
+  const n = guests?.letters?.welcome?.reaches ?? null;
+  const who = n === null ? "this event's attendees" : `${n} attendee${n === 1 ? "" : "s"}`;
+  return `<div class="mailsw ${on ? "on" : "off"}">
+    <label class="sw"><input type="checkbox" role="switch" id="amail"${on ? " checked" : ""} data-reach="${n ?? ""}" aria-label="Automatic emails to attendees"><span class="track"><span class="knob"></span></span></label>
+    <div><b>Automatic emails to attendees: ${on ? "On" : "Off"}</b>
+      <span>${on ? `The welcome letter, survey and hotel reminders go out by themselves to ${esc(who)}.` : "Nothing goes to attendees. Presenter emails are not affected."}</span></div></div>`;
+}
+function wireMailSwitch(ev) {
+  const box = document.getElementById("amail");
+  if (!box) return;
+  box.onchange = async () => {
+    const on = box.checked;
+    if (on) {
+      const n = box.dataset.reach;
+      const ok = confirm(`Turn on automatic emails for ${ev.title}?\n\nThe welcome letter, survey and hotel cut-off reminders will start going out by themselves${n !== "" ? ` to ${n} attendee${n === "1" ? "" : "s"}` : ""}, on their dates.`);
+      if (!ok) { box.checked = false; return; }
+    }
+    box.disabled = true;
+    try {
+      await api(`/events?id=${encodeURIComponent(ev.id)}&attendeeMail=1`, { method: "PUT", body: JSON.stringify({ on }) });
+      toast(on ? "Attendee emails are on." : "Attendee emails are off.");
+      render();
+    } catch (e) { toast(e.message); box.checked = !on; box.disabled = false; }
+  };
+}
+
 /* ---------- from your email ---------- */
 // The day it arrived, in Toronto: a message at 9pm Eastern is stamped the next day in UTC.
 const mailDay = (iso) => (iso ? fmtDate(todayIso(new Date(iso))).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");

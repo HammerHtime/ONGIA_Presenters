@@ -19,6 +19,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   GET    /api/events?id=…                 one event plus its presenters
  *   POST   /api/events                      create an event
  *   PUT    /api/events?id=…                 update an event's details (deadlines re-derive)
+ *   PUT    /api/events?id=…&attendeeMail=1  { on: true|false } — attendee emails on or off, nothing else
  *   DELETE /api/events?id=…                 delete an event and everything under it
  *   POST   /api/events?id=…&add=1           add presenters to an event
  *   DELETE /api/events?id=…&presenter=…     remove one presenter (not once approved)
@@ -44,6 +45,7 @@ export default async (req) => {
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
+    if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     const presenterId = url.searchParams.get("presenter");
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body);
   }
@@ -53,6 +55,22 @@ export default async (req) => {
   }
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * The switch at the top of an event: may the desk email this event's attendees
+ * (welcome letter, survey, hotel reminders)? Changes that one field and nothing
+ * else, so it can never disturb the folder, the upload link or the board.
+ */
+async function setAttendeeMail(id, body) {
+  if (typeof body.on !== "boolean") return fail("Say on or off.");
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  event.attendeeMail = body.on;
+  event.attendeeMailChangedAt = new Date().toISOString();
+  event.updatedAt = event.attendeeMailChangedAt;
+  await putEvent(event);
+  return json({ ok: true, attendeeMail: event.attendeeMail });
+}
 
 /** ONGIA's filing convention: the training library, then year, then "year City". */
 export function conventionalFolder(dayOne, city) {
