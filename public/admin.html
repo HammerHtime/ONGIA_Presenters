@@ -950,10 +950,10 @@ function eventFormScreen(existing = null) {
       </details>
       <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true)) ? " open" : ""}>
         <summary>Emails to attendees</summary>
-        <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-amail"${!ev || ev.attendeeMail === true ? " checked" : ""}>
+        <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-amail"${ev?.attendeeMail === true ? " checked" : ""}>
           <span>Email this event's attendees from the desk: the welcome letter, the survey and the hotel reminders</span></label>
-        ${ev && ev.attendeeMail !== true ? `<p class="hint" style="margin:6px 0 0">Off: this event was on the desk before attendee emails existed, so none go
-          unless you tick this.</p>` : ""}
+        ${ev?.attendeeMail !== true ? `<p class="hint" style="margin:6px 0 0">Every event starts with these off. Tick this, or use the switch at the top
+          of the event, when you are ready for them to go.</p>` : ""}
         <p class="hint" style="margin-top:10px">Pick which saved letter this event sends. The day each one goes is the
           date on the event's checklist — move the job there and the letter moves with it. "None" means it does not go.</p>
         <div class="row2" style="margin-top:12px">

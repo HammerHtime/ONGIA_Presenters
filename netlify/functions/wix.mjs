@@ -188,7 +188,7 @@ async function importEvent(wixEventId) {
     board: [],
     contact: { name: "", email: "", phone: "" },
     tasks: await starterTasks(match.title),
-    attendeeMail: true,   // a new event on the desk: attendee emails allowed
+    attendeeMail: false,  // off until Andrew switches it on at the top of the event
     wix: { eventId: match.id, title: match.title, url: match.url, linkedAt: new Date().toISOString() },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

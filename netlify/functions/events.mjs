@@ -126,7 +126,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // survey, hotel reminders. Andrew (6 Oct 2026): only events he adds from now
     // on, never the ones already on the desk unless he says so. So a new event
     // starts on; one saved before the switch existed has none and stays off.
-    attendeeMail: body.attendeeMail === undefined ? (event.attendeeMail ?? creating) : body.attendeeMail === true,
+    attendeeMail: body.attendeeMail === undefined ? (event.attendeeMail ?? false) : body.attendeeMail === true,
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),
