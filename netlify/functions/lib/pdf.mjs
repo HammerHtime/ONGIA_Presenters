@@ -267,8 +267,8 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     // Ticked either way: the box records what they answered, not a yes.
     p.tickLine(true,
       s.sensitive === "yes"
-        ? "SENSITIVE: this presentation contains information that must not be seen by anyone outside the justice community."
-        : "This presentation contains no information that must be kept within the justice community.",
+        ? "MIXED AUDIENCE: the presenter says this presentation contains material community partners from outside the justice community should not see."
+        : "The presenter confirms this presentation contains nothing community partners from outside the justice community should not see.",
       s.sensitive === "yes" ? RED : INK);
   }
 

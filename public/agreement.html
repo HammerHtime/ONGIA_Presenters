@@ -80,6 +80,10 @@
     width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--sunk);
     border:1px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
   textarea{resize:vertical;min-height:120px;line-height:1.5}
+  /* Greyed out: on file with ONGIA for this event, shown so the form still reads as the whole agreement. */
+  .field.onfile label{color:var(--muted)}
+  .field.onfile textarea{min-height:54px;resize:none;opacity:.6;cursor:not-allowed}
+  .onfile-note{margin:14px 0 2px}
   input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
   .hint{font-size:13px;color:#5c6577;margin-top:6px}
   .hint.ok{color:var(--done);font-weight:600}
@@ -307,13 +311,12 @@ en: {
   copyright: "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use any copyrighted material, images, content, or other intellectual property included in it.",
   media: "Media &amp; content sharing", mediaLede: "Does ONGIA have your permission for the following:",
   photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
-  sensitiveTitle: "Sensitive content",
-  sensitiveQ: "Does your presentation contain sensitive information that must not be seen by anyone outside the justice community?",
-  sensitiveHint: "If yes, ONGIA keeps your materials within the justice community and off social media and public platforms.",
-  sensitiveSet: "Your presentation materials are set to No for social media and public platforms.",
-  vSensitive: "Tell us whether your presentation contains sensitive information.",
-  vSensitiveClash: "Your presentation is sensitive, so your materials can't go on social media or public platforms. Answer No on that line.",
-  onFile: "We already have your biography and presentation outline from the program, so there's nothing more to add here.",
+  sensitiveTitle: "Who will be in the room",
+  sensitiveQ: "Community partners from outside the justice community may be in the audience. Does your presentation contain anything they should not see?",
+  sensitiveHint: "If yes, ONGIA will follow up with you before the event.",
+  vSensitive: "Tell us whether your presentation contains anything community partners should not see.",
+  onFile: "We already have your biography and presentation outline from the program, so these two are greyed out. Fill in the rest.",
+  onFileBox: "On file with ONGIA",
   lastStepPlain: "Last step.",
   lastStep: (d) => `Last step. Due back by ${d}.`, addHeadshot: "Add your headshot", tapReplace: "Tap to replace",
   headshotHint: ".png or .jpeg — used to introduce you and on ongia.ca", typeName: "Type your full name to sign", eSig: "Electronic signature",
@@ -426,13 +429,12 @@ fr: {
   copyright: "Je confirme que cette présentation est mon œuvre, ou que j'ai obtenu toutes les autorisations nécessaires pour utiliser tout matériel protégé par le droit d'auteur, toute image, tout contenu ou toute autre propriété intellectuelle qu'elle contient.",
   media: "Partage de contenu et médias", mediaLede: "ONGIA a-t-elle votre permission pour ce qui suit :",
   photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
-  sensitiveTitle: "Contenu sensible",
-  sensitiveQ: "Votre présentation contient-elle des renseignements sensibles qui ne doivent être vus par personne à l'extérieur du milieu de la justice?",
-  sensitiveHint: "Si oui, ONGIA garde votre matériel au sein du milieu de la justice, hors des médias sociaux et des plateformes publiques.",
-  sensitiveSet: "Votre matériel de présentation est réglé à Non pour les médias sociaux et les plateformes publiques.",
-  vSensitive: "Indiquez si votre présentation contient des renseignements sensibles.",
-  vSensitiveClash: "Votre présentation est sensible : votre matériel ne peut pas aller sur les médias sociaux ni sur les plateformes publiques. Répondez Non à cette ligne.",
-  onFile: "Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; rien d'autre à ajouter ici.",
+  sensitiveTitle: "Qui sera dans la salle",
+  sensitiveQ: "Des partenaires communautaires de l'extérieur du milieu de la justice peuvent faire partie de l'auditoire. Votre présentation contient-elle des éléments qu'ils ne devraient pas voir?",
+  sensitiveHint: "Si oui, ONGIA communiquera avec vous avant l'événement.",
+  vSensitive: "Indiquez si votre présentation contient des éléments que les partenaires communautaires ne devraient pas voir.",
+  onFile: "Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; ces deux champs sont donc grisés. Remplissez le reste.",
+  onFileBox: "Déjà au dossier d'ONGIA",
   lastStepPlain: "Dernière étape.",
   lastStep: (d) => `Dernière étape. À retourner d'ici le ${d}.`, addHeadshot: "Ajoutez votre photo portrait", tapReplace: "Touchez pour remplacer",
   headshotHint: ".png ou .jpeg — pour vous présenter et pour le site ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
@@ -684,7 +686,13 @@ function stepMarkup() {
       const w = words(S.bio);
       return `<div class="card"><h2>${t("titles")[2]}</h2>
       <div class="field"><label for="f-talk">${t("talkTitle")}</label><input id="f-talk" type="text" data-bind="talk" value="${esc(S.talk)}"></div>
-      ${ev.talkOnFile ? `<p class="hint" style="margin-top:12px">${t("onFile")}</p></div>` : `
+      ${ev.talkOnFile ? `
+      <p class="covers onfile-note">${t("onFile")}</p>
+      <div class="field onfile"><label for="f-bio">${t("bio")}</label>
+        <textarea id="f-bio" disabled placeholder="${t("onFileBox")}"></textarea></div>
+      <div class="field onfile"><label for="f-outline">${t("outline")}</label>
+        <textarea id="f-outline" disabled placeholder="${t("onFileBox")}"></textarea></div>
+      </div>` : `
       <div class="field"><label for="f-bio">${t("bio")}</label>
         <textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
         <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${t("bioCount", w)}</p></div>
@@ -743,7 +751,7 @@ function stepMarkup() {
       <div class="consent" id="q-sensitive"><h3>${t("sensitiveTitle")}</h3>
         <p class="qtext" style="margin:0 0 10px">${t("sensitiveQ")}</p>
         ${seg("sensitive", YESNO())}
-        <p class="hint" style="margin-top:8px">${S.sensitive === "yes" ? t("sensitiveSet") : t("sensitiveHint")}</p></div></div>`;
+        <p class="hint" style="margin-top:8px">${t("sensitiveHint")}</p></div></div>`;
 
     case 5: return `<div class="card"><h2>${t("titles")[5]}</h2>
       <p class="lede">${ev.noDeadlines ? t("lastStepPlain") : t("lastStep", esc(fmtDate(dl.agreement)))}</p>
@@ -966,7 +974,6 @@ function validate() {
     for (const [row, label] of [["photo", t("photos")], ["materials", t("materials")], ["summary", t("summary")]])
       if (!S.media[row]?.internal || !S.media[row]?.public) add(t("vMediaRow", label), `c-${row}`);
     if (!S.sensitive) add(t("vSensitive"), "q-sensitive");
-    else if (S.sensitive === "yes" && S.media.materials?.public === "yes") add(t("vSensitiveClash"), "c-materials");
   }
   if (S.step === 5) {
     if (!S.goodStanding) add(t("vStanding"), "f-standing");
@@ -1142,8 +1149,6 @@ ROOT.addEventListener("click", (e) => {
     } else S[set.dataset.set] = value;
     if (set.dataset.set === "hotel" && value === "no") { S.hotelFrom = ""; S.hotelTo = ""; S.expenses.hotel = null; }
     if (set.dataset.set === "travel" && value === "no") { S.travelFrom = ""; S.travelTo = ""; }
-    // Sensitive material cannot also be cleared for social media: saying yes takes that off.
-    if (set.dataset.set === "sensitive" && value === "yes") S.media.materials = { ...S.media.materials, public: "no" };
     // The connector question only applies to their own laptop, so a stale
     // answer must not survive a change of mind.
     if (path === "av.laptop" && value !== "own") S.av.plug = null;

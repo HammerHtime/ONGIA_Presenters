@@ -178,13 +178,12 @@ async function submit(req, event, presenter) {
     }
   }
 
-  // Whether the deck holds what only the justice community may see. Asked yes or no
-  // rather than as a lone checkbox, so an unticked box can never mean "didn't read it".
+  // Whether the deck holds anything community partners in the room should not see —
+  // the Summit's Tuesday and Wednesday are a mixed audience, not only the justice
+  // community. It is about the room, not about sharing. Asked yes or no rather than
+  // as a lone checkbox, so an unticked box can never mean "didn't read it".
   const sensitive = yesNo(body.sensitive);
-  if (!sensitive) problems.push("Tell us whether your presentation contains sensitive information.");
-  if (sensitive === "yes" && media.materials?.public === "yes") {
-    problems.push("Your presentation is sensitive, so your materials can't go on social media or public platforms.");
-  }
+  if (!sensitive) problems.push("Tell us whether your presentation contains anything community partners should not see.");
 
   const signature = text(body.signature, 160);
   if (!signature) problems.push("Please type your name to sign.");

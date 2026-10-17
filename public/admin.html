@@ -2008,7 +2008,7 @@ function eventScreen(data) {
     const link = `${location.origin}/a/${p.token}`;
     return `<div class="trow">
       <div class="who"><div class="av">${esc(initials)}</div>
-        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}${p.submission?.sensitive === "yes" ? ' <span class="pill late" style="font-size:10px;padding:2px 7px" title="Contains information for the justice community only">Sensitive</span>' : ""}</div>
+        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}${p.submission?.sensitive === "yes" ? ' <span class="pill late" style="font-size:10px;padding:2px 7px" title="Has material community partners should not see — follow up before the event">Not for community partners</span>' : ""}</div>
           <div class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</div>
           ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
       <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
@@ -4143,8 +4143,8 @@ function reviewScreen(data) {
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>
-        <dt>Sensitive content</dt><dd>${s.sensitive === "yes" ? `<b style="color:var(--late)">Yes</b> — must not be seen outside the justice community`
-          : s.sensitive === "no" ? "No" : "<i>not asked (signed before this question existed)</i>"}</dd>
+        <dt>Community partners</dt><dd>${s.sensitive === "yes" ? `<b style="color:var(--late)">Has material they should not see</b> — follow up with the presenter before the event`
+          : s.sensitive === "no" ? "Nothing they should not see" : "<i>not asked (signed before this question existed)</i>"}</dd>
         <dt class="top">Headshot</dt><dd>${headshot
           ? `<span class="shotcell"><img id="shot-img" alt=""><span class="porg">${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB) — this appears on the agreement</span></span>`
           : "<i>not uploaded — the agreement will have no photo</i>"}</dd>
