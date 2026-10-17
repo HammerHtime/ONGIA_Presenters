@@ -244,7 +244,8 @@ async function submit(req, event, presenter) {
     next: {
       review: "An ONGIA board member reviews it and confirms which costs ONGIA will cover.",
       finalCopy: "You'll be emailed the signed final copy once they approve.",
-      draftMaterials: event.noDeadlines ? null : formatDate(event.deadlines.draft),
+      // An event with one presenter date names that one: the presentation itself.
+      draftMaterials: formatDate(event.noDeadlines ? event.deadlines.final : event.deadlines.draft),
     },
   });
 }

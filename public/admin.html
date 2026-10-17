@@ -928,10 +928,10 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
           when you are re-sending agreements rather than collecting new ones. Every other event keeps the full form and its dates.</p>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-talkfile"${ev?.talkOnFile ? " checked" : ""}>
-          <span><b>We already have their bio and outline.</b> The form does not ask for them; the agreement says they are on file with ONGIA.</span></label>
+          <span><b>We already have their bio and outline.</b> The form shows those two boxes greyed out, and the agreement says they are on file with ONGIA.</span></label>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-nodates"${ev?.noDeadlines ? " checked" : ""}>
-          <span><b>No due dates for presenters.</b> The form, the emails and the agreement name no dates, and the desk sends no
-            dated reminders or materials chase-ups. Use <b>Email again</b> to nudge someone by hand.</span></label>
+          <span><b>One date only: the presentation.</b> No agreement or draft due date anywhere presenters look. They see one date,
+            the <b>Final materials</b> one above, as when their presentation is due, and only that one is chased. Use <b>Email again</b> to nudge someone about the agreement.</span></label>
       </details>
       <div class="field"><label>Board members for this event</label>
         <details class="bdrop" id="bdrop">
@@ -1883,7 +1883,7 @@ function eventScreen(data) {
    * screen, and impossible to reason about.
    */
   const stepsOf = (p) => {
-    const due = ev.noDeadlines ? {} : (ev.deadlines ?? {});
+    const due = ev.noDeadlines ? { final: ev.deadlines?.final } : (ev.deadlines ?? {});
     const { at, inHand } = FACTS.get(p.id);
     // Room and equipment is asked at approval and wanted when the venue starts
     // setting rooms up, which is the draft-materials date.
@@ -1959,7 +1959,7 @@ function eventScreen(data) {
   // to draw are the Draft/Final steps now, so only the flags are left.
   const matCell = (p) => {
     const m = mstat[p.id] ?? {};
-    const due = ev.noDeadlines ? {} : (ev.deadlines ?? {});
+    const due = ev.noDeadlines ? { final: ev.deadlines?.final } : (ev.deadlines ?? {});
     return {
       missing: (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14),
       none: !m.draft && !m.final,
@@ -2025,7 +2025,7 @@ function eventScreen(data) {
 
   const draftGot = enriched.filter(({ p }) => mstat[p.id]?.draft).length;
   const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
-  const nextDl = (ev.noDeadlines ? [["dayOne", "Training starts"]] : [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]])
+  const nextDl = (ev.noDeadlines ? [["final", "Presentations due"], ["dayOne", "Training starts"]] : [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]])
     .map(([k, l]) => ({ l, iso: k === "dayOne" ? ev.dayOne : ev.deadlines?.[k] })).filter((x) => x.iso).map((x) => ({ ...x, d: daysTo(x.iso) }));
   // How many people each missed deadline is actually still waiting on. The
   // agreement line counts anyone who has not submitted — including one that was
@@ -2071,8 +2071,8 @@ function eventScreen(data) {
     </div>
     <div class="card-body">
       ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 14px">${[
-        ev.noDeadlines ? "<b>No due dates for presenters on this event.</b> Nothing chases them by date; use <b>Email again</b> to nudge someone." : "",
-        ev.talkOnFile ? "<b>Bio and outline on file.</b> The form does not ask for them." : ""].filter(Boolean).join(" ")} <span class="porg">Change this on Edit event.</span></div>` : ""}
+        ev.noDeadlines ? `<b>One date for presenters: their presentation, by ${esc(fmtDate(ev.deadlines?.final))}</b> (${off.final} days before day one). No agreement or draft date, and nothing chases the agreement; use <b>Email again</b> to nudge someone.` : "",
+        ev.talkOnFile ? "<b>Bio and outline on file.</b> The form shows them greyed out." : ""].filter(Boolean).join(" ")} <span class="porg">Change this on Edit event.</span></div>` : ""}
       ${ev.noDeadlines ? "" : `<dl class="kv" style="margin:0 0 14px">
         <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))} <span class="porg">${off.agreement} days before day one</span></dd>
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} <span class="porg">${off.draft} days</span> · ${esc(fmtDate(ev.deadlines?.final))} <span class="porg">${off.final} days</span></dd>

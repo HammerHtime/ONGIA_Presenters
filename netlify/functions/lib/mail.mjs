@@ -181,8 +181,8 @@ const plain = (heading, lines, href, contact) =>
 export function invitationMail({ event, presenter, link, remind, daysLeft = null }) {
   const d = event.deadlines;
   const fr = (iso) => esc(formatDateFr(iso));
-  // An event can go without presenter due dates (the Summit's re-sent agreements):
-  // then no line names one, and the form "asks about" what it actually asks.
+  // An event can drop the agreement and draft dates (the Summit's re-sent agreements):
+  // then the one date it names is when the presentation is due.
   const dated = event.noDeadlines !== true;
   const onFile = event.talkOnFile === true;
   // "That's in 3 days." / "That was 4 days ago." — the nudge gets sharper as the date nears.
@@ -203,7 +203,8 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
     `${dated ? `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. ` : ""}The form asks about ${asksEn}, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
     ...(onFile ? [`We already have your biography and presentation outline from the program, so the form doesn't ask for them. If you sent us an agreement for this event before, please complete this one too: it replaces the earlier copy.`] : []),
-    ...(dated ? [`Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`] : []),
+    dated ? `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`
+      : `Please send us your presentation by <b>${esc(event.deadlinesReadable.final)}</b>.`,
     `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
     `Bonjour ${esc(presenter.first)},`,
     remind
@@ -211,7 +212,8 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
       : `Merci de présenter à <b>${esc(event.title)}</b> à ${esc(event.city)}, le ${fr(event.dayOne)}. Avant l'événement, nous avons besoin de votre entente de conférencier — une dizaine de minutes sur un téléphone, rien à imprimer ni à numériser.`,
     `${dated ? `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. ` : ""}${formFr}`,
     ...(onFile ? [`Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; le formulaire ne les demande donc pas. Si vous nous avez déjà envoyé une entente pour cet événement, veuillez tout de même remplir celle-ci : elle remplace la précédente.`] : []),
-    ...(dated ? [`Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`] : []),
+    dated ? `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`
+      : `Veuillez nous faire parvenir votre présentation d'ici le <b>${fr(d.final)}</b>.`,
   ];
   return {
     subject: heading,
@@ -353,7 +355,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
       `ONGIA prend en charge : <b>${esc(covered)}</b>.`,
       describeDates(presenter, "fr"),
       event.noDeadlines
-        ? (event.materialsUploadUrl ? `Envoyez-nous votre matériel de présentation avant l'événement avec le bouton ci-dessous.` : "")
+        ? `Veuillez nous faire parvenir votre présentation d'ici le <b>${f(d.final)}</b>${event.materialsUploadUrl ? ", avec le bouton ci-dessous" : ""}.`
         : `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
       `Référence ${esc(presenter.reference)}.`,
     ];
@@ -368,7 +370,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
     `ONGIA will cover: <b>${esc(covered)}</b>.`,
     describeDates(presenter),
     event.noDeadlines
-      ? (event.materialsUploadUrl ? `Please send us your presentation materials before the event using the button below.` : "")
+      ? `Please send us your presentation by <b>${f(d.final)}</b>${event.materialsUploadUrl ? ", using the button below" : ""}.`
       : `Next dates: draft materials by <b>${f(d.draft)}</b>; final, production-ready materials by <b>${f(d.final)}</b>.` + (up ? ` Upload them here: ${up}` : ""),
     `Reference ${esc(presenter.reference)}.`,
   ];

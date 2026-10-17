@@ -129,10 +129,10 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     "adjustments be required. Presenters may also be asked to participate in additional facilitator- or " +
     "panel-style sessions during the training event."
   );
-  // An event with no presenter due dates says the same thing without naming any.
+  // An event with one presenter date names only that one: the presentation.
   p.para(event.noDeadlines
-    ? "As a presenter at this ONGIA training event, you are required to submit your presentation materials for review " +
-      "before the event. This review allows time to assess content for alignment with training objectives, third-party " +
+    ? "As a presenter at this ONGIA training event, you are required to submit your presentation materials by " +
+      `${fmt(event.deadlines.final)} for review. This review allows time to assess content for alignment with training objectives, third-party ` +
       "privacy considerations, technical requirements, ONGIA Board approval, necessary edits, and IT preparation. ONGIA " +
       "aims to review all presentations to ensure consistency with the overall theme and learning goals."
     : "As a presenter at this ONGIA training event, you are required to submit your presentation materials by " +

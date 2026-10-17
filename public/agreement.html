@@ -257,7 +257,8 @@ en: {
   errInvalidLink: "This link isn't valid. Check it came from ONGIA, or ask us for a new one.",
   errApproved: "This agreement has already been approved. Contact ONGIA if something needs changing.",
   city: "City", venue: "Venue", begins: "Training begins", length: "Length", minutes: (n) => `About ${n} minutes`,
-  twoDates: "Two dates to keep",
+  twoDates: "Two dates to keep", oneDate: "One date to keep",
+  presentationBy: (d) => `Your presentation, ready for the event, by <b>${d}</b>.`, presentationDue: (d) => `Presentation due ${d}`,
   draftFinal: (a, b) => `Draft materials for review by <b>${a}</b>. Final, production-ready materials by <b>${b}</b>.`,
   questions: "Questions?",
   introduced: "This is how you'll be introduced on the day.", first: "First name", last: "Last name",
@@ -376,6 +377,8 @@ fr: {
   errApproved: "Cette entente a déjà été approuvée. Communiquez avec ONGIA si quelque chose doit changer.",
   city: "Ville", venue: "Lieu", begins: "Début de la formation", length: "Durée", minutes: (n) => `Environ ${n} minutes`,
   twoDates: "Deux dates à retenir",
+  oneDate: "Une date à retenir",
+  presentationBy: (d) => `Votre présentation, prête pour l'événement, d'ici le <b>${d}</b>.`, presentationDue: (d) => `Présentation attendue le ${d}`,
   draftFinal: (a, b) => `Version préliminaire de votre matériel à remettre pour révision d'ici le <b>${a}</b>. Version finale, prête pour la production, d'ici le <b>${b}</b>.`,
   questions: "Des questions?",
   introduced: "C'est ainsi que vous serez présenté(e) le jour de l'événement.", first: "Prénom", last: "Nom de famille",
@@ -662,7 +665,10 @@ function stepMarkup() {
         <div class="fact"><dt>${t("begins")}</dt><dd>${esc(fmtDate(ev.dayOneIso))}</dd></div>
         <div class="fact"><dt>${t("length")}</dt><dd>${t("minutes", ev.sessionMinutes)}</dd></div>
       </dl>
-      ${ev.noDeadlines ? "" : `<div class="flag"><span>🗓️</span><div><strong>${t("twoDates")}</strong>
+      ${ev.noDeadlines
+        ? `<div class="flag"><span>🗓️</span><div><strong>${t("oneDate")}</strong>
+        <p>${t("presentationBy", esc(fmtDate(dl.final)))}</p></div></div>`
+        : `<div class="flag"><span>🗓️</span><div><strong>${t("twoDates")}</strong>
         <p>${t("draftFinal", esc(fmtDate(dl.draft)), esc(fmtDate(dl.final)))}</p></div></div>`}
       ${ev.contact?.name ? `<p class="hint">${t("questions")} ${esc(ev.contact.name)}${ev.contact.email ? " · " + esc(ev.contact.email) : ""}</p>` : ""}
       </div>`;
@@ -786,7 +792,7 @@ function doneMarkup(result) {
       <div><b>${result.notified === false ? "→" : "✓"}</b><span>${result.notified === false ? t("boardWillSee") : t("notified", esc(DATA.event.contact?.name || "ONGIA"))}</span></div>
       <div><b>→</b><span>${t("reviewNext")}</span></div>
       <div><b>→</b><span>${t("finalNext")}</span></div>
-      ${DATA.event.noDeadlines ? "" : `<div><b>→</b><span>${t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>`}
+      <div><b>→</b><span>${DATA.event.noDeadlines ? t("presentationDue", esc(fmtDate(DATA.event.deadlinesIso.final))) : t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>
       ${result.headshotWarning ? `<div><b style="color:var(--bad)">!</b><span>${esc(t(result.headshotWarning))}</span></div>` : ""}
     </div>
     <p class="ref">${t("reference", esc(result.reference))}</p></div>`;
@@ -848,8 +854,8 @@ function finalMarkup() {
     <h2>${t("finalTitle")}</h2>
     <p>${t("finalP", me.approvedAt ? esc(fmtDate(toISO(new Date(me.approvedAt)))) : "", esc(me.email))}</p>
     <div class="done-list">
-      ${ev.noDeadlines ? "" : `<div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
-      <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>`}
+      ${ev.noDeadlines ? "" : `<div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>`}
+      <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
     </div>
     <div class="done-actions">
       <a class="btn btn-gold" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>

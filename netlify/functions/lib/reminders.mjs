@@ -59,9 +59,10 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     const dayOffset = daysBetween(due, today); // negative before the due date
     const people = await listPresenters(event.id);
     const outstanding = people.filter((p) => p.status !== "submitted" && p.status !== "approved");
-    // An event with no presenter due dates is never chased by date: no agreement,
-    // room or materials reminders. Andrew nudges by hand with "Email again".
-    const chase = !digestOnly && event.noDeadlines !== true;
+    // An event with one presenter date (the Summit) chases only that one, the
+    // presentation; no agreement, room or draft reminders. Andrew nudges those by hand.
+    const oneDate = event.noDeadlines === true;
+    const chase = !digestOnly && !oneDate;
 
     for (const p of chase ? outstanding : []) {
       if (!p.mail?.length) continue; // never invited: that's the coordinator's call, not a reminder
@@ -119,8 +120,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       if (!dry) {
         try { const scan = await scanMaterials(event, people); if (!scan.skipped) { event.materialsScan = scan; await putEvent(event); } } catch { /* keep the last scan */ }
       }
-      // The uploads are still checked above on an undated event; only the dated chase-ups stop.
-      for (const [key, label, labelFr] of chase ? [["draft", "Draft materials", "Version préliminaire du matériel"], ["final", "Final materials", "Version finale du matériel"]] : []) {
+      const kinds = [["draft", "Draft materials", "Version préliminaire du matériel"], ["final", "Final materials", "Version finale du matériel"]];
+      for (const [key, label, labelFr] of oneDate ? [["final", "Presentation", "Présentation"]] : kinds) {
         const dueIso = event.deadlines[key];
         const off = daysBetween(dueIso, today);
         const isDay = MATERIALS_DAYS.includes(off) || overdueDay(off);
@@ -142,7 +143,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
               const heading = fr ? `${labelFr} — attendue le ${due}` : `${label} due ${due} — ${event.title}`;
               const lines = fr
                 ? [`Bonjour ${esc(p.first)},`, `Un rappel amical : votre ${labelFr.toLowerCase()} pour <b>${esc(event.title)}</b> est attendue le <b>${due}</b>${off > 0 ? " et nous ne l'avons pas encore reçue" : ""}.`, `Le bouton ci-dessous ouvre le dossier de dépôt d'ONGIA — déposez-y vos fichiers, rien d'autre à faire.`]
-                : [`Hello ${esc(p.first)},`, `A friendly reminder: your ${label.toLowerCase()} for <b>${esc(event.title)}</b> ${off > 0 ? "were due" : "are due"} <b>${due}</b>${off > 0 ? " and haven't arrived yet" : ""}.`, `The button below opens ONGIA's drop folder for this event — add your files there and you're done.`];
+                : [`Hello ${esc(p.first)},`, `A friendly reminder: your ${label.toLowerCase()} for <b>${esc(event.title)}</b> ${oneDate ? (off > 0 ? "was due" : "is due") : (off > 0 ? "were due" : "are due")} <b>${due}</b>${off > 0 ? (oneDate ? " and hasn't arrived yet" : " and haven't arrived yet") : ""}.`, `The button below opens ONGIA's drop folder for this event — add your files there and you're done.`];
               const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, subject: heading, text: heading,
                 html: layout({ heading, lines, buttons: [{ href: event.materialsUploadUrl, label: fr ? "Téléverser le matériel" : "Upload Material" }],
                   contact: coordinatorOf(event), event, lang: fr ? "fr" : "en" }) });
@@ -160,8 +161,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       const counts = countStatuses(people);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const materialsSummary = { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length };
-      // No presenter due dates on this event: nothing is overdue, and the next thing is the training.
-      const items = (event.noDeadlines ? [] : [
+      // One presenter date on this event: only the presentation can be overdue.
+      const items = (event.noDeadlines ? [["Presentations", event.deadlines.final, people.filter((p, i) => !mats[i].final)]] : [
         ["Agreements", event.deadlines.agreement, people.filter((p) => p.status !== "submitted" && p.status !== "approved")],
         ["Draft materials", event.deadlines.draft, people.filter((p, i) => !mats[i].draft)],
         ["Final materials", event.deadlines.final, people.filter((p, i) => !mats[i].final)],
