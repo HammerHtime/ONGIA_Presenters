@@ -2002,7 +2002,7 @@ function eventScreen(data) {
     } else {
       main = b(`data-invite="${id}"`, "Email link", "gold");  // never sent: sending it is the job
     }
-    rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them"`, "Edit"));
+    rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them from the event"`, "Edit"));
     // An odd one out takes the whole width rather than leaving a hole — the first of
     // them, so every row still ends with the same Copy link | Edit pair.
     const pairs = rest.map((h, i) => (i === 0 && rest.length % 2 ? h.replace('class="mini', 'class="mini wide') : h));
@@ -2102,6 +2102,8 @@ function eventScreen(data) {
           : `<div class="line">${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}<span class="said">${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}</span></div><button class="mini" id="rescan">Check uploads now</button>${scan?.unmatched?.length ? `<div class="porg"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</div></dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
+        ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
+          `<span>${esc(r.name)} <span class="porg">· ${r.status === "approved" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span></span>`).join("")}</div></dd>` : ""}
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
@@ -2235,8 +2237,6 @@ function eventScreen(data) {
             ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving,
                use <b>Email link</b> on their row to send it to the corrected one.</div>`
             : "";
-      // A final, filed agreement is not removed from here; anyone else can be.
-      document.getElementById("pe-remove").hidden = p.status === "approved";
       pedit.showModal();
       document.getElementById("pe-email").focus();
     };
@@ -2258,13 +2258,22 @@ function eventScreen(data) {
     } catch (e) { toast(e.message); }
   });
 
+  // Two steps, for anyone: say yes, then type DELETE. A signed agreement can go too
+  // (a presenter called to court, or one ONGIA no longer wants); its copy stays in SharePoint.
   const peRemove = document.getElementById("pe-remove");
   if (peRemove) peRemove.onclick = async () => {
     const p = presenters.find((x) => x.id === pedit.dataset.presenter);
-    if (!p || !confirm(`Remove ${p.first} ${p.last}? Their link stops working.`)) return;
+    if (!p) return;
+    const name = `${p.first} ${p.last}`.trim();
+    const final = p.status === "approved";
+    if (!confirm(`Remove ${name} from this event?\n\nTheir agreement link stops working${final ? ", and they come off the desk. Their signed agreement stays in SharePoint." : "."}`)) return;
+    const typed = prompt(`To remove ${name}, type DELETE.`);
+    if ((typed ?? "").trim().toUpperCase() !== "DELETE") { toast(`${name} was not removed.`); return; }
     pedit.close();
-    try { await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { method: "DELETE" }); toast("Removed."); render(); }
-    catch (e) { toast(e.message); }
+    try {
+      await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}${final ? "&final=1" : ""}`, { method: "DELETE" });
+      toast(`${name} removed.`); render();
+    } catch (e) { toast(e.message); }
   };
   ROOT.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
   ROOT.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });

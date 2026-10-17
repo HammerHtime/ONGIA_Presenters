@@ -22,7 +22,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   PUT    /api/events?id=…&attendeeMail=1  { on: true|false } — attendee emails on or off, nothing else
  *   DELETE /api/events?id=…                 delete an event and everything under it
  *   POST   /api/events?id=…&add=1           add presenters to an event
- *   DELETE /api/events?id=…&presenter=…     remove one presenter (not once approved)
+ *   DELETE /api/events?id=…&presenter=…     remove one presenter (&final=1 for a signed, filed agreement)
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
  */
@@ -51,7 +51,7 @@ export default async (req) => {
   }
   if (req.method === "DELETE") {
     const presenterId = url.searchParams.get("presenter");
-    return presenterId ? removePresenter(id, presenterId) : deleteEvent(id);
+    return presenterId ? removePresenter(id, presenterId, url.searchParams.get("final") === "1") : deleteEvent(id);
   }
   return fail("Method not allowed.", 405);
 };
@@ -301,14 +301,29 @@ async function updatePresenter(id, presenterId, body) {
   });
 }
 
-async function removePresenter(id, presenterId) {
+/**
+ * Take a presenter off an event. A signed, filed agreement can go too — someone is
+ * called to court, or ONGIA no longer wants them (Andrew, 17 Oct 2026) — but only
+ * when the request says so (&final=1), and the signed copy stays in SharePoint. The
+ * event keeps a line saying who was removed and when, so nobody simply vanishes.
+ */
+async function removePresenter(id, presenterId, finalToo = false) {
   const presenter = await getPresenter(id, presenterId);
   if (!presenter) return fail("No such presenter.", 404);
-  if (presenter.status === "approved") return fail("This agreement is final and filed; it can't be removed from the desk.", 409);
+  if (presenter.status === "approved" && !finalToo) return fail("This agreement is final and filed. Confirm that you want to remove it anyway.", 409);
+  const event = await getEvent(id);
+  if (event) {
+    event.removedPresenters = [...(event.removedPresenters ?? []), {
+      name: `${presenter.first ?? ""} ${presenter.last ?? ""}`.trim() || presenter.email, email: presenter.email ?? "",
+      status: presenter.status, at: new Date().toISOString(), filedTo: presenter.delivery?.filing?.folderUrl ?? null,
+    }].slice(-50);
+    await putEvent(event);
+  }
   await Promise.all([
     deleteKey(`presenter:${id}:${presenterId}`),
     presenter.token ? deleteKey(`token:${presenter.token}`) : null,
     deleteKey(`headshot:${id}:${presenterId}`),
+    deleteKey(`pdf:${id}:${presenterId}`),
   ]);
   return json({ ok: true });
 }
