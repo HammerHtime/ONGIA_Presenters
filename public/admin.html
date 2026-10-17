@@ -157,6 +157,9 @@
 
   /* tracking table */
   .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  /* On a phone the filters are one row that slides sideways, not five rows of buttons. */
+  @media (max-width:560px){.filters{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 14px;padding:0 16px 4px;scrollbar-width:none}
+    .filters::-webkit-scrollbar{display:none} .filters .fchip{flex:none;white-space:nowrap}}
   .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
@@ -377,6 +380,23 @@
     text-align:center;line-height:26px;font-size:13px;color:var(--ink-mid);transition:transform .15s;flex:none}
   details.ibfold[open]>summary .ibcaret{transform:rotate(180deg)}
   details.ibfold>summary:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+  details.ibfold>summary .ibcount .late{color:var(--late)} details.ibfold>summary .ibcount .you{color:var(--gold)}
+  /* An event's sections: a closed one is a single line, so the event reads as a short list.
+     Open, the card's own description and buttons sit under the heading on the plain card. */
+  details.secfold{margin-bottom:10px;box-shadow:var(--lift)}
+  details.secfold>summary.card-head{padding:14px 20px}
+  details.secfold>summary.card-head h2{font-size:19px}
+  details.secfold>summary.card-head .s{font-size:13px}
+  details.secfold[open]{box-shadow:var(--shadow);margin-bottom:18px}
+  details.secfold>.card-head:not(summary){background:var(--card);border-bottom:0;padding-bottom:4px}
+  details.secfold>summary .ibcount{text-align:right}
+  /* The heading already carries the counts; the chips under the description would only repeat them. */
+  details.secfold>.card-head:not(summary) .jobsum{display:none}
+  /* On a phone what needs him goes under the status line, so neither is squeezed into a column. */
+  @media (max-width:560px){details.secfold>summary.card-head{padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
+    details.secfold>summary.card-head>div:first-child{grid-column:1;grid-row:1}
+    details.secfold>summary .ibcount{grid-column:1;grid-row:2;text-align:left;white-space:normal}
+    details.secfold>summary .ibcaret{grid-column:2;grid-row:1/span 2;align-self:center}}
   @media (max-width:560px){
     .ibrow{grid-template-columns:auto 1fr auto;padding:12px 10px 12px 12px}
     .ibrow .when{grid-column:2/-1;grid-row:2;text-align:left}
@@ -384,10 +404,14 @@
     .ibrow>input{width:22px;height:22px}
     .ibrow .more{padding:7px 12px}
   }
+  /* On a phone the job's wording gets the whole width; its date and its buttons share the line under it. */
   @media (max-width:560px){
-    .job{grid-template-columns:auto 1fr auto;row-gap:6px}
-    .job .when{grid-column:2/-1;text-align:left}
-    .job .jact{grid-column:3;grid-row:1}
+    .job{grid-template-columns:auto 1fr auto;row-gap:6px;align-items:start}
+    .job>input{margin-top:2px}
+    .job .what{grid-column:2/-1}
+    .job .when{grid-column:2/-1;grid-row:2;text-align:left;white-space:normal}
+    .job .when span{display:inline;margin-left:6px}
+    .job .jact{grid-column:2/-1;grid-row:3}
   }
   /* A row of the standard list: wording, days, before/after, then the arrows and
      remove — one line on a wide screen. On a phone the arrows stand one above
@@ -1978,6 +2002,15 @@ function eventScreen(data) {
   const blockers = blockersOf(ev);
   const sendFailed = presenters.filter((p) => p.lastSendError);
   const off = { agreement: 90, draft: 50, final: 30, ...(ev.offsets ?? {}) };
+  const waitingOn = count("notstarted") + count("progress") + count("uninvited");
+  const presenterLine = presenters.length
+    ? [`${presenters.length} presenter${presenters.length === 1 ? "" : "s"}`, waitingOn ? `${waitingOn} waiting on them` : "",
+       count("final") + count("failed") ? `${count("final") + count("failed")} final` : ""].filter(Boolean).join(" · ")
+    : "No presenters yet";
+  const presenterBadge = [count("review") ? `<span class="you">${count("review")} to review</span>` : "",
+    count("failed") ? `<span class="late">${count("failed")} not filed</span>` : "",
+    sendFailed.length ? `<span class="late">${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} failed</span>` : ""].filter(Boolean).join(" · ");
+  const settingsLine = "SharePoint folder, upload link, the board, delete";
 
   ROOT.innerHTML = `<div class="card">
     <div class="card-head"><div><h2>${esc(ev.title)}</h2>
@@ -1987,7 +2020,8 @@ function eventScreen(data) {
       ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
-    ${mailSwitch(ev, guests)}
+    ${mailSwitch(ev, guests)}</div>`
+    + secFold("presenters", "Presenters", presenterLine, presenterBadge, `
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Waiting on them</div><div class="v">${count("notstarted") + count("progress") + count("uninvited")}</div></div>
@@ -2006,8 +2040,14 @@ function eventScreen(data) {
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
       <div class="filters">${chips}</div>
       <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
-      <details class="settings"><summary>Event settings and diagnostics</summary>
-      <dl class="kv" style="margin:12px 0 0">
+    </div>`)
+    + inboxCard(ev, inbox) + inboxDialogs()
+    + checklistCard(ev, checklist) + jobDialog()
+    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
+    + attendeesCard(ev, guests) + wixDialog()
+    + agendaCard(ev, agenda)
+    + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
+      <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
         <dt class="top">Uploads</dt><dd><div class="stack">${!ev.materialsUploadUrl
           ? `<span class="said">no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</span><button class="mini" id="mklink">Create upload link</button>`
@@ -2017,9 +2057,8 @@ function eventScreen(data) {
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
-      </details>
-    </div></div>
-    <dialog class="sheet" id="pedit">
+    </div>`, { id: "evsettings" })
+    + `<dialog class="sheet" id="pedit">
       <form method="dialog">
         <div class="sheet-head"><h2>Correct this presenter</h2>
           <p class="hint" style="margin-top:6px">Their agreement link does not change, and anything they have already
@@ -2038,12 +2077,7 @@ function eventScreen(data) {
           </div>
         </div>
       </form>
-    </dialog>`
-    + inboxCard(ev, inbox) + inboxDialogs()
-    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
-    + checklistCard(ev, checklist) + jobDialog()
-    + agendaCard(ev, agenda)
-    + attendeesCard(ev, guests) + wixDialog();
+    </dialog>`;
 
   CHECKLIST = checklist;
   wireActions();
@@ -2059,7 +2093,7 @@ function eventScreen(data) {
       const act = b.dataset.fix;
       if (act === "edit") { view = { name: "edit", eventId: ev.id }; render(); return; }
       const target = document.getElementById(act === "mklink" ? "mklink" : "mkfolder");
-      const box = document.querySelector(".settings");
+      const box = document.getElementById("evsettings");
       if (box) box.open = true;
       if (target) { target.scrollIntoView({ block: "center", behavior: "smooth" }); target.click(); }
       else toast("Open Event settings to finish this.");
@@ -2263,8 +2297,11 @@ function checklistCard(ev, checklist) {
       + (counts.na ? `<span class="chipstat"><b>${counts.na}</b>not needed</span>` : "")
     : "";
 
-  return `<div class="card">
-    <div class="card-head"><div><h2>Your checklist</h2>
+  const line = !tasks.length ? "Nothing on the list yet"
+    : [`${counts.done} of ${counts.total} done`, counts.undated ? `${counts.undated} with no date yet` : "", counts.na ? `${counts.na} not needed` : ""].filter(Boolean).join(" · ");
+  const badge = [counts.late ? `<span class="late">${counts.late} overdue</span>` : "", counts.soon ? `<span class="chase">${counts.soon} due in 2 weeks</span>` : ""].filter(Boolean).join(" · ");
+  return secFold("tasks", "Your checklist", line, badge, `
+    <div class="card-head"><div>
       <div class="s">What ONGIA owes this event, not what the presenters owe, in the order the jobs get done. Every date counts back from day one, so moving the training moves the list.</div>
       <div class="jobsum" style="margin-top:8px">${summary}</div></div>
       <div class="cardacts"><button class="mini jobadd" id="jadd">Add a job</button>
@@ -2273,7 +2310,7 @@ function checklistCard(ev, checklist) {
       ${tasks.length ? behindNote(checklist.behind) : ""}
       ${tasks.length ? `<div class="jobs">${rows}</div>` : `<div class="empty">Nothing on the list yet.</div>`}
       <p class="hint jobadd">The standard list new events start from is on <b>The year</b> screen.</p>
-    </div></div>`;
+    </div>`);
 }
 
 /** Ticking, adding, changing and removing — each one writes and redraws. */
@@ -2503,8 +2540,13 @@ function roomingCard(ev, R, C = null) {
     : "";
   const waiting = R.waiting.length
     ? `<p class="roomwait">Not answered yet, so they may still need a room: ${R.waiting.map((w) => esc(w.name)).join(", ")}.</p>` : "";
-  return `<div class="card" id="roomcard">
-    <div class="card-head"><div><h2>Hotel rooms</h2>
+  const line = [R.rows.length ? `${conf.length} room${conf.length === 1 ? "" : "s"}, ${nightsAll} room night${nightsAll === 1 ? "" : "s"}` : "No one needs a room yet",
+    R.hotel.name ? `at ${esc(R.hotel.name)}` : "no hotel set",
+    R.sent ? `sent ${esc(shortDate(R.sent.at.slice(0, 10)))}` : R.rows.length ? "not sent to the hotel yet" : ""].filter(Boolean).join(" · ");
+  const badge = [R.rows.length > conf.length ? `<span class="chase">${R.rows.length - conf.length} awaiting approval</span>` : "",
+    R.changes?.length ? `<span class="late">${R.changes.length} change${R.changes.length === 1 ? "" : "s"} to send</span>` : ""].filter(Boolean).join(" · ");
+  return secFold("hotel", "Hotel rooms", line, badge, `
+    <div class="card-head"><div>
       <div class="s">From the presenters' agreements — the dates and billing the board approved — plus anyone you add.${R.hotel.name ? ` At ${esc(R.hotel.name)}.` : ""}</div>
       ${conf.length ? `<div class="jobsum" style="margin-top:8px"><span class="chipstat"><b>${conf.length}</b>room${conf.length === 1 ? "" : "s"}</span>
         <span class="chipstat"><b>${nightsAll}</b>room night${nightsAll === 1 ? "" : "s"}</span>
@@ -2545,7 +2587,7 @@ function roomingCard(ev, R, C = null) {
           Save it from Excel as CSV. Nobody is added until you have seen the list and pressed Add.</p>
         <div id="rg-read"></div>
       </details>
-    </div></div>`;
+    </div>`);
 }
 
 /** A presenter's row: only how they are listed is the desk's; the rest is their agreement's. */
@@ -2875,14 +2917,18 @@ function ibUrgency(x, ev) {
   }
   if (ev?.dayOne && /^\d{4}/.test(ev.dayOne)) {
     const n = daysTo(ev.dayOne);
-    return { by: ev.dayOne, b: n < 0 ? "Event over" : `Event ${inDays(n)}`, s: `came ${mailDay(x.received)}`, urgent: n >= 0 && n <= 10 };
+    return { by: ev.dayOne, b: n < 0 ? "Event over" : `Event ${inDays(n)}`, s: `came ${mailDay(x.received)}`, urgent: n >= 0 && n <= 10, fromEvent: true };
   }
   return { by: todayIso(new Date(Date.parse(x.received) + 7 * 86400000)), b: `Came ${mailDay(x.received)}`, s: `${daysSince(x.received)} days ago`, urgent: false };
 }
 
 /** One row: a tick, who and what, when it is due, and ⋯ for move or hide. */
 function ibRow(x, ev, { showEvent = false } = {}) {
-  const u = ibUrgency(x, ev);
+  const u0 = ibUrgency(x, ev);
+  // On an event's own card every row would say the same "Event in 23 days": say when it came.
+  const ago = daysSince(x.received);
+  const u = !showEvent && u0.fromEvent && !u0.urgent
+    ? { ...u0, b: `Came ${mailDay(x.received)}`, s: ago === 0 ? "today" : `${ago} day${ago === 1 ? "" : "s"} ago` } : u0;
   const done = x.status === "done";
   const o = x.offer ?? {};
   const where = showEvent ? (ev?.id === "_unfiled" ? `<span class="ev">Not on the desk yet${x.guess ? `: ${esc(x.guess)}` : ""}</span>` : `<span class="ev">${esc(ev?.city ?? "")}</span>`) : "";
@@ -2919,28 +2965,51 @@ function inboxCard(ev, IB) {
   const live = IB.items.filter((x) => x.status === "open" || recent(x)).map((x) => ({ x, ev }));
   const older = IB.items.filter((x) => x.status === "done" && !recent(x));
   const { todo, them } = ibGroups(live);
-  const section = (label, rows) => rows.length ? `<h3>${label}<b>${rows.filter(({ x }) => x.status === "open").length}</b></h3><div class="ibrows">${rows.map(({ x }) => ibRow(x, ev)).join("")}</div>` : "";
+  // The most urgent few, and the rest behind "Show all", so a busy event is not ten screens of email.
+  const cap = ev.id === "_unfiled" ? Infinity : EVENT_ROWS;
+  const section = (label, rows, id) => rows.length ? `<h3>${label}<b>${rows.filter(({ x }) => x.status === "open").length}</b></h3>
+    <div class="ibrows" id="${id}">${rows.map(({ x }, i) => (i === cap ? `<div class="ibmorerows" hidden>` : "") + ibRow(x, ev)).join("")}${rows.length > cap ? "</div>" : ""}</div>
+    ${rows.length > cap ? `<button class="mini ibshowall" data-ibshow="${id}">Show all ${rows.length}</button>` : ""}` : "";
   const status = IB.running ? `<p class="agread"><span class="spin" aria-hidden="true"></span> Reading your email now. This takes a minute or two.</p>`
     : IB.runError ? `<div class="bad" style="margin-top:0">${esc(IB.runError)}</div>`
     : IB.last?.lastError ? `<div class="bad" style="margin-top:0">The last read had a problem: ${esc(IB.last.lastError)}</div>` : "";
   const body = todo.length + them.length
-    ? section("To do", todo) + section("Waiting on others", them)
+    ? section("To do", todo, "eib-todo") + section("Waiting on others", them, "eib-them")
     : `<p class="ibempty">${IB.connected && IB.last?.at ? "Nothing open from your email for this event." : "Nothing here yet."}</p>`;
   const doneList = older.length ? `<details class="ibdonelist"><summary>Done earlier (${older.length})</summary><div class="ibrows" style="margin-top:8px">${older.map((x) => ibRow(x, ev)).join("")}</div></details>` : "";
   const sub = !IB.connected ? `Not switched on yet: the desk needs permission to read ${esc(IB.mailbox || "your mailbox")}.`
+    : ev.id !== "_unfiled" ? `${esc(IB.mailbox)} · ${IB.last?.at ? `checked ${esc(mailDay(IB.last.at))}` : "not checked yet"}`
     : `From ${esc(IB.mailbox)}, ${IB.last?.at ? `checked ${esc(mailDay(IB.last.at))}` : "not checked yet"}. Tick what is done.`;
   const openN = (rows) => rows.filter(({ x }) => x.status === "open").length;
   const chaseN = them.filter(({ x }) => x.status === "open" && ibUrgency(x).chase).length;
-  return `<details class="card ibfold" id="inbox" data-fold="event"${foldOpen("event") ? " open" : ""}>
+  // On an event it is one of the folded sections, closed to start; on its own screen it is the page.
+  const fold = ev.id === "_unfiled" ? "event" : "sec-email";
+  return `<details class="card ibfold${ev.id === "_unfiled" ? "" : " secfold"}" id="inbox" data-fold="${fold}"${foldOpen(fold, ev.id === "_unfiled") ? " open" : ""}>
     ${foldHead(title, sub, openN(todo), chaseN, openN(them))}
     <div class="card-body ib">${status}${body}${doneList}
       <div class="ibfoot">${ev.id === "_unfiled" ? "" : `<button class="mini" id="ibadd">Add a note</button>`}${IB.connected ? `<button class="mini" id="ibrun"${IB.running ? " disabled" : ""}>Check email now</button>` : ""}
         <span>Only a short note is kept, never the email itself.</span></div></div></details>`;
 }
 
-// Whether a folded email card is open, per browser. Private windows may refuse storage: then it just opens.
+// Whether a folded card is open, per browser, remembered the way he left it. Private windows may
+// refuse storage: then each card starts the way it was made to.
 const foldKey = (id) => `ongia-fold-${id}`;
-const foldOpen = (id) => { try { return localStorage.getItem(foldKey(id)) !== "closed"; } catch { return true; } };
+const foldOpen = (id, start = true) => {
+  try { const v = localStorage.getItem(foldKey(id)); return v === "open" ? true : v === "closed" ? false : start; } catch { return start; }
+};
+
+/**
+ * One section of an event, folded. Closed, it is a single line: the name, where
+ * things stand, and anything that needs him on the right. Open, it is the whole
+ * card. Every section starts closed, so an event opens as a short list of what is
+ * there instead of twenty screens of it; each one then stays the way he left it.
+ */
+function secFold(key, title, line, badge, inner, { id = "" } = {}) {
+  return `<details class="card ibfold secfold"${id ? ` id="${id}"` : ""} data-fold="sec-${key}"${foldOpen(`sec-${key}`, false) ? " open" : ""}>
+    <summary class="card-head"><div><h2>${title}</h2>${line ? `<div class="s">${line}</div>` : ""}</div>
+      ${badge ? `<span class="ibcount">${badge}</span>` : ""}<span class="ibcaret" aria-hidden="true">▾</span></summary>
+    ${inner}</details>`;
+}
 function wireFolds() {
   ROOT.querySelectorAll("details.ibfold[data-fold]").forEach((d) => {
     d.ontoggle = () => { try { localStorage.setItem(foldKey(d.dataset.fold), d.open ? "open" : "closed"); } catch {} };
@@ -2955,6 +3024,7 @@ function foldHead(title, line, todoN, chaseN, themN) {
 
 /** The home page's list: every event's email to-dos in one place, most urgent first. */
 const HOME_ROWS = 10;
+const EVENT_ROWS = 8;
 function homeInboxCard(events, inbox) {
   if (!inbox?.connected) return "";
   const pairs = events.flatMap((ev) => (ev.inboxItems ?? []).map((x) => ({ x, ev })))
@@ -3094,8 +3164,11 @@ function agendaCard(ev, A) {
       <div class="agwhere"><label for="ag-w${i}">Room <span class="porg">(optional)</span></label><input id="ag-w${i}" data-ag="where" maxlength="60" value="${esc(s0.where ?? "")}" placeholder="e.g. Salon A"></div>
     </div>`;
   }).join("");
-  return `<div class="card">
-    <div class="card-head"><div><h2>Agenda and daily times</h2>
+  const timed = (A.days ?? []).filter((d) => saved.get(d)?.start).length;
+  const line = [f ? `Agenda: ${esc(f.name)}` : "No agenda uploaded",
+    !A.days?.length ? "" : timed ? `times set for ${timed} of ${A.days.length} day${A.days.length === 1 ? "" : "s"}` : "daily times not set"].filter(Boolean).join(" · ");
+  return secFold("agenda", "Agenda and daily times", line, r?.state === "failed" ? `<span class="late">could not be read</span>` : "", `
+    <div class="card-head"><div>
       <div class="s">The times each day starts and ends go into letters as {schedule}. A letter set to attach the agenda carries this file.</div></div>
       <div class="cardacts"><button class="mini${f ? "" : " gold"}" id="ag-up">${f ? "Replace the agenda" : "Upload the agenda"}</button>
         <input type="file" id="ag-file" accept="application/pdf,.pdf" hidden></div></div>
@@ -3108,7 +3181,7 @@ function agendaCard(ev, A) {
           ${offerFill ? `<button class="mini" id="ag-fill">Fill in what Claude found</button>` : ""}
           <span class="hint" id="ag-said" style="align-self:center"></span></div>`
         : `<p class="hint">Set the training dates on Edit first.</p>`}
-    </div></div>`;
+    </div>`);
 }
 
 let AGENDA_POLL = null;
@@ -3215,8 +3288,12 @@ function attendeesCard(ev, guests) {
     : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
         <button class="mini" id="g-link">Link to a Wix event</button></div>`;
 
-  return `<div class="card">
-    <div class="card-head"><div><h2>Who is coming</h2>
+  const line = counts.total
+    ? [`${counts.attending} coming`, counts.waitlist ? `${counts.waitlist} on the waitlist` : "", counts.withdrawn ? `${counts.withdrawn} withdrew` : "",
+       wix?.eventId ? "linked to Wix" : "not linked to Wix"].filter(Boolean).join(" · ")
+    : wix?.eventId ? "Nobody yet · linked to Wix" : "Nobody yet · not linked to Wix";
+  return secFold("guests", "Who is coming", line, "", `
+    <div class="card-head"><div>
       <div class="s">The people the welcome letter and the survey go to. Pulled from the website nightly, or imported from a spreadsheet.</div>
       <div class="jobsum" style="margin-top:8px">
         ${chip(counts.attending, " good", "coming")}
@@ -3236,7 +3313,7 @@ function attendeesCard(ev, guests) {
       ${people.length ? `<div class="guests">${rows}</div>
         ${people.length > SHOW_GUESTS ? `<div class="guestmore">and ${people.length - SHOW_GUESTS} more — the full list prints and is what the letters use</div>` : ""}`
         : `<div class="empty">Nobody on the list yet. Link the event to your website, or import a spreadsheet.</div>`}
-    </div></div>`;
+    </div>`);
 }
 
 /** One line per automatic letter: which, when, to how many — or what is holding it back. */
