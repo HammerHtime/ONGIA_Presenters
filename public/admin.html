@@ -163,7 +163,7 @@
   .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
-  .trow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) fit-content(230px);gap:14px;align-items:start;
+  .trow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) 236px;gap:14px;align-items:start;
     background:var(--card);border:1.5px solid var(--edge);border-radius:16px;padding:12px 14px;margin-bottom:8px;
     box-shadow:var(--lift)}
   .trow>*{min-width:0}
@@ -173,6 +173,10 @@
   .trow .act{padding-top:2px}
   .trow .cell .cl{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
   .trow .act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  /* A presenter's buttons: two equal columns, the main action across both, the same width on every row. */
+  .trow .act.pact{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:236px;justify-self:end}
+  .trow .act.pact .mini{width:100%;justify-content:center;text-align:center}
+  .trow .act.pact .wide{grid-column:1/-1}
   /* The six steps of one presenter's agreement, in the order they happen.
      Squares are ONGIA's move, circles are the presenter's. */
   .steps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px 15px;
@@ -197,7 +201,7 @@
   .step.you{color:var(--navy);font-weight:700} .step.you i{border-color:var(--navy);background:var(--navy);color:#fff}
   .step.you i::after{content:"\2022"}
   @supports (grid-template-columns: subgrid){
-    .tlist{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) fit-content(230px);column-gap:14px}
+    .tlist{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) 236px;column-gap:14px}
     .tlist>.trow{grid-column:1/-1;grid-template-columns:subgrid}
     .tlist>.empty{grid-column:1/-1}
     .tlist>.thead{grid-column:1/-1;display:grid;grid-template-columns:subgrid;padding:0 14px 5px;
@@ -206,6 +210,7 @@
   }
   @media (max-width:820px){.tlist>.thead{display:none}.tlist>.trow .cl{display:block}}
   @media (max-width:480px){.trow .act{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}}
+  @media (max-width:820px){.trow .act.pact{width:100%;max-width:420px;justify-self:start;grid-template-columns:1fr 1fr}}
   .tile .v small{font-size:14px;color:var(--muted);font-weight:400}
   /* events list: one wrapping row of small figures instead of six tiles */
   .stats{display:flex;flex-wrap:wrap;gap:6px 8px;padding:12px 22px;border-top:1px solid var(--hair)}
@@ -1967,6 +1972,37 @@ function eventScreen(data) {
   const show = enriched.filter((row) => inFilter(row, filter));
   const count = (f) => enriched.filter((row) => inFilter(row, f)).length;
 
+  /**
+   * The same block on every row: the one thing to do next across the top, the
+   * rest in pairs underneath, so buttons line up from one presenter to the next.
+   * Removing a presenter is on their Edit screen, not one tap away on the row.
+   */
+  const actionsOf = (p, a, link) => {
+    const mailed = (p.mail ?? []).some((m) => m.type !== "called");
+    const b = (attrs, label, cls = "") => `<button class="mini${cls ? " " + cls : ""}" ${attrs}>${label}</button>`;
+    const id = esc(p.id);
+    let main = "";
+    const rest = [];
+    const chase = () => [b(`data-invite="${id}"`, "Email again"),
+      ...(mailed ? [b(`data-called="${id}" title="Log a phone call — pauses the automatic reminders for a week"`, "Called them")] : [])];
+    if (p.status === "approved") {
+      if (a.bucket === "failed") main = b(`data-refile="${id}"`, "Retry filing", "gold");
+      rest.push(b(`data-review="${id}"`, "Details"), b(`data-pdf="${id}"`, "PDF"));
+    } else if (p.status === "submitted" || p.status === "returned") {
+      main = b(`data-review="${id}"`, "Review", "gold");
+      if (p.status === "returned") rest.push(...chase());
+    } else if (mailed) {
+      rest.push(...chase());                                   // chasing: the two ways side by side
+    } else {
+      main = b(`data-invite="${id}"`, "Email link", "gold");  // never sent: sending it is the job
+    }
+    rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them"`, "Edit"));
+    // An odd one out takes the whole width rather than leaving a hole — the first of
+    // them, so every row still ends with the same Copy link | Edit pair.
+    const pairs = rest.map((h, i) => (i === 0 && rest.length % 2 ? h.replace('class="mini', 'class="mini wide') : h));
+    return (main ? main.replace('class="mini', 'class="mini wide') : "") + pairs.join("");
+  };
+
   const rows = show.length ? show.map(({ p, a, m }) => {
     const initials = `${p.first[0] ?? ""}${p.last[0] ?? ""}`.toUpperCase();
     const link = `${location.origin}/a/${p.token}`;
@@ -1976,16 +2012,7 @@ function eventScreen(data) {
           <div class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</div>
           ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
       <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
-      <div class="act">
-        <button class="mini" data-copy="${esc(link)}">Copy link</button>
-        <button class="mini" data-edit="${esc(p.id)}" title="Correct their name, email or organization">Edit</button>
-        ${p.status !== "approved" && p.status !== "submitted" ? `<button class="mini" data-invite="${esc(p.id)}">${(p.mail ?? []).some((m) => m.type !== "called") ? "Email again" : "Email link"}</button>` : ""}
-        ${p.status !== "approved" && p.status !== "submitted" && (p.mail ?? []).some((m) => m.type !== "called")
-          ? `<button class="mini" data-called="${esc(p.id)}" title="Log a phone call — pauses the automatic reminders for a week">Called them</button>` : ""}
-        ${p.status === "submitted" || p.status === "returned" ? `<button class="mini gold" data-review="${esc(p.id)}">Review</button>` : ""}
-        ${a.bucket === "failed" ? `<button class="mini" data-refile="${esc(p.id)}">Retry filing</button>` : ""}
-        ${p.status === "approved" ? `<button class="mini" data-review="${esc(p.id)}">Details</button><button class="mini" data-pdf="${esc(p.id)}">PDF</button>` : `<button class="mini ghost" data-remove="${esc(p.id)}" title="Remove presenter">✕</button>`}
-      </div>
+      <div class="act pact">${actionsOf(p, a, link)}</div>
       ${stepsHtml(p)}</div>`;
   }).join("") : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`;
 
@@ -2086,9 +2113,10 @@ function eventScreen(data) {
           <div class="field"><label for="pe-email">Email</label><input id="pe-email" type="email" required autocomplete="off"></div>
           <div class="field"><label for="pe-org">Organization</label><input id="pe-org" autocomplete="off"></div>
           <div id="pe-warn"></div>
-          <div class="actions" style="margin-top:18px">
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
             <button class="btn btn-gold" id="pe-save" value="save">Save the correction</button>
             <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+            <button class="btn btn-late" type="button" id="pe-remove" style="margin-left:auto">Remove presenter</button>
           </div>
         </div>
       </form>
@@ -2201,6 +2229,8 @@ function eventScreen(data) {
             ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving,
                use <b>Email link</b> on their row to send it to the corrected one.</div>`
             : "";
+      // A final, filed agreement is not removed from here; anyone else can be.
+      document.getElementById("pe-remove").hidden = p.status === "approved";
       pedit.showModal();
       document.getElementById("pe-email").focus();
     };
@@ -2222,14 +2252,14 @@ function eventScreen(data) {
     } catch (e) { toast(e.message); }
   });
 
-  ROOT.querySelectorAll("[data-remove]").forEach((b) => {
-    b.onclick = async () => {
-      const p = presenters.find((x) => x.id === b.dataset.remove);
-      if (!confirm(`Remove ${p.first} ${p.last}? Their link stops working.`)) return;
-      try { await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { method: "DELETE" }); toast("Removed."); render(); }
-      catch (e) { toast(e.message); }
-    };
-  });
+  const peRemove = document.getElementById("pe-remove");
+  if (peRemove) peRemove.onclick = async () => {
+    const p = presenters.find((x) => x.id === pedit.dataset.presenter);
+    if (!p || !confirm(`Remove ${p.first} ${p.last}? Their link stops working.`)) return;
+    pedit.close();
+    try { await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { method: "DELETE" }); toast("Removed."); render(); }
+    catch (e) { toast(e.message); }
+  };
   ROOT.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
   ROOT.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });
   ROOT.querySelectorAll("[data-copy]").forEach((b) => {
