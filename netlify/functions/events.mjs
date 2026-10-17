@@ -127,6 +127,12 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // on, never the ones already on the desk unless he says so. So a new event
     // starts on; one saved before the switch existed has none and stays off.
     attendeeMail: body.attendeeMail === undefined ? (event.attendeeMail ?? false) : body.attendeeMail === true,
+    // Two exceptions for one event at a time (Andrew, 17 Oct 2026, the National Gang
+    // Summit): agreements re-sent to presenters who are already on the agenda. Their bio
+    // and outline are on file, so the form skips them; and the presenters see no due
+    // dates, so nothing chases them by date. Every other event keeps both, off by default.
+    talkOnFile: body.talkOnFile === undefined ? (event.talkOnFile ?? false) : body.talkOnFile === true,
+    noDeadlines: body.noDeadlines === undefined ? (event.noDeadlines ?? false) : body.noDeadlines === true,
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),

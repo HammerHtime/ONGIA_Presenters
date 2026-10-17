@@ -59,8 +59,11 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     const dayOffset = daysBetween(due, today); // negative before the due date
     const people = await listPresenters(event.id);
     const outstanding = people.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    // An event with no presenter due dates is never chased by date: no agreement,
+    // room or materials reminders. Andrew nudges by hand with "Email again".
+    const chase = !digestOnly && event.noDeadlines !== true;
 
-    for (const p of digestOnly ? [] : outstanding) {
+    for (const p of chase ? outstanding : []) {
       if (!p.mail?.length) continue; // never invited: that's the coordinator's call, not a reminder
       if (alreadyToday(p, today)) continue;
       if (calledRecently(p, today)) continue;
@@ -85,7 +88,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     // Room and equipment: asked at approval, chased until it arrives. Same
     // cadence as the materials, against the same date, because that is when the
     // venue starts setting rooms up.
-    if (!digestOnly) {
+    if (chase) {
       const avDue = event.deadlines.draft;
       const avOff = daysBetween(avDue, today);
       if (MATERIALS_DAYS.includes(avOff) || overdueDay(avOff)) {
@@ -116,7 +119,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       if (!dry) {
         try { const scan = await scanMaterials(event, people); if (!scan.skipped) { event.materialsScan = scan; await putEvent(event); } } catch { /* keep the last scan */ }
       }
-      for (const [key, label, labelFr] of [["draft", "Draft materials", "Version préliminaire du matériel"], ["final", "Final materials", "Version finale du matériel"]]) {
+      // The uploads are still checked above on an undated event; only the dated chase-ups stop.
+      for (const [key, label, labelFr] of chase ? [["draft", "Draft materials", "Version préliminaire du matériel"], ["final", "Final materials", "Version finale du matériel"]] : []) {
         const dueIso = event.deadlines[key];
         const off = daysBetween(dueIso, today);
         const isDay = MATERIALS_DAYS.includes(off) || overdueDay(off);
@@ -156,11 +160,12 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       const counts = countStatuses(people);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const materialsSummary = { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length };
-      const items = [
+      // No presenter due dates on this event: nothing is overdue, and the next thing is the training.
+      const items = (event.noDeadlines ? [] : [
         ["Agreements", event.deadlines.agreement, people.filter((p) => p.status !== "submitted" && p.status !== "approved")],
         ["Draft materials", event.deadlines.draft, people.filter((p, i) => !mats[i].draft)],
         ["Final materials", event.deadlines.final, people.filter((p, i) => !mats[i].final)],
-      ].map(([label, due, missing]) => ({ label, due: formatDate(due), days: daysBetween(due, today), names: missing.map((p) => `${p.first} ${p.last}`) }));
+      ]).map(([label, due, missing]) => ({ label, due: formatDate(due), days: daysBetween(due, today), names: missing.map((p) => `${p.first} ${p.last}`) }));
       const overdueItems = items.filter((x) => x.days > 0 && x.names.length);
       // A deadline nobody still owes is not "next": with no presenters, or all
       // of them in, the next thing is whatever someone actually has to do.

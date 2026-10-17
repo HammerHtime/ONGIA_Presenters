@@ -868,8 +868,8 @@ function needsCard(events, inbox = null) {
     const blockers = blockersOf(ev);
     if (blockers.length) rows.push({ cls: "stop", rank: 3,
       title: `Event is blocked: ${blockers.map((b) => b.short).join(", ")}`,
-      who: `${where}${ev.deadlines?.agreement ? ` · agreements due ${esc(fmtDate(ev.deadlines.agreement))}` : ""}`, label: "Open event", goev: ev.id });
-    const due = ev.deadlines?.agreement;
+      who: `${where}${ev.deadlines?.agreement && !ev.noDeadlines ? ` · agreements due ${esc(fmtDate(ev.deadlines.agreement))}` : ""}`, label: "Open event", goev: ev.id });
+    const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
     const out = (a.outstanding ?? []).length;
     if (due && days(due) < 0 && out) rows.push({ cls: "stop", rank: 4,
       title: `${out} agreement${out === 1 ? "" : "s"} overdue by ${-days(due)} day${days(due) === -1 ? "" : "s"}`,
@@ -918,6 +918,16 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
+      <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines ? " open" : ""}>
+        <summary>Presenter agreement for this event only</summary>
+        <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
+          when you are re-sending agreements rather than collecting new ones. Every other event keeps the full form and its dates.</p>
+        <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-talkfile"${ev?.talkOnFile ? " checked" : ""}>
+          <span><b>We already have their bio and outline.</b> The form does not ask for them; the agreement says they are on file with ONGIA.</span></label>
+        <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-nodates"${ev?.noDeadlines ? " checked" : ""}>
+          <span><b>No due dates for presenters.</b> The form, the emails and the agreement name no dates, and the desk sends no
+            dated reminders or materials chase-ups. Use <b>Email again</b> to nudge someone by hand.</span></label>
+      </details>
       <div class="field"><label>Board members for this event</label>
         <details class="bdrop" id="bdrop">
           <summary id="bsum"></summary>
@@ -1213,6 +1223,8 @@ function eventFormScreen(existing = null) {
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
       surveyLink: val("e-survey"),
       attendeeMail: $("e-amail")?.checked === true,
+      talkOnFile: $("e-talkfile")?.checked === true,
+      noDeadlines: $("e-nodates")?.checked === true,
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
@@ -1778,7 +1790,7 @@ function eventScreen(data) {
   const nextReminder = (p) => {
     if (p.status === "submitted" || p.status === "approved") return null;
     if (!(p.mail ?? []).some((m) => m.type !== "called")) return null;   // never invited: nothing is scheduled
-    const due = ev.deadlines?.agreement;
+    const due = ev.noDeadlines ? null : ev.deadlines?.agreement;          // undated: nothing chases them
     if (!due) return null;
     const calls = (p.mail ?? []).filter((m) => m.type === "called");
     const pausedTo = calls.length ? addDays(calls.at(-1).at.slice(0, 10), 7) : null;
@@ -1866,7 +1878,7 @@ function eventScreen(data) {
    * screen, and impossible to reason about.
    */
   const stepsOf = (p) => {
-    const due = ev.deadlines ?? {};
+    const due = ev.noDeadlines ? {} : (ev.deadlines ?? {});
     const { at, inHand } = FACTS.get(p.id);
     // Room and equipment is asked at approval and wanted when the venue starts
     // setting rooms up, which is the draft-materials date.
@@ -1942,7 +1954,7 @@ function eventScreen(data) {
   // to draw are the Draft/Final steps now, so only the flags are left.
   const matCell = (p) => {
     const m = mstat[p.id] ?? {};
-    const due = ev.deadlines ?? {};
+    const due = ev.noDeadlines ? {} : (ev.deadlines ?? {});
     return {
       missing: (!m.draft && due.draft && daysTo(due.draft) <= 14) || (!m.final && due.final && daysTo(due.final) <= 14),
       none: !m.draft && !m.final,
@@ -1960,7 +1972,7 @@ function eventScreen(data) {
     const link = `${location.origin}/a/${p.token}`;
     return `<div class="trow">
       <div class="who"><div class="av">${esc(initials)}</div>
-        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}</div>
+        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}${p.submission?.sensitive === "yes" ? ' <span class="pill late" style="font-size:10px;padding:2px 7px" title="Contains information for the justice community only">Sensitive</span>' : ""}</div>
           <div class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</div>
           ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
       <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
@@ -1986,7 +1998,7 @@ function eventScreen(data) {
 
   const draftGot = enriched.filter(({ p }) => mstat[p.id]?.draft).length;
   const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
-  const nextDl = [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]]
+  const nextDl = (ev.noDeadlines ? [["dayOne", "Training starts"]] : [["agreement", "Agreements due"], ["draft", "Draft materials due"], ["final", "Final materials due"], ["dayOne", "Training starts"]])
     .map(([k, l]) => ({ l, iso: k === "dayOne" ? ev.dayOne : ev.deadlines?.[k] })).filter((x) => x.iso).map((x) => ({ ...x, d: daysTo(x.iso) }));
   // How many people each missed deadline is actually still waiting on. The
   // agreement line counts anyone who has not submitted — including one that was
@@ -2031,10 +2043,13 @@ function eventScreen(data) {
       <div class="tile"><div class="k">Final materials</div><div class="v">${finalGot}<small>/${c.total}</small></div></div>
     </div>
     <div class="card-body">
-      <dl class="kv" style="margin:0 0 14px">
+      ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 14px">${[
+        ev.noDeadlines ? "<b>No due dates for presenters on this event.</b> Nothing chases them by date; use <b>Email again</b> to nudge someone." : "",
+        ev.talkOnFile ? "<b>Bio and outline on file.</b> The form does not ask for them." : ""].filter(Boolean).join(" ")} <span class="porg">Change this on Edit event.</span></div>` : ""}
+      ${ev.noDeadlines ? "" : `<dl class="kv" style="margin:0 0 14px">
         <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))} <span class="porg">${off.agreement} days before day one</span></dd>
         <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} <span class="porg">${off.draft} days</span> · ${esc(fmtDate(ev.deadlines?.final))} <span class="porg">${off.final} days</span></dd>
-      </dl>
+      </dl>`}
       ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
@@ -4098,13 +4113,15 @@ function reviewScreen(data) {
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
         <dt>Summary</dt><dd>${consent("summary")}</dd>
+        <dt>Sensitive content</dt><dd>${s.sensitive === "yes" ? `<b style="color:var(--late)">Yes</b> — must not be seen outside the justice community`
+          : s.sensitive === "no" ? "No" : "<i>not asked (signed before this question existed)</i>"}</dd>
         <dt class="top">Headshot</dt><dd>${headshot
           ? `<span class="shotcell"><img id="shot-img" alt=""><span class="porg">${esc(headshot.name)} (${Math.round(headshot.size / 1024)} KB) — this appears on the agreement</span></span>`
           : "<i>not uploaded — the agreement will have no photo</i>"}</dd>
         <dt>Signed</dt><dd><span class="script">${esc(s.signature)}</span> <span class="porg">(typed as “${esc(s.signature)}”)</span> · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
       </dl>
-      <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${esc(s.bio)}</div></div>
-      <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${esc(s.outline)}</div></div>`}
+      <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${s.bio ? esc(s.bio) : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>
+      <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${s.outline ? esc(s.outline) : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>`}
     </div></div>`;
 
   const covers = approved ? (p.review?.ongiaCovers ?? {}) : null;

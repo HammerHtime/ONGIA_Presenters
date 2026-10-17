@@ -307,6 +307,14 @@ en: {
   copyright: "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use any copyrighted material, images, content, or other intellectual property included in it.",
   media: "Media &amp; content sharing", mediaLede: "Does ONGIA have your permission for the following:",
   photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
+  sensitiveTitle: "Sensitive content",
+  sensitiveQ: "Does your presentation contain sensitive information that must not be seen by anyone outside the justice community?",
+  sensitiveHint: "If yes, ONGIA keeps your materials within the justice community and off social media and public platforms.",
+  sensitiveSet: "Your presentation materials are set to No for social media and public platforms.",
+  vSensitive: "Tell us whether your presentation contains sensitive information.",
+  vSensitiveClash: "Your presentation is sensitive, so your materials can't go on social media or public platforms. Answer No on that line.",
+  onFile: "We already have your biography and presentation outline from the program, so there's nothing more to add here.",
+  lastStepPlain: "Last step.",
   lastStep: (d) => `Last step. Due back by ${d}.`, addHeadshot: "Add your headshot", tapReplace: "Tap to replace",
   headshotHint: ".png or .jpeg — used to introduce you and on ongia.ca", typeName: "Type your full name to sign", eSig: "Electronic signature",
   shotReady: "Getting it ready…", shotSend: "Send at",
@@ -418,6 +426,14 @@ fr: {
   copyright: "Je confirme que cette présentation est mon œuvre, ou que j'ai obtenu toutes les autorisations nécessaires pour utiliser tout matériel protégé par le droit d'auteur, toute image, tout contenu ou toute autre propriété intellectuelle qu'elle contient.",
   media: "Partage de contenu et médias", mediaLede: "ONGIA a-t-elle votre permission pour ce qui suit :",
   photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
+  sensitiveTitle: "Contenu sensible",
+  sensitiveQ: "Votre présentation contient-elle des renseignements sensibles qui ne doivent être vus par personne à l'extérieur du milieu de la justice?",
+  sensitiveHint: "Si oui, ONGIA garde votre matériel au sein du milieu de la justice, hors des médias sociaux et des plateformes publiques.",
+  sensitiveSet: "Votre matériel de présentation est réglé à Non pour les médias sociaux et les plateformes publiques.",
+  vSensitive: "Indiquez si votre présentation contient des renseignements sensibles.",
+  vSensitiveClash: "Votre présentation est sensible : votre matériel ne peut pas aller sur les médias sociaux ni sur les plateformes publiques. Répondez Non à cette ligne.",
+  onFile: "Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; rien d'autre à ajouter ici.",
+  lastStepPlain: "Dernière étape.",
   lastStep: (d) => `Dernière étape. À retourner d'ici le ${d}.`, addHeadshot: "Ajoutez votre photo portrait", tapReplace: "Touchez pour remplacer",
   headshotHint: ".png ou .jpeg — pour vous présenter et pour le site ongia.ca", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
   shotReady: "Préparation…", shotSend: "Envoyer en",
@@ -482,7 +498,7 @@ let DATA = null, DONE = null;
 const DRAFT_KEY = `ongia-draft-${TOKEN}`;
 const DRAFT_FIELDS = ["step", "first", "last", "email", "phone", "organization", "talk", "bio", "outline", "av",
   "travel", "travelFrom", "travelTo", "hotel", "hotelFrom", "hotelTo", "expenses",
-  "copyright", "goodStanding", "media", "signature", "agreed"];
+  "copyright", "goodStanding", "media", "sensitive", "signature", "agreed"];
 let restoredNote = false;
 
 function saveDraft() {
@@ -516,6 +532,7 @@ const S = {
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
   copyright: false, goodStanding: false,
   media: { photo: {}, materials: {}, summary: {} },
+  sensitive: null,
   signature: "", agreed: false,
 };
 
@@ -643,8 +660,8 @@ function stepMarkup() {
         <div class="fact"><dt>${t("begins")}</dt><dd>${esc(fmtDate(ev.dayOneIso))}</dd></div>
         <div class="fact"><dt>${t("length")}</dt><dd>${t("minutes", ev.sessionMinutes)}</dd></div>
       </dl>
-      <div class="flag"><span>🗓️</span><div><strong>${t("twoDates")}</strong>
-        <p>${t("draftFinal", esc(fmtDate(dl.draft)), esc(fmtDate(dl.final)))}</p></div></div>
+      ${ev.noDeadlines ? "" : `<div class="flag"><span>🗓️</span><div><strong>${t("twoDates")}</strong>
+        <p>${t("draftFinal", esc(fmtDate(dl.draft)), esc(fmtDate(dl.final)))}</p></div></div>`}
       ${ev.contact?.name ? `<p class="hint">${t("questions")} ${esc(ev.contact.name)}${ev.contact.email ? " · " + esc(ev.contact.email) : ""}</p>` : ""}
       </div>`;
 
@@ -667,13 +684,14 @@ function stepMarkup() {
       const w = words(S.bio);
       return `<div class="card"><h2>${t("titles")[2]}</h2>
       <div class="field"><label for="f-talk">${t("talkTitle")}</label><input id="f-talk" type="text" data-bind="talk" value="${esc(S.talk)}"></div>
+      ${ev.talkOnFile ? `<p class="hint" style="margin-top:12px">${t("onFile")}</p></div>` : `
       <div class="field"><label for="f-bio">${t("bio")}</label>
         <textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
         <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${t("bioCount", w)}</p></div>
       <div class="field"><label for="f-outline">${t("outline")}</label>
         <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
         <p class="hint">${t("outlineHint")}</p></div>
-      </div>`;
+      </div>`}`;
     }
 
     case 3: {
@@ -721,10 +739,14 @@ function stepMarkup() {
       <p class="lede">${t("mediaLede")}</p>
       ${consentRow(t("photos"), "photo")}
       ${consentRow(t("materials"), "materials")}
-      ${consentRow(t("summary"), "summary")}</div>`;
+      ${consentRow(t("summary"), "summary")}
+      <div class="consent" id="q-sensitive"><h3>${t("sensitiveTitle")}</h3>
+        <p class="qtext" style="margin:0 0 10px">${t("sensitiveQ")}</p>
+        ${seg("sensitive", YESNO())}
+        <p class="hint" style="margin-top:8px">${S.sensitive === "yes" ? t("sensitiveSet") : t("sensitiveHint")}</p></div></div>`;
 
     case 5: return `<div class="card"><h2>${t("titles")[5]}</h2>
-      <p class="lede">${t("lastStep", esc(fmtDate(dl.agreement)))}</p>
+      <p class="lede">${ev.noDeadlines ? t("lastStepPlain") : t("lastStep", esc(fmtDate(dl.agreement)))}</p>
       <label class="upload" for="f-shot" tabindex="0" role="button" id="shot-tile">
         ${SHOT?.previewUrl ? `<img class="thumb" src="${SHOT.previewUrl}" alt="">` : `<div class="big">${S.headshotName ? "✅" : "📷"}</div>`}
         <div class="t">${S.headshotName ? esc(S.headshotName) : t("addHeadshot")}</div>
@@ -756,7 +778,7 @@ function doneMarkup(result) {
       <div><b>${result.notified === false ? "→" : "✓"}</b><span>${result.notified === false ? t("boardWillSee") : t("notified", esc(DATA.event.contact?.name || "ONGIA"))}</span></div>
       <div><b>→</b><span>${t("reviewNext")}</span></div>
       <div><b>→</b><span>${t("finalNext")}</span></div>
-      <div><b>→</b><span>${t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>
+      ${DATA.event.noDeadlines ? "" : `<div><b>→</b><span>${t("draftDue", esc(fmtDate(DATA.event.deadlinesIso.draft)))}</span></div>`}
       ${result.headshotWarning ? `<div><b style="color:var(--bad)">!</b><span>${esc(t(result.headshotWarning))}</span></div>` : ""}
     </div>
     <p class="ref">${t("reference", esc(result.reference))}</p></div>`;
@@ -818,8 +840,8 @@ function finalMarkup() {
     <h2>${t("finalTitle")}</h2>
     <p>${t("finalP", me.approvedAt ? esc(fmtDate(toISO(new Date(me.approvedAt)))) : "", esc(me.email))}</p>
     <div class="done-list">
-      <div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
-      <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>
+      ${ev.noDeadlines ? "" : `<div><b>→</b><span>${t("draftFor", esc(fmtDate(dl.draft)))}</span></div>
+      <div><b>→</b><span>${t("finalFor", esc(fmtDate(dl.final)))}</span></div>`}
     </div>
     <div class="done-actions">
       <a class="btn btn-gold" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("downloadPdf")}</a>
@@ -915,8 +937,10 @@ function validate() {
   }
   if (S.step === 2) {
     if (!S.talk.trim()) add(t("vTalk"), "f-talk");
-    if (words(S.bio) < 20) add(t("vBio"), "f-bio");
-    if (!S.outline.trim()) add(t("vOutline"), "f-outline");
+    if (!DATA.event.talkOnFile) {
+      if (words(S.bio) < 20) add(t("vBio"), "f-bio");
+      if (!S.outline.trim()) add(t("vOutline"), "f-outline");
+    }
   }
   if (S.step === 3) {
     if (!S.travel) add(t("vTravel"), "q-travel");
@@ -941,6 +965,8 @@ function validate() {
     // Name the rows that are unanswered rather than asking for "every line".
     for (const [row, label] of [["photo", t("photos")], ["materials", t("materials")], ["summary", t("summary")]])
       if (!S.media[row]?.internal || !S.media[row]?.public) add(t("vMediaRow", label), `c-${row}`);
+    if (!S.sensitive) add(t("vSensitive"), "q-sensitive");
+    else if (S.sensitive === "yes" && S.media.materials?.public === "yes") add(t("vSensitiveClash"), "c-materials");
   }
   if (S.step === 5) {
     if (!S.goodStanding) add(t("vStanding"), "f-standing");
@@ -1116,6 +1142,8 @@ ROOT.addEventListener("click", (e) => {
     } else S[set.dataset.set] = value;
     if (set.dataset.set === "hotel" && value === "no") { S.hotelFrom = ""; S.hotelTo = ""; S.expenses.hotel = null; }
     if (set.dataset.set === "travel" && value === "no") { S.travelFrom = ""; S.travelTo = ""; }
+    // Sensitive material cannot also be cleared for social media: saying yes takes that off.
+    if (set.dataset.set === "sensitive" && value === "yes") S.media.materials = { ...S.media.materials, public: "no" };
     // The connector question only applies to their own laptop, so a stale
     // answer must not survive a change of mind.
     if (path === "av.laptop" && value !== "own") S.av.plug = null;
@@ -1242,7 +1270,7 @@ document.addEventListener("keydown", (e) => {
         travel: d.travel ?? null, travelFrom: d.travelFrom ?? "", travelTo: d.travelTo ?? "",
         hotel: d.hotel ?? null, hotelFrom: d.hotelFrom ?? "", hotelTo: d.hotelTo ?? "",
         expenses: { ...S.expenses, ...(d.expenses ?? {}) },
-        copyright: !!d.copyright, goodStanding: !!d.goodStanding, media: d.media ?? S.media,
+        copyright: !!d.copyright, goodStanding: !!d.goodStanding, media: d.media ?? S.media, sensitive: d.sensitive ?? null,
         signature: d.signature ?? "", headshotName: d.headshotName ?? "",
       });
     }

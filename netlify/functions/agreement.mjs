@@ -86,6 +86,9 @@ async function showForm(event, presenter) {
         final: formatDate(event.deadlines.final),
       },
       deadlinesIso: event.deadlines,
+      // This event's two exceptions: no bio or outline asked, and no dates shown.
+      talkOnFile: event.talkOnFile === true,
+      noDeadlines: event.noDeadlines === true,
       contact: event.contact,
       materialsUploadUrl: event.materialsUploadUrl,
     },
@@ -132,8 +135,10 @@ async function submit(req, event, presenter) {
   if (!isEmail(email)) problems.push("That email address doesn't look right.");
 
   const talk = need(text(body.talk, 300), "Your presentation title is missing.");
-  const bio = need(text(body.bio, 6000), "Your biography is missing.");
-  const outline = need(text(body.outline, 6000), "Your presentation outline is missing.");
+  // On an event whose talks are already on the agenda the form does not ask for these.
+  const onFile = event.talkOnFile === true;
+  const bio = onFile ? "" : need(text(body.bio, 6000), "Your biography is missing.");
+  const outline = onFile ? "" : need(text(body.outline, 6000), "Your presentation outline is missing.");
 
   const travel = need(yesNo(body.travel), "Tell us whether you need travel arranged.");
   const hotel = need(yesNo(body.hotel), "Tell us whether you need hotel accommodation.");
@@ -173,6 +178,14 @@ async function submit(req, event, presenter) {
     }
   }
 
+  // Whether the deck holds what only the justice community may see. Asked yes or no
+  // rather than as a lone checkbox, so an unticked box can never mean "didn't read it".
+  const sensitive = yesNo(body.sensitive);
+  if (!sensitive) problems.push("Tell us whether your presentation contains sensitive information.");
+  if (sensitive === "yes" && media.materials?.public === "yes") {
+    problems.push("Your presentation is sensitive, so your materials can't go on social media or public platforms.");
+  }
+
   const signature = text(body.signature, 160);
   if (!signature) problems.push("Please type your name to sign.");
   if (body.agreed !== true) problems.push("Please confirm your electronic signature.");
@@ -204,6 +217,7 @@ async function submit(req, event, presenter) {
     copyright: true,
     goodStanding: true,
     media,
+    sensitive,
     signature,
     signedAt: now.toISOString(),
   };
@@ -231,7 +245,7 @@ async function submit(req, event, presenter) {
     next: {
       review: "An ONGIA board member reviews it and confirms which costs ONGIA will cover.",
       finalCopy: "You'll be emailed the signed final copy once they approve.",
-      draftMaterials: formatDate(event.deadlines.draft),
+      draftMaterials: event.noDeadlines ? null : formatDate(event.deadlines.draft),
     },
   });
 }

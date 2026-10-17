@@ -136,7 +136,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 export function layout({ heading, lines = [], bodyHtml = null, button, buttons = [], footer, contact, event, lang = "en" }) {
   // bodyHtml is for letters that carry their own structure — headings, lists —
   // and must not be wrapped paragraph by paragraph.
-  const paras = bodyHtml ?? lines.map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
+  // A line left empty (a date this event does not have) leaves no gap.
+  const paras = bodyHtml ?? lines.filter(Boolean).map((l) => `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`).join("");
   // The primary button keeps its raw URL underneath for mail clients that strip
   // buttons; secondary ones (file uploads) are just a button — the address is
   // long, ugly and nobody types it.
@@ -168,7 +169,7 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
 }
 
 const plain = (heading, lines, href, contact) =>
-  [heading, "", ...lines.map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : "",
+  [heading, "", ...lines.filter(Boolean).map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : "",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : ""].join("\n");
 
 /**
@@ -180,26 +181,37 @@ const plain = (heading, lines, href, contact) =>
 export function invitationMail({ event, presenter, link, remind, daysLeft = null }) {
   const d = event.deadlines;
   const fr = (iso) => esc(formatDateFr(iso));
+  // An event can go without presenter due dates (the Summit's re-sent agreements):
+  // then no line names one, and the form "asks about" what it actually asks.
+  const dated = event.noDeadlines !== true;
+  const onFile = event.talkOnFile === true;
   // "That's in 3 days." / "That was 4 days ago." — the nudge gets sharper as the date nears.
-  const urgencyEn = daysLeft === null ? "" : daysLeft > 1 ? ` That's in ${daysLeft} days.` : daysLeft === 1 ? " That's tomorrow." : daysLeft === 0 ? " That's today." : ` That was ${-daysLeft} day${daysLeft === -1 ? "" : "s"} ago.`;
-  const urgencyFr = daysLeft === null ? "" : daysLeft > 1 ? ` C'est dans ${daysLeft} jours.` : daysLeft === 1 ? " C'est demain." : daysLeft === 0 ? " C'est aujourd'hui." : ` C'était il y a ${-daysLeft} jour${daysLeft === -1 ? "" : "s"}.`;
+  const urgencyEn = !dated || daysLeft === null ? "" : daysLeft > 1 ? ` That's in ${daysLeft} days.` : daysLeft === 1 ? " That's tomorrow." : daysLeft === 0 ? " That's today." : ` That was ${-daysLeft} day${daysLeft === -1 ? "" : "s"} ago.`;
+  const urgencyFr = !dated || daysLeft === null ? "" : daysLeft > 1 ? ` C'est dans ${daysLeft} jours.` : daysLeft === 1 ? " C'est demain." : daysLeft === 0 ? " C'est aujourd'hui." : ` C'était il y a ${-daysLeft} jour${daysLeft === -1 ? "" : "s"}.`;
   const heading = remind
-    ? `Reminder / Rappel — ONGIA presenter agreement due ${event.deadlinesReadable.agreement} · entente attendue le ${formatDateFr(d.agreement)}`
+    ? dated ? `Reminder / Rappel — ONGIA presenter agreement due ${event.deadlinesReadable.agreement} · entente attendue le ${formatDateFr(d.agreement)}`
+      : `Reminder / Rappel — your ONGIA presenter agreement · votre entente de conférencier ONGIA`
     : `Your ONGIA presenter agreement — ${event.title} / Votre entente de conférencier ONGIA`;
+  const asksEn = onFile ? "travel and which costs your agency is covering" : "your session, travel, and which costs your agency is covering";
+  const formFr = onFile
+    ? "Le formulaire porte sur vos déplacements et les frais assumés par votre organisation; il est offert en français et en anglais (bouton « Français » en haut de la page) et vous signez en tapant votre nom."
+    : "Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.";
   const lines = [
     `Hello ${esc(presenter.first)},`,
     remind
-      ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}). It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.${urgencyEn}`
+      ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}).${dated ? ` It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.${urgencyEn}` : ""}`
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
-    `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. The form asks about your session, travel, and which costs your agency is covering, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
-    `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`,
+    `${dated ? `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. ` : ""}The form asks about ${asksEn}, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
+    ...(onFile ? [`We already have your biography and presentation outline from the program, so the form doesn't ask for them. If you sent us an agreement for this event before, please complete this one too: it replaces the earlier copy.`] : []),
+    ...(dated ? [`Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`] : []),
     `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
     `Bonjour ${esc(presenter.first)},`,
     remind
-      ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}). Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.${urgencyFr}`
+      ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}).${dated ? ` Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.${urgencyFr}` : ""}`
       : `Merci de présenter à <b>${esc(event.title)}</b> à ${esc(event.city)}, le ${fr(event.dayOne)}. Avant l'événement, nous avons besoin de votre entente de conférencier — une dizaine de minutes sur un téléphone, rien à imprimer ni à numériser.`,
-    `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. Le formulaire est offert en français et en anglais (bouton « Français » en haut de la page); vous signez en tapant votre nom.`,
-    `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`,
+    `${dated ? `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. ` : ""}${formFr}`,
+    ...(onFile ? [`Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; le formulaire ne les demande donc pas. Si vous nous avez déjà envoyé une entente pour cet événement, veuillez tout de même remplir celle-ci : elle remplace la précédente.`] : []),
+    ...(dated ? [`Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`] : []),
   ];
   return {
     subject: heading,
@@ -340,7 +352,9 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
       `${esc(approval.name)} a examiné et approuvé votre entente de conférencier pour <b>${esc(event.title)}</b>. La copie finale signée est jointe pour vos dossiers (le document officiel est en anglais).`,
       `ONGIA prend en charge : <b>${esc(covered)}</b>.`,
       describeDates(presenter, "fr"),
-      `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
+      event.noDeadlines
+        ? (event.materialsUploadUrl ? `Envoyez-nous votre matériel de présentation avant l'événement avec le bouton ci-dessous.` : "")
+        : `Prochaines dates : version préliminaire du matériel d'ici le <b>${f(d.draft)}</b>; version finale, prête pour la production, d'ici le <b>${f(d.final)}</b>.` + (up ? ` Téléversez-le ici : ${up}` : ""),
       `Référence ${esc(presenter.reference)}.`,
     ];
     return { subject: heading, html: layout({ heading, lines, buttons: uploadBtn, contact: coordinatorOf(event), event, lang: "fr" }),
@@ -353,7 +367,9 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
     `${esc(approval.name)} has reviewed and approved your presenter agreement for <b>${esc(event.title)}</b>. The signed final copy is attached for your records.`,
     `ONGIA will cover: <b>${esc(covered)}</b>.`,
     describeDates(presenter),
-    `Next dates: draft materials by <b>${f(d.draft)}</b>; final, production-ready materials by <b>${f(d.final)}</b>.` + (up ? ` Upload them here: ${up}` : ""),
+    event.noDeadlines
+      ? (event.materialsUploadUrl ? `Please send us your presentation materials before the event using the button below.` : "")
+      : `Next dates: draft materials by <b>${f(d.draft)}</b>; final, production-ready materials by <b>${f(d.final)}</b>.` + (up ? ` Upload them here: ${up}` : ""),
     `Reference ${esc(presenter.reference)}.`,
   ];
   return {

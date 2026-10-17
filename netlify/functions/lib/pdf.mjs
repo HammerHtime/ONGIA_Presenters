@@ -112,11 +112,13 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.kvRow([["Email:", presenter.email, 330]]);
   p.kvRow([["Presentation Title:", s.talk, 330]]);
 
+  // An event whose talks are already on the agenda never asks for these again.
+  const onFile = event.talkOnFile === true && !s.bio && !s.outline;
   p.gap(4);
   p.label("Biography (250–300 words)", true);
   p.label("(This biography may be used to introduce you at the ONGIA event)");
   p.clearPhoto();
-  p.box(s.bio);
+  p.box(onFile ? "On file with ONGIA (from the event program)." : s.bio);
 
   p.heading("PRESENTATION INFORMATION");
   p.para(
@@ -127,8 +129,13 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     "adjustments be required. Presenters may also be asked to participate in additional facilitator- or " +
     "panel-style sessions during the training event."
   );
-  p.para(
-    "As a presenter at this ONGIA training event, you are required to submit your presentation materials by " +
+  // An event with no presenter due dates says the same thing without naming any.
+  p.para(event.noDeadlines
+    ? "As a presenter at this ONGIA training event, you are required to submit your presentation materials for review " +
+      "before the event. This review allows time to assess content for alignment with training objectives, third-party " +
+      "privacy considerations, technical requirements, ONGIA Board approval, necessary edits, and IT preparation. ONGIA " +
+      "aims to review all presentations to ensure consistency with the overall theme and learning goals."
+    : "As a presenter at this ONGIA training event, you are required to submit your presentation materials by " +
     `${fmt(event.deadlines.draft)} for review. This review period allows sufficient time to assess content for ` +
     "alignment with training objectives, third-party privacy considerations, technical requirements, ONGIA Board " +
     "approval, necessary edits, and IT preparation. ONGIA aims to review all presentations to ensure consistency " +
@@ -137,7 +144,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   );
 
   p.heading("PRESENTATION OUTLINE");
-  p.box(`${s.talk}\n\n${s.outline}`, { minHeight: 70 });
+  p.box(onFile ? `${s.talk}\n\nOutline on file with ONGIA (from the event program).` : `${s.talk}\n\n${s.outline}`, { minHeight: 70 });
 
   // Room and equipment, so the filed agreement is the one place the venue's AV
   // crew has to look. Every line is optional; a presenter who skipped them all
@@ -254,8 +261,18 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     ["Presentation Materials", m.materials],
     ["Presentation Summary", m.summary],
   ]);
+  // Answered on every agreement since 17 Oct 2026; one signed before that says nothing either way.
+  if (s.sensitive) {
+    p.gap(4);
+    // Ticked either way: the box records what they answered, not a yes.
+    p.tickLine(true,
+      s.sensitive === "yes"
+        ? "SENSITIVE: this presentation contains information that must not be seen by anyone outside the justice community."
+        : "This presentation contains no information that must be kept within the justice community.",
+      s.sensitive === "yes" ? RED : INK);
+  }
 
-  p.heading(`PLEASE RETURN COMPLETED DOCUMENT BY ${fmt(event.deadlines.agreement)}`);
+  p.heading(event.noDeadlines ? "PRESENTER SIGNATURE" : `PLEASE RETURN COMPLETED DOCUMENT BY ${fmt(event.deadlines.agreement)}`);
   p.kvRow([
     ["Name:", `${presenter.first} ${presenter.last}`, 160],
     ["Date:", fmt(s.signedAt?.slice(0, 10)), 90],

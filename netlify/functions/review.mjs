@@ -191,7 +191,7 @@ async function deliver(event, presenter, pdf, origin, which) {
     // paragraph inside the agreement email, so it can be chased on its own and
     // so the signed copy is not competing with a request for attention.
     if (!presenter.av) {
-      const avMail = avRequestMail({ event: ev, presenter, link: `${origin}/a/${presenter.token}`, due: event.deadlines?.draft });
+      const avMail = avRequestMail({ event: ev, presenter, link: `${origin}/a/${presenter.token}`, due: event.noDeadlines ? "" : event.deadlines?.draft });
       presenter.delivery.avRequest = await attempt(() =>
         sendMail({ to: presenter.email, replyTo: coordinatorOf(event).email || undefined, ...avMail })
       );
