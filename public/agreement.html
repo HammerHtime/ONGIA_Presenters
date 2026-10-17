@@ -1351,9 +1351,12 @@ document.addEventListener("keydown", (e) => {
       ROOT.innerHTML = `<div class="oops"><h2>${t("openFail")}</h2><p>${esc(serverText(out.error))}</p></div>`;
       return;
     }
-    DATA = out;
+    // Their language first, while DATA is still unset, so switching it draws nothing.
+    // Drawing before their details are in also saved a blank "unsent" copy, newer than
+    // their submission, which then won over it: a returning presenter saw empty boxes.
     let remembered = null; try { remembered = localStorage.getItem("ongia-lang"); } catch {}
     if (out.presenter.language && !remembered) setLang(out.presenter.language);
+    DATA = out;
     if (out.presenter.status === "approved") { renderApproved(); return; }
     Object.assign(S, {
       first: out.presenter.first ?? "",
