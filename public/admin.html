@@ -4134,14 +4134,12 @@ const AV_WORDS = {
   mic: { lapel: "Clip-on mic", handheld: "Handheld mic", podium: "Podium mic", none: "No mic" },
   laptop: { own: "Own laptop", house: "Room computer" },
   plug: { hdmi: "HDMI", usbc: "USB-C", other: "Other connector", unsure: "Connector unknown" },
-  seating: { theatre: "Theatre", classroom: "Classroom", rounds: "Round tables", any: "Any layout" },
 };
 function avSummary(av, at) {
   const a = av ?? {};
   const bits = [AV_WORDS.mic[a.mic], AV_WORDS.laptop[a.laptop], AV_WORDS.plug[a.plug],
     a.sound === "yes" ? "Needs sound" : a.sound === "no" ? "No sound" : null,
-    a.clicker === "yes" ? "Slide advancer" : null,
-    AV_WORDS.seating[a.seating]].filter(Boolean);
+    a.internet === "yes" ? "Needs internet" : null].filter(Boolean);
   if (!at) return `<span class="pill late">not sent back yet</span>`;
   if (!bits.length && !a.notes) return "<i>answered — nothing requested</i>";
   return `<div class="stack">${bits.length ? `<span>${bits.map(esc).join(" · ")}</span>` : ""}`

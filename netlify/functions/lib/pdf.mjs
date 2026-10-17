@@ -158,15 +158,12 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     mic: { lapel: "Clip-on", handheld: "Handheld", podium: "At the podium", none: "None needed" },
     laptop: { own: "Their own laptop", house: "The room's computer" },
     plug: { hdmi: "HDMI", usbc: "USB-C", other: "Something else", unsure: "Not sure — bringing an adapter" },
-    seating: { theatre: "Theatre", classroom: "Classroom", rounds: "Round tables", any: "No preference" },
   };
   const avRows = [
     ["Microphone:", AV_WORDS.mic[av.mic], 150],
     ["Presenting from:", AV_WORDS.laptop[av.laptop], 150],
     ["Connection:", AV_WORDS.plug[av.plug], 150],
     ["Sound from the presentation:", av.sound ? cap(av.sound) : null, 90],
-    ["Slide advancer:", av.clicker ? cap(av.clicker) : null, 90],
-    ["Room layout:", AV_WORDS.seating[av.seating], 150],
   ].filter(([, value]) => value);
   if (avRows.length || av.notes) {
     p.heading("ROOM AND EQUIPMENT");

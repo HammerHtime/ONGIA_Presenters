@@ -41,10 +41,9 @@ export function cleanAv(body) {
     plug: body?.laptop === "own" ? oneOf(body?.plug, ["hdmi", "usbc", "other", "unsure"]) : null,
     mic: oneOf(body?.mic, ["lapel", "handheld", "podium", "none"]),
     sound: yesNo(body?.sound) || null,
-    clicker: yesNo(body?.clicker) || null,
     internet: yesNo(body?.internet) || null,
-    handouts: yesNo(body?.handouts) || null,
-    seating: oneOf(body?.seating, ["theatre", "classroom", "rounds", "any"]),
+    // No room layout, slide advancer or handouts: ONGIA sets the room and supplies the
+    // advancer, and presenters hand nothing out on paper (Andrew, 17 Oct 2026).
     notes: text(body?.notes, 600),
   };
 }

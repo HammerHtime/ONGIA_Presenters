@@ -288,18 +288,12 @@ en: {
   avPlugHint: "If you're not sure, bring your own adapter as well — meeting rooms vary.",
   avSound: "Does your presentation play audio or video?",
   avSoundHint: "Sound has to be patched through the room separately, so the crew needs to know in advance.",
-  avClicker: "Would you like a slide advancer?",
-  avSeating: "How would you like the room laid out?",
-  avSeatingOpts: [["theatre", "Theatre"], ["classroom", "Classroom"], ["rounds", "Round tables"], ["any", "No preference"]],
-  avSeatingHint: "A preference, not a promise — some rooms are shared between sessions.",
   avNotes: "Anything else the AV crew should know?",
   avNotesHint: "Optional. A flip chart, a second screen, standing rather than seated — whatever helps.",
   avInternet: "Do you need internet in the room?",
   avInternetHint: "Only if something in your session is live — a website, a stream, a demo.",
-  avHandouts: "Are you handing anything out on paper?",
-  avHandoutsHint: "So there is a table for it, and we know whether printing is needed.",
-  avHead: "One last thing: your room",
-  avIntro: (t2) => `Your agreement for <b>${t2}</b> is signed and filed. All that is left is how you want the room set up, so the venue has it ready before you walk in.`,
+  avHead: "One last thing: your equipment",
+  avIntro: (t2) => `Your agreement for <b>${t2}</b> is signed and filed. All that is left is what you need in the room, so the venue has it ready before you walk in.`,
   avMinutes: "Takes about a minute. You can change any of it later from this same link.",
   avSend: "Send this to ONGIA", avSending: "Sending…",
   avThanks: "Thank you — that is everything",
@@ -415,18 +409,12 @@ fr: {
   avPlugHint: "Dans le doute, apportez aussi votre adaptateur — les salles varient.",
   avSound: "Votre présentation contient-elle du son ou de la vidéo?",
   avSoundHint: "Le son doit être raccordé séparément à la salle; l'équipe doit le savoir à l'avance.",
-  avClicker: "Souhaitez-vous une télécommande de présentation?",
-  avSeating: "Quelle disposition de salle préférez-vous?",
-  avSeatingOpts: [["theatre", "Théâtre"], ["classroom", "Classe"], ["rounds", "Tables rondes"], ["any", "Sans préférence"]],
-  avSeatingHint: "Une préférence, pas une promesse — certaines salles servent à plusieurs séances.",
   avNotes: "Autre chose à signaler à l'équipe audiovisuelle?",
   avNotesHint: "Facultatif. Un tableau, un deuxième écran, présenter debout — ce qui vous aide.",
   avInternet: "Avez-vous besoin d'Internet dans la salle?",
   avInternetHint: "Seulement si une partie de votre séance est en direct — un site, une diffusion, une démonstration.",
-  avHandouts: "Distribuerez-vous des documents papier?",
-  avHandoutsHint: "Pour prévoir une table, et savoir s'il faut imprimer.",
-  avHead: "Dernière chose : votre salle",
-  avIntro: (t2) => `Votre entente pour <b>${t2}</b> est signée et classée. Il ne reste que la configuration de la salle, pour que tout soit prêt à votre arrivée.`,
+  avHead: "Dernière chose : votre équipement",
+  avIntro: (t2) => `Votre entente pour <b>${t2}</b> est signée et classée. Il ne reste qu'à nous dire ce dont vous aurez besoin dans la salle, pour que tout soit prêt à votre arrivée.`,
   avMinutes: "Une minute environ. Vous pourrez tout modifier plus tard depuis ce même lien.",
   avSend: "Envoyer à ONGIA", avSending: "Envoi…",
   avThanks: "Merci — c'est tout",
@@ -556,7 +544,7 @@ const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
   first: "", last: "", email: "", phone: "", organization: "",
   talk: "", bio: "", outline: "", bioProvided: false, outlineProvided: false,
-  av: { mic: null, laptop: null, plug: null, sound: null, clicker: null, seating: null, notes: "" },
+  av: { mic: null, laptop: null, plug: null, sound: null, notes: "" },
   travel: null, travelFrom: "", travelTo: "",
   hotel: null, hotelFrom: "", hotelTo: "",
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
@@ -861,13 +849,8 @@ function avMarkup() {
       <div class="qblock"><p class="qtext">${t("avMic")}</p>${seg("av", opts("avMicOpts"), ["av", "mic"])}</div>
       <div class="qblock"><p class="qtext">${t("avSound")}</p>${seg("av", YESNO(), ["av", "sound"])}
         <p class="hint">${t("avSoundHint")}</p></div>
-      <div class="qblock"><p class="qtext">${t("avClicker")}</p>${seg("av", YESNO(), ["av", "clicker"])}</div>
       <div class="qblock"><p class="qtext">${t("avInternet")}</p>${seg("av", YESNO(), ["av", "internet"])}
         <p class="hint">${t("avInternetHint")}</p></div>
-      <div class="qblock"><p class="qtext">${t("avHandouts")}</p>${seg("av", YESNO(), ["av", "handouts"])}
-        <p class="hint">${t("avHandoutsHint")}</p></div>
-      <div class="qblock"><p class="qtext">${t("avSeating")}</p>${seg("av", opts("avSeatingOpts"), ["av", "seating"])}
-        <p class="hint">${t("avSeatingHint")}</p></div>
       <div class="field"><label for="f-avnotes">${t("avNotes")}</label>
         <textarea id="f-avnotes" data-bind="av.notes" rows="2">${esc(S.av.notes)}</textarea>
         <p class="hint">${t("avNotesHint")}</p></div>

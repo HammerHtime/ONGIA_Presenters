@@ -327,13 +327,13 @@ export function avRequestMail({ event, presenter, link, remind = false, due = ""
     const lines = remind
       ? [`Bonjour ${first},`,
          `Il nous manque encore vos besoins techniques pour <b>${title}</b>.` + (by ? ` La préparation des salles commence avant le <b>${by}</b>.` : ""),
-         `Une minute suffit : le micro, votre ordinateur, le son, la disposition de la salle.`]
+         `Une minute suffit : le micro, votre ordinateur, le son et Internet.`]
       : [`Bonjour ${first},`,
          `Votre entente de conférencier pour <b>${title}</b> est signée et classée. Merci.`,
-         `Il reste une chose : dites-nous comment vous voulez la salle, pour que tout soit prêt à votre arrivée.` + (by ? ` Idéalement d'ici le <b>${by}</b>.` : ""),
-         `Une minute environ : le micro, votre ordinateur, le son, la disposition.`];
+         `Il reste une chose : dites-nous ce dont vous aurez besoin dans la salle, pour que tout soit prêt à votre arrivée.` + (by ? ` Idéalement d'ici le <b>${by}</b>.` : ""),
+         `Une minute environ : le micro, votre ordinateur, le son et Internet.`];
     return { subject: heading,
-      html: layout({ heading, lines, buttons: [{ href: link, label: "Configurer ma salle" }], contact: coordinatorOf(event), event, lang: "fr" }),
+      html: layout({ heading, lines, buttons: [{ href: link, label: "Mon équipement" }], contact: coordinatorOf(event), event, lang: "fr" }),
       text: plain(heading, lines, link, coordinatorOf(event)) };
   }
   const heading = remind
@@ -342,13 +342,13 @@ export function avRequestMail({ event, presenter, link, remind = false, due = ""
   const lines = remind
     ? [`Hello ${first},`,
        `We still need your room and equipment details for <b>${title}</b>.` + (by ? ` The venue starts setting rooms up ahead of <b>${by}</b>.` : ""),
-       `It takes about a minute: the microphone, your laptop, sound, and how you want the room laid out.`]
+       `It takes about a minute: the microphone, your laptop, sound, and internet.`]
     : [`Hello ${first},`,
        `Your presenter agreement for <b>${title}</b> is signed and filed. Thank you.`,
-       `One thing left: tell us how you want the room set up, so the venue has it ready before you walk in.` + (by ? ` Ideally by <b>${by}</b>.` : ""),
-       `It takes about a minute: the microphone, your laptop, sound, and the layout.`];
+       `One thing left: tell us what you need in the room, so the venue has it ready before you walk in.` + (by ? ` Ideally by <b>${by}</b>.` : ""),
+       `It takes about a minute: the microphone, your laptop, sound, and internet.`];
   return { subject: heading,
-    html: layout({ heading, lines, buttons: [{ href: link, label: "Set up my room" }], contact: coordinatorOf(event), event }),
+    html: layout({ heading, lines, buttons: [{ href: link, label: "Tell us what you need" }], contact: coordinatorOf(event), event }),
     text: plain(heading, lines, link, coordinatorOf(event)) };
 }
 
