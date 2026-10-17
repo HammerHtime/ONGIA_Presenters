@@ -223,6 +223,23 @@ export function formatDateFr(iso) {
 }
 export const formatDateIn = (iso, lang) => (lang === "fr" ? formatDateFr(iso) : formatDate(iso));
 
+/**
+ * A date written out the way a letter writes it: "Tuesday, August 11, 2026", or without
+ * the weekday "November 9, 2026"; in French "mardi 11 août 2026", "9 novembre 2026".
+ */
+const LONG = {
+  en: { days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] },
+  fr: { days: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+        months: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"] },
+};
+export function formatLong(iso, lang = "en", { weekday = true } = {}) {
+  if (!iso) return "";
+  const d = parseDate(iso), L = LONG[lang === "fr" ? "fr" : "en"];
+  if (lang === "fr") return `${weekday ? L.days[d.getDay()] + " " : ""}${d.getDate() === 1 ? "1er" : d.getDate()} ${L.months[d.getMonth()]} ${d.getFullYear()}`;
+  return `${weekday ? L.days[d.getDay()] + ", " : ""}${L.months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 export function describeEvent(event) {
   return {
     ...event,
