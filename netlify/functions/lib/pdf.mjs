@@ -1,3 +1,4 @@
+import { TERMS } from "./terms.mjs";
 import PDFDocument from "pdfkit";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -88,16 +89,16 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.y = bannerH + 8;
   if (preview) p.ribbon();
 
+  // The title and the address can be long (the Summit's runs to three lines in a half
+  // column), so each has the full width and its row grows with it.
   p.heading("EVENT DETAILS");
+  p.kvWide("Event Title:", event.title);
+  p.kvWide("Address:", event.venue || event.city);
   p.kvRow([
     ["Location (City):", event.city, 150],
-    ["Event Title:", event.title, 160],
-  ]);
-  p.kvRow([["Address:", event.venue || event.city, 330]]);
-  p.kvRow([
     ["Anticipated Presentation Date/Time:", fmt(event.dayOne), 100],
-    ["Time Slot:", presenter.timeSlot || "To be confirmed", 110],
   ]);
+  p.kvRow([["Time Slot:", presenter.timeSlot || "To be confirmed", 160]]);
 
   // The presenter's own photo sits beside their details, the way it does on the
   // programme. The rows narrow while it is there so nothing runs underneath it.
@@ -118,7 +119,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.label("Biography (250–300 words)", true);
   p.label("(This biography may be used to introduce you at the ONGIA event)");
   p.clearPhoto();
-  p.box(onFile ? "On file with ONGIA (from the event program)." : s.bio);
+  p.box(onFile ? "On file with ONGIA (from the event program)." : s.bioProvided ? "Already provided to ONGIA." : s.bio);
 
   p.heading("PRESENTATION INFORMATION");
   p.para(
@@ -144,7 +145,8 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   );
 
   p.heading("PRESENTATION OUTLINE");
-  p.box(onFile ? `${s.talk}\n\nOutline on file with ONGIA (from the event program).` : `${s.talk}\n\n${s.outline}`, { minHeight: 70 });
+  p.box(onFile ? `${s.talk}\n\nOutline on file with ONGIA (from the event program).`
+    : `${s.talk}\n\n${s.outlineProvided ? "Outline already provided to ONGIA." : s.outline}`, { minHeight: 70 });
 
   // Room and equipment, so the filed agreement is the one place the venue's AV
   // crew has to look. Every line is optional; a presenter who skipped them all
@@ -242,15 +244,25 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.heading("PRESENTER AGREEMENT & AUTHORIZATIONS");
   p.tickLine(
     true,
-    "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use " +
-      "any copyrighted material, images, content, or other intellectual property included in it.",
+    s.wording >= 2
+      ? "I confirm that this presentation is my original work, or that I have obtained all necessary permissions, licences, " +
+        "or approvals to use any copyrighted material, images, content, trademarks, or other intellectual property included in my presentation."
+      : "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use " +
+        "any copyrighted material, images, content, or other intellectual property included in it.",
     RED
   );
   p.tickLine(
     s.goodStanding === true,
-    "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
+    s.wording >= 2
+      ? "I confirm that I am in good standing with my organization."
+      : "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
     RED
   );
+  // Since 17 Oct 2026: not under investigation as its own statement, and the Presenter Terms.
+  if (s.wording >= 2) {
+    p.tickLine(s.noInvestigation === true, "I confirm that I am not currently subject to any formal investigation or disciplinary proceedings.", RED);
+    p.tickLine(s.termsAccepted === true, "I have read and agree to the ONGIA Presenter Terms set out below.", RED);
+  }
 
   p.gap(4);
   p.label("MEDIA AND CONTENT SHARING AUTHORIZATION", true);
@@ -272,6 +284,13 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
       s.sensitive === "yes" ? RED : INK);
   }
 
+  // The terms they agreed to, word for word, ahead of the signature that binds them.
+  if (s.termsAccepted) {
+    p.heading("ONGIA PRESENTER TERMS");
+    p.small(TERMS.en.intro);
+    p.bullets(TERMS.en.items.map(([head, text]) => `${head}: ${text}`));
+  }
+
   p.heading(event.noDeadlines ? "PRESENTER SIGNATURE" : `PLEASE RETURN COMPLETED DOCUMENT BY ${fmt(event.deadlines.agreement)}`);
   p.kvRow([
     ["Name:", `${presenter.first} ${presenter.last}`, 160],
@@ -280,8 +299,10 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.kvRow([["Email:", presenter.email, 260]]);
   p.signature("Signature:", s.signature);
   p.tiny(
-    `Signed electronically on ${stamp(s.signedAt)}. The presenter typed their name as their electronic signature ` +
-      `and confirmed the information above is accurate. Submission reference ${presenter.reference}.`
+    `Signed electronically on ${stamp(s.signedAt)}. ` + (s.wording >= 2
+      ? "The presenter typed their name as a legally binding electronic signature and certified that the information in this agreement is accurate and complete. "
+      : "The presenter typed their name as their electronic signature and confirmed the information above is accurate. ") +
+      `Submission reference ${presenter.reference}.`
   );
 
   // The ONGIA contact is the event's lead board member. An event approved with no
@@ -470,6 +491,22 @@ class Painter {
    * One row of label/value pairs. Each pair: [label, value, valueWidth, boldLabel, color].
    * Values sit on a thin rule, the way blanks do on the paper form.
    */
+  /** One label and a value across the whole width; a long value wraps and the row grows. */
+  kvWide(label, value) {
+    const doc = this.doc;
+    doc.font("Helvetica-Bold").fontSize(8.7);
+    const lw = (doc.font("Helvetica").widthOfString(label)) + 5;
+    const vw = this.bodyW() - lw - 6;
+    doc.font("Helvetica-Bold").fontSize(8.7);
+    const h = doc.heightOfString(String(value ?? ""), { width: vw });
+    this.ensure(Math.max(15, h + 5));
+    doc.font("Helvetica").fontSize(8.7).fillColor(INK).text(label, MARGIN, this.y, { lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(8.7).fillColor(INK).text(String(value ?? ""), MARGIN + lw + 3, this.y, { width: vw });
+    const bottom = this.y + Math.max(10.5, h + 0.5);
+    doc.moveTo(MARGIN + lw, bottom).lineTo(MARGIN + lw + vw, bottom).lineWidth(0.6).strokeColor(RULE).stroke();
+    this.y = bottom + 4.5;
+  }
+
   kvRow(pairs) {
     const doc = this.doc;
     this.ensure(15);

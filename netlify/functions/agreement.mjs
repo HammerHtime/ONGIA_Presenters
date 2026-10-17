@@ -4,6 +4,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
 import { formatDate, describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
 import { sendMail, reviewNeededMail, coordinatorOf } from "./lib/mail.mjs";
+import { TERMS, TERMS_VERSION } from "./lib/terms.mjs";
 
 /**
  * The presenter's own endpoint. No account, no password — the token in their
@@ -112,6 +113,8 @@ async function showForm(event, presenter) {
     },
     // What they typed last time, so a half-finished form isn't lost.
     draft: presenter.submission ?? null,
+    // The Presenter Terms they agree to, in both languages, from the one copy the PDF prints.
+    terms: TERMS,
   });
 }
 
@@ -130,15 +133,19 @@ async function submit(req, event, presenter) {
   };
 
   const first = need(text(body.first, 80), "Your first name is missing.");
+  if (String(body.phone ?? "").replace(/\D/g, "").length < 7) problems.push("Please add a contact number.");
   const last = need(text(body.last, 80), "Your last name is missing.");
   const email = text(body.email, 200);
   if (!isEmail(email)) problems.push("That email address doesn't look right.");
 
   const talk = need(text(body.talk, 300), "Your presentation title is missing.");
   // On an event whose talks are already on the agenda the form does not ask for these.
+  // or the presenter says ONGIA already has it ("Already provided to ONGIA").
   const onFile = event.talkOnFile === true;
-  const bio = onFile ? "" : need(text(body.bio, 6000), "Your biography is missing.");
-  const outline = onFile ? "" : need(text(body.outline, 6000), "Your presentation outline is missing.");
+  const bioProvided = !onFile && body.bioProvided === true;
+  const outlineProvided = !onFile && body.outlineProvided === true;
+  const bio = onFile || bioProvided ? "" : need(text(body.bio, 6000), "Your biography is missing.");
+  const outline = onFile || outlineProvided ? "" : need(text(body.outline, 6000), "Your presentation outline is missing.");
 
   const travel = need(yesNo(body.travel), "Tell us whether you need travel arranged.");
   const hotel = need(yesNo(body.hotel), "Tell us whether you need hotel accommodation.");
@@ -165,7 +172,9 @@ async function submit(req, event, presenter) {
   if (expenses.other === "yes" && !expenses.otherText) problems.push("Tell us what the other cost is.");
 
   if (body.copyright !== true) problems.push("Please confirm the copyright statement.");
-  if (body.goodStanding !== true) problems.push("Please confirm you are in good standing with your agency.");
+  if (body.goodStanding !== true) problems.push("Please confirm you are in good standing with your organization.");
+  if (body.noInvestigation !== true) problems.push("Please confirm you are not under a formal investigation.");
+  if (body.termsAccepted !== true) problems.push("Please read and agree to the Presenter Terms.");
 
   // Six choices, each required. Loose checkboxes are how the paper form came
   // back half-answered; here nothing submits until all six are set.
@@ -205,6 +214,11 @@ async function submit(req, event, presenter) {
     talk,
     bio,
     outline,
+    bioProvided,
+    outlineProvided,
+    // Which attestation wording they ticked: 2 is Andrew's of 17 Oct 2026. A PDF rebuilt
+    // for an older agreement keeps the words that presenter actually agreed to.
+    wording: 2,
     headshotName: text(body.headshotName, 200),
     travel,
     travelFrom: travel === "yes" ? travelFrom : "",
@@ -215,6 +229,9 @@ async function submit(req, event, presenter) {
     expenses,
     copyright: true,
     goodStanding: true,
+    noInvestigation: true,
+    termsAccepted: true,
+    termsVersion: TERMS_VERSION,
     media,
     sensitive,
     signature,

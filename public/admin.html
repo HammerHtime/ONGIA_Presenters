@@ -4180,7 +4180,9 @@ function reviewScreen(data) {
         <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}${approvedNote(p.review?.hotel)}` : ""}</dd>
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
         <dt>Language</dt><dd>${p.language === "fr" ? "Français — their emails go out in French; the filed PDF is English" : "English"}</dd>
-        <dt>Good standing</dt><dd>${s.goodStanding ? "Confirmed — in good standing, no disciplinary proceedings or investigation" : "<b style=\"color:var(--late)\">Not confirmed</b> (submitted before this question existed)"}</dd>
+        <dt>Good standing</dt><dd>${s.goodStanding ? (s.wording >= 2 ? "Confirmed — in good standing with their organization" : "Confirmed — in good standing, no disciplinary proceedings or investigation") : "<b style=\"color:var(--late)\">Not confirmed</b> (submitted before this question existed)"}</dd>
+        ${s.wording >= 2 ? `<dt>Investigation</dt><dd>${s.noInvestigation ? "Confirmed — not under a formal investigation or disciplinary proceedings" : "<b style=\"color:var(--late)\">Not confirmed</b>"}</dd>
+        <dt>Presenter Terms</dt><dd>${s.termsAccepted ? "Read and agreed" : "<b style=\"color:var(--late)\">Not agreed</b>"}</dd>` : ""}
         <dt class="top">Room &amp; equipment</dt><dd>${avSummary(p.av, p.avAt)}</dd>
         <dt>Photographs</dt><dd>${consent("photo")}</dd>
         <dt>Materials</dt><dd>${consent("materials")}</dd>
@@ -4192,8 +4194,8 @@ function reviewScreen(data) {
           : "<i>not uploaded — the agreement will have no photo</i>"}</dd>
         <dt>Signed</dt><dd><span class="script">${esc(s.signature)}</span> <span class="porg">(typed as “${esc(s.signature)}”)</span> · ${esc((s.signedAt ?? "").replace("T", " ").slice(0, 16))} UTC</dd>
       </dl>
-      <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${s.bio ? esc(s.bio) : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>
-      <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${s.outline ? esc(s.outline) : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>`}
+      <div class="field" style="margin-top:14px"><label>Biography</label><div class="blurb">${s.bio ? esc(s.bio) : s.bioProvided ? "<i>The presenter ticked “Already provided to ONGIA”.</i>" : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>
+      <div class="field" style="margin-top:10px"><label>Outline</label><div class="blurb">${s.outline ? esc(s.outline) : s.outlineProvided ? "<i>The presenter ticked “Already provided to ONGIA”.</i>" : "<i>Not asked: on file with ONGIA for this event.</i>"}</div></div>`}
     </div></div>`;
 
   const covers = approved ? (p.review?.ongiaCovers ?? {}) : null;

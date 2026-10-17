@@ -99,6 +99,17 @@
   .qblock{margin-top:16px;padding-top:15px;border-top:1px solid var(--hair)}
   .qblock:first-of-type{border-top:0;padding-top:0}
   .qtext{font-size:15px;font-weight:500;margin-bottom:9px}
+  .qhead{font-family:var(--fu);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);font-weight:700;margin:0 0 6px}
+  .hint a{color:inherit;text-decoration:underline}
+  /* "Already provided to ONGIA": ticked, the box above greys out and is not asked for. */
+  .field label.provided{display:flex;gap:9px;align-items:center;margin:9px 0 0;font:500 14px/1.3 var(--fb);letter-spacing:0;text-transform:none;color:var(--ink-mid);cursor:pointer;width:fit-content}
+  .provided input{width:18px;height:18px;accent-color:var(--navy);margin:0}
+  .attest a{color:var(--navy);font-weight:600}
+  dialog.terms{width:min(640px,calc(100vw - 24px));max-height:calc(100dvh - 32px);border:0;border-radius:18px;padding:22px 22px 18px;
+    background:var(--card,#fff);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  dialog.terms::backdrop{background:rgba(8,12,22,.55)}
+  dialog.terms h2{font-size:21px;margin:0 0 6px}
+  dialog.terms ol{margin:12px 0 0;padding-left:20px;display:grid;gap:9px;font-size:14.5px;line-height:1.5}
 
   .blurb{font-size:14px;line-height:1.62;color:var(--ink-mid)}
   .blurb+.blurb{margin-top:9px}
@@ -240,7 +251,7 @@ let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { r
 
 const T = {
 en: {
-  titles: ["Your event", "About you", "Your session", "Travel & costs", "Permissions", "Sign & send"],
+  titles: ["Your event", "About you", "Your session", "Travel & Expenses", "Permissions", "Sign and Send"],
   stepOf: (n) => `Step ${n} of 6`, submitted: "Submitted",
   chooseDate: "Choose a date", prevMonth: "Previous month", nextMonth: "Next month", onOrAfter: (d) => `On or after ${d}`, done: "Done",
   yes: "Yes", no: "No",
@@ -248,20 +259,20 @@ en: {
   returnedTitle: "ONGIA asked for one change", returnedHint: "Your answers are saved — adjust what's needed and sign again.",
   returnedGo: "Take me to what needs changing",
   presentingAt: (t) => `You're presenting at ${t}`,
-  hello: (f) => `Hello ${f}. Everything below is already set by ONGIA. Read it over, then five short steps.`,
+  hello: (f) => `Hello ${f}. The information below has been pre-populated by ONGIA. Please review it carefully and then complete the five short steps that follow to confirm your participation as a presenter.`,
   submittedNote: (d) => `You submitted this on ${d}. You can change anything and sign again.`,
   restored: "Picked up where you left off — your answers are still here.",
-  keepsHere: "You can close this and come back later on the same phone. Your answers stay on this device until you send them.",
+  keepsHere: "Need to finish later? No problem. You can close the form and return on the same device at any time before submission. Your responses will remain saved on that device until you submit the form.",
   hotelFirst: "Answer the hotel question above first.", otherNeeded: "Tell us what the other cost is.",
   finalWord: "Final", boardWillSee: "ONGIA will pick this up shortly", pageTitle: "ONGIA Presenter Agreement",
   errInvalidLink: "This link isn't valid. Check it came from ONGIA, or ask us for a new one.",
   errApproved: "This agreement has already been approved. Contact ONGIA if something needs changing.",
-  city: "City", venue: "Venue", begins: "Training begins", length: "Length", minutes: (n) => `About ${n} minutes`,
+  city: "City", venue: "Venue", begins: "Training date", beginsMany: "Training dates", length: "Session length", minutes: (n) => `About ${n} minutes`,
   twoDates: "Two dates to keep", oneDate: "One date to keep",
   presentationBy: (d) => `Your presentation, ready for the event, by <b>${d}</b>.`, presentationDue: (d) => `Presentation due ${d}`,
   draftFinal: (a, b) => `Draft materials for review by <b>${a}</b>. Final, production-ready materials by <b>${b}</b>.`,
   questions: "Questions?",
-  introduced: "This is how you'll be introduced on the day.", first: "First name", last: "Last name",
+  introduced: "This information helps us introduce you to attendees and showcase your expertise at the event.", first: "First name", last: "Last name",
   filedAs: (f) => `Your agreement will be filed as <b>${f}</b>`, phone: "Contact number", email: "Email", org: "Organization",
   talkTitle: "Presentation title", bio: "Biography",
   bioCount: (n) => `${n} words — aim for 250 to 300. Used to introduce you at the event.`,
@@ -295,22 +306,25 @@ en: {
   avThanksP: "ONGIA has your room and equipment. Change anything below and send it again if your plans move.",
   avEdit: "Change my answers", avSaved: (d) => `Sent ${d}.`,
   avAgreementLink: "Your signed agreement",
-  travelLede: (a, b) => `Tell us what you need arranged for the training event. Dates can run from the day before training to the day after — <b>${a}</b> to <b>${b}</b>. ONGIA confirms the final dates when your agreement is approved.`,
-  needTravel: "Will you need travel arranged?", arriving: "Arriving", departing: "Departing",
+  travelLede: (a, b) => `Please let us know what travel arrangements or accommodations you may require for the event. Travel dates can be requested from <b>${a}</b>, through <b>${b}</b>, to allow for travel before and after the training event.`,
+  travelReview: "Any travel and accommodation requirements will be reviewed as part of your Presenter Agreement, and ONGIA will confirm approved travel dates and arrangements once your agreement has been finalized.",
+  needTravel: "Will you need travel arranged?", arriving: "Arrival date", departing: "Departure date",
   needHotel: "Will you need hotel accommodation?", checkin: "Check-in", checkout: "Check-out",
-  shared: "Shared expenses",
-  blurb1: "ONGIA is a non-profit, and we look for opportunities to share the cost of presenter attendance with the presenter's home agency. Where an agency is able to contribute, it allows ONGIA to keep the training affordable and put more of the budget back into the program.",
-  blurb2: "Please tell us which of these your agency would cover while you are at the training event.",
-  covTransport: "Is your agency covering the cost of transportation (ground or air)?",
+  shared: "Shared Expenses",
+  blurb1: "As a non-profit organization, ONGIA works to keep registration fees affordable while delivering a high-quality training experience. When possible, we partner with presenters' home agencies to share the costs associated with attendance. Agency contributions help us maximize program funding and invest more resources directly into the event experience.",
+  blurb2: "Please indicate which expenses, if any, will be covered by your organization during the training event. This information helps us coordinate arrangements and manage event resources effectively.",
+  hTravel: "Travel Expenses", hHotel: "Hotel Accommodation", hMeals: "Meal Expenses", hOther: "Other Expenses",
+  covTransport: "Is your agency covering the cost of transportation (air or ground travel)?",
   covHotel: "Is your agency covering the cost of hotel accommodation?", hotelTitle: "Hotel accommodation",
   hotelSkipped: "Skipped — you said you don't need a hotel.",
   covMeals: "Is your agency covering the cost of meals?",
-  mealsHint: "Meal claims need a receipt or declaration. Maximums follow the Treasury Board of Canada directive.",
+  mealsHint: `Meal claims require a receipt or signed declaration and will be reimbursed in accordance with the <a href="https://www.njc-cnm.gc.ca/directive/d10/v238/s659/en" target="_blank" rel="noopener">Treasury Board of Canada Directive</a>.`,
   covOther: "Is there any other cost your agency is covering?", whatIsIt: "What is it?", otherPh: "e.g. parking, checked baggage",
-  covers: "If your agency will not cover all of your presenter expenses, ONGIA may consider covering the remaining costs. Any request for ONGIA funding will be reviewed by the Board, and approved expenses will be confirmed in your final presenter agreement. Selecting &ldquo;No&rdquo; will not affect your invitation to present.",
-  needWritten: "ONGIA needs this confirmation in writing.",
-  copyright: "I confirm that this presentation is my own work, or that I have obtained all necessary permissions to use any copyrighted material, images, content, or other intellectual property included in it.",
-  media: "Media &amp; content sharing", mediaLede: "Does ONGIA have your permission for the following:",
+  covers: "If your agency is unable to cover all presenter-related expenses, you may request financial support from ONGIA for the remaining eligible costs. Funding requests will be reviewed by the ONGIA Board and, if approved, the expenses covered will be outlined in your final Presenter Agreement.<br><br>Please note that requesting funding or selecting &ldquo;No&rdquo; to agency cost-sharing will not affect your invitation or opportunity to present at the event. Our goal is to work collaboratively with presenters to identify reasonable solutions whenever possible.",
+  needWritten: "ONGIA requires written confirmation that all presentation materials comply with copyright and intellectual property requirements.",
+  copyright: "I confirm that this presentation is my original work, or that I have obtained all necessary permissions, licences, or approvals to use any copyrighted material, images, content, trademarks, or other intellectual property included in my presentation.",
+  media: "Media &amp; Content Sharing", mediaLede: "Please let us know how ONGIA may use and share your content. Your preferences help us respect your privacy while promoting valuable learning opportunities from the event.",
+  mediaNote: "Note: You may choose different permissions for each item. Your selections will only apply to the content categories you authorize.",
   photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
   sensitiveTitle: "Who will be in the room",
   sensitiveQ: "Community partners from outside the justice community may be in the audience. Does your presentation contain anything they should not see?",
@@ -325,8 +339,11 @@ en: {
   sizeSmall: "Small", sizeMedium: "Medium", sizeOriginal: "Original",
   shotTooBig: "too big to send", shotUnreadable: "That image couldn't be read. Try another photo.",
   shotPicked: (label, size) => `${label} · ${size}`,
-  standing: "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
-  agreed: "This typed name is my electronic signature, and the information above is accurate.",
+  standing: "I confirm that I am in good standing with my organization.",
+  noInv: "I confirm that I am not currently subject to any formal investigation or disciplinary proceedings.",
+  termsBox: (link) => `I have read and agree to the ${link}.`, termsLink: "Presenter Terms", termsClose: "Close", termsAgree: "I agree",
+  vTerms: "Please read and agree to the Presenter Terms.", vNoInv: "Please confirm you are not under a formal investigation.",
+  agreed: "I understand that my typed name constitutes a legally binding electronic signature and certifies that the information contained in this agreement is accurate and complete.",
   doneTitle: "Thank you — that's submitted", doneP: "ONGIA has your agreement. One more step happens on our side before it's final.",
   received: "Your answers were received and time-stamped", notified: (n) => `${n} and the board were notified`,
   reviewNext: "An ONGIA board member reviews it and confirms which costs ONGIA will cover.",
@@ -346,8 +363,9 @@ en: {
   vCovM: "Tell us whether your agency covers meals.", vCovO: "Tell us whether your agency covers any other cost.",
   vCopy: "Please confirm the copyright statement.", vMedia: "Please answer every media-sharing line.",
   vMediaRow: (row) => `Answer both columns for &ldquo;${row}&rdquo;.`,
-  longStep: "The longest step — about two minutes.", errNeeds: "Needs an answer",
-  vStanding: "Please confirm you are in good standing with your agency.", vSign: "Please type your name to sign.", vAgree: "Please confirm your electronic signature.",
+  longStep: "This is the longest section of the form and should take approximately two minutes to complete.", errNeeds: "Needs an answer",
+  provided: "Already provided to ONGIA", providedBox: "Already provided to ONGIA", vPhone: "Please add a contact number.",
+  vStanding: "Please confirm you are in good standing with your organization.", vSign: "Please type your name to sign.", vAgree: "Please confirm your electronic signature.",
   shotBig: "Your headshot is over 5 MB, so it wasn't attached — email it to us instead.",
   shotFail: "Your answers went through, but the headshot didn't upload — email it to us instead.",
   netFail: "Couldn't reach ONGIA — check your connection and try again.", generic: "Something went wrong. Please try again.",
@@ -367,21 +385,21 @@ fr: {
   returnedTitle: "ONGIA demande une correction", returnedHint: "Vos réponses sont conservées — apportez les corrections demandées et signez de nouveau.",
   returnedGo: "Aller à ce qui doit être corrigé",
   presentingAt: (t) => `Vous présentez à ${t}`,
-  hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été fixés par ONGIA. Lisez-les, puis suivez cinq courtes étapes.`,
+  hello: (f) => `Bonjour ${f}. Les renseignements ci-dessous ont été préremplis par ONGIA. Veuillez les vérifier attentivement, puis suivre les cinq courtes étapes qui suivent pour confirmer votre participation à titre de conférencier ou de conférencière.`,
   submittedNote: (d) => `Vous avez envoyé ce formulaire le ${d}. Vous pouvez modifier vos réponses et signer de nouveau.`,
   restored: "Nous avons repris là où vous vous étiez arrêté — vos réponses sont toujours là.",
-  keepsHere: "Vous pouvez fermer cette page et y revenir plus tard sur le même téléphone. Vos réponses restent sur cet appareil jusqu'à l'envoi.",
+  keepsHere: "Besoin de terminer plus tard? Aucun problème. Vous pouvez fermer le formulaire et y revenir sur le même appareil à tout moment avant de l'envoyer. Vos réponses resteront enregistrées sur cet appareil jusqu'à l'envoi du formulaire.",
   hotelFirst: "Répondez d'abord à la question sur l'hôtel ci-dessus.", otherNeeded: "Précisez de quels autres frais il s'agit.",
   finalWord: "Définitive", boardWillSee: "ONGIA en prendra connaissance sous peu", pageTitle: "Entente de conférencier ONGIA",
   errInvalidLink: "Ce lien n'est pas valide. Vérifiez qu'il provient bien d'ONGIA ou demandez-nous un nouveau lien.",
   errApproved: "Cette entente a déjà été approuvée. Communiquez avec ONGIA si quelque chose doit changer.",
-  city: "Ville", venue: "Lieu", begins: "Début de la formation", length: "Durée", minutes: (n) => `Environ ${n} minutes`,
+  city: "Ville", venue: "Lieu", begins: "Date de la formation", beginsMany: "Dates de la formation", length: "Durée de la séance", minutes: (n) => `Environ ${n} minutes`,
   twoDates: "Deux dates à retenir",
   oneDate: "Une date à retenir",
   presentationBy: (d) => `Votre présentation, prête pour l'événement, d'ici le <b>${d}</b>.`, presentationDue: (d) => `Présentation attendue le ${d}`,
   draftFinal: (a, b) => `Version préliminaire de votre matériel à remettre pour révision d'ici le <b>${a}</b>. Version finale, prête pour la production, d'ici le <b>${b}</b>.`,
   questions: "Des questions?",
-  introduced: "C'est ainsi que vous serez présenté(e) le jour de l'événement.", first: "Prénom", last: "Nom de famille",
+  introduced: "Ces renseignements nous aident à vous présenter aux participants et à mettre en valeur votre expertise lors de l'événement.", first: "Prénom", last: "Nom de famille",
   filedAs: (f) => `Votre entente sera classée sous <b>${f}</b>`, phone: "Numéro de téléphone", email: "Courriel", org: "Organisation",
   talkTitle: "Titre de la présentation", bio: "Biographie",
   bioCount: (n) => `${n} mots — visez 250 à 300. Servira à vous présenter lors de l'événement.`,
@@ -415,22 +433,25 @@ fr: {
   avThanksP: "ONGIA a vos besoins techniques. Modifiez ce qui suit et renvoyez-le si vos plans changent.",
   avEdit: "Modifier mes réponses", avSaved: (d) => `Envoyé le ${d}.`,
   avAgreementLink: "Votre entente signée",
-  travelLede: (a, b) => `Indiquez-nous ce qu'il faut organiser pour la formation. Les dates peuvent aller de la veille au lendemain de la formation — du <b>${a}</b> au <b>${b}</b>. ONGIA confirmera les dates définitives lors de l'approbation de votre entente.`,
-  needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Arrivée", departing: "Départ",
+  travelLede: (a, b) => `Veuillez nous indiquer les déplacements ou l'hébergement dont vous pourriez avoir besoin pour l'événement. Les dates de déplacement peuvent être demandées du <b>${a}</b> au <b>${b}</b>, afin de permettre de voyager avant et après la formation.`,
+  travelReview: "Tous les besoins de déplacement et d'hébergement seront examinés dans le cadre de votre entente de conférencier, et ONGIA confirmera les dates et les arrangements approuvés une fois votre entente finalisée.",
+  needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Date d'arrivée", departing: "Date de départ",
   needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", checkin: "Arrivée à l'hôtel", checkout: "Départ de l'hôtel",
   shared: "Partage des frais",
-  blurb1: "ONGIA est un organisme sans but lucratif et nous cherchons à partager les coûts liés à la participation des conférenciers avec leur organisation d'attache. Lorsqu'une organisation est en mesure de contribuer, cela permet à ONGIA de maintenir des frais de formation abordables et de réinvestir davantage dans le programme.",
-  blurb2: "Veuillez indiquer lesquels de ces frais votre organisation assumera pendant la formation.",
-  covTransport: "Votre organisation assume-t-elle les frais de transport (terrestre ou aérien)?",
+  blurb1: "À titre d'organisme sans but lucratif, ONGIA s'efforce de garder les frais d'inscription abordables tout en offrant une formation de grande qualité. Dans la mesure du possible, nous collaborons avec l'organisation d'attache des conférenciers pour partager les coûts liés à leur participation. Les contributions des organisations nous aident à optimiser le financement du programme et à investir davantage de ressources directement dans l'expérience offerte lors de l'événement.",
+  blurb2: "Veuillez indiquer quels frais, le cas échéant, seront assumés par votre organisation pendant la formation. Ces renseignements nous aident à coordonner les préparatifs et à gérer efficacement les ressources de l'événement.",
+  hTravel: "Frais de transport", hHotel: "Hébergement à l'hôtel", hMeals: "Frais de repas", hOther: "Autres frais",
+  covTransport: "Votre organisation assume-t-elle les frais de transport (aérien ou terrestre)?",
   covHotel: "Votre organisation assume-t-elle les frais d'hébergement à l'hôtel?", hotelTitle: "Hébergement à l'hôtel",
   hotelSkipped: "Sans objet — vous avez indiqué ne pas avoir besoin d'hôtel.",
   covMeals: "Votre organisation assume-t-elle les frais de repas?",
-  mealsHint: "Les demandes de remboursement de repas exigent un reçu ou une déclaration. Les maximums suivent la directive du Conseil du Trésor du Canada.",
+  mealsHint: `Les demandes de remboursement de repas exigent un reçu ou une déclaration signée et seront remboursées conformément à la <a href="https://www.njc-cnm.gc.ca/directive/d10/v238/s659/fr" target="_blank" rel="noopener">directive du Conseil du Trésor du Canada</a>.`,
   covOther: "Votre organisation assume-t-elle d'autres frais?", whatIsIt: "Lesquels?", otherPh: "p. ex. stationnement, bagages enregistrés",
-  covers: "Si votre organisation ne couvre pas la totalité de vos frais de présentateur, ONGIA peut envisager de prendre en charge les frais restants. Toute demande de financement auprès d'ONGIA sera examinée par le conseil d'administration, et les dépenses approuvées seront confirmées dans votre entente de présentateur finale. Répondre « Non » n'aura aucune incidence sur votre invitation à présenter.",
-  needWritten: "ONGIA doit obtenir cette confirmation par écrit.",
-  copyright: "Je confirme que cette présentation est mon œuvre, ou que j'ai obtenu toutes les autorisations nécessaires pour utiliser tout matériel protégé par le droit d'auteur, toute image, tout contenu ou toute autre propriété intellectuelle qu'elle contient.",
-  media: "Partage de contenu et médias", mediaLede: "ONGIA a-t-elle votre permission pour ce qui suit :",
+  covers: "Si votre organisation n'est pas en mesure de couvrir tous les frais liés à votre participation, vous pouvez demander un soutien financier à ONGIA pour les frais admissibles restants. Les demandes de financement seront examinées par le conseil d'administration d'ONGIA et, si elles sont approuvées, les frais couverts seront précisés dans votre entente de conférencier finale.<br><br>Veuillez noter que demander un financement ou répondre « Non » au partage des frais par votre organisation n'aura aucune incidence sur votre invitation ni sur votre possibilité de présenter à l'événement. Notre objectif est de collaborer avec les conférenciers pour trouver des solutions raisonnables chaque fois que c'est possible.",
+  needWritten: "ONGIA exige une confirmation écrite que tout le matériel de présentation respecte les exigences en matière de droit d'auteur et de propriété intellectuelle.",
+  copyright: "Je confirme que cette présentation est mon œuvre originale, ou que j'ai obtenu toutes les autorisations, licences ou approbations nécessaires pour utiliser tout matériel protégé par le droit d'auteur, toute image, tout contenu, toute marque de commerce ou toute autre propriété intellectuelle inclus dans ma présentation.",
+  media: "Partage de contenu et médias", mediaLede: "Indiquez-nous comment ONGIA peut utiliser et partager votre contenu. Vos préférences nous aident à respecter votre vie privée tout en faisant connaître les occasions d'apprentissage offertes lors de l'événement.",
+  mediaNote: "Remarque : vous pouvez choisir des autorisations différentes pour chaque élément. Vos choix s'appliquent uniquement aux catégories de contenu que vous autorisez.",
   photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
   sensitiveTitle: "Qui sera dans la salle",
   sensitiveQ: "Des partenaires communautaires de l'extérieur du milieu de la justice peuvent faire partie de l'auditoire. Votre présentation contient-elle des éléments qu'ils ne devraient pas voir?",
@@ -445,8 +466,11 @@ fr: {
   sizeSmall: "Petit", sizeMedium: "Moyen", sizeOriginal: "Taille réelle",
   shotTooBig: "trop volumineux", shotUnreadable: "Impossible de lire cette image. Essayez une autre photo.",
   shotPicked: (label, size) => `${label} · ${size}`,
-  standing: "Je confirme être actuellement en règle auprès de mon organisation et ne faire l'objet d'aucune procédure disciplinaire ni d'aucune enquête, de quelque nature que ce soit.",
-  agreed: "Ce nom tapé constitue ma signature électronique et les renseignements ci-dessus sont exacts.",
+  standing: "Je confirme être en règle auprès de mon organisation.",
+  noInv: "Je confirme ne faire actuellement l'objet d'aucune enquête officielle ni d'aucune procédure disciplinaire.",
+  termsBox: (link) => `J'ai lu et j'accepte les ${link}.`, termsLink: "conditions applicables aux conférenciers", termsClose: "Fermer", termsAgree: "J'accepte",
+  vTerms: "Veuillez lire et accepter les conditions applicables aux conférenciers.", vNoInv: "Veuillez confirmer que vous ne faites l'objet d'aucune enquête officielle.",
+  agreed: "Je comprends que mon nom tapé constitue une signature électronique juridiquement contraignante et atteste que les renseignements contenus dans la présente entente sont exacts et complets.",
   doneTitle: "Merci — c'est envoyé", doneP: "ONGIA a reçu votre entente. Il reste une étape de notre côté avant qu'elle soit définitive.",
   received: "Vos réponses ont été reçues et horodatées", notified: (n) => `${n} et le conseil ont été avisés`,
   reviewNext: "Un membre du conseil d'ONGIA l'examinera et confirmera les frais qu'ONGIA prendra en charge.",
@@ -466,7 +490,8 @@ fr: {
   vCovM: "Indiquez si votre organisation assume les repas.", vCovO: "Indiquez si votre organisation assume d'autres frais.",
   vCopy: "Veuillez confirmer la déclaration sur le droit d'auteur.", vMedia: "Veuillez répondre à chaque ligne sur le partage de contenu.",
   vMediaRow: (row) => `Répondez aux deux colonnes pour &laquo;&nbsp;${row}&nbsp;&raquo;.`,
-  longStep: "L'étape la plus longue — environ deux minutes.", errNeeds: "Réponse requise",
+  longStep: "C'est la section la plus longue du formulaire; elle prend environ deux minutes à remplir.", errNeeds: "Réponse requise",
+  provided: "Déjà fourni à ONGIA", providedBox: "Déjà fourni à ONGIA", vPhone: "Veuillez indiquer un numéro de téléphone.",
   vStanding: "Veuillez confirmer que vous êtes en règle auprès de votre organisation.", vSign: "Veuillez taper votre nom pour signer.", vAgree: "Veuillez confirmer votre signature électronique.",
   shotBig: "Votre photo dépasse 5 Mo et n'a pas été jointe — envoyez-la-nous par courriel.",
   shotFail: "Vos réponses ont été reçues, mais la photo n'a pas pu être téléversée — envoyez-la-nous par courriel.",
@@ -503,7 +528,7 @@ let DATA = null, DONE = null;
 const DRAFT_KEY = `ongia-draft-${TOKEN}`;
 const DRAFT_FIELDS = ["step", "first", "last", "email", "phone", "organization", "talk", "bio", "outline", "av",
   "travel", "travelFrom", "travelTo", "hotel", "hotelFrom", "hotelTo", "expenses",
-  "copyright", "goodStanding", "media", "sensitive", "signature", "agreed"];
+  "copyright", "goodStanding", "noInvestigation", "termsAccepted", "media", "sensitive", "signature", "agreed", "bioProvided", "outlineProvided"];
 let restoredNote = false;
 
 function saveDraft() {
@@ -530,12 +555,12 @@ let AVVIEW = false;
 const S = {
   step: 0, openCal: null, calMonth: null, problems: [], headshotName: "",
   first: "", last: "", email: "", phone: "", organization: "",
-  talk: "", bio: "", outline: "",
+  talk: "", bio: "", outline: "", bioProvided: false, outlineProvided: false,
   av: { mic: null, laptop: null, plug: null, sound: null, clicker: null, seating: null, notes: "" },
   travel: null, travelFrom: "", travelTo: "",
   hotel: null, hotelFrom: "", hotelTo: "",
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
-  copyright: false, goodStanding: false,
+  copyright: false, goodStanding: false, noInvestigation: false, termsAccepted: false,
   media: { photo: {}, materials: {}, summary: {} },
   sensitive: null,
   signature: "", agreed: false,
@@ -585,6 +610,9 @@ const pad2 = (n) => String(n).padStart(2, "0");
 const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const parseISO = (v) => { if (!v) return null; const [y,m,d] = v.split("-").map(Number); return new Date(y, m-1, d); };
 const fmtDate = (v) => { const d = parseISO(v); return d ? t("fmt", t("days")[d.getDay()], d.getDate(), t("mons")[d.getMonth()], d.getFullYear()) : ""; };
+// Written out for sentences: "Sunday, November 8, 2026", "dimanche 8 novembre 2026".
+const fmtLong = (v) => { const d = parseISO(v); return d ? new Intl.DateTimeFormat(LANG === "fr" ? "fr-CA" : "en-CA",
+  { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d) : ""; };
 
 function dateField(id, label, key) {
   const val = S[key], open = S.openCal === key;
@@ -660,9 +688,11 @@ function stepMarkup() {
       <h2>${t("presentingAt", esc(ev.title))}</h2>
       <p class="lede">${t("hello", esc(S.first))}</p>
       <dl class="facts">
-        <div class="fact"><dt>${t("city")}</dt><dd>${esc(ev.city)}</dd></div>
+        ${ev.lastDayIso && ev.lastDayIso !== ev.dayOneIso
+          ? `<div class="fact"><dt>${t("beginsMany")}</dt><dd>${esc(fmtDate(ev.dayOneIso))} – ${esc(fmtDate(ev.lastDayIso))}</dd></div>`
+          : `<div class="fact"><dt>${t("begins")}</dt><dd>${esc(fmtDate(ev.dayOneIso))}</dd></div>`}
         ${ev.venue ? `<div class="fact"><dt>${t("venue")}</dt><dd>${esc(ev.venue)}</dd></div>` : ""}
-        <div class="fact"><dt>${t("begins")}</dt><dd>${esc(fmtDate(ev.dayOneIso))}</dd></div>
+        <div class="fact"><dt>${t("city")}</dt><dd>${esc(ev.city)}</dd></div>
         <div class="fact"><dt>${t("length")}</dt><dd>${t("minutes", ev.sessionMinutes)}</dd></div>
       </dl>
       ${ev.noDeadlines
@@ -682,7 +712,7 @@ function stepMarkup() {
       </div>
       <p class="hint" id="fnhint">${t("filedAs", esc(fileName()))}</p>
       <div class="row2">
-        <div class="field"><label for="f-phone">${t("phone")}</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel" placeholder="416-555-0100"></div>
+        <div class="field"><label for="f-phone">${t("phone")}</label><input id="f-phone" type="tel" data-bind="phone" value="${esc(S.phone)}" autocomplete="tel" placeholder="416-555-0100" required></div>
         <div class="field"><label for="f-email">${t("email")}</label><input id="f-email" type="email" data-bind="email" value="${esc(S.email)}" autocomplete="email"></div>
       </div>
       <div class="field"><label for="f-org">${t("org")}</label><input id="f-org" type="text" data-bind="organization" value="${esc(S.organization)}" autocomplete="organization"></div>
@@ -699,19 +729,24 @@ function stepMarkup() {
       <div class="field onfile"><label for="f-outline">${t("outline")}</label>
         <textarea id="f-outline" disabled placeholder="${t("onFileBox")}"></textarea></div>
       </div>` : `
-      <div class="field"><label for="f-bio">${t("bio")}</label>
-        <textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
-        <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${t("bioCount", w)}</p></div>
-      <div class="field"><label for="f-outline">${t("outline")}</label>
-        <textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
-        <p class="hint">${t("outlineHint")}</p></div>
+      <div class="field${S.bioProvided ? " onfile" : ""}"><label for="f-bio">${t("bio")}</label>
+        ${S.bioProvided ? `<textarea id="f-bio" disabled placeholder="${t("providedBox")}"></textarea>`
+          : `<textarea id="f-bio" data-bind="bio" data-count="1">${esc(S.bio)}</textarea>
+        <p class="hint${w >= 250 && w <= 300 ? " ok" : ""}" id="biocount">${t("bioCount", w)}</p>`}
+        <label class="provided"><input type="checkbox" data-provided="bioProvided"${S.bioProvided ? " checked" : ""}> ${t("provided")}</label></div>
+      <div class="field${S.outlineProvided ? " onfile" : ""}"><label for="f-outline">${t("outline")}</label>
+        ${S.outlineProvided ? `<textarea id="f-outline" disabled placeholder="${t("providedBox")}"></textarea>`
+          : `<textarea id="f-outline" data-bind="outline">${esc(S.outline)}</textarea>
+        <p class="hint">${t("outlineHint")}</p>`}
+        <label class="provided"><input type="checkbox" data-provided="outlineProvided"${S.outlineProvided ? " checked" : ""}> ${t("provided")}</label></div>
       </div>`}`;
     }
 
     case 3: {
       let h = `<div class="card"><h2>${t("titles")[3]}</h2>
-        <p class="lede">${t("travelLede", esc(fmtDate(ev.travelWindow.from)), esc(fmtDate(ev.travelWindow.to)))}</p>
-        <p class="hint" style="margin-top:-6px">${t("longStep")}</p>
+        <p class="lede">${t("travelLede", esc(fmtLong(ev.travelWindow.from)), esc(fmtLong(ev.travelWindow.to)))}</p>
+        <p class="lede" style="margin-top:10px">${t("travelReview")}</p>
+        <p class="hint" style="margin-top:10px">${t("longStep")}</p>
         <div class="qblock" id="q-travel"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`;
       if (S.travel === "yes") h += dateField("f-tf", t("arriving"), "travelFrom") + dateField("f-tt", t("departing"), "travelTo");
       h += `<div class="qblock" id="q-hotel"><p class="qtext">${t("needHotel")}</p>${seg("hotel", YESNO())}</div>`;
@@ -722,19 +757,19 @@ function stepMarkup() {
         <p class="blurb">${t("blurb1")}</p>
         <p class="blurb">${t("blurb2")}</p>
         <div class="covers" style="margin-top:13px">${t("covers")}</div>
-        <div class="qblock" id="q-cov-transport"><p class="qtext">${t("covTransport")}</p>
+        <div class="qblock" id="q-cov-transport"><p class="qhead">${t("hTravel")}</p><p class="qtext">${t("covTransport")}</p>
           ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`;
       if (S.hotel === "yes") {
-        h += `<div class="qblock" id="q-cov-hotel"><p class="qtext">${t("covHotel")}</p>
+        h += `<div class="qblock" id="q-cov-hotel"><p class="qhead">${t("hHotel")}</p><p class="qtext">${t("covHotel")}</p>
           ${seg("expenses", YESNO(), ["expenses", "hotel"])}</div>`;
       } else if (S.hotel === "no") {
-        h += `<div class="qblock"><p class="qtext">${t("hotelTitle")}</p>
+        h += `<div class="qblock"><p class="qhead">${t("hHotel")}</p>
           <p class="hint">${t("hotelSkipped")}</p></div>`;
       }
-      h += `<div class="qblock" id="q-cov-meals"><p class="qtext">${t("covMeals")}</p>
+      h += `<div class="qblock" id="q-cov-meals"><p class="qhead">${t("hMeals")}</p><p class="qtext">${t("covMeals")}</p>
           ${seg("expenses", YESNO(), ["expenses", "meals"])}
           <p class="hint">${t("mealsHint")}</p></div>
-        <div class="qblock" id="q-cov-other"><p class="qtext">${t("covOther")}</p>
+        <div class="qblock" id="q-cov-other"><p class="qhead">${t("hOther")}</p><p class="qtext">${t("covOther")}</p>
           ${seg("expenses", YESNO(), ["expenses", "other"])}`;
       if (S.expenses.other === "yes") {
         h += `<div class="field"><label for="f-other">${t("whatIsIt")}</label>
@@ -751,6 +786,7 @@ function stepMarkup() {
         <span>${t("copyright")}</span></label></div>
       <div class="card"><h2>${t("media")}</h2>
       <p class="lede">${t("mediaLede")}</p>
+      <p class="hint" style="margin-top:-4px">${t("mediaNote")}</p>
       ${consentRow(t("photos"), "photo")}
       ${consentRow(t("materials"), "materials")}
       ${consentRow(t("summary"), "summary")}
@@ -771,9 +807,15 @@ function stepMarkup() {
         <input id="f-sign" type="text" data-bind="signature" value="${esc(S.signature)}" placeholder="${esc(fullName())}"></div>
       <div class="sig"><div class="typed" id="sigline">${S.signature ? esc(S.signature) : "&nbsp;"}</div>
         <div class="meta"><span>${t("eSig")}</span><span>${esc(fmtDate(toISO(new Date())))}</span></div></div>
-      <label class="attest" for="f-standing" style="margin-top:14px">
+      <label class="attest" for="f-terms" style="margin-top:14px">
+        <input id="f-terms" type="checkbox" data-bind="termsAccepted"${S.termsAccepted ? " checked" : ""}>
+        <span>${t("termsBox", `<a href="#" id="terms-open">${t("termsLink")}</a>`)}</span></label>
+      <label class="attest" for="f-standing" style="margin-top:10px">
         <input id="f-standing" type="checkbox" data-bind="goodStanding"${S.goodStanding ? " checked" : ""}>
         <span>${t("standing")}</span></label>
+      <label class="attest" for="f-noinv" style="margin-top:10px">
+        <input id="f-noinv" type="checkbox" data-bind="noInvestigation"${S.noInvestigation ? " checked" : ""}>
+        <span>${t("noInv")}</span></label>
       <label class="attest" for="f-agree" style="margin-top:10px">
         <input id="f-agree" type="checkbox" data-bind="agreed"${S.agreed ? " checked" : ""}>
         <span>${t("agreed")}</span></label>
@@ -948,12 +990,13 @@ function validate() {
   if (S.step === 1) {
     if (!S.first.trim() || !S.last.trim()) add(t("vName"), S.first.trim() ? "f-last" : "f-first");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) add(t("vEmail"), "f-email");
+    if (S.phone.replace(/\D/g, "").length < 7) add(t("vPhone"), "f-phone");
   }
   if (S.step === 2) {
     if (!S.talk.trim()) add(t("vTalk"), "f-talk");
     if (!DATA.event.talkOnFile) {
-      if (words(S.bio) < 20) add(t("vBio"), "f-bio");
-      if (!S.outline.trim()) add(t("vOutline"), "f-outline");
+      if (!S.bioProvided && words(S.bio) < 20) add(t("vBio"), "f-bio");
+      if (!S.outlineProvided && !S.outline.trim()) add(t("vOutline"), "f-outline");
     }
   }
   if (S.step === 3) {
@@ -982,7 +1025,9 @@ function validate() {
     if (!S.sensitive) add(t("vSensitive"), "q-sensitive");
   }
   if (S.step === 5) {
+    if (!S.termsAccepted) add(t("vTerms"), "f-terms");
     if (!S.goodStanding) add(t("vStanding"), "f-standing");
+    if (!S.noInvestigation) add(t("vNoInv"), "f-noinv");
     if (!S.signature.trim()) add(t("vSign"), "f-sign");
     if (!S.agreed) add(t("vAgree"), "f-agree");
   }
@@ -1182,6 +1227,10 @@ ROOT.addEventListener("click", (e) => {
   }
   if (e.target.closest("[data-cal-close]")) { S.openCal = null; S.calMonth = null; render(); return; }
 
+  if (e.target.id === "terms-open") { e.preventDefault(); openTerms(); return; }
+  const prov = e.target.closest?.("[data-provided]");
+  // Ticked: the box greys out. Warnings already showing are re-checked; none are added.
+  if (prov) { S[prov.dataset.provided] = prov.checked; if (S.problems.length) S.problems = validate(); render(); return; }
   if (e.target.id === "back") { S.problems = []; S.step = Math.max(0, S.step - 1); render(); return; }
   const goto = e.target.closest?.("[data-goto]");
   if (goto) {
@@ -1242,7 +1291,49 @@ ROOT.addEventListener("input", (e) => {
       c.className = "hint" + (n >= 250 && n <= 300 ? " ok" : "");
     }
   }
+  if (S.problems.length) refreshProblems();
 });
+
+/** The Presenter Terms in a pop-up, in the language the form is in. "I agree" ticks the box. */
+function openTerms() {
+  const T2 = DATA?.terms?.[LANG] ?? DATA?.terms?.en;
+  if (!T2) return;
+  let dlg = document.getElementById("terms-dlg");
+  if (!dlg) { dlg = document.createElement("dialog"); dlg.id = "terms-dlg"; dlg.className = "terms"; document.body.append(dlg); }
+  dlg.innerHTML = `<form method="dialog"><h2>${esc(T2.title)}</h2><p class="lede">${esc(T2.intro)}</p>
+    <ol>${T2.items.map(([h, x]) => `<li><b>${esc(h)}.</b> ${esc(x)}</li>`).join("")}</ol>
+    <div class="nav" style="margin-top:14px"><button class="btn btn-ghost" value="close">${t("termsClose")}</button>
+      <button class="btn btn-primary" value="agree" id="terms-agree">${t("termsAgree")}</button></div></form>`;
+  dlg.onclose = () => {
+    if (dlg.returnValue !== "agree") return;
+    S.termsAccepted = true;
+    const box = document.getElementById("f-terms");
+    if (box) box.checked = true;
+    if (S.problems.length) refreshProblems(); else saveDraft();
+  };
+  dlg.returnValue = "";
+  dlg.showModal();
+  dlg.scrollTop = 0;
+}
+
+/**
+ * Once a warning is showing, it goes the moment its answer is right — no extra
+ * click. Only the warning list and the red marks change; the box being typed in
+ * is left alone so the cursor stays put.
+ */
+function refreshProblems() {
+  const now = validate();
+  const still = new Set(now.map((p) => p.at));
+  for (const block of ROOT.querySelectorAll(".err")) {
+    const ids = [...block.querySelectorAll("[id]")].map((x) => x.id).concat(block.id || []);
+    if (!ids.some((id) => still.has(id))) { block.classList.remove("err"); block.querySelector(".errmark")?.remove(); }
+  }
+  S.problems = now;
+  const box = ROOT.querySelector(".problems");
+  if (!box) return;
+  if (!now.length) { box.remove(); return; }
+  box.querySelector("ul").innerHTML = now.map((p) => `<li>${p.at ? `<a href="#" data-goto="${esc(p.at)}">${p.msg}</a>` : p.msg}</li>`).join("");
+}
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && S.openCal) { S.openCal = null; S.calMonth = null; render(); }
@@ -1278,10 +1369,11 @@ document.addEventListener("keydown", (e) => {
       const d = out.draft;
       Object.assign(S, {
         phone: formatPhone(d.phone ?? ""), talk: d.talk ?? "", bio: d.bio ?? "", outline: d.outline ?? "",
+        bioProvided: d.bioProvided === true, outlineProvided: d.outlineProvided === true,
         travel: d.travel ?? null, travelFrom: d.travelFrom ?? "", travelTo: d.travelTo ?? "",
         hotel: d.hotel ?? null, hotelFrom: d.hotelFrom ?? "", hotelTo: d.hotelTo ?? "",
         expenses: { ...S.expenses, ...(d.expenses ?? {}) },
-        copyright: !!d.copyright, goodStanding: !!d.goodStanding, media: d.media ?? S.media, sensitive: d.sensitive ?? null,
+        copyright: !!d.copyright, goodStanding: !!d.goodStanding, noInvestigation: !!d.noInvestigation, termsAccepted: !!d.termsAccepted, media: d.media ?? S.media, sensitive: d.sensitive ?? null,
         signature: d.signature ?? "", headshotName: d.headshotName ?? "",
       });
     }
