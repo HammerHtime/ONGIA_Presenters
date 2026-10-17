@@ -133,6 +133,10 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // dates, so nothing chases them by date. Every other event keeps both, off by default.
     talkOnFile: body.talkOnFile === undefined ? (event.talkOnFile ?? false) : body.talkOnFile === true,
     noDeadlines: body.noDeadlines === undefined ? (event.noDeadlines ?? false) : body.noDeadlines === true,
+    // A paragraph of Andrew's own for this event's presenter invitation (and its "Email again"),
+    // in English and, if he gives one, French. Empty on every event unless he writes it.
+    inviteNote: body.inviteNote === undefined ? (event.inviteNote ?? "") : text(body.inviteNote, 1500),
+    inviteNoteFr: body.inviteNoteFr === undefined ? (event.inviteNoteFr ?? "") : text(body.inviteNoteFr, 1500),
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),

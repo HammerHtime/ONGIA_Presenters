@@ -923,7 +923,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
-      <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines ? " open" : ""}>
+      <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
         <summary>Presenter agreement for this event only</summary>
         <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
           when you are re-sending agreements rather than collecting new ones. Every other event keeps the full form and its dates.</p>
@@ -932,6 +932,10 @@ function eventFormScreen(existing = null) {
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-nodates"${ev?.noDeadlines ? " checked" : ""}>
           <span><b>One date only: the presentation.</b> No agreement or draft due date anywhere presenters look. They see one date,
             the <b>Final materials</b> one above, as when their presentation is due, and only that one is chased. Use <b>Email again</b> to nudge someone about the agreement.</span></label>
+        <div class="field" style="margin-top:14px"><label for="e-invnote">A paragraph of your own for the presenter invitation</label>
+          <textarea id="e-invnote" maxlength="1500" style="min-height:90px" placeholder="Optional. It goes near the top, after “Thank you for presenting at…”, and in Email again.">${esc(ev?.inviteNote ?? "")}</textarea></div>
+        <div class="field"><label for="e-invnotefr">The same paragraph in French <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional; left empty, the French half goes without it)</span></label>
+          <textarea id="e-invnotefr" maxlength="1500" style="min-height:90px">${esc(ev?.inviteNoteFr ?? "")}</textarea></div>
       </details>
       <div class="field"><label>Board members for this event</label>
         <details class="bdrop" id="bdrop">
@@ -1230,6 +1234,8 @@ function eventFormScreen(existing = null) {
       attendeeMail: $("e-amail")?.checked === true,
       talkOnFile: $("e-talkfile")?.checked === true,
       noDeadlines: $("e-nodates")?.checked === true,
+      inviteNote: $("e-invnote")?.value ?? undefined,
+      inviteNoteFr: $("e-invnotefr")?.value ?? undefined,
       // No tick on the form means "we are not saying", not "no" — otherwise
       // every save would clear the flag on an event that had it set.
       sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
