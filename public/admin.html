@@ -2103,12 +2103,29 @@ function eventScreen(data) {
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
-          `<span>${esc(r.name)} <span class="porg">· ${r.status === "approved" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span></span>`).join("")}</div></dd>` : ""}
+          `<span>${esc(r.name)} <span class="porg">· ${r.status === "approved" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" })
-    + `<dialog class="sheet" id="pedit">
+    + `<dialog class="sheet" id="prm">
+      <form method="dialog">
+        <div class="sheet-head"><h2 id="prm-title">Remove this presenter?</h2>
+          <p class="hint" style="margin-top:6px" id="prm-what"></p></div>
+        <div class="sheet-body">
+          <div class="field"><label for="prm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
+            <textarea id="prm-why" maxlength="600" style="min-height:80px" placeholder="e.g. Called to court; replaced by another presenter"></textarea>
+            <p class="hint" style="margin:6px 0 0">Keep it short. Leave out case details and anything confidential.</p></div>
+          <div class="field"><label for="prm-confirm">Type DELETE to confirm</label>
+            <input id="prm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-late" id="prm-go" value="remove" disabled>Remove presenter</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="sheet" id="pedit">
       <form method="dialog">
         <div class="sheet-head"><h2>Correct this presenter</h2>
           <p class="hint" style="margin-top:6px">Their agreement link does not change, and anything they have already
@@ -2266,14 +2283,24 @@ function eventScreen(data) {
     if (!p) return;
     const name = `${p.first} ${p.last}`.trim();
     const final = p.status === "approved";
-    if (!confirm(`Remove ${name} from this event?\n\nTheir agreement link stops working${final ? ", and they come off the desk. Their signed agreement stays in SharePoint." : "."}`)) return;
-    const typed = prompt(`To remove ${name}, type DELETE.`);
-    if ((typed ?? "").trim().toUpperCase() !== "DELETE") { toast(`${name} was not removed.`); return; }
+    const prm = document.getElementById("prm"), go = document.getElementById("prm-go"), typed = document.getElementById("prm-confirm");
     pedit.close();
-    try {
-      await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}${final ? "&final=1" : ""}`, { method: "DELETE" });
-      toast(`${name} removed.`); render();
-    } catch (e) { toast(e.message); }
+    document.getElementById("prm-title").textContent = `Remove ${name}?`;
+    document.getElementById("prm-what").textContent = `Their agreement link stops working and they come off this event${final ? ". Their signed agreement stays in SharePoint." : "."}`;
+    document.getElementById("prm-why").value = ""; typed.value = ""; go.disabled = true;
+    // The button wakes only once DELETE is typed: the second step.
+    typed.oninput = () => { go.disabled = typed.value.trim().toUpperCase() !== "DELETE"; };
+    prm.returnValue = "";
+    prm.onclose = async () => {
+      if (prm.returnValue !== "remove" || typed.value.trim().toUpperCase() !== "DELETE") return;
+      try {
+        await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}${final ? "&final=1" : ""}`,
+          { method: "DELETE", body: JSON.stringify({ reason: document.getElementById("prm-why").value }) });
+        toast(`${name} removed.`); render();
+      } catch (e) { toast(e.message); }
+    };
+    prm.showModal();
+    document.getElementById("prm-why").focus();
   };
   ROOT.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
   ROOT.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });

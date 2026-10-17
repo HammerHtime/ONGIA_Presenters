@@ -51,7 +51,9 @@ export default async (req) => {
   }
   if (req.method === "DELETE") {
     const presenterId = url.searchParams.get("presenter");
-    return presenterId ? removePresenter(id, presenterId, url.searchParams.get("final") === "1") : deleteEvent(id);
+    // A removal may carry why, in the body rather than the address, so it never sits in a log line.
+    const why = presenterId ? text((await req.json().catch(() => null))?.reason, 600) : "";
+    return presenterId ? removePresenter(id, presenterId, url.searchParams.get("final") === "1", why) : deleteEvent(id);
   }
   return fail("Method not allowed.", 405);
 };
@@ -307,7 +309,7 @@ async function updatePresenter(id, presenterId, body) {
  * when the request says so (&final=1), and the signed copy stays in SharePoint. The
  * event keeps a line saying who was removed and when, so nobody simply vanishes.
  */
-async function removePresenter(id, presenterId, finalToo = false) {
+async function removePresenter(id, presenterId, finalToo = false, reason = "") {
   const presenter = await getPresenter(id, presenterId);
   if (!presenter) return fail("No such presenter.", 404);
   if (presenter.status === "approved" && !finalToo) return fail("This agreement is final and filed. Confirm that you want to remove it anyway.", 409);
@@ -316,6 +318,7 @@ async function removePresenter(id, presenterId, finalToo = false) {
     event.removedPresenters = [...(event.removedPresenters ?? []), {
       name: `${presenter.first ?? ""} ${presenter.last ?? ""}`.trim() || presenter.email, email: presenter.email ?? "",
       status: presenter.status, at: new Date().toISOString(), filedTo: presenter.delivery?.filing?.folderUrl ?? null,
+      reason,
     }].slice(-50);
     await putEvent(event);
   }
