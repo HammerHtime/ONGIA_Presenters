@@ -168,8 +168,10 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   </div></body></html>`;
 }
 
+// The text copy of an email is read as text: "&amp;" in a title has to come back as "&".
+const unescapeText = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 const plain = (heading, lines, href, contact) =>
-  [heading, "", ...lines.filter(Boolean).map((l) => l.replace(/<[^>]+>/g, "")), href ? `\n${href}` : "",
+  [heading, "", ...lines.filter(Boolean).map((l) => unescapeText(l.replace(/<[^>]+>/g, ""))), href ? `\n${href}` : "",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : ""].join("\n");
 
 /**
@@ -202,7 +204,7 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
       ? `We haven't yet received your presenter agreement for <b>${esc(event.title)}</b> in ${esc(event.city)} (${esc(event.dayOneReadable)}).${dated ? ` It's due back by <b>${esc(event.deadlinesReadable.agreement)}</b>.${urgencyEn}` : ""}`
       : `Thank you for presenting at <b>${esc(event.title)}</b> in ${esc(event.city)}, ${esc(event.dayOneReadable)}. Before the event we need your presenter agreement — it takes about ten minutes on a phone and there's nothing to print or scan.`,
     `${dated ? `Please complete it by <b>${esc(event.deadlinesReadable.agreement)}</b>. ` : ""}The form asks about ${asksEn}, and you sign by typing your name. It's available in English and French (a "Français" button at the top of the page).`,
-    ...(onFile ? [`We already have your biography and presentation outline from the program, so the form doesn't ask for them. If you sent us an agreement for this event before, please complete this one too: it replaces the earlier copy.`] : []),
+    ...(onFile ? [`We already have your biography and presentation outline from the program, so those two are greyed out and you can skip them. If you sent us an agreement for this event before, please complete this one too: it replaces the earlier copy.`] : []),
     dated ? `Draft materials are due ${esc(event.deadlinesReadable.draft)} and final materials ${esc(event.deadlinesReadable.final)}.`
       : `Please send us your presentation by <b>${esc(event.deadlinesReadable.final)}</b>.`,
     `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
@@ -211,7 +213,7 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
       ? `Nous n'avons pas encore reçu votre entente de conférencier pour <b>${esc(event.title)}</b> à ${esc(event.city)} (${fr(event.dayOne)}).${dated ? ` Elle est attendue d'ici le <b>${fr(d.agreement)}</b>.${urgencyFr}` : ""}`
       : `Merci de présenter à <b>${esc(event.title)}</b> à ${esc(event.city)}, le ${fr(event.dayOne)}. Avant l'événement, nous avons besoin de votre entente de conférencier — une dizaine de minutes sur un téléphone, rien à imprimer ni à numériser.`,
     `${dated ? `Veuillez la remplir d'ici le <b>${fr(d.agreement)}</b>. ` : ""}${formFr}`,
-    ...(onFile ? [`Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; le formulaire ne les demande donc pas. Si vous nous avez déjà envoyé une entente pour cet événement, veuillez tout de même remplir celle-ci : elle remplace la précédente.`] : []),
+    ...(onFile ? [`Nous avons déjà votre biographie et le plan de votre présentation tirés du programme; ces deux champs sont donc grisés et vous pouvez les passer. Si vous nous avez déjà envoyé une entente pour cet événement, veuillez tout de même remplir celle-ci : elle remplace la précédente.`] : []),
     dated ? `Version préliminaire du matériel attendue le ${fr(d.draft)}; version finale le ${fr(d.final)}.`
       : `Veuillez nous faire parvenir votre présentation d'ici le <b>${fr(d.final)}</b>.`,
   ];
