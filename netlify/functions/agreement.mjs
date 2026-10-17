@@ -172,7 +172,8 @@ async function submit(req, event, presenter) {
   if (expenses.other === "yes" && !expenses.otherText) problems.push("Tell us what the other cost is.");
 
   if (body.copyright !== true) problems.push("Please confirm the copyright statement.");
-  if (body.goodStanding !== true) problems.push("Please confirm you are in good standing with your organization.");
+  // Good standing is no longer asked on its own (Andrew, 17 Oct 2026: it says the same
+  // as "not under a formal investigation or disciplinary proceedings").
   if (body.noInvestigation !== true) problems.push("Please confirm you are not under a formal investigation.");
   if (body.termsAccepted !== true) problems.push("Please read and agree to the Presenter Terms.");
 
@@ -228,7 +229,6 @@ async function submit(req, event, presenter) {
     hotelTo: hotel === "yes" ? hotelTo : "",
     expenses,
     copyright: true,
-    goodStanding: true,
     noInvestigation: true,
     termsAccepted: true,
     termsVersion: TERMS_VERSION,

@@ -810,9 +810,6 @@ function stepMarkup() {
       <label class="attest" for="f-terms" style="margin-top:14px">
         <input id="f-terms" type="checkbox" data-bind="termsAccepted"${S.termsAccepted ? " checked" : ""}>
         <span>${t("termsBox", `<a href="#" id="terms-open">${t("termsLink")}</a>`)}</span></label>
-      <label class="attest" for="f-standing" style="margin-top:10px">
-        <input id="f-standing" type="checkbox" data-bind="goodStanding"${S.goodStanding ? " checked" : ""}>
-        <span>${t("standing")}</span></label>
       <label class="attest" for="f-noinv" style="margin-top:10px">
         <input id="f-noinv" type="checkbox" data-bind="noInvestigation"${S.noInvestigation ? " checked" : ""}>
         <span>${t("noInv")}</span></label>
@@ -1026,7 +1023,6 @@ function validate() {
   }
   if (S.step === 5) {
     if (!S.termsAccepted) add(t("vTerms"), "f-terms");
-    if (!S.goodStanding) add(t("vStanding"), "f-standing");
     if (!S.noInvestigation) add(t("vNoInv"), "f-noinv");
     if (!S.signature.trim()) add(t("vSign"), "f-sign");
     if (!S.agreed) add(t("vAgree"), "f-agree");

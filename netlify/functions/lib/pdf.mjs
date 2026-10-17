@@ -251,14 +251,12 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
         "any copyrighted material, images, content, or other intellectual property included in it.",
     RED
   );
-  p.tickLine(
-    s.goodStanding === true,
-    s.wording >= 2
-      ? "I confirm that I am in good standing with my organization."
-      : "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.",
-    RED
-  );
-  // Since 17 Oct 2026: not under investigation as its own statement, and the Presenter Terms.
+  // Agreements signed before 17 Oct 2026 carry the old combined good-standing statement;
+  // since then it is the investigation statement alone, and the Presenter Terms.
+  if (!(s.wording >= 2)) {
+    p.tickLine(s.goodStanding === true,
+      "I confirm that I am currently in good standing with my agency, and that I am not subject to any disciplinary proceedings or under investigation of any kind.", RED);
+  }
   if (s.wording >= 2) {
     p.tickLine(s.noInvestigation === true, "I confirm that I am not currently subject to any formal investigation or disciplinary proceedings.", RED);
     p.tickLine(s.termsAccepted === true, "I have read and agree to the ONGIA Presenter Terms set out below.", RED);
