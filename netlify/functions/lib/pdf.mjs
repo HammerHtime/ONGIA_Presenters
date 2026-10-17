@@ -124,8 +124,8 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   p.para(
     "ONGIA training events may include a combination of in-person, virtual, and hybrid formats, providing " +
     "flexible participation options. As with all ONGIA training events, organizers require presenters to prepare " +
-    `a syllabus and adhere to a standard presentation time allotment of ${event.sessionMinutes ?? 70} minutes. ` +
-    "This allotment may vary depending on the event schedule; presenters will be notified in advance should any " +
+    `a syllabus for a presentation of approximately ${event.sessionMinutes ?? 70} minutes. ` +
+    "The time may vary depending on the event schedule; presenters will be notified in advance should any " +
     "adjustments be required. Presenters may also be asked to participate in additional facilitator- or " +
     "panel-style sessions during the training event."
   );
