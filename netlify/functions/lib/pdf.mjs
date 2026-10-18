@@ -392,6 +392,20 @@ export async function buildVolunteerPdf({ event, volunteer }) {
   ]);
   p.kvRow([["Agency / Organization:", volunteer.organization || "—", 330]]);
   p.kvRow([["Email:", volunteer.email, 330]]);
+  p.kvRow([["Hotel accommodation requested:", s.accommodation === "yes" ? "Yes" : s.accommodation === "no" ? "No" : "—", 330]]);
+
+  // A board member chose these before the agreement was made final; absent for a volunteer who needs no room.
+  const review = volunteer.review ?? null;
+  if (s.accommodation === "yes") {
+    p.heading("HOTEL ACCOMMODATION");
+    if (review?.hotel) {
+      const h = review.hotel;
+      p.kvRow([["Check-in:", fmt(h.from), 150], ["Check-out:", fmt(h.to), 150]]);
+      p.kvRow([["Nights:", String(h.nights ?? ""), 150], ["Paid by:", h.pays === "Guest" ? "The volunteer" : "ONGIA", 150]]);
+    } else {
+      p.small("A board member confirmed that no hotel room is needed.");
+    }
+  }
 
   // The terms as the volunteer read them, ahead of the signature that binds them.
   p.heading("ONGIA VOLUNTEER TERMS");
@@ -424,7 +438,15 @@ export async function buildVolunteerPdf({ event, volunteer }) {
     ["Contact Number:", contact.phone || "—", 120],
   ]);
 
-  p.stamp(`SIGNED COPY — signed electronically on ${fmt(s.signedAt?.slice(0, 10))}. Filed by ONGIA and emailed to the volunteer.`);
+  // The board member who confirmed the hotel, where there was one to confirm.
+  if (review?.approver?.name) {
+    p.label("This document has been reviewed and approved by:", true, NAVY);
+    p.kvRow([["Name:", review.approver.name, 160, false, NAVY], ["Date:", fmt(review.approvedAt?.slice(0, 10)), 90, false, NAVY]]);
+    p.signature("Signature:", review.approver.name, NAVY);
+    p.stamp(`FINAL COPY — signed electronically by ${volunteer.first} ${volunteer.last} on ${fmt(s.signedAt?.slice(0, 10))}; hotel nights confirmed and approved by ${review.approver.name} on ${fmt(review.approvedAt?.slice(0, 10))}. Filed by ONGIA and emailed to the volunteer.`);
+  } else {
+    p.stamp(`SIGNED COPY — signed electronically on ${fmt(s.signedAt?.slice(0, 10))}. Filed by ONGIA and emailed to the volunteer.`);
+  }
 
   p.finish();
   doc.end();

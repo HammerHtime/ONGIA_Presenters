@@ -14,6 +14,9 @@ import { layout, coordinatorOf } from "./mail.mjs";
  *    the dates they asked for, marked as not confirmed.
  *  - Presenters who have not answered yet are named, so it is clear the list
  *    may still grow.
+ *  - Volunteers who asked for a room appear once a board member has chosen their nights
+ *    (the volunteer agreement is not final until then); before that they are named, like a
+ *    presenter who has not answered.
  *  - Anyone else (a board member, staff) is added on the desk by hand.
  */
 
@@ -60,7 +63,7 @@ export function guestWindow(event) {
  */
 const listedAs = (event, id) => event.roomingTypes?.[id] ?? "Presenter";
 
-export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = []) {
+export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = [], volunteers = []) {
   const rows = [], waiting = [];
   for (const p of presenters) {
     const name = `${p.first ?? ""} ${p.last ?? ""}`.trim() || p.email;
@@ -78,6 +81,16 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
         billing: "To confirm", confirmed: false, why: "agreement not approved yet" });
     } else {
       waiting.push({ name, status: p.status === "returned" ? "sent back to them for changes" : "has not submitted the agreement yet" });
+    }
+  }
+  for (const v of volunteers) {
+    const name = `${v.first ?? ""} ${v.last ?? ""}`.trim() || v.email;
+    const h = v.review?.hotel;
+    if (v.status === "signed" && h) {
+      rows.push({ key: v.id, who: "volunteer", type: "Volunteer", name, organization: v.organization ?? "",
+        checkIn: h.from, checkOut: h.to, nights: nights(h.from, h.to), billing: h.pays === "Guest" ? "Guest" : "ONGIA", confirmed: true });
+    } else if (v.status === "submitted" && v.submission?.accommodation === "yes") {
+      waiting.push({ name, status: "signed and asked for a room; a board member has to choose their hotel nights" });
     }
   }
   for (const g of guests) {

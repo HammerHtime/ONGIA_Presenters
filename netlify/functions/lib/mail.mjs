@@ -296,6 +296,61 @@ export function volunteerInvitationMail({ event, volunteer, link, remind = false
   };
 }
 
+/**
+ * One line about the volunteer's hotel, for the final copy and the board's notice. Empty for
+ * someone who did not ask for a room. `review.hotel` is what a board member confirmed.
+ */
+function hotelLine(volunteer, lang = "en") {
+  if (volunteer.submission?.accommodation !== "yes") return "";
+  const h = volunteer.review?.hotel;
+  const d = (iso) => esc(formatLong(iso, lang, { weekday: true }));
+  const n = h ? Math.round((Date.parse(h.to) - Date.parse(h.from)) / 86400000) : 0;
+  if (lang === "fr") {
+    return h
+      ? `Hébergement confirmé : arrivée le <b>${d(h.from)}</b>, départ le <b>${d(h.to)}</b> (${n} nuit${n === 1 ? "" : "s"}), ${h.pays === "Guest" ? "à vos frais" : "payé par ONGIA"}.`
+      : `ONGIA a confirmé qu'aucune chambre d'hôtel n'est nécessaire.`;
+  }
+  return h
+    ? `Hotel confirmed: check-in <b>${d(h.from)}</b>, check-out <b>${d(h.to)}</b> (${n} night${n === 1 ? "" : "s"}), ${h.pays === "Guest" ? "paid by you" : "paid by ONGIA"}.`
+    : `ONGIA has confirmed that no hotel room is needed.`;
+}
+
+/**
+ * Sent when a volunteer who asked for a hotel room signs: it is with ONGIA for one more step, a
+ * board member choosing their hotel nights, and the final copy follows. In their own language.
+ */
+export function volunteerReceivedMail({ event, volunteer }) {
+  const fr = volunteer.language === "fr";
+  if (fr) {
+    const heading = `Nous avons reçu votre entente de bénévole — ${event.title}`;
+    const lines = [
+      `Bonjour ${esc(volunteer.first)},`,
+      `Merci d'avoir signé l'entente de bénévole d'ONGIA pour <b>${esc(event.title)}</b>.`,
+      `Comme vous avez demandé un hébergement, un membre du conseil d'ONGIA doit d'abord confirmer vos nuitées d'hôtel. Dès que ce sera fait, votre copie finale signée vous sera envoyée par courriel.`,
+      `Référence ${esc(volunteer.reference)}.`,
+    ];
+    return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, lang: "fr", theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
+  }
+  const heading = `We have your volunteer agreement — ${event.title}`;
+  const lines = [
+    `Hello ${esc(volunteer.first)},`,
+    `Thank you for signing the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b>.`,
+    `Because you asked for hotel accommodation, an ONGIA board member needs to confirm your hotel nights first. As soon as they have, your final signed copy will be emailed to you.`,
+    `Reference ${esc(volunteer.reference)}.`,
+  ];
+  return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
+}
+
+/** Tells the board a volunteer is waiting for their hotel nights, with a button to the event. */
+export function volunteerReviewNeededMail({ event, volunteer, adminUrl }) {
+  const heading = `Ready for review: ${volunteer.first} ${volunteer.last} (volunteer) — ${event.title}`;
+  const lines = [
+    `${esc(volunteer.first)} ${esc(volunteer.last)}${volunteer.organization ? ` (${esc(volunteer.organization)})` : ""} has signed the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b> and asked for hotel accommodation.`,
+    `Open the event, choose their hotel nights (or confirm that no room is needed) and approve it. The agreement is not final until you do, and then it goes back to them and is filed in SharePoint.`,
+  ];
+  return { subject: heading, html: layout({ heading, lines, buttons: [{ href: adminUrl, label: "Open the volunteers" }], contact: volunteerContact(event), event, theme: "volunteer" }), text: plain(heading, lines, adminUrl, volunteerContact(event)) };
+}
+
 /** The volunteer's signed copy, in the language they signed in, with the PDF attached. */
 export function volunteerSignedMail({ event, volunteer }) {
   const fr = volunteer.language === "fr";
@@ -305,6 +360,7 @@ export function volunteerSignedMail({ event, volunteer }) {
     const lines = [
       `Bonjour ${esc(volunteer.first)},`,
       `Merci d'avoir signé l'entente de bénévole d'ONGIA pour <b>${esc(event.title)}</b> (${esc(event.city)}, le ${when}). Votre copie signée est jointe pour vos dossiers (le document officiel est en anglais).`,
+      hotelLine(volunteer, "fr"),
       `Référence ${esc(volunteer.reference)}.`,
       `Si quelque chose doit être corrigé, répondez simplement à ce courriel.`,
     ];
@@ -314,6 +370,7 @@ export function volunteerSignedMail({ event, volunteer }) {
   const lines = [
     `Hello ${esc(volunteer.first)},`,
     `Thank you for signing the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b> (${esc(event.city)}, ${when}). Your signed copy is attached for your records.`,
+    hotelLine(volunteer, "en"),
     `Reference ${esc(volunteer.reference)}.`,
     `If anything needs correcting, just reply to this email.`,
   ];
@@ -325,6 +382,7 @@ export function volunteerNoticeMail({ event, volunteer, filing }) {
   const heading = `Signed: ${volunteer.first} ${volunteer.last} (volunteer) — ${event.title}`;
   const lines = [
     `${esc(volunteer.first)} ${esc(volunteer.last)}${volunteer.organization ? ` (${esc(volunteer.organization)})` : ""} signed the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b>.`,
+    hotelLine(volunteer, "en"),
     filing?.folderUrl
       ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
       : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,

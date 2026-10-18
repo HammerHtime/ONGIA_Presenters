@@ -1,10 +1,10 @@
-import { json, fail, text, isEmail } from "./lib/http.mjs";
+import { json, fail, text, yesNo, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { resolveVolunteerToken, putVolunteer, getPdf } from "./lib/store.mjs";
 import { formatDate } from "./lib/deadlines.mjs";
 import { VOLUNTEER_TERMS, VOLUNTEER_TERMS_VERSION } from "./lib/terms.mjs";
-import { buildAndStore, deliverVolunteer, pdfKey } from "./lib/volunteers.mjs";
+import { buildAndStore, completeAgreement, requestReview, pdfKey } from "./lib/volunteers.mjs";
 import { volunteerContact } from "./lib/mail.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 
@@ -13,7 +13,7 @@ import { safeFileName } from "./lib/ids.mjs";
  * the long token in their link is the credential.
  *
  *   GET  /api/volunteer?t=…          what the form needs to render
- *   GET  /api/volunteer?t=…&pdf=1    their signed copy, once they have signed
+ *   GET  /api/volunteer?t=…&pdf=1    their signed copy, once it is final
  *   POST /api/volunteer?t=…          sign the agreement
  */
 export default async (req) => {
@@ -32,7 +32,7 @@ export default async (req) => {
 
 async function showForm(event, volunteer) {
   // Opening the link is itself a signal: "never looked" and "looked and stopped" are different calls to make.
-  if (!volunteer.openedAt && volunteer.status !== "signed") {
+  if (!volunteer.openedAt && volunteer.status === "invited") {
     volunteer.openedAt = new Date().toISOString();
     await putVolunteer(volunteer);
   }
@@ -46,7 +46,7 @@ async function showForm(event, volunteer) {
     volunteer: {
       first: volunteer.first, last: volunteer.last, email: volunteer.email, organization: volunteer.organization,
       status: volunteer.status, signedAt: volunteer.signedAt, reference: volunteer.reference, language: volunteer.language ?? null,
-      phone: volunteer.submission?.phone ?? "",
+      phone: volunteer.submission?.phone ?? "", accommodation: volunteer.submission?.accommodation ?? null,
     },
     terms: VOLUNTEER_TERMS,
   });
@@ -61,7 +61,7 @@ async function download(event, volunteer) {
 }
 
 async function sign(req, event, volunteer) {
-  if (volunteer.status === "signed") return fail("This agreement has already been signed. Contact ONGIA if something needs changing.", 409);
+  if (volunteer.status !== "invited") return fail("This agreement has already been signed. Contact ONGIA if something needs changing.", 409);
   const body = await req.json().catch(() => null);
   if (!body) return fail("Expected a JSON body.");
 
@@ -70,6 +70,8 @@ async function sign(req, event, volunteer) {
   if (!first || !last) problems.push("Your first or last name is missing.");
   if (!isEmail(email)) problems.push("That email address doesn't look right.");
   if (String(body.phone ?? "").replace(/\D/g, "").length < 7) problems.push("Please add a contact number.");
+  const accommodation = yesNo(body.accommodation);
+  if (!accommodation) problems.push("Tell us whether you will need hotel accommodation.");
   if (body.termsAccepted !== true) problems.push("Please read and agree to the Volunteer Terms.");
   if (body.standing !== true) problems.push("Please confirm you are in good standing and not under a formal investigation.");
   const signature = text(body.signature, 160);
@@ -80,23 +82,25 @@ async function sign(req, event, volunteer) {
   const now = new Date().toISOString();
   Object.assign(volunteer, { first, last, email, organization: text(body.organization, 200) });
   volunteer.language = body.language === "fr" ? "fr" : "en";
-  volunteer.status = "signed";
+  // Someone who needs a hotel room waits for a board member to choose their nights; anyone else is done.
+  volunteer.status = accommodation === "yes" ? "submitted" : "signed";
   volunteer.signedAt = now;
   volunteer.submission = {
     phone: formatPhone(text(body.phone, 60)),
+    accommodation,
     termsAccepted: true, termsVersion: VOLUNTEER_TERMS_VERSION, standing: true,
     signature, signedAt: now,
   };
   // The signature is saved before any network call: an email hiccup must never lose it.
   await putVolunteer(volunteer);
 
-  const pdf = await buildAndStore(event, volunteer);
-  volunteer.delivery = {};
-  await deliverVolunteer(event, volunteer, pdf);
-  await putVolunteer(volunteer);
-
+  if (volunteer.status === "submitted") {
+    await requestReview(event, volunteer, siteUrl(req));
+    return json({ ok: true, reference: volunteer.reference, review: true, emailed: volunteer.delivery.received?.ok === true, contact: volunteerContact(event).name ?? "" });
+  }
+  await completeAgreement(event, volunteer);
   return json({
-    ok: true, reference: volunteer.reference,
+    ok: true, reference: volunteer.reference, review: false,
     emailed: volunteer.delivery.volunteerEmail?.ok === true,
     contact: volunteerContact(event).name ?? "",
     pdf: `${siteUrl(req)}/api/volunteer?t=${encodeURIComponent(volunteer.token)}&pdf=1`,

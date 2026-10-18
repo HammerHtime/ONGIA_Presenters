@@ -654,6 +654,9 @@
   #e-mins{max-width:150px} input[type=date]{max-width:230px}
   .addrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
   .addrow:has(#rb-phone){grid-template-columns:1fr 1fr 1fr auto}
+  .vneed{display:flex;gap:8px;flex-wrap:wrap}
+  .vneed button{flex:1 1 150px;min-height:46px;border:1.5px solid var(--border);background:var(--sunk);border-radius:999px;font:600 14px var(--fb);cursor:pointer;color:var(--ink-mid)}
+  .vneed button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
   /* Add volunteers / Email all outstanding: side by side on a desk, one full-width button each on a phone. */
   @media (max-width:560px){.vbar .btn{flex:1 1 100%}}
   .member:has(.rphone){grid-template-columns:auto 1fr auto auto}
@@ -2709,7 +2712,7 @@ function roomingCard(ev, R, C = null) {
     const [cls, word] = BILL[r.billing] ?? ["", r.billing];
     return `<label class="room${r.confirmed ? "" : " unconf"}">
       <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
-      <div class="rn">${esc(r.name)} <button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button><div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
+      <div class="rn">${esc(r.name)} ${r.who === "volunteer" ? "" : `<button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>`}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
         r.who === "presenter" && r.type !== "Presenter" ? "presenting" : "",
         esc(r.organization || "")].filter(Boolean).join(" · ")}${r.board && r.type !== "Board Member" ? " · on the board" : ""}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
       <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))}<small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
@@ -2721,7 +2724,7 @@ function roomingCard(ev, R, C = null) {
          The hotel does not know yet. Send the update and the email will list these changes.</div>` : ""}`
     : "";
   const waiting = R.waiting.length
-    ? `<p class="roomwait">Not answered yet, so they may still need a room: ${R.waiting.map((w) => esc(w.name)).join(", ")}.</p>` : "";
+    ? `<p class="roomwait">Not confirmed yet, so they may still need a room: ${R.waiting.map((w) => esc(w.name)).join(", ")}.</p>` : "";
   const line = [R.rows.length ? `${conf.length} room${conf.length === 1 ? "" : "s"}, ${nightsAll} room night${nightsAll === 1 ? "" : "s"}` : "No one needs a room yet",
     R.hotel.name ? `at ${esc(R.hotel.name)}` : "no hotel set",
     R.sent ? `sent ${esc(shortDate(R.sent.at.slice(0, 10)))}` : R.rows.length ? "not sent to the hotel yet" : ""].filter(Boolean).join(" · ");
@@ -2729,7 +2732,7 @@ function roomingCard(ev, R, C = null) {
     R.changes?.length ? `<span class="late">${R.changes.length} change${R.changes.length === 1 ? "" : "s"} to send</span>` : ""].filter(Boolean).join(" · ");
   return secFold("hotel", "Hotel rooms", line, badge, `
     <div class="card-head"><div>
-      <div class="s">From the presenters' agreements — the dates and billing the board approved — plus anyone you add.${R.hotel.name ? ` At ${esc(R.hotel.name)}.` : ""}</div>
+      <div class="s">From the presenters' and volunteers' agreements — the dates and billing the board approved — plus anyone you add.${R.hotel.name ? ` At ${esc(R.hotel.name)}.` : ""}</div>
       ${conf.length ? `<div class="jobsum" style="margin-top:8px"><span class="chipstat"><b>${conf.length}</b>room${conf.length === 1 ? "" : "s"}</span>
         <span class="chipstat"><b>${nightsAll}</b>room night${nightsAll === 1 ? "" : "s"}</span>
         ${R.rows.length > conf.length ? `<span class="chipstat hot"><b>${R.rows.length - conf.length}</b>awaiting approval</span>` : ""}</div>` : ""}</div>
@@ -3186,8 +3189,8 @@ const foldOpen = (id, start = true) => {
  * card. Every section starts closed, so an event opens as a short list of what is
  * there instead of twenty screens of it; each one then stays the way he left it.
  */
-function secFold(key, title, line, badge, inner, { id = "" } = {}) {
-  return `<details class="card ibfold secfold"${id ? ` id="${id}"` : ""} data-fold="sec-${key}"${foldOpen(`sec-${key}`, false) ? " open" : ""}>
+function secFold(key, title, line, badge, inner, { id = "", open = false } = {}) {
+  return `<details class="card ibfold secfold"${id ? ` id="${id}"` : ""} data-fold="sec-${key}"${foldOpen(`sec-${key}`, open) ? " open" : ""}>
     <summary class="card-head"><div><h2>${title}</h2>${line ? `<div class="s">${line}</div>` : ""}</div>
       ${badge ? `<span class="ibcount">${badge}</span>` : ""}<span class="ibcaret" aria-hidden="true">▾</span></summary>
     ${inner}</details>`;
@@ -3805,6 +3808,7 @@ function volunteerCard(ev, V) {
         ? { pill: `<span class="pill done">Signed</span> <span class="pill late">Not filed</span>`, sub: `signed ${day(v.signedAt)} · never reached SharePoint${f.error ? ` — ${esc(f.error)}` : f.reason ? ` — ${esc(f.reason)}` : ""}`, failed: true }
         : { pill: `<span class="pill done">Signed</span>`, sub: `signed ${day(v.signedAt)}${f?.ok ? " · filed" : ""}` };
     }
+    if (v.status === "submitted") return { pill: `<span class="pill you">Needs review</span>`, sub: `signed ${day(v.signedAt)} · asked for a hotel room · waiting on ONGIA`, review: true };
     if (!n) return { pill: `<span class="pill late">Never sent</span>`, sub: v.lastSendError ? `could not be emailed — ${esc(v.lastSendError.why)}` : "no link sent yet" };
     const chased = `${n} email${n === 1 ? "" : "s"}, last ${day(mails.at(-1).at)}`;
     return v.openedAt
@@ -3819,7 +3823,8 @@ function volunteerCard(ev, V) {
     if (v.status === "signed") {
       if (a.failed) main = b(`data-vrefile="${id}"`, "Retry filing", "gold");
       rest.push(b(`data-vpdf="${id}"`, "PDF"));
-    } else if (!(v.mail ?? []).length) main = b(`data-vinvite="${id}"`, "Email link", "gold");
+    } else if (v.status === "submitted") main = b(`data-vreview="${id}"`, "Review", "gold");
+    else if (!(v.mail ?? []).length) main = b(`data-vinvite="${id}"`, "Email link", "gold");
     else rest.push(b(`data-vinvite="${id}"`, "Email again"));
     rest.push(b(`data-vcopy="${esc(`${location.origin}/v/${v.token}`)}"`, "Copy link"), b(`data-vedit="${id}" title="Correct their name or email, or remove them from the event"`, "Edit"));
     // Same block as a presenter's row: an odd one out takes the width, so Copy link | Edit stay paired.
@@ -3837,13 +3842,13 @@ function volunteerCard(ev, V) {
   }).join("");
   const failedSends = list.filter((v) => v.lastSendError && v.status !== "signed");
   const line = list.length
-    ? [`${list.length} volunteer${list.length === 1 ? "" : "s"}`, c.signed ? `${c.signed} signed` : "", c.waiting ? `${c.waiting} waiting` : ""].filter(Boolean).join(" · ")
+    ? [`${list.length} volunteer${list.length === 1 ? "" : "s"}`, c.signed ? `${c.signed} signed` : "", c.review ? `${c.review} to review` : "", c.waiting ? `${c.waiting} waiting` : ""].filter(Boolean).join(" · ")
     : "Volunteers sign the ONGIA Volunteer Terms";
-  const badge = [c.uninvited ? `<span class="late">${c.uninvited} never sent</span>` : "", c.notFiled ? `<span class="late">${c.notFiled} not filed</span>` : ""].filter(Boolean).join(" · ");
+  const badge = [c.review ? `<span class="you">${c.review} to review</span>` : "", c.uninvited ? `<span class="late">${c.uninvited} never sent</span>` : "", c.notFiled ? `<span class="late">${c.notFiled} not filed</span>` : ""].filter(Boolean).join(" · ");
   return secFold("volunteers", "Volunteers", line, badge, `<div class="card-body">
     <div class="note" style="margin:0 0 14px">Each volunteer is emailed a link, reads the <b>ONGIA Volunteer Terms</b> (professional conduct, representing ONGIA and their own organization, behaviour and language),
-      confirms they are in good standing and not under a formal investigation, and signs by typing their name. The signed copy is emailed to them, filed in SharePoint under <b>Volunteer Agreements</b>, and the board is told.
-      <span class="porg">There is no review step, and nothing to do with presenters.</span></div>
+      confirms they are in good standing and not under a formal investigation, says whether they need a hotel room, and signs by typing their name. The signed copy is emailed to them, filed in SharePoint under <b>Volunteer Agreements</b>, and the board is told.
+      <span class="porg">If they need a room, a board member chooses their hotel nights first (or says none after all); only then is it final, and the nights go on the <b>Hotel rooms</b> list. Nothing to do with presenters.</span></div>
     ${leadPicker(ev, V)}
     ${failedSends.length ? `<div class="sendfail"><b>${failedSends.length} email${failedSends.length === 1 ? "" : "s"} could not be sent.</b>
       <div style="margin-top:6px">${failedSends.map((v) => `${esc(v.first)} ${esc(v.last)} — ${esc(v.lastSendError.why)}`).join("<br>")}</div>
@@ -3852,7 +3857,7 @@ function volunteerCard(ev, V) {
       <button class="btn btn-gold" id="v-add">Add volunteers</button>
       ${c.waiting ? `<button class="btn btn-ghost" id="v-mailall">Email all outstanding</button>` : ""}</div>
     <div class="tlist">${list.length ? `<div class="thead"><span>Volunteer</span><span>Agreement</span><span></span></div>${rows}` : `<div class="empty">No volunteers yet. Add their names, emails and agency to send each their agreement.</div>`}</div>
-  </div>`);
+  </div>`, { open: c.review > 0 });
 }
 
 /** Who manages the volunteers: replies, the signature on their emails, the PDF's contact, and the "signed" notice. */
@@ -3886,6 +3891,34 @@ function volunteerDialogs() {
           <div class="actions" style="margin-top:18px;flex-wrap:wrap">
             <button class="btn btn-gold" type="button" id="va-go">Add volunteers</button>
             <button class="btn btn-ghost" value="close" formnovalidate id="va-close">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="sheet" id="vreview">
+      <form method="dialog">
+        <div class="sheet-head"><h2 id="vr-title">Review this volunteer</h2>
+          <p class="hint" style="margin-top:6px" id="vr-what"></p></div>
+        <div class="sheet-body">
+          <div class="field"><label>Hotel</label>
+            <div class="vneed" id="vr-need">
+              <button type="button" data-need="yes" aria-pressed="false">Add hotel nights</button>
+              <button type="button" data-need="no" aria-pressed="false">No room needed</button></div>
+            <p class="hint">They asked for a hotel room. Choose their nights, or say that no room is needed. It can't be made final until you choose one.</p></div>
+          <div id="vr-nights" hidden>
+            <div class="row2">
+              <div class="field"><label for="vr-in">Check-in</label><select id="vr-in"></select></div>
+              <div class="field"><label for="vr-out">Check-out</label><select id="vr-out"></select></div>
+            </div>
+            <div class="field"><label for="vr-pays">Who pays</label><select id="vr-pays"><option value="ONGIA">ONGIA</option><option value="Guest">The volunteer</option></select></div>
+            <p class="hint" id="vr-sum"></p>
+          </div>
+          <div class="field"><label for="vr-name">Your name <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(this is your signature on the final copy)</span></label>
+            <input id="vr-name" autocomplete="name"></div>
+          <div id="vr-err"></div>
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-gold" type="button" id="vr-go" disabled>Approve and send the final copy</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
           </div>
         </div>
       </form>
@@ -3977,7 +4010,7 @@ function wireVolunteers(ev, V) {
     } catch (e) { toast(e.message); }
   };
   document.getElementById("v-mailall")?.addEventListener("click", () => {
-    const waiting = list.filter((v) => v.status !== "signed");
+    const waiting = list.filter((v) => v.status === "invited");
     if (confirm(`Email their link to ${waiting.length} volunteer${waiting.length === 1 ? "" : "s"} who haven't signed?`)) mail(null, "Nothing to send.");
   });
   ROOT.querySelectorAll("[data-vinvite]").forEach((b) => { b.onclick = () => mail([b.dataset.vinvite], "Nothing to send."); });
@@ -4006,6 +4039,46 @@ function wireVolunteers(ev, V) {
     };
   });
 
+  // Review: choose the hotel nights, or say none is needed; nothing can be approved until one is chosen.
+  const vr = document.getElementById("vreview");
+  const vrIn = document.getElementById("vr-in"), vrOut = document.getElementById("vr-out"), vrName = document.getElementById("vr-name"), vrGo = document.getElementById("vr-go");
+  let vrNeed = null, vrFor = null;
+  const vrCheck = () => {
+    const nights = vrNeed === "yes" && vrIn.value && vrOut.value && vrOut.value > vrIn.value;
+    document.getElementById("vr-nights").hidden = vrNeed !== "yes";
+    document.getElementById("vr-sum").textContent = nights ? `${Math.round((Date.parse(vrOut.value) - Date.parse(vrIn.value)) / 86400000)} night(s), ${fmtDate(vrIn.value)} to ${fmtDate(vrOut.value)}.` : (vrNeed === "yes" && vrIn.value && vrOut.value ? "Check-out has to be after check-in." : "");
+    vrGo.disabled = !(vrName.value.trim() && (vrNeed === "no" || nights));
+  };
+  ROOT.querySelectorAll("[data-vreview]").forEach((b) => {
+    b.onclick = () => {
+      const v = list.find((x) => x.id === b.dataset.vreview);
+      if (!v) return;
+      vrFor = v; vrNeed = null;
+      document.getElementById("vr-title").textContent = `Review ${named(v)}`;
+      document.getElementById("vr-what").textContent = `${v.organization ? v.organization + " · " : ""}signed ${fmtDate(v.signedAt.slice(0, 10))}. Once you approve, their final signed copy is emailed to them and filed in SharePoint.`;
+      document.querySelectorAll("#vr-need button").forEach((x) => x.setAttribute("aria-pressed", "false"));
+      vrIn.innerHTML = guestDays(ROOMING?.window, "in", ev); vrOut.innerHTML = guestDays(ROOMING?.window, "out", ev);
+      document.getElementById("vr-pays").value = "ONGIA";
+      vrName.value = WHO?.name ?? ""; document.getElementById("vr-err").innerHTML = "";
+      vrCheck(); vr.showModal();
+    };
+  });
+  document.querySelectorAll("#vr-need button").forEach((b) => {
+    b.onclick = () => { vrNeed = b.dataset.need; document.querySelectorAll("#vr-need button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); vrCheck(); };
+  });
+  for (const el of [vrIn, vrOut, vrName]) if (el) { el.oninput = vrCheck; el.onchange = vrCheck; }
+  if (vrGo) vrGo.onclick = async () => {
+    vrGo.disabled = true; vrGo.textContent = "Approving…";
+    try {
+      await api(`/volunteers?${q}&id=${encodeURIComponent(vrFor.id)}&action=approve`, { method: "POST", body: JSON.stringify({
+        approverName: vrName.value.trim(), hotel: { need: vrNeed, from: vrIn.value, to: vrOut.value, pays: document.getElementById("vr-pays").value } }) });
+      vr.close(); toast(`${named(vrFor)} approved. The final copy is on its way, and ${vrNeed === "yes" ? "their nights are on the hotel list" : "no room was added"}.`); render();
+    } catch (e) {
+      document.getElementById("vr-err").innerHTML = `<div class="bad"><b>Couldn't approve it.</b> ${esc(e.message)}</div>`;
+      vrGo.textContent = "Approve and send the final copy"; vrCheck();
+    }
+  };
+
   // Correct, or remove (two steps: say yes, then type DELETE, with a reason kept on the event).
   const vedit = document.getElementById("vedit");
   ROOT.querySelectorAll("[data-vedit]").forEach((b) => {
@@ -4017,6 +4090,7 @@ function wireVolunteers(ev, V) {
       const sent = (v.mail ?? []).length > 0;
       document.getElementById("ve-warn").innerHTML = v.status === "signed"
         ? `<div class="note" style="margin-top:14px">This agreement is already signed and filed. Correcting it here does not change the PDF in SharePoint.</div>`
+        : v.status === "submitted" ? `<div class="note" style="margin-top:14px">They have signed and are waiting for a board member to choose their hotel nights. Use <b>Review</b> on their row.</div>`
         : sent ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving, use <b>Email link</b> on their row to send it to the corrected one.</div>` : "";
       vedit.showModal();
       document.getElementById("ve-email").focus();

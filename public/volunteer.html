@@ -70,6 +70,16 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media (max-width:420px){.row2{grid-template-columns:1fr}}
 
+  .qblock{margin-top:18px;padding-top:16px;border-top:1px solid var(--hair)}
+  .qtext{font-size:15px;font-weight:500;margin-bottom:9px}
+  .seg{display:flex;gap:7px}
+  .seg button{flex:1;min-height:46px;border:1px solid var(--border);background:var(--sunk);color:var(--ink-mid);
+    border-radius:999px;padding:11px 6px;font-size:15px;font-weight:600;cursor:pointer;transition:background .16s,color .16s,border-color .16s}
+  .seg button:hover{border-color:var(--gold)}
+  .seg button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .qblock.err{border-left:3px solid var(--bad);padding-left:11px}
+  .qblock.err>.qtext{color:var(--bad)}
+
   /* The terms are the agreement, so they are on the page rather than behind a link. */
   .termlist{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;counter-reset:t}
   .termlist li{background:var(--sunk);padding:12px 14px 12px 44px;font-size:14.5px;line-height:1.5;position:relative;counter-increment:t}
@@ -158,6 +168,8 @@ en: {
   dates: "Event date", datesMany: "Event dates", venue: "Venue", city: "City",
   aboutYou: "About you", first: "First name", last: "Last name", email: "Email", org: "Agency or organization",
   phone: "Contact number", phoneHint: "So the event lead can reach you at the event.",
+  needHotel: "Will you require hotel accommodation?", yes: "Yes", no: "No",
+  hotelHint: "If you answer yes, an ONGIA board member will confirm your hotel nights before your agreement is final.",
   signHead: "Confirm and sign", typeName: "Type your full name to sign", eSig: "Electronic signature",
   agreed: "I understand that my typed name constitutes a legally binding electronic signature and certifies that the information contained in this agreement is accurate and complete.",
   submit: "Sign and send", sending: "Sending…",
@@ -167,6 +179,10 @@ en: {
   vName: "Please add your first and last name.", vEmail: "That email address doesn't look right.", vPhone: "Please add a contact number.",
   vTerms: "Please read and agree to the Volunteer Terms.", vStanding: "Please confirm you are in good standing and not under a formal investigation.",
   vSign: "Please type your name to sign.", vAgree: "Please confirm your electronic signature.",
+  vHotel: "Please tell us whether you will need hotel accommodation.",
+  waitP: "ONGIA has your signed agreement. One more step happens on our side before it's final.",
+  waitNext1: "A board member confirms your hotel nights", waitNext2: "Your final signed copy is then emailed to you",
+  receiptTo: (e) => `A receipt was emailed to ${e}`, notReceipt: "We couldn't email you a receipt, but ONGIA has your signed agreement.", alreadyWaitP: "ONGIA has your signed agreement. A board member is confirming your hotel nights, and your final signed copy will be emailed to you.",
   doneTitle: "Thank you — you're signed", doneP: "ONGIA has your signed Volunteer Agreement.",
   signedOn: (d) => `Signed ${d}`, emailedTo: (e) => `A copy was emailed to ${e}`,
   notEmailed: "We couldn't email your copy, so please download it below.",
@@ -190,6 +206,8 @@ fr: {
   dates: "Date de l'événement", datesMany: "Dates de l'événement", venue: "Lieu", city: "Ville",
   aboutYou: "À propos de vous", first: "Prénom", last: "Nom", email: "Courriel", org: "Organisme ou organisation",
   phone: "Numéro de téléphone", phoneHint: "Pour que la personne responsable de l'événement puisse vous joindre sur place.",
+  needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", yes: "Oui", no: "Non",
+  hotelHint: "Si vous répondez oui, un membre du conseil d'ONGIA confirmera vos nuitées d'hôtel avant que votre entente soit définitive.",
   signHead: "Confirmer et signer", typeName: "Tapez votre nom complet pour signer", eSig: "Signature électronique",
   agreed: "Je comprends que mon nom tapé constitue une signature électronique juridiquement contraignante et atteste que les renseignements contenus dans la présente entente sont exacts et complets.",
   submit: "Signer et envoyer", sending: "Envoi…",
@@ -199,6 +217,10 @@ fr: {
   vName: "Veuillez indiquer votre prénom et votre nom.", vEmail: "Cette adresse courriel semble incorrecte.", vPhone: "Veuillez indiquer un numéro de téléphone.",
   vTerms: "Veuillez lire et accepter les conditions applicables aux bénévoles.", vStanding: "Veuillez confirmer que vous êtes en règle et que vous ne faites l'objet d'aucune enquête officielle.",
   vSign: "Veuillez taper votre nom pour signer.", vAgree: "Veuillez confirmer votre signature électronique.",
+  vHotel: "Veuillez indiquer si vous aurez besoin d'un hébergement à l'hôtel.",
+  waitP: "ONGIA a reçu votre entente signée. Il reste une étape de notre côté avant qu'elle soit définitive.",
+  waitNext1: "Un membre du conseil confirme vos nuitées d'hôtel", waitNext2: "Votre copie finale signée vous est ensuite envoyée par courriel",
+  receiptTo: (e) => `Un accusé de réception a été envoyé à ${e}`, notReceipt: "Nous n'avons pas pu vous envoyer d'accusé de réception, mais ONGIA a bien reçu votre entente signée.", alreadyWaitP: "ONGIA a reçu votre entente signée. Un membre du conseil confirme vos nuitées d'hôtel et votre copie finale signée vous sera envoyée par courriel.",
   doneTitle: "Merci — c'est signé", doneP: "ONGIA a reçu votre entente de bénévole signée.",
   signedOn: (d) => `Signée le ${d}`, emailedTo: (e) => `Une copie a été envoyée à ${e}`,
   notEmailed: "Nous n'avons pas pu vous envoyer votre copie par courriel; veuillez la télécharger ci-dessous.",
@@ -229,7 +251,7 @@ paintHero();
 LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
 
 let DATA = null, DONE = null, sending = false, restored = false;
-const S = { first: "", last: "", email: "", organization: "", phone: "", termsAccepted: false, standing: false, signature: "", agreed: false, problems: [] };
+const S = { first: "", last: "", email: "", organization: "", phone: "", accommodation: null, termsAccepted: false, standing: false, signature: "", agreed: false, problems: [] };
 
 /**
  * Answers are kept on the device as they are typed and put back on the way in, so a
@@ -237,7 +259,7 @@ const S = { first: "", last: "", email: "", organization: "", phone: "", termsAc
  * never shows one volunteer's answers to another; cleared the moment they sign.
  */
 const DRAFT_KEY = `ongia-vdraft-${TOKEN}`;
-const DRAFT_FIELDS = ["first", "last", "email", "organization", "phone", "termsAccepted", "standing", "signature", "agreed"];
+const DRAFT_FIELDS = ["first", "last", "email", "organization", "phone", "accommodation", "termsAccepted", "standing", "signature", "agreed"];
 const saveDraft = () => { try { const keep = {}; for (const k of DRAFT_FIELDS) keep[k] = S[k]; localStorage.setItem(DRAFT_KEY, JSON.stringify(keep)); } catch {} };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
 const loadDraft = () => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null"); return d && typeof d === "object" ? d : null; } catch { return null; } };
@@ -283,6 +305,7 @@ function validate() {
   if (!S.first.trim() || !S.last.trim()) add(t("vName"), S.first.trim() ? "f-last" : "f-first");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email.trim())) add(t("vEmail"), "f-email");
   if (S.phone.replace(/\D/g, "").length < 7) add(t("vPhone"), "f-phone");
+  if (!S.accommodation) add(t("vHotel"), "q-accommodation");
   if (!S.termsAccepted) add(t("vTerms"), "f-terms");
   if (!S.standing) add(t("vStanding"), "f-standing");
   if (!S.signature.trim()) add(t("vSign"), "f-sign");
@@ -302,7 +325,7 @@ function refreshProblems() {
   const now = validate();
   const still = new Set(now.map((p) => p.at));
   for (const block of ROOT.querySelectorAll(".err")) {
-    const ids = [...block.querySelectorAll("[id]")].map((x) => x.id);
+    const ids = [...block.querySelectorAll("[id]")].map((x) => x.id).concat(block.id || []);
     if (!ids.some((id) => still.has(id))) { block.classList.remove("err"); block.querySelector(".errmark")?.remove(); }
   }
   S.problems = now;
@@ -334,7 +357,10 @@ function formMarkup() {
       ${field("f-org", "organization", t("org"), "text", 'autocomplete="organization"')}
       <div class="field${has("f-phone") ? " err" : ""}"><label for="f-phone">${t("phone")}</label>
         <input id="f-phone" data-bind="phone" type="tel" value="${esc(S.phone)}" autocomplete="tel" inputmode="tel" placeholder="416-555-0100">
-        ${errMark("f-phone")}<p class="hint">${t("phoneHint")}</p></div></div>
+        ${errMark("f-phone")}<p class="hint">${t("phoneHint")}</p></div>
+      <div class="qblock${has("q-accommodation") ? " err" : ""}" id="q-accommodation"><p class="qtext">${t("needHotel")}</p>
+        <div class="seg">${["yes", "no"].map((v) => `<button type="button" data-seg="accommodation" data-val="${v}" aria-pressed="${S.accommodation === v}">${t(v)}</button>`).join("")}</div>
+        <p class="hint">${t("hotelHint")}</p>${errMark("q-accommodation")}</div></div>
     <div class="card"><h2>${esc(T2.title)}</h2><p class="lede">${esc(T2.intro)}</p>
       <ol class="termlist">${T2.items.map(([h, x]) => `<li><b>${esc(h)}</b>${esc(x)}</li>`).join("")}</ol></div>
     <div class="card"><h2>${t("signHead")}</h2>
@@ -352,25 +378,30 @@ function formMarkup() {
 
 function signedMarkup(result) {
   const v = DATA.volunteer, fresh = !!result;
+  const review = result ? result.review === true : v.status === "submitted";   // signed, waiting for a board member to set the hotel nights
   const at = v.signedAt ? fmtDate(v.signedAt.slice(0, 10)) : fmtDate(today());
   const emailed = result ? result.emailed !== false : null;
   const pdf = result?.pdf ?? `/api/volunteer?t=${encodeURIComponent(TOKEN)}&pdf=1`;
   const contact = DATA.event.contact?.name ?? "";
+  const list = review
+    ? `<div><b>✓</b><span>${t("signedOn", esc(at))}</span></div>
+       ${fresh ? `<div><b>${emailed ? "✓" : "→"}</b><span>${emailed ? t("receiptTo", esc(S.email || v.email)) : t("notReceipt")}</span></div>` : ""}
+       <div><b>→</b><span>${t("waitNext1")}</span></div><div><b>→</b><span>${t("waitNext2")}</span></div>`
+    : `<div><b>✓</b><span>${t("signedOn", esc(at))}</span></div>
+       ${fresh ? `<div><b>${emailed ? "✓" : "!"}</b><span>${emailed ? t("emailedTo", esc(S.email || v.email)) : t("notEmailed")}</span></div>` : ""}`;
   return `<div class="wrap"><div class="card done-screen"><div class="tick">✓</div>
-    <h2>${fresh ? t("doneTitle") : t("alreadyTitle")}</h2><p>${fresh ? t("doneP") : t("alreadyP")}</p>
-    <div class="done-list">
-      <div><b>✓</b><span>${t("signedOn", esc(at))}</span></div>
-      ${fresh ? `<div><b>${emailed ? "✓" : "!"}</b><span>${emailed ? t("emailedTo", esc(S.email || v.email)) : t("notEmailed")}</span></div>` : ""}
-    </div>
-    <div class="done-actions"><a class="btn btn-gold" href="${esc(pdf)}">${t("download")}</a></div>
+    <h2>${fresh ? t("doneTitle") : t("alreadyTitle")}</h2><p>${review ? (fresh ? t("waitP") : t("alreadyWaitP")) : fresh ? t("doneP") : t("alreadyP")}</p>
+    <div class="done-list">${list}</div>
+    ${review ? "" : `<div class="done-actions"><a class="btn btn-gold" href="${esc(pdf)}">${t("download")}</a></div>`}
     <p class="ref">${t("reference", esc(result?.reference ?? v.reference))}</p>
     <p class="hint" style="margin-top:8px">${t("questions", esc(contact))}</p></div></div>`;
 }
 
 function render() {
   document.title = t("pageTitle");
-  ROOT.innerHTML = DONE ? signedMarkup(DONE) : DATA.volunteer.status === "signed" ? signedMarkup(null) : formMarkup();
-  if (DONE || DATA.volunteer.status === "signed") window.scrollTo(0, 0);
+  const closed = DONE || DATA.volunteer.status !== "invited";    // signed: final, or waiting for the hotel nights
+  ROOT.innerHTML = DONE ? signedMarkup(DONE) : closed ? signedMarkup(null) : formMarkup();
+  if (closed) window.scrollTo(0, 0);
 }
 
 /* ---------- events ---------- */
@@ -385,6 +416,14 @@ ROOT.addEventListener("input", (e) => {
 ROOT.addEventListener("click", (e) => {
   const go = e.target.closest("[data-goto]");
   if (go) { e.preventDefault(); const el = document.getElementById(go.dataset.goto); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus({ preventScroll: true }); return; }
+  const seg = e.target.closest("[data-seg]");
+  if (seg) {
+    S[seg.dataset.seg] = seg.dataset.val;
+    seg.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === seg)));
+    saveDraft();
+    if (S.problems.length) refreshProblems();
+    return;
+  }
   if (e.target.closest("#submit")) submit();
 });
 
@@ -401,12 +440,12 @@ async function submit() {
   try {
     const res = await fetch(`/api/volunteer?t=${encodeURIComponent(TOKEN)}`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ first: S.first, last: S.last, email: S.email, organization: S.organization, phone: S.phone,
+      body: JSON.stringify({ first: S.first, last: S.last, email: S.email, organization: S.organization, phone: S.phone, accommodation: S.accommodation,
         termsAccepted: S.termsAccepted, standing: S.standing, signature: S.signature, agreed: S.agreed, language: LANG }),
     });
     const out = await res.json().catch(() => ({}));
     sending = false;
-    if (res.ok) { clearDraft(); DATA.volunteer.status = "signed"; DONE = out; render(); return; }
+    if (res.ok) { clearDraft(); DATA.volunteer.status = out.review ? "submitted" : "signed"; DONE = out; render(); return; }
     S.problems = (out.problems ?? [serverText(out.error)]).map((m) => ({ msg: m, at: null }));
     render();
   } catch {
@@ -431,7 +470,7 @@ async function submit() {
     DATA = out;
     Object.assign(S, { first: out.volunteer.first ?? "", last: out.volunteer.last ?? "", email: out.volunteer.email ?? "", organization: out.volunteer.organization ?? "" });
     const d = loadDraft();
-    if (d && out.volunteer.status !== "signed") {
+    if (d && out.volunteer.status === "invited") {
       for (const k of DRAFT_FIELDS) if (d[k] !== undefined) S[k] = d[k];
       S.phone = formatPhone(S.phone);
       restored = !!String(d.signature || d.phone).trim() || d.termsAccepted || d.standing;

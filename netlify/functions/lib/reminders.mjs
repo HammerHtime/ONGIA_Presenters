@@ -96,7 +96,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     // Volunteers' agreements: a gentle weekly nudge, three at most.
     if (!digestOnly) {
       for (const v of await listVolunteers(event.id)) {
-        if (v.status === "signed" || !v.mail?.length) continue;
+        if (v.status !== "invited" || !v.mail?.length) continue;
         if (v.mail.filter((m) => m.type === "reminder-auto").length >= VOLUNTEER_REMINDERS) continue;
         if (daysBetween(v.mail.at(-1).at.slice(0, 10), today) < VOLUNTEER_EVERY || alreadyToday(v, today)) continue;
         plan.push({

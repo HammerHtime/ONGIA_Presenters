@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, isEmail, text } from "./lib/http.mjs";
-import { getEvent, putEvent, listPresenters, getRoster } from "./lib/store.mjs";
+import { getEvent, putEvent, listPresenters, listVolunteers, getRoster } from "./lib/store.mjs";
 import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard, typeOf } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
@@ -31,7 +31,7 @@ export default async (req) => {
   const body = ["POST", "PUT"].includes(req.method) ? await req.json().catch(() => ({})) : null;
   // The board roster's names: anyone on it is always ONGIA's to pay for.
   const board = ((await getRoster()) ?? []).map((m) => m.name).filter(Boolean);
-  const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+  const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
   const pick = (keys) => (Array.isArray(keys) ? rows.filter((r) => keys.includes(r.key)) : rows.filter((r) => r.confirmed));
 
   if (req.method === "GET") {
@@ -51,7 +51,7 @@ export default async (req) => {
     event.roomingTypes = { ...(event.roomingTypes ?? {}) };
     if (type === "Presenter") delete event.roomingTypes[body.id]; else event.roomingTypes[body.id] = type;
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
     return json(state(event, again.rows, again.waiting, board));
   }
 
@@ -67,7 +67,7 @@ export default async (req) => {
     }
     event.roomingGuests = out;
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
     return json(state(event, again.rows, again.waiting, board));
   }
 
@@ -86,7 +86,7 @@ export default async (req) => {
     }
     event.roomingGuests = [...(event.roomingGuests ?? []), ...fresh];
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board);
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
     return json({ ok: true, added: fresh.length, problems: read.problems, skipped: read.skipped, ...state(event, again.rows, again.waiting, board) });
   }
 

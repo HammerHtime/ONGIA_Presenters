@@ -3,7 +3,9 @@ import { siteUrl } from "./lib/site.mjs";
 import { getEvent, putEvent, listVolunteers, getVolunteer, putVolunteer, getPdf, deleteKey, getRoster } from "./lib/store.mjs";
 import { volunteerContact } from "./lib/mail.mjs";
 import { safeFileName } from "./lib/ids.mjs";
-import { cleanRows, newVolunteer, inviteVolunteer, deliverVolunteer, buildAndStore, pdfKey, volunteerCounts, VOLUNTEER_MAX } from "./lib/volunteers.mjs";
+import { formatDate } from "./lib/deadlines.mjs";
+import { cleanRows, newVolunteer, inviteVolunteer, deliverVolunteer, completeAgreement, buildAndStore, pdfKey, volunteerCounts, VOLUNTEER_MAX } from "./lib/volunteers.mjs";
+import { guestWindow } from "./lib/rooming.mjs";
 
 /**
  * The desk's side of volunteers (the volunteer's own side is volunteer.mjs).
@@ -12,6 +14,7 @@ import { cleanRows, newVolunteer, inviteVolunteer, deliverVolunteer, buildAndSto
  *   GET    /api/volunteers?event=…&id=…&pdf=1              the signed PDF
  *   POST   /api/volunteers?event=…                         body { volunteers: [{ first, last, email, organization }], invite? }
  *   POST   /api/volunteers?event=…&action=invite           body { ids? } email the link (a reminder if it was sent before)
+ *   POST   /api/volunteers?event=…&id=…&action=approve     body { approverName, hotel: { need: "yes"|"no", from, to, pays } } make it final
  *   POST   /api/volunteers?event=…&id=…&action=redeliver   body { all?, only?, rebuild? } retry filing / emails
  *   PUT    /api/volunteers?event=…&id=…                    correct name, email, agency
  *   PUT    /api/volunteers?event=…&lead=1                  body { email } who manages the volunteers ('' = the event lead)
@@ -37,6 +40,7 @@ export default async (req) => {
   if (req.method === "POST") {
     const action = url.searchParams.get("action");
     if (action === "invite") return sendLinks(event, body, origin);
+    if (action === "approve") return approve(event, id, body);
     if (action === "redeliver") return redeliver(event, id, body);
     return add(event, body, origin);
   }
@@ -96,10 +100,10 @@ async function add(event, body, origin) {
 /** Email the link to the named volunteers, or to everyone who hasn't signed. A second send is a reminder. */
 async function sendLinks(event, body, origin) {
   const wanted = Array.isArray(body?.ids) ? new Set(body.ids) : null;
-  const people = (await listVolunteers(event.id)).filter((v) => (wanted ? wanted.has(v.id) : v.status !== "signed"));
+  const people = (await listVolunteers(event.id)).filter((v) => (wanted ? wanted.has(v.id) : v.status === "invited"));
   const sent = [], failed = [];
   for (const v of people) {
-    if (v.status === "signed") continue;
+    if (v.status !== "invited") continue;     // signed, or with a board member for their hotel nights
     const out = await inviteVolunteer(event, v, origin, { remind: !!v.mail?.length });
     (out.ok ? sent : failed).push({ id: v.id, name: `${v.first} ${v.last}`, ...(out.ok ? {} : { why: out.why }) });
   }
@@ -136,6 +140,38 @@ async function remove(event, id, finalToo, reason) {
   await putEvent(event);
   await Promise.all([deleteKey(`volunteer:${event.id}:${v.id}`), v.token ? deleteKey(`vtoken:${v.token}`) : null, deleteKey(`pdf:${pdfKey(event.id, v.id)}`)]);
   return json({ ok: true });
+}
+
+/**
+ * The board member's step for a volunteer who asked for a hotel room. Nothing is final until it runs,
+ * and it will not run without an answer: hotel nights inside the event's window, or an explicit
+ * "no room needed". Then the PDF is built, filed, emailed back to the volunteer, and the nights
+ * appear on the hotel list.
+ */
+async function approve(event, id, body) {
+  const v = id ? await getVolunteer(event.id, id) : null;
+  if (!v) return fail("No such volunteer.", 404);
+  if (v.status !== "submitted") return fail(v.status === "signed" ? "Already final. Use redeliver to resend or refile it." : "They haven't signed yet, so there is nothing to approve.", 409);
+  const approverName = text(body.approverName, 120);
+  if (!approverName) return fail("The approving board member's name is required — it is the signature.");
+
+  const need = body?.hotel?.need;
+  if (need !== "yes" && need !== "no") return fail("Choose their hotel nights, or say that no room is needed. It can't be made final until you do.");
+  let hotel = null;
+  if (need === "yes") {
+    const isDate = (x) => /^\d{4}-\d{2}-\d{2}$/.test(x);
+    const from = text(body.hotel.from, 10), to = text(body.hotel.to, 10), win = guestWindow(event);
+    if (!isDate(from) || !isDate(to)) return fail("Pick both a check-in and a check-out date.");
+    if (to <= from) return fail("Check-out has to be after check-in.");
+    if (win && (from < win.from || to > win.to)) return fail(`Rooms can be booked from ${formatDate(win.from)} to ${formatDate(win.to)}, three days either side of the training.`);
+    hotel = { from, to, nights: Math.round((Date.parse(to) - Date.parse(from)) / 86400000), pays: body.hotel.pays === "Guest" ? "Guest" : "ONGIA" };
+  }
+  v.review = { hotel, approver: { name: approverName }, approvedAt: new Date().toISOString() };
+  v.status = "signed";
+  // The decision is saved before any network call: an email hiccup must never lose a board member's answer.
+  await putVolunteer(v);
+  await completeAgreement(event, v);
+  return json({ ok: true, volunteer: v, delivery: v.delivery });
 }
 
 async function redeliver(event, id, body) {

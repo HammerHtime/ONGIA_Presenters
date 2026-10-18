@@ -3,7 +3,7 @@ import { token, reference, safeFileName } from "./ids.mjs";
 import { putVolunteer, putPdf } from "./store.mjs";
 import { buildVolunteerPdf } from "./pdf.mjs";
 import { fileVolunteerAgreement } from "./graph.mjs";
-import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail } from "./mail.mjs";
+import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail, volunteerReceivedMail, volunteerReviewNeededMail } from "./mail.mjs";
 
 /**
  * Volunteers: people ONGIA asks to sign the Volunteer Terms before an event.
@@ -11,8 +11,13 @@ import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMai
  * board approval, so signing is the whole flow:
  *
  *   added by the desk → emailed their link → opens it → reads the terms, ticks
- *   the two boxes, signs → the PDF is built, filed to SharePoint, emailed to
- *   them, and the board is told.
+ *   the two boxes, says whether they need a hotel room, signs.
+ *     No room needed → final at once: the PDF is built, filed to SharePoint,
+ *       emailed to them, and the board is told.
+ *     Room needed → "submitted": a board member chooses their hotel nights (or
+ *       says none after all), approves it, and only then is it final, filed,
+ *       emailed back, and on the hotel rooming list.
+ *   Statuses: invited → submitted (only when a room is wanted) → signed (final).
  *
  * Kept on their own records (see store.mjs) so none of the presenter counts,
  * reminders or rooming rows can pick one up.
@@ -52,6 +57,10 @@ export function newVolunteer(event, row) {
     openedAt: null, signedAt: null, submission: null,
   };
 }
+
+/** Who hears about a volunteer: the event's lead, the volunteer lead, the board copies and the contact. */
+export const boardRecipients = (event) =>
+  [...new Set([event.reviewer?.email, event.volunteerLead?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
 
 /** Run a side effect and record how it went rather than throwing. */
 export async function attempt(fn) {
@@ -108,7 +117,7 @@ export async function deliverVolunteer(event, volunteer, pdf, which = { filing: 
       .then((r) => { volunteer.delivery.volunteerEmail = r; }));
   }
   if (which.boardEmail) {
-    const recipients = [...new Set([event.reviewer?.email, event.volunteerLead?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+    const recipients = boardRecipients(event);
     if (!recipients.length) volunteer.delivery.boardEmail = { ok: true, skipped: true, reason: "No board emails on this event." };
     else {
       const filing = volunteer.delivery.filing?.result ?? volunteer.delivery.filing;
@@ -128,14 +137,43 @@ export async function buildAndStore(event, volunteer) {
   return pdf;
 }
 
+/** Make the agreement final: build the PDF, file it, email the volunteer, tell the board. */
+export async function completeAgreement(event, volunteer) {
+  const pdf = await buildAndStore(event, volunteer);
+  volunteer.delivery = {};
+  await deliverVolunteer(event, volunteer, pdf);
+  await putVolunteer(volunteer);
+  return volunteer.delivery;
+}
+
+/**
+ * A volunteer who wants a hotel room has signed, but a board member has to choose the nights
+ * before it is final. The volunteer is told it is with ONGIA; the board is told it is waiting.
+ */
+export async function requestReview(event, volunteer, origin) {
+  const adminUrl = `${origin}/admin.html#event/${encodeURIComponent(event.id)}`;
+  const replyTo = volunteerContact(event).email || undefined;
+  const recipients = boardRecipients(event);
+  volunteer.delivery = {
+    received: await attempt(() => sendMail({ to: volunteer.email, replyTo, ...volunteerReceivedMail({ event, volunteer }) })),
+    reviewNotice: recipients.length
+      ? await attempt(() => sendMail({ to: recipients, replyTo, ...volunteerReviewNeededMail({ event, volunteer, adminUrl }) }))
+      : { ok: true, skipped: true, reason: "No board emails on this event." },
+  };
+  await putVolunteer(volunteer);
+}
+
 /** What went wrong with a signed volunteer's delivery, if anything: the filing is the one that matters. */
 export const notFiled = (v) => v.status === "signed" && v.delivery?.filing && v.delivery.filing.ok === false;
 
+// `waiting` is the ones still to sign. A volunteer who has signed and wants a room is `review`:
+// it is ONGIA's move, not theirs.
 export const volunteerCounts = (list) => ({
   total: list.length,
   signed: list.filter((v) => v.status === "signed").length,
-  waiting: list.filter((v) => v.status !== "signed").length,
-  uninvited: list.filter((v) => v.status !== "signed" && !v.mail?.length).length,
+  review: list.filter((v) => v.status === "submitted").length,
+  waiting: list.filter((v) => v.status === "invited").length,
+  uninvited: list.filter((v) => v.status === "invited" && !v.mail?.length).length,
   notFiled: list.filter(notFiled).length,
 });
 
