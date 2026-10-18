@@ -2,6 +2,8 @@
  * The address presenters and board members are sent to. APP_URL is set
  * deliberately; Netlify's own URL follows whatever domain happens to be
  * primary, which once minted links to a domain that was removed an hour later.
+ * Since 18 Oct 2026 APP_URL is https://events.ongia.org; the netlify.app address
+ * still serves the same site, so links sent before then keep working.
  */
 export function siteUrl(req) {
   const configured = process.env.APP_URL || process.env.URL;
