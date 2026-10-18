@@ -567,7 +567,7 @@ export function finalCopyMail({ event, presenter, approval, coverage }) {
 
 const frCost = (c) => ({ transportation: "le transport", accommodation: "l'hébergement", meals: "les repas", "other costs": "les autres frais" }[c] ?? c);
 
-/** Sent to the board/notify list when a presenter submits, so someone reviews it. */
+/** Sent to the lead, the president and the VP when a presenter submits, so someone reviews it. */
 export function reviewNeededMail({ event, presenter, adminUrl }) {
   const heading = `Ready for review: ${presenter.first} ${presenter.last} — ${event.title}`;
   const lines = [
@@ -582,7 +582,7 @@ export function reviewNeededMail({ event, presenter, adminUrl }) {
   };
 }
 
-/** Sent to the notify list once the final copy exists. */
+/** Sent to the lead, the president and the VP once the final copy exists. */
 export function approvedNoticeMail({ event, presenter, approval, coverage, filing }) {
   const heading = `Final: ${presenter.first} ${presenter.last} — ${event.title}`;
   const lines = [

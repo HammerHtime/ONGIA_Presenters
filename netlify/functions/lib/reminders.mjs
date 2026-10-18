@@ -3,7 +3,7 @@ import { inviteVolunteer } from "./volunteers.mjs";
 import { checklistOf } from "./checklist.mjs";
 import { letterProblems, eventProblems, datesOf } from "./letters.mjs";
 import { describeEvent, formatDate, todayIso } from "./deadlines.mjs";
-import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf } from "./mail.mjs";
+import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf, agreementRecipients } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
 import { weeklyDigestMail } from "./mail.mjs";
 import { countStatuses } from "../events.mjs";
@@ -210,7 +210,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     // the board digest is the only place this can surface.
     const neverSent = outstanding.filter((p) => !p.mail?.length);
     const boardDay = dayOffset >= BOARD_FIRST && (dayOffset - BOARD_FIRST) % OVERDUE_EVERY === 0;
-    const recipients = [...new Set([...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+    // The lead, the president and the VP, as for every agreement notice; not the whole board on the event.
+    const recipients = agreementRecipients(event);
     if (!digestOnly && boardDay && (overdue.length || neverSent.length) && recipients.length && event.lastBoardDigest !== today) {
       plan.push({
         kind: "board",
