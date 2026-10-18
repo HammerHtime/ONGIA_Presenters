@@ -1,4 +1,5 @@
-import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
+import { deskOwners, isOwner } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { getRoster, putRoster } from "./lib/store.mjs";
 
@@ -6,8 +7,12 @@ import { getRoster, putRoster } from "./lib/store.mjs";
  * The board roster the event form picks from. Seeded once from the ONGIA
  * directory; edited here rather than typed into every event.
  *
- *   GET /api/roster          { members: [{ name, email, phone }] }
+ *   GET /api/roster          { members: [{ name, email, phone, desk, lastSignIn }], owners, canGrant }
  *   PUT /api/roster          replace the list
+ *
+ * `desk` is whether that person may sign in to the desk with their Microsoft
+ * account. Only an owner (DESK_OWNERS) or the shared key can change it; anyone
+ * else's save keeps the switches exactly as they were.
  */
 const SEED = [
   ["Andrew Hammond", "president@ongia.ca"],
@@ -35,24 +40,32 @@ export default async (req) => {
     let members = await getRoster();
     if (!members) { members = SEED; await putRoster(members); }
     // Rows stored before phones existed have none; answer with the field present.
-    return json({ members: members.map((m) => ({ phone: "", sponsorLead: false, ...m })) });
+    const who = adminWho(req);
+    return json({ members: members.map((m) => ({ phone: "", sponsorLead: false, desk: false, ...m })),
+      owners: deskOwners(), canGrant: who.key === true || isOwner(who.email) });
   }
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
     const rows = Array.isArray(body?.members) ? body.members : null;
     if (!rows) return fail("Expected { members: [...] }.");
+    const who = adminWho(req);
+    const canGrant = who.key === true || isOwner(who.email);
+    const before = new Map(((await getRoster()) ?? []).map((m) => [String(m.email).toLowerCase(), m]));
     const members = [];
     for (const row of rows.slice(0, 100)) {
       const name = text(row.name, 120), email = text(row.email, 200);
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
-      members.push({ name, email, phone: formatPhone(text(row.phone, 60)), sponsorLead: row.sponsorLead === true });
+      const was = before.get(email.toLowerCase());
+      members.push({ name, email, phone: formatPhone(text(row.phone, 60)), sponsorLead: row.sponsorLead === true,
+        desk: canGrant ? row.desk === true : was?.desk === true,
+        ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}) });
     }
     // One person carries sponsorship for all of ONGIA, so the flag is a radio,
     // not a checkbox: the last one ticked wins and the rest are cleared.
     const leadAt = members.findIndex((m) => m.sponsorLead);
     members.forEach((m, i) => { m.sponsorLead = i === leadAt; });
     await putRoster(members);
-    return json({ members });
+    return json({ members, owners: deskOwners(), canGrant });
   }
   return fail("Method not allowed.", 405);
 };
