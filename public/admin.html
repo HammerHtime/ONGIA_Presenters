@@ -3844,6 +3844,7 @@ function volunteerCard(ev, V) {
     <div class="note" style="margin:0 0 14px">Each volunteer is emailed a link, reads the <b>ONGIA Volunteer Terms</b> (professional conduct, representing ONGIA and their own organization, behaviour and language),
       confirms they are in good standing and not under a formal investigation, and signs by typing their name. The signed copy is emailed to them, filed in SharePoint under <b>Volunteer Agreements</b>, and the board is told.
       <span class="porg">There is no review step, and nothing to do with presenters.</span></div>
+    ${leadPicker(ev, V)}
     ${failedSends.length ? `<div class="sendfail"><b>${failedSends.length} email${failedSends.length === 1 ? "" : "s"} could not be sent.</b>
       <div style="margin-top:6px">${failedSends.map((v) => `${esc(v.first)} ${esc(v.last)} — ${esc(v.lastSendError.why)}`).join("<br>")}</div>
       <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the volunteer, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
@@ -3852,6 +3853,23 @@ function volunteerCard(ev, V) {
       ${c.waiting ? `<button class="btn btn-ghost" id="v-mailall">Email all outstanding</button>` : ""}</div>
     <div class="tlist">${list.length ? `<div class="thead"><span>Volunteer</span><span>Agreement</span><span></span></div>${rows}` : `<div class="empty">No volunteers yet. Add their names, emails and agency to send each their agreement.</div>`}</div>
   </div>`);
+}
+
+/** Who manages the volunteers: replies, the signature on their emails, the PDF's contact, and the "signed" notice. */
+function leadPicker(ev, V) {
+  const onEvent = (ev.board ?? []).filter((m) => m.email);
+  const seen = new Set(onEvent.map((m) => m.email.toLowerCase()));
+  const others = (ROSTER ?? []).filter((m) => m.email && !seen.has(m.email.toLowerCase()));
+  const chosen = (V?.lead?.email ?? "").toLowerCase();
+  const opt = (m) => `<option value="${esc(m.email)}"${m.email.toLowerCase() === chosen ? " selected" : ""}>${esc(m.name || m.email)}</option>`;
+  const fallback = ev.reviewer?.name ? `Same as the event lead (${esc(ev.reviewer.name)})` : "Same as the event lead";
+  if (!onEvent.length && !others.length) return "";
+  return `<div class="field" style="margin:0 0 14px;max-width:420px"><label for="v-lead">Volunteer lead</label>
+    <select id="v-lead"><option value=""${chosen ? "" : " selected"}>${fallback}</option>
+      ${onEvent.length ? `<optgroup label="On this event">${onEvent.map(opt).join("")}</optgroup>` : ""}
+      ${others.length ? `<optgroup label="Other board members">${others.map(opt).join("")}</optgroup>` : ""}</select>
+    <p class="hint">${chosen ? `Volunteers hear from <b>${esc(V.lead.name)}</b>: replies go to them, their name is on every volunteer email and signed copy, and they are told when a volunteer signs.`
+      : "Volunteers hear from the event lead. Pick someone else to manage them: replies, the name on their emails and signed copies, and the signed notice all go to that person."}</p></div>`;
 }
 
 function volunteerDialogs() {
@@ -3915,6 +3933,16 @@ function wireVolunteers(ev, V) {
   const list = V?.volunteers ?? [];
   const q = `event=${encodeURIComponent(ev.id)}`;
   const named = (v) => `${v.first} ${v.last}`.trim();
+
+  // The volunteer lead: saved the moment it is picked.
+  const lead = document.getElementById("v-lead");
+  if (lead) lead.onchange = async () => {
+    try {
+      const r = await api(`/volunteers?${q}&lead=1`, { method: "PUT", body: JSON.stringify({ email: lead.value }) });
+      toast(r.lead ? `${r.lead.name} now manages the volunteers.` : "Volunteers go to the event lead.");
+      render();
+    } catch (e) { toast(e.message); }
+  };
 
   // Add: one per line. Anything turned away stays in the box with the reason, so it can be fixed and sent again.
   const vadd = document.getElementById("vadd"), rows = document.getElementById("va-rows"), out = document.getElementById("va-out"), go = document.getElementById("va-go");
@@ -4797,6 +4825,7 @@ async function render() {
         api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api("/events").catch(() => ({ events: [] })),
         api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        loadRoster(),   // the board, for the volunteer lead picker
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, allEvents: list.events ?? [] });

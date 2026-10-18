@@ -1,18 +1,20 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
-import { getEvent, putEvent, listVolunteers, getVolunteer, putVolunteer, getPdf, deleteKey } from "./lib/store.mjs";
+import { getEvent, putEvent, listVolunteers, getVolunteer, putVolunteer, getPdf, deleteKey, getRoster } from "./lib/store.mjs";
+import { volunteerContact } from "./lib/mail.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 import { cleanRows, newVolunteer, inviteVolunteer, deliverVolunteer, buildAndStore, pdfKey, volunteerCounts, VOLUNTEER_MAX } from "./lib/volunteers.mjs";
 
 /**
  * The desk's side of volunteers (the volunteer's own side is volunteer.mjs).
  *
- *   GET    /api/volunteers?event=…                         { volunteers, counts }
+ *   GET    /api/volunteers?event=…                         { volunteers, counts, lead, contact }
  *   GET    /api/volunteers?event=…&id=…&pdf=1              the signed PDF
  *   POST   /api/volunteers?event=…                         body { volunteers: [{ first, last, email, organization }], invite? }
  *   POST   /api/volunteers?event=…&action=invite           body { ids? } email the link (a reminder if it was sent before)
  *   POST   /api/volunteers?event=…&id=…&action=redeliver   body { all?, only?, rebuild? } retry filing / emails
  *   PUT    /api/volunteers?event=…&id=…                    correct name, email, agency
+ *   PUT    /api/volunteers?event=…&lead=1                  body { email } who manages the volunteers ('' = the event lead)
  *   DELETE /api/volunteers?event=…&id=…[&final=1]          body { reason }
  */
 export default async (req) => {
@@ -28,7 +30,7 @@ export default async (req) => {
   if (req.method === "GET") {
     if (id && url.searchParams.get("pdf")) return download(event, id);
     const volunteers = await listVolunteers(event.id);
-    return json({ volunteers, counts: volunteerCounts(volunteers) });
+    return json({ volunteers, counts: volunteerCounts(volunteers), lead: event.volunteerLead ?? null, contact: volunteerContact(event) });
   }
 
   const body = (await req.json().catch(() => null)) ?? {};
@@ -38,10 +40,29 @@ export default async (req) => {
     if (action === "redeliver") return redeliver(event, id, body);
     return add(event, body, origin);
   }
-  if (req.method === "PUT") return update(event, id, body);
+  if (req.method === "PUT") return url.searchParams.get("lead") ? setLead(event, body) : update(event, id, body);
   if (req.method === "DELETE") return remove(event, id, url.searchParams.get("final") === "1", text(body.reason, 600));
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * Who manages the volunteers on this event, when that is not the event's lead. Picked from the
+ * board (the event's own board, or the roster); blank puts the event's lead back.
+ */
+async function setLead(event, body) {
+  const email = text(body.email, 200).toLowerCase();
+  if (!email) {
+    delete event.volunteerLead;
+  } else {
+    const roster = (await getRoster()) ?? [];
+    const pick = [...(event.board ?? []), ...roster].find((m) => String(m.email).toLowerCase() === email);
+    if (!pick) return fail("Pick someone from the board list.");
+    const phone = roster.find((m) => String(m.email).toLowerCase() === email)?.phone || pick.phone || "";
+    event.volunteerLead = { name: pick.name || pick.email, email: pick.email, phone };
+  }
+  await putEvent(event);
+  return json({ ok: true, lead: event.volunteerLead ?? null, contact: volunteerContact(event) });
+}
 
 async function add(event, body, origin) {
   const have = await listVolunteers(event.id);

@@ -3,7 +3,7 @@ import { token, reference, safeFileName } from "./ids.mjs";
 import { putVolunteer, putPdf } from "./store.mjs";
 import { buildVolunteerPdf } from "./pdf.mjs";
 import { fileVolunteerAgreement } from "./graph.mjs";
-import { sendMail, coordinatorOf, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail } from "./mail.mjs";
+import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail } from "./mail.mjs";
 
 /**
  * Volunteers: people ONGIA asks to sign the Volunteer Terms before an event.
@@ -73,7 +73,7 @@ export async function inviteVolunteer(event, volunteer, origin, { remind = false
   const link = `${origin}/v/${volunteer.token}`;
   const mail = volunteerInvitationMail({ event, volunteer, link, remind });
   try {
-    const out = await sendMail({ to: volunteer.email, replyTo: coordinatorOf(event).email || undefined, ...mail });
+    const out = await sendMail({ to: volunteer.email, replyTo: volunteerContact(event).email || undefined, ...mail });
     if (out.skipped) {
       volunteer.lastSendError = { why: out.reason, at: new Date().toISOString() };
       await putVolunteer(volunteer);
@@ -97,7 +97,7 @@ export async function inviteVolunteer(event, volunteer, origin, { remind = false
 export async function deliverVolunteer(event, volunteer, pdf, which = { filing: true, volunteerEmail: true, boardEmail: true }) {
   volunteer.delivery ??= {};
   const filename = `${safeFileName(volunteer.last, "Volunteer")}_Volunteer Agreement.pdf`;
-  const replyTo = coordinatorOf(event).email || undefined;
+  const replyTo = volunteerContact(event).email || undefined;
 
   // Filing first: the board's notice links to wherever it landed.
   if (which.filing) volunteer.delivery.filing = await attempt(() => fileVolunteerAgreement({ event, volunteer, pdf }));
@@ -108,7 +108,7 @@ export async function deliverVolunteer(event, volunteer, pdf, which = { filing: 
       .then((r) => { volunteer.delivery.volunteerEmail = r; }));
   }
   if (which.boardEmail) {
-    const recipients = [...new Set([event.reviewer?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+    const recipients = [...new Set([event.reviewer?.email, event.volunteerLead?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
     if (!recipients.length) volunteer.delivery.boardEmail = { ok: true, skipped: true, reason: "No board emails on this event." };
     else {
       const filing = volunteer.delivery.filing?.result ?? volunteer.delivery.filing;

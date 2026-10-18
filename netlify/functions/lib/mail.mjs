@@ -104,6 +104,16 @@ export function coordinatorOf(event) {
 }
 
 /**
+ * Who a volunteer deals with: the volunteer lead the event names (Andrew, 18 Oct 2026), else the
+ * event's own lead. Replies, the signature at the foot and the PDF's contact all follow this.
+ */
+export function volunteerContact(event) {
+  const v = event?.volunteerLead;
+  if (v?.email) return { name: v.name || v.email, email: v.email, phone: v.phone || "" };
+  return coordinatorOf(event);
+}
+
+/**
  * Who the presenter is actually dealing with, at the foot of every message: the
  * event's lead board member, by name, address and number. Replies already go to
  * them (every send sets reply-to), and this says so.
@@ -133,7 +143,14 @@ function signatureBlock(contact, event, lang = "en") {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
-export function layout({ heading, lines = [], bodyHtml = null, button, buttons = [], footer, contact, event, lang = "en" }) {
+// Volunteer emails wear the volunteer form's teal, so the email, the form and the signed copy match.
+const THEMES = {
+  presenter: { bar: "#0e1a35", rule: "#b8922a", tag: "#d9ae4b", head: "#1a2f5e", btn: "#b8922a", btnText: "#12161f" },
+  volunteer: { bar: "#0b3835", rule: "#1f7a72", tag: "#8fdccf", head: "#0f4c47", btn: "#1f7a72", btnText: "#ffffff" },
+};
+
+export function layout({ heading, lines = [], bodyHtml = null, button, buttons = [], footer, contact, event, lang = "en", theme = "presenter" }) {
+  const C = THEMES[theme] ?? THEMES.presenter;
   // bodyHtml is for letters that carry their own structure — headings, lists —
   // and must not be wrapped paragraph by paragraph.
   // A line left empty (a date this event does not have) leaves no gap.
@@ -143,12 +160,12 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   // buttons; secondary ones (file uploads) are just a button — the address is
   // long, ugly and nobody types it.
   const cta = button
-    ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:#b8922a;color:#12161f;text-decoration:none;
+    ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:${C.btn};color:${C.btnText};text-decoration:none;
         font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block">${esc(button.label)}</a></p>
        <p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all">Or paste this into your browser: ${esc(button.href)}</p>`
     : "";
   const extra = buttons.filter((b) => b?.href).map((b) =>
-    `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:#1a2f5e;color:#fff;text-decoration:none;
+    `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:${C.head};color:#fff;text-decoration:none;
         font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
     (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
   // The header is centred, and the tagline is set narrower than the logo so phone
@@ -157,13 +174,13 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   // up paragraphs while leaving tables and buttons small beside them.
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
-    <div style="background:#0e1a35;color:#fff;padding:18px 24px;border-bottom:3px solid #b8922a;text-align:center">
+    <div style="background:${C.bar};color:#fff;padding:18px 24px;border-bottom:3px solid ${C.rule};text-align:center">
       ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="204" height="34" style="display:block;margin:0 auto;border:0;height:34px;width:204px">`
-        : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:#d9ae4b">.</span></div>`}
-      <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:#d9ae4b;letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>
+        : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:${C.tag}">.</span></div>`}
+      <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:${C.tag};letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>
     </div>
     <div style="padding:24px;font-size:15px">
-      <h1 style="font-size:22px;margin:0 0 16px;color:#1a2f5e">${esc(heading)}</h1>
+      <h1 style="font-size:22px;margin:0 0 16px;color:${C.head}">${esc(heading)}</h1>
       ${paras}${cta}${extra}
       ${footer ? `<p style="margin:20px 0 0;font-size:13px;color:#767f92;line-height:1.5">${footer}</p>` : ""}
       ${contact ? signatureBlock(contact, event, lang) : ""}
@@ -274,8 +291,8 @@ export function volunteerInvitationMail({ event, volunteer, link, remind = false
   return {
     subject: heading,
     html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link },
-      contact: coordinatorOf(event), event, lang: "both" }),
-    text: plain(heading, lines, link, coordinatorOf(event)),
+      contact: volunteerContact(event), event, lang: "both", theme: "volunteer" }),
+    text: plain(heading, lines, link, volunteerContact(event)),
   };
 }
 
@@ -291,7 +308,7 @@ export function volunteerSignedMail({ event, volunteer }) {
       `Référence ${esc(volunteer.reference)}.`,
       `Si quelque chose doit être corrigé, répondez simplement à ce courriel.`,
     ];
-    return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event, lang: "fr" }), text: plain(heading, lines, null, coordinatorOf(event)) };
+    return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, lang: "fr", theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
   }
   const heading = `Your signed volunteer agreement — ${event.title}`;
   const lines = [
@@ -300,7 +317,7 @@ export function volunteerSignedMail({ event, volunteer }) {
     `Reference ${esc(volunteer.reference)}.`,
     `If anything needs correcting, just reply to this email.`,
   ];
-  return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };
+  return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
 }
 
 /** Tells the board a volunteer has signed, and where the copy went. */
@@ -312,7 +329,7 @@ export function volunteerNoticeMail({ event, volunteer, filing }) {
       ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
       : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,
   ];
-  return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };
+  return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
 }
 
 /** Tells the sponsorship lead a pack has landed and needs their eye. */

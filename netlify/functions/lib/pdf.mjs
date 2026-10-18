@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { formatDate } from "./deadlines.mjs";
+import { volunteerContact } from "./mail.mjs";
 
 /**
  * The final Presenter Agreement as a PDF — the same two-page shape as the
@@ -44,16 +45,19 @@ const BOTTOM = PAGE_H - BAND_H - 6;
 // ONGIA's palette.
 const INK = "#12161f";
 const GOLD = "#b8922a";
+// The volunteer agreement is teal, like the volunteer form, so the two read as one piece.
+const TEAL = "#1f7a72";
+const TEAL_PALE = "#e2f1ee";
 const NAVY = "#1a2f5e";
 const RED = "#a33328";
 const MUTED = "#4a5563";
 const RULE = "#9aa2b1";
 
 
-async function assets() {
+async function assets(bannerFile = "ongia-banner.jpg", bandFile = "ongia-band.jpg") {
   const [banner, band] = await Promise.all([
-    readFile(path.join(ASSETS, "ongia-banner.jpg")),
-    readFile(path.join(ASSETS, "ongia-band.jpg")),
+    readFile(path.join(ASSETS, bannerFile)),
+    readFile(path.join(ASSETS, bandFile)),
   ]);
   return { banner, band };
 }
@@ -348,7 +352,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
  * English, whatever language they signed in.
  */
 export async function buildVolunteerPdf({ event, volunteer }) {
-  const { banner, band } = await assets();
+  const { banner, band } = await assets("ongia-banner-volunteer.jpg", "ongia-band-volunteer.jpg");   // "VOLUNTEER AGREEMENT", not the presenters'
   const s = volunteer.submission;
   const T = VOLUNTEER_TERMS.en;
 
@@ -365,6 +369,7 @@ export async function buildVolunteerPdf({ event, volunteer }) {
   });
 
   const p = new Painter(doc, band, false);
+  p.accent = TEAL; p.accentPale = TEAL_PALE;
   if (existsSync(SCRIPT_FONT)) { doc.registerFont("Script", SCRIPT_FONT); p.script = true; }
 
   const bannerH = (288 / 1056) * PAGE_W;
@@ -399,30 +404,27 @@ export async function buildVolunteerPdf({ event, volunteer }) {
 
   p.heading("VOLUNTEER SIGNATURE");
   p.kvRow([
-    ["Name:", `${volunteer.first} ${volunteer.last}`, 160],
+    ["Name:", `${volunteer.first} ${volunteer.last}`, 150],
+    ["Email:", volunteer.email, 190],
     ["Date:", fmt(s.signedAt?.slice(0, 10)), 90],
   ]);
-  p.kvRow([["Email:", volunteer.email, 260]]);
   p.signature("Signature:", s.signature);
   p.tiny(
     `Signed electronically on ${stamp(s.signedAt)}. The volunteer typed their name as a legally binding electronic signature ` +
     `and certified that the information in this agreement is accurate and complete. Reference ${volunteer.reference}.`
   );
 
-  // The ONGIA contact is the event's lead board member, when the event has one.
-  const contact = event.contact?.name || event.contact?.email ? event.contact : { name: "", email: process.env.MS_MAIL_FROM || "", phone: "" };
+  // The ONGIA contact is the event's volunteer lead, else its lead board member, when the event has one.
+  const lead = volunteerContact(event);
+  const contact = lead.name !== "ONGIA" || lead.email ? lead : { name: "", email: process.env.MS_MAIL_FROM || "", phone: "" };
   p.heading("ONGIA CONTACT INFORMATION");
   p.kvRow([
-    ["Name:", contact.name || "—", 160],
+    ["Name:", contact.name || "—", 140],
     ["Email:", contact.email || "—", 170],
+    ["Contact Number:", contact.phone || "—", 120],
   ]);
-  p.kvRow([["Contact Number:", contact.phone || "—", 130]]);
 
-  p.gap(3);
-  p.stamp(
-    `SIGNED COPY — ${volunteer.first} ${volunteer.last} signed this agreement on ${fmt(s.signedAt?.slice(0, 10))}. ` +
-    `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails a copy to the volunteer.`
-  );
+  p.stamp(`SIGNED COPY — signed electronically on ${fmt(s.signedAt?.slice(0, 10))}. Filed by ONGIA and emailed to the volunteer.`);
 
   p.finish();
   doc.end();
@@ -449,6 +451,8 @@ class Painter {
     this.doc = doc;
     this.band = band;
     this.preview = preview;
+    this.accent = GOLD;      // headings, and the rule round the closing note
+    this.accentPale = "#f9f4e6";
     this.y = 0;
     this.page = 1;
     this.script = false;
@@ -527,7 +531,7 @@ class Painter {
   heading(text) {
     this.ensure(48); // a heading never sits alone at the foot of a page
     this.y += 3;
-    this.doc.font("Helvetica").fontSize(12).fillColor(GOLD).text(text, MARGIN, this.y, { width: BODY_W, lineBreak: false });
+    this.doc.font("Helvetica").fontSize(12).fillColor(this.accent).text(text, MARGIN, this.y, { width: BODY_W, lineBreak: false });
     this.y += 14;
   }
 
@@ -817,7 +821,7 @@ class Painter {
     const gap = this.y + h + 6 <= BOTTOM ? 6 : 1;
     this.ensure(h + gap);
     this.y += gap;
-    doc.rect(MARGIN, this.y, BODY_W, h).fillAndStroke("#f9f4e6", GOLD);
+    doc.rect(MARGIN, this.y, BODY_W, h).fillAndStroke(this.accentPale, this.accent);
     doc.fillColor(MUTED).text(text, MARGIN + pad, this.y + pad, { width: BODY_W - pad * 2 });
     this.y += h + 4;
   }

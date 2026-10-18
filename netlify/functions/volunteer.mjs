@@ -5,6 +5,7 @@ import { resolveVolunteerToken, putVolunteer, getPdf } from "./lib/store.mjs";
 import { formatDate } from "./lib/deadlines.mjs";
 import { VOLUNTEER_TERMS, VOLUNTEER_TERMS_VERSION } from "./lib/terms.mjs";
 import { buildAndStore, deliverVolunteer, pdfKey } from "./lib/volunteers.mjs";
+import { volunteerContact } from "./lib/mail.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 
 /**
@@ -40,7 +41,7 @@ async function showForm(event, volunteer) {
       title: event.title, city: event.city, venue: event.venue,
       dayOne: formatDate(event.dayOne), lastDay: formatDate(event.lastDay),
       dayOneIso: event.dayOne, lastDayIso: event.lastDay,
-      contact: event.contact,
+      contact: volunteerContact(event),
     },
     volunteer: {
       first: volunteer.first, last: volunteer.last, email: volunteer.email, organization: volunteer.organization,
@@ -97,7 +98,7 @@ async function sign(req, event, volunteer) {
   return json({
     ok: true, reference: volunteer.reference,
     emailed: volunteer.delivery.volunteerEmail?.ok === true,
-    contact: event.contact?.name ?? "",
+    contact: volunteerContact(event).name ?? "",
     pdf: `${siteUrl(req)}/api/volunteer?t=${encodeURIComponent(volunteer.token)}&pdf=1`,
   });
 }
