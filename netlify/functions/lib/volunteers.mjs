@@ -3,7 +3,7 @@ import { token, reference, safeFileName } from "./ids.mjs";
 import { putVolunteer, putPdf } from "./store.mjs";
 import { buildVolunteerPdf } from "./pdf.mjs";
 import { fileVolunteerAgreement } from "./graph.mjs";
-import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail, volunteerReceivedMail, volunteerReviewNeededMail } from "./mail.mjs";
+import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail, volunteerReceivedMail, volunteerReviewNeededMail, agreementRecipients } from "./mail.mjs";
 
 /**
  * Volunteers: people ONGIA asks to sign the Volunteer Terms before an event.
@@ -58,9 +58,8 @@ export function newVolunteer(event, row) {
   };
 }
 
-/** Who hears about a volunteer: the event's lead, the volunteer lead, the board copies and the contact. */
-export const boardRecipients = (event) =>
-  [...new Set([event.reviewer?.email, event.volunteerLead?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+/** Who hears about a volunteer: the event's lead, the volunteer lead, the president and the VP. */
+export const boardRecipients = (event) => agreementRecipients(event, { volunteer: true });
 
 /** Run a side effect and record how it went rather than throwing. */
 export async function attempt(fn) {

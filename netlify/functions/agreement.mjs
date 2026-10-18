@@ -3,7 +3,7 @@ import { formatPhone } from "./lib/phone.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { resolveToken, putPresenter } from "./lib/store.mjs";
 import { formatDate, describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
-import { sendMail, reviewNeededMail, coordinatorOf } from "./lib/mail.mjs";
+import { sendMail, reviewNeededMail, coordinatorOf, agreementRecipients } from "./lib/mail.mjs";
 import { TERMS, TERMS_VERSION } from "./lib/terms.mjs";
 
 /**
@@ -240,7 +240,7 @@ async function submit(req, event, presenter) {
   await putPresenter(presenter);
 
   // Tell the board someone needs to review — best effort, never blocks the presenter.
-  const recipients = [...new Set([event.reviewer?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+  const recipients = agreementRecipients(event);
   if (recipients.length) {
     const origin = siteUrl(req);
     const adminUrl = `${origin}/admin.html#review/${encodeURIComponent(event.id)}/${encodeURIComponent(presenter.id)}`;

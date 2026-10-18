@@ -3,7 +3,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
 import { describeEvent, travelWindow, rangeProblem, formatDate } from "./lib/deadlines.mjs";
-import { sendMail, finalCopyMail, avRequestMail, approvedNoticeMail, returnedMail, coordinatorOf } from "./lib/mail.mjs";
+import { sendMail, finalCopyMail, avRequestMail, approvedNoticeMail, returnedMail, coordinatorOf, agreementRecipients } from "./lib/mail.mjs";
 import { fileAgreement } from "./lib/graph.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 
@@ -202,7 +202,7 @@ async function deliver(event, presenter, pdf, origin, which) {
   }
 
   if (which.boardEmail) {
-    const recipients = [...new Set([event.reviewer?.email, ...(event.notify ?? []), event.contact?.email].filter(Boolean))];
+    const recipients = agreementRecipients(event);
     if (recipients.length) {
       const filing = presenter.delivery.filing?.result ?? presenter.delivery.filing;
       const mail = approvedNoticeMail({ event: ev, presenter, approval, coverage, filing });

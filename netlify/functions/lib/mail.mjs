@@ -104,6 +104,23 @@ export function coordinatorOf(event) {
 }
 
 /**
+ * Who is told that an agreement is waiting, and who is sent a notice when it is final (Andrew, 18 Oct 2026):
+ * the event's lead, the president and the VP, and for a volunteer their volunteer lead. Not every board
+ * member picked for the event; those are on the event for the training, not for the paperwork.
+ * OFFICERS_TO changes the president and VP.
+ */
+export const officersTo = () => (process.env.OFFICERS_TO || "president@ongia.ca,vp_operations@ongia.ca").split(/[,;\s]+/).filter(Boolean);
+
+export function agreementRecipients(event, { volunteer = false } = {}) {
+  const seen = new Set(), out = [];
+  for (const e of [event?.reviewer?.email, event?.contact?.email, volunteer ? event?.volunteerLead?.email : "", ...officersTo()]) {
+    const key = String(e ?? "").trim().toLowerCase();
+    if (key && !seen.has(key)) { seen.add(key); out.push(String(e).trim()); }
+  }
+  return out;
+}
+
+/**
  * Who a volunteer deals with: the volunteer lead the event names (Andrew, 18 Oct 2026), else the
  * event's own lead. Replies, the signature at the foot and the PDF's contact all follow this.
  */
