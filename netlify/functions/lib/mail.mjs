@@ -151,14 +151,16 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
     `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:#1a2f5e;color:#fff;text-decoration:none;
         font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
     (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
+  // The header is centred, and the tagline is set narrower than the logo so phone
+  // mail apps keep it on one line beneath it (Andrew, 18 Oct 2026).
   // The viewport line and the text-size lock stop phone mail apps from blowing
   // up paragraphs while leaving tables and buttons small beside them.
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
-    <div style="background:#0e1a35;color:#fff;padding:18px 24px;border-bottom:3px solid #b8922a">
-      ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="168" height="28" style="display:block;border:0;height:28px;width:auto">`
+    <div style="background:#0e1a35;color:#fff;padding:18px 24px;border-bottom:3px solid #b8922a;text-align:center">
+      ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="204" height="34" style="display:block;margin:0 auto;border:0;height:34px;width:204px">`
         : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:#d9ae4b">.</span></div>`}
-      <div style="margin-top:8px;font-size:12px;color:#d9ae4b;letter-spacing:.14em;text-transform:uppercase">Knowledge · Network · Impact</div>
+      <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:#d9ae4b;letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>
     </div>
     <div style="padding:24px;font-size:15px">
       <h1 style="font-size:22px;margin:0 0 16px;color:#1a2f5e">${esc(heading)}</h1>
