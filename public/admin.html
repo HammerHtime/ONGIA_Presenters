@@ -491,6 +491,10 @@
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .noroom{margin:12px 0 0;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:var(--card2,transparent)}
+  .noroom b{font-size:13px}
+  .noroom .nr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+  .noroom .nr span{font-size:14px;min-width:0;overflow-wrap:anywhere}
   .gform{display:grid;grid-template-columns:2fr 1.3fr 1fr 1.2fr 1.2fr auto;gap:8px;align-items:end;margin-top:10px}
   .room .gedit{border:1px solid var(--border);background:var(--card);color:var(--ink-mid);cursor:pointer;font:inherit;
                font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;margin-left:4px;vertical-align:1px}
@@ -2702,6 +2706,26 @@ function guestDays(win, end, ev, chosen = "") {
     + group("After the training", offer.filter((d) => first && d > last));
 }
 
+/** Board members picked for this event who are not on the rooming list at all, by any route. */
+function boardNoRoom(ev, R) {
+  const listed = (R.rows ?? []).map((r) => sameName(r.name)).concat((R.waiting ?? []).map((w) => sameName(w.name)));
+  const seen = new Set();
+  return (ev.board ?? []).map((m) => String(m.name ?? "").trim()).filter((n) => {
+    const k = sameName(n);
+    if (!k || seen.has(k) || listed.includes(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+const noRoom = (ev, R) => {
+  const names = boardNoRoom(ev, R);
+  if (!names.length) return "";
+  return `<div class="noroom" id="rg-noroom"><b>Board members on this event with no room yet</b>
+    ${names.map((n) => `<div class="nr"><span>${esc(n)}</span><button type="button" class="mini" data-addboard="${esc(n)}">Add to hotel list</button></div>`).join("")}
+    <p class="hint" style="margin:8px 0 0">Add fills in their name; you pick the nights and press Add. Skip anyone who is not staying.</p></div>`;
+};
+
 function roomingCard(ev, R, C = null) {
   if (!R) return `<div class="card"><div class="card-head"><div><h2>Hotel rooms</h2></div></div>
     <div class="card-body"><div class="bad"><b>The rooming list could not be loaded.</b> Reload the page.</div></div></div>`;
@@ -2744,7 +2768,8 @@ function roomingCard(ev, R, C = null) {
       ${R.rows.length ? `<div class="rooms">${R.rows.map(row).join("")}</div>`
         : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
       ${waiting}
-      <details class="settings" style="margin-top:12px"${R.guests.length ? "" : ""}>
+      ${noRoom(ev, R)}
+      <details class="settings" id="rg-details" style="margin-top:12px">
         <summary>Add people by hand or from a spreadsheet${R.guests.length ? ` (${R.guests.length} added)` : ""}</summary>
         <p class="hint" style="margin-top:8px">Board members, volunteers, ONGIA guests, and any presenter who is not on the desk.
           Presenters with an agreement come onto the list by themselves.</p>
@@ -2953,6 +2978,23 @@ function wireRooming(ev, R) {
     return check;
   };
   boardLock("rg-name", "rg-bill", "rg-boardnote");
+  // "Add to hotel list": open the by-hand form with the board member filled in, so only the nights are left.
+  document.querySelectorAll("[data-addboard]").forEach((b) => {
+    b.onclick = (e) => {
+      e.preventDefault();
+      const det = document.getElementById("rg-details");
+      if (det) det.open = true;
+      const nameEl = document.getElementById("rg-name");
+      nameEl.value = b.dataset.addboard;
+      nameEl.dispatchEvent(new Event("input", { bubbles: true }));   // board name: ONGIA pays
+      document.getElementById("rg-type").value = "Board Member";
+      const said = document.getElementById("rg-said");
+      said.style.color = ""; said.textContent = `Choose ${b.dataset.addboard}'s check-in and check-out, then press Add.`;
+      const inEl = document.getElementById("rg-in");
+      inEl.scrollIntoView({ block: "center", behavior: "smooth" });
+      inEl.focus({ preventScroll: true });
+    };
+  });
   const lockEdit = boardLock("ge-name", "ge-bill", "ge-boardnote");
 
   // Edit someone added on the desk, from their row on the list.
