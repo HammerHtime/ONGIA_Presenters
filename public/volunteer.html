@@ -6,18 +6,19 @@
 <title>ONGIA Volunteer Agreement</title>
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="/assets/favicon-180.png">
-<meta name="theme-color" content="#0e1a35">
+<meta name="theme-color" content="#0b3835">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
 <style>
-  /* The same look as the presenter agreement: a form a volunteer reads on a phone. */
+  /* The presenter agreement's layout, in a teal of its own so a volunteer's form is never mistaken for a
+     presenter's. --gold and --navy keep their names but carry the volunteer colours here. */
   :root {
     color-scheme: light;
     --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
     --ink:#12161f; --ink-mid:#2c3448; --muted:#767f92;
-    --navy:#1a2f5e; --navy-deep:#0e1a35;
-    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --navy:#0f4c47; --navy-deep:#0b3835;
+    --gold:#1f7a72; --gold-light:#8fdccf; --gold-pale:#e2f1ee;
     --border:#ddd7c8; --hair:rgba(18,22,31,.10);
     --done:#2f6b4f; --done-bg:#e2efe7;
     --bad:#a33328; --bad-bg:#f7e3e0;
@@ -40,10 +41,14 @@
        padding-top:calc(12px + env(safe-area-inset-top,0px))}
   .bar .logo{height:26px;width:auto;display:block;flex:none}
   @media (max-width:430px){.bar .logo{height:22px}.bar{padding:12px 14px}}
-  .bar .langbtn{margin-left:auto;background:transparent;color:var(--gold-light);border:1px solid rgba(217,174,75,.55);
+  .bar .langbtn{margin-left:auto;background:transparent;color:var(--gold-light);border:1px solid rgba(143,220,207,.6);
     border-radius:999px;padding:5px 12px;font:600 12px var(--fu,inherit);letter-spacing:.06em;cursor:pointer;min-height:32px}
-  .bar .langbtn:hover{background:rgba(217,174,75,.12)}
+  .bar .langbtn:hover{background:rgba(143,220,207,.14)}
 
+  /* VOLUNTEER across the top, large and bold: the first thing they see says which agreement this is. */
+  .hero{background:linear-gradient(135deg,#0c3f3b 0%,#1f7a72 100%);color:#fff;text-align:center;padding:26px 16px 22px;border-bottom:1px solid rgba(255,255,255,.18)}
+  .hero .word{font-family:var(--fu);font-weight:700;font-size:clamp(38px,11vw,60px);line-height:1;letter-spacing:.14em;text-transform:uppercase;padding-left:.14em}
+  .hero .sub{margin-top:9px;font-family:var(--fu);font-weight:500;font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.8)}
   .wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
   .card+.card{margin-top:14px}
@@ -89,7 +94,8 @@
        transition:transform .14s,background .18s;width:100%;display:block;text-align:center;text-decoration:none}
   .btn:active{transform:translateY(1px)}
   .btn[disabled]{opacity:.6;cursor:progress}
-  .btn-gold{background:var(--gold);color:#1c1608}
+  .btn-gold{background:var(--gold);color:#fff}
+  .btn-gold:hover{background:#18665f}
   .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink-mid)}
   .nav{margin-top:20px}
 
@@ -127,6 +133,8 @@
   <button type="button" class="langbtn" id="lang" aria-label="Switch language / Changer de langue">Français</button>
 </div>
 
+<div class="hero" role="banner"><div class="word" id="word">Volunteer</div><div class="sub" id="wordsub">ONGIA Volunteer Agreement</div></div>
+
 <div id="root"><p class="loading">Loading your agreement…</p></div>
 
 <script type="module">
@@ -144,8 +152,9 @@ let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { r
 const T = {
 en: {
   pageTitle: "ONGIA Volunteer Agreement", loading: "Loading your agreement…", other: "Français",
-  head: "Volunteer Agreement",
-  hello: (f, t) => `Hello ${f}. Thank you for volunteering with ONGIA at <b>${t}</b>. Please check your details, read the terms below, and sign to confirm.`,
+  word: "Volunteer", wordSub: "ONGIA Volunteer Agreement",
+  head: (f) => `Welcome, ${f}`,
+  hello: (t) => `Thank you for volunteering with ONGIA at <b>${t}</b>. Please check your details, read the terms below, and sign to confirm.`,
   dates: "Event date", datesMany: "Event dates", venue: "Venue", city: "City",
   aboutYou: "About you", first: "First name", last: "Last name", email: "Email", org: "Agency or organization",
   phone: "Contact number", phoneHint: "So the event lead can reach you at the event.",
@@ -175,8 +184,9 @@ en: {
 },
 fr: {
   pageTitle: "Entente de bénévole d'ONGIA", loading: "Chargement de votre entente…", other: "English",
-  head: "Entente de bénévole",
-  hello: (f, t) => `Bonjour ${f}. Merci de faire du bénévolat avec ONGIA à <b>${t}</b>. Veuillez vérifier vos coordonnées, lire les conditions ci-dessous et signer pour confirmer.`,
+  word: "Bénévole", wordSub: "Entente de bénévole d'ONGIA",
+  head: (f) => `Bienvenue, ${f}`,
+  hello: (t) => `Merci de faire du bénévolat avec ONGIA à <b>${t}</b>. Veuillez vérifier vos coordonnées, lire les conditions ci-dessous et signer pour confirmer.`,
   dates: "Date de l'événement", datesMany: "Dates de l'événement", venue: "Lieu", city: "Ville",
   aboutYou: "À propos de vous", first: "Prénom", last: "Nom", email: "Courriel", org: "Organisme ou organisation",
   phone: "Numéro de téléphone", phoneHint: "Pour que la personne responsable de l'événement puisse vous joindre sur place.",
@@ -210,10 +220,12 @@ const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "f
 const serverText = (msg) => /isn't valid/.test(msg ?? "") ? t("errInvalidLink") : /already been signed/.test(msg ?? "") ? t("errSigned") : (msg ?? t("generic"));
 function setLang(l) {
   LANG = l; try { localStorage.setItem("ongia-lang", l); } catch {}
-  document.documentElement.lang = l; LANGBTN.textContent = t("other"); document.title = t("pageTitle");
+  document.documentElement.lang = l; LANGBTN.textContent = t("other"); document.title = t("pageTitle"); paintHero();
   if (DATA) render();
 }
+function paintHero() { document.getElementById("word").textContent = t("word"); document.getElementById("wordsub").textContent = t("wordSub"); }
 LANGBTN.textContent = t("other");
+paintHero();
 LANGBTN.onclick = () => setLang(LANG === "fr" ? "en" : "fr");
 
 let DATA = null, DONE = null, sending = false, restored = false;
@@ -309,8 +321,8 @@ function formMarkup() {
   const box = (id, key, text) => `<label class="attest${has(id) ? " err" : ""}" for="${id}"><input id="${id}" type="checkbox" data-bind="${key}"${S[key] ? " checked" : ""}><span>${text}</span></label>`;
   return `<div class="wrap">
     ${restored ? `<div class="restored">${t("restored")}</div>` : ""}
-    <div class="card"><h2>${t("head")}</h2>
-      <p class="lede">${t("hello", esc(S.first || DATA.volunteer.first), esc(ev.title))}</p>
+    <div class="card"><h2>${t("head", esc(S.first || DATA.volunteer.first))}</h2>
+      <p class="lede">${t("hello", esc(ev.title))}</p>
       <dl class="facts">
         <div class="fact"><dt>${many ? t("datesMany") : t("dates")}</dt><dd>${esc(many ? `${fmtDate(ev.dayOneIso)} – ${fmtDate(ev.lastDayIso)}` : fmtDate(ev.dayOneIso))}</dd></div>
         ${ev.venue ? `<div class="fact"><dt>${t("venue")}</dt><dd>${esc(ev.venue)}</dd></div>` : ""}
