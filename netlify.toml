@@ -6,10 +6,15 @@
   node_bundler = "esbuild"
   included_files = ["public/assets/**"]
 
-# Short, readable URLs for the two things people are sent.
+# Short, readable URLs for the things people are sent: agreements, volunteer agreements, sponsor forms.
 [[redirects]]
   from = "/a/*"
   to = "/agreement.html"
+  status = 200
+
+[[redirects]]
+  from = "/v/*"
+  to = "/volunteer.html"
   status = 200
 
 [[redirects]]

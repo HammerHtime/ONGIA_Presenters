@@ -42,3 +42,54 @@ export const TERMS = {
     ],
   },
 };
+
+/**
+ * The Volunteer Terms: what a volunteer signs before the event (Andrew, 18 Oct 2026:
+ * represent ONGIA professionally, represent your own organization, behaviour and
+ * language, and the same good-standing / no-investigation statement the presenters
+ * make). One copy in both languages, like the Presenter Terms: the form shows it
+ * in full and the filed PDF prints the English, so what they read is what is on file.
+ * Change the wording here and bump VERSION; each agreement records the version it
+ * was signed under.
+ */
+export const VOLUNTEER_TERMS_VERSION = 1;
+
+export const VOLUNTEER_TERMS = {
+  en: {
+    title: "ONGIA Volunteer Terms",
+    intro: "By volunteering at an ONGIA event, you agree to the following.",
+    items: [
+      ["Professional conduct", "You are representing ONGIA. Stay professional at all times, before, during and after the event, in person and online, including at any social event. Treat attendees, presenters, other volunteers, venue staff and ONGIA staff with courtesy and respect."],
+      ["Representing your organization", "You also represent your own organization. You are responsible for having its approval to volunteer, and for making sure your role does not conflict with your duties there. Make clear when you are giving your own views rather than speaking for ONGIA or your organization."],
+      ["Appropriate behaviour and language", "Use respectful language at all times. Harassment, discrimination, and offensive, sexual or demeaning comments, jokes or images are not acceptable, in person, in messages or on social media."],
+      ["Dress", "Dress as your event lead directs. Business casual is the minimum unless you are told otherwise."],
+      ["Confidentiality", "You may see or hear sensitive information, such as attendee lists, presenters' materials and what is said in sessions. Keep it confidential. Do not share it, and do not ask anyone for confidential information."],
+      ["Photos and social media", "Do not post photos, video or recordings of sessions, presentation materials or attendees on social media without ONGIA's approval."],
+      ["Following direction", "Follow the instructions of the event lead and ONGIA staff. Arrive on time for your shifts, and tell ONGIA right away if you can no longer attend or your plans change."],
+      ["Safety and concerns", "Tell the event lead right away about any safety concern, incident or complaint. If someone is in danger, call 911 first."],
+      ["Expenses", "This is a volunteer role and is unpaid. ONGIA covers only the costs it has confirmed to you in writing before the event."],
+      ["Changes and ending your role", "ONGIA may change your tasks or schedule and will tell you in advance. ONGIA may end your volunteer role at any time, including if these terms are not followed."],
+    ],
+    // The two statements the volunteer ticks, kept here so the form and the PDF cannot drift apart.
+    termsBox: "I have read and agree to the ONGIA Volunteer Terms above.",
+    standing: "I confirm that I am currently in good standing with my agency or organization, and that I am not currently subject to any formal investigation or disciplinary proceedings.",
+  },
+  fr: {
+    title: "Conditions applicables aux bénévoles d'ONGIA",
+    intro: "En faisant du bénévolat lors d'un événement d'ONGIA, vous acceptez ce qui suit.",
+    items: [
+      ["Conduite professionnelle", "Vous représentez ONGIA. Restez professionnel en tout temps, avant, pendant et après l'événement, en personne et en ligne, y compris lors des activités sociales. Traitez les participants, les conférenciers, les autres bénévoles, le personnel du lieu et le personnel d'ONGIA avec courtoisie et respect."],
+      ["Représenter votre organisation", "Vous représentez aussi votre propre organisation. Il vous incombe d'obtenir son approbation pour faire du bénévolat et de vous assurer que votre rôle n'entre pas en conflit avec vos fonctions. Précisez lorsque vous exprimez votre opinion personnelle plutôt que celle d'ONGIA ou de votre organisation."],
+      ["Comportement et langage appropriés", "Employez en tout temps un langage respectueux. Le harcèlement, la discrimination ainsi que les commentaires, blagues ou images offensants, sexuels ou dégradants sont inacceptables, en personne, dans les messages ou sur les médias sociaux."],
+      ["Tenue vestimentaire", "Habillez-vous selon les directives de la personne responsable de l'événement. La tenue d'affaires décontractée est le minimum, sauf indication contraire."],
+      ["Confidentialité", "Vous pourriez voir ou entendre des renseignements de nature délicate, comme les listes de participants, le matériel des conférenciers et ce qui se dit pendant les séances. Gardez-les confidentiels. Ne les communiquez pas et ne demandez à personne de renseignements confidentiels."],
+      ["Photos et médias sociaux", "Ne publiez pas de photos, de vidéos ou d'enregistrements des séances, du matériel de présentation ou des participants sur les médias sociaux sans l'approbation d'ONGIA."],
+      ["Respect des directives", "Suivez les directives de la personne responsable de l'événement et du personnel d'ONGIA. Soyez à l'heure pour vos quarts et avisez ONGIA sans tarder si vous ne pouvez plus être présent ou si vos plans changent."],
+      ["Sécurité et préoccupations", "Signalez sans tarder à la personne responsable de l'événement toute préoccupation de sécurité, tout incident ou toute plainte. Si une personne est en danger, composez d'abord le 911."],
+      ["Frais", "Il s'agit d'un rôle bénévole non rémunéré. ONGIA ne couvre que les frais qu'elle vous a confirmés par écrit avant l'événement."],
+      ["Changements et fin de votre rôle", "ONGIA peut modifier vos tâches ou votre horaire et vous en avisera à l'avance. ONGIA peut mettre fin à votre rôle de bénévole en tout temps, notamment si ces conditions ne sont pas respectées."],
+    ],
+    termsBox: "J'ai lu les conditions applicables aux bénévoles d'ONGIA ci-dessus et je les accepte.",
+    standing: "Je confirme que je suis actuellement en règle auprès de mon organisme ou de mon organisation et que je ne fais actuellement l'objet d'aucune enquête officielle ni d'aucune procédure disciplinaire.",
+  },
+};

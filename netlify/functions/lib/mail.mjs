@@ -241,6 +241,80 @@ export function invitationMail({ event, presenter, link, remind, daysLeft = null
   };
 }
 
+/**
+ * The volunteer's agreement link. Bilingual like the presenters' (English first,
+ * then French) because it goes out before we know which they prefer; the form has
+ * its own switch and everything after follows their choice. Andrew, 18 Oct 2026:
+ * the volunteer reads the terms, agrees, signs, and a signed copy comes back to us.
+ */
+export function volunteerInvitationMail({ event, volunteer, link, remind = false }) {
+  const en = esc(formatLong(event.dayOne, "en", { weekday: false }));
+  const fr = esc(formatLong(event.dayOne, "fr", { weekday: false }));
+  const title = esc(event.title), city = esc(event.city);
+  const heading = remind
+    ? `Reminder / Rappel — your ONGIA volunteer agreement · votre entente de bénévole ONGIA`
+    : `Your ONGIA volunteer agreement — ${event.title} / Votre entente de bénévole ONGIA`;
+  const lines = [
+    `Hello ${esc(volunteer.first)},`,
+    remind
+      ? `This is a friendly reminder that we haven't yet received your Volunteer Agreement for <b>${title}</b>, taking place in ${city} on <b>${en}</b>.`
+      : `Thank you for volunteering with ONGIA at <b>${title}</b>, taking place in ${city} on <b>${en}</b>.`,
+    ...(remind ? [] : [`Before the event, we ask every volunteer to read and sign the ONGIA Volunteer Agreement. It sets out how we expect volunteers to conduct themselves and to represent ONGIA and their own organization, and it asks you to confirm that you are in good standing with your organization and not currently under any formal investigation.`]),
+    `It takes about five minutes on your phone or computer, and there is no need to print, sign, or scan anything. Read the terms, tick the boxes and type your name to sign. The form is available in both English and French, with a "Français" option at the top of the page. A signed copy will be emailed to you when you are done.`,
+    `Thank you for helping to make the event a success.`,
+    `<hr style="border:0;border-top:1px solid #ddd7c8;margin:18px 0">`,
+    `Bonjour ${esc(volunteer.first)},`,
+    remind
+      ? `Ceci est un rappel amical : nous n'avons pas encore reçu votre entente de bénévole pour <b>${title}</b>, qui aura lieu à ${city} le <b>${fr}</b>.`
+      : `Merci de faire du bénévolat avec ONGIA à <b>${title}</b>, qui aura lieu à ${city} le <b>${fr}</b>.`,
+    ...(remind ? [] : [`Avant l'événement, nous demandons à chaque bénévole de lire et de signer l'entente de bénévole d'ONGIA. Elle précise comment nous nous attendons à ce que les bénévoles se comportent et représentent ONGIA et leur propre organisation, et elle vous demande de confirmer que vous êtes en règle auprès de votre organisation et que vous ne faites actuellement l'objet d'aucune enquête officielle.`]),
+    `Cela prend environ cinq minutes sur votre téléphone ou votre ordinateur, et vous n'avez rien à imprimer, à signer ou à numériser. Lisez les conditions, cochez les cases et tapez votre nom pour signer. Le formulaire est offert en français et en anglais; l'option « Français » se trouve en haut de la page. Une copie signée vous sera envoyée par courriel lorsque vous aurez terminé.`,
+    `Merci de contribuer à la réussite de l'événement.`,
+  ];
+  return {
+    subject: heading,
+    html: layout({ heading, lines, button: { label: "Open my agreement / Ouvrir mon entente", href: link },
+      contact: coordinatorOf(event), event, lang: "both" }),
+    text: plain(heading, lines, link, coordinatorOf(event)),
+  };
+}
+
+/** The volunteer's signed copy, in the language they signed in, with the PDF attached. */
+export function volunteerSignedMail({ event, volunteer }) {
+  const fr = volunteer.language === "fr";
+  const when = esc(formatLong(event.dayOne, fr ? "fr" : "en", { weekday: false }));
+  if (fr) {
+    const heading = `Votre entente de bénévole signée — ${event.title}`;
+    const lines = [
+      `Bonjour ${esc(volunteer.first)},`,
+      `Merci d'avoir signé l'entente de bénévole d'ONGIA pour <b>${esc(event.title)}</b> (${esc(event.city)}, le ${when}). Votre copie signée est jointe pour vos dossiers (le document officiel est en anglais).`,
+      `Référence ${esc(volunteer.reference)}.`,
+      `Si quelque chose doit être corrigé, répondez simplement à ce courriel.`,
+    ];
+    return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event, lang: "fr" }), text: plain(heading, lines, null, coordinatorOf(event)) };
+  }
+  const heading = `Your signed volunteer agreement — ${event.title}`;
+  const lines = [
+    `Hello ${esc(volunteer.first)},`,
+    `Thank you for signing the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b> (${esc(event.city)}, ${when}). Your signed copy is attached for your records.`,
+    `Reference ${esc(volunteer.reference)}.`,
+    `If anything needs correcting, just reply to this email.`,
+  ];
+  return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };
+}
+
+/** Tells the board a volunteer has signed, and where the copy went. */
+export function volunteerNoticeMail({ event, volunteer, filing }) {
+  const heading = `Signed: ${volunteer.first} ${volunteer.last} (volunteer) — ${event.title}`;
+  const lines = [
+    `${esc(volunteer.first)} ${esc(volunteer.last)}${volunteer.organization ? ` (${esc(volunteer.organization)})` : ""} signed the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b>.`,
+    filing?.folderUrl
+      ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
+      : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,
+  ];
+  return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };
+}
+
 /** Tells the sponsorship lead a pack has landed and needs their eye. */
 export function sponsorReviewNeededMail({ sponsor, events, adminUrl, lead }) {
   const heading = `${sponsor.company} has sent their sponsorship details`;

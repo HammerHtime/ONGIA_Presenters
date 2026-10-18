@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
-  getContract, putContract, getContractRead, putContractRead, getInbox } from "./lib/store.mjs";
+  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers } from "./lib/store.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -258,11 +258,15 @@ async function deleteEvent(id) {
       deleteKey(`headshot:${id}:${p.id}`),
     ]);
   }
+  const volunteers = await listVolunteers(id);
+  for (const v of volunteers) {
+    await Promise.all([deleteKey(`volunteer:${id}:${v.id}`), v.token ? deleteKey(`vtoken:${v.token}`) : null, deleteKey(`pdf:vol:${id}:${v.id}`)]);
+  }
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
     deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
-  return json({ ok: true, removedPresenters: people.length });
+  return json({ ok: true, removedPresenters: people.length, removedVolunteers: volunteers.length });
 }
 
 /**

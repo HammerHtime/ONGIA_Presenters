@@ -654,6 +654,8 @@
   #e-mins{max-width:150px} input[type=date]{max-width:230px}
   .addrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
   .addrow:has(#rb-phone){grid-template-columns:1fr 1fr 1fr auto}
+  /* Add volunteers / Email all outstanding: side by side on a desk, one full-width button each on a phone. */
+  @media (max-width:560px){.vbar .btn{flex:1 1 100%}}
   .member:has(.rphone){grid-template-columns:auto 1fr auto auto}
   .member .rphone{width:150px;padding:6px 9px;font-size:12.5px;border:1px solid var(--border);border-radius:9px;background:var(--sunk);font-family:inherit}
   @media (max-width:560px){.member:has(.rphone){grid-template-columns:auto 1fr auto}.member .rphone{grid-column:2/-1;grid-row:2;width:100%}
@@ -1861,7 +1863,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, allEvents } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, allEvents } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -2180,9 +2182,10 @@ function eventScreen(data) {
       <div class="filters">${chips}</div>
       <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
     </div>`)
+    + volunteerCard(ev, volunteers)
     + inboxCard(ev, inbox) + inboxDialogs()
     + checklistCard(ev, checklist) + jobDialog()
-    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog()
+    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
     + attendeesCard(ev, guests) + wixDialog()
     + agendaCard(ev, agenda)
     + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
@@ -2194,7 +2197,7 @@ function eventScreen(data) {
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
-          `<span>${esc(r.name)} <span class="porg">· ${r.status === "approved" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
+          `<span>${esc(r.name)} <span class="porg">· ${r.role === "volunteer" ? "volunteer · " : ""}${r.status === "approved" || r.status === "signed" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
@@ -2246,6 +2249,7 @@ function eventScreen(data) {
   wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
   wireAttendees(ev);
+  wireVolunteers(ev, volunteers);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -3786,6 +3790,244 @@ function lettersScreen(data, events, pickId = null) {
 }
 
 /* ---------- add presenters ---------- */
+/* ---------- volunteers ---------- */
+// People who sign the ONGIA Volunteer Terms before an event. Their own list, link and signed
+// copy; no review, no materials, and nothing here touches the presenter counts.
+function volunteerCard(ev, V) {
+  const list = V?.volunteers ?? [];
+  const c = V?.counts ?? { total: 0, signed: 0, waiting: 0, uninvited: 0, notFiled: 0 };
+  const day = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
+  const cell = (v) => {
+    const mails = v.mail ?? [], n = mails.length;
+    if (v.status === "signed") {
+      const f = v.delivery?.filing;
+      return f && f.ok === false
+        ? { pill: `<span class="pill done">Signed</span> <span class="pill late">Not filed</span>`, sub: `signed ${day(v.signedAt)} · never reached SharePoint${f.error ? ` — ${esc(f.error)}` : f.reason ? ` — ${esc(f.reason)}` : ""}`, failed: true }
+        : { pill: `<span class="pill done">Signed</span>`, sub: `signed ${day(v.signedAt)}${f?.ok ? " · filed" : ""}` };
+    }
+    if (!n) return { pill: `<span class="pill late">Never sent</span>`, sub: v.lastSendError ? `could not be emailed — ${esc(v.lastSendError.why)}` : "no link sent yet" };
+    const chased = `${n} email${n === 1 ? "" : "s"}, last ${day(mails.at(-1).at)}`;
+    return v.openedAt
+      ? { pill: `<span class="pill wait">Opened, not signed</span>`, sub: `opened ${day(v.openedAt)} · ${chased}` }
+      : { pill: `<span class="pill wait">Not opened</span>`, sub: chased };
+  };
+  const actions = (v, a) => {
+    const b = (attrs, label, cls = "") => `<button class="mini${cls ? " " + cls : ""}" ${attrs}>${label}</button>`;
+    const id = esc(v.id);
+    let main = "";
+    const rest = [];
+    if (v.status === "signed") {
+      if (a.failed) main = b(`data-vrefile="${id}"`, "Retry filing", "gold");
+      rest.push(b(`data-vpdf="${id}"`, "PDF"));
+    } else if (!(v.mail ?? []).length) main = b(`data-vinvite="${id}"`, "Email link", "gold");
+    else rest.push(b(`data-vinvite="${id}"`, "Email again"));
+    rest.push(b(`data-vcopy="${esc(`${location.origin}/v/${v.token}`)}"`, "Copy link"), b(`data-vedit="${id}" title="Correct their name or email, or remove them from the event"`, "Edit"));
+    // Same block as a presenter's row: an odd one out takes the width, so Copy link | Edit stay paired.
+    const pairs = rest.map((h, i) => (i === 0 && rest.length % 2 ? h.replace('class="mini', 'class="mini wide') : h));
+    return (main ? main.replace('class="mini', 'class="mini wide') : "") + pairs.join("");
+  };
+  const rows = list.map((v) => {
+    const a = cell(v);
+    return `<div class="trow">
+      <div class="who"><div class="av">${esc(`${v.first[0] ?? ""}${v.last[0] ?? ""}`.toUpperCase())}</div>
+        <div><div class="pname">${esc(v.first)} ${esc(v.last)}${v.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}</div>
+          <div class="porg" title="${esc(v.organization || v.email)}">${esc(v.organization || v.email)}</div></div></div>
+      <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
+      <div class="act pact">${actions(v, a)}</div></div>`;
+  }).join("");
+  const failedSends = list.filter((v) => v.lastSendError && v.status !== "signed");
+  const line = list.length
+    ? [`${list.length} volunteer${list.length === 1 ? "" : "s"}`, c.signed ? `${c.signed} signed` : "", c.waiting ? `${c.waiting} waiting` : ""].filter(Boolean).join(" · ")
+    : "Volunteers sign the ONGIA Volunteer Terms";
+  const badge = [c.uninvited ? `<span class="late">${c.uninvited} never sent</span>` : "", c.notFiled ? `<span class="late">${c.notFiled} not filed</span>` : ""].filter(Boolean).join(" · ");
+  return secFold("volunteers", "Volunteers", line, badge, `<div class="card-body">
+    <div class="note" style="margin:0 0 14px">Each volunteer is emailed a link, reads the <b>ONGIA Volunteer Terms</b> (professional conduct, representing ONGIA and their own organization, behaviour and language),
+      confirms they are in good standing and not under a formal investigation, and signs by typing their name. The signed copy is emailed to them, filed in SharePoint under <b>Volunteer Agreements</b>, and the board is told.
+      <span class="porg">There is no review step, and nothing to do with presenters.</span></div>
+    ${failedSends.length ? `<div class="sendfail"><b>${failedSends.length} email${failedSends.length === 1 ? "" : "s"} could not be sent.</b>
+      <div style="margin-top:6px">${failedSends.map((v) => `${esc(v.first)} ${esc(v.last)} — ${esc(v.lastSendError.why)}`).join("<br>")}</div>
+      <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the volunteer, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
+    <div class="actions vbar" style="margin:0 0 14px;justify-content:flex-start;flex-wrap:wrap">
+      <button class="btn btn-gold" id="v-add">Add volunteers</button>
+      ${c.waiting ? `<button class="btn btn-ghost" id="v-mailall">Email all outstanding</button>` : ""}</div>
+    <div class="tlist">${list.length ? `<div class="thead"><span>Volunteer</span><span>Agreement</span><span></span></div>${rows}` : `<div class="empty">No volunteers yet. Add their names, emails and agency to send each their agreement.</div>`}</div>
+  </div>`);
+}
+
+function volunteerDialogs() {
+  return `<dialog class="sheet" id="vadd">
+      <form method="dialog">
+        <div class="sheet-head"><h2>Add volunteers</h2>
+          <p class="hint" style="margin-top:6px">One per line: first name, last name, email, agency. Each gets their Volunteer Agreement to read and sign.</p></div>
+        <div class="sheet-body">
+          <div class="field"><label for="va-rows">Volunteers</label>
+            <textarea id="va-rows" style="min-height:130px" placeholder="Vera, Volunteer, vera@example.ca, Peel Regional Police&#10;Marc, Thibault, m.thibault@example.ca, Service de police de la Ville de Montréal"></textarea>
+            <p class="hint">Name and email are needed; agency is optional. Phone and the rest they fill in themselves.</p></div>
+          <div id="va-out"></div>
+          <label class="attest" style="margin-top:4px"><input type="checkbox" id="va-invite" checked><span>Email each volunteer their agreement now</span></label>
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-gold" type="button" id="va-go">Add volunteers</button>
+            <button class="btn btn-ghost" value="close" formnovalidate id="va-close">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="sheet" id="vedit">
+      <form method="dialog">
+        <div class="sheet-head"><h2>Correct this volunteer</h2>
+          <p class="hint" style="margin-top:6px">Their agreement link does not change. Only what you type here is corrected.</p></div>
+        <div class="sheet-body">
+          <div class="row2">
+            <div class="field"><label for="ve-first">First name</label><input id="ve-first" required autocomplete="off"></div>
+            <div class="field"><label for="ve-last">Last name</label><input id="ve-last" required autocomplete="off"></div>
+          </div>
+          <div class="field"><label for="ve-email">Email</label><input id="ve-email" type="email" required autocomplete="off"></div>
+          <div class="field"><label for="ve-org">Agency or organization</label><input id="ve-org" autocomplete="off"></div>
+          <div id="ve-warn"></div>
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-gold" id="ve-save" value="save">Save the correction</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+            <button class="btn btn-late" type="button" id="ve-remove" style="margin-left:auto">Remove volunteer</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="sheet" id="vrm">
+      <form method="dialog">
+        <div class="sheet-head"><h2 id="vrm-title">Remove this volunteer?</h2>
+          <p class="hint" style="margin-top:6px" id="vrm-what"></p></div>
+        <div class="sheet-body">
+          <div class="field"><label for="vrm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
+            <textarea id="vrm-why" maxlength="600" style="min-height:80px" placeholder="e.g. No longer available; replaced by another volunteer"></textarea>
+            <p class="hint" style="margin:6px 0 0">Keep it short. Leave out case details and anything confidential.</p></div>
+          <div class="field"><label for="vrm-confirm">Type DELETE to confirm</label>
+            <input id="vrm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+          <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+            <button class="btn btn-late" id="vrm-go" value="remove" disabled>Remove volunteer</button>
+            <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>`;
+}
+
+function wireVolunteers(ev, V) {
+  const list = V?.volunteers ?? [];
+  const q = `event=${encodeURIComponent(ev.id)}`;
+  const named = (v) => `${v.first} ${v.last}`.trim();
+
+  // Add: one per line. Anything turned away stays in the box with the reason, so it can be fixed and sent again.
+  const vadd = document.getElementById("vadd"), rows = document.getElementById("va-rows"), out = document.getElementById("va-out"), go = document.getElementById("va-go");
+  let changed = false;
+  document.getElementById("v-add")?.addEventListener("click", () => { out.innerHTML = ""; rows.value = ""; go.disabled = false; changed = false; vadd.showModal(); rows.focus(); });
+  vadd?.addEventListener("close", () => { if (changed) render(); });
+  if (go) go.onclick = async () => {
+    const lines = rows.value.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (!lines.length) { out.innerHTML = `<div class="bad"><b>Nothing to add.</b> Type one volunteer per line.</div>`; return; }
+    const volunteers = lines.map((line) => { const [first, last, email, ...org] = line.split(",").map((x) => x.trim()); return { first, last, email, organization: org.join(", ") }; });
+    go.disabled = true; go.textContent = "Adding…";
+    try {
+      const r = await api(`/volunteers?${q}`, { method: "POST", body: JSON.stringify({ volunteers, invite: document.getElementById("va-invite").checked }) });
+      changed = changed || r.added.length > 0;
+      go.disabled = false; go.textContent = "Add volunteers";
+      if (!r.rejected.length && !r.notSent.length) { vadd.close(); toast(`${r.added.length} volunteer${r.added.length === 1 ? "" : "s"} added${r.sent ? `, ${r.sent} emailed` : ""}.`); return; }
+      // Keep only the lines that did not go in.
+      const bad = new Set(r.rejected.map((x) => x.index));
+      rows.value = lines.filter((l, i) => bad.has(i)).join("\n");
+      out.innerHTML = `<div class="note"><b>${r.added.length} added${r.sent ? `, ${r.sent} emailed` : ""}.</b></div>`
+        + (r.notSent.length ? `<div class="bad"><b>Not emailed:</b> ${r.notSent.map((x) => `${esc(x.name)} — ${esc(x.why)}`).join("; ")}<br>Use <b>Email link</b> on their row once it is fixed.</div>` : "")
+        + (r.rejected.length ? `<div class="bad"><b>${r.rejected.length} not added, left in the box:</b><br>${r.rejected.map((x) => esc(x.why)).join("<br>")}</div>` : "");
+    } catch (e) { go.disabled = false; go.textContent = "Add volunteers"; out.innerHTML = `<div class="bad"><b>Couldn't add them.</b> ${esc(e.message)}</div>`; }
+  };
+
+  // Email: a first send, or a reminder if they have been emailed before.
+  const mail = async (ids, what) => {
+    try {
+      const r = await api(`/volunteers?${q}&action=invite`, { method: "POST", body: JSON.stringify({ ids }) });
+      toast(r.failed.length ? `${r.sent.length} sent, ${r.failed.length} could not be sent — see the red box.` : r.sent.length ? `Sent to ${r.sent.map((x) => x.name).join(", ")}.` : what);
+      render();
+    } catch (e) { toast(e.message); }
+  };
+  document.getElementById("v-mailall")?.addEventListener("click", () => {
+    const waiting = list.filter((v) => v.status !== "signed");
+    if (confirm(`Email their link to ${waiting.length} volunteer${waiting.length === 1 ? "" : "s"} who haven't signed?`)) mail(null, "Nothing to send.");
+  });
+  ROOT.querySelectorAll("[data-vinvite]").forEach((b) => { b.onclick = () => mail([b.dataset.vinvite], "Nothing to send."); });
+  ROOT.querySelectorAll("[data-vcopy]").forEach((b) => {
+    b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.vcopy); b.textContent = "Copied"; } catch { prompt("Copy this link:", b.dataset.vcopy); } };
+  });
+  ROOT.querySelectorAll("[data-vpdf]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        const res = await fetch(`/api/volunteers?${q}&id=${encodeURIComponent(b.dataset.vpdf)}&pdf=1`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
+        const url = URL.createObjectURL(await res.blob());
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (e) { toast(e.message); }
+    };
+  });
+  ROOT.querySelectorAll("[data-vrefile]").forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Filing…";
+      try {
+        const r = await api(`/volunteers?${q}&id=${encodeURIComponent(b.dataset.vrefile)}&action=redeliver`, { method: "POST", body: JSON.stringify({}) });
+        toast(r.delivery?.filing?.ok ? "Filed to SharePoint." : `Still not filed — ${r.delivery?.filing?.error ?? r.delivery?.filing?.reason ?? "see the event's SharePoint setting"}.`);
+        render();
+      } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Retry filing"; }
+    };
+  });
+
+  // Correct, or remove (two steps: say yes, then type DELETE, with a reason kept on the event).
+  const vedit = document.getElementById("vedit");
+  ROOT.querySelectorAll("[data-vedit]").forEach((b) => {
+    b.onclick = () => {
+      const v = list.find((x) => x.id === b.dataset.vedit);
+      if (!v) return;
+      vedit.dataset.id = v.id;
+      for (const [id, val] of [["ve-first", v.first], ["ve-last", v.last], ["ve-email", v.email], ["ve-org", v.organization]]) document.getElementById(id).value = val ?? "";
+      const sent = (v.mail ?? []).length > 0;
+      document.getElementById("ve-warn").innerHTML = v.status === "signed"
+        ? `<div class="note" style="margin-top:14px">This agreement is already signed and filed. Correcting it here does not change the PDF in SharePoint.</div>`
+        : sent ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving, use <b>Email link</b> on their row to send it to the corrected one.</div>` : "";
+      vedit.showModal();
+      document.getElementById("ve-email").focus();
+    };
+  });
+  vedit?.addEventListener("close", async () => {
+    if (vedit.returnValue !== "save") return;
+    const body = { first: document.getElementById("ve-first").value.trim(), last: document.getElementById("ve-last").value.trim(),
+      email: document.getElementById("ve-email").value.trim(), organization: document.getElementById("ve-org").value.trim() };
+    try {
+      const r = await api(`/volunteers?${q}&id=${encodeURIComponent(vedit.dataset.id)}`, { method: "PUT", body: JSON.stringify(body) });
+      toast(r.emailChanged ? `Corrected — their link now goes to ${r.volunteer.email}.` : "Corrected.");
+      render();
+    } catch (e) { toast(e.message); }
+  });
+  const veRemove = document.getElementById("ve-remove");
+  if (veRemove) veRemove.onclick = () => {
+    const v = list.find((x) => x.id === vedit.dataset.id);
+    if (!v) return;
+    const signed = v.status === "signed";
+    const vrm = document.getElementById("vrm"), vgo = document.getElementById("vrm-go"), typed = document.getElementById("vrm-confirm");
+    vedit.close();
+    document.getElementById("vrm-title").textContent = `Remove ${named(v)}?`;
+    document.getElementById("vrm-what").textContent = `Their agreement link stops working and they come off this event${signed ? ". Their signed agreement stays in SharePoint." : "."}`;
+    document.getElementById("vrm-why").value = ""; typed.value = ""; vgo.disabled = true;
+    typed.oninput = () => { vgo.disabled = typed.value.trim().toUpperCase() !== "DELETE"; };
+    vrm.returnValue = "";
+    vrm.onclose = async () => {
+      if (vrm.returnValue !== "remove" || typed.value.trim().toUpperCase() !== "DELETE") return;
+      try {
+        await api(`/volunteers?${q}&id=${encodeURIComponent(v.id)}${signed ? "&final=1" : ""}`, { method: "DELETE", body: JSON.stringify({ reason: document.getElementById("vrm-why").value }) });
+        toast(`${named(v)} removed.`); render();
+      } catch (e) { toast(e.message); }
+    };
+    vrm.showModal();
+    document.getElementById("vrm-why").focus();
+  };
+}
+
 function addScreen(eventId) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">Back</button>`;
   document.getElementById("back").onclick = () => { view = { name: "event", eventId }; render(); };
@@ -4544,7 +4786,7 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list] = await Promise.all([
+      const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list, volunteers] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
@@ -4554,9 +4796,10 @@ async function render() {
         api(`/agenda?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api("/events").catch(() => ({ events: [] })),
+        api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
-      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, allEvents: list.events ?? [] });
+      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, allEvents: list.events ?? [] });
     }
     if (view.name === "unfiled") {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);

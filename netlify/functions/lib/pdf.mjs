@@ -1,4 +1,4 @@
-import { TERMS } from "./terms.mjs";
+import { TERMS, VOLUNTEER_TERMS } from "./terms.mjs";
 import PDFDocument from "pdfkit";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -335,6 +335,94 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
         `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails it to the presenter.`
     );
   }
+
+  p.finish();
+  doc.end();
+  return finished;
+}
+
+/**
+ * The signed Volunteer Agreement: the terms, the two statements the volunteer
+ * ticked, and their signature. There is no approval block, because a volunteer's
+ * own signature completes it; and like the presenter agreement it is always in
+ * English, whatever language they signed in.
+ */
+export async function buildVolunteerPdf({ event, volunteer }) {
+  const { banner, band } = await assets();
+  const s = volunteer.submission;
+  const T = VOLUNTEER_TERMS.en;
+
+  const doc = new PDFDocument({ size: "LETTER", margin: 0, info: {
+    Title: `${volunteer.last}_Volunteer Agreement`,
+    Author: "ONGIA Presenter Agreement Desk",
+    Subject: `${event.title} — volunteer agreement, ${volunteer.first} ${volunteer.last}`,
+  }});
+  const chunks = [];
+  doc.on("data", (c) => chunks.push(c));
+  const finished = new Promise((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+
+  const p = new Painter(doc, band, false);
+  if (existsSync(SCRIPT_FONT)) { doc.registerFont("Script", SCRIPT_FONT); p.script = true; }
+
+  const bannerH = (288 / 1056) * PAGE_W;
+  doc.image(banner, 0, 0, { width: PAGE_W });
+  p.y = bannerH + 8;
+
+  p.heading("EVENT DETAILS");
+  p.kvWide("Event Title:", event.title);
+  p.kvWide("Address:", event.venue || event.city);
+  p.kvRow([
+    ["Location (City):", event.city, 150],
+    [event.lastDay && event.lastDay !== event.dayOne ? "Event Dates:" : "Event Date:",
+      event.lastDay && event.lastDay !== event.dayOne ? `${fmt(event.dayOne)} to ${fmt(event.lastDay)}` : fmt(event.dayOne), 190],
+  ]);
+
+  p.heading("VOLUNTEER INFORMATION");
+  p.kvRow([
+    ["Name:", `${volunteer.first} ${volunteer.last}`, 160],
+    ["Contact #:", s.phone || "—", 110],
+  ]);
+  p.kvRow([["Agency / Organization:", volunteer.organization || "—", 330]]);
+  p.kvRow([["Email:", volunteer.email, 330]]);
+
+  // The terms as the volunteer read them, ahead of the signature that binds them.
+  p.heading("ONGIA VOLUNTEER TERMS");
+  p.small(T.intro);
+  p.bullets(T.items.map(([head, body]) => `${head}: ${body}`));
+
+  p.heading("VOLUNTEER AGREEMENT & CONFIRMATIONS");
+  p.tickLine(s.termsAccepted === true, T.termsBox, RED);
+  p.tickLine(s.standing === true, T.standing, RED);
+
+  p.heading("VOLUNTEER SIGNATURE");
+  p.kvRow([
+    ["Name:", `${volunteer.first} ${volunteer.last}`, 160],
+    ["Date:", fmt(s.signedAt?.slice(0, 10)), 90],
+  ]);
+  p.kvRow([["Email:", volunteer.email, 260]]);
+  p.signature("Signature:", s.signature);
+  p.tiny(
+    `Signed electronically on ${stamp(s.signedAt)}. The volunteer typed their name as a legally binding electronic signature ` +
+    `and certified that the information in this agreement is accurate and complete. Reference ${volunteer.reference}.`
+  );
+
+  // The ONGIA contact is the event's lead board member, when the event has one.
+  const contact = event.contact?.name || event.contact?.email ? event.contact : { name: "", email: process.env.MS_MAIL_FROM || "", phone: "" };
+  p.heading("ONGIA CONTACT INFORMATION");
+  p.kvRow([
+    ["Name:", contact.name || "—", 160],
+    ["Email:", contact.email || "—", 170],
+  ]);
+  p.kvRow([["Contact Number:", contact.phone || "—", 130]]);
+
+  p.gap(3);
+  p.stamp(
+    `SIGNED COPY — ${volunteer.first} ${volunteer.last} signed this agreement on ${fmt(s.signedAt?.slice(0, 10))}. ` +
+    `ONGIA files it to ${event.sharePointFolder || "the event folder"} and emails a copy to the volunteer.`
+  );
 
   p.finish();
   doc.end();

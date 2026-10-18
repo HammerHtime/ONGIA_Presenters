@@ -313,6 +313,33 @@ export async function fileAgreement({ event, presenter, pdf, headshot }) {
   return { folderUrl: folder.webUrl, files, filedAt: new Date().toISOString() };
 }
 
+/** Volunteers' signed agreements sit beside the presenters', in a folder of their own. */
+export const VOLUNTEER_AGREEMENTS_FOLDER = "Volunteer Agreements";
+
+/** <event folder>/Volunteer Agreements/<First Last> <year>/<Last>_Volunteer Agreement.pdf */
+export async function fileVolunteerAgreement({ event, volunteer, pdf }) {
+  if (!graphConfigured()) return { skipped: true, reason: "Microsoft credentials are not set on this site." };
+  const eventFolder = normaliseFolder(event.sharePointFolder);
+  if (!eventFolder) return { skipped: true, reason: "No SharePoint folder is set on this event." };
+
+  const token = await accessToken();
+  const drive = await driveId(token);
+  try {
+    await graph(token, `/drives/${drive}/root:/${encodePath(eventFolder)}?$select=id,webUrl`);
+  } catch (e) {
+    if (e.status === 404) throw new Error(`The event folder "${eventFolder}" does not exist in the library. Create it first, or fix the path on the event.`);
+    throw e;
+  }
+
+  const year = String(event.dayOne ?? "").slice(0, 4);
+  const personFolder = safeFileName(`${volunteer.first} ${volunteer.last}${year ? ` ${year}` : ""}`);
+  await ensureChildFolder(token, drive, eventFolder, VOLUNTEER_AGREEMENTS_FOLDER);
+  const folder = await ensureChildFolder(token, drive, `${eventFolder}/${VOLUNTEER_AGREEMENTS_FOLDER}`, personFolder);
+  const base = `${eventFolder}/${VOLUNTEER_AGREEMENTS_FOLDER}/${personFolder}`;
+  const item = await upload(token, drive, `${base}/${safeFileName(volunteer.last, "Volunteer")}_Volunteer Agreement.pdf`, pdf, "application/pdf");
+  return { folderUrl: folder.webUrl, files: [{ name: item.name, url: item.webUrl }], filedAt: new Date().toISOString() };
+}
+
 /**
  * Prove the sign-in and (optionally) an event folder before anyone approves
  * anything. Distinguishes "the app has no grant on the site" from "the folder

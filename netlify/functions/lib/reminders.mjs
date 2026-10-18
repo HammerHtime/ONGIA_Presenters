@@ -1,4 +1,5 @@
-import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta, getLetter } from "./store.mjs";
+import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta, getLetter, listVolunteers } from "./store.mjs";
+import { inviteVolunteer } from "./volunteers.mjs";
 import { checklistOf } from "./checklist.mjs";
 import { letterProblems, eventProblems, datesOf } from "./letters.mjs";
 import { describeEvent, formatDate, todayIso } from "./deadlines.mjs";
@@ -24,6 +25,10 @@ import { formatDateIn } from "./deadlines.mjs";
  *                a button into each event on the admin page
  * Nobody is chased before they have been sent their link at least once.
  *
+ * Volunteers who haven't signed get a reminder a week after their last email, three at
+ * most. They have no due date, so this does not follow the agreement schedule above and
+ * is not held back on an event with one presenter date.
+ *
  * Materials: presenters whose agreement is in (submitted or final) but whose
  * draft or final materials haven't arrived are nudged 7 days before and on
  * each materials deadline, then weekly. The request folder is scanned first,
@@ -37,6 +42,8 @@ import { formatDateIn } from "./deadlines.mjs";
 const PRESENTER_DAYS = [-28, -14, -7, -4, -2, -1, 0];
 const MATERIALS_DAYS = [-14, -7, -3, -1, 0];
 const OVERDUE_EVERY = 7;
+const VOLUNTEER_EVERY = 7;
+const VOLUNTEER_REMINDERS = 3;
 const BOARD_FIRST = 3;
 // Overdue: every 3 days for the first two weeks, then weekly.
 const overdueDay = (off) => off > 0 && (off <= 14 ? off % 3 === 0 : off % 7 === 0);
@@ -84,6 +91,23 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
           await putPresenter(p);
         },
       });
+    }
+
+    // Volunteers' agreements: a gentle weekly nudge, three at most.
+    if (!digestOnly) {
+      for (const v of await listVolunteers(event.id)) {
+        if (v.status === "signed" || !v.mail?.length) continue;
+        if (v.mail.filter((m) => m.type === "reminder-auto").length >= VOLUNTEER_REMINDERS) continue;
+        if (daysBetween(v.mail.at(-1).at.slice(0, 10), today) < VOLUNTEER_EVERY || alreadyToday(v, today)) continue;
+        plan.push({
+          kind: "volunteer", event: event.title, to: v.email, name: `${v.first} ${v.last}`,
+          why: `volunteer agreement unsigned, ${daysBetween(v.mail.at(-1).at.slice(0, 10), today)} days since the last email`,
+          send: async () => {
+            const out = await inviteVolunteer(event, v, origin, { remind: true, auto: true });
+            if (!out.ok) throw new Error(out.why);
+          },
+        });
+      }
     }
 
     // Room and equipment: asked at approval, chased until it arrives. Same

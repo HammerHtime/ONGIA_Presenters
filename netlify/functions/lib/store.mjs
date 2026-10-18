@@ -10,6 +10,8 @@ import { todayIso } from "./deadlines.mjs";
  *   event:<id>                  the event record
  *   presenter:<eventId>:<id>    one presenter on that event
  *   token:<token>               pointer to { eventId, presenterId }
+ *   volunteer:<eventId>:<id>    one volunteer on that event (their own agreement, no review)
+ *   vtoken:<token>              pointer to { eventId, volunteerId }
  *   sponsor:<id>                one sponsor, with the events they attend
  *   sponsortoken:<token>        pointer to { sponsorId }
  *
@@ -92,6 +94,34 @@ export async function putPresenter(presenter) {
 }
 
 export const getPresenter = (eventId, id) => read(`presenter:${eventId}:${id}`);
+
+/* -------------------------------------------------------------- volunteers */
+// A volunteer signs the ONGIA Volunteer Terms and that is the end of it: no cost
+// review, no materials, so they are kept apart from presenters and none of the
+// presenter counts, reminders or rooming rows can pick one up by accident.
+
+export async function putVolunteer(volunteer) {
+  await write(`volunteer:${volunteer.eventId}:${volunteer.id}`, volunteer);
+  if (volunteer.token) await write(`vtoken:${volunteer.token}`, { eventId: volunteer.eventId, volunteerId: volunteer.id });
+  return volunteer;
+}
+
+export const getVolunteer = (eventId, id) => read(`volunteer:${eventId}:${id}`);
+
+export async function listVolunteers(eventId) {
+  const { blobs } = await store().list({ prefix: `volunteer:${eventId}:` });
+  const people = await Promise.all(blobs.map((b) => read(b.key)));
+  return people.filter(Boolean).sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+}
+
+/** Resolve a volunteer's link token to the volunteer and their event. */
+export async function resolveVolunteerToken(tok) {
+  if (!tok) return null;
+  const pointer = await read(`vtoken:${tok}`);
+  if (!pointer) return null;
+  const [event, volunteer] = await Promise.all([getEvent(pointer.eventId), getVolunteer(pointer.eventId, pointer.volunteerId)]);
+  return event && volunteer ? { event, volunteer } : null;
+}
 
 /* ---------------------------------------------------------------- sponsors */
 
