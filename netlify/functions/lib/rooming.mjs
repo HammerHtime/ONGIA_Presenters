@@ -183,8 +183,8 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
   const top = "padding:9px 6px 2px;font-size:14px;vertical-align:top";
   const th = "padding:6px;border-bottom:2px solid #1a2f5e;font-size:12px;text-align:left;color:#1a2f5e;text-transform:uppercase;letter-spacing:.06em";
   const master = rows.filter(onMaster), own = rows.filter((r) => !onMaster(r));
-  const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0 14px">
-    <tr><th style="${th}">Guest</th><th style="${th}">In</th><th style="${th}">Out</th><th style="${th};text-align:right">Nights</th></tr>
+  const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;margin:6px 0 14px">
+    <tr><th style="${th}">Guest</th><th style="${th};width:84px">In</th><th style="${th};width:84px">Out</th><th style="${th};width:52px;text-align:right">Nights</th></tr>
     ${list.map((r) => `<tr><td style="${top}"><b>${esc(r.name)}</b></td>
       <td style="${top};white-space:nowrap">${esc(short(r.checkIn))}</td><td style="${top};white-space:nowrap">${esc(short(r.checkOut))}</td>
       <td style="${top};text-align:right">${r.nights}</td></tr>
