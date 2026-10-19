@@ -3176,7 +3176,16 @@ function wireReceipts(ev, R0) {
   };
   const openFile = async (id) => { try { window.open(await fileBlob(id), "_blank"); } catch (e) { toast(e.message); } };
 
-  const fields = (v, { lines }) => `<div class="rcf">
+  // Who paid: the board members on the event, then the rest of the board (someone not going can still pay a deposit).
+  // It starts as whoever is signed in, so the usual case is nothing to do.
+  const payerSelect = (v) => {
+    const me = String(WHO?.email ?? "").toLowerCase(), want = v.paidBy?.email ?? (R.payers.some((x) => x.email === me) ? me : "");
+    const opt = (x) => `<option value="${esc(x.email)}"${want === x.email ? " selected" : ""}>${esc(x.name)}</option>`;
+    const on = R.payers.filter((x) => x.onEvent), off = R.payers.filter((x) => !x.onEvent);
+    return `<div class="field full"><label>Paid by (the board member who will claim it)</label><select class="f-paid" aria-label="Paid by"><option value="">Pick a board member…</option>
+      ${on.length ? `<optgroup label="On this event">${on.map(opt).join("")}</optgroup>` : ""}${off.length ? `<optgroup label="Other board members">${off.map(opt).join("")}</optgroup>` : ""}</select></div>`;
+  };
+  const fields = (v, { lines }) => `<div class="rcf">${payerSelect(v)}
       <div class="field full"><label>Which line of the statement of work?</label>
         <select class="f-line" aria-label="Line of the statement of work"><option value="">Pick one…</option>${lines.map((l) => `<option value="${esc(l.id)}"${v.lineId === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("")}<option value="${RC_OTHER}"${v.lineId === RC_OTHER ? " selected" : ""}>Other</option></select></div>
       <div class="field full f-othwrap"${v.lineId === RC_OTHER ? "" : " hidden"}><label>What was it for? (Other)</label><input class="f-oth" maxlength="160" value="${esc(v.otherNote ?? "")}" placeholder="e.g. taxi to the studio"></div>
@@ -3189,7 +3198,7 @@ function wireReceipts(ev, R0) {
         <div class="field"><label>Currency</label><input class="f-cur" maxlength="3" value="${esc(v.currency || "CAD")}" autocapitalize="characters"></div></div>
     </div>`;
   const collect = (root) => ({
-    lineId: $(".f-line", root).value, otherNote: $(".f-oth", root).value, vendor: $(".f-vendor", root).value, date: $(".f-date", root).value,
+    paidBy: $(".f-paid", root).value, lineId: $(".f-line", root).value, otherNote: $(".f-oth", root).value, vendor: $(".f-vendor", root).value, date: $(".f-date", root).value,
     amount: $(".f-amount", root).value, tax: $(".f-tax", root).value, total: $(".f-total", root).value, currency: $(".f-cur", root).value,
   });
   const wireFields = (root) => {
@@ -3227,7 +3236,7 @@ function wireReceipts(ev, R0) {
     const who = r.addedBy?.name || r.addedBy?.email || "";
     return `<div class="rck" data-k="${esc(r.id)}"><div class="top"><b>${esc(r.vendor)}</b><span class="amt">${usd(r.amount)}</span></div>
       <div class="sub">${esc(fmtDate(r.date))} · <b>${esc(lineName(r.lineId))}</b>${r.lineId === RC_OTHER ? ` (${esc(r.otherNote)})` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}</div>
-      <div class="sub">added by ${esc(who)}${r.readBy === "hand" ? " · typed in by hand" : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
+      <div class="sub">paid by <b>${esc(r.paidBy?.name ?? "—")}</b> · added by ${esc(who)}${r.readBy === "hand" ? " · typed in by hand" : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
       <div class="rclinks"><button class="lnk" data-open="${esc(r.id)}">Open the ${r.type === "application/pdf" ? "PDF" : "photo"}</button>
         ${r.filed ? `<a href="${esc(r.filed.url)}" target="_blank" rel="noopener">In SharePoint</a>` : `<span class="rcprob">Not in SharePoint: ${esc(r.filedProblem ?? "not filed")}</span> <button class="lnk" data-refile="${esc(r.id)}">Try again</button>`}
         ${r.mine && !R.closed || R.canCost ? `<button class="lnk" data-edit="${esc(r.id)}">Change</button><button class="lnk" data-del="${esc(r.id)}">Remove</button>` : ""}</div></div>`;
@@ -3258,7 +3267,8 @@ function wireReceipts(ev, R0) {
         <label class="btn btn-ghost" id="rc-pick">Choose a photo or PDF<input type="file" accept="image/*,application/pdf" multiple></label></div>
         <p class="hint" style="margin:-4px 0 14px" id="rc-said">Claude reads the vendor, date and amounts; you check them and say which line they belong to. Nothing counts until you confirm it.</p>`}
       <div id="rc-drafts"></div>
-      ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>` : ""}
+      ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>
+      ${R.canCost && R.byPayer?.length ? `<div class="rcsum rcpay"><span><b>Paid by</b> (total paid, tax included, for checking claims):</span>${R.byPayer.map((x) => `<span>${esc(x.name)} <b>${usd(x.paid)}</b> <small>${x.count} receipt${x.count === 1 ? "" : "s"}</small></span>`).join("")}</div>` : ""}` : ""}
       <div id="rc-items">${R.items.map(itemHtml).join("") || `<p class="hint">No receipts yet.</p>`}</div>`;
     const slot = $("#rc-drafts");
     while (dh.firstChild) slot.appendChild(dh.firstChild);

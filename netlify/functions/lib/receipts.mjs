@@ -100,7 +100,15 @@ export async function readReceipt(bytes, type, lineNames = [], { client = null }
  * What a person confirmed, checked before it is kept. Returns { problem } or { ok }.
  * `lineIds` are the lines of the statement of work; the only other place a receipt can go is "other".
  */
-export function cleanConfirm(body, lineIds) {
+export function cleanConfirm(body, lineIds, payers = null) {
+  // Who paid: a board member, so the expense claim they send in later can be matched to the receipt.
+  let paidBy = null;
+  if (payers) {
+    const email = String(body?.paidBy ?? "").trim().toLowerCase();
+    const who = payers.find((x) => x.email.toLowerCase() === email);
+    if (!who) return { problem: "Pick the board member who paid for this, or who is claiming it." };
+    paidBy = { email: who.email.toLowerCase(), name: who.name };
+  }
   const lineId = String(body?.lineId ?? "");
   if (lineId !== OTHER && !lineIds.includes(lineId)) return { problem: "Pick which line of the statement of work this receipt belongs to, or Other." };
   const otherNote = String(body?.otherNote ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
@@ -112,7 +120,7 @@ export function cleanConfirm(body, lineIds) {
   const amount = Number(body?.amount);
   if (!(amount >= 0) || !Number.isFinite(amount) || body?.amount === "" || body?.amount === null) return { problem: "Type the amount before tax." };
   const optional = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : money(Number(v)));
-  return { ok: { lineId, otherNote: lineId === OTHER ? otherNote : "", vendor, date, amount: money(amount), tax: optional(body?.tax), total: optional(body?.total), currency: /^[A-Za-z]{3}$/.test(String(body?.currency ?? "")) ? String(body.currency).toUpperCase() : "CAD" } };
+  return { ok: { ...(paidBy ? { paidBy } : {}), lineId, otherNote: lineId === OTHER ? otherNote : "", vendor, date, amount: money(amount), tax: optional(body?.tax), total: optional(body?.total), currency: /^[A-Za-z]{3}$/.test(String(body?.currency ?? "")) ? String(body.currency).toUpperCase() : "CAD" } };
 }
 
 /** What a line's receipts come to, and what is under Other. */
@@ -145,4 +153,36 @@ export function withReceipts(sow, items) {
     lines: (sow.lines ?? []).map((l) => ({ ...l, receiptsTotal: sums.byLine[l.id] ?? 0, receiptCount: count[l.id] ?? 0 })),
     receiptsOther: sums.other, otherNotes: sums.otherNotes, otherCount: count[OTHER] ?? 0,
   };
+}
+
+/**
+ * Who a receipt can be attached to. The board members on the event come first; then everyone else on the board,
+ * because someone not going (the president paying a hotel deposit, say) still pays for things. Anyone already
+ * attached to a receipt stays in the list even if they have since left the roster.
+ */
+export function payerChoices(event, roster, items = []) {
+  const seen = new Map();
+  // The roster's spelling of a name wins, so one person is one name everywhere, whatever the event's board says.
+  const rosterName = new Map((roster ?? []).map((m) => [String(m.email ?? "").trim().toLowerCase(), m.name]));
+  const add = (name, email, onEvent) => {
+    const e = String(email ?? "").trim().toLowerCase();
+    if (e && !seen.has(e)) seen.set(e, { email: e, name: String(rosterName.get(e) || name || email).trim(), onEvent });
+  };
+  for (const m of event.board ?? []) add(m.name, m.email, true);
+  for (const m of roster ?? []) add(m.name, m.email, false);
+  for (const r of items) if (r.paidBy) add(r.paidBy.name, r.paidBy.email, false);
+  return [...seen.values()];
+}
+
+/** What each person has paid, so the claims can be checked against it: the total paid (tax included) and the part that counts. */
+export function paidByPerson(items) {
+  const m = new Map();
+  for (const r of items ?? []) {
+    const k = r.paidBy?.email ?? "";
+    const x = m.get(k) ?? { email: k, name: r.paidBy?.name ?? "(nobody named)", count: 0, paid: 0, counted: 0 };
+    x.count++; x.counted = money(x.counted + r.amount);
+    x.paid = money(x.paid + (r.total ?? money(r.amount + (r.tax ?? 0))));
+    m.set(k, x);
+  }
+  return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
