@@ -4936,13 +4936,13 @@ function approvedNote(r) {
  */
 function hotelBlockChoice(s) {
   const agency = s.expenses?.hotel;
-  const said = agency === "yes" ? "The presenter says <b>their agency is covering</b> the hotel. The form told them ONGIA still makes the reservation and they pay the hotel at check-out."
+  const said = agency === "yes" ? "The presenter says <b>their agency is covering</b> the hotel. The form told them ONGIA makes the reservation on their behalf and they pay the hotel at check-out."
     : agency === "no" ? "The presenter says their agency is <b>not</b> covering the hotel and asked ONGIA for help." : "";
   return `<fieldset class="blockpick" id="r-block" style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:12px 0 0">
     <legend style="padding:0 6px;font-weight:700;font-size:14px">Hotel room: who books and pays? <span style="color:var(--late)">(required)</span></legend>
     ${said ? `<p class="hint" style="margin:0 0 8px">${said}</p>` : ""}
     <label class="attest" style="margin-top:4px"><input type="radio" name="r-block" value="master"><span><b>On ONGIA's master block.</b> ONGIA books the room and pays the hotel.</span></label>
-    <label class="attest" style="margin-top:6px"><input type="radio" name="r-block" value="own"><span><b>Not on the master block.</b> ONGIA still makes the reservation, but the presenter pays the hotel at check-out. The hotel is told "[their name] pays" and not to bill ONGIA.</span></label>
+    <label class="attest" style="margin-top:6px"><input type="radio" name="r-block" value="own"><span><b>Not on the master block.</b> ONGIA makes the reservation on their behalf, and the presenter pays the hotel at check-out. The hotel is told "[their name] pays" and not to bill ONGIA.</span></label>
   </fieldset>`;
 }
 
