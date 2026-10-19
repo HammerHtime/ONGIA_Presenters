@@ -2320,6 +2320,7 @@ function eventScreen(data) {
     + volunteerCard(ev, volunteers)
     + inboxCard(ev, inbox) + inboxDialogs()
     + checklistCard(ev, checklist) + jobDialog()
+    + (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "")
     + (sow ? sowCard(ev, sow) : "")
     + (receipts ? receiptsCard(ev, receipts) : "")
     + (sheetcheck ? sheetCard(ev, sheetcheck) : "")
@@ -2390,6 +2391,7 @@ function eventScreen(data) {
   wireVolunteers(ev, volunteers);
   if (sheetcheck) wireSheet(ev, sheetcheck);
   if (sow) wireSow(ev, sow);
+  wireRbhOffer(ev);
   if (receipts) wireReceipts(ev, receipts);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2927,6 +2929,33 @@ async function readLogisticsXlsx(file) {
     }
   }
   throw new Error("I couldn't find the presenters' sheet in that file: no tab has a Presenter column with Sunday to Thursday accommodation columns.");
+}
+
+/**
+ * For the president and the VP, on an event that is not an RBH event: one place to say it is. That gives the event its
+ * statement of work, final invoice and receipts, and keeps its hotel contract and costs to the two of them.
+ */
+function rbhOfferCard(ev, guess) {
+  return `<div class="card" id="rbhoffer"><div class="card-body" style="display:flex;gap:12px 18px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+      <div style="flex:1 1 280px"><b>Is this an RBH event?</b><div class="hint" style="margin-top:4px">Marking it gives it a statement of work, a final invoice and receipts, and keeps the hotel contract and the costs to you and the VP. The event's lead no longer sees them.</div></div>
+      <button class="btn btn-ghost" id="rbh-open">Yes, it's an RBH event…</button></div>
+    <div id="rbh-form" hidden style="padding:0 20px 20px"><div class="row2">
+      <div class="field"><label for="rbh-prov">Province where it is held (sets the sales tax)</label><select id="rbh-prov"><option value="">Pick one</option>${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${(ev.province || guess) === k ? " selected" : ""}>${n}</option>`).join("")}</select></div>
+      <div class="field"><label for="rbh-prefix">Invoice number starts with</label><input id="rbh-prefix" maxlength="8" value="${esc(ev.invoicePrefix || "ITP")}"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like ITP-2026-001.</p></div></div>
+      <div class="actions" style="margin-top:6px"><button class="btn btn-gold" id="rbh-go">Mark it as an RBH event</button><button class="btn btn-ghost" id="rbh-cancel">Not now</button></div></div></div>`;
+}
+function wireRbhOffer(ev) {
+  const open = document.getElementById("rbh-open");
+  if (!open) return;
+  const form = document.getElementById("rbh-form");
+  open.onclick = () => { form.hidden = false; open.hidden = true; document.getElementById("rbh-prov").focus(); };
+  document.getElementById("rbh-cancel").onclick = () => { form.hidden = true; open.hidden = false; };
+  document.getElementById("rbh-go").onclick = async () => {
+    const province = document.getElementById("rbh-prov").value;
+    if (!province) return toast("Pick the province where it is held, so the right sales tax goes on.");
+    try { await api(`/events?id=${encodeURIComponent(ev.id)}&rbh=1`, { method: "PUT", body: JSON.stringify({ kind: "rbh", province, invoicePrefix: document.getElementById("rbh-prefix").value }) }); toast("Marked as an RBH event."); render(); }
+    catch (e) { toast(e.message); }
+  };
 }
 
 /** Provinces and territories, for the RBH event's tax. */

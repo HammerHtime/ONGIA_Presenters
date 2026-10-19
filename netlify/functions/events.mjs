@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mj
 import { mayCost } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
-  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers } from "./lib/store.mjs";
+  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts } from "./lib/store.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -10,7 +10,7 @@ import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUpload
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
-import { PROVINCES, cleanPrefix, redactEvent, withoutOffers } from "./lib/sow.mjs";
+import { PROVINCES, cleanPrefix, redactEvent, withoutOffers, guessProvince } from "./lib/sow.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
 import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checklist.mjs";
 
@@ -50,6 +50,7 @@ export default async (req) => {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
+    if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     const presenterId = url.searchParams.get("presenter");
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
@@ -230,6 +231,28 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   }
   if (creating) event.createdAt = event.updatedAt;
   return null;
+}
+
+/**
+ * Mark an event as an RBH event (or take the mark off) without going through the whole Edit form: the president
+ * and the VP only. Province and invoice prefix go with it; the province is guessed from the city if none is given.
+ * An event that already has a statement of work or receipts cannot be unmarked: its costing would vanish from view.
+ */
+async function setRbh(id, body, canCost) {
+  if (!canCost) return fail("Only the president and the VP of operations can mark an event as an RBH event.", 403);
+  const event = id && (await getEvent(id));
+  if (!event) return fail("No such event.", 404);
+  if (body.kind === "rbh") {
+    event.kind = "rbh";
+    const given = text(body.province, 2).toUpperCase();
+    event.province = PROVINCES[given] ? given : (event.province || guessProvince(event.city));
+    event.invoicePrefix = cleanPrefix(body.invoicePrefix || event.invoicePrefix || "ITP");
+  } else {
+    if (event.kind === "rbh" && ((await getSow(id)) || (await getReceipts(id)).items.length)) return fail("This event already has a statement of work or receipts, so it can't be changed back. They would disappear from view.", 409);
+    event.kind = "";
+  }
+  await putEvent(event);
+  return json({ event, canCost: true });
 }
 
 async function updateEvent(id, body, canCost) {
@@ -432,7 +455,7 @@ async function showEvent(id, canCost = true) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event: canCost ? event : redactEvent(event), canCost, presenters, counts: countStatuses(presenters) });
+  return json({ event: canCost ? event : redactEvent(event), canCost, provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters) });
 }
 
 export function countStatuses(presenters) {
