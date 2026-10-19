@@ -193,11 +193,12 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
   // underneath only when the board changed it.
   const travelDates = review.travel ?? (s.travel === "yes" ? { from: s.travelFrom, to: s.travelTo } : null);
   const hotelDates = review.hotel ?? (s.hotel === "yes" ? { from: s.hotelFrom, to: s.hotelTo } : null);
-  p.kvRow([
+  const noTravel = event.kind === "rbh";   // RBH events: accommodation only, no flights or other travel
+  if (!noTravel) p.kvRow([
     ["Will you require travel:", cap(s.travel), 40, true],
     ["Dates:", travelDates ? `${fmt(travelDates.from)}  to  ${fmt(travelDates.to)}` : "—", 220, true],
   ]);
-  if (review.travel?.changed) p.tiny(`Presenter requested ${fmt(s.travelFrom)} to ${fmt(s.travelTo)}; dates set by ONGIA at review.`);
+  if (!noTravel && review.travel?.changed) p.tiny(`Presenter requested ${fmt(s.travelFrom)} to ${fmt(s.travelTo)}; dates set by ONGIA at review.`);
   p.kvRow([
     ["Will you require hotel accommodations:", cap(s.hotel), 40, true],
     ["Dates:", hotelDates ? `${fmt(hotelDates.from)}  to  ${fmt(hotelDates.to)}` : "—", 220, true],
@@ -210,7 +211,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     ["PROJECTED EXPENSES", "ONGIA", "PRESENTER AGENCY"],
     [0.55, 0.2, 0.25],
     [
-      ["Transportation (Ground/Air)", !!oc.transport, yes(ex.transport)],
+      ...(noTravel ? [] : [["Transportation (Ground/Air)", !!oc.transport, yes(ex.transport)]]),
       s.hotel === "yes"
         ? ["Hotels/Accommodations", !!oc.hotel, yes(ex.hotel)]
         : ["Hotels/Accommodations", "not required"],

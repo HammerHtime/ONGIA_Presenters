@@ -79,6 +79,7 @@ async function showForm(event, presenter) {
       dayOneIso: event.dayOne,
       lastDayIso: event.lastDay,
       travelWindow: travelWindow(event),
+      noTravel: event.kind === "rbh",
       sessionMinutes: event.sessionMinutes,
       deadlines: {
         agreement: formatDate(event.deadlines.agreement),
@@ -146,7 +147,9 @@ async function submit(req, event, presenter) {
   const bio = onFile || bioProvided ? "" : need(text(body.bio, 6000), "Your biography is missing.");
   const outline = onFile || outlineProvided ? "" : need(text(body.outline, 6000), "Your presentation outline is missing.");
 
-  const travel = need(yesNo(body.travel), "Tell us whether you need travel arranged.");
+  // RBH events have no flights or other travel: the form does not ask, and whatever arrives is set aside.
+  const noTravel = event.kind === "rbh";
+  const travel = noTravel ? "no" : need(yesNo(body.travel), "Tell us whether you need travel arranged.");
   const hotel = need(yesNo(body.hotel), "Tell us whether you need hotel accommodation.");
 
   // Dates are boxed to the training days plus one either side; the board
@@ -158,7 +161,7 @@ async function submit(req, event, presenter) {
   if (hotel === "yes") { const p = rangeProblem(hotelFrom, hotelTo, window, "Hotel"); if (p) problems.push(p); }
 
   const expenses = {
-    transport: yesNo(body?.expenses?.transport),
+    transport: noTravel ? "n/a" : yesNo(body?.expenses?.transport),
     hotel: hotel === "yes" ? yesNo(body?.expenses?.hotel) : "n/a",
     meals: yesNo(body?.expenses?.meals),
     other: yesNo(body?.expenses?.other),

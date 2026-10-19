@@ -5380,7 +5380,7 @@ function avSummary(av, at) {
     + `${a.notes ? `<span class="said">${esc(a.notes)}</span>` : ""}`
     + `<span class="said">sent ${esc(fmtDate(String(at).slice(0, 10)).replace(/^\w+ /, ""))}</span></div>`;
 }
-const COSTS = [
+const ALL_COSTS = [
   ["transport", "Transportation (ground/air)"],
   ["hotel", "Hotel / accommodation"],
   ["meals", "Meals (receipts required)"],
@@ -5390,6 +5390,7 @@ const COSTS = [
 /* ---------- review ---------- */
 function reviewScreen(data) {
   const { event: ev, presenter: p, headshot } = data;
+  const COSTS = ev.noTravel ? ALL_COSTS.filter(([k]) => k !== "transport") : ALL_COSTS;   // an RBH event has no travel
   const s = p.submission ?? {};
   const approved = p.status === "approved";
   BARRIGHT.innerHTML = `<button class="chip" id="back">Back to event</button>`;
@@ -5408,7 +5409,7 @@ function reviewScreen(data) {
       ${!s.talk ? `<div class="note">Nothing submitted yet — there is nothing to review until ${esc(p.first)} completes the form.</div>` : `
       <dl class="kv">
         <dt>Presentation</dt><dd>${esc(s.talk)}</dd>
-        <dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}${approvedNote(p.review?.travel)}` : ""}</dd>
+        ${ev.noTravel ? "" : `<dt>Travel</dt><dd>${YN(s.travel)}${s.travel === "yes" ? ` — ${esc(fmtDate(s.travelFrom))} to ${esc(fmtDate(s.travelTo))}${approvedNote(p.review?.travel)}` : ""}</dd>`}
         <dt>Hotel</dt><dd>${YN(s.hotel)}${s.hotel === "yes" ? ` — ${esc(fmtDate(s.hotelFrom))} to ${esc(fmtDate(s.hotelTo))}${approvedNote(p.review?.hotel)}` : ""}</dd>
         <dt>Copyright</dt><dd>${s.copyright ? "Confirmed" : "Not confirmed"}</dd>
         <dt>Language</dt><dd>${p.language === "fr" ? "Français — their emails go out in French; the filed PDF is English" : "English"}</dd>
@@ -5639,10 +5640,10 @@ function dateRows(s, ev) {
       <div class="field"><label for="${f}">${a}</label><input type="date" id="${f}" value="${esc(from)}" min="${esc(win.from ?? "")}" max="${esc(win.to ?? "")}"></div>
       <div class="field"><label for="${t}">${b}</label><input type="date" id="${t}" value="${esc(to)}" min="${esc(win.from ?? "")}" max="${esc(win.to ?? "")}"></div>
     </div></div>`;
-  const any = s.travel === "yes" || s.hotel === "yes";
-  return !any ? "" : `<h2 style="margin:18px 0 4px;font-size:16px">Travel &amp; accommodation dates</h2>
+  const any = (s.travel === "yes" && !ev.noTravel) || s.hotel === "yes";
+  return !any ? "" : `<h2 style="margin:18px 0 4px;font-size:16px">${ev.noTravel ? "Accommodation dates" : "Travel &amp; accommodation dates"}</h2>
     <p class="hint" style="margin:0 0 4px">Allowed: ${esc(fmtDate(win.from))} to ${esc(fmtDate(win.to))} (training days plus one either side).</p>
-    ${row("Travel", s.travel === "yes", s.travelFrom, s.travelTo, "r-tf", "r-tt", "Arriving", "Departing")}
+    ${row("Travel", s.travel === "yes" && !ev.noTravel, s.travelFrom, s.travelTo, "r-tf", "r-tt", "Arriving", "Departing")}
     ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check-in", "Check-out")}
     ${s.hotel === "yes" ? hotelBlockChoice(s) : ""}`;
 }

@@ -244,6 +244,8 @@ export function describeEvent(event) {
   return {
     ...event,
     travelWindow: travelWindow(event),
+    // An RBH event has no flights or other travel to request or cover: accommodation only.
+    noTravel: event.kind === "rbh",
     dayOneReadable: formatDate(event.dayOne),
     lastDayReadable: formatDate(event.lastDay),
     offsets: offsetsOf(event),

@@ -252,6 +252,7 @@ let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { r
 
 const T = {
 en: {
+  titleRbh: "Accommodation & Expenses",
   titles: ["Your event", "About you", "Your session", "Travel & Expenses", "Permissions", "Sign and Send"],
   stepOf: (n) => `Step ${n} of 6`, submitted: "Submitted",
   chooseDate: "Choose a date", prevMonth: "Previous month", nextMonth: "Next month", onOrAfter: (d) => `On or after ${d}`, done: "Done",
@@ -303,6 +304,8 @@ en: {
   avAgreementLink: "Your signed agreement",
   travelLede: (a, b) => `Please let us know what travel arrangements or accommodations you may require for the event. Travel dates can be requested from <b>${a}</b>, through <b>${b}</b>, to allow for travel before and after the training event.`,
   travelReview: "Any travel and accommodation requirements will be reviewed as part of your Presenter Agreement, and ONGIA will confirm approved travel dates and arrangements once your agreement has been finalized.",
+  hotelLedeRbh: (a, b) => `For this training, ONGIA does not arrange flights or other travel. Please let us know whether you need hotel accommodation. Check-in and check-out dates can be requested from <b>${a}</b>, through <b>${b}</b>.`,
+  hotelReviewRbh: "Any accommodation requirement will be reviewed as part of your Presenter Agreement, and ONGIA will confirm approved dates once your agreement has been finalized.",
   needTravel: "Will you need travel arranged?", arriving: "Arrival date", departing: "Departure date",
   needHotel: "Will you need hotel accommodation?", checkin: "Check-in", checkout: "Check-out",
   shared: "Shared Expenses",
@@ -373,6 +376,7 @@ en: {
   dow: ["Su","Mo","Tu","We","Th","Fr","Sa"], fmt: (dn, d, mo, y) => `${dn} ${d} ${mo} ${y}`,
 },
 fr: {
+  titleRbh: "Hébergement et frais",
   titles: ["Votre événement", "À propos de vous", "Votre présentation", "Déplacements et frais", "Autorisations", "Signer et envoyer"],
   stepOf: (n) => `Étape ${n} sur 6`, submitted: "Envoyé",
   chooseDate: "Choisir une date", prevMonth: "Mois précédent", nextMonth: "Mois suivant", onOrAfter: (d) => `À partir du ${d}`, done: "OK",
@@ -425,6 +429,8 @@ fr: {
   avAgreementLink: "Votre entente signée",
   travelLede: (a, b) => `Veuillez nous indiquer les déplacements ou l'hébergement dont vous pourriez avoir besoin pour l'événement. Les dates de déplacement peuvent être demandées du <b>${a}</b> au <b>${b}</b>, afin de permettre de voyager avant et après la formation.`,
   travelReview: "Tous les besoins de déplacement et d'hébergement seront examinés dans le cadre de votre entente de conférencier, et ONGIA confirmera les dates et les arrangements approuvés une fois votre entente finalisée.",
+  hotelLedeRbh: (a, b) => `Pour cette formation, ONGIA n'organise ni vols ni autre transport. Veuillez nous indiquer si vous avez besoin d'un hébergement à l'hôtel. Les dates d'arrivée et de départ peuvent être demandées du <b>${a}</b> au <b>${b}</b>.`,
+  hotelReviewRbh: "Tout besoin d'hébergement sera examiné dans le cadre de votre entente de conférencier, et ONGIA confirmera les dates approuvées une fois votre entente finalisée.",
   needTravel: "Aurez-vous besoin qu'on organise votre transport?", arriving: "Date d'arrivée", departing: "Date de départ",
   needHotel: "Aurez-vous besoin d'un hébergement à l'hôtel?", checkin: "Arrivée à l'hôtel", checkout: "Départ de l'hôtel",
   shared: "Partage des frais",
@@ -734,12 +740,15 @@ function stepMarkup() {
     }
 
     case 3: {
-      let h = `<div class="card"><h2>${t("titles")[3]}</h2>
-        <p class="lede">${t("travelLede", esc(fmtLong(ev.travelWindow.from)), esc(fmtLong(ev.travelWindow.to)))}</p>
-        <p class="lede" style="margin-top:10px">${t("travelReview")}</p>
+      // An RBH event has no flights or other travel: accommodation only, and nothing about transport is asked.
+      const noTravel = ev.noTravel === true;
+      if (noTravel) { S.travel = "no"; S.travelFrom = ""; S.travelTo = ""; S.expenses.transport = "n/a"; }
+      let h = `<div class="card"><h2>${noTravel ? t("titleRbh") : t("titles")[3]}</h2>
+        <p class="lede">${noTravel ? t("hotelLedeRbh", esc(fmtLong(ev.travelWindow.from)), esc(fmtLong(ev.travelWindow.to))) : t("travelLede", esc(fmtLong(ev.travelWindow.from)), esc(fmtLong(ev.travelWindow.to)))}</p>
+        <p class="lede" style="margin-top:10px">${noTravel ? t("hotelReviewRbh") : t("travelReview")}</p>
         <p class="hint" style="margin-top:10px">${t("longStep")}</p>
-        <div class="qblock" id="q-travel"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`;
-      if (S.travel === "yes") h += dateField("f-tf", t("arriving"), "travelFrom") + dateField("f-tt", t("departing"), "travelTo");
+        ${noTravel ? "" : `<div class="qblock" id="q-travel"><p class="qtext">${t("needTravel")}</p>${seg("travel", YESNO())}</div>`}`;
+      if (!noTravel && S.travel === "yes") h += dateField("f-tf", t("arriving"), "travelFrom") + dateField("f-tt", t("departing"), "travelTo");
       h += `<div class="qblock" id="q-hotel"><p class="qtext">${t("needHotel")}</p>${seg("hotel", YESNO())}</div>`;
       if (S.hotel === "yes") h += dateField("f-hf", t("checkin"), "hotelFrom") + dateField("f-ht", t("checkout"), "hotelTo");
       h += `</div>`;
@@ -748,8 +757,8 @@ function stepMarkup() {
         <p class="blurb">${t("blurb1")}</p>
         <p class="blurb">${t("blurb2")}</p>
         <div class="covers" style="margin-top:13px">${t("covers")}</div>
-        <div class="qblock" id="q-cov-transport"><p class="qhead">${t("hTravel")}</p><p class="qtext">${t("covTransport")}</p>
-          ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`;
+        ${noTravel ? "" : `<div class="qblock" id="q-cov-transport"><p class="qhead">${t("hTravel")}</p><p class="qtext">${t("covTransport")}</p>
+          ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`}`;
       if (S.hotel === "yes") {
         h += `<div class="qblock" id="q-cov-hotel"><p class="qhead">${t("hHotel")}</p><p class="qtext">${t("covHotel")}</p>
           ${seg("expenses", YESNO(), ["expenses", "hotel"])}
@@ -984,7 +993,8 @@ function validate() {
     }
   }
   if (S.step === 3) {
-    if (!S.travel) add(t("vTravel"), "q-travel");
+    const noTravel = DATA.event.noTravel === true;
+    if (!noTravel && !S.travel) add(t("vTravel"), "q-travel");
     if (!S.hotel) add(t("vHotel"), "q-hotel");
     const win = DATA.event.travelWindow;
     const check = (on, from, to, what, at) => {
@@ -993,9 +1003,9 @@ function validate() {
       else if (to < from) add(t("vOrder", what), at);
       else if (from < win.from || to > win.to) add(t("vWindow", what, fmtDate(win.from), fmtDate(win.to)), at);
     };
-    check(S.travel === "yes", S.travelFrom, S.travelTo, t("travelWord"), S.travelFrom ? "b-f-tt" : "b-f-tf");
+    check(!noTravel && S.travel === "yes", S.travelFrom, S.travelTo, t("travelWord"), S.travelFrom ? "b-f-tt" : "b-f-tf");
     check(S.hotel === "yes", S.hotelFrom, S.hotelTo, t("hotelWord"), S.hotelFrom ? "b-f-ht" : "b-f-hf");
-    if (!S.expenses.transport) add(t("vCovT"), "q-cov-transport");
+    if (!noTravel && !S.expenses.transport) add(t("vCovT"), "q-cov-transport");
     if (S.hotel === "yes" && !S.expenses.hotel) add(t("vCovH"), "q-cov-hotel");
     if (!S.expenses.meals) add(t("vCovM"), "q-cov-meals");
     if (!S.expenses.other) add(t("vCovO"), "q-cov-other");

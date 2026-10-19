@@ -70,6 +70,7 @@ async function approve(event, presenter, body, origin) {
 
   const ongiaCovers = {};
   for (const k of COST_KEYS) ongiaCovers[k] = body?.covers?.[k] === true;
+  if (event.kind === "rbh") ongiaCovers.transport = false;   // no travel on an RBH event
 
   // A presenter who wants a room is either on ONGIA's master block (ONGIA pays the hotel) or books
   // and pays their own. The board member says which, and cannot approve without saying: it decides
