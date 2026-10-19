@@ -83,6 +83,7 @@ function sheetSide(row) {
     checkOut: nights.length ? addDays(nights.at(-1), 1) : null,
     gaps: nights.length > 1 && nights.some((d, i) => i && Date.parse(d) - Date.parse(nights[i - 1]) !== 86400000),
     agencyPays: row.nights.some((n) => agencyPaying(n.text)),
+    agencyNights: row.nights.filter((n) => agencyPaying(n.text)).map((n) => n.date),
   };
 }
 
@@ -115,7 +116,7 @@ const span = (a, b) => (a && b ? `${day(a)} → ${day(b)}` : "no room");
  * Compare every presenter on the desk with the frozen sheet. `links` maps a presenter id to the exact
  * sheet name chosen by hand when the automatic match was wrong or missing.
  */
-export function compareSheet({ baseline, presenters, links = {} }) {
+export function compareSheet({ baseline, presenters, links = {}, rates = null }) {
   const sheetRows = baseline?.rows ?? [];
   const used = new Set();
   const matched = new Map();   // presenter id → { row, how }
@@ -155,27 +156,66 @@ export function compareSheet({ baseline, presenters, links = {} }) {
     }
     const label = desk.state === "approved" ? "agreement" : "requested on the agreement";
     const sh = out.sheet;
-    if (!desk.room && sh.nights.length) out.issues.push({ kind: "differs", text: `The sheet has a room ${span(sh.checkIn, sh.checkOut)}, but the ${desk.state === "approved" ? "agreement" : "presenter"} says no hotel is needed.` });
-    else if (desk.room && !sh.nights.length) out.issues.push({ kind: "differs", text: `The ${label} has a room ${span(desk.checkIn, desk.checkOut)}, but the sheet has no nights booked.` });
+    if (!desk.room && sh.nights.length) out.issues.push({ kind: "differs", night: true, text: `The sheet has a room ${span(sh.checkIn, sh.checkOut)}, but the ${desk.state === "approved" ? "agreement" : "presenter"} says no hotel is needed.` });
+    else if (desk.room && !sh.nights.length) out.issues.push({ kind: "differs", night: true, text: `The ${label} has a room ${span(desk.checkIn, desk.checkOut)}, but the sheet has no nights booked.` });
     else if (desk.room) {
       const missing = desk.nights.filter((d) => !sh.nights.includes(d)), extra = sh.nights.filter((d) => !desk.nights.includes(d));
-      if (missing.length) out.issues.push({ kind: "differs", text: `The sheet is missing ${list(missing)} (the ${label} has them).` });
-      if (extra.length) out.issues.push({ kind: "differs", text: `The sheet has ${list(extra)}, which the ${label} doesn't.` });
-      if (sh.gaps && !missing.length && !extra.length) out.issues.push({ kind: "check", text: "The sheet's nights have a gap in them." });
+      if (missing.length) out.issues.push({ kind: "differs", night: true, text: `The sheet is missing ${list(missing)} (the ${label} has them).` });
+      if (extra.length) out.issues.push({ kind: "differs", night: true, text: `The sheet has ${list(extra)}, which the ${label} doesn't.` });
+      if (sh.gaps && !missing.length && !extra.length) out.issues.push({ kind: "check", night: true, text: "The sheet's nights have a gap in them." });
     }
     if (desk.room && desk.block === "master" && sh.agencyPays) out.issues.push({ kind: "differs", text: "The sheet says the agency is paying, but the agreement has the room on ONGIA's master block (ONGIA pays)." });
     if (desk.room && desk.block === "own" && !sh.agencyPays) out.issues.push({ kind: "check", text: "The agreement has them paying their own room; the sheet doesn't say the agency is paying." });
     out.status = out.issues.some((i) => i.kind === "differs") ? "differs" : out.issues.length ? "check" : "match";
     return out;
-  });
+  }).map((r) => ({ ...r, grid: nightGrid(baseline?.nights, r.sheet?.nights ?? null, r.desk.room === null ? null : r.desk.nights) }))
+    .map((r) => ({ ...r, cost: nightCosts(r) }));
 
-  const sheetOnly = sheetRows.filter((r) => !used.has(r.name)).map((r) => ({ name: r.name, agency: r.agency, ...sheetSide(r) })).filter((r) => r.nights.length);
+  const sheetOnly = sheetRows.filter((r) => !used.has(r.name)).map((r) => ({ name: r.name, agency: r.agency, ...sheetSide(r) })).filter((r) => r.nights.length)
+    .map((r) => ({ ...r, grid: nightGrid(baseline?.nights, r.nights, null) }));
   const count = (s) => rows.filter((r) => r.status === s).length;
+  const price = priceOf(rates);
+  const sum = (k) => rows.reduce((n, r) => n + r.cost[k].length, 0);
+  // A discrepancy is one night the two sides disagree about, or one who-pays disagreement.
+  const payMismatches = rows.filter((r) => r.issues.some((i) => i.kind === "differs" && !i.night)).length;
+  const totals = { ...price, extraNights: sum("extra"), ongiaNights: sum("ongia"), missingNights: sum("missing"),
+    discrepancies: sum("extra") + sum("missing") + payMismatches, payMismatches, presenters: count("differs"),
+    ongiaCost: money(sum("ongia") * price.perNight), missingCost: money(sum("missing") * price.perNight) };
   return {
+    totals,
     rows: rows.sort((a, b) => ORDER[a.status] - ORDER[b.status] || String(b.desk.at ?? "").localeCompare(String(a.desk.at ?? ""))),
     sheetOnly,
     sheetNames: sheetRows.map((r) => r.name),
     counts: { differs: count("differs"), check: count("check"), match: count("match"), waiting: count("waiting"), nosheet: count("nosheet"), sheetOnly: sheetOnly.length },
   };
+}
+/**
+ * One entry per night, side by side: what the sheet says and what the agreement says. `null` means that
+ * side has no answer (the presenter isn't on the sheet, or hasn't signed), so nothing is marked wrong.
+ */
+function nightGrid(sheetColumns, sheetNights, deskNights) {
+  const dates = [...new Set([...(sheetColumns ?? []), ...(sheetNights ?? []), ...(deskNights ?? [])])].sort();
+  return dates.map((date) => ({ date, sheet: sheetNights === null ? null : sheetNights.includes(date), desk: deskNights === null ? null : deskNights.includes(date) }));
+}
+/** What a night costs ONGIA: the rate plus both percentages, per room per night. */
+export const DEFAULT_RATES = { nightly: 205, taxes: [8, 16] };
+const money = (n) => Math.round(n * 100) / 100;
+export function priceOf(rates) {
+  const nightly = Number(rates?.nightly) > 0 ? Number(rates.nightly) : DEFAULT_RATES.nightly;
+  const taxes = (Array.isArray(rates?.taxes) ? rates.taxes : DEFAULT_RATES.taxes).map((t) => (Number(t) >= 0 ? Number(t) : 0));
+  return { nightly, taxes, perNight: money(nightly * (1 + taxes.reduce((a, b) => a + b, 0) / 100)) };
+}
+/**
+ * The nights that cost money if the sheet were followed. `extra`: the sheet has the night and the agreement doesn't.
+ * `ongia`: of those, the ones ONGIA would have paid for, so not where the lead put the presenter on their own room
+ * and not where the sheet itself says an agency pays. `missing`: the agreement has the night and the sheet doesn't.
+ */
+function nightCosts(r) {
+  const none = { extra: [], ongia: [], missing: [] };
+  if (!r.sheet || r.desk.room === null) return none;
+  const extra = r.sheet.nights.filter((d) => !r.desk.nights.includes(d));
+  const missing = r.desk.nights.filter((d) => !r.sheet.nights.includes(d));
+  const ongia = r.desk.block === "own" ? [] : extra.filter((d) => !r.sheet.agencyNights.includes(d));
+  return { extra, ongia, missing };
 }
 const ORDER = { differs: 0, check: 1, nosheet: 2, waiting: 3, match: 4 };

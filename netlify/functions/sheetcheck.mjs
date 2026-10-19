@@ -1,14 +1,15 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
-import { isOwner } from "./lib/auth.mjs";
+import { maySeeSheetCheck } from "./lib/auth.mjs";
 import { getEvent, listPresenters, getSheetBaseline, putSheetBaseline, deleteKey } from "./lib/store.mjs";
-import { parseLogistics, compareSheet } from "./lib/sheetcheck.mjs";
+import { parseLogistics, compareSheet, priceOf } from "./lib/sheetcheck.mjs";
 
 /**
- * The logistics sheet check (president only): the sheet as it stood, against the agreements as they are now.
+ * The logistics sheet check (president and VP of operations only): the sheet as it stood, against the agreements as they are now.
  *
  *   GET    /api/sheetcheck?event=…            the baseline's details and the comparison, worked out fresh
  *   PUT    /api/sheetcheck?event=…&baseline=1 the sheet's cells, read in the browser ({ fileName, cells })
  *   PUT    /api/sheetcheck?event=…&link=1     match one presenter to a sheet name by hand ({ presenterId, sheetName })
+ *   PUT    /api/sheetcheck?event=…&rates=1    the room rate and the two percentages ({ nightly, taxes: [a, b] })
  *   DELETE /api/sheetcheck?event=…            forget the baseline
  *
  * Read-only on the spreadsheet itself: it never goes back to SharePoint.
@@ -18,7 +19,7 @@ const view = async (event, baseline) => {
   return {
     owner: true,
     baseline: baseline ? { fileName: baseline.fileName, uploadedAt: baseline.uploadedAt, uploadedBy: baseline.uploadedBy, count: baseline.rows.length, nights: baseline.nights } : null,
-    result: baseline ? compareSheet({ baseline, presenters, links: baseline.links ?? {} }) : null,
+    result: baseline ? compareSheet({ baseline, presenters, links: baseline.links ?? {}, rates: baseline.rates }) : null,
   };
 };
 
@@ -26,7 +27,7 @@ export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   const who = adminWho(req);
-  if (!(who.key === true || isOwner(who.email))) return fail("Only ONGIA's president can open the logistics sheet check.", 403);
+  if (!maySeeSheetCheck(who)) return fail("Only ONGIA's president and VP of operations can open the logistics sheet check.", 403);
 
   const url = new URL(req.url);
   const id = url.searchParams.get("event");
@@ -43,6 +44,17 @@ export default async (req) => {
     const read = parseLogistics(body?.cells, event);
     if (read.problem) return fail(read.problem);
     const next = { fileName: text(body?.fileName, 200) || "logistics sheet", uploadedAt: new Date().toISOString(), uploadedBy: who.name || who.email || "", rows: read.rows, nights: read.nights, links: {} };
+    await putSheetBaseline(id, next);
+    return json(await view(event, next));
+  }
+
+  if (req.method === "PUT" && url.searchParams.get("rates")) {
+    if (!baseline) return fail("Upload the sheet first.");
+    const body = await req.json().catch(() => null);
+    const nightly = Number(body?.nightly), taxes = (Array.isArray(body?.taxes) ? body.taxes : []).slice(0, 2).map(Number);
+    if (!(nightly > 0 && nightly <= 5000)) return fail("The room rate should be a number of dollars, like 205.");
+    if (taxes.length !== 2 || taxes.some((t) => !(t >= 0 && t <= 100))) return fail("Each percentage should be between 0 and 100.");
+    const next = { ...baseline, rates: { nightly, taxes } };
     await putSheetBaseline(id, next);
     return json(await view(event, next));
   }

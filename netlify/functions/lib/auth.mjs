@@ -31,6 +31,15 @@ export const deskOwners = () =>
 
 export const isOwner = (email) => deskOwners().includes(String(email ?? "").toLowerCase());
 
+/**
+ * Who may open the logistics sheet check: the desk owners and the VP of operations (Andrew, 19 Oct 2026).
+ * SHEET_VIEWERS replaces the VP's address if it ever changes; it grants nothing else, so a viewer cannot
+ * change who may sign in to the desk.
+ */
+export const sheetViewers = () => [...new Set([...deskOwners(),
+  ...String(process.env.SHEET_VIEWERS || "vp_operations@ongia.ca").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)])];
+export const maySeeSheetCheck = (who) => who?.key === true || sheetViewers().includes(String(who?.email ?? "").toLowerCase());
+
 /** May this person sign in? An owner always may; anyone else needs the switch on in Board members. */
 export function mayUseDesk(email, roster) {
   const e = String(email ?? "").toLowerCase();

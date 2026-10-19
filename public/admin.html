@@ -494,11 +494,33 @@
   .shc{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--card)}
   .shc.differs{border-left:4px solid var(--late)} .shc.check{border-left:4px solid var(--gold)}
   .shc .nm{font-weight:700;font-size:15px} .shc .ag{color:var(--muted);font-size:13px}
-  .shc .cmp{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:8px 0 0;font-size:14px}
-  .shc .cmp i{font-style:normal;color:var(--muted)}
-  @media (max-width:600px){.shc .cmp{grid-template-columns:1fr;gap:0}.shc .cmp i{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:7px}}
   .shc ul.iss{margin:8px 0 0;padding-left:18px;font-size:14px} .shc ul.iss li{margin:3px 0} .shc ul.iss li.differs{color:var(--late);font-weight:600}
   .shc .fit{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .shc .shhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .shchip{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;white-space:nowrap}
+  .shchip.bad{background:#fdecea;color:#a02a1a} .shchip.warn{background:#fff1dc;color:#8a5a00} .shchip.good{background:#e6f4ea;color:#1f6b3a} .shchip.info{background:#eaf0f8;color:#2c4a7c}
+  .nights{display:flex;gap:10px;margin:12px 0 4px}
+  .nb{flex:1;min-width:0;max-width:118px;text-align:center}
+  .nb .dt{font-size:12.5px;color:var(--muted);line-height:1.25;margin-bottom:5px}
+  .nb .dt b{color:var(--ink);font-size:13px}
+  .box{border-radius:10px;border:1.5px solid}
+  .nb .box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:68px;padding:7px 4px}
+  .nb .mk{font-size:24px;font-weight:700;line-height:1} .nb small{font-size:11px;line-height:1.2}
+  .box.ok{background:#e6f4ea;border-color:#8cc9a0;color:#1f6b3a}
+  .box.miss{background:#fdecea;border-color:#e29a90;color:#a02a1a}
+  .box.extra{background:#fff1dc;border-color:#e9b968;color:#8a5a00}
+  .box.only{background:#eaf0f8;border-color:#aebfdc;color:#2c4a7c}
+  .box.none{background:transparent;border:1.5px dashed var(--border);color:var(--muted)}
+  .shlegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:12px 0 0;font-size:13px;color:var(--ink-mid)}
+  .shlegend i{display:inline-block;width:22px;height:22px;line-height:19px;text-align:center;font-style:normal;font-weight:700;vertical-align:middle;margin-right:5px;border-radius:6px}
+  .shcost{display:flex;gap:18px;align-items:center;border:1px solid var(--gold);background:var(--gold-pale);border-radius:14px;padding:16px 20px;margin:0 0 4px}
+  .shcost .fig{text-align:center;padding-right:18px;border-right:1px solid #e0cf9f} .shcost .fig .cap{font-size:12.5px;color:var(--ink-mid);margin-top:5px;white-space:nowrap}
+  .shcost .big{font-family:var(--serif, Georgia, serif);font-size:40px;font-weight:700;line-height:1;color:var(--ink);white-space:nowrap}
+  .shcost .why{font-size:14.5px;line-height:1.45} .shcost .sub{font-size:13px;color:var(--ink-mid);margin-top:6px}
+  .shcost .rates{margin-top:8px;font-size:13px} .shcost .rates summary{cursor:pointer;color:var(--ink-mid)}
+  .shcost .ratefields{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:8px}
+  .shcost .ratefields input{width:84px;padding:4px 8px;margin:0 2px}
+  .payline{font-size:13.5px;margin-top:8px;color:var(--ink-mid)} .payline.flag{color:var(--late)}
   .shchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
   .roomgroup{margin:14px 0 0}
   .roomgroup .rghead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 0 6px;font-size:14px}
@@ -2809,35 +2831,74 @@ async function readLogisticsXlsx(file) {
   throw new Error("I couldn't find the presenters' sheet in that file: no tab has a Presenter column with Sunday to Thursday accommodation columns.");
 }
 
-/** The president's page: the sheet as it stood against the agreements as they are now. */
+/** The dollar figure at the top: what following the sheet would have cost ONGIA, and what it missed. */
+function costBanner(T, $) {
+  const nn = (n) => `${n} room night${n === 1 ? "" : "s"}`;
+  const left = T.extraNights - T.ongiaNights;
+  const [a, b] = T.taxes;
+  return `<div class="shcost"><div class="fig"><div class="big">${$(T.ongiaCost)}</div><div class="cap">total, all presenters</div></div>
+    <div class="fig"><div class="big">${T.discrepancies}</div><div class="cap">discrepanc${T.discrepancies === 1 ? "y" : "ies"} in ${T.presenters} presenter${T.presenters === 1 ? "" : "s"}</div></div>
+    <div class="why"><b>What following the sheet would have cost ONGIA.</b>
+      ${T.ongiaNights ? `The sheet has ${nn(T.ongiaNights)} booked that the agreements don't call for.` : `Nothing so far: the sheet has no nights booked beyond what the agreements ask for.`}
+      Each room night is counted at ${$(T.nightly)} + ${a}% + ${b}% = <b>${$(T.perNight)}</b>.
+      <div class="sub">A discrepancy is one night the sheet and the agreement disagree about (a red or orange box), or one who-pays disagreement.</div>
+      <div class="sub">${left ? `Not counted: ${nn(left)} where the presenter pays their own room or the sheet says an agency pays. ` : ""}${T.missingNights ? `The sheet also left out ${nn(T.missingNights)} the agreements have (presenters who would have had no room): ${$(T.missingCost)} at the same rate.` : "The sheet left out no nights the agreements have."}
+        Only agreements already submitted are counted.</div>
+      <details class="rates"><summary>Change the rate</summary>
+        <span class="ratefields"><label>Room rate $<input id="rt-n" type="number" min="1" step="0.01" value="${T.nightly}"></label><label>+ <input id="rt-a" type="number" min="0" max="100" step="0.01" value="${a}">%</label><label>+ <input id="rt-b" type="number" min="0" max="100" step="0.01" value="${b}">%</label><button class="mini" id="rt-save">Save</button></span></details></div></div>`;
+}
+
+/** The president's and VP's page: the sheet as it stood against the agreements as they are now. */
 function sheetCard(ev, SC) {
   const R = SC.result, B = SC.baseline;
   const when = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "") : "");
   const line = !B ? "Upload the sheet as it was, and every agreement is compared with it."
     : `${R.counts.differs} differ · ${R.counts.check} to check · ${R.counts.match} match · ${R.counts.waiting} haven't signed`;
-  const badge = B ? (R.counts.differs ? `<span class="chase">${R.counts.differs} differ</span>` : R.counts.check ? `${R.counts.check} to check` : "all match") : "";
+  const $ = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const T = R?.totals;
+  const badge = B ? [R.counts.differs ? `<span class="chase">${R.counts.differs} differ</span>` : R.counts.check ? `${R.counts.check} to check` : "all match", T?.ongiaNights ? `${$(T.ongiaCost)} extra` : ""].filter(Boolean).join(" · ") : "";
   const span = (a, b) => (a && b ? `${esc(shortDate(a))} → ${esc(shortDate(b))}` : "no room");
   const nn = (n) => `${n} night${n === 1 ? "" : "s"}`;
+  // One box per night, the date above it. Green: both say yes. Red: the agreement has the night and the sheet
+  // doesn't. Orange: the sheet has it and the agreement doesn't. Grey dash: neither. Blue: only one side has an answer.
+  const dayHead = (iso) => { const d = fmtDate(iso).split(" "); return `<b>${esc(d[0])}</b><br>${esc(d[2])} ${esc(d[1])}`; };
+  const nightBox = (n) => {
+    let cls, mark, words;
+    if (n.sheet === null || n.desk === null) {
+      const one = n.sheet === null ? n.desk : n.sheet;
+      [cls, mark, words] = one ? ["only", "✓", n.sheet === null ? "agreement yes<br>not on sheet" : "sheet yes<br>not signed yet"] : ["none", "–", "no night"];
+    } else if (n.sheet && n.desk) [cls, mark, words] = ["ok", "✓", "both yes"];
+    else if (n.desk) [cls, mark, words] = ["miss", "✗", "agreement yes<br>sheet no"];
+    else if (n.sheet) [cls, mark, words] = ["extra", "✗", "sheet yes<br>agreement no"];
+    else [cls, mark, words] = ["none", "–", "no night"];
+    return `<div class="nb"><div class="dt">${dayHead(n.date)}</div><div class="box ${cls}"><span class="mk">${mark}</span><small>${words}</small></div></div>`;
+  };
+  const nights = (grid) => `<div class="nights">${grid.map(nightBox).join("")}</div>`;
+  const chip = { differs: ["Differs", "bad"], check: ["Check", "warn"], match: ["Matches", "good"], nosheet: ["Not on the sheet", "info"], waiting: ["Not signed yet", "info"] };
   const card = (r) => {
     const sh = r.sheet, d = r.desk;
-    const deskWord = d.state === "approved" ? "Agreement (approved)" : d.state === "submitted" ? "Agreement (not approved yet)" : "Agreement";
+    const [chipText, chipCls] = chip[r.status] ?? ["", ""];
+    const deskWord = d.state === "approved" ? `Agreement approved ${when(d.at)}` : d.state === "submitted" ? `Agreement submitted ${when(d.at)}, not approved yet` : "No agreement yet";
+    const pay = sh && d.room && d.block
+      ? `<div class="payline${r.issues.some((i) => !i.night && /pay/i.test(i.text)) ? " flag" : ""}">Who pays: the agreement says <b>${d.block === "master" ? "ONGIA (master block)" : "they pay their own room"}</b>; the sheet says <b>${sh.agencyPays ? "the agency is paying" : "nothing about an agency"}</b>.</div>` : "";
+    const notes = r.issues.filter((i) => !i.night && !/pay/i.test(i.text));
     const pick = r.status === "nosheet" ? `<div class="fit">Spelled differently on the sheet? <select data-shlink-pick="${esc(r.id)}" aria-label="Sheet name for ${esc(r.name)}"><option value="">Pick the sheet row…</option>${R.sheetNames.map((n) => `<option>${esc(n)}</option>`).join("")}</select> <button class="mini" data-shlink="${esc(r.id)}">Match them</button></div>` : "";
-    return `<div class="shc ${r.status}"><div class="nm">${esc(r.name)} <span class="ag">${esc(r.agency)}</span></div>
-      ${sh || d.room !== null ? `<div class="cmp"><i>Sheet</i><span>${sh ? (sh.nights.length ? `${span(sh.checkIn, sh.checkOut)} · ${nn(sh.nights.length)}${sh.agencyPays ? " · agency paying" : ""}` : "no nights booked") : "not on the sheet"}</span>
-        <i>${deskWord}</i><span>${d.room === null ? "not submitted yet" : d.room ? `${span(d.checkIn, d.checkOut)} · ${nn(d.nights.length)}${d.block === "master" ? " · master block" : d.block === "own" ? " · pays own room" : ""}` : "no hotel needed"}${d.at ? ` <span class="ag">· ${esc(when(d.at))}</span>` : ""}</span></div>` : ""}
-      ${r.issues.length ? `<ul class="iss">${r.issues.map((i) => `<li class="${i.kind}">${esc(i.text)}</li>`).join("")}</ul>` : ""}
-      ${r.how && r.how !== "exact" ? `<div class="fit">Matched to "${esc(r.matchedAs)}" on the sheet${r.how === "surname" ? " by surname only" : r.how === "linked" ? " (matched by you)" : " (spelled a little differently)"}. <button class="mini ghost" data-shlink-clear="${esc(r.id)}">Not them</button></div>` : ""}${pick}</div>`;
+    return `<div class="shc ${r.status}"><div class="shhead"><div><span class="nm">${esc(r.name)}</span> <span class="ag">${esc(r.agency)}</span></div><span class="shchip ${chipCls}">${chipText}</span></div>
+      <div class="ag" style="margin-top:2px">${esc(deskWord)}${sh && r.how !== "exact" ? ` · matched to “${esc(r.matchedAs)}” on the sheet${r.how === "surname" ? " by surname only" : r.how === "linked" ? " (by you)" : ""} <button class="mini ghost" data-shlink-clear="${esc(r.id)}">Not them</button>` : ""}</div>
+      ${r.grid.length ? nights(r.grid) : ""}${pay}
+      ${notes.length ? `<ul class="iss">${notes.map((i) => `<li class="${i.kind}">${esc(i.text)}</li>`).join("")}</ul>` : ""}${pick}</div>`;
   };
   const group = (title, rows, open = true) => rows.length ? `<details class="settings"${open ? " open" : ""} style="margin-top:12px"><summary>${title} (${rows.length})</summary>${rows.map(card).join("")}</details>` : "";
   const of = (...s) => R?.rows.filter((r) => s.includes(r.status)) ?? [];
   const body = !B ? `<p class="hint" style="margin:0 0 10px">This compares each presenter's agreement with the logistics spreadsheet <b>as it stood before anyone corrected it</b>, so you can see what the sheet got wrong.
         To get that copy: in SharePoint open the spreadsheet, choose <b>Version history</b>, download the version from before the corrections, and upload it here. The desk only keeps each presenter's name, agency and Sunday to Thursday nights, never the notes, and it never changes the spreadsheet.</p>
       <div class="actions" style="margin:0"><button class="btn btn-gold" id="sh-up">Upload the sheet (.xlsx)</button></div>`
-    : `<p class="hint" style="margin:0">Baseline: <b>${esc(B.fileName)}</b>, uploaded ${esc(when(B.uploadedAt))}${B.uploadedBy ? ` by ${esc(B.uploadedBy)}` : ""}. ${B.count} rows read. Worked out fresh every time you open this page, so a presenter who submits or is approved shows up here at once. This page only reads the sheet; it never changes it.</p>
+    : `${costBanner(R.totals, $)}<p class="hint" style="margin:14px 0 0">Baseline: <b>${esc(B.fileName)}</b>, uploaded ${esc(when(B.uploadedAt))}${B.uploadedBy ? ` by ${esc(B.uploadedBy)}` : ""}. ${B.count} rows read. Worked out fresh every time you open this page, so a presenter who submits or is approved shows up here at once. This page only reads the sheet; it never changes it.</p>
       <div class="actions" style="margin:8px 0 0"><button class="mini" id="sh-up">Replace with another copy</button><button class="mini ghost" id="sh-del">Remove the baseline</button></div>
+      <div class="shlegend"><span><i class="box ok">✓</i> both say yes</span><span><i class="box miss">✗</i> agreement has it, sheet doesn't</span><span><i class="box extra">✗</i> sheet has it, agreement doesn't</span><span><i class="box none">–</i> neither</span></div>
       <div class="shchips"><span class="chipstat hot"><b>${R.counts.differs}</b>differ</span><span class="chipstat"><b>${R.counts.check}</b>to check</span><span class="chipstat"><b>${R.counts.match}</b>match</span><span class="chipstat"><b>${R.counts.nosheet}</b>not on the sheet</span><span class="chipstat"><b>${R.counts.waiting}</b>haven't signed</span></div>
       ${group("Differences", of("differs"))}${group("To check", of("check"))}${group("In the desk but not on the sheet", of("nosheet"))}
-      ${R.sheetOnly.length ? `<details class="settings" style="margin-top:12px"><summary>On the sheet with nights booked, not on the desk (${R.sheetOnly.length})</summary>${R.sheetOnly.map((s) => `<div class="shc"><div class="nm">${esc(s.name)} <span class="ag">${esc(s.agency)}</span></div><div class="cmp"><i>Sheet</i><span>${span(s.checkIn, s.checkOut)} · ${nn(s.nights.length)}</span></div></div>`).join("")}</details>` : ""}
+      ${R.sheetOnly.length ? `<details class="settings" style="margin-top:12px"><summary>On the sheet with nights booked, not on the desk (${R.sheetOnly.length})</summary>${R.sheetOnly.map((s) => `<div class="shc"><div class="shhead"><div><span class="nm">${esc(s.name)}</span> <span class="ag">${esc(s.agency)}</span></div><span class="shchip info">Sheet only</span></div>${nights(s.grid)}</div>`).join("")}</details>` : ""}
       ${group("Haven't signed yet", of("waiting"), false)}${group("Match", of("match"), false)}`;
   return secFold("sheet", "Logistics sheet check", line, badge, `<div class="card-body">${body}<input type="file" id="sh-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div id="sh-said" class="hint" style="margin-top:8px"></div></div>`);
 }
@@ -2858,6 +2919,11 @@ function wireSheet(ev, SC) {
       } catch (e) { said.style.color = "var(--late)"; said.textContent = e.message; }
     };
   }
+  const rt = document.getElementById("rt-save");
+  if (rt) rt.onclick = async () => {
+    try { await api(`${q}&rates=1`, { method: "PUT", body: JSON.stringify({ nightly: +document.getElementById("rt-n").value, taxes: [+document.getElementById("rt-a").value, +document.getElementById("rt-b").value] }) }); render(); }
+    catch (e) { toast(e.message); }
+  };
   const del = document.getElementById("sh-del");
   if (del) del.onclick = async () => { if (!confirm("Remove the baseline sheet? The comparison goes away until you upload one again.")) return; try { await api(q, { method: "DELETE" }); render(); } catch (e) { toast(e.message); } };
   const link = (presenterId, sheetName) => api(`${q}&link=1`, { method: "PUT", body: JSON.stringify({ presenterId, sheetName }) }).then(() => render()).catch((e) => toast(e.message));
@@ -5154,7 +5220,8 @@ async function render() {
         api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api("/events").catch(() => ({ events: [] })),
         api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        loadRoster().then(() => (ROSTER_META.canGrant ? api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null)),   // the board, for the volunteer lead picker; then the president's sheet check
+        api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null),   // the sheet check: refused (so hidden) for anyone but the president and the VP
+        loadRoster(),   // the board, for the volunteer lead picker
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
