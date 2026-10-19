@@ -2651,7 +2651,7 @@ const SHOW_GUESTS = 25;
  * hand. Ticked rows are what the email and the spreadsheet carry; rows not yet
  * approved start unticked, because their dates may still change.
  */
-const BILL = { ONGIA: ["ongia", "master block"], Guest: ["", "pays own room"], "To confirm": ["tbc", "to confirm"] };
+const BILL = { ONGIA: ["ongia", "ONGIA pays"], Guest: ["", "pays"], "To confirm": ["tbc", "to confirm"] };
 const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
 let ROOMING = null;
 
@@ -2738,8 +2738,8 @@ function roomGroups(rows, row) {
   const master = rows.filter((r) => r.billing === "ONGIA"), own = rows.filter((r) => r.billing === "Guest"), tbc = rows.filter((r) => r.billing !== "ONGIA" && r.billing !== "Guest");
   const group = (title, note, list) => list.length ? `<div class="roomgroup"><div class="rghead"><b>${title}</b> <span>${list.length}</span><small>${note}</small></div>
     <div class="rooms">${list.map(row).join("")}</div></div>` : "";
-  return group("On ONGIA's master block", "ONGIA pays the hotel for these.", master)
-    + group("Not on the master block", "They book and pay their own room, so the hotel is told not to bill ONGIA.", own)
+  return group("Master block (ONGIA pays)", "ONGIA pays the hotel for these.", master)
+    + group("Not on the master block", "Each one pays their own room, so the hotel is told not to bill ONGIA.", own)
     + group("Waiting for approval", "Which group they go in is chosen when the agreement is approved.", tbc);
 }
 
@@ -2750,7 +2750,8 @@ function roomingCard(ev, R, C = null) {
   const conf = R.rows.filter((r) => r.confirmed);
   const nightsAll = conf.reduce((n, r) => n + r.nights, 0);
   const row = (r) => {
-    const [cls, word] = BILL[r.billing] ?? ["", r.billing];
+    const [cls, w0] = BILL[r.billing] ?? ["", r.billing];
+    const word = r.billing === "Guest" ? `${r.name} pays` : w0;
     return `<label class="room${r.confirmed ? "" : " unconf"}">
       <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
       <div class="rn">${esc(r.name)} ${r.who === "volunteer" ? "" : `<button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>`}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
@@ -4758,7 +4759,7 @@ function reviewScreen(data) {
         <div class="agency">Agency covering: <b>${YN(agency)}</b></div></div>
       ${viaBlock ? `<span class="agency" style="align-self:center">Choose below, under the hotel dates</span>`
         : `<label class="toggle"><input type="checkbox" data-cover="${k}"${checked ? " checked" : ""}${approved || na ? " disabled" : ""}>ONGIA covers</label>`}
-      ${blockWas ? `<div class="agency" style="grid-column:1/-1">Room: <b>${blockWas === "master" ? "on ONGIA's master block" : "not on the master block, they book and pay their own"}</b></div>` : ""}
+      ${blockWas ? `<div class="agency" style="grid-column:1/-1">Room: <b>${blockWas === "master" ? "on ONGIA's master block" : "not on the master block, they pay their own"}</b></div>` : ""}
     </div>`;
   }).join("");
 
@@ -4935,13 +4936,13 @@ function approvedNote(r) {
  */
 function hotelBlockChoice(s) {
   const agency = s.expenses?.hotel;
-  const said = agency === "yes" ? "The presenter says <b>their agency is covering</b> the hotel."
+  const said = agency === "yes" ? "The presenter says <b>their agency is covering</b> the hotel. If so, they usually put the room on their own card and claim it back from the agency."
     : agency === "no" ? "The presenter says their agency is <b>not</b> covering the hotel and asked ONGIA for help." : "";
   return `<fieldset class="blockpick" id="r-block" style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:12px 0 0">
     <legend style="padding:0 6px;font-weight:700;font-size:14px">Hotel room: who books and pays? <span style="color:var(--late)">(required)</span></legend>
     ${said ? `<p class="hint" style="margin:0 0 8px">${said}</p>` : ""}
     <label class="attest" style="margin-top:4px"><input type="radio" name="r-block" value="master"><span><b>On ONGIA's master block.</b> ONGIA books the room and pays the hotel.</span></label>
-    <label class="attest" style="margin-top:6px"><input type="radio" name="r-block" value="own"><span><b>Not on the master block.</b> The presenter or their agency pays their own room. The hotel is told not to bill ONGIA.</span></label>
+    <label class="attest" style="margin-top:6px"><input type="radio" name="r-block" value="own"><span><b>Not on the master block.</b> The presenter pays the hotel themselves, on their own card. The hotel is told "[their name] pays" and not to bill ONGIA.</span></label>
   </fieldset>`;
 }
 

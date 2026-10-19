@@ -73,8 +73,7 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
       if (!h) continue;                                       // approved, no room needed
       rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
         checkIn: h.from, checkOut: h.to, nights: nights(h.from, h.to),
-        billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true,
-        agency: s.expenses?.hotel === "yes" });
+        billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true });
     } else if (p.status === "submitted") {
       if (s.hotel !== "yes") continue;
       rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
@@ -121,7 +120,7 @@ export function changesSince(previous, rows) {
     if (b.checkIn !== r.checkIn || b.checkOut !== r.checkOut) {
       out.push({ kind: "dates", name: r.name, text: `New dates for ${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (was ${formatDate(b.checkIn)} to ${formatDate(b.checkOut)})` });
     }
-    if (b.billing !== r.billing) out.push({ kind: "billing", name: r.name, text: `Billing for ${r.name} is now: ${billingWords(r.billing)}` });
+    if (b.billing !== r.billing) out.push({ kind: "billing", name: r.name, text: r.billing === "Guest" ? `${r.name} is no longer on the master block and pays their own room (do not bill ONGIA)` : `Billing for ${r.name} is now: ${billingWords(r.billing, r)}` });
   }
   for (const [k, b] of before) {
     if (!now.has(k)) out.push({ kind: "removed", name: b.name, text: `Cancelled: ${b.name} no longer needs a room` });
@@ -152,11 +151,12 @@ export function cleanGuest(g, makeId, win = null, had = null) {
 }
 
 /** How the bill is described to the hotel. "To confirm" is a presenter not yet approved. */
+// Off the master block, the guest puts the room on their own card (an agency may reimburse them,
+// which is between them), so the hotel is told only who pays: "John Smith pays".
 export const billingWords = (b, r = null) => (b === "ONGIA" ? "ONGIA master account"
-  : b === "Guest" ? `NOT on the master block: ${r?.agency ? "the guest's agency pays" : "the guest pays their own room"}, do not bill ONGIA`
-  : "to be confirmed");
+  : b === "Guest" ? `${r?.name || "The guest"} pays` : "to be confirmed");
 
-/** On ONGIA's master block, or the guest (or their agency) books and pays. */
+/** On ONGIA's master block, or the guest pays their own room. */
 export const onMaster = (r) => r.billing === "ONGIA";
 
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
@@ -192,9 +192,9 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
   </table>`;
   const groupHead = (text, sub) => `<p style="margin:16px 0 2px;font-size:14px;line-height:1.4;color:#1a2f5e"><b style="text-transform:uppercase;letter-spacing:.05em">${text}</b></p>
     <p style="margin:0 0 4px;font-size:13px;line-height:1.45;color:#4a5368">${sub}</p>`;
-  const table = (master.length ? groupHead(`On ONGIA's master block (${master.length})`, "Bill these rooms to ONGIA's master account.") + tableOf(master) : "")
-    + (own.length ? groupHead(`Not on the master block (${own.length})`, "Please do not bill ONGIA for these. Each guest, or their agency, pays their own room directly.")
-      + tableOf(own, (r) => (r.agency ? "Their agency is paying: take the agency's payment details." : "The guest pays their own room.")) : "");
+  const table = (master.length ? groupHead(`Master block, ONGIA pays (${master.length})`, "Bill these rooms to ONGIA's master account.") + tableOf(master) : "")
+    + (own.length ? groupHead(`Not on the master block (${own.length})`, "Each guest pays their own room. Please do not bill ONGIA for these.")
+      + tableOf(own, (r) => `${esc(r.name)} pays`) : "");
   const hello = event.hotel?.name ? `Hello ${esc(event.hotel.name)} team,` : "Hello,";
   const intro = update
     ? `Here is our updated rooming list for ${esc(event.title)}, ${esc(datesOf(event))}. It replaces the one we sent on ${esc(formatDate(sentBefore.slice(0, 10)))}.`
@@ -206,7 +206,7 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
       <ul style="margin:0 0 14px;padding-left:20px;line-height:1.5">${changes.map((c) => `<li style="margin:0 0 4px">${esc(c.text)}</li>`).join("")}</ul>`;
   }
   if (master.length && own.length) {
-    body += `<p style="margin:0 0 6px;line-height:1.55"><b>Please note:</b> only the rooms on the master block are billed to ONGIA. The others are in the group but are paid by the guest or their agency.</p>`;
+    body += `<p style="margin:0 0 6px;line-height:1.55"><b>Please note:</b> only the rooms on the master block are billed to ONGIA. The others are in our group, but each guest pays their own room.</p>`;
   }
   body += table + `<p style="margin:0 0 14px;line-height:1.55">Please reply to confirm, or let us know if anything is missing.</p>`;
   const html = layout({ heading: update ? "Updated rooming list" : "Rooming list", bodyHtml: body, contact, event });
@@ -214,8 +214,8 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
     hello.replace(/&amp;/g, "&"), "",
     intro.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&") + ` That is ${rows.length} room${rows.length === 1 ? "" : "s"} and ${roomNights} room night${roomNights === 1 ? "" : "s"} in all. The same list is attached as a spreadsheet.`, "",
     ...(changes?.length ? ["What changed:", ...changes.map((c) => `- ${c.text}`), ""] : []),
-    ...(master.length ? [`ON ONGIA'S MASTER BLOCK (${master.length}) - bill to ONGIA's master account:`, ...master.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})`), ""] : []),
-    ...(own.length ? [`NOT ON THE MASTER BLOCK (${own.length}) - do not bill ONGIA; the guest or their agency pays:`, ...own.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})${r.agency ? ", agency pays" : ""}`), ""] : []),
+    ...(master.length ? [`MASTER BLOCK, ONGIA PAYS (${master.length}) - bill to ONGIA's master account:`, ...master.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})`), ""] : []),
+    ...(own.length ? [`NOT ON THE MASTER BLOCK (${own.length}) - each guest pays their own room; do not bill ONGIA:`, ...own.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"}), ${r.name} pays`), ""] : []),
     "", "Please reply to confirm, or let us know if anything is missing.",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : "",
   ].join("\n");
