@@ -1,4 +1,6 @@
-import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
+import { mayCost } from "./lib/auth.mjs";
+import { withoutOffers } from "./lib/sow.mjs";
 import { getEvent, getInbox, putInbox, getMeta, putMeta } from "./lib/store.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 import { UNFILED, inboxConfigured, inboxMailbox } from "./lib/inbox.mjs";
@@ -27,7 +29,12 @@ export default async (req) => {
   if (!eventId) return fail("Which event?");
   if (eventId !== UNFILED && !(await getEvent(eventId))) return fail("No such event.", 404);
 
-  if (req.method === "GET") return json(await status(eventId));
+  if (req.method === "GET") {
+    const out = await status(eventId);
+    // A hotel's offer is a price list: not for anyone who may not see an RBH event's costs.
+    if (eventId !== UNFILED && (await getEvent(eventId))?.kind === "rbh" && !mayCost(adminWho(req))) out.items = withoutOffers(out.items);
+    return json(out);
+  }
 
   const body = await req.json().catch(() => ({}));
   const box = (await getInbox(eventId)) ?? { items: [] };

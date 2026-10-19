@@ -1,4 +1,5 @@
-import { json, fail, requireAdmin, fileName } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, fileName } from "./lib/http.mjs";
+import { mayCost } from "./lib/auth.mjs";
 import { getEvent, putEvent, putContract, getContract, contractInfo, getContractRead, putContractRead, deleteKey } from "./lib/store.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 
@@ -37,6 +38,8 @@ export default async (req) => {
     if (!eventId) return fail("Which event?");
     event = await getEvent(eventId);
     if (!event) return fail("No such event.", 404);
+    // The contract has the rates and the terms. On an RBH event only the president and the VP touch it.
+    if (event.kind === "rbh" && !mayCost(adminWho(req))) return fail("The hotel contract on an RBH event is for the president and the VP of operations.", 403);
   }
   const ask = draft ? `draft=${encodeURIComponent(draft)}` : `event=${encodeURIComponent(eventId)}`;
 

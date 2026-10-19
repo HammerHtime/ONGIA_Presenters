@@ -256,6 +256,25 @@ export const getSow = (eventId) => read(`sow:${eventId}`);
 export const putSow = (eventId, value) => write(`sow:${eventId}`, value);
 export const getSheetBaseline = (eventId) => read(`sheet:${eventId}`);
 export const putSheetBaseline = (eventId, value) => write(`sheet:${eventId}`, value);
+/**
+ * Receipts for an RBH event (see receipts.mjs). The list is one small record; each photo or PDF is its own
+ * blob, and what Claude read off a not-yet-confirmed one is its own record too, so the background reader never
+ * writes over a list a person is editing.
+ */
+export const getReceipts = async (eventId) => (await read(`receipts:${eventId}`)) ?? { items: [], drafts: [] };
+export const putReceipts = (eventId, value) => write(`receipts:${eventId}`, value);
+export async function putReceiptFile(eventId, id, bytes, meta) {
+  await store().set(`receiptfile:${eventId}:${id}`, bytes, { metadata: meta });
+}
+export async function getReceiptFile(eventId, id) {
+  const got = await store().getWithMetadata(`receiptfile:${eventId}:${id}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, type: got.metadata?.type ?? "application/octet-stream", name: got.metadata?.name ?? "receipt" };
+}
+export const deleteReceiptFile = (eventId, id) => store().delete(`receiptfile:${eventId}:${id}`);
+export const getReceiptRead = (eventId, id) => read(`receiptread:${eventId}:${id}`);
+export const putReceiptRead = (eventId, id, value) => write(`receiptread:${eventId}:${id}`, value);
+export const deleteReceiptRead = (eventId, id) => store().delete(`receiptread:${eventId}:${id}`);
 export const putAgendaRead = (eventId, value) => write(`agendaread:${eventId}`, value);
 
 /** Remove a key outright — used when an event or presenter is deleted. */

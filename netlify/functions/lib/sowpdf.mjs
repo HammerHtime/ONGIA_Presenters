@@ -81,13 +81,16 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
   const room = (h) => {
     if (y + h > H - 60) { doc.addPage(); page(); y = 40; heading(); }
   };
-  (sow.lines ?? []).forEach((l, i) => {
+  // "Other" (invoice only): receipts that fit no line of the SOW, with what they were for under it.
+  const rows = (sow.lines ?? []).map((l) => ({ id: l.id, name: l.name, description: l.description, fallback: l }));
+  if (kind === "invoice" && t.other !== 0) rows.push({ id: "other", name: "Other", description: (sow.otherNotes ?? []).join("; "), fallback: null });
+  rows.forEach((l, i) => {
     const descH = l.description ? Math.max(16, doc.font("Helvetica-Oblique").fontSize(8.5).heightOfString(l.description, { width: BODY - 24 }) + 8) : 0;
     room(24 + descH);
     doc.rect(M, y, BODY, 24).fill(i % 2 ? SAND : CREAM);
     doc.rect(M, y, 2.5, 24).fill(GOLD);
     doc.font("Helvetica-Bold").fontSize(10).fillColor(NAVY).text(l.name.toUpperCase(), M + 10, y + 7, { width: BODY - AMOUNT_W - 30 });
-    doc.font("Helvetica").fontSize(10).fillColor(INK).text(cad(amount.get(l.id) ?? lineAmount(l, which)), W - M - AMOUNT_W - 8, y + 7, { width: AMOUNT_W, align: "right" });
+    doc.font("Helvetica").fontSize(10).fillColor(INK).text(cad(l.id === "other" ? t.other : (amount.get(l.id) ?? lineAmount(l.fallback, which))), W - M - AMOUNT_W - 8, y + 7, { width: AMOUNT_W, align: "right" });
     y += 24;
     if (l.description) {
       doc.rect(M, y, BODY, descH).fill(SAND);

@@ -1,5 +1,5 @@
 import { json, fail, text } from "./lib/http.mjs";
-import { signinConfig, verifyIdToken, mayUseDesk, issueSession, readSession, isOwner } from "./lib/auth.mjs";
+import { signinConfig, verifyIdToken, mayUseDesk, issueSession, readSession, isOwner, mayCost } from "./lib/auth.mjs";
 import { getRoster, putRoster } from "./lib/store.mjs";
 
 /**
@@ -15,7 +15,7 @@ export default async (req) => {
 
   if (req.method === "GET" && url.searchParams.get("me")) {
     const who = readSession(req.headers.get("x-admin-key"));
-    return json({ who: who ? { email: who.email, name: who.name, owner: who.owner, expires: who.expires } : null });
+    return json({ who: who ? { email: who.email, name: who.name, owner: who.owner, canCost: mayCost(who), expires: who.expires } : null });
   }
 
   if (req.method === "GET") {
@@ -39,7 +39,7 @@ export default async (req) => {
     const member = roster.find((m) => String(m.email).toLowerCase() === person.email);
     if (member) { member.lastSignIn = new Date().toISOString(); await putRoster(roster); }
     const name = member?.name || person.name;
-    return json({ session: issueSession({ email: person.email, name }), who: { email: person.email, name, owner: isOwner(person.email) } });
+    return json({ session: issueSession({ email: person.email, name }), who: { email: person.email, name, owner: isOwner(person.email), canCost: mayCost({ email: person.email }) } });
   }
 
   return fail("Method not allowed.", 405);

@@ -1,4 +1,5 @@
-import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
+import { mayCost } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers } from "./lib/store.mjs";
@@ -9,7 +10,7 @@ import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUpload
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
-import { PROVINCES, cleanPrefix } from "./lib/sow.mjs";
+import { PROVINCES, cleanPrefix, redactEvent, withoutOffers } from "./lib/sow.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
 import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checklist.mjs";
 
@@ -33,28 +34,30 @@ export default async (req) => {
 
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
+  // Costs on an RBH event (its hotel rate, its contract, its offers, its SOW) are for the president and the VP.
+  const canCost = mayCost(adminWho(req));
 
-  if (req.method === "GET") return id ? showEvent(id) : showList();
+  if (req.method === "GET") return id ? showEvent(id, canCost) : showList(canCost);
   if (req.method === "POST") {
     if (url.searchParams.get("folder")) return createFolder(id);
     if (url.searchParams.get("uploadlink")) return createUpload(id);
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     const origin = siteUrl(req);
-    return url.searchParams.get("add") ? addPresenters(id, body, origin) : createEvent(body, origin);
+    return url.searchParams.get("add") ? addPresenters(id, body, origin) : createEvent(body, origin, canCost);
   }
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     const presenterId = url.searchParams.get("presenter");
-    return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body);
+    return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
   if (req.method === "DELETE") {
     const presenterId = url.searchParams.get("presenter");
     // A removal may carry why, in the body rather than the address, so it never sits in a log line.
     const why = presenterId ? text((await req.json().catch(() => null))?.reason, 600) : "";
-    return presenterId ? removePresenter(id, presenterId, url.searchParams.get("final") === "1", why) : deleteEvent(id);
+    return presenterId ? removePresenter(id, presenterId, url.searchParams.get("final") === "1", why) : deleteEvent(id, canCost);
   }
   return fail("Method not allowed.", 405);
 };
@@ -83,7 +86,7 @@ export function conventionalFolder(dayOne, city) {
 }
 
 /** The fields a coordinator may change after creation; ids and counters stay. */
-async function applyDetails(event, body, { creating = false } = {}) {
+async function applyDetails(event, body, { creating = false, canCost = true } = {}) {
   const title = text(body.title, 200);
   const city = text(body.city, 120);
   const dayOne = text(body.dayOne, 10);
@@ -124,7 +127,7 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // The room block: where to book, and the day the contracted rate ends.
     // The cut-off is what the attendee reminders count back from, so it is a
     // date on the event rather than a job on a checklist.
-    hotel: cleanHotel(body.hotel, event.hotel),
+    hotel: hideCostsFromEdit(cleanHotel(body.hotel, event.hotel), event, canCost),
     // Whether the desk may email this event's attendees at all — welcome letter,
     // survey, hotel reminders. Andrew (6 Oct 2026): only events he adds from now
     // on, never the ones already on the desk unless he says so. So a new event
@@ -142,9 +145,10 @@ async function applyDetails(event, body, { creating = false } = {}) {
     inviteNoteFr: body.inviteNoteFr === undefined ? (event.inviteNoteFr ?? "") : text(body.inviteNoteFr, 1500),
     // An RBH event is run for RBH, apart from ONGIA's own training: it has a statement of work and an
     // invoice (only the president and the VP see them), and the province says which sales tax applies.
-    kind: body.kind === undefined ? (event.kind ?? "") : (body.kind === "rbh" ? "rbh" : ""),
-    province: body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
-    invoicePrefix: body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(body.invoicePrefix),
+    // Only someone who may see the costs can make an event an RBH event, unmake it, or change its tax and numbering.
+    kind: !canCost || body.kind === undefined ? (event.kind ?? "") : (body.kind === "rbh" ? "rbh" : ""),
+    province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
+    invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(body.invoicePrefix),
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),
@@ -228,12 +232,12 @@ async function applyDetails(event, body, { creating = false } = {}) {
   return null;
 }
 
-async function updateEvent(id, body) {
+async function updateEvent(id, body, canCost) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const oldTitle = event.title;
-  const problem = await applyDetails(event, body);
+  const problem = await applyDetails(event, body, { canCost });
   if (problem) return fail(problem);
   // Only an event that already has a checklist gains jobs from a rename; one
   // that never had the list is left for Andrew to add it whole.
@@ -248,13 +252,15 @@ async function updateEvent(id, body) {
     }
     await putEvent(event);
   }
-  return json({ event, deadlinesReadable: readableDeadlines(event) });
+  return json({ event: canCost ? event : redactEvent(event), deadlinesReadable: readableDeadlines(event) });
 }
 
-async function deleteEvent(id) {
+async function deleteEvent(id, canCost = true) {
   if (!id) return fail("Which event? Pass ?id=…");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
+  // Deleting an RBH event deletes its statement of work and invoice too, so only those who may see them can.
+  if (event.kind === "rbh" && !canCost) return fail("An RBH event can only be deleted by the president or the VP of operations.", 403);
   const people = await listPresenters(id);
   for (const p of people) {
     await Promise.all([
@@ -386,15 +392,16 @@ async function createFolder(id) {
   }
 }
 
-async function showList() {
+async function showList(canCost = true) {
   const events = await listEvents();
   const withCounts = await Promise.all(
     events.map(async (event) => {
       const [people, box] = await Promise.all([listPresenters(event.id), getInbox(event.id)]);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
+      const seen = canCost ? event : redactEvent(event);
       return {
-        ...event,
+        ...seen,
         counts: countStatuses(people),
         presenterCount: people.length,
         // The desk's own jobs, tallied here so the year view and the attention
@@ -404,8 +411,8 @@ async function showList() {
         dates: keyDates(event),
         materials: { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length },
         // What the night's read of Andrew's email left open on this event.
-        inbox: inboxCounts(box),
-        inboxItems: inboxForList(box),
+        inbox: canCost || event.kind !== "rbh" ? inboxCounts(box) : { ...inboxCounts(box), offers: 0 },
+        inboxItems: canCost || event.kind !== "rbh" ? inboxForList(box) : withoutOffers(inboxForList(box)),
         // Enough to name a problem on the dashboard without opening the event.
         attention: {
           review: who((p) => p.status === "submitted"),
@@ -418,14 +425,14 @@ async function showList() {
     })
   );
   const unfiledBox = inboxConfigured() ? await getInbox(UNFILED) : null;
-  return json({ events: withCounts, inbox: { connected: inboxConfigured(), unfiled: unfiledBox ? inboxCounts(unfiledBox) : null, unfiledItems: inboxForList(unfiledBox) } });
+  return json({ canCost, events: withCounts, inbox: { connected: inboxConfigured(), unfiled: unfiledBox ? inboxCounts(unfiledBox) : null, unfiledItems: inboxForList(unfiledBox) } });
 }
 
-async function showEvent(id) {
+async function showEvent(id, canCost = true) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event, presenters, counts: countStatuses(presenters) });
+  return json({ event: canCost ? event : redactEvent(event), canCost, presenters, counts: countStatuses(presenters) });
 }
 
 export function countStatuses(presenters) {
@@ -466,6 +473,14 @@ function cleanHotel(given, had) {
   return Object.values(out).some(Boolean) ? out : null;
 }
 
+/** Someone who may not see an RBH event's hotel rate and notes cannot change them either: they come back as they were. */
+function hideCostsFromEdit(hotel, event, canCost) {
+  if (canCost || event.kind !== "rbh") return hotel;
+  const had = event.hotel ?? {};
+  const kept = { ...(hotel ?? {}), rate: had.rate ?? "", notes: had.notes ?? "" };
+  return Object.values(kept).some(Boolean) ? kept : null;
+}
+
 function cleanLetters(given, had) {
   if (given === undefined) return had ?? {};
   const id = (v) => (/^[a-z0-9]{4,40}$/i.test(String(v ?? "")) ? String(v) : null);
@@ -491,9 +506,9 @@ async function adoptDraftContract(event, draft) {
   else await deleteKey(`contractread:${key}`);
 }
 
-async function createEvent(body, origin) {
+async function createEvent(body, origin, canCost = true) {
   const event = { id: null, nextSequence: 1 };
-  const problem = await applyDetails(event, body, { creating: true });
+  const problem = await applyDetails(event, body, { creating: true, canCost });
   if (problem) return fail(problem);
   event.id = eventId(event.dayOne.slice(0, 4), event.city);
   // The desk's own checklist comes with the event, so nobody has to remember to

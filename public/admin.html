@@ -501,6 +501,38 @@
   .swtop{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;margin:0 0 14px}
   .swtop .cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
   .swtop .invno{font-family:var(--serif, Georgia, serif);font-size:26px;font-weight:700;color:var(--ink)}
+  /* receipts: phone first, one column; two columns of fields from 700px */
+  .rc-add{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .rc-add .btn{flex:1 1 200px;min-height:50px;font-size:16px;justify-content:center}
+  .rc-add input[type=file]{display:none}
+  .rcd,.rck{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 12px;background:#fff}
+  .rcd.reading{background:#f7f9fc}
+  .rcd .pv{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
+  .rcd .pv img{width:96px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;flex:none;background:#eee}
+  .rcd .pv .pdf{width:96px;height:96px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--navy);background:#eef0f6;flex:none}
+  .rcd .pv .nm{font-size:13px;color:var(--muted);word-break:break-all}
+  .rcd .reading-line{display:flex;align-items:center;gap:8px;font-size:15px}
+  .rcd .dot{width:10px;height:10px;border-radius:50%;background:var(--gold,#c9a84c);animation:rcpulse 1s infinite alternate}
+  @keyframes rcpulse{from{opacity:.25}to{opacity:1}}
+  .rcf{display:grid;grid-template-columns:1fr;gap:8px 12px}
+  .rcf .field{margin:0}
+  .rcf input,.rcf select{margin:0;width:100%;min-height:46px;font-size:16px}
+  .rcf .full{grid-column:1/-1}
+  .rcf .three{display:grid;grid-template-columns:1fr 1.15fr 74px;gap:8px}
+  .rcf .three input{padding-left:10px;padding-right:6px}
+  .rcn{border-radius:8px;padding:8px 10px;font-size:14px;margin:0 0 10px}
+  .rcn.warn{background:#fff1dc;color:#7a4d00} .rcn.bad{background:#fdecea;color:#a02a1a} .rcn.info{background:#eaf0f8;color:#2c4a7c}
+  .rcd .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .rcd .acts .btn{flex:1 1 140px;min-height:48px;justify-content:center}
+  .rck .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+  .rck .top b{font-size:16px} .rck .amt{font-weight:700;white-space:nowrap}
+  .rck .sub{font-size:13.5px;color:var(--ink-mid);margin-top:2px}
+  .rck .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center}
+  .rck .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
+  .rck .rclinks .rcprob{color:#8a5a00}
+  .rcsum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:14px;color:var(--ink-mid)} .rcsum b{color:var(--ink);font-size:17px}
+  .swt .rcl{font-size:12px;color:var(--ink-mid);margin-top:4px} .swt tr.oth td{background:#faf7ee}
+  @media (min-width:700px){.rcf{grid-template-columns:1fr 1fr}.rcd .pv img,.rcd .pv .pdf{width:120px;height:120px}}
   .swt{width:100%;border-collapse:collapse;margin-top:12px}
   .swt th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--navy)}
   .swt td{padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:top}
@@ -1106,7 +1138,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
-      <details class="settings" style="margin-top:4px"${ev?.kind === "rbh" ? " open" : ""}>
+      ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" ? " open" : ""}>
         <summary>RBH event</summary>
         <p class="hint" style="margin-top:10px">For an event run for RBH, apart from ONGIA's own training. It gets a statement of work and a final invoice,
           which only the president and the VP can see. The province decides which sales tax goes on them.</p>
@@ -1115,7 +1147,7 @@ function eventFormScreen(existing = null) {
           <div class="field"><label for="e-prov">Province where it is held</label><select id="e-prov"><option value="">Pick one</option>${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${ev?.province === k ? " selected" : ""}>${n}</option>`).join("")}</select></div>
           <div class="field"><label for="e-prefix">Invoice number starts with</label><input id="e-prefix" maxlength="8" value="${v("invoicePrefix", "ITP")}" placeholder="ITP"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like ITP-2026-001. The desk keeps count.</p></div>
         </div>
-      </details>
+      </details>`}
       <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
         <summary>Presenter agreement for this event only</summary>
         <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
@@ -1160,14 +1192,14 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
           30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
           arrives while they can book.</p>
-        <div class="ctbox">${ev
+        ${ev?.hotelCostsHidden ? `<p class="hint" style="margin:0">The contract, the rate and its notes on an RBH event are kept by the president and the VP of operations.</p>` : `<div class="ctbox">${ev
           ? `<div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden>`
-          : `<p class="hint" style="margin:0">Use <b>Upload hotel contract</b> at the top of this form and Claude fills these in for you.</p>`}</div>
+          : `<p class="hint" style="margin:0">Use <b>Upload hotel contract</b> at the top of this form and Claude fills these in for you.</p>`}</div>`}
         <div class="row2" style="margin-top:12px">
           <div class="field" style="margin:0"><label for="e-hotel">Hotel</label>
             <input id="e-hotel" value="${esc(ev?.hotel?.name ?? "")}" placeholder="Delta Hotels Toronto Airport"></div>
-          <div class="field" style="margin:0"><label for="e-hrate">Rate</label>
-            <input id="e-hrate" value="${esc(ev?.hotel?.rate ?? "")}" placeholder="$189 + tax"></div>
+          ${ev?.hotelCostsHidden ? `<input id="e-hrate" type="hidden" value="">` : `<div class="field" style="margin:0"><label for="e-hrate">Rate</label>
+            <input id="e-hrate" value="${esc(ev?.hotel?.rate ?? "")}" placeholder="$189 + tax"></div>`}
         </div>
         <div class="field"><label for="e-hcontact">Hotel contact email <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(group sales — where the rooming list goes)</span></label>
           <input id="e-hcontact" type="email" value="${esc(ev?.hotel?.contact ?? "")}" placeholder="groupsales@hotel.com"></div>
@@ -1181,8 +1213,8 @@ function eventFormScreen(existing = null) {
             <input id="e-hfb" type="date" value="${esc(ev?.hotel?.foodAndBev ?? "")}"></div>
         </div>
         <p class="hint" id="hotelhint" style="margin:8px 0 0"></p>
-        <div class="field"><label for="e-hnotes">Anything else from the contract</label>
-          <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>
+        ${ev?.hotelCostsHidden ? `<input id="e-hnotes" type="hidden" value="">` : `<div class="field"><label for="e-hnotes">Anything else from the contract</label>
+          <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>`}
       </details>
       <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true)) ? " open" : ""}>
         <summary>Emails to attendees</summary>
@@ -1425,8 +1457,8 @@ function eventFormScreen(existing = null) {
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
       surveyLink: val("e-survey"),
       attendeeMail: $("e-amail")?.checked === true,
-      kind: $("e-rbh")?.checked ? "rbh" : "",
-      province: val("e-prov"), invoicePrefix: val("e-prefix"),
+      kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
+      province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
       talkOnFile: $("e-talkfile")?.checked === true,
       noDeadlines: $("e-nodates")?.checked === true,
       inviteNote: $("e-invnote")?.value ?? undefined,
@@ -1965,7 +1997,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, allEvents } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -2288,6 +2320,7 @@ function eventScreen(data) {
     + inboxCard(ev, inbox) + inboxDialogs()
     + checklistCard(ev, checklist) + jobDialog()
     + (sow ? sowCard(ev, sow) : "")
+    + (receipts ? receiptsCard(ev, receipts) : "")
     + (sheetcheck ? sheetCard(ev, sheetcheck) : "")
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
     + attendeesCard(ev, guests) + wixDialog()
@@ -2356,6 +2389,7 @@ function eventScreen(data) {
   wireVolunteers(ev, volunteers);
   if (sheetcheck) wireSheet(ev, sheetcheck);
   if (sow) wireSow(ev, sow);
+  if (receipts) wireReceipts(ev, receipts);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -2762,6 +2796,10 @@ function hotelStrip(ev, C) {
     h.foodAndBev ? `food and beverage numbers ${esc(fmtDate(h.foodAndBev))}` : "",
   ].filter(Boolean);
   const read = C?.read, file = C?.file;
+  // On an RBH event the contract, its rates and its terms are for the president and the VP: the lead sees the
+  // hotel, the contact and the dates, and nothing about the contract itself.
+  if (ev.hotelCostsHidden) return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}</div>
+    <div class="hs-acts"><button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
   const contract = !file ? "No contract uploaded"
     : read?.state === "reading" ? `<span class="spin" aria-hidden="true" style="width:12px;height:12px"></span>Claude is reading ${esc(file.name)}…`
     : read?.state === "done" ? `Contract read ${esc(fmtDate(read.at.slice(0, 10)))}`
@@ -2904,10 +2942,12 @@ function sowSums(sow, which) {
     return r2(l.type === "fixed" ? (numOrNull(l.estimate) ?? 0) : (numOrNull(l.receiptsTotal) ?? 0));
   };
   const lines = sow.lines.map((l) => ({ id: l.id, amount: amount(l) }));
-  const subtotal = r2(lines.reduce((n, l) => n + l.amount, 0)), fee = r2(subtotal * 0.2), deposit = r2(numOrNull(sow.deposit) ?? 0);
+  // "Other": receipts that fit no line. Only the invoice has it.
+  const other = which === "actual" ? r2(numOrNull(sow.otherActual) ?? numOrNull(sow.receiptsOther) ?? 0) : 0;
+  const subtotal = r2(lines.reduce((n, l) => n + l.amount, 0) + other), fee = r2(subtotal * 0.2), deposit = r2(numOrNull(sow.deposit) ?? 0);
   const newSubtotal = r2(subtotal + fee - deposit), base = sow.taxBase === "subtotal" ? subtotal : r2(subtotal + fee);
   const taxes = sow.taxes.map((t) => ({ name: t.name, rate: Number(t.rate) || 0, amount: r2(base * (Number(t.rate) || 0) / 100) }));
-  return { lines, subtotal, fee, deposit, newSubtotal, taxes, total: r2(newSubtotal + taxes.reduce((n, t) => n + t.amount, 0)) };
+  return { lines, other, subtotal, fee, deposit, newSubtotal, taxes, total: r2(newSubtotal + taxes.reduce((n, t) => n + t.amount, 0)) };
 }
 const usd = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.status);
@@ -2930,6 +2970,7 @@ function sowCard(ev, S) {
   return secFold("sow", "Statement of work and invoice", line, badge, inner, { id: "sowcard" });
 }
 
+let SOW_DIRTY = () => false;
 function wireSow(ev, S) {
   const q = `/sow?event=${encodeURIComponent(ev.id)}`;
   if (!S.sow) {
@@ -2939,6 +2980,7 @@ function wireSow(ev, S) {
   }
   const sow = JSON.parse(JSON.stringify(S.sow));
   let locked = S.locked, dirty = false;
+  SOW_DIRTY = () => dirty;
   const body = document.getElementById("sw-body");
   const $ = (id) => document.getElementById(id);
 
@@ -2960,14 +3002,18 @@ function wireSow(ev, S) {
       <table class="swt${act ? "" : " noact"}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th><th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
         ${sow.lines.map((l, i) => `<tr data-i="${i}"><td><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
             <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
-          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
+          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select>
+            ${l.receiptCount ? `<div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"} · ${usd(l.receiptsTotal)}</div>` : ""}</td>
           <td class="n"><input class="ln-est" type="number" min="0" step="0.01" value="${l.estimate || ""}" placeholder="0.00"${locked ? " disabled" : ""}></td>
           <td class="n act"><input class="ln-act" type="number" min="0" step="0.01" value="${l.actual ?? ""}"></td>
           <td class="v act"></td>
-          <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="Remove the line"${locked ? " disabled" : ""}>✕</button></td></tr>`).join("")}
+          <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="${l.receiptCount ? "There are receipts against this line" : "Remove the line"}"${locked || l.receiptCount ? " disabled" : ""}>✕</button></td></tr>`).join("")}
+        ${act || sow.receiptsOther ? `<tr class="oth"><td><b>Other</b> <span class="hint">receipts that fit no line</span>${sow.otherNotes?.length ? `<div class="rcl">${esc(sow.otherNotes.join("; "))}</div>` : ""}</td>
+          <td class="t"><span class="hint">At cost</span>${sow.otherCount ? `<div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"} · ${usd(sow.receiptsOther)}</div>` : ""}</td>
+          <td class="n"><span class="hint">–</span></td><td class="n act"><input id="sw-oth" type="number" min="0" step="0.01" value="${sow.otherActual ?? ""}"></td><td class="v act"></td><td class="b"></td></tr>` : ""}
       </tbody></table>
       <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
-        <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts. Type an invoice amount to overwrite either.</span></div>
+        <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts (add them under <b>Receipts</b>). Type an invoice amount to overwrite either.</span></div>
       <div class="swbottom">
         <div class="swtax"><h3 style="margin:0 0 4px;font-size:15px">Tax, deposit and fee</h3>
           <p class="hint" style="margin:0 0 8px">ONGIA's service fee is 20% of the subtotal, always.</p>
@@ -2998,7 +3044,7 @@ function wireSow(ev, S) {
   const read = () => {
     sow.program = { title: $("sw-title").value, place: $("sw-place").value, note: $("sw-note").value };
     sow.invoiceDate = $("sw-idate").value; sow.dueDate = $("sw-due").value;
-    body.querySelectorAll("#sw-table tbody tr").forEach((tr) => {
+    body.querySelectorAll("#sw-table tbody tr[data-i]").forEach((tr) => {
       const l = sow.lines[+tr.dataset.i];
       l.name = tr.querySelector(".ln-name").value; l.description = tr.querySelector(".ln-desc").value; l.type = tr.querySelector(".ln-type").value;
       l.estimate = numOrNull(tr.querySelector(".ln-est").value) ?? 0; l.actual = numOrNull(tr.querySelector(".ln-act").value);
@@ -3006,6 +3052,7 @@ function wireSow(ev, S) {
     body.querySelectorAll("#sw-taxes .row").forEach((r) => { const t = sow.taxes[+r.dataset.t]; t.name = r.querySelector(".tx-name").value; t.rate = Number(r.querySelector(".tx-rate").value) || 0; });
     sow.taxBase = $("sw-base").value; sow.deposit = numOrNull($("sw-dep").value) ?? 0;
     sow.increaseReason = $("sw-reason").value;
+    if ($("sw-oth")) sow.otherActual = numOrNull($("sw-oth").value);
   };
   // Over by 20% or more: the contract wants a reason, and it prints at the foot of the invoice.
   const over = () => {
@@ -3025,7 +3072,13 @@ function wireSow(ev, S) {
     const o = over(), box = $("sw-why");
     box.hidden = !o.over;
     $("sw-whyhead").textContent = `The invoice is ${o.pct}% over the statement of work. Your contract with RBH asks for an explanation. Write it here and it prints in bold at the foot of the final invoice.`;
-    body.querySelectorAll("#sw-table tbody tr").forEach((tr) => {
+    if ($("sw-oth")) {
+      const ph = $("sw-oth"), auto = sow.otherActual === null || sow.otherActual === undefined, d = act.other;
+      ph.placeholder = usd(r2(numOrNull(sow.receiptsOther) ?? 0)).replace("$", "");
+      ph.title = auto ? "Worked out from the receipts filed under Other. Type an amount to overwrite it." : "Typed by hand. Clear the box to go back to the receipts.";
+      ph.closest("tr").querySelector(".v").innerHTML = d ? `<span class="over">+${usd(d)}</span>` : `<span style="color:var(--muted)">–</span>`;
+    }
+    body.querySelectorAll("#sw-table tbody tr[data-i]").forEach((tr) => {
       const i = +tr.dataset.i, l = sow.lines[i], e = est.lines[i].amount, a = act.lines[i].amount, auto = l.actual === null;
       const ph = tr.querySelector(".ln-act");
       ph.placeholder = usd(auto ? a : e).replace("$", "") + (auto && l.type === "cost" && !a ? " (no receipts yet)" : "");
@@ -3037,7 +3090,7 @@ function wireSow(ev, S) {
 
   const save = async (quiet) => {
     read();
-    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason }) });
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null }) });
     Object.assign(sow, out.sow); locked = out.locked; dirty = false;
     if (!quiet) { toast("Saved."); render(); }
     return out;
@@ -3074,6 +3127,192 @@ function wireSow(ev, S) {
     $("sw-save").onclick = guard(() => save(false));
     $("sw-pdf-sow").onclick = pdf("sow"); $("sw-pdf-inv").onclick = pdf("invoice");
     $("sw-file-sow").onclick = file("sow"); $("sw-file-inv").onclick = file("invoice");
+  }
+  draw();
+}
+
+/* ---------- receipts (RBH events) ---------- */
+/**
+ * A photo or a PDF goes up, Claude reads the vendor, date and amounts, and whoever is at the desk checks them,
+ * picks the line of the statement of work (or Other) and confirms. Only confirmed receipts count toward the
+ * invoice. Built for a phone: one column, big buttons, the camera one tap away.
+ */
+const RC_OTHER = "other";
+function receiptsCard(ev, R) {
+  const n = R.items.length, pend = R.drafts.length;
+  const line = `${n} receipt${n === 1 ? "" : "s"}${n ? ` · ${usd(R.total)} before tax` : ""}`;
+  const badge = pend ? `<span class="chase">${pend} to confirm</span>` : "";
+  return secFold("receipts", "Receipts", line, badge, `<div class="card-body" id="rc-body"></div>`, { id: "receiptscard", open: pend > 0 });
+}
+
+/** A big photo is shrunk before it goes up: a phone's camera makes 4-8 MB pictures, and the limit is 5. */
+async function shrinkImage(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 900 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 2200 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+    return blob && blob.size < file.size ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+  } catch { return file; }
+}
+
+function wireReceipts(ev, R0) {
+  const q = `/receipts?event=${encodeURIComponent(ev.id)}`;
+  const body = document.getElementById("rc-body");
+  if (!body) return;
+  let R = R0, timer = null, editing = null;
+  const $ = (sel, root = body) => root.querySelector(sel);
+  const lineName = (id) => id === RC_OTHER ? "Other" : (R.lines.find((l) => l.id === id)?.name ?? "a line that has since been removed");
+  const urls = {};
+
+  const fileBlob = async (id) => {
+    if (urls[id]) return urls[id];
+    const res = await fetch(`/api${q}&file=${encodeURIComponent(id)}`, { headers: { "x-admin-key": KEY } });
+    if (!res.ok) throw new Error("Couldn't open the file.");
+    return (urls[id] = URL.createObjectURL(await res.blob()));
+  };
+  const openFile = async (id) => { try { window.open(await fileBlob(id), "_blank"); } catch (e) { toast(e.message); } };
+
+  const fields = (v, { lines }) => `<div class="rcf">
+      <div class="field full"><label>Which line of the statement of work?</label>
+        <select class="f-line" aria-label="Line of the statement of work"><option value="">Pick one…</option>${lines.map((l) => `<option value="${esc(l.id)}"${v.lineId === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("")}<option value="${RC_OTHER}"${v.lineId === RC_OTHER ? " selected" : ""}>Other</option></select></div>
+      <div class="field full f-othwrap"${v.lineId === RC_OTHER ? "" : " hidden"}><label>What was it for? (Other)</label><input class="f-oth" maxlength="160" value="${esc(v.otherNote ?? "")}" placeholder="e.g. taxi to the studio"></div>
+      <div class="field"><label>Vendor</label><input class="f-vendor" maxlength="120" value="${esc(v.vendor ?? "")}" autocomplete="off"></div>
+      <div class="field"><label>Date on the receipt</label><input class="f-date" type="date" value="${esc(v.date ?? "")}"></div>
+      <div class="field full"><label>Amount before tax <span style="text-transform:none;letter-spacing:0">(this is what counts)</span></label>
+        <input class="f-amount" type="number" inputmode="decimal" min="0" step="0.01" value="${v.amount ?? ""}" placeholder="0.00"></div>
+      <div class="three full"><div class="field"><label>Tax</label><input class="f-tax" type="number" inputmode="decimal" min="0" step="0.01" value="${v.tax ?? ""}" placeholder="0.00"></div>
+        <div class="field"><label>Total paid</label><input class="f-total" type="number" inputmode="decimal" min="0" step="0.01" value="${v.total ?? ""}" placeholder="0.00"></div>
+        <div class="field"><label>Currency</label><input class="f-cur" maxlength="3" value="${esc(v.currency || "CAD")}" autocapitalize="characters"></div></div>
+    </div>`;
+  const collect = (root) => ({
+    lineId: $(".f-line", root).value, otherNote: $(".f-oth", root).value, vendor: $(".f-vendor", root).value, date: $(".f-date", root).value,
+    amount: $(".f-amount", root).value, tax: $(".f-tax", root).value, total: $(".f-total", root).value, currency: $(".f-cur", root).value,
+  });
+  const wireFields = (root) => {
+    const sel = $(".f-line", root);
+    sel.onchange = () => { $(".f-othwrap", root).hidden = sel.value !== RC_OTHER; };
+    // Tax and total are filled in for the person: amount + tax = total, whichever two are typed.
+    const a = $(".f-amount", root), t = $(".f-tax", root), tot = $(".f-total", root);
+    const fill = (changed) => {
+      const A = numOrNull(a.value), T = numOrNull(t.value), TOT = numOrNull(tot.value);
+      if (changed !== tot && A !== null && T !== null && TOT === null) tot.value = r2(A + T);
+      if (changed === tot && TOT !== null && T !== null && A === null) a.value = r2(TOT - T);
+    };
+    a.onblur = () => fill(a); t.onblur = () => fill(t); tot.onblur = () => fill(tot);
+  };
+
+  const draftHtml = (d) => {
+    const pv = `<div class="pv">${d.type === "application/pdf" ? `<div class="pdf" data-open="${esc(d.id)}">PDF</div>` : `<img alt="Receipt" data-img="${esc(d.id)}" data-open="${esc(d.id)}">`}
+      <div><div class="nm">${esc(d.name)}</div><div class="porg">added by ${esc(d.by?.name || d.by?.email || "")}</div></div></div>`;
+    if (d.read.state === "reading") return `<div class="rcd reading" data-d="${esc(d.id)}" data-state="reading">${pv}<div class="reading-line"><span class="dot"></span> Claude is reading it…</div>
+      <div class="acts"><button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
+    const f = d.read.found, failed = d.read.state === "failed";
+    const v = failed ? {} : { ...f, amount: f.counted ?? "", lineId: f.suggestedLine === "Other" ? RC_OTHER : (R.lines.find((l) => l.name === f.suggestedLine)?.id ?? "") };
+    const notes = failed ? `<div class="rcn warn">${esc(d.read.why)}</div>`
+      : !f.isReceipt ? `<div class="rcn bad">This doesn't look like a receipt or an invoice. Check the file, or discard it.</div>`
+      : [f.confidence === "low" ? `<div class="rcn warn"><b>Claude wasn't sure about this one.</b> Check each figure against the picture before you confirm.</div>` : f.confidence === "medium" ? `<div class="rcn info">Claude was fairly sure. A quick look at the figures is worth it.</div>` : "",
+         f.notes ? `<div class="rcn info">${esc(f.notes)}</div>` : ""].join("");
+    return `<div class="rcd" data-d="${esc(d.id)}" data-state="${d.read.state}">${pv}${notes}${fields(v, { lines: R.lines })}
+      <div class="acts"><button class="btn btn-gold" data-confirm="${esc(d.id)}">Confirm and count it</button>
+        ${failed ? `<button class="btn btn-ghost" data-again="${esc(d.id)}">Read it again</button>` : ""}<button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
+  };
+
+  const itemHtml = (r) => {
+    if (editing === r.id) return `<div class="rck" data-k="${esc(r.id)}"><b>Change this receipt</b>${fields(r, { lines: R.lines })}
+      <div class="acts" style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-gold" data-save="${esc(r.id)}">Save</button><button class="btn btn-ghost" data-cancel="1">Cancel</button></div></div>`;
+    const who = r.addedBy?.name || r.addedBy?.email || "";
+    return `<div class="rck" data-k="${esc(r.id)}"><div class="top"><b>${esc(r.vendor)}</b><span class="amt">${usd(r.amount)}</span></div>
+      <div class="sub">${esc(fmtDate(r.date))} · <b>${esc(lineName(r.lineId))}</b>${r.lineId === RC_OTHER ? ` (${esc(r.otherNote)})` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}</div>
+      <div class="sub">added by ${esc(who)}${r.readBy === "hand" ? " · typed in by hand" : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
+      <div class="rclinks"><button class="lnk" data-open="${esc(r.id)}">Open the ${r.type === "application/pdf" ? "PDF" : "photo"}</button>
+        ${r.filed ? `<a href="${esc(r.filed.url)}" target="_blank" rel="noopener">In SharePoint</a>` : `<span class="rcprob">Not in SharePoint: ${esc(r.filedProblem ?? "not filed")}</span> <button class="lnk" data-refile="${esc(r.id)}">Try again</button>`}
+        ${r.mine && !R.closed || R.canCost ? `<button class="lnk" data-edit="${esc(r.id)}">Change</button><button class="lnk" data-del="${esc(r.id)}">Remove</button>` : ""}</div></div>`;
+  };
+
+  const draw = () => {
+    const sum = body.closest("details")?.querySelector("summary");
+    if (sum) {
+      const n = R.items.length, pend = R.drafts.length;
+      sum.querySelector(".s").textContent = `${n} receipt${n === 1 ? "" : "s"}${n ? ` · ${usd(R.total)} before tax` : ""}`;
+      let c = sum.querySelector(".ibcount");
+      if (!c) { c = document.createElement("span"); c.className = "ibcount"; sum.insertBefore(c, sum.querySelector(".ibcaret")); }
+      c.innerHTML = pend ? `<span class="chase">${pend} to confirm</span>` : ""; c.hidden = !pend;
+    }
+    const keep = {};
+    body.querySelectorAll(".rcd").forEach((n) => { keep[n.dataset.d] = n; });
+    // Rebuild the pending ones only when their state changed, so what someone is typing is not wiped by the poll.
+    const dh = document.createElement("div");
+    R.drafts.forEach((d) => {
+      const old = keep[d.id];
+      if (old && old.dataset.state === d.read.state && d.read.state !== "reading") { dh.appendChild(old); return; }
+      const t = document.createElement("div"); t.innerHTML = draftHtml(d); const node = t.firstElementChild;
+      dh.appendChild(node);
+    });
+    body.innerHTML = `${R.closed ? `<div class="rcn info">The invoice has gone out, so receipts can't be added or changed from here now. The president or the VP can still do it.</div>` : ""}
+      ${R.hasSow ? "" : `<div class="rcn info">There is no statement of work for this event yet, so there are no lines to put receipts under. Use <b>Other</b> and say what each was for; the president or the VP can move them later.</div>`}
+      ${R.closed ? "" : `<div class="rc-add"><label class="btn btn-gold" id="rc-cam">📷 Take a photo<input type="file" accept="image/*" capture="environment"></label>
+        <label class="btn btn-ghost" id="rc-pick">Choose a photo or PDF<input type="file" accept="image/*,application/pdf" multiple></label></div>
+        <p class="hint" style="margin:-4px 0 14px" id="rc-said">Claude reads the vendor, date and amounts; you check them and say which line they belong to. Nothing counts until you confirm it.</p>`}
+      <div id="rc-drafts"></div>
+      ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>` : ""}
+      <div id="rc-items">${R.items.map(itemHtml).join("") || `<p class="hint">No receipts yet.</p>`}</div>`;
+    const slot = $("#rc-drafts");
+    while (dh.firstChild) slot.appendChild(dh.firstChild);
+    wire();
+    clearTimeout(timer);
+    if (R.drafts.some((d) => d.read.state === "reading")) timer = setTimeout(poll, 2500);
+  };
+
+  const refreshSow = async () => {
+    const card = document.getElementById("sowcard");
+    if (!card || SOW_DIRTY()) return;
+    const S = await api(`/sow?event=${encodeURIComponent(ev.id)}`).catch(() => null);
+    if (S?.sow) { card.outerHTML = sowCard(ev, S); wireSow(ev, S); wireFolds(); }
+  };
+  const poll = async () => { try { R = await api(q); draw(); } catch { /* try again on the next tick */ } };
+  const act = (fn) => async (e) => { try { await fn(e); } catch (err) { toast(err.message); } };
+
+  const upload = async (files) => {
+    const said = $("#rc-said");
+    for (const f of files) {
+      if (said) said.textContent = `Sending ${f.name}…`;
+      const out = await shrinkImage(f);
+      if (out.size > 5 * 1024 * 1024) { toast(`${f.name} is over 5 MB. Take it again at a lower size, or save a smaller PDF.`); continue; }
+      const res = await fetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "x-file-name": encodeURIComponent(out.name) }, body: out });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(j.error ?? `Upload failed (${res.status})`); continue; }
+      R = j; draw();
+    }
+  };
+
+  function wire() {
+    body.querySelectorAll('input[type="file"]').forEach((inp) => { inp.onchange = act(async () => { const fs = [...inp.files]; inp.value = ""; if (fs.length) await upload(fs); }); });
+    body.querySelectorAll("img[data-img]").forEach((img) => fileBlob(img.dataset.img).then((u) => { img.src = u; }).catch(() => {}));
+    body.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openFile(b.dataset.open); });
+    body.querySelectorAll(".rcd .rcf, .rck .rcf").forEach((f) => wireFields(f.parentElement));
+    body.querySelectorAll("[data-discard]").forEach((b) => { b.onclick = act(async () => { if (!confirm("Discard this upload? Nothing has been counted.")) return; R = await api(`${q}&draft=${b.dataset.discard}`, { method: "DELETE" }); draw(); }); });
+    body.querySelectorAll("[data-again]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&again=${b.dataset.again}`, { method: "POST" }); draw(); }); });
+    body.querySelectorAll("[data-confirm]").forEach((b) => {
+      b.onclick = act(async () => {
+        const root = b.closest(".rcd"), id = b.dataset.confirm, v = collect(root);
+        let force = false;
+        for (;;) {
+          try { R = await api(`${q}&confirm=${id}`, { method: "POST", body: JSON.stringify({ ...v, force }) }); break; }
+          catch (e) { if (/already on this event/.test(e.message) && !force && confirm(`${e.message}\n\nAdd it anyway?`)) { force = true; continue; } throw e; }
+        }
+        toast(R.items.find((r) => r.id === id)?.filed ? "Counted, and filed in SharePoint." : "Counted. It isn't in SharePoint yet; see the receipt.");
+        draw(); refreshSow();
+      });
+    });
+    body.querySelectorAll("[data-refile]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&refile=${b.dataset.refile}`, { method: "POST" }); draw(); }); });
+    body.querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { editing = b.dataset.edit; draw(); }; });
+    body.querySelectorAll("[data-cancel]").forEach((b) => { b.onclick = () => { editing = null; draw(); }; });
+    body.querySelectorAll("[data-save]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&item=${b.dataset.save}`, { method: "PUT", body: JSON.stringify(collect(b.closest(".rck"))) }); editing = null; draw(); refreshSow(); }); });
+    body.querySelectorAll("[data-del]").forEach((b) => { b.onclick = act(async () => { if (!confirm("Remove this receipt from the invoice?")) return; R = await api(`${q}&item=${b.dataset.del}`, { method: "DELETE" }); if (R.note) toast(R.note); draw(); refreshSow(); }); });
   }
   draw();
 }
@@ -5473,7 +5712,9 @@ async function render() {
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
-      return eventScreen({ ...data, sow, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
+      // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
+      const receipts = data.event?.kind === "rbh" ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      return eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
     }
     if (view.name === "unfiled") {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);

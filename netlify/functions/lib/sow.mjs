@@ -63,14 +63,16 @@ export function lineAmount(line, which) {
 /** The whole page of figures for the SOW or the invoice. */
 export function totals(sow, which = "estimate") {
   const lines = (sow.lines ?? []).map((l) => ({ id: l.id, amount: lineAmount(l, which) }));
-  const subtotal = money(lines.reduce((n, l) => n + l.amount, 0));
+  // "Other" is receipts that fit no line of the SOW. It exists only on the invoice (the SOW has no such line).
+  const other = which === "actual" ? money(num(sow.otherActual) ?? num(sow.receiptsOther) ?? 0) : 0;
+  const subtotal = money(lines.reduce((n, l) => n + l.amount, 0) + other);
   const fee = money(subtotal * SERVICE_FEE_RATE);
   const deposit = money(num(sow.deposit) ?? 0);
   const newSubtotal = money(subtotal + fee - deposit);
   const base = sow.taxBase === "subtotal" ? subtotal : money(subtotal + fee);
   const taxes = (sow.taxes ?? []).map((t) => ({ name: t.name, rate: Number(t.rate) || 0, amount: money(base * (Number(t.rate) || 0) / 100) }));
   const taxTotal = money(taxes.reduce((n, t) => n + t.amount, 0));
-  return { lines, subtotal, fee, deposit, newSubtotal, taxBase: base, taxes, taxTotal, total: money(newSubtotal + taxTotal) };
+  return { lines, other, subtotal, fee, deposit, newSubtotal, taxBase: base, taxes, taxTotal, total: money(newSubtotal + taxTotal) };
 }
 
 /** A first guess at the province from the city, so the tax line starts right; the desk always shows it to be changed. */
@@ -94,6 +96,18 @@ export function increase(sow) {
   const pct = est > 0 ? Math.round((act - est) / est * 1000) / 10 : 0;
   return { pct, over: est > 0 && pct >= INCREASE_LIMIT, limit: INCREASE_LIMIT };
 }
+
+/**
+ * What an RBH event looks like to someone who may not see its costs (anyone but the president and the VP, the
+ * event's lead included): the hotel's name, contact and dates stay, because the lead books the rooms; the rate
+ * and the notes from the contract go. `hotelCostsHidden` tells the desk why they are blank.
+ */
+export function redactEvent(event) {
+  if (event?.kind !== "rbh") return event;
+  return { ...event, hotel: event.hotel ? { ...event.hotel, rate: "", notes: "" } : event.hotel, hotelCostsHidden: true };
+}
+/** A hotel's offer is a price list: out of sight on an RBH event for anyone who may not see costs. */
+export const withoutOffers = (items) => (items ?? []).filter((x) => x.kind !== "offer");
 
 /* ---------- invoice numbers ---------- */
 export const cleanPrefix = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8) || "RBH";

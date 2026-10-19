@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
-import { getEvent, listEvents, getSow, putSow, getMeta, putMeta } from "./lib/store.mjs";
+import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
+import { withReceipts } from "./lib/receipts.mjs";
 import { STANDARD_LINES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
@@ -18,7 +19,10 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  *   POST /api/sow?event=…&file=sow|invoice     put a copy in the event's "SOW and Invoice" folder on SharePoint
  *   PUT  /api/sow?event=…&province=QC          the tax lines for another province
  */
-const view = async (event, sow) => ({
+const view = async (event, raw) => {
+  // The receipts are their own record; fold them in for showing, never into what is saved.
+  const sow = raw ? withReceipts(raw, (await getReceipts(event.id)).items) : null;
+  return {
   allowed: true,
   province: event.province || guessProvince(event.city),
   provinces: Object.fromEntries(Object.entries(PROVINCES).map(([k, v]) => [k, v.name])),
@@ -28,7 +32,8 @@ const view = async (event, sow) => ({
   increase: sow ? increase(sow) : null,
   locked: sow ? isLocked(sow) : false,
   copyFrom: sow ? [] : await copyChoices(event),
-});
+  };
+};
 
 async function copyChoices(event) {
   const out = [];
@@ -64,12 +69,13 @@ export default async (req) => {
   if (!event) return fail("No such event.", 404);
   if (event.kind !== "rbh") return fail("This isn't an RBH event, so it has no statement of work.", 409);
   const sow = await getSow(id);
+  const receipts = await getReceipts(id);
   const q = (k) => url.searchParams.get(k);
 
   if (req.method === "GET" && q("doc")) {
     if (!sow) return fail("There is no statement of work yet.", 404);
     const kind = q("doc") === "invoice" ? "invoice" : "sow";
-    const pdf = await buildSowPdf({ event, sow, kind });
+    const pdf = await buildSowPdf({ event, sow: withReceipts(sow, (await getReceipts(id)).items), kind });
     return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="${sow.invoice?.number ?? "SOW"} ${kind === "invoice" ? "Invoice" : "Statement of Work"}.pdf"` } });
   }
   if (req.method === "GET") return json(await view(event, sow));
@@ -130,6 +136,10 @@ export default async (req) => {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Nothing to save.");
     const lines = cleanLines(body.lines, sow.lines);
+    // A line with receipts against it can't be deleted: the receipts would have nowhere to count.
+    const kept = new Set(lines.map((l) => l.id));
+    const stranded = sow.lines.filter((l) => !kept.has(l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id));
+    if (stranded.length) return fail(`There are receipts against ${stranded.map((l) => `"${l.name}"`).join(", ")}. Move or remove them on the Receipts screen before deleting the line.`, 409);
     if (isLocked(sow)) {
       // After approval the estimates are what RBH agreed to: names, types, amounts and the list of lines stay,
       // and only descriptions and the actuals (the invoice) change until it is unlocked.
@@ -145,6 +155,8 @@ export default async (req) => {
       deposit: money(Math.max(0, Number(body.deposit) || 0)),
       invoiceDate: /^\d{4}-\d{2}-\d{2}$/.test(text(body.invoiceDate, 10)) ? text(body.invoiceDate, 10) : "",
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(text(body.dueDate, 10)) ? text(body.dueDate, 10) : "",
+      // What the invoice shows under Other: blank means "what the receipts under Other add up to".
+      otherActual: body.otherActual === undefined ? (sow.otherActual ?? null) : (body.otherActual === "" || body.otherActual === null || !Number.isFinite(Number(body.otherActual)) ? null : money(Math.max(0, Number(body.otherActual)))),
       // The explanation for RBH when the invoice is 20% or more over the SOW; it prints on the invoice only then.
       increaseReason: body.increaseReason === undefined ? (sow.increaseReason ?? "") : text(body.increaseReason, 1500),
     };
@@ -156,7 +168,7 @@ export default async (req) => {
 
   if (req.method === "POST" && q("file")) {
     const kind = q("file") === "invoice" ? "invoice" : "sow";
-    const pdf = await buildSowPdf({ event, sow, kind });
+    const pdf = await buildSowPdf({ event, sow: withReceipts(sow, (await getReceipts(id)).items), kind });
     let out;
     try {
       out = await fileEventDocument({ event, folder: SOW_FOLDER, name: `${sow.invoice.number} ${kind === "invoice" ? "Invoice" : "Statement of Work"}.pdf`, bytes: pdf, contentType: "application/pdf" });
