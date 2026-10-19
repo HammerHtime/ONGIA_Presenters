@@ -24,7 +24,7 @@ const SEED = [
   ["Jessy Johal", "j.johal@ongia.ca"],
   ["John Healy", "j.healy@ongia.ca"],
   ["Kully", "business@ongia.ca"],
-  ["Peglar Artinian", "p.artinian@ongia.ca"],
+  ["Peglar Artinian", "executiveofficer@ongia.ca"],
   ["Raj Jaswal", "treasurer@ongia.ca"],
   ["Ryan Ferry", "westerncanada@ongia.ca"],
   ["Sebastien Pitre", "RegionalDirEastern@ongia.ca"],
