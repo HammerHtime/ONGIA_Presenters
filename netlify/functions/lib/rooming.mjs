@@ -178,17 +178,13 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
   const update = Boolean(sentBefore);
   const roomNights = rows.reduce((n, r) => n + r.nights, 0);
   const subject = `${update ? "Updated rooming list" : "Rooming list"}: ONGIA, ${event.title} (${datesOf(event)})`;
-  const cell = "padding:8px 6px;border-bottom:1px solid #e9e4d8;font-size:14px;vertical-align:top";
-  // Each guest is two lines: name and nights, then billing across the full width, so a phone never squeezes it.
-  const top = "padding:9px 6px 2px;font-size:14px;vertical-align:top";
-  const th = "padding:6px;border-bottom:2px solid #1a2f5e;font-size:12px;text-align:left;color:#1a2f5e;text-transform:uppercase;letter-spacing:.06em";
   const master = rows.filter(onMaster), own = rows.filter((r) => !onMaster(r));
-  const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;margin:6px 0 14px">
-    <tr><th style="${th}">Guest</th><th style="${th};width:84px">In</th><th style="${th};width:84px">Out</th><th style="${th};width:52px;text-align:right">Nights</th></tr>
-    ${list.map((r) => `<tr><td style="${top}"><b>${esc(r.name)}</b></td>
-      <td style="${top};white-space:nowrap">${esc(short(r.checkIn))}</td><td style="${top};white-space:nowrap">${esc(short(r.checkOut))}</td>
-      <td style="${top};text-align:right">${r.nights}</td></tr>
-      ${note ? `<tr><td colspan="4" style="${cell};padding-top:0;font-size:12.5px;color:#767f92">${note(r)}</td></tr>` : `<tr><td colspan="4" style="padding:0;border-bottom:1px solid #e9e4d8;height:6px;line-height:6px;font-size:0">&nbsp;</td></tr>`}`).join("")}
+  // One entry per guest, stacked: the name, then "Sun 8 Nov → Fri 13 Nov · 5 nights", then who pays when it is
+  // not ONGIA. Four narrow columns wrap badly on a phone; this reads the same on any width.
+  const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 14px;border-top:2px solid #1a2f5e">
+    ${list.map((r) => `<tr><td style="padding:11px 4px 10px;border-bottom:1px solid #e9e4d8;font-size:15px;line-height:1.4">
+      <b style="font-size:16px">${esc(r.name)}</b><br>
+      <span style="color:#12161f">${esc(short(r.checkIn))} &rarr; ${esc(short(r.checkOut))}</span> <span style="color:#767f92">&middot; ${r.nights} night${r.nights === 1 ? "" : "s"}</span>${note ? `<br><span style="font-size:13px;color:#767f92">${note(r)}</span>` : ""}</td></tr>`).join("")}
   </table>`;
   const groupHead = (text, sub) => `<p style="margin:16px 0 2px;font-size:14px;line-height:1.4;color:#1a2f5e"><b style="text-transform:uppercase;letter-spacing:.05em">${text}</b></p>
     <p style="margin:0 0 4px;font-size:13px;line-height:1.45;color:#4a5368">${sub}</p>`;
