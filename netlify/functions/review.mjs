@@ -71,6 +71,16 @@ async function approve(event, presenter, body, origin) {
   const ongiaCovers = {};
   for (const k of COST_KEYS) ongiaCovers[k] = body?.covers?.[k] === true;
 
+  // A presenter who wants a room is either on ONGIA's master block (ONGIA pays the hotel) or books
+  // and pays their own. The board member says which, and cannot approve without saying: it decides
+  // what the hotel is told, and a room booked for someone who expected their agency to pay is a bill.
+  let hotelBlock = null;
+  if ((presenter.submission ?? {}).hotel === "yes") {
+    hotelBlock = body?.hotelBlock === "master" || body?.hotelBlock === "own" ? body.hotelBlock : null;
+    if (!hotelBlock) return fail("Choose whether this presenter's room is on ONGIA's master block or whether they book and pay their own.");
+    ongiaCovers.hotel = hotelBlock === "master";
+  }
+
   // Travel and hotel dates are the board member's to confirm. Default to what
   // the presenter asked for; whatever is approved must sit inside the window.
   const s = presenter.submission ?? {};
@@ -82,7 +92,7 @@ async function approve(event, presenter, body, origin) {
     const to = text(body?.[key]?.to, 10) || s[toKey];
     const problem = rangeProblem(from, to, window, label);
     if (problem) return fail(problem);
-    dates[key] = { from, to, changed: from !== s[fromKey] || to !== s[toKey] };
+    dates[key] = { from, to, changed: from !== s[fromKey] || to !== s[toKey], ...(key === "hotel" ? { block: hotelBlock } : {}) };
   }
   const now = new Date().toISOString();
 

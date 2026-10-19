@@ -73,7 +73,8 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
       if (!h) continue;                                       // approved, no room needed
       rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
         checkIn: h.from, checkOut: h.to, nights: nights(h.from, h.to),
-        billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true });
+        billing: p.review?.ongiaCovers?.hotel ? "ONGIA" : "Guest", confirmed: true,
+        agency: s.expenses?.hotel === "yes" });
     } else if (p.status === "submitted") {
       if (s.hotel !== "yes") continue;
       rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",
@@ -151,14 +152,20 @@ export function cleanGuest(g, makeId, win = null, had = null) {
 }
 
 /** How the bill is described to the hotel. "To confirm" is a presenter not yet approved. */
-export const billingWords = (b) => (b === "ONGIA" ? "ONGIA master account" : b === "Guest" ? "guest pays" : "to be confirmed");
+export const billingWords = (b, r = null) => (b === "ONGIA" ? "ONGIA master account"
+  : b === "Guest" ? `NOT on the master block: ${r?.agency ? "the guest's agency pays" : "the guest pays their own room"}, do not bill ONGIA`
+  : "to be confirmed");
+
+/** On ONGIA's master block, or the guest (or their agency) books and pays. */
+export const onMaster = (r) => r.billing === "ONGIA";
 
 const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? ""));
 
 /** The spreadsheet a hotel can open or import: one row per room. */
 export function roomingCsv(event, rows) {
-  const head = ["Guest name", "Check-in", "Check-out", "Nights", "Billing", "Group"];
-  const lines = rows.map((r) => [r.name, r.checkIn, r.checkOut, r.nights, billingWords(r.billing), `ONGIA - ${event.title}`]);
+  const head = ["Master block", "Guest name", "Check-in", "Check-out", "Nights", "Billing", "Group"];
+  const ordered = [...rows.filter(onMaster), ...rows.filter((r) => !onMaster(r))];
+  const lines = ordered.map((r) => [onMaster(r) ? "Yes" : "No", r.name, r.checkIn, r.checkOut, r.nights, billingWords(r.billing, r), `ONGIA - ${event.title}`]);
   return [head, ...lines].map((l) => l.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
@@ -175,13 +182,19 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
   // Each guest is two lines: name and nights, then billing across the full width, so a phone never squeezes it.
   const top = "padding:9px 6px 2px;font-size:14px;vertical-align:top";
   const th = "padding:6px;border-bottom:2px solid #1a2f5e;font-size:12px;text-align:left;color:#1a2f5e;text-transform:uppercase;letter-spacing:.06em";
-  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0 14px">
+  const master = rows.filter(onMaster), own = rows.filter((r) => !onMaster(r));
+  const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0 14px">
     <tr><th style="${th}">Guest</th><th style="${th}">In</th><th style="${th}">Out</th><th style="${th};text-align:right">Nights</th></tr>
-    ${rows.map((r) => `<tr><td style="${top}"><b>${esc(r.name)}</b></td>
+    ${list.map((r) => `<tr><td style="${top}"><b>${esc(r.name)}</b></td>
       <td style="${top};white-space:nowrap">${esc(short(r.checkIn))}</td><td style="${top};white-space:nowrap">${esc(short(r.checkOut))}</td>
       <td style="${top};text-align:right">${r.nights}</td></tr>
-      <tr><td colspan="4" style="${cell};padding-top:0;font-size:12.5px;color:#767f92">Billing: ${billingWords(r.billing)}</td></tr>`).join("")}
+      ${note ? `<tr><td colspan="4" style="${cell};padding-top:0;font-size:12.5px;color:#767f92">${note(r)}</td></tr>` : `<tr><td colspan="4" style="padding:0;border-bottom:1px solid #e9e4d8;height:6px;line-height:6px;font-size:0">&nbsp;</td></tr>`}`).join("")}
   </table>`;
+  const groupHead = (text, sub) => `<p style="margin:16px 0 2px;font-size:14px;line-height:1.4;color:#1a2f5e"><b style="text-transform:uppercase;letter-spacing:.05em">${text}</b></p>
+    <p style="margin:0 0 4px;font-size:13px;line-height:1.45;color:#4a5368">${sub}</p>`;
+  const table = (master.length ? groupHead(`On ONGIA's master block (${master.length})`, "Bill these rooms to ONGIA's master account.") + tableOf(master) : "")
+    + (own.length ? groupHead(`Not on the master block (${own.length})`, "Please do not bill ONGIA for these. Each guest, or their agency, pays their own room directly.")
+      + tableOf(own, (r) => (r.agency ? "Their agency is paying: take the agency's payment details." : "The guest pays their own room.")) : "");
   const hello = event.hotel?.name ? `Hello ${esc(event.hotel.name)} team,` : "Hello,";
   const intro = update
     ? `Here is our updated rooming list for ${esc(event.title)}, ${esc(datesOf(event))}. It replaces the one we sent on ${esc(formatDate(sentBefore.slice(0, 10)))}.`
@@ -192,13 +205,17 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
     body += `<p style="margin:0 0 6px;line-height:1.55"><b>What changed:</b></p>
       <ul style="margin:0 0 14px;padding-left:20px;line-height:1.5">${changes.map((c) => `<li style="margin:0 0 4px">${esc(c.text)}</li>`).join("")}</ul>`;
   }
+  if (master.length && own.length) {
+    body += `<p style="margin:0 0 6px;line-height:1.55"><b>Please note:</b> only the rooms on the master block are billed to ONGIA. The others are in the group but are paid by the guest or their agency.</p>`;
+  }
   body += table + `<p style="margin:0 0 14px;line-height:1.55">Please reply to confirm, or let us know if anything is missing.</p>`;
   const html = layout({ heading: update ? "Updated rooming list" : "Rooming list", bodyHtml: body, contact, event });
   const text = [
     hello.replace(/&amp;/g, "&"), "",
     intro.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&") + ` That is ${rows.length} room${rows.length === 1 ? "" : "s"} and ${roomNights} room night${roomNights === 1 ? "" : "s"} in all. The same list is attached as a spreadsheet.`, "",
     ...(changes?.length ? ["What changed:", ...changes.map((c) => `- ${c.text}`), ""] : []),
-    ...rows.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"}), billing: ${billingWords(r.billing)}`),
+    ...(master.length ? [`ON ONGIA'S MASTER BLOCK (${master.length}) - bill to ONGIA's master account:`, ...master.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})`), ""] : []),
+    ...(own.length ? [`NOT ON THE MASTER BLOCK (${own.length}) - do not bill ONGIA; the guest or their agency pays:`, ...own.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})${r.agency ? ", agency pays" : ""}`), ""] : []),
     "", "Please reply to confirm, or let us know if anything is missing.",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : "",
   ].join("\n");

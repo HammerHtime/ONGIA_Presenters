@@ -491,6 +491,10 @@
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .roomgroup{margin:14px 0 0}
+  .roomgroup .rghead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 0 6px;font-size:14px}
+  .roomgroup .rghead span{background:var(--gold-pale);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
+  .roomgroup .rghead small{flex-basis:100%;color:var(--muted);font-size:12.5px}
   .noroom{margin:12px 0 0;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:var(--card2,transparent)}
   .noroom b{font-size:13px}
   .noroom .nr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
@@ -2647,7 +2651,7 @@ const SHOW_GUESTS = 25;
  * hand. Ticked rows are what the email and the spreadsheet carry; rows not yet
  * approved start unticked, because their dates may still change.
  */
-const BILL = { ONGIA: ["ongia", "ONGIA pays"], Guest: ["", "guest pays"], "To confirm": ["tbc", "to confirm"] };
+const BILL = { ONGIA: ["ongia", "master block"], Guest: ["", "pays own room"], "To confirm": ["tbc", "to confirm"] };
 const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
 let ROOMING = null;
 
@@ -2729,6 +2733,16 @@ const noRoom = (ev, R) => {
     <p class="hint" style="margin:8px 0 0">Add fills in their name; you pick the nights and press Add. Skip anyone who is not staying.</p></div>`;
 };
 
+/** The list in the groups the hotel gets it in: master block first, then everyone paying their own. */
+function roomGroups(rows, row) {
+  const master = rows.filter((r) => r.billing === "ONGIA"), own = rows.filter((r) => r.billing === "Guest"), tbc = rows.filter((r) => r.billing !== "ONGIA" && r.billing !== "Guest");
+  const group = (title, note, list) => list.length ? `<div class="roomgroup"><div class="rghead"><b>${title}</b> <span>${list.length}</span><small>${note}</small></div>
+    <div class="rooms">${list.map(row).join("")}</div></div>` : "";
+  return group("On ONGIA's master block", "ONGIA pays the hotel for these.", master)
+    + group("Not on the master block", "They book and pay their own room, so the hotel is told not to bill ONGIA.", own)
+    + group("Waiting for approval", "Which group they go in is chosen when the agreement is approved.", tbc);
+}
+
 function roomingCard(ev, R, C = null) {
   if (!R) return `<div class="card"><div class="card-head"><div><h2>Hotel rooms</h2></div></div>
     <div class="card-body"><div class="bad"><b>The rooming list could not be loaded.</b> Reload the page.</div></div></div>`;
@@ -2752,7 +2766,8 @@ function roomingCard(ev, R, C = null) {
     : "";
   const waiting = R.waiting.length
     ? `<p class="roomwait">Not confirmed yet, so they may still need a room: ${R.waiting.map((w) => esc(w.name)).join(", ")}.</p>` : "";
-  const line = [R.rows.length ? `${conf.length} room${conf.length === 1 ? "" : "s"}, ${nightsAll} room night${nightsAll === 1 ? "" : "s"}` : "No one needs a room yet",
+  const ownN = conf.filter((r) => r.billing === "Guest").length;
+  const line = [R.rows.length ? `${conf.length} room${conf.length === 1 ? "" : "s"}, ${nightsAll} room night${nightsAll === 1 ? "" : "s"}${ownN ? ` (${ownN} not on the master block)` : ""}` : "No one needs a room yet",
     R.hotel.name ? `at ${esc(R.hotel.name)}` : "no hotel set",
     R.sent ? `sent ${esc(shortDate(R.sent.at.slice(0, 10)))}` : R.rows.length ? "not sent to the hotel yet" : ""].filter(Boolean).join(" · ");
   const badge = [R.rows.length > conf.length ? `<span class="chase">${R.rows.length - conf.length} awaiting approval</span>` : "",
@@ -2768,7 +2783,7 @@ function roomingCard(ev, R, C = null) {
     <div class="card-body">
       ${hotelStrip(ev, C)}
       ${sent}
-      ${R.rows.length ? `<div class="rooms">${R.rows.map(row).join("")}</div>`
+      ${R.rows.length ? roomGroups(R.rows, row)
         : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
       ${waiting}
       ${noRoom(ev, R)}
@@ -4735,10 +4750,15 @@ function reviewScreen(data) {
     const agency = k === "hotel" && s.hotel !== "yes" ? "n/a" : s.expenses?.[k];
     const na = agency === "n/a";
     const checked = covers ? !!covers[k] : agency === "no";
+    // A room is not a tick: the board member picks master block or own room under the hotel dates.
+    const viaBlock = k === "hotel" && s.hotel === "yes" && !approved;
+    const blockWas = approved && k === "hotel" && s.hotel === "yes" ? p.review?.hotel?.block : null;
     return `<div class="cost">
       <div>${esc(label)}${k === "other" && s.expenses?.otherText ? ` — ${esc(s.expenses.otherText)}` : ""}
         <div class="agency">Agency covering: <b>${YN(agency)}</b></div></div>
-      <label class="toggle"><input type="checkbox" data-cover="${k}"${checked ? " checked" : ""}${approved || na ? " disabled" : ""}>ONGIA covers</label>
+      ${viaBlock ? `<span class="agency" style="align-self:center">Choose below, under the hotel dates</span>`
+        : `<label class="toggle"><input type="checkbox" data-cover="${k}"${checked ? " checked" : ""}${approved || na ? " disabled" : ""}>ONGIA covers</label>`}
+      ${blockWas ? `<div class="agency" style="grid-column:1/-1">Room: <b>${blockWas === "master" ? "on ONGIA's master block" : "not on the master block, they book and pay their own"}</b></div>` : ""}
     </div>`;
   }).join("");
 
@@ -4823,6 +4843,8 @@ function reviewScreen(data) {
   const readback = () => {
     const on = COSTS.filter(([k]) => { const el = ROOT.querySelector(`[data-cover="${k}"]`); return el?.checked && !el.disabled; })
       .map(([, l]) => l.split(" (")[0].toLowerCase());
+    const blk = ROOT.querySelector('input[name="r-block"]:checked')?.value;
+    if (blk === "master") on.push("accommodation (master block)");
     const el = document.getElementById("readback");
     if (!el) return;
     const dates = [];
@@ -4832,9 +4854,11 @@ function reviewScreen(data) {
       if (from && to) dates.push(`${word} ${fmtDate(from)} to ${fmtDate(to)}`);
     }
     el.innerHTML = `<b>ONGIA will cover:</b> ${on.length ? esc(on.join(", ")) : "nothing"}.`
-      + (dates.length ? `<br><b>Approved dates:</b> ${esc(dates.join(" · "))}.` : "");
+      + (dates.length ? `<br><b>Approved dates:</b> ${esc(dates.join(" · "))}.` : "")
+      + (s.hotel === "yes" ? `<br><b>Hotel room:</b> ${blk === "master" ? "on ONGIA's master block" : blk === "own" ? "not on the master block, they pay their own" : "<span style=\"color:var(--late)\">not chosen yet</span>"}.` : "");
   };
   ROOT.querySelectorAll("[data-cover]").forEach((c) => c.addEventListener("change", readback));
+  ROOT.querySelectorAll('input[name="r-block"]').forEach((c) => c.addEventListener("change", readback));
   ROOT.querySelectorAll("#r-tf, #r-tt, #r-hf, #r-ht").forEach((d) => d.addEventListener("change", readback));
   readback();
 
@@ -4849,8 +4873,10 @@ function reviewScreen(data) {
     const covers = {};
     ROOT.querySelectorAll("[data-cover]").forEach((c) => { covers[c.dataset.cover] = c.checked && !c.disabled; });
     const dates = (key, f, t) => s[key] === "yes" ? { from: document.getElementById(f).value, to: document.getElementById(t).value } : undefined;
+    const hotelBlock = ROOT.querySelector('input[name="r-block"]:checked')?.value;
     const body = {
       covers,
+      hotelBlock,
       travel: dates("travel", "r-tf", "r-tt"),
       hotel: dates("hotel", "r-hf", "r-ht"),
       otherText: document.getElementById("r-other").value,
@@ -4860,9 +4886,14 @@ function reviewScreen(data) {
       attest: document.getElementById("r-attest").checked,
     };
     if (!body.approverName.trim()) return (problem.innerHTML = `<div class="bad"><b>Your name is the signature.</b> Please type it.</div>`);
+    if (s.hotel === "yes" && !hotelBlock) {
+      document.getElementById("r-block").scrollIntoView({ block: "center", behavior: "smooth" });
+      return (problem.innerHTML = `<div class="bad"><b>Choose how the hotel room is paid.</b> Pick "On ONGIA's master block" or "Not on the master block" under the hotel dates.</div>`);
+    }
     if (!body.attest) return (problem.innerHTML = `<div class="bad"><b>Please confirm</b> the electronic signature.</div>`);
     const covered = COSTS.filter(([k]) => covers[k]).map(([, l]) => l.split(" (")[0]);
-    if (!confirm(`Approve ${p.first} ${p.last}'s agreement?\n\nONGIA covers: ${covered.join(", ") || "nothing"}.\n\nThis issues the final PDF and emails it.`)) return;
+    if (hotelBlock === "master") covered.push("Accommodation (master block)");
+    if (!confirm(`Approve ${p.first} ${p.last}'s agreement?\n\nONGIA covers: ${covered.join(", ") || "nothing"}.${s.hotel === "yes" ? `\nHotel room: ${hotelBlock === "master" ? "on ONGIA's master block" : "NOT on the master block; they pay their own"}.` : ""}\n\nThis issues the final PDF and emails it.`)) return;
     sessionStorage.setItem("ongia-approver", body.approverName);
     sessionStorage.setItem("ongia-approver-role", body.approverRole);
     e.target.disabled = true; e.target.textContent = "Issuing final copy…";
@@ -4897,6 +4928,23 @@ function approvedNote(r) {
   return r.changed ? ` · <b>approved ${esc(fmtDate(r.from))} to ${esc(fmtDate(r.to))}</b>` : " · confirmed";
 }
 
+/**
+ * Who books and pays the room. No answer is pre-picked: the lead decides before the agreement
+ * is issued, so the hotel's list says it plainly and nobody books a room for someone whose
+ * agency was meant to pay.
+ */
+function hotelBlockChoice(s) {
+  const agency = s.expenses?.hotel;
+  const said = agency === "yes" ? "The presenter says <b>their agency is covering</b> the hotel."
+    : agency === "no" ? "The presenter says their agency is <b>not</b> covering the hotel and asked ONGIA for help." : "";
+  return `<fieldset class="blockpick" id="r-block" style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:12px 0 0">
+    <legend style="padding:0 6px;font-weight:700;font-size:14px">Hotel room: who books and pays? <span style="color:var(--late)">(required)</span></legend>
+    ${said ? `<p class="hint" style="margin:0 0 8px">${said}</p>` : ""}
+    <label class="attest" style="margin-top:4px"><input type="radio" name="r-block" value="master"><span><b>On ONGIA's master block.</b> ONGIA books the room and pays the hotel.</span></label>
+    <label class="attest" style="margin-top:6px"><input type="radio" name="r-block" value="own"><span><b>Not on the master block.</b> The presenter or their agency pays their own room. The hotel is told not to bill ONGIA.</span></label>
+  </fieldset>`;
+}
+
 /** Editable travel / hotel dates for the board member, boxed to the event's window. */
 function dateRows(s, ev) {
   const win = ev.travelWindow ?? {};
@@ -4910,7 +4958,8 @@ function dateRows(s, ev) {
   return !any ? "" : `<h2 style="margin:18px 0 4px;font-size:16px">Travel &amp; accommodation dates</h2>
     <p class="hint" style="margin:0 0 4px">Allowed: ${esc(fmtDate(win.from))} to ${esc(fmtDate(win.to))} (training days plus one either side).</p>
     ${row("Travel", s.travel === "yes", s.travelFrom, s.travelTo, "r-tf", "r-tt", "Arriving", "Departing")}
-    ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check-in", "Check-out")}`;
+    ${row("Hotel", s.hotel === "yes", s.hotelFrom, s.hotelTo, "r-hf", "r-ht", "Check-in", "Check-out")}
+    ${s.hotel === "yes" ? hotelBlockChoice(s) : ""}`;
 }
 
 function deliveryMarkup(d = {}) {
