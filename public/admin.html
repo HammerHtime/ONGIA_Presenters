@@ -3179,11 +3179,19 @@ function ibRow(x, ev, { showEvent = false } = {}) {
     <button class="more" data-ibmore="${esc(x.id)}" aria-label="More: move or hide">⋯</button></div>`;
 }
 
-/** Items sorted for doing: "to do" (theirs to him, and offers) by when; "waiting on others" oldest first. */
+/**
+ * Items sorted for doing: open ones first ("to do" by when, "waiting on others" oldest first),
+ * then the ticked ones at the bottom, the one ticked last at the top of them. Ticking an item
+ * redraws the list, so it drops to the bottom by itself and unticking brings it back up.
+ */
 function ibGroups(pairs) {
   const by = ({ x, ev }) => ibUrgency(x, ev).by;
-  const todo = pairs.filter(({ x }) => x.kind !== "them").sort((a, b) => by(a).localeCompare(by(b)));
-  const them = pairs.filter(({ x }) => x.kind === "them").sort((a, b) => String(a.x.received).localeCompare(String(b.x.received)));
+  const isDone = ({ x }) => x.status === "done";
+  const closed = ({ x }) => String(x.closedAt || x.doneAt || "");
+  const sorted = (list, openOrder) => [...list.filter((p) => !isDone(p)).sort(openOrder),
+    ...list.filter(isDone).sort((a, b) => closed(b).localeCompare(closed(a)))];
+  const todo = sorted(pairs.filter(({ x }) => x.kind !== "them"), (a, b) => by(a).localeCompare(by(b)));
+  const them = sorted(pairs.filter(({ x }) => x.kind === "them"), (a, b) => String(a.x.received).localeCompare(String(b.x.received)));
   return { todo, them };
 }
 
