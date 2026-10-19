@@ -86,6 +86,7 @@
   .onfile-note{margin:14px 0 2px}
   input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
   .hint{font-size:13px;color:#5c6577;margin-top:6px}
+  .agencynote{font-weight:700;font-size:14.5px;line-height:1.45;color:#8f2d1c;background:#fdf1ee;border:1px solid #efc9bf;border-left:4px solid #c0492f;border-radius:10px;padding:11px 13px;margin-top:10px}
   .hint.ok{color:var(--done);font-weight:600}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
@@ -310,6 +311,7 @@ en: {
   hTravel: "Travel Expenses", hHotel: "Hotel Accommodation", hMeals: "Meal Expenses", hOther: "Other Expenses",
   covTransport: "Is your agency covering the cost of transportation (air or ground travel)?",
   covHotel: "Is your agency covering the cost of hotel accommodation?", hotelTitle: "Hotel accommodation",
+  agencyHotelNote: "ONGIA will still make your hotel reservation for you. You will pay the hotel when you check out, and your agency can then reimburse you.",
   hotelSkipped: "Skipped — you said you don't need a hotel.",
   covMeals: "Is your agency covering the cost of meals?",
   mealsHint: `Meal claims require a receipt or signed declaration and will be reimbursed in accordance with the <a href="https://www.njc-cnm.gc.ca/directive/d10/v238/s659/en" target="_blank" rel="noopener">Treasury Board of Canada Directive</a>.`,
@@ -431,6 +433,7 @@ fr: {
   hTravel: "Frais de transport", hHotel: "Hébergement à l'hôtel", hMeals: "Frais de repas", hOther: "Autres frais",
   covTransport: "Votre organisation assume-t-elle les frais de transport (aérien ou terrestre)?",
   covHotel: "Votre organisation assume-t-elle les frais d'hébergement à l'hôtel?", hotelTitle: "Hébergement à l'hôtel",
+  agencyHotelNote: "ONGIA fera tout de même votre réservation d'hôtel. Vous paierez l'hôtel à votre départ, et votre organisation pourra ensuite vous rembourser.",
   hotelSkipped: "Sans objet — vous avez indiqué ne pas avoir besoin d'hôtel.",
   covMeals: "Votre organisation assume-t-elle les frais de repas?",
   mealsHint: `Les demandes de remboursement de repas exigent un reçu ou une déclaration signée et seront remboursées conformément à la <a href="https://www.njc-cnm.gc.ca/directive/d10/v238/s659/fr" target="_blank" rel="noopener">directive du Conseil du Trésor du Canada</a>.`,
@@ -749,7 +752,8 @@ function stepMarkup() {
           ${seg("expenses", YESNO(), ["expenses", "transport"])}</div>`;
       if (S.hotel === "yes") {
         h += `<div class="qblock" id="q-cov-hotel"><p class="qhead">${t("hHotel")}</p><p class="qtext">${t("covHotel")}</p>
-          ${seg("expenses", YESNO(), ["expenses", "hotel"])}</div>`;
+          ${seg("expenses", YESNO(), ["expenses", "hotel"])}
+          ${S.expenses.hotel === "yes" ? `<p class="agencynote" id="hotel-agency-note">${t("agencyHotelNote")}</p>` : ""}</div>`;
       } else if (S.hotel === "no") {
         h += `<div class="qblock"><p class="qhead">${t("hHotel")}</p>
           <p class="hint">${t("hotelSkipped")}</p></div>`;
