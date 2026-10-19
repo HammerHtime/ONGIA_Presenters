@@ -2797,7 +2797,14 @@ async function readLogisticsXlsx(file) {
     }
     const grid = Array.from(rows, (r) => Array.from(r ?? [], (c) => c ?? ""));
     const headed = grid.slice(0, 12).some((r) => r.some((c) => /^presenter\b/i.test(c)) && r.filter((c) => /sunday|monday|tuesday|wednesday|thursday/i.test(c)).length >= 3);
-    if (headed) return grid;
+    if (headed) {
+      // Keep only what is compared: the heading row's Presenter and Agency columns and the
+      // Sunday-to-Thursday accommodation columns. Notes and everything else stay in the browser.
+      const at = grid.slice(0, 12).findIndex((r) => r.some((c) => /^presenter\b/i.test(c)) && r.filter((c) => /sunday|monday|tuesday|wednesday|thursday/i.test(c)).length >= 3);
+      const keep = new Set();
+      grid[at].forEach((c, i) => { if (/^(presenter|agency)\b/i.test(c) || (/accom/i.test(c) && /sunday|monday|tuesday|wednesday|thursday|friday|saturday/i.test(c))) keep.add(i); });
+      return grid.slice(at).map((r) => r.map((c, i) => (keep.has(i) ? c : "")));
+    }
   }
   throw new Error("I couldn't find the presenters' sheet in that file: no tab has a Presenter column with Sunday to Thursday accommodation columns.");
 }
