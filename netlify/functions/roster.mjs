@@ -8,7 +8,7 @@ import { getRoster, putRoster } from "./lib/store.mjs";
  * directory; edited here rather than typed into every event.
  *
  *   GET /api/roster          { members: [{ name, email, phone, desk, lastSignIn }], owners, canGrant }
- *   PUT /api/roster          replace the list
+ *   PUT /api/roster          replace the list (a row may carry `was`: the address it is changing from)
  *
  * `desk` is whether that person may sign in to the desk with their Microsoft
  * account. Only an owner (DESK_OWNERS) or the shared key can change it; anyone
@@ -55,10 +55,17 @@ export default async (req) => {
     for (const row of rows.slice(0, 100)) {
       const name = text(row.name, 120), email = text(row.email, 200);
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
-      const was = before.get(email.toLowerCase());
+      // `was` is the address they had before this save, when it is being changed.
+      const was = before.get(String(text(row.was, 200) || email).toLowerCase()) ?? before.get(email.toLowerCase());
       members.push({ name, email, phone: formatPhone(text(row.phone, 60)), sponsorLead: row.sponsorLead === true,
         desk: canGrant ? row.desk === true : was?.desk === true,
         ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}) });
+    }
+    const seen = new Set();
+    for (const m of members) {
+      const k = m.email.toLowerCase();
+      if (seen.has(k)) return fail(`${m.email} is already on the list.`);
+      seen.add(k);
     }
     // One person carries sponsorship for all of ONGIA, so the flag is a radio,
     // not a checkbox: the last one ticked wins and the rest are cleared.

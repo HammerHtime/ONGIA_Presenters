@@ -4308,7 +4308,7 @@ function rosterScreen(members) {
       ? `<label class="deskpick"><input type="checkbox" class="deskbox" data-desk="${i}"${m.desk ? " checked" : ""}> Can sign in to the desk</label>${seen(m) ? `<span>${seen(m)}</span>` : ""}`
       : `<span>${m.desk ? "Can sign in to the desk" : "No desk access"}</span>${seen(m) ? `<span>${seen(m)}</span>` : ""}`;
   const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span>
-    <div>${esc(m.name)}<div class="em">${esc(m.email)}</div><div class="deskline">${deskLine(m, i)}</div></div>
+    <div>${esc(m.name)}<div class="em" data-em="${i}">${esc(m.email)} <button type="button" class="mini ghost chg" data-chg="${i}" aria-label="Change ${esc(m.name)}'s email">Change email</button></div><div class="deskline">${deskLine(m, i)}</div></div>
     <input class="rphone" type="tel" data-phone="${i}" value="${esc(formatPhone(m.phone ?? ""))}" placeholder="phone (optional)" aria-label="Phone number for ${esc(m.name)}">
     <button class="mini ghost" data-del="${i}" title="Remove">✕</button></div>`).join("");
   ROOT.innerHTML = `<div class="card" style="max-width:700px"><div class="card-head"><div><h2>Board members</h2>
@@ -4325,6 +4325,26 @@ function rosterScreen(members) {
     try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; members.splice(0, members.length, ...ROSTER); toast("Numbers saved."); }
     catch (e) { toast(e.message); }
   };
+  // Change one person's address in place. Their sign-in switch and last-signed-in go with them.
+  ROOT.querySelectorAll("[data-chg]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.chg, m = members[i], cell = ROOT.querySelector(`[data-em="${i}"]`);
+      cell.innerHTML = `<input type="email" class="emedit" value="${esc(m.email)}" aria-label="New email for ${esc(m.name)}" style="width:100%;max-width:300px">
+        <span class="emacts"><button type="button" class="mini" data-emsave>Save</button> <button type="button" class="mini ghost" data-emcancel>Cancel</button></span>`;
+      const input = cell.querySelector("input"); input.focus(); input.select();
+      const done = async () => {
+        const email = input.value.trim();
+        if (email.toLowerCase() === String(m.email).toLowerCase() && email === m.email) return rosterScreen(members);
+        const next = members.map((x, j) => ({ ...x, phone: ROOT.querySelector(`[data-phone="${j}"]`)?.value.trim() ?? x.phone ?? "",
+          ...(j === i ? { email, was: m.email } : {}) }));
+        try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; toast(`${m.name}'s email is now ${email}.`); rosterScreen(ROSTER); }
+        catch (e) { toast(e.message); }
+      };
+      cell.querySelector("[data-emsave]").onclick = done;
+      cell.querySelector("[data-emcancel]").onclick = () => rosterScreen(members);
+      input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); done(); } else if (e.key === "Escape") rosterScreen(members); };
+    };
+  });
   ROOT.querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => { const m = members[+b.dataset.del]; if (confirm(`Remove ${m.name} from the list?`)) save(members.filter((_, i) => i !== +b.dataset.del)); }; });
   const boxes = [...ROOT.querySelectorAll("[data-phone]")];
   boxes.forEach((el, i) => {
