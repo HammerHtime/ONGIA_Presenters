@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta } from "./lib/store.mjs";
-import { STANDARD_LINES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, money } from "./lib/sow.mjs";
+import { STANDARD_LINES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -11,7 +11,7 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  *
  *   GET  /api/sow?event=…                      the SOW, its figures, and the RBH events it could be copied from
  *   POST /api/sow?event=…&create=1             start one ({ from: "standard" | <event id> })
- *   PUT  /api/sow?event=…                      save it ({ program, lines, taxes, taxBase, deposit, invoiceDate, dueDate })
+ *   PUT  /api/sow?event=…                      save it ({ program, lines, taxes, taxBase, deposit, invoiceDate, dueDate, increaseReason })
  *   PUT  /api/sow?event=…&status=<status>      move it along: draft, submitted, approved, invoiced, paid
  *   PUT  /api/sow?event=…&unlock=1|0           let the estimates be edited again after approval (noted), or lock them
  *   GET  /api/sow?event=…&doc=sow|invoice      the PDF
@@ -25,6 +25,7 @@ const view = async (event, sow) => ({
   sow,
   estimate: sow ? totals(sow, "estimate") : null,
   actual: sow ? totals(sow, "actual") : null,
+  increase: sow ? increase(sow) : null,
   locked: sow ? isLocked(sow) : false,
   copyFrom: sow ? [] : await copyChoices(event),
 });
@@ -144,6 +145,8 @@ export default async (req) => {
       deposit: money(Math.max(0, Number(body.deposit) || 0)),
       invoiceDate: /^\d{4}-\d{2}-\d{2}$/.test(text(body.invoiceDate, 10)) ? text(body.invoiceDate, 10) : "",
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(text(body.dueDate, 10)) ? text(body.dueDate, 10) : "",
+      // The explanation for RBH when the invoice is 20% or more over the SOW; it prints on the invoice only then.
+      increaseReason: body.increaseReason === undefined ? (sow.increaseReason ?? "") : text(body.increaseReason, 1500),
     };
     const changedAfterApproval = STATUSES.indexOf(sow.status) >= STATUSES.indexOf("approved") && JSON.stringify(sow.lines.map((l) => l.estimate)) !== JSON.stringify(lines.map((l) => l.estimate));
     if (changedAfterApproval) note(next, name, "Estimates edited after approval");

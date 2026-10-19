@@ -491,14 +491,21 @@
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .sow input,.sow select,.sow textarea{padding:5px 9px;font-size:13.5px;border-radius:8px;min-height:0;line-height:1.3}
+  .sow .field{margin-bottom:8px} .sow .field label{margin-bottom:2px}
+  .sow .row2{gap:10px}
+  .sow .mini{padding:4px 11px;font-size:12.5px}
+  .sow .btn{padding:8px 16px;font-size:14px}
+  .swwhy{border:1px solid #e9b968;background:#fff8ea;border-radius:10px;padding:10px 12px;margin-top:16px}
+  .swwhy b{color:#8a5a00} .swwhy textarea{width:100%;min-height:74px;margin-top:6px;font-weight:600}
   .swtop{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;margin:0 0 14px}
   .swtop .cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
   .swtop .invno{font-family:var(--serif, Georgia, serif);font-size:26px;font-weight:700;color:var(--ink)}
   .swt{width:100%;border-collapse:collapse;margin-top:12px}
   .swt th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--navy)}
-  .swt td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
-  .swt input,.swt select{margin:0;width:100%} .swt .ln-desc{margin-top:5px;font-size:13px;color:var(--ink-mid)}
-  .swt td.n{width:130px} .swt td.n.act{width:190px} .swt td.t{width:120px} .swt td.v{width:92px;text-align:right;font-size:13px;vertical-align:top;padding-top:16px} .swt td.b{width:104px;white-space:nowrap}
+  .swt td{padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:top}
+  .swt input,.swt select{margin:0;width:100%} .swt .ln-desc{margin-top:3px;font-size:12.5px;color:var(--ink-mid)}
+  .swt td.n{width:130px} .swt td.n.act{width:190px} .swt td.t{width:120px} .swt td.v{width:92px;text-align:right;font-size:13px;vertical-align:top;padding-top:10px} .swt td.b{width:104px;white-space:nowrap}
   .swt.noact .act{display:none}
   .swt .over{color:var(--late);font-weight:700} .swt .under{color:#1f6b3a;font-weight:700}
   .swbottom{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px}
@@ -2973,6 +2980,8 @@ function wireSow(ev, S) {
           <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" type="number" min="0" step="0.01" value="${sow.deposit || ""}" placeholder="0.00"></div></div>
         <div><div class="swsums${act ? "" : " noact"}" id="sw-sums"></div></div>
       </div>
+      <div class="swwhy" id="sw-why" hidden><b id="sw-whyhead"></b>
+        <textarea id="sw-reason" maxlength="1500" placeholder="Why the final cost is higher than the estimate"></textarea></div>
       <div class="actions" style="margin-top:18px;flex-wrap:wrap">
         <button class="btn btn-gold" id="sw-save">Save</button>
         <button class="btn btn-ghost" id="sw-pdf-sow">Statement of work (PDF)</button>
@@ -2982,6 +2991,7 @@ function wireSow(ev, S) {
       <p class="hint" id="sw-said" style="margin-top:8px">${["sow", "invoice"].map((k) => sow.filed?.[k] ? `${k === "sow" ? "SOW" : "Invoice"} filed ${esc(fmtDate(sow.filed[k].at.slice(0, 10)))}: <a href="${esc(sow.filed[k].url)}" target="_blank" rel="noopener">open</a>` : "").filter(Boolean).join(" · ")}
         The files go in a folder called <b>SOW and Invoice</b> inside the event's folder.</p>
       ${sow.history?.length ? `<details class="settings" style="margin-top:10px"><summary>History (${sow.history.length})</summary><ul style="margin:8px 0 0;padding-left:18px;font-size:13.5px">${sow.history.slice().reverse().map((h) => `<li>${esc(fmtDate(h.at.slice(0, 10)))} · ${esc(h.who)} · ${esc(h.what)}</li>`).join("")}</ul></details>` : ""}`;
+    $("sw-reason").value = sow.increaseReason ?? "";
     wire(); sums();
   };
 
@@ -2995,6 +3005,13 @@ function wireSow(ev, S) {
     });
     body.querySelectorAll("#sw-taxes .row").forEach((r) => { const t = sow.taxes[+r.dataset.t]; t.name = r.querySelector(".tx-name").value; t.rate = Number(r.querySelector(".tx-rate").value) || 0; });
     sow.taxBase = $("sw-base").value; sow.deposit = numOrNull($("sw-dep").value) ?? 0;
+    sow.increaseReason = $("sw-reason").value;
+  };
+  // Over by 20% or more: the contract wants a reason, and it prints at the foot of the invoice.
+  const over = () => {
+    const e = sowSums(sow, "estimate").subtotal, a = sowSums(sow, "actual").subtotal;
+    const pct = e > 0 ? Math.round((a - e) / e * 1000) / 10 : 0;
+    return { pct, over: afterApproval(sow) && e > 0 && pct >= 20 };
   };
 
   const sums = () => {
@@ -3005,6 +3022,9 @@ function wireSow(ev, S) {
       ${est.deposit || act.deposit ? row("Deposit paid", `(${usd(est.deposit)})`, `(${usd(act.deposit)})`) + row("New subtotal", usd(est.newSubtotal), usd(act.newSubtotal), "bold") : ""}
       ${est.taxes.map((t, i) => row(`${esc(t.name)} (${t.rate}%)`, usd(t.amount), usd(act.taxes[i].amount))).join("")}
       ${row("TOTAL BALANCE DUE", usd(est.total), usd(act.total), "tot")}</tbody></table>`;
+    const o = over(), box = $("sw-why");
+    box.hidden = !o.over;
+    $("sw-whyhead").textContent = `The invoice is ${o.pct}% over the statement of work. Your contract with RBH asks for an explanation. Write it here and it prints in bold at the foot of the final invoice.`;
     body.querySelectorAll("#sw-table tbody tr").forEach((tr) => {
       const i = +tr.dataset.i, l = sow.lines[i], e = est.lines[i].amount, a = act.lines[i].amount, auto = l.actual === null;
       const ph = tr.querySelector(".ln-act");
@@ -3017,7 +3037,7 @@ function wireSow(ev, S) {
 
   const save = async (quiet) => {
     read();
-    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate }) });
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason }) });
     Object.assign(sow, out.sow); locked = out.locked; dirty = false;
     if (!quiet) { toast("Saved."); render(); }
     return out;
@@ -3025,12 +3045,14 @@ function wireSow(ev, S) {
   const guard = (fn) => async (e) => { try { await fn(e); } catch (err) { toast(err.message); } };
   const pdf = (kind) => guard(async () => {
     if (dirty) await save(true);
+    if (kind === "invoice" && over().over && !String(sow.increaseReason ?? "").trim() && !confirm(`The invoice is ${over().pct}% over the statement of work and has no explanation for RBH yet. Make the PDF anyway?`)) return;
     const res = await fetch(`/api${q}&doc=${kind}`, { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
     window.open(URL.createObjectURL(await res.blob()), "_blank");
   });
   const file = (kind) => guard(async () => {
     if (dirty) await save(true);
+    if (kind === "invoice" && over().over && !String(sow.increaseReason ?? "").trim() && !confirm(`The invoice is ${over().pct}% over the statement of work and has no explanation for RBH yet. File it anyway?`)) return;
     const out = await api(`${q}&file=${kind}`, { method: "POST" });
     toast(`Filed to SharePoint: ${out.filedTo.name}`); render();
   });

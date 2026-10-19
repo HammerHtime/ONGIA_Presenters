@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { formatDate } from "./deadlines.mjs";
-import { totals, lineAmount } from "./sow.mjs";
+import { totals, lineAmount, increase } from "./sow.mjs";
 
 /**
  * The statement of work and the final invoice as PDFs, in the look of ONGIA's own SOW sheet:
@@ -118,6 +118,15 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
   doc.font("Times-Bold").fontSize(15).fillColor("#c9a84c").text(cad(t.total), W - M - AMOUNT_W - 8, y + 9, { width: AMOUNT_W, align: "right" });
   y += 34;
   doc.rect(M, y, BODY, 8).fill(GOLD); y += 8;
+  // An invoice 20% or more over the SOW carries ONGIA's explanation, in bold at the foot of the page.
+  const why = String(sow.increaseReason ?? "").trim();
+  if (kind === "invoice" && why && increase(sow).over) {
+    const h = doc.font("Helvetica-Bold").fontSize(9.5).heightOfString(why, { width: BODY - 20 }) + 34;
+    if (y + h > H - 50) { doc.addPage(); page(); y = 40; }
+    doc.font("Times-Bold").fontSize(10).fillColor(GOLD).text("RATIONALE FOR THE INCREASE", M + 10, y + 14, { width: BODY - 20 });
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(NAVY).text(why, M + 10, y + 30, { width: BODY - 20 });
+    y += h + 6;
+  }
   doc.font("Times-Italic").fontSize(8.5).fillColor(GREY).text("* All pricing is in Canadian dollars (CAD)  |  Thank you for your business.", M, y + 12, { width: BODY, align: "center" });
   doc.end();
   return done;

@@ -84,6 +84,17 @@ const CITY_PROVINCE = [
 ];
 export const guessProvince = (city) => CITY_PROVINCE.find(([re]) => re.test(String(city ?? "")))?.[1] ?? "";
 
+/**
+ * Under ONGIA's contract with RBH, an invoice that comes to 20% or more above the statement of work needs a
+ * written explanation. Compared on the subtotal: the fee and the tax scale with it, so the percentage is the same.
+ */
+export const INCREASE_LIMIT = 20;
+export function increase(sow) {
+  const est = totals(sow, "estimate").subtotal, act = totals(sow, "actual").subtotal;
+  const pct = est > 0 ? Math.round((act - est) / est * 1000) / 10 : 0;
+  return { pct, over: est > 0 && pct >= INCREASE_LIMIT, limit: INCREASE_LIMIT };
+}
+
 /* ---------- invoice numbers ---------- */
 export const cleanPrefix = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8) || "RBH";
 export const invoiceNumber = (prefix, year, seq) => `${cleanPrefix(prefix)}-${year}-${String(seq).padStart(3, "0")}`;
