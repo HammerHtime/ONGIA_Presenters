@@ -340,6 +340,28 @@ export async function fileVolunteerAgreement({ event, volunteer, pdf }) {
   return { folderUrl: folder.webUrl, files: [{ name: item.name, url: item.webUrl }], filedAt: new Date().toISOString() };
 }
 
+/** Costing files (the SOW and the invoice) and receipts each get a folder of their own inside the event's folder. */
+export const SOW_FOLDER = "SOW and Invoice";
+export const RECEIPTS_FOLDER = "Receipts";
+
+/** <event folder>/<folder>/<name>. Returns { name, url, folderUrl }. */
+export async function fileEventDocument({ event, folder, name, bytes, contentType }) {
+  if (!graphConfigured()) return { skipped: true, reason: "Microsoft credentials are not set on this site." };
+  const eventFolder = normaliseFolder(event.sharePointFolder);
+  if (!eventFolder) return { skipped: true, reason: "No SharePoint folder is set on this event." };
+  const token = await accessToken();
+  const drive = await driveId(token);
+  try {
+    await graph(token, `/drives/${drive}/root:/${encodePath(eventFolder)}?$select=id,webUrl`);
+  } catch (e) {
+    if (e.status === 404) throw new Error(`The event folder "${eventFolder}" does not exist in the library. Create it first, or fix the path on the event.`);
+    throw e;
+  }
+  const dir = await ensureChildFolder(token, drive, eventFolder, folder);
+  const item = await upload(token, drive, `${eventFolder}/${folder}/${safeFileName(name, "document")}`, bytes, contentType);
+  return { name: item.name, url: item.webUrl, folderUrl: dir.webUrl, filedAt: new Date().toISOString() };
+}
+
 /**
  * Prove the sign-in and (optionally) an event folder before anyone approves
  * anything. Distinguishes "the app has no grant on the site" from "the folder

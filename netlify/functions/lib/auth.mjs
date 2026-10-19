@@ -38,6 +38,14 @@ export const isOwner = (email) => deskOwners().includes(String(email ?? "").toLo
  */
 export const sheetViewers = () => [...new Set([...deskOwners(),
   ...String(process.env.SHEET_VIEWERS || "vp_operations@ongia.ca").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)])];
+/**
+ * Who may open an RBH event's costing (the SOW, the estimates, the invoice): the president and the VP only.
+ * An event's lead does not touch contracts or costs. COSTING_USERS replaces the VP's address if it changes.
+ */
+export const costingUsers = () => [...new Set([...deskOwners(),
+  ...String(process.env.COSTING_USERS || "vp_operations@ongia.ca").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)])];
+export const mayCost = (who) => who?.key === true || costingUsers().includes(String(who?.email ?? "").toLowerCase());
+
 export const maySeeSheetCheck = (who) => who?.key === true || sheetViewers().includes(String(who?.email ?? "").toLowerCase());
 
 /** May this person sign in? An owner always may; anyone else needs the switch on in Board members. */

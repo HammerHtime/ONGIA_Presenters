@@ -9,6 +9,7 @@ import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUpload
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
+import { PROVINCES, cleanPrefix } from "./lib/sow.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
 import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checklist.mjs";
 
@@ -139,6 +140,11 @@ async function applyDetails(event, body, { creating = false } = {}) {
     // in English and, if he gives one, French. Empty on every event unless he writes it.
     inviteNote: body.inviteNote === undefined ? (event.inviteNote ?? "") : text(body.inviteNote, 1500),
     inviteNoteFr: body.inviteNoteFr === undefined ? (event.inviteNoteFr ?? "") : text(body.inviteNoteFr, 1500),
+    // An RBH event is run for RBH, apart from ONGIA's own training: it has a statement of work and an
+    // invoice (only the president and the VP see them), and the province says which sales tax applies.
+    kind: body.kind === undefined ? (event.kind ?? "") : (body.kind === "rbh" ? "rbh" : ""),
+    province: body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
+    invoicePrefix: body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(body.invoicePrefix),
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),
@@ -263,7 +269,7 @@ async function deleteEvent(id) {
     await Promise.all([deleteKey(`volunteer:${id}:${v.id}`), v.token ? deleteKey(`vtoken:${v.token}`) : null, deleteKey(`pdf:vol:${id}:${v.id}`)]);
   }
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
-    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`)]);
+    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length, removedVolunteers: volunteers.length });

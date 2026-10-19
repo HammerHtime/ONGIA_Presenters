@@ -491,6 +491,44 @@
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .swtop{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;margin:0 0 14px}
+  .swtop .cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  .swtop .invno{font-family:var(--serif, Georgia, serif);font-size:26px;font-weight:700;color:var(--ink)}
+  .swt{width:100%;border-collapse:collapse;margin-top:12px}
+  .swt th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--navy)}
+  .swt td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+  .swt input,.swt select{margin:0;width:100%} .swt .ln-desc{margin-top:5px;font-size:13px;color:var(--ink-mid)}
+  .swt td.n{width:130px} .swt td.n.act{width:190px} .swt td.t{width:120px} .swt td.v{width:92px;text-align:right;font-size:13px;vertical-align:top;padding-top:16px} .swt td.b{width:104px;white-space:nowrap}
+  .swt.noact .act{display:none}
+  .swt .over{color:var(--late);font-weight:700} .swt .under{color:#1f6b3a;font-weight:700}
+  .swbottom{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px}
+  .swsums{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card)}
+  .swsums table{width:100%;border-collapse:collapse;font-size:14px} .swsums td,.swsums th{padding:7px 12px;text-align:right}
+  .swsums td:first-child{text-align:left;color:var(--ink-mid)} .swsums thead th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sand,#f5f0e8)}
+  .swsums .tot td,.swsums .tot th{background:#0b1f3a;color:#f0d98a;font-weight:700;font-size:15px} .swsums .tot td:first-child{color:#f0d98a}
+  .swsums .bold td{font-weight:700;color:var(--ink)}
+  .swsums.noact .act{display:none}
+  .swtax .row{display:grid;grid-template-columns:1fr 90px 36px;gap:8px;margin-top:6px}
+  .swtax input{margin:0}
+  .swtop{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;margin:0 0 14px}
+  .swtop .cap{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  .swtop .invno{font-family:var(--serif, Georgia, serif);font-size:26px;font-weight:700;color:var(--ink)}
+  .swt{width:100%;border-collapse:collapse;margin-top:12px}
+  .swt th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--navy)}
+  .swt td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+  .swt input,.swt select{margin:0;width:100%} .swt .ln-desc{margin-top:5px;font-size:13px;color:var(--ink-mid)}
+  .swt td.n{width:130px} .swt td.t{width:130px} .swt td.v{width:96px;text-align:right;font-size:13px;padding-top:14px} .swt td.b{width:96px;white-space:nowrap;padding-top:12px}
+  .swt.noact .act{display:none}
+  .swt .over{color:var(--late);font-weight:700} .swt .under{color:#1f6b3a;font-weight:700}
+  .swbottom{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px}
+  .swsums{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card)}
+  .swsums table{width:100%;border-collapse:collapse;font-size:14px} .swsums td,.swsums th{padding:7px 12px;text-align:right}
+  .swsums td:first-child{text-align:left;color:var(--ink-mid)} .swsums thead th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sand,#f5f0e8)}
+  .swsums .tot td,.swsums .tot th{background:#0b1f3a;color:#f0d98a;font-weight:700;font-size:15px} .swsums .tot td:first-child{color:#f0d98a}
+  .swsums .bold td{font-weight:700;color:var(--ink)}
+  .swsums.noact .act{display:none}
+  .swtax .row{display:grid;grid-template-columns:1fr 90px 36px;gap:8px;margin-top:6px}
+  .swtax input{margin:0}
   .shc{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--card)}
   .shc.differs{border-left:4px solid var(--late)} .shc.check{border-left:4px solid var(--gold)}
   .shc .nm{font-weight:700;font-size:15px} .shc .ag{color:var(--muted);font-size:13px}
@@ -934,7 +972,7 @@ function listScreen(events, inbox = null) {
     const md = ev.materials?.draft ?? 0, mf = ev.materials?.final ?? 0;
     const blockers = blockersOf(ev);
     return `<div class="card evcard" data-open="${esc(ev.id)}" role="link" tabindex="0">
-      <div class="card-head"><div><h2>${esc(ev.title)}</h2>
+      <div class="card-head"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info" style="font-family:inherit;vertical-align:middle">RBH</span>` : ""}</h2>
         <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div></div>
       <div class="stats">
         <span class="chipstat"><b>${c.total}</b>presenter${c.total === 1 ? "" : "s"}</span>
@@ -1061,6 +1099,16 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
       </div>
       <div id="preview"></div>
+      <details class="settings" style="margin-top:4px"${ev?.kind === "rbh" ? " open" : ""}>
+        <summary>RBH event</summary>
+        <p class="hint" style="margin-top:10px">For an event run for RBH, apart from ONGIA's own training. It gets a statement of work and a final invoice,
+          which only the president and the VP can see. The province decides which sales tax goes on them.</p>
+        <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-rbh"${ev?.kind === "rbh" ? " checked" : ""}><span><b>This is an RBH event.</b></span></label>
+        <div class="row2" style="margin-top:10px">
+          <div class="field"><label for="e-prov">Province where it is held</label><select id="e-prov"><option value="">Pick one</option>${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${ev?.province === k ? " selected" : ""}>${n}</option>`).join("")}</select></div>
+          <div class="field"><label for="e-prefix">Invoice number starts with</label><input id="e-prefix" maxlength="8" value="${v("invoicePrefix", "ITP")}" placeholder="ITP"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like ITP-2026-001. The desk keeps count.</p></div>
+        </div>
+      </details>
       <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
         <summary>Presenter agreement for this event only</summary>
         <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
@@ -1370,6 +1418,8 @@ function eventFormScreen(existing = null) {
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
       surveyLink: val("e-survey"),
       attendeeMail: $("e-amail")?.checked === true,
+      kind: $("e-rbh")?.checked ? "rbh" : "",
+      province: val("e-prov"), invoicePrefix: val("e-prefix"),
       talkOnFile: $("e-talkfile")?.checked === true,
       noDeadlines: $("e-nodates")?.checked === true,
       inviteNote: $("e-invnote")?.value ?? undefined,
@@ -1908,7 +1958,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, allEvents } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -2230,6 +2280,7 @@ function eventScreen(data) {
     + volunteerCard(ev, volunteers)
     + inboxCard(ev, inbox) + inboxDialogs()
     + checklistCard(ev, checklist) + jobDialog()
+    + (sow ? sowCard(ev, sow) : "")
     + (sheetcheck ? sheetCard(ev, sheetcheck) : "")
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
     + attendeesCard(ev, guests) + wixDialog()
@@ -2297,6 +2348,7 @@ function eventScreen(data) {
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
   if (sheetcheck) wireSheet(ev, sheetcheck);
+  if (sow) wireSow(ev, sow);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -2829,6 +2881,179 @@ async function readLogisticsXlsx(file) {
     }
   }
   throw new Error("I couldn't find the presenters' sheet in that file: no tab has a Presenter column with Sunday to Thursday accommodation columns.");
+}
+
+/** Provinces and territories, for the RBH event's tax. */
+const PROVINCE_NAMES = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", NT: "Northwest Territories", NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan", YT: "Yukon" };
+const SOW_STATUSES = [["draft", "Draft"], ["submitted", "Sent to RBH"], ["approved", "Approved"], ["invoiced", "Invoiced"], ["paid", "Paid"]];
+const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const numOrNull = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
+/** The same sums the server makes (sow.mjs): the page shows them as you type, the server's are the ones filed. */
+function sowSums(sow, which) {
+  const amount = (l) => {
+    if (which === "estimate") return r2(numOrNull(l.estimate) ?? 0);
+    const typed = numOrNull(l.actual);
+    if (typed !== null) return r2(typed);
+    return r2(l.type === "fixed" ? (numOrNull(l.estimate) ?? 0) : (numOrNull(l.receiptsTotal) ?? 0));
+  };
+  const lines = sow.lines.map((l) => ({ id: l.id, amount: amount(l) }));
+  const subtotal = r2(lines.reduce((n, l) => n + l.amount, 0)), fee = r2(subtotal * 0.2), deposit = r2(numOrNull(sow.deposit) ?? 0);
+  const newSubtotal = r2(subtotal + fee - deposit), base = sow.taxBase === "subtotal" ? subtotal : r2(subtotal + fee);
+  const taxes = sow.taxes.map((t) => ({ name: t.name, rate: Number(t.rate) || 0, amount: r2(base * (Number(t.rate) || 0) / 100) }));
+  return { lines, subtotal, fee, deposit, newSubtotal, taxes, total: r2(newSubtotal + taxes.reduce((n, t) => n + t.amount, 0)) };
+}
+const usd = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.status);
+
+/** An RBH event's statement of work and invoice: the president's and the VP's, nobody else's. */
+function sowCard(ev, S) {
+  const sow = S.sow;
+  const line = !sow ? "Start the statement of work for RBH"
+    : `${sow.invoice.number} · ${(SOW_STATUSES.find(([k]) => k === sow.status) ?? [])[1]} · ${usd(S.estimate.total)}`;
+  const badge = sow ? (afterApproval(sow) && sow.status !== "paid" ? `${usd(S.actual.total)} invoice` : "") : "";
+  const inner = !sow ? `<div class="card-body">
+      <p class="hint" style="margin:0 0 12px">The statement of work is the estimate you send RBH, line by line. When the event is over the same lines carry the actuals and become the final invoice.
+        The invoice number is given automatically, by year. Only you and the VP can see this.</p>
+      <div class="field"><label>Start from</label>
+        <label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="standard" checked> The standard lines (hotel, dinners, transportation, Via Rail, on-site and pre/post event management…)</label>
+        ${S.copyFrom.map((c) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(c.id)}"> A copy of <b>${esc(c.title)}</b>, ${esc(c.year)} (${usd(c.total)} before fee and tax)</label>`).join("")}</div>
+      <p class="hint">${S.province ? `Tax will be ${esc(PROVINCE_NAMES[S.province])}'s.` : `<b>No province is set on this event.</b> Choose one under Edit event so the right tax goes on.`}</p>
+      <div class="actions"><button class="btn btn-gold" id="sw-start">Start the statement of work</button></div></div>`
+    : `<div class="card-body sow" id="sw-body"></div>`;
+  return secFold("sow", "Statement of work and invoice", line, badge, inner, { id: "sowcard" });
+}
+
+function wireSow(ev, S) {
+  const q = `/sow?event=${encodeURIComponent(ev.id)}`;
+  if (!S.sow) {
+    const b = document.getElementById("sw-start");
+    if (b) b.onclick = async () => { try { await api(`${q}&create=1`, { method: "POST", body: JSON.stringify({ from: document.querySelector('input[name="sw-from"]:checked').value }) }); toast("Statement of work started."); render(); } catch (e) { toast(e.message); } };
+    return;
+  }
+  const sow = JSON.parse(JSON.stringify(S.sow));
+  let locked = S.locked, dirty = false;
+  const body = document.getElementById("sw-body");
+  const $ = (id) => document.getElementById(id);
+
+  const draw = () => {
+    const act = afterApproval(sow);
+    body.innerHTML = `
+      <div class="swtop">
+        <div><div class="cap">Invoice number</div><div class="invno">${esc(sow.invoice.number)}</div></div>
+        <div><div class="cap">Status</div><select id="sw-status" style="width:auto;margin:0">${SOW_STATUSES.map(([k, w]) => `<option value="${k}"${sow.status === k ? " selected" : ""}>${w}</option>`).join("")}</select>
+          <span class="ag" id="sw-statusat">${sow.statusAt?.[sow.status] ? esc(fmtDate(sow.statusAt[sow.status].slice(0, 10))) : ""}</span></div>
+        <div id="sw-lock">${locked ? `<span class="shchip good">Estimates locked</span> <button class="mini ghost" id="sw-unlock">Unlock to change them</button>`
+          : afterApproval(sow) ? `<span class="shchip warn">Estimates unlocked</span> <button class="mini ghost" id="sw-relock">Lock them again</button>` : ""}</div>
+      </div>
+      <div class="row2"><div class="field"><label for="sw-title">Program name (the big gold title)</label><input id="sw-title" value="${esc(sow.program.title)}"></div>
+        <div class="field"><label for="sw-place">Place</label><input id="sw-place" value="${esc(sow.program.place)}"></div></div>
+      <div class="row2"><div class="field"><label for="sw-note">Note on the page (shows in red; optional)</label><input id="sw-note" value="${esc(sow.program.note)}" placeholder="Expecting a large class this training (10-12 ppl)"></div>
+        <div class="row2" style="margin:0"><div class="field"><label for="sw-idate">Invoice date</label><input id="sw-idate" type="date" value="${esc(sow.invoiceDate ?? "")}"></div>
+        <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
+      <table class="swt${act ? "" : " noact"}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th><th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
+        ${sow.lines.map((l, i) => `<tr data-i="${i}"><td><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
+            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
+          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
+          <td class="n"><input class="ln-est" type="number" min="0" step="0.01" value="${l.estimate || ""}" placeholder="0.00"${locked ? " disabled" : ""}></td>
+          <td class="n act"><input class="ln-act" type="number" min="0" step="0.01" value="${l.actual ?? ""}"></td>
+          <td class="v act"></td>
+          <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="Remove the line"${locked ? " disabled" : ""}>✕</button></td></tr>`).join("")}
+      </tbody></table>
+      <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
+        <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts. Type an invoice amount to overwrite either.</span></div>
+      <div class="swbottom">
+        <div class="swtax"><h3 style="margin:0 0 4px;font-size:15px">Tax, deposit and fee</h3>
+          <p class="hint" style="margin:0 0 8px">ONGIA's service fee is 20% of the subtotal, always.</p>
+          <label class="hint" for="sw-prov">Tax for</label>
+          <div style="display:flex;gap:8px;align-items:center"><select id="sw-prov" style="margin:0">${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${(ev.province || S.province) === k ? " selected" : ""}>${n}</option>`).join("")}</select>
+            <button class="mini" id="sw-useprov">Use its tax lines</button></div>
+          <div id="sw-taxes">${sow.taxes.map((t, i) => `<div class="row" data-t="${i}"><input class="tx-name" value="${esc(t.name)}" aria-label="Tax name"><input class="tx-rate" type="number" min="0" max="100" step="0.001" value="${t.rate}" aria-label="Tax rate"><button class="mini ghost" data-txrm="${i}" title="Remove">✕</button></div>`).join("")}</div>
+          <button class="mini" id="sw-addtax" style="margin-top:8px">Add a tax line</button>
+          <div class="field" style="margin-top:12px"><label for="sw-base">Tax is worked out on</label><select id="sw-base"><option value="subtotal+fee"${sow.taxBase !== "subtotal" ? " selected" : ""}>The subtotal plus ONGIA's fee</option><option value="subtotal"${sow.taxBase === "subtotal" ? " selected" : ""}>The subtotal only</option></select></div>
+          <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" type="number" min="0" step="0.01" value="${sow.deposit || ""}" placeholder="0.00"></div></div>
+        <div><div class="swsums${act ? "" : " noact"}" id="sw-sums"></div></div>
+      </div>
+      <div class="actions" style="margin-top:18px;flex-wrap:wrap">
+        <button class="btn btn-gold" id="sw-save">Save</button>
+        <button class="btn btn-ghost" id="sw-pdf-sow">Statement of work (PDF)</button>
+        <button class="btn btn-ghost" id="sw-pdf-inv">Final invoice (PDF)</button>
+        <button class="btn btn-ghost" id="sw-file-sow">File the SOW to SharePoint</button>
+        <button class="btn btn-ghost" id="sw-file-inv">File the invoice to SharePoint</button></div>
+      <p class="hint" id="sw-said" style="margin-top:8px">${["sow", "invoice"].map((k) => sow.filed?.[k] ? `${k === "sow" ? "SOW" : "Invoice"} filed ${esc(fmtDate(sow.filed[k].at.slice(0, 10)))}: <a href="${esc(sow.filed[k].url)}" target="_blank" rel="noopener">open</a>` : "").filter(Boolean).join(" · ")}
+        The files go in a folder called <b>SOW and Invoice</b> inside the event's folder.</p>
+      ${sow.history?.length ? `<details class="settings" style="margin-top:10px"><summary>History (${sow.history.length})</summary><ul style="margin:8px 0 0;padding-left:18px;font-size:13.5px">${sow.history.slice().reverse().map((h) => `<li>${esc(fmtDate(h.at.slice(0, 10)))} · ${esc(h.who)} · ${esc(h.what)}</li>`).join("")}</ul></details>` : ""}`;
+    wire(); sums();
+  };
+
+  const read = () => {
+    sow.program = { title: $("sw-title").value, place: $("sw-place").value, note: $("sw-note").value };
+    sow.invoiceDate = $("sw-idate").value; sow.dueDate = $("sw-due").value;
+    body.querySelectorAll("#sw-table tbody tr").forEach((tr) => {
+      const l = sow.lines[+tr.dataset.i];
+      l.name = tr.querySelector(".ln-name").value; l.description = tr.querySelector(".ln-desc").value; l.type = tr.querySelector(".ln-type").value;
+      l.estimate = numOrNull(tr.querySelector(".ln-est").value) ?? 0; l.actual = numOrNull(tr.querySelector(".ln-act").value);
+    });
+    body.querySelectorAll("#sw-taxes .row").forEach((r) => { const t = sow.taxes[+r.dataset.t]; t.name = r.querySelector(".tx-name").value; t.rate = Number(r.querySelector(".tx-rate").value) || 0; });
+    sow.taxBase = $("sw-base").value; sow.deposit = numOrNull($("sw-dep").value) ?? 0;
+  };
+
+  const sums = () => {
+    const est = sowSums(sow, "estimate"), act = sowSums(sow, "actual"), showAct = afterApproval(sow);
+    const row = (label, e, a, cls = "") => `<tr class="${cls}"><td>${label}</td><td>${e}</td><td class="act">${a}</td></tr>`;
+    $("sw-sums").innerHTML = `<table><thead><tr><th></th><th>Statement of work</th><th class="act">Invoice</th></tr></thead><tbody>
+      ${row("Subtotal", usd(est.subtotal), usd(act.subtotal), "bold")}${row("ONGIA service fee (20%)", usd(est.fee), usd(act.fee))}
+      ${est.deposit || act.deposit ? row("Deposit paid", `(${usd(est.deposit)})`, `(${usd(act.deposit)})`) + row("New subtotal", usd(est.newSubtotal), usd(act.newSubtotal), "bold") : ""}
+      ${est.taxes.map((t, i) => row(`${esc(t.name)} (${t.rate}%)`, usd(t.amount), usd(act.taxes[i].amount))).join("")}
+      ${row("TOTAL BALANCE DUE", usd(est.total), usd(act.total), "tot")}</tbody></table>`;
+    body.querySelectorAll("#sw-table tbody tr").forEach((tr) => {
+      const i = +tr.dataset.i, l = sow.lines[i], e = est.lines[i].amount, a = act.lines[i].amount, auto = l.actual === null;
+      const ph = tr.querySelector(".ln-act");
+      ph.placeholder = usd(auto ? a : e).replace("$", "") + (auto && l.type === "cost" && !a ? " (no receipts yet)" : "");
+      ph.title = auto ? (l.type === "fixed" ? "Worked out: the estimate (a fixed fee). Type an amount to overwrite it." : "Worked out from the receipts. Type an amount to overwrite it.") : "Typed by hand. Clear the box to go back to the worked-out amount.";
+      const d = a - e;
+      tr.querySelector(".v").innerHTML = Math.abs(d) < 0.005 ? `<span style="color:var(--muted)">–</span>` : `<span class="${d > 0 ? "over" : "under"}">${d > 0 ? "+" : "−"}${usd(Math.abs(d))}</span>${e ? `<br><small>${d > 0 ? "+" : "−"}${Math.abs(Math.round(d / e * 1000) / 10)}%</small>` : ""}`;
+    });
+  };
+
+  const save = async (quiet) => {
+    read();
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate }) });
+    Object.assign(sow, out.sow); locked = out.locked; dirty = false;
+    if (!quiet) { toast("Saved."); render(); }
+    return out;
+  };
+  const guard = (fn) => async (e) => { try { await fn(e); } catch (err) { toast(err.message); } };
+  const pdf = (kind) => guard(async () => {
+    if (dirty) await save(true);
+    const res = await fetch(`/api${q}&doc=${kind}`, { headers: { "x-admin-key": KEY } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
+    window.open(URL.createObjectURL(await res.blob()), "_blank");
+  });
+  const file = (kind) => guard(async () => {
+    if (dirty) await save(true);
+    const out = await api(`${q}&file=${kind}`, { method: "POST" });
+    toast(`Filed to SharePoint: ${out.filedTo.name}`); render();
+  });
+
+  function wire() {
+    body.oninput = () => { dirty = true; read(); sums(); };
+    body.onchange = () => { dirty = true; read(); sums(); };
+    const rebuild = () => { read(); draw(); dirty = true; };
+    body.querySelectorAll("[data-up]").forEach((b) => { b.onclick = () => { const i = +b.dataset.up; if (i) { read(); [sow.lines[i - 1], sow.lines[i]] = [sow.lines[i], sow.lines[i - 1]]; draw(); dirty = true; } }; });
+    body.querySelectorAll("[data-down]").forEach((b) => { b.onclick = () => { const i = +b.dataset.down; if (i < sow.lines.length - 1) { read(); [sow.lines[i + 1], sow.lines[i]] = [sow.lines[i], sow.lines[i + 1]]; draw(); dirty = true; } }; });
+    body.querySelectorAll("[data-rm]").forEach((b) => { b.onclick = () => { read(); sow.lines.splice(+b.dataset.rm, 1); draw(); dirty = true; }; });
+    $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null }); draw(); dirty = true; body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
+    body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; }; });
+    $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; };
+    $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
+    $("sw-status").onchange = guard(async () => { if (dirty) await save(true); await api(`${q}&status=${$("sw-status").value}`, { method: "PUT" }); toast("Status changed."); render(); });
+    $("sw-unlock")?.addEventListener("click", guard(async () => { if (!confirm("Unlock the estimates? Do this only if RBH has agreed to a change. It is noted in the history.")) return; await api(`${q}&unlock=1`, { method: "PUT" }); render(); }));
+    $("sw-relock")?.addEventListener("click", guard(async () => { await api(`${q}&unlock=0`, { method: "PUT" }); render(); }));
+    $("sw-save").onclick = guard(() => save(false));
+    $("sw-pdf-sow").onclick = pdf("sow"); $("sw-pdf-inv").onclick = pdf("invoice");
+    $("sw-file-sow").onclick = file("sow"); $("sw-file-inv").onclick = file("invoice");
+  }
+  draw();
 }
 
 /** The dollar figure at the top: what following the sheet would have cost ONGIA, and what it missed. */
@@ -5224,7 +5449,9 @@ async function render() {
         loadRoster(),   // the board, for the volunteer lead picker
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
-      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
+      // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
+      const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      return eventScreen({ ...data, sow, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
     }
     if (view.name === "unfiled") {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);

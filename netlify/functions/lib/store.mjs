@@ -251,6 +251,9 @@ export const getAgendaRead = (eventId) => read(`agendaread:${eventId}`);
 export const getInbox = (eventId) => read(`inbox:${eventId}`);
 export const putInbox = (eventId, value) => write(`inbox:${eventId}`, value);
 /** The logistics sheet as it was uploaded (see sheetcheck.mjs): the frozen baseline presenters are compared with. */
+/** An RBH event's statement of work and invoice (see sow.mjs). Its own record, so nothing else can read the money. */
+export const getSow = (eventId) => read(`sow:${eventId}`);
+export const putSow = (eventId, value) => write(`sow:${eventId}`, value);
 export const getSheetBaseline = (eventId) => read(`sheet:${eventId}`);
 export const putSheetBaseline = (eventId, value) => write(`sheet:${eventId}`, value);
 export const putAgendaRead = (eventId, value) => write(`agendaread:${eventId}`, value);

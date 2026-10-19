@@ -1,0 +1,121 @@
+/**
+ * Costing for an RBH event: the statement of work (SOW) and the final invoice.
+ *
+ * Laid out the way ONGIA's own SOW sheet is (Andrew, 19 Oct 2026):
+ *   header lines, each with a total, and an optional free-text description under it;
+ *   SUBTOTAL, then ONGIA SERVICE FEE (always 20% of the subtotal), DEPOSIT PAID,
+ *   NEW SUBTOTAL, the tax lines for where the event is held, and TOTAL BALANCE DUE.
+ *
+ * The same lines carry both numbers: `estimate` is the SOW, `actual` the invoice. A line is
+ * either a FIXED FEE (the actual is the estimate unless changed) or AT COST (the actual is
+ * what the receipts add up to). `actual` is only ever a hand-typed override; blank means "work it out".
+ */
+
+export const SERVICE_FEE_RATE = 0.2;
+export const STATUSES = ["draft", "submitted", "approved", "invoiced", "paid"];
+export const STATUS_WORDS = { draft: "Draft", submitted: "Sent to RBH", approved: "Approved", invoiced: "Invoiced", paid: "Paid" };
+
+/** The lines ONGIA's ITP sheet starts with. */
+export const STANDARD_LINES = [
+  { name: "Hotel", type: "fixed" },
+  { name: "AV", type: "cost" },
+  { name: "Dinners", type: "cost" },
+  { name: "Transportation", type: "cost" },
+  { name: "Via Rail Train Tickets", type: "cost" },
+  { name: "On Site Management", type: "fixed" },
+  { name: "Presenter Support / Creative Development", type: "fixed" },
+  { name: "Pre/Post Event Management", type: "fixed" },
+];
+
+/**
+ * Sales tax by province, as the standard federal and provincial rates. Provincial sales tax on
+ * services (BC, Saskatchewan, Manitoba) has its own rules, so only GST is preset there: add a
+ * line if it applies. The tax lines can be edited on every SOW.
+ */
+export const PROVINCES = {
+  AB: { name: "Alberta", taxes: [{ name: "GST", rate: 5 }] },
+  BC: { name: "British Columbia", taxes: [{ name: "GST", rate: 5 }] },
+  MB: { name: "Manitoba", taxes: [{ name: "GST", rate: 5 }] },
+  NB: { name: "New Brunswick", taxes: [{ name: "HST", rate: 15 }] },
+  NL: { name: "Newfoundland and Labrador", taxes: [{ name: "HST", rate: 15 }] },
+  NS: { name: "Nova Scotia", taxes: [{ name: "HST", rate: 14 }] },
+  NT: { name: "Northwest Territories", taxes: [{ name: "GST", rate: 5 }] },
+  NU: { name: "Nunavut", taxes: [{ name: "GST", rate: 5 }] },
+  ON: { name: "Ontario", taxes: [{ name: "HST", rate: 13 }] },
+  PE: { name: "Prince Edward Island", taxes: [{ name: "HST", rate: 15 }] },
+  QC: { name: "Quebec", taxes: [{ name: "GST", rate: 5 }, { name: "QST", rate: 9.975 }] },
+  SK: { name: "Saskatchewan", taxes: [{ name: "GST", rate: 5 }] },
+  YT: { name: "Yukon", taxes: [{ name: "GST", rate: 5 }] },
+};
+export const provinceTaxes = (code) => (PROVINCES[code]?.taxes ?? []).map((t) => ({ ...t }));
+
+export const money = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const num = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
+
+/** What a line comes to. `which` is "estimate" (the SOW) or "actual" (the invoice). */
+export function lineAmount(line, which) {
+  if (which === "estimate") return money(num(line.estimate) ?? 0);
+  const typed = num(line.actual);
+  if (typed !== null) return money(typed);
+  return money(line.type === "fixed" ? (num(line.estimate) ?? 0) : (num(line.receiptsTotal) ?? 0));
+}
+
+/** The whole page of figures for the SOW or the invoice. */
+export function totals(sow, which = "estimate") {
+  const lines = (sow.lines ?? []).map((l) => ({ id: l.id, amount: lineAmount(l, which) }));
+  const subtotal = money(lines.reduce((n, l) => n + l.amount, 0));
+  const fee = money(subtotal * SERVICE_FEE_RATE);
+  const deposit = money(num(sow.deposit) ?? 0);
+  const newSubtotal = money(subtotal + fee - deposit);
+  const base = sow.taxBase === "subtotal" ? subtotal : money(subtotal + fee);
+  const taxes = (sow.taxes ?? []).map((t) => ({ name: t.name, rate: Number(t.rate) || 0, amount: money(base * (Number(t.rate) || 0) / 100) }));
+  const taxTotal = money(taxes.reduce((n, t) => n + t.amount, 0));
+  return { lines, subtotal, fee, deposit, newSubtotal, taxBase: base, taxes, taxTotal, total: money(newSubtotal + taxTotal) };
+}
+
+/** A first guess at the province from the city, so the tax line starts right; the desk always shows it to be changed. */
+const CITY_PROVINCE = [
+  [/montr[eé]al|qu[eé]bec|laval|gatineau|sherbrooke|trois-rivi/i, "QC"],
+  [/toronto|ottawa|hamilton|london|kingston|mississauga|brampton|windsor|niagara|barrie|sudbury|thunder bay|kitchener|waterloo/i, "ON"],
+  [/vancouver|victoria|kelowna|surrey|burnaby|nanaimo/i, "BC"],
+  [/calgary|edmonton|red deer|lethbridge/i, "AB"],
+  [/winnipeg|brandon/i, "MB"], [/regina|saskatoon/i, "SK"],
+  [/halifax|sydney/i, "NS"], [/moncton|fredericton|saint john/i, "NB"], [/st\.? john'?s|corner brook/i, "NL"], [/charlottetown/i, "PE"],
+];
+export const guessProvince = (city) => CITY_PROVINCE.find(([re]) => re.test(String(city ?? "")))?.[1] ?? "";
+
+/* ---------- invoice numbers ---------- */
+export const cleanPrefix = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8) || "RBH";
+export const invoiceNumber = (prefix, year, seq) => `${cleanPrefix(prefix)}-${year}-${String(seq).padStart(3, "0")}`;
+
+/* ---------- cleaning what the desk sends ---------- */
+const clip = (s, n) => String(s ?? "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, n);
+let counter = 0;
+const newId = () => `l${Date.now().toString(36)}${(counter++).toString(36)}`;
+
+export function cleanLines(lines, had = []) {
+  const known = new Map(had.map((l) => [l.id, l]));
+  return (Array.isArray(lines) ? lines : []).slice(0, 60).map((l) => {
+    const id = clip(l.id, 40) && known.has(l.id) ? l.id : newId();
+    return {
+      id,
+      name: clip(l.name, 120),
+      description: clip(l.description, 400),
+      type: l.type === "cost" ? "cost" : "fixed",
+      estimate: money(Math.max(0, num(l.estimate) ?? 0)),
+      actual: num(l.actual) === null ? null : money(Math.max(0, num(l.actual))),
+    };
+  }).filter((l) => l.name);
+}
+
+export function cleanTaxes(taxes) {
+  return (Array.isArray(taxes) ? taxes : []).slice(0, 6)
+    .map((t) => ({ name: clip(t.name, 20), rate: Math.min(100, Math.max(0, Number(t.rate) || 0)) })).filter((t) => t.name);
+}
+
+/** Dates the status passed through, kept so the page can say when. */
+export function stampStatus(sow, status, now = new Date().toISOString()) {
+  sow.status = status;
+  sow.statusAt = { ...(sow.statusAt ?? {}), [status]: now };
+}
+export const isLocked = (sow) => STATUSES.indexOf(sow.status) >= STATUSES.indexOf("approved") && !sow.unlocked;
