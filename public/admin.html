@@ -491,6 +491,15 @@
   .roomchg{background:var(--gold-pale);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13.5px;margin:0 0 12px}
   .roomchg ul{margin:6px 0 0;padding-left:18px}
   .roomwait{font-size:13px;color:var(--muted);margin:10px 0 0}
+  .shc{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--card)}
+  .shc.differs{border-left:4px solid var(--late)} .shc.check{border-left:4px solid var(--gold)}
+  .shc .nm{font-weight:700;font-size:15px} .shc .ag{color:var(--muted);font-size:13px}
+  .shc .cmp{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:8px 0 0;font-size:14px}
+  .shc .cmp i{font-style:normal;color:var(--muted)}
+  @media (max-width:600px){.shc .cmp{grid-template-columns:1fr;gap:0}.shc .cmp i{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:7px}}
+  .shc ul.iss{margin:8px 0 0;padding-left:18px;font-size:14px} .shc ul.iss li{margin:3px 0} .shc ul.iss li.differs{color:var(--late);font-weight:600}
+  .shc .fit{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .shchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
   .roomgroup{margin:14px 0 0}
   .roomgroup .rghead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 0 6px;font-size:14px}
   .roomgroup .rghead span{background:var(--gold-pale);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
@@ -1877,7 +1886,7 @@ function sponsorsScreen(list, settings) {
 
 /* ---------- one event ---------- */
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, allEvents } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents } = data;
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -2199,6 +2208,7 @@ function eventScreen(data) {
     + volunteerCard(ev, volunteers)
     + inboxCard(ev, inbox) + inboxDialogs()
     + checklistCard(ev, checklist) + jobDialog()
+    + (sheetcheck ? sheetCard(ev, sheetcheck) : "")
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
     + attendeesCard(ev, guests) + wixDialog()
     + agendaCard(ev, agenda)
@@ -2264,6 +2274,7 @@ function eventScreen(data) {
   wireMailSwitch(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
+  if (sheetcheck) wireSheet(ev, sheetcheck);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
@@ -2732,6 +2743,120 @@ const noRoom = (ev, R) => {
     ${names.map((n) => `<div class="nr"><span>${esc(n)}</span><button type="button" class="mini" data-addboard="${esc(n)}">Add to hotel list</button></div>`).join("")}
     <p class="hint" style="margin:8px 0 0">Add fills in their name; you pick the nights and press Add. Skip anyone who is not staying.</p></div>`;
 };
+
+/**
+ * Read an .xlsx in the browser (it is a zip of XML) and hand back the first sheet that has the
+ * logistics headings as rows of text. Only that sheet's cells leave the browser; the server keeps
+ * just the name, agency and night columns.
+ */
+async function readLogisticsXlsx(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("That isn't an Excel (.xlsx) file.");
+  const entries = {};
+  let p = dv.getUint32(eocd + 16, true);
+  for (let n = dv.getUint16(eocd + 10, true); n > 0; n--) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    entries[new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nlen))] = { method, csize, off };
+    p += 46 + nlen + xlen + clen;
+  }
+  const read = async (name) => {
+    const e = entries[name];
+    if (!e) return null;
+    const start = e.off + 30 + dv.getUint16(e.off + 26, true) + dv.getUint16(e.off + 28, true);
+    const raw = buf.subarray(start, start + e.csize);
+    if (e.method === 0) return new TextDecoder().decode(raw);
+    const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  };
+  const xml = async (name) => { const t = await read(name); return t ? new DOMParser().parseFromString(t, "application/xml") : null; };
+  const shared = [];
+  const ss = await xml("xl/sharedStrings.xml");
+  if (ss) for (const si of ss.getElementsByTagName("si")) shared.push([...si.getElementsByTagName("t")].filter((t) => t.parentNode.nodeName !== "rPh").map((t) => t.textContent).join(""));
+  const wb = await xml("xl/workbook.xml"), rels = await xml("xl/_rels/workbook.xml.rels");
+  if (!wb || !rels) throw new Error("That isn't an Excel (.xlsx) file.");
+  const target = new Map([...rels.getElementsByTagName("Relationship")].map((r) => [r.getAttribute("Id"), r.getAttribute("Target")]));
+  const col = (ref) => [...ref.replace(/\d+$/, "")].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  for (const sh of wb.getElementsByTagName("sheet")) {
+    const t = target.get(sh.getAttribute("r:id") ?? sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"));
+    const doc = t && (await xml(`xl/${t.replace(/^\/?(xl\/)?/, "")}`));
+    if (!doc) continue;
+    const rows = [];
+    for (const row of doc.getElementsByTagName("row")) {
+      const r = +row.getAttribute("r") - 1;
+      if (r > 400) break;
+      const cells = (rows[r] = []);
+      for (const c of row.getElementsByTagName("c")) {
+        const i = col(c.getAttribute("r")), type = c.getAttribute("t");
+        const v = c.getElementsByTagName("v")[0]?.textContent ?? "";
+        cells[i] = type === "s" ? shared[+v] ?? "" : type === "inlineStr" ? [...c.getElementsByTagName("t")].map((x) => x.textContent).join("") : v;
+      }
+    }
+    const grid = Array.from(rows, (r) => Array.from(r ?? [], (c) => c ?? ""));
+    const headed = grid.slice(0, 12).some((r) => r.some((c) => /^presenter\b/i.test(c)) && r.filter((c) => /sunday|monday|tuesday|wednesday|thursday/i.test(c)).length >= 3);
+    if (headed) return grid;
+  }
+  throw new Error("I couldn't find the presenters' sheet in that file: no tab has a Presenter column with Sunday to Thursday accommodation columns.");
+}
+
+/** The president's page: the sheet as it stood against the agreements as they are now. */
+function sheetCard(ev, SC) {
+  const R = SC.result, B = SC.baseline;
+  const when = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "") : "");
+  const line = !B ? "Upload the sheet as it was, and every agreement is compared with it."
+    : `${R.counts.differs} differ · ${R.counts.check} to check · ${R.counts.match} match · ${R.counts.waiting} haven't signed`;
+  const badge = B ? (R.counts.differs ? `<span class="chase">${R.counts.differs} differ</span>` : R.counts.check ? `${R.counts.check} to check` : "all match") : "";
+  const span = (a, b) => (a && b ? `${esc(shortDate(a))} → ${esc(shortDate(b))}` : "no room");
+  const nn = (n) => `${n} night${n === 1 ? "" : "s"}`;
+  const card = (r) => {
+    const sh = r.sheet, d = r.desk;
+    const deskWord = d.state === "approved" ? "Agreement (approved)" : d.state === "submitted" ? "Agreement (not approved yet)" : "Agreement";
+    const pick = r.status === "nosheet" ? `<div class="fit">Spelled differently on the sheet? <select data-shlink-pick="${esc(r.id)}" aria-label="Sheet name for ${esc(r.name)}"><option value="">Pick the sheet row…</option>${R.sheetNames.map((n) => `<option>${esc(n)}</option>`).join("")}</select> <button class="mini" data-shlink="${esc(r.id)}">Match them</button></div>` : "";
+    return `<div class="shc ${r.status}"><div class="nm">${esc(r.name)} <span class="ag">${esc(r.agency)}</span></div>
+      ${sh || d.room !== null ? `<div class="cmp"><i>Sheet</i><span>${sh ? (sh.nights.length ? `${span(sh.checkIn, sh.checkOut)} · ${nn(sh.nights.length)}${sh.agencyPays ? " · agency paying" : ""}` : "no nights booked") : "not on the sheet"}</span>
+        <i>${deskWord}</i><span>${d.room === null ? "not submitted yet" : d.room ? `${span(d.checkIn, d.checkOut)} · ${nn(d.nights.length)}${d.block === "master" ? " · master block" : d.block === "own" ? " · pays own room" : ""}` : "no hotel needed"}${d.at ? ` <span class="ag">· ${esc(when(d.at))}</span>` : ""}</span></div>` : ""}
+      ${r.issues.length ? `<ul class="iss">${r.issues.map((i) => `<li class="${i.kind}">${esc(i.text)}</li>`).join("")}</ul>` : ""}
+      ${r.how && r.how !== "exact" ? `<div class="fit">Matched to "${esc(r.matchedAs)}" on the sheet${r.how === "surname" ? " by surname only" : r.how === "linked" ? " (matched by you)" : " (spelled a little differently)"}. <button class="mini ghost" data-shlink-clear="${esc(r.id)}">Not them</button></div>` : ""}${pick}</div>`;
+  };
+  const group = (title, rows, open = true) => rows.length ? `<details class="settings"${open ? " open" : ""} style="margin-top:12px"><summary>${title} (${rows.length})</summary>${rows.map(card).join("")}</details>` : "";
+  const of = (...s) => R?.rows.filter((r) => s.includes(r.status)) ?? [];
+  const body = !B ? `<p class="hint" style="margin:0 0 10px">This compares each presenter's agreement with the logistics spreadsheet <b>as it stood before anyone corrected it</b>, so you can see what the sheet got wrong.
+        To get that copy: in SharePoint open the spreadsheet, choose <b>Version history</b>, download the version from before the corrections, and upload it here. The desk only keeps each presenter's name, agency and Sunday to Thursday nights, never the notes, and it never changes the spreadsheet.</p>
+      <div class="actions" style="margin:0"><button class="btn btn-gold" id="sh-up">Upload the sheet (.xlsx)</button></div>`
+    : `<p class="hint" style="margin:0">Baseline: <b>${esc(B.fileName)}</b>, uploaded ${esc(when(B.uploadedAt))}${B.uploadedBy ? ` by ${esc(B.uploadedBy)}` : ""}. ${B.count} rows read. Worked out fresh every time you open this page, so a presenter who submits or is approved shows up here at once. This page only reads the sheet; it never changes it.</p>
+      <div class="actions" style="margin:8px 0 0"><button class="mini" id="sh-up">Replace with another copy</button><button class="mini ghost" id="sh-del">Remove the baseline</button></div>
+      <div class="shchips"><span class="chipstat hot"><b>${R.counts.differs}</b>differ</span><span class="chipstat"><b>${R.counts.check}</b>to check</span><span class="chipstat"><b>${R.counts.match}</b>match</span><span class="chipstat"><b>${R.counts.nosheet}</b>not on the sheet</span><span class="chipstat"><b>${R.counts.waiting}</b>haven't signed</span></div>
+      ${group("Differences", of("differs"))}${group("To check", of("check"))}${group("In the desk but not on the sheet", of("nosheet"))}
+      ${R.sheetOnly.length ? `<details class="settings" style="margin-top:12px"><summary>On the sheet with nights booked, not on the desk (${R.sheetOnly.length})</summary>${R.sheetOnly.map((s) => `<div class="shc"><div class="nm">${esc(s.name)} <span class="ag">${esc(s.agency)}</span></div><div class="cmp"><i>Sheet</i><span>${span(s.checkIn, s.checkOut)} · ${nn(s.nights.length)}</span></div></div>`).join("")}</details>` : ""}
+      ${group("Haven't signed yet", of("waiting"), false)}${group("Match", of("match"), false)}`;
+  return secFold("sheet", "Logistics sheet check", line, badge, `<div class="card-body">${body}<input type="file" id="sh-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div id="sh-said" class="hint" style="margin-top:8px"></div></div>`);
+}
+
+function wireSheet(ev, SC) {
+  const q = `/sheetcheck?event=${encodeURIComponent(ev.id)}`;
+  const up = document.getElementById("sh-up"), file = document.getElementById("sh-file"), said = document.getElementById("sh-said");
+  if (up && file) {
+    up.onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files?.[0]; file.value = "";
+      if (!f) return;
+      said.style.color = ""; said.textContent = `Reading ${f.name}…`;
+      try {
+        const cells = await readLogisticsXlsx(f);
+        await api(`${q}&baseline=1`, { method: "PUT", body: JSON.stringify({ fileName: f.name, cells }) });
+        toast("Sheet read. Comparison is below."); render();
+      } catch (e) { said.style.color = "var(--late)"; said.textContent = e.message; }
+    };
+  }
+  const del = document.getElementById("sh-del");
+  if (del) del.onclick = async () => { if (!confirm("Remove the baseline sheet? The comparison goes away until you upload one again.")) return; try { await api(q, { method: "DELETE" }); render(); } catch (e) { toast(e.message); } };
+  const link = (presenterId, sheetName) => api(`${q}&link=1`, { method: "PUT", body: JSON.stringify({ presenterId, sheetName }) }).then(() => render()).catch((e) => toast(e.message));
+  ROOT.querySelectorAll("[data-shlink]").forEach((b) => { b.onclick = () => { const v = ROOT.querySelector(`[data-shlink-pick="${b.dataset.shlink}"]`)?.value; if (!v) return toast("Pick the sheet row first."); link(b.dataset.shlink, v); }; });
+  ROOT.querySelectorAll("[data-shlink-clear]").forEach((b) => { b.onclick = () => link(b.dataset.shlinkClear, ""); });
+}
 
 /** The list in the groups the hotel gets it in: master block first, then everyone paying their own. */
 function roomGroups(rows, row) {
@@ -5011,7 +5136,7 @@ async function render() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
-      const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list, volunteers] = await Promise.all([
+      const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list, volunteers, sheetcheck] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
         api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
@@ -5022,10 +5147,10 @@ async function render() {
         api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api("/events").catch(() => ({ events: [] })),
         api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        loadRoster(),   // the board, for the volunteer lead picker
+        loadRoster().then(() => (ROSTER_META.canGrant ? api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null)),   // the board, for the volunteer lead picker; then the president's sheet check
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
-      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, allEvents: list.events ?? [] });
+      return eventScreen({ ...data, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
     }
     if (view.name === "unfiled") {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);

@@ -263,7 +263,7 @@ async function deleteEvent(id) {
     await Promise.all([deleteKey(`volunteer:${id}:${v.id}`), v.token ? deleteKey(`vtoken:${v.token}`) : null, deleteKey(`pdf:vol:${id}:${v.id}`)]);
   }
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
-    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`)]);
+    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length, removedVolunteers: volunteers.length });
