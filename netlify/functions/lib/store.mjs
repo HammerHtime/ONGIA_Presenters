@@ -304,3 +304,17 @@ export async function listLetters() {
 
 export const getRoster = () => read("roster:board");
 export const putRoster = (members) => write("roster:board", members);
+
+/**
+ * Everything in the store, for the nightly backup (see backup.mjs). `readRaw` gives a blob's bytes and its metadata
+ * whatever it holds (JSON, a PDF, a photo); `writeRaw` puts one back exactly as it was, for a restore.
+ */
+export async function allBlobKeys() {
+  const { blobs } = await store().list({ prefix: "" });
+  return blobs.map((b) => b.key).sort();
+}
+export async function readRaw(key) {
+  const got = await store().getWithMetadata(key, { type: "arrayBuffer" });
+  return got ? { bytes: Buffer.from(got.data), metadata: got.metadata ?? {} } : null;
+}
+export const writeRaw = (key, bytes, metadata = {}) => store().set(key, bytes, { metadata });

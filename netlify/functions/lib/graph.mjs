@@ -393,3 +393,56 @@ export async function checkFolder(folderPath) {
   }
   return result;
 }
+
+/* ---------- backups: one folder in the library, one zip a day ---------- */
+
+/** Make every folder on the path (the first one sits at the library's root). Returns the last folder's item. */
+async function ensureFolderPath(token, drive, path) {
+  let built = "", item = null;
+  for (const seg of path.split("/").filter(Boolean)) {
+    const parent = built;
+    built = built ? `${built}/${seg}` : seg;
+    try { item = await graph(token, `/drives/${drive}/root:/${encodePath(built)}?$select=id,webUrl`); }
+    catch (e) {
+      if (e.status !== 404) throw e;
+      item = await graph(token, parent ? `/drives/${drive}/root:/${encodePath(parent)}:/children` : `/drives/${drive}/root/children`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: seg, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+      });
+    }
+  }
+  return item;
+}
+
+/** Put a backup zip in `folder` (created if missing). Checks that SharePoint holds as many bytes as were sent. */
+export async function putBackupFile({ folder, name, bytes }) {
+  if (!graphConfigured()) throw new Error("Microsoft credentials are not set on this site, so there is nowhere to put the backup.");
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const dir = await ensureFolderPath(token, drive, normaliseFolder(folder));
+  const item = await upload(token, drive, `${normaliseFolder(folder)}/${safeFileName(name, "backup.zip")}`, bytes, "application/zip");
+  if (!item || Number(item.size) !== Buffer.from(bytes).length) throw new Error(`SharePoint kept ${item?.size ?? 0} bytes of ${Buffer.from(bytes).length}, so the copy is not trusted.`);
+  return { id: item.id, name: item.name, url: item.webUrl, folderUrl: dir.webUrl, size: Number(item.size) };
+}
+
+export async function listBackupFiles(folder) {
+  if (!graphConfigured()) return [];
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const out = [];
+  let next = `/drives/${drive}/root:/${encodePath(normaliseFolder(folder))}:/children?$select=id,name,size,webUrl,file&$top=200`;
+  try {
+    while (next) {
+      const page = await graph(token, next);
+      for (const f of page.value ?? []) if (f.file) out.push({ id: f.id, name: f.name, size: f.size, url: f.webUrl });
+      next = page["@odata.nextLink"] ? page["@odata.nextLink"].replace(GRAPH, "") : null;
+    }
+  } catch (e) { if (e.status === 404) return []; throw e; }
+  return out;
+}
+
+export async function deleteBackupFile(id) {
+  const token = await accessToken();
+  const drive = await driveId(token);
+  await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}`, { method: "DELETE" });
+}

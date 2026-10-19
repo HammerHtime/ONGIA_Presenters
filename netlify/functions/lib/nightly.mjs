@@ -5,6 +5,7 @@ import { runLetterRounds } from "./sendletters.mjs";
 import { listEvents, putMeta } from "./store.mjs";
 import { pacer } from "./bulk.mjs";
 import { runInbox } from "./inbox.mjs";
+import { watchBackup } from "./backup.mjs";
 
 /** The site's own address, for links in emails and for starting background runs. */
 export const siteOrigin = (fallback = "") => process.env.APP_URL || process.env.URL || fallback;
@@ -24,6 +25,8 @@ export async function runNight({ origin = siteOrigin(), deadline = null, sendsOn
   const out = { at: new Date().toISOString(), sendsOnly };
 
   if (!sendsOnly) {
+    // The backup has its own 4 a.m. run; this only notices if it has gone quiet.
+    out.backup = await watchBackup().catch((e) => ({ error: e.message }));
     // A Wix outage must not stop the presenter reminders.
     const wix = await sweepWix().catch((e) => ({ error: e.message }));
     out.wix = wix.error ? { error: wix.error } : wix.skipped ? { skipped: wix.reason } : { events: wix.events.length, failed: wix.events.filter((e) => e.error).length };

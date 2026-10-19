@@ -6,6 +6,14 @@
   node_bundler = "esbuild"
   included_files = ["public/assets/**"]
 
+# The nightly backup puts the desk as deployed (pages, functions, config) in the zip beside the data, so these two
+# functions carry the files. Other functions carry only the assets the PDFs use.
+[functions."backup-run-background"]
+  included_files = ["public/**", "netlify/functions/**", "scripts/**", "netlify.toml", "package.json", "package-lock.json", "README.md", "CLAUDE.md"]
+
+[functions."backup-schedule"]
+  included_files = ["public/**", "netlify/functions/**", "scripts/**", "netlify.toml", "package.json", "package-lock.json", "README.md", "CLAUDE.md"]
+
 # Short, readable URLs for the things people are sent: agreements, volunteer agreements, sponsor forms.
 [[redirects]]
   from = "/a/*"

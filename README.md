@@ -146,3 +146,29 @@ is over the limit. The largest size that will actually send is chosen for them,
 and a thumbnail shows what they picked. Nothing leaves the device until they
 sign. The image is drawn through a canvas, so EXIF rotation is applied and the
 result is always a baseline JPEG.
+
+## Nightly backup
+
+Every night at **4:00 a.m. Pacific** the desk backs itself up, data and code, into a folder on SharePoint
+(`ONGIA Desk Backups` at the root of the library; `BACKUP_FOLDER` changes it). One zip a day, named
+`ongia-desk-backup-YYYY-MM-DD.zip`:
+
+- `blobs/` every record and file the desk keeps (events, presenters, agreements, headshots, contracts, receipts,
+  statements of work, letters, the board list, counters), each named by its key, URL-encoded;
+- `code/` the desk as deployed (pages, functions, `netlify.toml`, package files; not `node_modules`);
+- `MANIFEST.json` what is inside, with a SHA-256 for every record, and `README-RESTORE.txt`.
+
+Keys and passwords (Netlify environment variables) are **not** in it, so a copy that gets out signs in nowhere; a
+restore onto a new site needs them set again. The git repository stays the master copy of the code.
+
+How it runs: `backup-schedule.mjs` wakes at 11:00 and 12:00 UTC and goes on only when it is really 4 a.m. in
+`BACKUP_TZ` (default `America/Vancouver`; `BACKUP_HOUR` default 4), so the clock change needs no attention. It
+starts `backup-run-background.mjs` (15 minutes). The zip is re-read and checked against its manifest before it is
+sent, and SharePoint must hold every byte. Kept: every day for 30 days, then the first of each month for a year;
+only files named like ours are ever deleted. A failure is shown on the desk's home page (owners only, with **Back
+up now**) and emailed to the president and the VP; the morning run also emails once a day if no good backup has
+been made for 30 hours. Restrict the SharePoint folder to the president and the VP: the backup holds everything.
+
+Restore: `node scripts/restore-backup.mjs <zip>` is a dry run that lists what is inside and checks every record;
+`--code <folder>` unpacks the code; `NETLIFY_SITE_ID=… NETLIFY_AUTH_TOKEN=… … --apply` writes the records back
+and reads each one back to confirm.

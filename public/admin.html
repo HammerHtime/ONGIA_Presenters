@@ -701,6 +701,7 @@
   .evcard{cursor:pointer} .evcard:hover{box-shadow:0 6px 20px rgba(18,22,31,.08)}
   /* Working: a quiet line under the bar. Broken: a red box that cannot be missed. */
   .healthwrap{margin:0 0 16px}
+  #backupline{margin-top:8px} #backupline .hstrip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap} #backupline .bkact{display:flex;gap:8px;align-items:center}
   .hstrip{display:flex;gap:4px 20px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--muted)}
   .hstrip .dot{display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:7px;
     vertical-align:1px;background:var(--muted)}
@@ -4954,7 +4955,36 @@ async function healthStrip() {
       ${broken ? `<b>Something is off — presenters and filing are affected.</b>` : ""}
       <span>${dot(h.email)}Email ${h.email?.ok ? "ready" : "not working"}<small>${esc(h.email?.ok ? h.email.from : (h.email?.reason ?? "no transport configured"))}</small></span>
       <span>${dot(sp)}${esc(spLabel)}<small>${esc(spWhy)}</small></span></div>`;
+    backupLine(host);
   } catch (e) { host.innerHTML = `<div class="hstrip bad"><b>Status unavailable.</b><span><span class="dot"></span>Could not reach the desk<small>${esc(e.message)}</small></span></div>`; }
+}
+
+/**
+ * The nightly backup, for the desk owners (anyone else is refused, so nothing shows): when it last ran, how big it
+ * was, whether it checked out, a link to the folder, and "Back up now". Red when the last one failed or is over a day old.
+ */
+async function backupLine(host) {
+  const B = await api("/backups").catch(() => null);
+  if (!B) return;
+  let box = document.getElementById("backupline");
+  if (!box) { box = document.createElement("div"); box.id = "backupline"; host.appendChild(box); }
+  const st = B.status ?? {};
+  const when = (iso) => new Date(iso).toLocaleString("en-CA", { timeZone: "America/Vancouver", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const mb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  const old = st.lastGoodAt ? (Date.now() - Date.parse(st.lastGoodAt)) / 3600000 > 30 : true;
+  const running = st.state === "running", failed = st.state === "failed";
+  const bad = !B.configured || failed || (!running && !!st.lastGoodAt && old);
+  let line;
+  if (!B.configured) line = `<b>Backups can't run:</b> Microsoft credentials are not set on this site, so there is nowhere to put them.`;
+  else if (running) line = `<b>Backing up now…</b> <small>started ${esc(when(st.startedAt))}${st.by ? ` by ${esc(st.by)}` : ""}</small>`;
+  else if (!st.lastGoodAt && !failed) line = `<b>No backup yet.</b> <small>One is made every night at ${esc(B.schedule.replace(/ .*/, ""))} Pacific. Press Back up now to make the first.</small>`;
+  else line = `${failed ? `<b>The last backup failed:</b> ${esc(st.error ?? "")} ` : ""}<small>${st.lastGoodAt ? `Last good backup <b>${esc(when(st.lastGoodAt))}</b>${st.size ? ` · ${mb(st.size)}` : ""}${st.blobs ? ` · ${st.blobs} records` : ""}${st.codeFiles ? ` + ${st.codeFiles} code files` : st.codeFound === false ? " · code NOT included" : ""}${st.verified ? " · checked" : ""}` : "No good backup yet"}${old && st.lastGoodAt ? " · <b>over a day ago</b>" : ""}</small>`;
+  box.innerHTML = `<div class="hstrip${bad ? " bad" : ""}"><span><span class="dot" style="background:${bad ? "var(--late)" : running ? "var(--gold, #c9a84c)" : "var(--done)"}"></span>Nightly backup<small>${line}</small></span>
+    <span class="bkact">${st.folderUrl ? `<a class="mini" href="${esc(st.folderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open the folder</a>` : ""}<button class="mini" id="bk-now"${running || !B.configured ? " disabled" : ""}>Back up now</button></span></div>`;
+  const now = document.getElementById("bk-now");
+  if (now) now.onclick = async () => { try { await api("/backups", { method: "POST" }); toast("Backing up. This takes a minute or two."); backupLine(host); } catch (e) { toast(e.message); } };
+  clearTimeout(backupLine.t);
+  if (running && document.body.contains(host)) backupLine.t = setTimeout(() => backupLine(host), 4000);
 }
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
