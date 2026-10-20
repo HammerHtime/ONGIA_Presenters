@@ -531,7 +531,7 @@
   .rck .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
   .rck .rclinks .rcprob{color:#8a5a00}
   .rcsum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:14px;color:var(--ink-mid)} .rcsum b{color:var(--ink);font-size:17px}
-  .swt .rcl{font-size:12px;color:var(--ink-mid);margin-top:4px} .swt tr.oth td{background:#faf7ee}
+  .swt .rcl{font-size:12px;color:var(--ink-mid);margin-top:2px} .swt .rcl.over{color:#a02a1a;font-weight:600} .swt .rcl.under{color:#1f6b3a} .swt td.rcv,.swt th.rcv{width:150px;text-align:right;padding-top:10px} .rctot{margin-top:10px;font-size:14px} .swt tr.oth td{background:#faf7ee}
   @media (min-width:700px){.rcf{grid-template-columns:1fr 1fr}.rcd .pv img,.rcd .pv .pdf{width:120px;height:120px}}
   .swt{width:100%;border-collapse:collapse;margin-top:12px}
   .swt th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--navy)}
@@ -701,6 +701,7 @@
   .evcard{cursor:pointer} .evcard:hover{box-shadow:0 6px 20px rgba(18,22,31,.08)}
   /* Working: a quiet line under the bar. Broken: a red box that cannot be missed. */
   .healthwrap{margin:0 0 16px}
+  .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:44px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .pastrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer} .pastrow:first-child{border-top:0} .pastrow:hover b{text-decoration:underline} .pastrow .porg{white-space:nowrap} .pastrow .s{font-size:13px;color:var(--muted);margin-top:2px}
   #backupline{margin-top:8px} #backupline .hstrip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap} #backupline .bkact{display:flex;gap:8px;align-items:center}
   .hstrip{display:flex;gap:4px 20px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--muted)}
@@ -988,11 +989,11 @@ async function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events, inbox = null) {
-  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="roster">Board members</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
-  document.getElementById("roster").onclick = () => { view = { name: "roster" }; render(); };
+  document.getElementById("admin").onclick = () => { view = { name: "admin", tab: "board" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
 
@@ -1148,6 +1149,11 @@ function eventFormScreen(existing = null) {
       ${ev ? "" : `<div class="cardacts"><button class="mini solid" id="ct-new" type="button">Upload hotel contract</button></div>`}</div>
     <div class="card-body">
       ${ev ? "" : `<div class="ctbox" id="ctnewbox" hidden style="margin:0 0 18px"><div id="ct-body"></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden></div>`}
+      ${ev ? "" : `<div class="wixstart" id="wixstart" style="margin:0 0 18px;padding:12px 14px;border:1px dashed var(--border);border-radius:12px">
+        <div style="display:flex;gap:10px 14px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div style="flex:1 1 260px"><b>Already on your website?</b>
+          <div class="hint" style="margin-top:2px">Pick the event from Wix and the title, dates, city and venue are filled in. When you create it, its registered guests come across too.</div></div>
+          <button class="mini solid" id="wx-pick" type="button">Pick an event from Wix</button></div>
+        <div id="wx-list" hidden style="margin-top:10px"></div><div id="wx-chosen" class="note" hidden style="margin-top:10px"></div></div>`}
       <div class="row2">
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
         <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
@@ -1466,6 +1472,34 @@ function eventFormScreen(existing = null) {
   showDeadlines();
   showLeadPhone();
 
+  // Start from a Wix event: fill in what Wix knows, and link it once the event is created.
+  let wixPick = null;
+  if ($("wx-pick")) $("wx-pick").onclick = async () => {
+    const list = $("wx-list");
+    list.hidden = false; list.innerHTML = `<p class="hint">Asking your website…</p>`;
+    try {
+      const { events } = await api("/wix?events=1");
+      if (!events.length) { list.innerHTML = `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      list.innerHTML = `<div class="wixev">${events.map((w) => `
+        <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
+          <b>${esc(w.title)}</b>
+          <span class="ws">${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.lastDay && w.lastDay !== w.dayOne ? " – " + esc(fmtDate(w.lastDay)) : ""}${w.city ? " · " + esc(w.city) : ""}${w.venue ? " · " + esc(w.venue) : ""}${w.linkedTo ? ` · already on the desk as ${esc(w.linkedTo.title)}` : ""}</span>
+        </button>`).join("")}</div>`;
+      list.querySelectorAll("[data-wix]").forEach((b) => {
+        b.onclick = () => {
+          const w = events.find((x) => x.id === b.dataset.wix);
+          wixPick = { id: w.id, title: w.title };
+          const put = (id, val) => { if (val) { $(id).value = val; $(id).dispatchEvent(new Event("input", { bubbles: true })); $(id).dispatchEvent(new Event("change", { bubbles: true })); } };
+          put("e-title", w.title); put("e-city", w.city); put("e-venue", w.venue); put("e-day1", w.dayOne); put("e-last", w.lastDay || w.dayOne);
+          list.hidden = true;
+          $("wx-chosen").hidden = false;
+          $("wx-chosen").innerHTML = `<b>From Wix: ${esc(w.title)}.</b> Title, dates, city and venue are filled in below; change anything that is not right. The registered guests are pulled in when you create the event. <button type="button" class="mini ghost" id="wx-clear">Don't link it</button>`;
+          $("wx-clear").onclick = () => { wixPick = null; $("wx-chosen").hidden = true; };
+        };
+      });
+    } catch (e) { list.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+  };
+
   $("create").onclick = async (e) => {
     if (busy) return;
     busy = true; e.target.disabled = true;
@@ -1508,6 +1542,13 @@ function eventFormScreen(existing = null) {
       toast(ev ? "Saved." : out.added?.length ? `Event created with ${out.added.length} presenter${out.added.length === 1 ? "" : "s"}${sent ? `; ${sent} invitation${sent === 1 ? "" : "s"} emailed` : ""}.` : "Event created. Add presenters next.");
       if (out.rejected?.length) alert("Not added:\n" + out.rejected.map((r) => `${JSON.stringify(r.row)} — ${r.why}`).join("\n"));
       if (out.notSent?.length) alert("Added but not emailed:\n" + out.notSent.map((r) => `${r.name} — ${r.why}`).join("\n"));
+      // From a Wix event: link it now, which pulls the registered guests straight away.
+      if (!ev && wixPick) {
+        try {
+          const l = await api(`/wix?event=${encodeURIComponent(out.event.id)}&link=${encodeURIComponent(wixPick.id)}`, { method: "PUT" });
+          toast(`Linked to Wix. Pulled ${l.read} registration${l.read === 1 ? "" : "s"}.`);
+        } catch (le) { alert(`The event was created, but linking it to Wix failed: ${le.message}\n\nYou can link it from "Who is coming" on the event.`); }
+      }
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
@@ -2022,6 +2063,8 @@ function sponsorsScreen(list, settings) {
 /* ---------- one event ---------- */
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
+  // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
+  const sheetShown = !!sheetcheck && (!!sheetcheck.baseline || sheetcheck.enabled === true);
   const mstat = materials?.status ?? {};
   const scan = materials?.scan ?? null;
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -2346,7 +2389,7 @@ function eventScreen(data) {
     + (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "")
     + (sow ? sowCard(ev, sow) : "")
     + (receipts ? receiptsCard(ev, receipts) : "")
-    + (sheetcheck ? sheetCard(ev, sheetcheck) : "")
+    + (sheetShown ? sheetCard(ev, sheetcheck) : "")
     + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
     + attendeesCard(ev, guests) + wixDialog()
     + agendaCard(ev, agenda)
@@ -2360,6 +2403,7 @@ function eventScreen(data) {
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
           `<span>${esc(r.name)} <span class="porg">· ${r.role === "volunteer" ? "volunteer · " : ""}${r.status === "approved" || r.status === "signed" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
+        ${sheetcheck ? `<dt>Logistics sheet check</dt><dd>${sheetShown ? (sheetcheck.baseline ? `<span class="said">On: a sheet has been uploaded for this event.</span>` : `<div class="stack"><span class="said">On, with no sheet uploaded yet.</span><button class="mini" id="sheet-off">Turn it off</button></div>`) : `<div class="stack"><span class="said">Off. It compares an uploaded logistics sheet with the agreements; only some events have one.</span><button class="mini" id="sheet-on">Turn it on for this event</button></div>`}</dd>` : ""}
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
@@ -2412,7 +2456,10 @@ function eventScreen(data) {
   wireMailSwitch(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
-  if (sheetcheck) wireSheet(ev, sheetcheck);
+  if (sheetShown) wireSheet(ev, sheetcheck);
+  const shOn = document.getElementById("sheet-on"), shOff = document.getElementById("sheet-off");
+  if (shOn) shOn.onclick = async () => { try { await api(`/sheetcheck?event=${encodeURIComponent(ev.id)}&enable=1`, { method: "PUT" }); toast("Logistics sheet check is on for this event."); render(); } catch (e) { toast(e.message); } };
+  if (shOff) shOff.onclick = async () => { try { await api(`/sheetcheck?event=${encodeURIComponent(ev.id)}&enable=0`, { method: "PUT" }); toast("Logistics sheet check is off for this event."); render(); } catch (e) { toast(e.message); } };
   if (sow) wireSow(ev, sow);
   wireRbhOffer(ev);
   if (receipts) wireReceipts(ev, receipts);
@@ -3002,6 +3049,21 @@ function sowSums(sow, which) {
   const taxes = sow.taxes.map((t) => ({ name: t.name, rate: Number(t.rate) || 0, amount: r2(base * (Number(t.rate) || 0) / 100) }));
   return { lines, other, subtotal, fee, deposit, newSubtotal, taxes, total: r2(newSubtotal + taxes.reduce((n, t) => n + t.amount, 0)) };
 }
+/** What was typed in a dollar box ("$1,234.50", "1234.5", "1 234") as a number; null when there is nothing usable. */
+const moneyNum = (v) => {
+  const t = String(v ?? "").replace(/[^0-9.]/g, "");
+  if (!t) return null;
+  const [whole, ...rest] = t.split(".");
+  const n = Number(`${whole || "0"}.${rest.join("") || "0"}`);
+  return Number.isFinite(n) ? n : null;
+};
+/** Dollar boxes show $1,234.50 when you leave them and the plain number while you type. */
+function wireMoney(root) {
+  root.querySelectorAll("input.money").forEach((el) => {
+    el.onfocus = () => { const n = moneyNum(el.value); el.value = n === null ? "" : String(n); el.select(); };
+    el.onblur = () => { const n = moneyNum(el.value); el.value = n === null ? "" : usd(n); };
+  });
+}
 const usd = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.status);
 
@@ -3039,6 +3101,17 @@ function wireSow(ev, S) {
 
   const draw = () => {
     const act = afterApproval(sow);
+    // The running total of receipts, beside the estimate, from the first receipt on: what is spent so far and what is left.
+    const anyRc = sow.lines.some((l) => l.receiptCount) || sow.otherCount > 0;
+    const rcCell = (l) => {
+      if (!anyRc) return "";
+      if (!l.receiptCount) return `<td class="rcv"><span class="hint">–</span></td>`;
+      const left = l.type === "cost" && l.estimate > 0 ? (l.estimate - l.receiptsTotal >= 0 ? `<div class="rcl under">${usd(l.estimate - l.receiptsTotal)} left</div>` : `<div class="rcl over">${usd(l.receiptsTotal - l.estimate)} over</div>`)
+        : l.type === "fixed" ? `<div class="rcl">fixed fee: the invoice uses the estimate</div>` : "";
+      return `<td class="rcv"><b>${usd(l.receiptsTotal)}</b><div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"}</div>${left}</td>`;
+    };
+    const rcAll = r2(sow.lines.reduce((n, l) => n + (l.receiptsTotal || 0), 0) + (sow.receiptsOther || 0));
+    const rcBudget = r2(sow.lines.filter((l) => l.type === "cost").reduce((n, l) => n + (l.estimate || 0), 0));
     body.innerHTML = `
       <div class="swtop">
         <div><div class="cap">Invoice number</div><div class="invno">${esc(sow.invoice.number)}</div></div>
@@ -3052,19 +3125,20 @@ function wireSow(ev, S) {
       <div class="row2"><div class="field"><label for="sw-note">Note on the page (shows in red; optional)</label><input id="sw-note" value="${esc(sow.program.note)}" placeholder="Expecting a large class this training (10-12 ppl)"></div>
         <div class="row2" style="margin:0"><div class="field"><label for="sw-idate">Invoice date</label><input id="sw-idate" type="date" value="${esc(sow.invoiceDate ?? "")}"></div>
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
-      <table class="swt${act ? "" : " noact"}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th><th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
+      <table class="swt${act ? "" : " noact"}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
         ${sow.lines.map((l, i) => `<tr data-i="${i}"><td><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
             <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
-          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select>
-            ${l.receiptCount ? `<div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"} · ${usd(l.receiptsTotal)}</div>` : ""}</td>
-          <td class="n"><input class="ln-est" type="number" min="0" step="0.01" value="${l.estimate || ""}" placeholder="0.00"${locked ? " disabled" : ""}></td>
-          <td class="n act"><input class="ln-act" type="number" min="0" step="0.01" value="${l.actual ?? ""}"></td>
+          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
+          <td class="n"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="$0.00" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
+          ${rcCell(l)}
+          <td class="n act"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
           <td class="v act"></td>
           <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="${l.receiptCount ? "There are receipts against this line" : "Remove the line"}"${locked || l.receiptCount ? " disabled" : ""}>✕</button></td></tr>`).join("")}
         ${act || sow.receiptsOther ? `<tr class="oth"><td><b>Other</b> <span class="hint">receipts that fit no line</span>${sow.otherNotes?.length ? `<div class="rcl">${esc(sow.otherNotes.join("; "))}</div>` : ""}</td>
-          <td class="t"><span class="hint">At cost</span>${sow.otherCount ? `<div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"} · ${usd(sow.receiptsOther)}</div>` : ""}</td>
-          <td class="n"><span class="hint">–</span></td><td class="n act"><input id="sw-oth" type="number" min="0" step="0.01" value="${sow.otherActual ?? ""}"></td><td class="v act"></td><td class="b"></td></tr>` : ""}
+          <td class="t"><span class="hint">At cost</span></td>
+          <td class="n"><span class="hint">–</span></td>${anyRc ? `<td class="rcv">${sow.otherCount ? `<b>${usd(sow.receiptsOther)}</b><div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"}</div>` : `<span class="hint">–</span>`}</td>` : ""}<td class="n act"><input id="sw-oth" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.otherActual !== null && sow.otherActual !== undefined ? usd(sow.otherActual) : ""}" aria-label="Other, in dollars"></td><td class="v act"></td><td class="b"></td></tr>` : ""}
       </tbody></table>
+      ${anyRc ? `<div class="rctot">Receipts so far, before tax: <b>${usd(rcAll)}</b>${rcBudget ? ` · the at-cost lines are estimated at <b>${usd(rcBudget)}</b>` : ""}</div>` : ""}
       <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
         <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts (add them under <b>Receipts</b>). Type an invoice amount to overwrite either.</span></div>
       <div class="swbottom">
@@ -3076,7 +3150,7 @@ function wireSow(ev, S) {
           <div id="sw-taxes">${sow.taxes.map((t, i) => `<div class="row" data-t="${i}"><input class="tx-name" value="${esc(t.name)}" aria-label="Tax name"><input class="tx-rate" type="number" min="0" max="100" step="0.001" value="${t.rate}" aria-label="Tax rate"><button class="mini ghost" data-txrm="${i}" title="Remove">✕</button></div>`).join("")}</div>
           <button class="mini" id="sw-addtax" style="margin-top:8px">Add a tax line</button>
           <div class="field" style="margin-top:12px"><label for="sw-base">Tax is worked out on</label><select id="sw-base"><option value="subtotal+fee"${sow.taxBase !== "subtotal" ? " selected" : ""}>The subtotal plus ONGIA's fee</option><option value="subtotal"${sow.taxBase === "subtotal" ? " selected" : ""}>The subtotal only</option></select></div>
-          <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" type="number" min="0" step="0.01" value="${sow.deposit || ""}" placeholder="0.00"></div></div>
+          <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.deposit ? usd(sow.deposit) : ""}" placeholder="$0.00"></div></div>
         <div><div class="swsums${act ? "" : " noact"}" id="sw-sums"></div></div>
       </div>
       <div class="swwhy" id="sw-why" hidden><b id="sw-whyhead"></b>
@@ -3100,12 +3174,12 @@ function wireSow(ev, S) {
     body.querySelectorAll("#sw-table tbody tr[data-i]").forEach((tr) => {
       const l = sow.lines[+tr.dataset.i];
       l.name = tr.querySelector(".ln-name").value; l.description = tr.querySelector(".ln-desc").value; l.type = tr.querySelector(".ln-type").value;
-      l.estimate = numOrNull(tr.querySelector(".ln-est").value) ?? 0; l.actual = numOrNull(tr.querySelector(".ln-act").value);
+      l.estimate = moneyNum(tr.querySelector(".ln-est").value) ?? 0; l.actual = moneyNum(tr.querySelector(".ln-act").value);
     });
     body.querySelectorAll("#sw-taxes .row").forEach((r) => { const t = sow.taxes[+r.dataset.t]; t.name = r.querySelector(".tx-name").value; t.rate = Number(r.querySelector(".tx-rate").value) || 0; });
-    sow.taxBase = $("sw-base").value; sow.deposit = numOrNull($("sw-dep").value) ?? 0;
+    sow.taxBase = $("sw-base").value; sow.deposit = moneyNum($("sw-dep").value) ?? 0;
     sow.increaseReason = $("sw-reason").value;
-    if ($("sw-oth")) sow.otherActual = numOrNull($("sw-oth").value);
+    if ($("sw-oth")) sow.otherActual = moneyNum($("sw-oth").value);
   };
   // Over by 20% or more: the contract wants a reason, and it prints at the foot of the invoice.
   const over = () => {
@@ -3127,14 +3201,14 @@ function wireSow(ev, S) {
     $("sw-whyhead").textContent = `The invoice is ${o.pct}% over the statement of work. Your contract with RBH asks for an explanation. Write it here and it prints in bold at the foot of the final invoice.`;
     if ($("sw-oth")) {
       const ph = $("sw-oth"), auto = sow.otherActual === null || sow.otherActual === undefined, d = act.other;
-      ph.placeholder = usd(r2(numOrNull(sow.receiptsOther) ?? 0)).replace("$", "");
+      ph.placeholder = usd(r2(numOrNull(sow.receiptsOther) ?? 0));
       ph.title = auto ? "Worked out from the receipts filed under Other. Type an amount to overwrite it." : "Typed by hand. Clear the box to go back to the receipts.";
       ph.closest("tr").querySelector(".v").innerHTML = d ? `<span class="over">+${usd(d)}</span>` : `<span style="color:var(--muted)">–</span>`;
     }
     body.querySelectorAll("#sw-table tbody tr[data-i]").forEach((tr) => {
       const i = +tr.dataset.i, l = sow.lines[i], e = est.lines[i].amount, a = act.lines[i].amount, auto = l.actual === null;
       const ph = tr.querySelector(".ln-act");
-      ph.placeholder = usd(auto ? a : e).replace("$", "") + (auto && l.type === "cost" && !a ? " (no receipts yet)" : "");
+      ph.placeholder = usd(auto ? a : e) + (auto && l.type === "cost" && !a ? " (no receipts yet)" : "");
       ph.title = auto ? (l.type === "fixed" ? "Worked out: the estimate (a fixed fee). Type an amount to overwrite it." : "Worked out from the receipts. Type an amount to overwrite it.") : "Typed by hand. Clear the box to go back to the worked-out amount.";
       const d = a - e;
       tr.querySelector(".v").innerHTML = Math.abs(d) < 0.005 ? `<span style="color:var(--muted)">–</span>` : `<span class="${d > 0 ? "over" : "under"}">${d > 0 ? "+" : "−"}${usd(Math.abs(d))}</span>${e ? `<br><small>${d > 0 ? "+" : "−"}${Math.abs(Math.round(d / e * 1000) / 10)}%</small>` : ""}`;
@@ -3164,6 +3238,7 @@ function wireSow(ev, S) {
   });
 
   function wire() {
+    wireMoney(body);
     body.oninput = () => { dirty = true; read(); sums(); };
     body.onchange = () => { dirty = true; read(); sums(); };
     const rebuild = () => { read(); draw(); dirty = true; };
@@ -5007,12 +5082,11 @@ async function healthStrip() {
       ${broken ? `<b>Something is off — presenters and filing are affected.</b>` : ""}
       <span>${dot(h.email)}Email ${h.email?.ok ? "ready" : "not working"}<small>${esc(h.email?.ok ? h.email.from : (h.email?.reason ?? "no transport configured"))}</small></span>
       <span>${dot(sp)}${esc(spLabel)}<small>${esc(spWhy)}</small></span></div>`;
-    backupLine(host);
   } catch (e) { host.innerHTML = `<div class="hstrip bad"><b>Status unavailable.</b><span><span class="dot"></span>Could not reach the desk<small>${esc(e.message)}</small></span></div>`; }
 }
 
 /**
- * The nightly backup, for the desk owners (anyone else is refused, so nothing shows): when it last ran, how big it
+ * The nightly backup, on the Admin tab (desk owners only; anyone else is refused, so the tab is not offered): when it last ran, how big it
  * was, whether it checked out, a link to the folder, and "Back up now". Red when the last one failed or is over a day old.
  */
 async function backupLine(host) {
@@ -5034,9 +5108,33 @@ async function backupLine(host) {
   box.innerHTML = `<div class="hstrip${bad ? " bad" : ""}"><span><span class="dot" style="background:${bad ? "var(--late)" : running ? "var(--gold, #c9a84c)" : "var(--done)"}"></span>Nightly backup<small>${line}</small></span>
     <span class="bkact">${st.folderUrl ? `<a class="mini" href="${esc(st.folderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open the folder</a>` : ""}<button class="mini" id="bk-now"${running || !B.configured ? " disabled" : ""}>Back up now</button></span></div>`;
   const now = document.getElementById("bk-now");
+  const hist = document.getElementById("backuphist");
+  if (hist) hist.innerHTML = (st.history ?? []).length
+    ? `<ul style="margin:8px 0 0;padding-left:18px;font-size:13.5px">${st.history.map((h) => `<li>${esc(when(h.at))} · ${h.ok ? `<b>ok</b>${h.size ? ` · ${mb(h.size)}` : ""}${h.name ? ` · ${esc(h.name)}` : ""}` : `<b style="color:var(--late)">failed</b> · ${esc(h.error ?? "")}`}</li>`).join("")}</ul>` : `<p class="hint">Nothing yet.</p>`;
   if (now) now.onclick = async () => { try { await api("/backups", { method: "POST" }); toast("Backing up. This takes a minute or two."); backupLine(host); } catch (e) { toast(e.message); } };
   clearTimeout(backupLine.t);
   if (running && document.body.contains(host)) backupLine.t = setTimeout(() => backupLine(host), 4000);
+}
+
+/* ---------- Admin: the board list and the backup ---------- */
+let ADMIN_BACKUP = false;
+function adminTabsHtml(active) {
+  const tab = (k, label) => `<button class="atab${active === k ? " on" : ""}" data-atab="${k}" role="tab" aria-selected="${active === k}">${label}</button>`;
+  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
+}
+function wireAdminTabs() {
+  ROOT.querySelectorAll("[data-atab]").forEach((b) => { b.onclick = () => { view = { name: "admin", tab: b.dataset.atab }; render(); }; });
+}
+function backupScreen(B) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  ROOT.innerHTML = `${adminTabsHtml("backup")}<div class="card" style="max-width:760px"><div class="card-head"><div><h2>Nightly backup</h2>
+    <div class="s">Every night at ${esc(B.schedule.replace(/ .*/, ""))} Pacific the desk copies everything it keeps (events, presenters, agreements, files, receipts, statements of work, the board list) and the code it runs on into the <b>${esc(B.folder)}</b> folder on SharePoint.</div></div></div>
+    <div class="card-body"><div id="backuppanel"></div>
+      <h3 style="margin:18px 0 0;font-size:15px">History</h3><div id="backuphist"></div>
+      <p class="hint" style="margin-top:14px">One zip a day. Kept: every one for 30 days, then the first of each month for a year. Keys and passwords are not in it. Only you and the VP should be able to open that SharePoint folder, because the backup holds everything. To restore, see the README (<code>scripts/restore-backup.mjs</code>).</p></div></div>`;
+  wireAdminTabs();
+  backupLine(document.getElementById("backuppanel"));
 }
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
@@ -5121,6 +5219,7 @@ function rosterScreen(members) {
       <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><input id="rb-phone" type="tel" placeholder="Phone (optional)"><button class="mini" id="rb-add">Add to list</button></div>
       <div class="actions" style="margin-top:16px"><button class="btn btn-gold" id="ph-save">Save numbers</button></div>
     </div></div>`;
+  ROOT.insertAdjacentHTML("afterbegin", adminTabsHtml("board")); wireAdminTabs();
   const save = async (next) => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; rosterScreen(ROSTER); } catch (e) { toast(e.message); } };
   // Numbers are saved in place — no re-render, so the cursor stays where you put it.
   const savePhones = async () => {
@@ -5781,7 +5880,13 @@ async function render() {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
       return lettersScreen(data, events, view.pick ?? null);
     }
-    if (view.name === "roster") return rosterScreen(await loadRoster());
+    if (view.name === "roster" || view.name === "admin") {
+      // Admin holds the board list and the backup. The backup tab is only offered to the desk owners: anyone else is refused.
+      const B = await api("/backups").catch(() => null);
+      ADMIN_BACKUP = !!B;
+      if (view.name === "admin" && view.tab === "backup" && B) return backupScreen(B);
+      return rosterScreen(await loadRoster());
+    }
     if (view.name === "sponsors" && SPONSORS_ON) {
       const [list, settings] = await Promise.all([api("/sponsors"), api("/sponsors?settings=1")]);
       return sponsorsScreen(list, settings);

@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { maySeeSheetCheck } from "./lib/auth.mjs";
-import { getEvent, listPresenters, getSheetBaseline, putSheetBaseline, deleteKey } from "./lib/store.mjs";
+import { getEvent, putEvent, listPresenters, getSheetBaseline, putSheetBaseline, deleteKey } from "./lib/store.mjs";
 import { parseLogistics, compareSheet, priceOf } from "./lib/sheetcheck.mjs";
 
 /**
@@ -10,6 +10,7 @@ import { parseLogistics, compareSheet, priceOf } from "./lib/sheetcheck.mjs";
  *   PUT    /api/sheetcheck?event=…&baseline=1 the sheet's cells, read in the browser ({ fileName, cells })
  *   PUT    /api/sheetcheck?event=…&link=1     match one presenter to a sheet name by hand ({ presenterId, sheetName })
  *   PUT    /api/sheetcheck?event=…&rates=1    the room rate and the two percentages ({ nightly, taxes: [a, b] })
+ *   PUT    /api/sheetcheck?event=…&enable=1|0 switch the check on (or off) for this event: it is for the events that have a logistics sheet, not every event
  *   DELETE /api/sheetcheck?event=…            forget the baseline
  *
  * Read-only on the spreadsheet itself: it never goes back to SharePoint.
@@ -18,6 +19,8 @@ const view = async (event, baseline) => {
   const presenters = await listPresenters(event.id);
   return {
     owner: true,
+    // Only events that have a logistics sheet carry the check: one with a sheet uploaded, or switched on by hand.
+    enabled: event.sheetCheck === true,
     baseline: baseline ? { fileName: baseline.fileName, uploadedAt: baseline.uploadedAt, uploadedBy: baseline.uploadedBy, count: baseline.rows.length, nights: baseline.nights } : null,
     result: baseline ? compareSheet({ baseline, presenters, links: baseline.links ?? {}, rates: baseline.rates }) : null,
   };
@@ -37,7 +40,18 @@ export default async (req) => {
 
   if (req.method === "GET") return json(await view(event, baseline));
 
-  if (req.method === "DELETE") { await deleteKey(`sheet:${id}`); return json(await view(event, null)); }
+  if (req.method === "PUT" && url.searchParams.get("enable")) {
+    event.sheetCheck = url.searchParams.get("enable") === "1";
+    await putEvent(event);
+    return json(await view(event, baseline));
+  }
+
+  if (req.method === "DELETE") {
+    // Forgetting the sheet leaves the check switched on, so the page to upload it again does not vanish.
+    if (event.sheetCheck !== true) { event.sheetCheck = true; await putEvent(event); }
+    await deleteKey(`sheet:${id}`);
+    return json(await view(event, null));
+  }
 
   if (req.method === "PUT" && url.searchParams.get("baseline")) {
     const body = await req.json().catch(() => null);
@@ -45,6 +59,7 @@ export default async (req) => {
     if (read.problem) return fail(read.problem);
     const next = { fileName: text(body?.fileName, 200) || "logistics sheet", uploadedAt: new Date().toISOString(), uploadedBy: who.name || who.email || "", rows: read.rows, nights: read.nights, links: {} };
     await putSheetBaseline(id, next);
+    if (event.sheetCheck !== true) { event.sheetCheck = true; await putEvent(event); }
     return json(await view(event, next));
   }
 
