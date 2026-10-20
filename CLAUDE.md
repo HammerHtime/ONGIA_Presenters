@@ -1,4 +1,4 @@
-# ONGIA Presenter Agreement Desk — working agreement
+# ONGIA Briefing Room — working agreement
 
 Live site: https://ongia-presenter-agreements.netlify.app
 Owner: Andrew Hammond (president@ongia.ca)

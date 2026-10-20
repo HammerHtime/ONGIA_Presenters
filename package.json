@@ -1,7 +1,7 @@
 {
   "name": "ongia-presenter-agreements",
   "version": "0.1.0",
-  "description": "ONGIA Presenter Agreement Desk \u2014 presenters sign online, agreements file themselves.",
+  "description": "ONGIA Briefing Room \u2014 presenters sign online, agreements file themselves.",
   "type": "module",
   "private": true,
   "engines": {

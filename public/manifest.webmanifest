@@ -1,7 +1,7 @@
 {
-  "name": "ONGIA Events",
-  "short_name": "ONGIA Events",
-  "description": "ONGIA's desk for training events: presenters, agreements, attendees, letters and the hotel.",
+  "name": "ONGIA Briefing Room",
+  "short_name": "Briefing Room",
+  "description": "ONGIA Briefing Room: planning for training events: presenters, agreements, attendees, letters and the hotel.",
   "start_url": "/admin.html",
   "scope": "/",
   "display": "standalone",

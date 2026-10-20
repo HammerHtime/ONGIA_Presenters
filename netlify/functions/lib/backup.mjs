@@ -74,8 +74,8 @@ export async function collectCode(root) {
   return out;
 }
 
-const RESTORE_TEXT = `ONGIA Presenter Agreement Desk: backup
-=======================================
+const RESTORE_TEXT = `ONGIA Briefing Room: backup
+===========================
 
 blobs/   Every record and file the desk keeps. A file's name is its key, URL-encoded (decodeURIComponent).
          MANIFEST.json lists each one with its size, SHA-256 and metadata.
@@ -105,7 +105,7 @@ export async function buildBackup({ now = new Date(), keys = allBlobKeys, read =
   }
   const code = await collectCode(root);
   const manifest = {
-    app: "ONGIA Presenter Agreement Desk", createdAt: now.toISOString(), localDate: date, timeZone: tz,
+    app: "ONGIA Briefing Room", createdAt: now.toISOString(), localDate: date, timeZone: tz,
     blobs: { count: listing.length, bytes, items: listing },
     code: { found: !!root, files: code.length, bytes: code.reduce((n, f) => n + f.data.length, 0), commit: process.env.COMMIT_REF ?? null },
   };

@@ -73,7 +73,7 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
 
   const doc = new PDFDocument({ size: "LETTER", margin: 0, info: {
     Title: `${preview ? "DRAFT " : ""}${presenter.last}_Presenter Agreement`,
-    Author: "ONGIA Presenter Agreement Desk",
+    Author: "ONGIA Briefing Room",
     Subject: `${event.title} — presenter agreement, ${presenter.first} ${presenter.last}`,
   }});
   const chunks = [];
@@ -359,7 +359,7 @@ export async function buildVolunteerPdf({ event, volunteer }) {
 
   const doc = new PDFDocument({ size: "LETTER", margin: 0, info: {
     Title: `${volunteer.last}_Volunteer Agreement`,
-    Author: "ONGIA Presenter Agreement Desk",
+    Author: "ONGIA Briefing Room",
     Subject: `${event.title} — volunteer agreement, ${volunteer.first} ${volunteer.last}`,
   }});
   const chunks = [];
