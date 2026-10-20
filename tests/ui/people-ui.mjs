@@ -21,6 +21,10 @@ const P = (await api(`/api/events?id=${ev.id}`)).presenters;
 const rev = P.find((p) => p.first === "Rev");
 await fetch(`${S}/api/agreement?t=${rev.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: "Rev", last: "Iewer", email: rev.email, phone: "4165550100", organization: "Iewer Agency", talk: "Street gangs and social media", bio: "word ".repeat(40), outline: "O", travel: "no", hotel: "no", expenses: { transport: "no", meals: "no", other: "no", otherText: "" }, copyright: true, noInvestigation: true, termsAccepted: true, media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", signature: "Rev Iewer", agreed: true, language: "en" }) });
 
+// Who's coming: ten made-up people from a spreadsheet, two of them on the waitlist and one not coming.
+const csv = "First,Last,Email,Organization,Status\n" + Array.from({ length: 10 }, (_, i) => `Guest${i},Sample${i},guest${i}.${T}@example.ca,Agency ${i},${i < 2 ? "waitlist" : i === 2 ? "not attending" : "yes"}`).join("\n");
+await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "text/csv" }, body: csv });
+
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   console.log(`— ${tag}`);
@@ -95,6 +99,15 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: Volunteers swaps the list for the volunteers`, await p.locator('details[data-fold="sec-volunteers"]').isVisible() && !(await p.locator('details[data-fold="sec-presenters"]').isVisible()));
   await p.locator('[data-pseg="guests"]').click(); await p.waitForTimeout(200);
   ok(`${tag}: Who's coming shows the attendee list`, /Who is coming/i.test(await p.locator('.pview:not([hidden])').innerText()));
+  const gshown = () => p.locator("tr.grow:not([hidden])").count();
+  ok(`${tag}: as a table, showing the 7 coming to start with`, (await p.locator("table.gtable").count()) === 1 && (await gshown()) === 7, String(await gshown()));
+  ok(`${tag}: with cuts for coming, waitlist, not coming and all, with counts`, /Coming\s*7/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))) && /Waitlist\s*2/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))), await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|")));
+  await p.locator('[data-gcutbtn="waitlist"]').click(); await p.waitForTimeout(150);
+  ok(`${tag}: Waitlist shows the two`, (await gshown()) === 2 && /waitlist/i.test(await p.locator("tr.grow:not([hidden])").first().innerText()));
+  await p.locator('[data-gcutbtn="all"]').click(); await p.fill("#gfind", "agency 5"); await p.waitForTimeout(150);
+  ok(`${tag}: the find box finds by organization`, (await gshown()) === 1 && /Guest5 Sample5/.test(await p.locator("tr.grow:not([hidden])").innerText()));
+  await p.fill("#gfind", ""); await p.locator('[data-gcutbtn="coming"]').click(); await p.waitForTimeout(150);
+  if (tag === "wide") await p.screenshot({ path: `${D}people-guests-${tag}.png` }); else await p.screenshot({ path: `${D}people-guests-${tag}.png`, fullPage: true });
   await p.locator('[data-pseg="presenters"]').click(); await p.waitForTimeout(200);
   if (tag === "wide") await p.screenshot({ path: `${D}people-table-${tag}.png`, fullPage: true });
   else await p.screenshot({ path: `${D}people-table-${tag}.png`, fullPage: true });
