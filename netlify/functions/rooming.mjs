@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, isEmail, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters, listVolunteers, getRoster } from "./lib/store.mjs";
-import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard, typeOf } from "./lib/rooming.mjs";
+import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, typeOf } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -30,7 +30,8 @@ export default async (req) => {
   if (!event) return fail("No such event.", 404);
   if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
   const body = ["POST", "PUT"].includes(req.method) ? await req.json().catch(() => ({})) : null;
-  // The board roster's names: anyone on it is always ONGIA's to pay for.
+  // The board roster's names. A board member's room starts as ONGIA's to pay for, but what was chosen stands
+  // (Andrew, 21 Oct 2026: a board member may pay their own room to earn the hotel's points).
   const board = ((await getRoster()) ?? []).map((m) => m.name).filter(Boolean);
   const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
   const pick = (keys) => (Array.isArray(keys) ? rows.filter((r) => keys.includes(r.key)) : rows.filter((r) => r.confirmed));
@@ -63,7 +64,6 @@ export default async (req) => {
     for (const g of (Array.isArray(body?.guests) ? body.guests : []).slice(0, MAX_GUESTS)) {
       const { guest, problem } = cleanGuest(g, () => token(10), win, had.get(g?.id));
       if (problem) return fail(problem);
-      if (onBoard(guest.name, board)) guest.billing = "ONGIA";
       out.push(guest);
     }
     event.roomingGuests = out;
@@ -82,7 +82,6 @@ export default async (req) => {
     for (const g of read.add) {
       const { guest, problem } = cleanGuest(g, () => token(10), guestWindow(event));
       if (problem) return fail(problem);                  // cannot happen after readRoomsCsv; refuse rather than half-save
-      if (onBoard(guest.name, board)) guest.billing = "ONGIA";
       fresh.push(guest);
     }
     event.roomingGuests = [...(event.roomingGuests ?? []), ...fresh];

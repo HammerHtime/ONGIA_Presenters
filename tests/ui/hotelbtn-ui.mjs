@@ -36,13 +36,15 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await box.locator('[data-addboard="Jacqulyn Taylor"]').click(); await page.waitForTimeout(500);
   ok(`${tag}: the by-hand form opens`, await page.locator("#rg-details").evaluate((d) => d.open));
   ok(`${tag}: name and type are filled in`, (await page.inputValue("#rg-name")) === "Jacqulyn Taylor" && (await page.inputValue("#rg-type")) === "Board Member");
-  ok(`${tag}: it is ONGIA's to pay, and locked`, (await page.inputValue("#rg-bill")) === "ONGIA" && await page.locator("#rg-bill").isDisabled() && await page.locator("#rg-boardnote").isVisible());
+  ok(`${tag}: it starts as ONGIA's to pay, can be changed, and the note says so`, (await page.inputValue("#rg-bill")) === "ONGIA" && !(await page.locator("#rg-bill").isDisabled()) && /unless you change/.test(await page.innerText("#rg-boardnote")));
   ok(`${tag}: check-in has focus and the message says what to do`, await page.evaluate(() => document.activeElement?.id) === "rg-in" && /Jacqulyn Taylor's check-in/.test(await page.innerText("#rg-said")));
   await page.screenshot({ path: OUT + `hotelbtn-form-${tag}.png` });
   await page.click("#rg-add"); await page.waitForTimeout(800);
   ok(`${tag}: Add without dates is refused with a reason, and the name stays`, /date|check/i.test(await page.innerText("#rg-said")) && (await page.inputValue("#rg-name")) === "Jacqulyn Taylor", await page.innerText("#rg-said"));
   await pickDates();
+  const yBefore = await page.evaluate(() => scrollY);
   await page.click("#rg-add"); await page.waitForTimeout(1500);
+  ok(`${tag}: after Add the page stays where it was, with the form still open`, Math.abs((await page.evaluate(() => scrollY)) - yBefore) < 80 && await page.locator("#rg-details").evaluate((d) => d.open), `${yBefore} → ${await page.evaluate(() => scrollY)}`);
   const st = await api(`/api/rooming?event=${ev.id}`);
   const row = st.rows.find((r) => /Jacqulyn/.test(r.name));
   ok(`${tag}: pressing Add puts her on the list as a Board Member paid by ONGIA`, row && row.type === "Board Member" && row.billing === "ONGIA", JSON.stringify(st.rows));
@@ -53,9 +55,13 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   for (const n of ["Andrew Hammond", "John Healy"]) {
     await page.locator(`[data-addboard="${n}"]`).click(); await page.waitForTimeout(300);
     await pickDates();
+    if (n === "Andrew Hammond") await page.selectOption("#rg-bill", "Guest");   // he pays his own room, for the points
     await page.click("#rg-add"); await page.waitForTimeout(1500);
     const f = page.locator('details[data-fold="sec-hotel"]'); if (!(await f.evaluate((d) => d.open))) await f.locator("summary").first().click();
   }
+  const andrew = (await api(`/api/rooming?event=${ev.id}`)).rows.find((r) => r.name === "Andrew Hammond");
+  ok(`${tag}: a board member can pay their own room: Andrew is kept as paying, still marked on the board`, andrew?.billing === "Guest" && andrew?.board === true, JSON.stringify(andrew));
+  ok(`${tag}: the hotel list shows him off the master block, paying himself`, /Andrew Hammond pays/i.test(await page.locator("label.room", { hasText: "Andrew Hammond" }).innerText()));
   ok(`${tag}: once everyone has a room the box is gone`, await page.locator("#rg-noroom").count() === 0);
   ok(`${tag}: three board rooms on the list`, (await api(`/api/rooming?event=${ev.id}`)).rows.filter((r) => r.type === "Board Member").length === 3);
   ok(`${tag}: no page errors`, errs.length === 0, errs.join("|"));

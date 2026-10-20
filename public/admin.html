@@ -3513,6 +3513,7 @@ let GFIND = "";
  * approved start unticked, because their dates may still change.
  */
 const BILL = { ONGIA: ["ongia", "ONGIA pays"], Guest: ["", "pays"], "To confirm": ["tbc", "to confirm"] };
+let RG_OPEN = false;   // "Add people by hand" stays open while people are being added
 const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
 let ROOMING = null;
 
@@ -4292,7 +4293,7 @@ function roomingCard(ev, R, C = null) {
         : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
       ${waiting}
       ${noRoom(ev, R)}
-      <details class="settings" id="rg-details" style="margin-top:12px">
+      <details class="settings" id="rg-details" style="margin-top:12px"${RG_OPEN ? " open" : ""}>
         <summary>Add people by hand or from a spreadsheet${R.guests.length ? ` (${R.guests.length} added)` : ""}</summary>
         <p class="hint" style="margin-top:8px">Board members, volunteers, ONGIA guests, others (a comped room for another association, a dignitary and so on: pick Other and say who they are), and any presenter who is not on the desk.
           Presenters with an agreement come onto the list by themselves.</p>
@@ -4312,7 +4313,7 @@ function roomingCard(ev, R, C = null) {
           <div class="gdesc" id="rg-descbox" hidden><label for="rg-desc">Who they are</label><input id="rg-desc" maxlength="120" autocomplete="off" placeholder="e.g. Peel Police Association, visiting dignitary"></div>
         </div>
         <p class="hint" id="rg-said" style="margin:6px 0 0"></p>
-        <p class="hint" id="rg-boardnote" style="margin:4px 0 0" hidden>On the ONGIA board, so ONGIA pays.</p>
+        <p class="hint" id="rg-boardnote" style="margin:4px 0 0" hidden>On the ONGIA board: ONGIA pays unless you change "Who pays" (say, to earn their own hotel points).</p>
         <div class="gsheet"><button class="mini" id="rg-up">Upload a spreadsheet</button>
           <input type="file" id="rg-file" accept=".csv,text/csv,text/plain" hidden>
           <button class="mini ghost" id="rg-blank">Download the blank sheet</button></div>
@@ -4349,7 +4350,7 @@ const guestDialog = () => `<dialog class="sheet" id="gedlg" style="max-width:560
       <div class="row2">
         <div class="field"><label for="ge-type">Type</label><select id="ge-type"></select></div>
         <div class="field"><label for="ge-bill">Who pays</label><select id="ge-bill"><option value="ONGIA">ONGIA</option><option value="Guest">The guest</option></select>
-          <p class="hint" id="ge-boardnote" style="margin:6px 0 0" hidden>On the ONGIA board, so ONGIA pays.</p></div>
+          <p class="hint" id="ge-boardnote" style="margin:6px 0 0" hidden>On the ONGIA board: ONGIA pays unless you change it.</p></div>
       </div>
       <div class="row2">
         <div class="field"><label for="ge-in">Check-in</label><select id="ge-in"></select></div>
@@ -4477,7 +4478,7 @@ function wireRooming(ev, R) {
         const types = GUEST_TYPES.map((t) => [t, out.add.filter((g) => g.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${n} ${t}${n === 1 ? "" : "s"}`).join(", ");
         box.innerHTML = `<div class="note gread" style="margin-top:12px">
           <b>${out.add.length} ${out.add.length === 1 ? "person" : "people"} to add</b>${types ? ` (${esc(types)})` : ""}.
-          ${out.add.length ? list(out.add, (g) => `${esc(g.name)} · ${esc(g.type)} · ${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}${g.board ? " · on the board, ONGIA pays" : g.billing === "Guest" ? " · guest pays" : ""}`) : ""}
+          ${out.add.length ? list(out.add, (g) => `${esc(g.name)} · ${esc(g.type)} · ${esc(shortDate(g.checkIn))} → ${esc(shortDate(g.checkOut))}${g.board ? " · on the board" : ""}${g.billing === "Guest" ? " · pays their own room" : g.board ? ", ONGIA pays" : ""}`) : ""}
           ${out.problems.length ? `<b style="color:var(--late)">${out.problems.length} row${out.problems.length === 1 ? "" : "s"} not added, fix ${out.problems.length === 1 ? "it" : "them"} in the sheet and upload again:</b>
             ${list(out.problems, (p) => `Row ${p.line}${p.name ? `, ${esc(p.name)}` : ""}: ${esc(p.why)}`)}` : ""}
           ${out.skipped.length ? `<b>${out.skipped.length} left out, already on the list:</b>${list(out.skipped, (p) => `Row ${p.line}, ${esc(p.name)} (${esc(p.why)})`)}` : ""}
@@ -4498,21 +4499,25 @@ function wireRooming(ev, R) {
       } catch (err) { box.innerHTML = `<div class="bad">${esc(err.message)}</div>`; }
     };
   }
-  // A board name always means ONGIA pays: the box says so and cannot be changed.
+  // A board name starts as ONGIA pays, and can be changed (Andrew 21 Oct 2026: a board member may pay their own
+  // room to earn the hotel's points). Typing a board name sets ONGIA unless "Who pays" was already picked by hand.
   const boardLock = (nameId, billId, noteId) => {
     const nameEl = document.getElementById(nameId), bill = document.getElementById(billId), note = document.getElementById(noteId);
     if (!nameEl || !bill) return;
-    const check = () => {
+    const check = (typing = false) => {
       const on = (R.board ?? []).some((n) => sameName(n) === sameName(nameEl.value) && sameName(n));
-      if (on) bill.value = "ONGIA";
-      bill.disabled = on;
+      if (on && typing && bill.dataset.touched !== "1") bill.value = "ONGIA";
+      bill.disabled = false;
       if (note) note.hidden = !on;
     };
-    nameEl.addEventListener("input", check);
+    nameEl.addEventListener("input", () => check(true));
+    bill.addEventListener("change", () => { bill.dataset.touched = "1"; });
     check();
-    return check;
+    return () => { bill.dataset.touched = ""; check(); };
   };
   boardLock("rg-name", "rg-bill", "rg-boardnote");
+  const rgDet = document.getElementById("rg-details");
+  if (rgDet) rgDet.addEventListener("toggle", () => { RG_OPEN = rgDet.open; });
   // "Add to hotel list": open the by-hand form with the board member filled in, so only the nights are left.
   document.querySelectorAll("[data-addboard]").forEach((b) => {
     b.onclick = (e) => {
@@ -6612,7 +6617,12 @@ async function render() {
   syncHistory();
   // A different screen starts at the top; redrawing the same one (after a save or a send) keeps your place.
   const screenKey = `${view.name}|${view.eventId ?? ""}|${view.presenterId ?? ""}`;
+  const keepY = screenKey === SCREEN_AT ? window.scrollY : null;   // a redraw after adding or saving stays where you were
   if (screenKey !== SCREEN_AT) { SCREEN_AT = screenKey; try { window.scrollTo(0, 0); } catch { /* no window */ } }
+  try { return await drawScreen(); }
+  finally { if (keepY !== null) requestAnimationFrame(() => { try { window.scrollTo(0, keepY); } catch { /* no window */ } }); }
+}
+async function drawScreen() {
   ROOT.classList.remove("ro");   // a view-only page's dimming goes with it
   whoami();
   try {

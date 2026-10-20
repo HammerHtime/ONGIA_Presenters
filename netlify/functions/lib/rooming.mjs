@@ -99,9 +99,9 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
     rows.push({ key: g.id, who: "guest", type: g.type ?? null, name: g.name, organization: g.note ?? "",
       checkIn: g.checkIn, checkOut: g.checkOut, nights: nights(g.checkIn, g.checkOut), billing: g.billing, confirmed: true });
   }
-  // Anyone on the ONGIA board is ONGIA's to pay for, always (Andrew, 6 Oct 2026),
-  // whatever an agreement, a spreadsheet or the form said.
-  for (const r of rows) if (onBoard(r.name, board)) { r.billing = "ONGIA"; r.board = true; }
+  // A board member's room starts as ONGIA's to pay for, but what was chosen stands (Andrew, 21 Oct 2026: a board
+  // member may pay their own room to earn the hotel's points). This only marks who is on the board.
+  for (const r of rows) if (onBoard(r.name, board)) r.board = true;
   rows.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.name.localeCompare(b.name));
   return { rows, waiting };
 }
@@ -321,8 +321,8 @@ export function readRoomsCsv(raw, { win = null, onList = [], board = [] } = {}) 
     if (b.problem) why.push(`check-out: ${b.problem}`);
     if (a.date && b.date && b.date <= a.date) why.push("check-out is not after check-in");
     if (win && a.date && b.date && (a.date < win.from || b.date > win.to)) why.push(`dates must be between ${formatDate(win.from)} and ${formatDate(win.to)}`);
-    // A board member is ONGIA's to pay for whatever the sheet says.
-    const pays = onBoard(name, board) ? { billing: "ONGIA", board: true } : who(cell("billing"));
+    // A board member is ONGIA's to pay for unless the sheet says they pay (an empty cell means ONGIA).
+    const pays = { ...who(cell("billing")), ...(onBoard(name, board) ? { board: true } : {}) };
     if (pays.problem) why.push(pays.problem);
     if (why.length) { problems.push({ line, name, why: why.join("; ") }); return; }
     seen.set(sameName(name), `already in this sheet, row ${line}`);
