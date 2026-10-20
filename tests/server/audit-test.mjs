@@ -36,6 +36,7 @@ ok("another board member can open the event, and is told it is view only", r.htt
 ok("the lead is told they can change it", (await call(events, `/api/events?id=${ev.id}`, "GET", undefined, LEAD)).canEdit === true);
 const list = await call(events, "/api/events", "GET", undefined, OTHER);
 ok("the events list says, per event, which the viewer can change", list.events.find((e) => e.id === ev.id).canEdit === false);
+ok("…and that the event's own board member and the president can change it", (await call(events, "/api/events", "GET", undefined, MEMBER)).events.find((e) => e.id === ev.id).canEdit === true && (await call(events, "/api/events", "GET", undefined, PRES)).events.find((e) => e.id === ev.id).canEdit === true);
 const tries = [
   ["edit the event", events, `/api/events?id=${ev.id}`, "PUT", { title: "Hijacked" }],
   ["add presenters", events, `/api/events?id=${ev.id}&add=1`, "POST", { presenters: [{ first: "X", last: "Y", email: "x@y.ca" }] }],

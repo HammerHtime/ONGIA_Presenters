@@ -418,7 +418,7 @@ async function createFolder(id) {
   }
 }
 
-async function showList(canCost = true, who = { key: true }) {
+async function showList(canCost = true, viewer = { key: true }) {
   const events = await listEvents();
   const withCounts = await Promise.all(
     events.map(async (event) => {
@@ -428,7 +428,7 @@ async function showList(canCost = true, who = { key: true }) {
       const seen = canCost ? event : redactEvent(event);
       return {
         ...seen,
-        canEdit: mayEditEvent(who, event),
+        canEdit: mayEditEvent(viewer, event),
         counts: countStatuses(people),
         presenterCount: people.length,
         // The desk's own jobs, tallied here so the year view and the attention

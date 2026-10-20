@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ONGIA Events</title>
+<title>ONGIA Briefing Room</title>
 <!-- The tab: ONGIA's leaf, which reads at 16 px; the Dock icon carries the words. -->
 <link rel="icon" href="/assets/desk-favicon-32.png" sizes="32x32">
 <link rel="icon" href="/assets/desk-favicon-16.png" sizes="16x16">
@@ -12,8 +12,8 @@
      Two bold words and nothing else: a tagline or a glow turns to mush at Dock size. -->
 <link rel="apple-touch-icon" href="/assets/app-icon-512.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="apple-mobile-web-app-title" content="ONGIA Events">
-<meta name="application-name" content="ONGIA Events">
+<meta name="apple-mobile-web-app-title" content="Briefing Room">
+<meta name="application-name" content="Briefing Room">
 <meta name="theme-color" content="#0e1a35">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -713,6 +713,54 @@
   #netpill{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10000;background:var(--navy-deep,#0e1a35);color:#fff;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);display:none;align-items:center;gap:10px}
   #netpill.on{display:flex} #netpill::before{content:"";width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:wspin .7s linear infinite}
   @media (prefers-reduced-motion:reduce){#netbar{animation:none;background:var(--gold,#c9a84c)}.working::after,#netpill::before{animation-duration:2s}}
+  /* home console */
+  .hsearch{position:relative;flex:1 1 200px;max-width:360px;margin-right:auto}
+  .hsearch input{width:100%;margin:0;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;padding:9px 16px;min-height:40px;font-size:14px}
+  .hsearch input::placeholder{color:rgba(255,255,255,.7)}
+  .hsres{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;color:var(--ink);border:1.5px solid var(--edge);border-radius:14px;box-shadow:var(--shadow);max-height:60vh;overflow:auto;z-index:30;text-align:left}
+  .hsr{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--border);padding:10px 14px;cursor:pointer}
+  .hsr:first-child{border-top:0} .hsr:hover,.hsr:focus{background:var(--gold-pale)}
+  .hsr .k{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:8px}
+  .hsr .sub{display:block;font-size:13px;color:var(--muted)}
+  .hsmore{padding:10px 14px;font-size:13px;color:var(--muted)}
+  .qcounts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 14px}
+  .qcount{display:flex;align-items:baseline;gap:12px;text-align:left;background:var(--card);border:1.5px solid var(--edge);border-radius:18px;padding:14px 18px;cursor:pointer;color:inherit;text-decoration:none;font:inherit}
+  .qcount b{font-family:var(--fd);font-size:34px;line-height:1;font-weight:400}
+  .qcount .l{display:block;font-weight:700} .qcount .d{display:block;font-size:12.5px;color:var(--muted)}
+  .qcount.on{border-color:var(--gold);background:var(--gold-pale);box-shadow:inset 0 -3px 0 var(--gold)}
+  .qcard .card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .qseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-left:auto}
+  .qseg button{border:0;background:#fff;padding:7px 14px;font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer;min-height:36px}
+  .qseg button.on{background:var(--navy);color:#fff}
+  .qrow{display:grid;grid-template-columns:28px 1fr auto auto;gap:4px 14px;align-items:center;padding:11px 20px;border-top:1px solid var(--border)}
+  .qlist > .qrow:first-child{border-top:0}
+  .qic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .qic.late{background:var(--late-bg);color:var(--late)} .qic.you{background:var(--gold-pale);color:var(--wait)} .qic.info{background:#eaf0f8;color:#2c4a7c}
+  .qwhat b{font-weight:700} .qev{font-size:13px;color:var(--muted)}
+  .qwhen{font-size:13px;color:var(--muted);white-space:nowrap}
+  .btn-sm{padding:8px 14px;font-size:13.5px;min-height:38px}
+  .qmail{border-top:1px solid var(--border)} .qmailh{font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);padding:12px 20px 4px}
+  .qmail .ibrows{padding:0 8px 8px}
+  .qempty{padding:16px 20px;color:var(--ink-mid)}
+  .evt{width:100%;border-collapse:collapse}
+  .evt th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:2px solid var(--navy)}
+  .evt td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .evt tr:last-child td{border-bottom:0}
+  .evt tr.evrow{cursor:pointer} .evt tr.evrow:hover td{background:var(--gold-pale)}
+  .evt h2{font-family:var(--fb);font-size:15px;font-weight:700;margin:0} .evt .s{font-size:13px;color:var(--muted)}
+  .evt .d,.evt .g,.evt .m{white-space:nowrap} .evt .lab{display:none}
+  .gbar{height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-right:8px}
+  .gbar i{display:block;height:100%;background:var(--done)}
+  .pill.grey{background:var(--sunk);color:var(--ink-mid)}
+  .hstrip.ok{padding:8px 4px;border:0;background:none}
+  @media (min-width:761px){.bar .right{flex-wrap:nowrap}}
+  @media (max-width:760px){
+    .bar .hsearch{order:3;flex-basis:100%;max-width:none;margin:2px 0 0}
+    .qcounts{gap:8px} .qcount{flex-direction:column;gap:2px;padding:10px 12px} .qcount b{font-size:28px} .qcount .d{display:none}
+    .qrow{grid-template-columns:26px 1fr;padding:12px 14px} .qwhen{grid-column:2} .qact{grid-column:2;justify-self:start;margin-top:4px}
+    .evt thead{display:none} .evt tr{display:block;padding:12px 14px;border-top:1px solid var(--border)} .evt tr:first-child{border-top:0}
+    .evt td{display:block;border:0;padding:2px 0} .evt td.o{display:none} .evt .lab{display:inline}
+  }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
   .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:44px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -849,7 +897,7 @@
 
 <div class="bar">
   <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA" width="168" height="28">
-  <span class="sub">Presenter Agreement Desk</span>
+  <span class="sub">Briefing Room</span>
   <span class="right" id="barright"></span>
 </div>
 
@@ -1012,7 +1060,7 @@ async function signInScreen(message) {
       <div class="actions"><button class="btn ${ms ? "btn-ghost" : "btn-navy"}" id="go">Sign in with the key</button></div>`;
   ROOT.innerHTML = `<div class="card" style="max-width:420px;margin:40px auto">
     <div class="signin-brand"><img src="/assets/ongia-logo.png" alt="ONGIA" width="232" height="39">
-      <span>Presenter Agreement Desk</span></div>
+      <span>Briefing Room</span></div>
     <div class="card-head"><div><h2>Sign in</h2>
       <div class="s">${ms ? "With your ONGIA Microsoft account, the one you use for your @ongia.ca email." : "The admin key for this site."}</div></div></div>
     <div class="card-body">
@@ -1037,13 +1085,14 @@ async function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events, inbox = null) {
-  BARRIGHT.innerHTML = `<button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search presenters, volunteers, events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: "board" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
+  wireSearch();
 
   if (!events.length) {
     ROOT.innerHTML = `<div class="healthwrap" id="health"><div class="hstrip">Checking email and SharePoint…</div></div><div class="card"><div class="empty">
@@ -1060,33 +1109,11 @@ function listScreen(events, inbox = null) {
   const upcoming = events.filter((ev) => !isPast(ev));
   const past = events.filter(isPast).sort((a, b) => (b.lastDay || b.dayOne || "").localeCompare(a.lastDay || a.dayOne || ""));
   ROOT.innerHTML = `<div class="healthwrap" id="health"><div class="hstrip">Checking email and SharePoint…</div></div>`
+    // One console: the counts, one queue of everything that needs you (or that you're waiting on), then the events.
     // Work only for the events you can act on; the rest are view only.
-    + needsCard(events.filter((e) => e.canEdit !== false), inbox)
-    + homeInboxCard(events, inbox) + (inbox?.connected ? inboxDialogs() : "")
-    + (upcoming.length ? "" : `<div class="card"><div class="empty"><p>No upcoming events.</p><div class="actions" style="justify-content:center"><button class="btn btn-gold" id="first">Create an event</button></div></div></div>`)
-    + upcoming.map((ev) => {
-    const c = ev.counts;
-    const md = ev.materials?.draft ?? 0, mf = ev.materials?.final ?? 0;
-    const blockers = blockersOf(ev);
-    return `<div class="card evcard" data-open="${esc(ev.id)}" role="link" tabindex="0">
-      <div class="card-head"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info" style="font-family:inherit;vertical-align:middle">RBH</span>` : ""}</h2>
-        <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div></div>
-      <div class="stats">
-        <span class="chipstat"><b>${c.total}</b>presenter${c.total === 1 ? "" : "s"}</span>
-        ${blockers.length ? `<span class="chipstat stop" title="${esc(blockers.map((b) => b.short).join(", "))}"><b>${blockers.length}</b>blocking ${blockers.length === 1 ? "problem" : "problems"}</span>` : ""}
-        ${c.uninvited ? `<span class="chipstat stop"><b>${c.uninvited}</b>link never sent</span>` : ""}
-        ${c.failed ? `<span class="chipstat stop"><b>${c.failed}</b>not filed</span>` : ""}
-        <span class="chipstat${c.invited + c.opened ? " hot" : ""}"><b>${c.invited + c.opened}</b>waiting on presenters</span>
-        <span class="chipstat${c.submitted ? " you" : ""}"><b>${c.submitted}</b>for you to review</span>
-        ${ev.inbox?.you ? `<span class="chipstat you"><b>${ev.inbox.you}</b>email${ev.inbox.you === 1 ? "" : "s"} waiting on you</span>` : ""}
-        ${ev.inbox?.offers ? `<span class="chipstat hot"><b>${ev.inbox.offers}</b>hotel offer${ev.inbox.offers === 1 ? "" : "s"}</span>` : ""}
-        <span class="chipstat${c.approved && c.approved === c.total ? " good" : ""}"><b>${c.approved}</b>final</span>
-        <span class="chipstat"><b>${md}<small>/${c.total}</small></b>draft materials</span>
-        <span class="chipstat"><b>${mf}<small>/${c.total}</small></b>final materials</span>
-      </div>
-      <div class="card-body" style="padding-top:10px;padding-bottom:12px">${datesLine(ev)}${nextLine(ev, c)}</div>
-    </div>`;
-  }).join("")
+    + homeConsole(events.filter((e) => e.canEdit !== false), upcoming, inbox)
+    + (inbox?.connected ? inboxDialogs() : "")
+    + (upcoming.length ? eventsTable(upcoming) : `<div class="card"><div class="empty"><p>No upcoming events.</p><div class="actions" style="justify-content:center"><button class="btn btn-gold" id="first">Create an event</button></div></div></div>`)
     + pastEventsCard(past);
   wireFolds();
   const first = document.getElementById("first");
@@ -1103,6 +1130,174 @@ function listScreen(events, inbox = null) {
     e.stopPropagation(); const [eid, pid] = b.dataset.goreview.split("|");
     view = { name: "review", eventId: eid, presenterId: pid }; render();
   }; });
+  wireHomeConsole();
+}
+
+/* ---------- home: the action console (redesign step 1, Andrew 20 Oct 2026) ---------- */
+/**
+ * One queue of everything that needs the person signed in, with the button that does the job on each row, and a
+ * second list of what they are waiting on. Desk work comes from each event's `attention`; email work from the
+ * night's read of Andrew's mailbox (the same rows, ticks and ⋯ as before). The three counts above switch the list.
+ */
+const onBoardOf = (ev) => !!WHO?.email && (ev.board ?? []).some((m) => String(m.email ?? "").toLowerCase() === WHO.email.toLowerCase());
+const qScope = () => { try { return localStorage.getItem("ongia-queue-scope") || "all"; } catch { return "all"; } };
+const qTab = () => { try { return sessionStorage.getItem("ongia-queue-tab") || "needs"; } catch { return "needs"; } };
+
+function homeQueues(events, inbox) {
+  const today = todayIso();
+  const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+  const ago = (iso) => { if (!iso) return ""; const d = -days(String(iso).slice(0, 10)); return d <= 0 ? "today" : `${d} day${d === 1 ? "" : "s"}`; };
+  const names = (list, max = 3) => { const n = list.map((x) => esc(x.name)); return n.length <= max ? n.join(", ") : `${n.slice(0, max).join(", ")} and ${n.length - max} more`; };
+  const needs = [], waiting = [];
+  for (const ev of events) {
+    const a = ev.attention ?? {};
+    const where = `${esc(ev.title)} · ${esc(ev.city)}`;
+    const row = (r) => ({ ev, where, ...r });
+    for (const pr of a.review ?? []) needs.push(row({ rank: 1, icon: "✎", cls: "you", title: "Review agreement", who: esc(pr.name), btn: `<button class="btn btn-gold btn-sm" data-goreview="${esc(`${ev.id}|${pr.id}`)}">Review</button>` }));
+    for (const pr of a.failed ?? []) needs.push(row({ rank: 0, icon: "!", cls: "late", title: "PDF not filed", who: esc(pr.name), note: "The signed copy never reached SharePoint", btn: `<button class="btn btn-gold btn-sm" data-qrefile="${esc(`${ev.id}|${pr.id}`)}">Retry filing</button>` }));
+    if ((a.uninvited ?? []).length) {
+      const n = a.uninvited.length;
+      needs.push(row({ rank: 0, icon: "!", cls: "late", title: n === 1 ? "Link never sent" : `${n} links never sent`, who: names(a.uninvited), note: "No reminder will ever reach them",
+        btn: `<button class="btn btn-gold btn-sm" data-qsend="${esc(`${ev.id}|${a.uninvited.map((x) => x.id).join(",")}`)}">${n === 1 ? "Send link" : `Send ${n} links`}</button>` }));
+    }
+    if ((a.sendFailed ?? []).length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`, who: names(a.sendFailed), note: "Fix the address on the event", btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
+    const blockers = blockersOf(ev);
+    if (blockers.length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: "Event is blocked", who: esc(blockers.map((b) => b.short).join(", ")), btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Fix it</button>` }));
+    const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
+    const out = a.outstanding ?? [];
+    const uninv = new Set((a.uninvited ?? []).map((x) => x.id));
+    const chased = out.filter((x) => !uninv.has(x.id));
+    if (due && days(due) < 0 && chased.length) {
+      needs.push(row({ rank: 2, icon: "!", cls: "late", title: `${chased.length} agreement${chased.length === 1 ? "" : "s"} overdue`, who: names(chased), when: `${-days(due)} day${days(due) === -1 ? "" : "s"}`,
+        btn: `<button class="btn btn-ghost btn-sm" data-qremind="${esc(`${ev.id}|${chased.map((x) => x.id).join(",")}`)}">${chased.length === 1 ? "Email again" : `Email all ${chased.length}`}</button>` }));
+    } else if (chased.length) {
+      waiting.push(row({ rank: 5, icon: "…", cls: "info", title: `${chased.length} presenter${chased.length === 1 ? " hasn't" : "s haven't"} signed yet`, who: names(chased), when: due ? `due ${esc(fmtDate(due).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}` : "",
+        btn: `<button class="btn btn-ghost btn-sm" data-qremind="${esc(`${ev.id}|${chased.map((x) => x.id).join(",")}`)}">${chased.length === 1 ? "Email again" : `Email all ${chased.length}`}</button>` }));
+    }
+    const k = ev.checklist;
+    if (k?.late) needs.push(row({ rank: 3, icon: "☑", cls: "you", title: `${k.late} checklist job${k.late === 1 ? "" : "s"} overdue`, who: `${k.done} of ${k.total} done`, btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open checklist</button>` }));
+  }
+  needs.sort((a, b) => a.rank - b.rank);
+  // Email: the same rows as before (tick, ⋯, open in Outlook), in the same queue.
+  let todo = [], them = [];
+  if (inbox?.connected) {
+    const pairs = events.flatMap((ev) => (ev.inboxItems ?? []).map((x) => ({ x, ev })))
+      .concat((inbox.unfiledItems ?? []).map((x) => ({ x, ev: { id: "_unfiled", title: "Not on the desk yet" } })));
+    ({ todo, them } = ibGroups(pairs));
+  }
+  const open = (rows) => rows.filter(({ x }) => x.status === "open").length;
+  return { needs, waiting, todo, them, needN: needs.length + open(todo), waitN: waiting.reduce((n, r) => n + (r.who.split(",").length), 0) + open(them) };
+}
+
+function qRowHtml(r) {
+  return `<div class="qrow" data-qev="${esc(r.ev.id)}"><span class="qic ${r.cls}" aria-hidden="true">${r.icon}</span>
+    <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}<div class="qev">${r.where}${r.note ? ` · ${esc(r.note)}` : ""}</div></div>
+    <span class="qwhen">${r.when ?? ""}</span><span class="qact">${r.btn}</span></div>`;
+}
+
+function homeConsole(events, upcoming, inbox) {
+  const scope = qScope(), tab = qTab();
+  const mine = WHO?.canCost ? (scope === "mine" ? events.filter(onBoardOf) : events) : events;
+  const Q = homeQueues(mine, inbox);
+  const next = upcoming[0];
+  const list = (rows, email) => {
+    const desk = rows.map(qRowHtml).join("");
+    const mail = email.length ? `<div class="qmail"><div class="qmailh">From your email</div><div class="ibrows">${email.map(({ x, ev }) => ibRow(x, ev, { showEvent: true })).join("")}</div></div>` : "";
+    return desk || mail ? desk + mail : `<div class="qempty">${tab === "needs" ? "Nothing needs you right now." : "You're not waiting on anyone."}</div>`;
+  };
+  return `<div class="qcounts" role="tablist">
+      <button class="qcount me${tab === "needs" ? " on" : ""}" data-qtab="needs" role="tab" aria-selected="${tab === "needs"}"><b>${Q.needN}</b><span><span class="l">Needs my action</span><span class="d">reviews, links never sent, filing, email</span></span></button>
+      <button class="qcount${tab === "waiting" ? " on" : ""}" data-qtab="waiting" role="tab" aria-selected="${tab === "waiting"}"><b>${Q.waitN}</b><span><span class="l">Waiting on others</span><span class="d">presenters who haven't signed, replies</span></span></button>
+      <a class="qcount" href="#upcoming"><b>${upcoming.length}</b><span><span class="l">Upcoming event${upcoming.length === 1 ? "" : "s"}</span><span class="d">${next ? `next: ${esc(fmtDate(next.dayOne).replace(/ \d{4}$/, ""))}` : "none booked"}</span></span></a>
+    </div>
+    <div class="card qcard" id="queue"><div class="card-head"><div><h2>${tab === "needs" ? "Action queue" : "Waiting on others"}</h2>
+      <div class="s">${tab === "needs" ? "Everything that needs you, the most pressing first. Each button does the job here; signing still opens the agreement to read." : "What you're waiting for. Email them again from here."}</div></div>
+      ${WHO?.canCost ? `<div class="qseg" role="group" aria-label="Which events"><button data-qscope="all" class="${scope !== "mine" ? "on" : ""}">All events</button><button data-qscope="mine" class="${scope === "mine" ? "on" : ""}">My events</button></div>` : ""}</div>
+      <div class="qlist">${tab === "needs" ? list(Q.needs, Q.todo) : list(Q.waiting, Q.them)}</div></div>`;
+}
+
+/** The upcoming events, one row each: dates, how many have signed, final materials, and what is next. */
+function eventsTable(upcoming) {
+  const today = todayIso();
+  const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+  const rows = upcoming.map((ev) => {
+    const c = ev.counts ?? {}, a = ev.attention ?? {};
+    const total = c.total ?? 0, signed = c.approved ?? 0, mf = ev.materials?.final ?? 0;
+    const pct = total ? Math.round((signed / total) * 100) : 0;
+    const pills = [];
+    if ((a.review ?? []).length) pills.push(`<span class="pill late">${a.review.length} to review</span>`);
+    if ((a.uninvited ?? []).length) pills.push(`<span class="pill wait">${a.uninvited.length} never sent</span>`);
+    if ((a.failed ?? []).length) pills.push(`<span class="pill late">${a.failed.length} not filed</span>`);
+    const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
+    const outN = (a.outstanding ?? []).length;
+    if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
+    if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
+    if (!pills.length) {
+      const nx = [["Agreements due", due], ["Final materials due", ev.noDeadlines ? null : ev.deadlines?.final], ["Training starts", ev.dayOne]].find(([, d]) => d && days(d) >= 0);
+      if (nx) pills.push(`<span class="pill grey">${esc(nx[0])} ${esc(fmtDate(nx[1]).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}</span>`);
+    }
+    if (ev.canEdit === false) pills.push(`<span class="pill grey">view only</span>`);
+    const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
+    return `<tr class="evcard evrow" data-open="${esc(ev.id)}" role="link" tabindex="0">
+      <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
+      <td class="d">${dates}</td>
+      <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
+      <td class="m">${mf} of ${total} <span class="lab">final materials</span></td>
+      <td class="n">${pills.join(" ")}</td>
+      <td class="o"><span class="mini">Open</span></td></tr>`;
+  }).join("");
+  return `<div class="card" id="upcoming"><div class="card-head"><div><h2>Upcoming events</h2><div class="s">Click a row to open it</div></div></div>
+    <table class="evt"><thead><tr><th>Event</th><th>Dates</th><th>Agreements signed</th><th>Final materials</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function wireHomeConsole() {
+  ROOT.querySelectorAll("[data-qtab]").forEach((b) => { b.onclick = () => { try { sessionStorage.setItem("ongia-queue-tab", b.dataset.qtab); } catch {} render(); }; });
+  ROOT.querySelectorAll("[data-qscope]").forEach((b) => { b.onclick = () => { try { localStorage.setItem("ongia-queue-scope", b.dataset.qscope); } catch {} render(); }; });
+  const pair = (v) => { const [ev, ids] = v.split("|"); return [ev, ids ? ids.split(",") : []]; };
+  ROOT.querySelectorAll("[data-qsend]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); const [ev, ids] = pair(b.dataset.qsend); invite(ev, ids, false); }; });
+  ROOT.querySelectorAll("[data-qremind]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); const [ev, ids] = pair(b.dataset.qremind); invite(ev, ids, true); }; });
+  ROOT.querySelectorAll("[data-qrefile]").forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      const [ev, ids] = pair(b.dataset.qrefile);
+      try {
+        const out = await api(`/review?event=${encodeURIComponent(ev)}&presenter=${encodeURIComponent(ids[0])}&action=redeliver`, { method: "POST", body: JSON.stringify({ all: false }) });
+        toast(out.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.delivery?.filing?.error ?? out.delivery?.filing?.reason ?? "unknown"}`);
+        render();
+      } catch (err) { toast(err.message); }
+    };
+  });
+}
+
+/** The search box at the top of the home page: presenters, volunteers and events, as you type. */
+function wireSearch() {
+  const box = document.getElementById("hsearch"), res = document.getElementById("hsres");
+  if (!box || !res) return;
+  let t = null, seq = 0;
+  const close = () => { res.hidden = true; };
+  const run = async () => {
+    const q = box.value.trim(), my = ++seq;
+    if (q.length < 2) { close(); return; }
+    try {
+      const out = await api(`/search?q=${encodeURIComponent(q)}`);
+      if (my !== seq) return;
+      const kind = { presenter: "Presenter", volunteer: "Volunteer", event: "Event" };
+      res.innerHTML = out.results.length ? out.results.map((r, i) => `<button type="button" class="hsr" data-i="${i}"><span class="k">${kind[r.type]}</span><b>${esc(r.name)}</b>
+          <span class="sub">${r.type === "event" ? esc(r.sub) : `${esc(r.eventTitle)}${r.sub ? " · " + esc(r.sub) : ""}`}</span></button>`).join("") + (out.more ? `<div class="hsmore">More than 25 found; type more to narrow it.</div>` : "")
+        : `<div class="hsmore">Nothing matches “${esc(q)}”.</div>`;
+      res.hidden = false;
+      res.querySelectorAll("[data-i]").forEach((b) => {
+        b.onclick = () => {
+          const r = out.results[+b.dataset.i];
+          view = r.type === "presenter" ? { name: "review", eventId: r.eventId, presenterId: r.presenterId } : { name: "event", eventId: r.eventId };
+          render();
+        };
+      });
+    } catch (e) { res.innerHTML = `<div class="hsmore">${esc(e.message)}</div>`; res.hidden = false; }
+  };
+  box.oninput = () => { clearTimeout(t); t = setTimeout(run, 250); };
+  box.onkeydown = (e) => { if (e.key === "Escape") { box.value = ""; close(); } if (e.key === "Enter") { const first = res.querySelector("[data-i]"); if (first) first.click(); } };
+  document.addEventListener("click", (e) => { if (!e.target.closest?.(".hsearch")) close(); });
 }
 
 /** Events that are over, folded away at the bottom of the home page. Closed until opened; each row opens the event as usual. */
@@ -5149,6 +5344,8 @@ async function healthStrip() {
     const spLabel = sp ? (spOk ? "SharePoint reachable" : "SharePoint unreachable") : "SharePoint not set up";
     const spWhy = spOk ? (sp.site ?? "").replace(/^https?:\/\//, "") : (sp?.error ?? "Microsoft credentials are not set on this site");
     const broken = !h.email?.ok || !spOk;
+    // Healthy: one quiet line. Only a failure takes up room.
+    if (!broken) { host.innerHTML = `<div class="hstrip ok"><span>${dot(h.email)}Email and SharePoint are working<small>${esc(h.email.from ?? "")}</small></span></div>`; return; }
     host.innerHTML = `<div class="hstrip${broken ? " bad" : ""}">
       ${broken ? `<b>Something is off — presenters and filing are affected.</b>` : ""}
       <span>${dot(h.email)}Email ${h.email?.ok ? "ready" : "not working"}<small>${esc(h.email?.ok ? h.email.from : (h.email?.reason ?? "no transport configured"))}</small></span>
