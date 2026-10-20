@@ -70,7 +70,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   // A blocked event (no upload link locally): the fix button takes you to Settings.
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(900);
   await p.locator(`[data-open="${A.id}"]`).click(); await p.waitForTimeout(1500);
-  const fix = p.locator('[data-fix="mklink"]');
+  const fix = p.locator('.blocked [data-fix="mklink"]');
   if (await fix.count()) { await fix.click(); await p.waitForTimeout(800); ok(`${tag}: a blocked event's fix button opens the Settings tab`, (await shown(p)) === "settings"); }
   // RBH: a Money tab for the president, with the SOW.
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(900);

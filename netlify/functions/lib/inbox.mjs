@@ -334,7 +334,12 @@ const daysAgo = (n, now = Date.now()) => new Date(now - n * 86400000).toISOStrin
  * Read what is new, sort it, file it, and update who has replied.
  * `get` and `client` are for tests; `deadline` stops new Claude calls in time.
  */
+// Paused (Andrew 20 Oct 2026): the email list is off in the desk for now, so the mailbox is not read at night either.
+// Everything already filed stays. Set this to true (and EMAIL_ON in public/admin.html) to bring it back.
+export const INBOX_READ_ON = false;
+
 export async function runInbox({ get = null, client = null, deadline = null, now = Date.now() } = {}) {
+  if (!INBOX_READ_ON) return { skipped: true, reason: "Reading the mailbox is paused (INBOX_READ_ON in lib/inbox.mjs)." };
   const mailbox = inboxMailbox();
   if (!inboxConfigured()) return { skipped: true, reason: "No mailbox is set to read (INBOX_MAILBOX), or Microsoft 365 is not connected." };
   const at = new Date(now).toISOString();
