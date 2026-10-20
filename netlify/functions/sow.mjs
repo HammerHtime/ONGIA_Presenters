@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
-import { STANDARD_LINES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
+import { STANDARD_LINES, TEMPLATES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -32,6 +32,7 @@ const view = async (event, raw) => {
   increase: sow ? increase(sow) : null,
   locked: sow ? isLocked(sow) : false,
   copyFrom: sow ? [] : await copyChoices(event),
+  templates: sow ? [] : Object.entries(TEMPLATES).map(([key, t]) => ({ key, title: t.title, blurb: t.blurb, total: t.lines.reduce((n, l) => n + l.estimate, 0) })),
   };
 };
 
@@ -85,7 +86,12 @@ export default async (req) => {
     const body = await req.json().catch(() => ({}));
     let lines = STANDARD_LINES.map((l) => ({ ...l, description: "", estimate: 0, actual: null }));
     let from = null;
-    if (body.from && body.from !== "standard") {
+    let progNote = "";
+    if (TEMPLATES[body.from]) {
+      lines = TEMPLATES[body.from].lines.map((l) => ({ ...l, actual: null }));
+      progNote = TEMPLATES[body.from].note;
+      from = null;
+    } else if (body.from && body.from !== "standard") {
       const other = await getSow(text(body.from, 80));
       if (!other) return fail("That event has no statement of work to copy.", 404);
       lines = other.lines.map((l) => ({ name: l.name, description: l.description, type: l.type, estimate: l.estimate, actual: null }));
@@ -94,11 +100,11 @@ export default async (req) => {
     const province = event.province || guessProvince(event.city);
     const next = {
       invoice: await nextInvoiceNumber(event),
-      program: { title: event.title, place: event.city ?? "", note: "" },
+      program: { title: event.title, place: event.city ?? "", note: progNote },
       lines: cleanLines(lines), taxes: provinceTaxes(province), taxBase: "subtotal+fee", deposit: 0,
       status: "draft", statusAt: { draft: new Date().toISOString() }, copiedFrom: from, unlocked: false, history: [],
     };
-    note(next, name, from ? "Started from another event's statement of work" : "Started from the standard lines");
+    note(next, name, from ? "Started from another event's statement of work" : TEMPLATES[body.from] ? `Started from the template "${TEMPLATES[body.from].title}"` : "Started from the standard lines");
     await putSow(id, next);
     return json(await view(event, next), 201);
   }

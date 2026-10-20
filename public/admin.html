@@ -3070,6 +3070,9 @@ const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.sta
 /** An RBH event's statement of work and invoice: the president's and the VP's, nobody else's. */
 function sowCard(ev, S) {
   const sow = S.sow;
+  // A Canadian Forum Against Organized Crime event starts from its own template: the Victoria one in Victoria.
+  const forum = /organi[sz]ed crime|cfaoc/i.test(`${ev.title} ${ev.invoicePrefix ?? ""}`);
+  const pre = forum ? (/victoria/i.test(ev.city ?? "") ? "cfaoc-victoria" : "cfaoc") : "";
   const line = !sow ? "Start the statement of work for RBH"
     : `${sow.invoice.number} · ${(SOW_STATUSES.find(([k]) => k === sow.status) ?? [])[1]} · ${usd(S.estimate.total)}`;
   const badge = sow ? (afterApproval(sow) && sow.status !== "paid" ? `${usd(S.actual.total)} invoice` : "") : "";
@@ -3077,7 +3080,8 @@ function sowCard(ev, S) {
       <p class="hint" style="margin:0 0 12px">The statement of work is the estimate you send RBH, line by line. When the event is over the same lines carry the actuals and become the final invoice.
         The invoice number is given automatically, by year. Only you and the VP can see this.</p>
       <div class="field"><label>Start from</label>
-        <label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="standard" checked> The standard lines (hotel, dinners, transportation, Via Rail, on-site and pre/post event management…)</label>
+        ${(S.templates ?? []).filter((t) => t.key !== "cfaoc-victoria" || /victoria/i.test(ev.city ?? "")).map((t) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(t.key)}"${t.key === pre ? " checked" : ""}> <span><b>${esc(t.title)}</b>${t.total ? ` (${usd(t.total)} before fee and tax)` : ""}. ${esc(t.blurb)}</span></label>`).join("")}
+        <label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="standard"${pre ? "" : " checked"}> The standard lines (hotel, dinners, transportation, Via Rail, on-site and pre/post event management…)</label>
         ${S.copyFrom.map((c) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(c.id)}"> A copy of <b>${esc(c.title)}</b>, ${esc(c.year)} (${usd(c.total)} before fee and tax)</label>`).join("")}</div>
       <p class="hint">${S.province ? `Tax will be ${esc(PROVINCE_NAMES[S.province])}'s.` : `<b>No province is set on this event.</b> Choose one under Edit event so the right tax goes on.`}</p>
       <div class="actions"><button class="btn btn-gold" id="sw-start">Start the statement of work</button></div></div>`

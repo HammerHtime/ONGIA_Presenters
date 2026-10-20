@@ -49,7 +49,7 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
   doc.rect(0, 84, W, 4).fill(GOLD);
   doc.rect(0, 18, W, 4).fill(GOLD);
   if (logo) doc.image(logo, M, 38, { height: 30 });
-  doc.font("Times-BoldItalic").fontSize(titleSize(doc, title)).fillColor(GOLD_TEXT).text(title, 190, 38, { width: 250, align: "center", lineBreak: false });
+  doc.font("Times-BoldItalic").fontSize(titleSize(doc, title)).fillColor(GOLD_TEXT).text(title, 224, 38, { width: 216, align: "center", lineBreak: false });
   doc.font("Times-Italic").fontSize(8.5).fillColor(GOLD_PALE).text("ONGIA\nProfessional Event Services", 448, 41, { width: W - 448 - M, align: "center" });
 
   // who, when, and the numbers
@@ -136,7 +136,7 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
 }
 
 function titleSize(doc, title) {
-  for (const s of [24, 21, 18, 15, 13]) { doc.font("Times-BoldItalic").fontSize(s); if (doc.widthOfString(title) <= 250) return s; }
+  for (const s of [24, 21, 18, 15, 13]) { doc.font("Times-BoldItalic").fontSize(s); if (doc.widthOfString(title) <= 216) return s; }
   return 11;
 }
 

@@ -28,6 +28,44 @@ export const STANDARD_LINES = [
 ];
 
 /**
+ * Other starting points for a statement of work. The Canadian Forum Against Organized Crime (CFAOC) runs one-day
+ * forums with their own, longer list of lines (Andrew's sheet "ONGIA RBH 1 Day Training", Victoria tab, 20 Oct 2026).
+ * The generic forum template has no rebranding/signage line; the Victoria preset is that sheet as it stands,
+ * with its amounts, its notes under each line and the rebranding/signage line, for the December 2026 forum.
+ */
+const L = (name, type, estimate = 0, description = "") => ({ name, type, estimate, description });
+const FORUM_LINES = (withRebrand) => [
+  L("Hotel", "cost"), L("Meeting Space", "cost"), L("Hotel F&B", "cost"), L("A/V — Main Conference", "cost"),
+  L("On Site Management", "fixed"), L("Pre-Event & Post Management", "fixed"), L("Presenter Support / Creative Development", "fixed"),
+  ...(withRebrand ? [L("Rebranding / Signage", "fixed")] : []),
+  L("Incidentals", "cost"), L("Gratuities", "cost"),
+];
+export const TEMPLATES = {
+  cfaoc: {
+    title: "CFAOC one-day forum",
+    blurb: "The forum's lines: hotel, meeting space, hotel F&B, A/V, on-site and pre/post management, presenter support, incidentals, gratuities. Amounts empty.",
+    lines: FORUM_LINES(false), note: "",
+  },
+  "cfaoc-victoria": {
+    title: "Victoria forum, December 2026",
+    blurb: "Your sheet's Victoria tab as it stands, amounts and notes included, with Rebranding / Signage ($6,000).",
+    note: "Based on approx. 70 people",
+    lines: [
+      L("Hotel", "cost", 4000, "4 rooms × 3 nights $2,500 (about $700 per room for the stay) · 1 suite $1,500"),
+      L("Meeting Space", "cost", 2500, "Meeting room rental"),
+      L("Hotel F&B", "cost", 17550, "Based on 60 people: continental breakfast $30 each ($1,800) · coffee / breaks $10 each ($600) · lunch $35 each ($2,100) · dinner / cocktails ($9,000) · gratuity 30% ($4,050)"),
+      L("A/V — Main Conference", "cost", 5000),
+      L("On Site Management", "fixed", 7000, "Event managers / per diems / transportation: flights 3 × $1,000 · on site 3 × $750 / $1,000"),
+      L("Pre-Event & Post Management", "fixed", 8400, "Marketing / registrations, certificates / surveys etc."),
+      L("Presenter Support / Creative Development", "fixed", 3500),
+      L("Rebranding / Signage", "fixed", 6000),
+      L("Incidentals", "cost", 4000),
+      L("Gratuities", "cost", 0),
+    ],
+  },
+};
+
+/**
  * Sales tax by province, as the standard federal and provincial rates. Provincial sales tax on
  * services (BC, Saskatchewan, Manitoba) has its own rules, so only GST is preset there: add a
  * line if it applies. The tax lines can be edited on every SOW.
