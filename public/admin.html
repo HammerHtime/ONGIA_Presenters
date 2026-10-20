@@ -852,6 +852,12 @@
   .qseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-left:auto}
   .qseg button{border:0;background:#fff;padding:7px 14px;font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer;min-height:36px}
   .qseg button.on{background:var(--navy);color:#fff}
+  .qgroup{display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap;padding:12px 20px 10px;background:#f4f0e6;border-top:1.5px solid var(--edge)}
+  .qlist > .qgroup:first-child{border-top:0}
+  .qgh{flex:1 1 260px;min-width:0} .qgh b{font-size:16px;font-weight:700;color:var(--navy)}
+  .qgs{display:block;font-size:13px;color:var(--muted);margin-top:1px}
+  .qgn{font-size:12.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap}
+  .qgroup + .qrow{border-top:0}
   .qrow{display:grid;grid-template-columns:28px 1fr auto auto;gap:4px 14px;align-items:center;padding:11px 20px;border-top:1px solid var(--border)}
   .qlist > .qrow:first-child{border-top:0}
   .qic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
@@ -879,6 +885,7 @@
   @media (max-width:760px){
     .bar .hsearch{order:3;flex-basis:100%;max-width:none;margin:2px 0 0}
     .qcounts{gap:8px} .qcount{flex-direction:column;gap:2px;padding:10px 12px} .qcount b{font-size:28px} .qcount .d{display:none}
+    .qgroup{padding:11px 14px 9px;flex-wrap:nowrap} .qgh{flex:1 1 auto} .qgh b{font-size:15.5px} .qgn{display:none}
     .qrow{grid-template-columns:26px 1fr;padding:12px 14px} .qwhen{grid-column:2} .qact{grid-column:2;justify-self:start;margin-top:4px}
     .evt thead{display:none} .evt,.evt tbody{display:block} .evt{width:auto;margin:10px}
     .evt tr{display:block;padding:12px 14px;margin:0 0 8px;background:#fff;border:1px solid var(--border);border-radius:14px}
@@ -1335,10 +1342,34 @@ function homeQueues(events, inbox, { here = false } = {}) {
   return { needs, waiting, todo, them, needN: needs.length + open(todo), waitN: waiting.reduce((n, r) => n + (r.who.split(",").length), 0) + open(them) };
 }
 
-function qRowHtml(r) {
+function qRowHtml(r, { grouped = false } = {}) {
+  const sub = grouped ? (r.note ? esc(r.note) : "") : `${r.where}${r.note ? ` · ${esc(r.note)}` : ""}`;
   return `<div class="qrow" data-qev="${esc(r.ev.id)}"><span class="qic ${r.cls}" aria-hidden="true">${r.icon}</span>
-    <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}<div class="qev">${r.where}${r.note ? ` · ${esc(r.note)}` : ""}</div></div>
+    <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}${sub ? `<div class="qev">${sub}</div>` : ""}</div>
     <span class="qwhen">${r.when ?? ""}</span><span class="qact">${r.btn}</span></div>`;
+}
+
+/**
+ * The queue grouped by event, the event's name leading (Andrew 21 Oct 2026: "I need the event to be the lead"). The
+ * soonest event first; inside each, the most pressing job first. A long name loses its subtitle after a colon.
+ */
+function qGroupsHtml(rows) {
+  const today = todayIso();
+  const groups = new Map();
+  for (const r of rows) {
+    const g = groups.get(r.ev.id) ?? { ev: r.ev, rows: [] };
+    g.rows.push(r); groups.set(r.ev.id, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.ev.dayOne || "9999").localeCompare(b.ev.dayOne || "9999")).map(({ ev, rows: list }) => {
+    const short = String(ev.title ?? "").split(/\s*:\s*/)[0] || ev.title;
+    const d = ev.dayOne ? Math.round((Date.parse(ev.dayOne) - Date.parse(today)) / 86400000) : null;
+    const when = ev.dayOne ? `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${d !== null && d >= 0 ? ` · ${d === 0 ? "today" : `in ${d} day${d === 1 ? "" : "s"}`}` : ""}` : "";
+    const n = list.length;
+    return `<div class="qgroup"><div class="qgh"><b title="${esc(ev.title)}">${esc(short)}</b>${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}
+        <span class="qgs">${[esc(ev.city ?? ""), when].filter(Boolean).join(" · ")}</span></div>
+      <span class="qgn">${n} thing${n === 1 ? "" : "s"}</span><button class="mini" data-goev="${esc(ev.id)}">Open event</button></div>
+      ${list.slice().sort((a, b) => a.rank - b.rank).map((r) => qRowHtml(r, { grouped: true })).join("")}`;
+  }).join("");
 }
 
 function homeConsole(events, upcoming, inbox) {
@@ -1347,7 +1378,7 @@ function homeConsole(events, upcoming, inbox) {
   const Q = homeQueues(mine, inbox);
   const next = upcoming[0];
   const list = (rows, email) => {
-    const desk = rows.map(qRowHtml).join("");
+    const desk = qGroupsHtml(rows);
     const mail = email.length ? `<div class="qmail"><div class="qmailh">From your email</div><div class="ibrows">${email.map(({ x, ev }) => ibRow(x, ev, { showEvent: true })).join("")}</div></div>` : "";
     return desk || mail ? desk + mail : `<div class="qempty">${tab === "needs" ? "Nothing needs you right now." : "You're not waiting on anyone."}</div>`;
   };
@@ -1357,7 +1388,7 @@ function homeConsole(events, upcoming, inbox) {
       <a class="qcount" href="#upcoming"><b>${upcoming.length}</b><span><span class="l">Upcoming event${upcoming.length === 1 ? "" : "s"}</span><span class="d">${next ? `next: ${esc(fmtDate(next.dayOne).replace(/ \d{4}$/, ""))}` : "none booked"}</span></span></a>
     </div>
     <div class="card qcard" id="queue"><div class="card-head"><div><h2>${tab === "needs" ? "Action queue" : "Waiting on others"}</h2>
-      <div class="s">${tab === "needs" ? "Everything that needs you, the most pressing first. Each button does the job here; signing still opens the agreement to read." : "What you're waiting for. Email them again from here."}</div></div>
+      <div class="s">${tab === "needs" ? "Everything that needs you, grouped by event, the soonest event first. Each button does the job here; signing still opens the agreement to read." : "What you're waiting for, grouped by event. Email them again from here."}</div></div>
       ${WHO?.canCost ? `<div class="qseg" role="group" aria-label="Which events"><button data-qscope="all" class="${scope !== "mine" ? "on" : ""}">All events</button><button data-qscope="mine" class="${scope === "mine" ? "on" : ""}">My events</button></div>` : ""}</div>
       <div class="qlist">${tab === "needs" ? list(Q.needs, Q.todo) : list(Q.waiting, Q.them)}</div></div>`;
 }
