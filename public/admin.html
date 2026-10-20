@@ -52,7 +52,7 @@
   @media (max-width:480px){.bar .logo{height:23px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
   .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-  .chip{border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;
+  .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
 
@@ -94,7 +94,7 @@
   dialog.sheet .sheet-head{padding:18px 20px 0}
   dialog.sheet .sheet-body{padding:0 20px 20px}
 
-  .btn{border-radius:999px;padding:12px 24px;font-weight:700;font-size:15px;border:1px solid transparent;cursor:pointer}
+  .btn{border-radius:999px;padding:10px 20px;font-weight:700;font-size:14.5px;border:1px solid transparent;cursor:pointer}
   .btn-navy{background:var(--navy);color:#fff}
   .btn-gold{background:var(--gold);color:#1c1608}
   .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink-mid)}
@@ -110,9 +110,9 @@
   .porg{font-size:12.5px;color:var(--muted)}
   .ptalk{font-size:12.5px;color:var(--ink-mid);margin-top:3px}
   .act{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-size:11.5px;
+  .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 9px;font-size:11px;
     font-weight:700;white-space:nowrap;font-family:var(--fu);letter-spacing:.09em;text-transform:uppercase}
-  .pill::before{content:"";width:7px;height:7px;border-radius:999px;background:currentColor}
+  .pill::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor}
   .pill.done{background:var(--done-bg);color:var(--done)}
   .pill.wait{background:var(--wait-bg);color:var(--wait)}
   .pill.late{background:var(--late-bg);color:var(--late)}
@@ -120,7 +120,7 @@
   .pill.you{background:var(--navy);color:#fff}
   .pill.idle{background:var(--sunk);color:var(--muted);box-shadow:inset 0 0 0 1px var(--border)}
   .mini{border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink-mid);
-    font-size:12.5px;font-weight:600;padding:7px 14px;cursor:pointer}
+    font-size:12.5px;font-weight:600;padding:5px 11px;cursor:pointer}
   .mini:hover{border-color:var(--navy);color:var(--navy)}
   .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
 
@@ -160,7 +160,7 @@
   /* On a phone the filters are one row that slides sideways, not five rows of buttons. */
   @media (max-width:560px){.filters{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 14px;padding:0 16px 4px;scrollbar-width:none}
     .filters::-webkit-scrollbar{display:none} .filters .fchip{flex:none;white-space:nowrap}}
-  .fchip{border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
+  .fchip{border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;background:var(--sunk);color:var(--ink-mid);
     border:1px solid var(--border);cursor:pointer} .fchip b{color:var(--muted);font-weight:700;margin-left:3px}
   .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy)} .fchip.on b{color:var(--gold-light)}
   .trow{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) 236px;gap:14px;align-items:start;
@@ -214,7 +214,7 @@
   .tile .v small{font-size:14px;color:var(--muted);font-weight:400}
   /* events list: one wrapping row of small figures instead of six tiles */
   .stats{display:flex;flex-wrap:wrap;gap:6px 8px;padding:12px 22px;border-top:1px solid var(--hair)}
-  .chipstat{font-size:12.5px;color:var(--muted);background:var(--sunk);border:1px solid var(--border);border-radius:999px;padding:4px 10px;white-space:nowrap}
+  .chipstat{font-size:12.5px;color:var(--muted);background:var(--sunk);border:1px solid var(--border);border-radius:999px;padding:3px 9px;white-space:nowrap}
   .chipstat b{color:var(--ink);font-weight:700;margin-right:4px;font-variant-numeric:tabular-nums} .chipstat b small{color:var(--muted);font-weight:400}
   .chipstat.hot{background:var(--wait-bg);border-color:var(--wait)} .chipstat.hot b{color:var(--wait)}
   .chipstat.good{background:var(--done-bg);border-color:var(--done)} .chipstat.good b{color:var(--done)}
@@ -739,6 +739,58 @@
   .etab.on{color:var(--navy);border-bottom-color:var(--gold)}
   .etab .n{background:var(--late-bg);color:var(--late);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
   .etabp[hidden]{display:none}
+  /* the People tab (redesign step 3) */
+  .pseg{display:inline-flex;border:1.5px solid var(--edge);border-radius:999px;overflow:hidden;background:var(--card);margin:0 0 14px;max-width:100%}
+  .pseg button{appearance:none;border:0;background:none;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
+  .pseg button b{font-weight:500;color:var(--muted);margin-left:3px}
+  .pseg button.on{background:var(--navy);color:#fff} .pseg button.on b{color:rgba(255,255,255,.75)}
+  .pview[hidden]{display:none}
+  .pbody{padding-top:14px}
+  .pdates{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px} .pdates b{color:var(--ink)}
+  .ptools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px} .ptools .filters{margin:0}
+  .pfind{flex:1 1 200px;max-width:320px;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;background:#fff}
+  .pbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:9px 14px;margin:0 0 10px;font-size:14px}
+  .pbulk[hidden]{display:none}
+  .pbulk .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
+  .pbnote{margin-left:auto;font-size:12.5px;opacity:.75}
+  .playout.withdrawer{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+  .ptwrap{min-width:0;overflow-x:auto}
+  .ptable{width:100%;border-collapse:collapse;font-size:14px}
+  .ptable th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--navy);white-space:nowrap}
+  .ptable td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .ptable tr:last-child td{border-bottom:0}
+  .ptable tr.prow[hidden]{display:none!important}
+  .ptable tr.prow{cursor:pointer} .ptable tr.prow:hover td{background:#fbf6e9}
+  .ptable tr.sel td{background:var(--gold-pale)}
+  .ptable tr.open td{background:#fff3d6} .ptable tr.open td:first-child{box-shadow:inset 4px 0 0 var(--gold)}
+  .ptable .pc{width:30px} .ptable .pc input{width:18px;height:18px;accent-color:var(--navy);cursor:pointer}
+  .ptable .pn{min-width:170px} .ptable .pn b{font-weight:700}
+  .psub{display:block;font-size:12.5px;color:var(--muted);margin-top:2px} .ptalk{font-style:italic;color:var(--ink-mid)}
+  .pflag{font-size:10px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+  .ptable .pa{min-width:170px} .ptable .pr{white-space:nowrap} .ptable .px{white-space:nowrap}
+  .mchips{display:inline-flex;gap:4px}
+  .mchip{appearance:none;border:1px solid var(--border);border-radius:8px;padding:2px 8px;font:inherit;font-size:12px;font-weight:700;background:#fff;color:var(--muted);cursor:pointer}
+  .mchip.done{background:var(--done-bg,#e2efe7);color:var(--done,#2f6b4f);border-color:#bcd9c7}
+  .mchip.soon{background:#f8ecd5;color:var(--wait);border-color:#ecd3a3}
+  .mchip.late{background:var(--late-bg);color:var(--late);border-color:#e6b9b2}
+  .pmore{appearance:none;border:1px solid transparent;background:none;border-radius:999px;padding:2px 10px;font-size:18px;line-height:1;color:var(--muted);cursor:pointer}
+  .pmore:hover{border-color:var(--border);background:#fff}
+  .pdrawer{position:sticky;top:76px;background:#fff;border:1.5px solid var(--edge);border-radius:18px;padding:14px 16px 16px;font-size:14px}
+  .pdrawer h3{font-family:var(--fd);font-size:23px;font-weight:400;margin:0 0 2px}
+  .plab{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .pclose{float:right;appearance:none;border:0;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:0 2px}
+  .ptl{list-style:none;margin:12px 0;padding:0}
+  .ptl li{display:flex;gap:9px;align-items:center;padding:4px 0}
+  .ptl .k{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1.5px solid var(--edge);background:#fff}
+  .ptl .done .k{background:var(--done,#2f6b4f);border-color:var(--done,#2f6b4f);color:#fff}
+  .ptl .you .k{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .ptl .late .k{background:var(--late);border-color:var(--late);color:#fff}
+  .ptl .soon .k{border-color:var(--wait)}
+  .ptl .t{flex:1;min-width:0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap} .ptl .d{font-size:12.5px;color:var(--muted);white-space:nowrap;margin-left:auto}
+  .ptl .late .d{color:var(--late);font-weight:700}
+  .pkv{display:grid;grid-template-columns:82px 1fr;gap:6px 10px;margin:8px 0 14px} .pkv dt{color:var(--muted)} .pkv dd{margin:0}
+  .pacts{display:flex;gap:6px;flex-wrap:wrap}
+  .pscrim{display:none}
   .etabp .mailsw{border-bottom:0}
   .evgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:0 18px;align-items:start}
   .evgrid > *{min-width:0}
@@ -748,6 +800,21 @@
   .evsoon .mt{flex:1;min-width:0}
   @media (max-width:760px){
     .evgrid{grid-template-columns:1fr}
+    .playout.withdrawer{display:block}
+    .pscrim{display:block;position:fixed;inset:0;background:rgba(14,26,53,.45);z-index:40}
+    .pdrawer{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:86vh;overflow:auto;border-radius:22px 22px 0 0;z-index:41;padding:12px 18px 22px;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+    .pdrawer::before{content:"";display:block;width:44px;height:5px;border-radius:9px;background:var(--edge);margin:0 auto 10px}
+    .pseg{display:flex} .pseg button{flex:1;padding:8px 6px;font-size:13px}
+    .pbnote{display:none}
+    .ptable thead{display:none}
+    .ptable tr.prow{display:grid;grid-template-columns:26px 1fr auto;gap:2px 10px;align-items:center;padding:10px 4px;border-top:1px solid var(--border)}
+    .ptable tbody tr.prow:first-child{border-top:0}
+    .ptable td{display:block;border:0;padding:0}
+    .ptable td.pc{grid-row:span 3}
+    .ptable td.pn{grid-column:2;min-width:0} .ptable td.px{grid-column:3;grid-row:1 / span 2}
+    .ptable td.pa{grid-column:2;min-width:0} .ptable td.pa .psub{display:none}
+    .ptable td.pm{grid-column:2} .ptable td.pr,.ptable td.pd{display:none}
+    .ptable .pn .psub:not(.ptalk){display:none} .ptable .ptalk{display:none}
     .etabs{padding:2px 6px;flex-wrap:wrap;overflow:visible;gap:0 2px} .etab{padding:10px 9px 8px;font-size:13.5px}
   }
   .qcard .card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -760,7 +827,7 @@
   .qic.late{background:var(--late-bg);color:var(--late)} .qic.you{background:var(--gold-pale);color:var(--wait)} .qic.info{background:#eaf0f8;color:#2c4a7c}
   .qwhat b{font-weight:700} .qev{font-size:13px;color:var(--muted)}
   .qwhen{font-size:13px;color:var(--muted);white-space:nowrap}
-  .btn-sm{padding:8px 14px;font-size:13.5px;min-height:38px}
+  .btn-sm{padding:6px 12px;font-size:13px;min-height:32px}
   .qmail{border-top:1px solid var(--border)} .qmailh{font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);padding:12px 20px 4px}
   .qmail .ibrows{padding:0 8px 8px}
   .qempty{padding:16px 20px;color:var(--ink-mid)}
@@ -785,7 +852,7 @@
   }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
-  .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:44px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:36px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .pastrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer} .pastrow:first-child{border-top:0} .pastrow:hover b{text-decoration:underline} .pastrow .porg{white-space:nowrap} .pastrow .s{font-size:13px;color:var(--muted);margin-top:2px}
   #backupline{margin-top:8px} #backupline .hstrip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap} #backupline .bkact{display:flex;gap:8px;align-items:center}
   .hstrip{display:flex;gap:4px 20px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--muted)}
@@ -803,9 +870,9 @@
     .tiles{grid-template-columns:repeat(3,1fr)} .tile{padding:10px 12px} .tile .k{font-size:9px;letter-spacing:.1em} .tile .v{font-size:22px}
   }
   @media (max-width:700px){.tiles{display:none}}
-  /* Fingers, not pointers: nothing that changes data below the 44px floor. */
+  /* Fingers, not pointers: tall enough to tap, but tight (Andrew 20 Oct 2026: the ovals were taking too much room). */
   @media (pointer:coarse){
-    .mini,.fchip{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px}
+    .mini,.fchip{min-height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px}
     button.step{min-height:44px;padding:0 4px}
     .member input[type=checkbox],.member input[type=radio]{width:22px;height:22px}
     .member .rphone{min-height:44px}
@@ -2333,6 +2400,9 @@ function sponsorsScreen(list, settings) {
 }
 
 /* ---------- one event ---------- */
+// Ticked presenters (per event) and the find box's text survive a redraw of the event page.
+const PSEL = new Map();
+let PFIND = "";
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
@@ -2508,24 +2578,6 @@ function eventScreen(data) {
       : `${s.label} — due ${short(s.deadline)}${d <= 14 ? ` (${d} day${d === 1 ? "" : "s"})` : ""}`;
   };
 
-  const stepsHtml = (p) => {
-    const st = stepsOf(p);
-    const out = st.filter((s) => !s.done);
-    // Draft and final stay clickable, the way the old Materials chips were, so
-    // a file that arrived outside the drop folder can still be ticked by hand.
-    const one = (s) => {
-      const body = `<i></i>${esc(s.label)}`;
-      const attrs = `class="step ${s.state}" title="${esc(stepTitle(s, p))}"`;
-      return s.key === "draft" || s.key === "final"
-        ? `<button type="button" ${attrs} data-mat="${esc(p.id)}" data-key="${s.key}" data-on="${s.done ? "0" : "1"}">${body}</button>`
-        : `<span ${attrs}>${body}</span>`;
-    };
-    return `<div class="steps">
-      <span class="scount">${out.length ? `${out.length} outstanding` : "all done"}</span>
-      ${st.map(one).join("")}
-    </div>`;
-  };
-
   // Draft and final materials, detected from uploads or ticked by hand.
   // Which filter cuts this presenter falls into. The Draft/Final chips this used
   // to draw are the Draft/Final steps now, so only the flags are left.
@@ -2539,17 +2591,24 @@ function eventScreen(data) {
   };
 
   const enriched = presenters.map((p) => ({ p, a: agreementCell(p), m: matCell(p) }));
-  const filter = view.filter ?? "all";
-  const inFilter = ({ a, m }, f) => f === "all" ? true : f === "materials" ? m.missing : f === "nomaterials" ? m.none : a.bucket === f;
-  const show = enriched.filter((row) => inFilter(row, filter));
-  const count = (f) => enriched.filter((row) => inFilter(row, f)).length;
+  const count = (bucket) => enriched.filter(({ a }) => a.bucket === bucket).length;
+  // The People tab's cuts (redesign step 3): what needs you, who you are waiting on, materials coming due, signed, everyone.
+  const VIEWS = {
+    needs: ({ p, a }) => ["review", "failed", "uninvited"].includes(a.bucket) || !!p.lastSendError,
+    waiting: ({ a }) => a.bucket === "notstarted" || a.bucket === "progress",
+    materials: ({ m }) => m.missing,
+    signed: ({ a }) => a.bucket === "final" || a.bucket === "failed",
+    all: () => true,
+  };
+  const filter = VIEWS[view.filter] ? view.filter : "all";
+  const show = enriched.filter(VIEWS[filter]);
+  const viewN = (f) => enriched.filter(VIEWS[f]).length;
 
   /**
-   * The same block on every row: the one thing to do next across the top, the
-   * rest in pairs underneath, so buttons line up from one presenter to the next.
-   * Removing a presenter is on their Edit screen, not one tap away on the row.
+   * The People tab (redesign step 3): one row per presenter with the next job's button, and everything else about
+   * them in a panel beside the list (a sheet from the bottom on a phone). The same buttons as before, in both places.
    */
-  const actionsOf = (p, a, link) => {
+  const actsOf = (p, a, link) => {
     const mailed = (p.mail ?? []).some((m) => m.type !== "called");
     const b = (attrs, label, cls = "") => `<button class="mini${cls ? " " + cls : ""}" ${attrs}>${label}</button>`;
     const id = esc(p.id);
@@ -2564,36 +2623,68 @@ function eventScreen(data) {
       main = b(`data-review="${id}"`, "Review", "gold");
       if (p.status === "returned") rest.push(...chase());
     } else if (mailed) {
-      rest.push(...chase());                                   // chasing: the two ways side by side
+      rest.push(...chase());
     } else {
-      main = b(`data-invite="${id}"`, "Email link", "gold");  // never sent: sending it is the job
+      main = b(`data-invite="${id}"`, "Email link", "gold");
     }
-    rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them from the event"`, "Edit"));
-    // An odd one out takes the whole width rather than leaving a hole — the first of
-    // them, so every row still ends with the same Copy link | Edit pair.
-    const pairs = rest.map((h, i) => (i === 0 && rest.length % 2 ? h.replace('class="mini', 'class="mini wide') : h));
-    return (main ? main.replace('class="mini', 'class="mini wide') : "") + pairs.join("");
+    rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them from the event"`, "Correct or remove"));
+    return { main, rest };
   };
+  const flags = (p) => (p.language === "fr" ? ' <span class="pill info pflag">FR</span>' : "")
+    + (p.submission?.sensitive === "yes" ? ' <span class="pill late pflag" title="Has material community partners should not see — follow up before the event">Not for community partners</span>' : "");
+  const roomOf = (p) => (rooming?.rows ?? []).find((r) => r.who === "presenter" && r.key === p.id) ?? null;
+  const billWord = (r) => (r.billing === "ONGIA" ? "ONGIA pays" : r.billing === "Guest" ? "they pay" : "to confirm");
+  const matChips = (p) => stepsOf(p).filter((st) => st.key === "draft" || st.key === "final").map((st) =>
+    `<button type="button" class="mchip ${st.state}" data-mat="${esc(p.id)}" data-key="${st.key}" data-on="${st.done ? "0" : "1"}" title="${esc(stepTitle(st, p))}">${st.key === "draft" ? "Draft" : "Final"}</button>`).join("");
+  const nextCell = (p, a, A) => A.main || (a.bucket === "notstarted" || a.bucket === "progress" ? A.rest[0] : `<span class="porg">${p.status === "approved" ? "Nothing to do" : "—"}</span>`);
+  const sel = PSEL.get(ev.id) ?? new Set();
+  PSEL.set(ev.id, sel);
+  for (const id of [...sel]) if (!presenters.some((p) => p.id === id)) sel.delete(id);
+  const name = (p) => `${p.first} ${p.last}`.trim();
+  const rows = show.map(({ p, a }) => {
+    const A = actsOf(p, a, `${location.origin}/a/${p.token}`);
+    const r = roomOf(p);
+    return `<tr class="prow${view.person === p.id ? " open" : ""}${sel.has(p.id) ? " sel" : ""}" data-person="${esc(p.id)}" data-find="${esc(`${name(p)} ${p.organization ?? ""} ${p.email}`.toLowerCase())}">
+      <td class="pc"><input type="checkbox" data-psel="${esc(p.id)}"${sel.has(p.id) ? " checked" : ""} aria-label="Select ${esc(name(p))}"></td>
+      <td class="pn"><b>${esc(name(p))}</b>${flags(p)}<span class="psub">${esc(p.organization || p.email)}</span>${p.submission?.talk ? `<span class="psub ptalk">${esc(p.submission.talk)}</span>` : ""}</td>
+      <td class="pa">${a.pill}<span class="psub">${a.sub}</span></td>
+      <td class="pm"><span class="mchips">${matChips(p)}</span></td>
+      <td class="pr">${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))}<span class="psub">${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}</span>` : `<span class="porg">—</span>`}</td>
+      <td class="px">${nextCell(p, a, A)}</td>
+      <td class="pd"><button type="button" class="pmore" data-pshow="${esc(p.id)}" aria-label="Everything about ${esc(name(p))}">⋯</button></td></tr>`;
+  }).join("");
 
-  const rows = show.length ? show.map(({ p, a, m }) => {
-    const initials = `${p.first[0] ?? ""}${p.last[0] ?? ""}`.toUpperCase();
-    const link = `${location.origin}/a/${p.token}`;
-    return `<div class="trow">
-      <div class="who"><div class="av">${esc(initials)}</div>
-        <div><div class="pname">${esc(p.first)} ${esc(p.last)}${p.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}${p.submission?.sensitive === "yes" ? ' <span class="pill late" style="font-size:10px;padding:2px 7px" title="Has material community partners should not see — follow up before the event">Not for community partners</span>' : ""}</div>
-          <div class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</div>
-          ${p.submission?.talk ? `<div class="ptalk">${esc(p.submission.talk)}</div>` : ""}</div></div>
-      <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
-      <div class="act pact">${actionsOf(p, a, link)}</div>
-      ${stepsHtml(p)}</div>`;
-  }).join("") : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`;
+  // Everything about one presenter: the steps with their dates, the room, the emails and calls, and every button.
+  const dp = view.person ? enriched.find(({ p }) => p.id === view.person) : null;
+  const drawer = !dp ? "" : (() => {
+    const { p, a } = dp;
+    const A = actsOf(p, a, `${location.origin}/a/${p.token}`);
+    const mails = (p.mail ?? []).filter((m) => m.type !== "called"), calls = (p.mail ?? []).filter((m) => m.type === "called");
+    const inHand = p.status === "submitted" || p.status === "approved";
+    const r = roomOf(p);
+    const phone = p.submission?.phone ? formatPhone(p.submission.phone) : "";
+    const icon = (st) => (st.done ? "✓" : st.state === "late" ? "!" : st.state === "you" ? "●" : "");
+    const step = (st) => {
+      const mat = st.key === "draft" || st.key === "final";
+      const when = st.done ? plainDay(st.at.slice(0, 10)) : st.deadline ? `due ${plainDay(st.deadline)}` : "";
+      return `<li class="${st.state}"><span class="k">${icon(st)}</span><span class="t" title="${esc(stepTitle(st, p))}">${st.state === "you" ? `<b>${esc(st.label)}: waiting on you</b>` : esc(st.label)}${when ? `<span class="d">${esc(when)}</span>` : ""}</span>
+        ${mat ? `<button type="button" class="mini" data-mat="${esc(p.id)}" data-key="${st.key}" data-on="${st.done ? "0" : "1"}">${st.done ? "Clear" : "Mark received"}</button>` : ""}</li>`;
+    };
+    return `<div class="pscrim" data-pclose></div><aside class="pdrawer" id="pdrawer" aria-label="${esc(name(p))}">
+      <button type="button" class="pclose" data-pclose aria-label="Close">×</button>
+      <div class="plab">Presenter</div><h3>${esc(name(p))}</h3>${flags(p) ? `<div>${flags(p)}</div>` : ""}
+      <div class="porg">${[esc(p.email), esc(phone)].filter(Boolean).join(" · ")}${p.organization ? `<br>${esc(p.organization)}` : ""}${p.submission?.talk ? ` · “${esc(p.submission.talk)}”` : ""}</div>
+      <ol class="ptl">${stepsOf(p).map(step).join("")}</ol>
+      <dl class="pkv"><dt>Agreement</dt><dd>${a.pill}<div class="porg">${a.sub}</div></dd>
+        <dt>Room</dt><dd>${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))} · ${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}` : inHand ? "No room" : "Known once they sign"}</dd>
+        <dt>Emails</dt><dd>${mails.length ? `${mails.length} sent · last ${esc(short(mails.at(-1).at))}` : "None sent"}</dd>
+        <dt>Calls</dt><dd>${calls.length ? `${calls.length} logged · last ${esc(short(calls.at(-1).at))}` : "None logged"}</dd></dl>
+      <div class="pacts">${A.main}${A.rest.join("")}</div></aside>`;
+  })();
 
-  // The exception cuts only appear when there is an exception to show.
-  const chips = [["all", "All", true], ["uninvited", "Link never sent", false], ["notstarted", "Not started", true],
-    ["progress", "Waiting on presenter", true], ["review", "For you to review", true], ["final", "Final", true],
-    ["failed", "Not filed", false], ["materials", "Materials due within 2 weeks", false], ["nomaterials", "No materials yet", false]]
-    .filter(([k, , always]) => always || count(k) > 0 || filter === k)
-    .map(([k, l]) => `<button class="fchip${filter === k ? " on" : ""}" data-filter="${k}">${l}${k === "all" ? "" : ` <b>${count(k)}</b>`}</button>`).join("");
+  const chips = [["needs", "Needs me"], ["waiting", "Waiting on them"], ["materials", "Materials due soon"], ["signed", "Signed"], ["all", "All"]]
+    .filter(([k]) => k !== "materials" || viewN(k) > 0 || filter === k)
+    .map(([k, l]) => `<button class="fchip${filter === k ? " on" : ""}" data-filter="${k}">${l} <b>${viewN(k)}</b></button>`).join("");
 
   const draftGot = enriched.filter(({ p }) => mstat[p.id]?.draft).length;
   const finalGot = enriched.filter(({ p }) => mstat[p.id]?.final).length;
@@ -2674,6 +2765,10 @@ function eventScreen(data) {
     + checklistCard(ev, checklist);
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
+  const PVIEWS = [["presenters", "Presenters", presenters.length], ["volunteers", "Volunteers", volunteers?.counts?.total ?? (volunteers?.volunteers ?? []).length],
+    ["guests", "Who's coming", guests?.counts?.attending ?? 0]];
+  const pview = PVIEWS.some(([k]) => k === view.pview) ? view.pview : "presenters";
+  const pv = (k, html) => `<div class="pview" data-pview="${k}"${k === pview || allTabs ? "" : " hidden"}>${html}</div>`;
   const panel = (k, html) => `<section class="etabp" data-panel="${k}"${k === tab || allTabs ? "" : " hidden"}>${html}</section>`;
 
   ROOT.innerHTML = `<div class="card evhead">
@@ -2686,29 +2781,26 @@ function eventScreen(data) {
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}</button>`).join("")}</nav></div>`
     + panel("overview", overviewHtml)
-    + panel("people", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
-    <div class="tiles">
-      <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
-      <div class="tile"><div class="k">Waiting on them</div><div class="v">${count("notstarted") + count("progress") + count("uninvited")}</div></div>
-      <div class="tile accent"><div class="k">For you to review</div><div class="v">${count("review")}</div></div>
-      <div class="tile"><div class="k">Final</div><div class="v">${count("final") + count("failed")}</div></div>
-      <div class="tile"><div class="k">Draft materials</div><div class="v">${draftGot}<small>/${c.total}</small></div></div>
-      <div class="tile"><div class="k">Final materials</div><div class="v">${finalGot}<small>/${c.total}</small></div></div>
-    </div>
-    <div class="card-body">
-      ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 14px">${[
+    + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
+      + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
+    <div class="card-body pbody">
+      ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 12px">${[
         ev.noDeadlines ? `<b>One date for presenters: their presentation, by ${esc(fmtDate(ev.deadlines?.final))}</b> (${off.final} days before day one). No agreement or draft date, and nothing chases the agreement; use <b>Email again</b> to nudge someone.` : "",
         ev.talkOnFile ? "<b>Bio and outline on file.</b> The form shows them greyed out." : ""].filter(Boolean).join(" ")} <span class="porg">Change this on Edit event.</span></div>` : ""}
-      ${ev.noDeadlines ? "" : `<dl class="kv" style="margin:0 0 14px">
-        <dt>Agreement due</dt><dd>${esc(fmtDate(ev.deadlines?.agreement))} <span class="porg">${off.agreement} days before day one</span></dd>
-        <dt>Draft / final materials</dt><dd>${esc(fmtDate(ev.deadlines?.draft))} <span class="porg">${off.draft} days</span> · ${esc(fmtDate(ev.deadlines?.final))} <span class="porg">${off.final} days</span></dd>
-      </dl>`}
+      ${ev.noDeadlines ? "" : `<div class="pdates"><span>Agreements due <b>${esc(fmtDate(ev.deadlines?.agreement))}</b></span><span>Draft materials <b>${esc(fmtDate(ev.deadlines?.draft))}</b></span><span>Final materials <b>${esc(fmtDate(ev.deadlines?.final))}</b></span><span class="porg">${off.agreement}, ${off.draft} and ${off.final} days before day one</span></div>`}
       ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
-        <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
-      <div class="filters">${chips}</div>
-      <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
-    </div>`) + volunteerCard(ev, volunteers) + attendeesCard(ev, guests))
+        <div style="margin-top:6px;color:var(--ink-mid)">Fix the address with <b>Correct or remove</b>, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
+      <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="Find a presenter…" aria-label="Find a presenter" autocomplete="off">` : ""}<div class="filters">${chips}</div></div>
+      <div class="pbulk" id="pbulk"${sel.size ? "" : " hidden"}><b id="pbulk-n">${sel.size} selected</b>
+        <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
+        <span class="pbnote">Approving is always one at a time</span></div>
+      <div class="playout${drawer ? " withdrawer" : ""}"><div class="ptwrap">${show.length
+        ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th>Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>${drawer}</div>
+    </div>`))
+      + pv("volunteers", volunteerCard(ev, volunteers))
+      + pv("guests", attendeesCard(ev, guests)))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
@@ -2797,6 +2889,62 @@ function eventScreen(data) {
   };
   ROOT.querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
   ROOT.querySelectorAll("[data-gotab]").forEach((b) => { b.onclick = () => { const [k, fold] = b.dataset.gotab.split("|"); showTab(k, fold ? `details[data-fold="${fold}"]` : null); }; });
+  // People: presenters, volunteers or who's coming; a presenter's row opens everything about them beside the list.
+  const keepAddress = () => { try { history.replaceState(null, "", location.pathname + location.search + viewHash(view)); } catch { /* sandboxed */ } };
+  ROOT.querySelectorAll("[data-pseg]").forEach((b) => {
+    b.onclick = () => {
+      view = { ...view, pview: b.dataset.pseg }; keepAddress();
+      ROOT.querySelectorAll("[data-pview]").forEach((d) => { d.hidden = d.dataset.pview !== b.dataset.pseg; });
+      ROOT.querySelectorAll("[data-pseg]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", String(x === b)); });
+    };
+  });
+  const openPerson = (id) => {
+    view = { ...view, person: id }; keepAddress(); eventScreen(data);
+    const d = document.getElementById("pdrawer");
+    if (d && !matchMedia("(max-width:760px)").matches) d.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
+  ROOT.querySelectorAll("tr.prow").forEach((tr) => {
+    tr.onclick = (e) => { if (e.target.closest("button, input, a, label")) return; openPerson(tr.dataset.person); };
+  });
+  ROOT.querySelectorAll("[data-pshow]").forEach((b) => { b.onclick = () => openPerson(b.dataset.pshow); });
+  ROOT.querySelectorAll("[data-pclose]").forEach((b) => { b.onclick = () => { view = { ...view, person: null }; keepAddress(); eventScreen(data); }; });
+  const bulkBar = () => {
+    const bar = document.getElementById("pbulk");
+    if (!bar) return;
+    bar.hidden = !sel.size;
+    document.getElementById("pbulk-n").textContent = `${sel.size} selected`;
+  };
+  ROOT.querySelectorAll("[data-psel]").forEach((cb) => {
+    cb.onchange = () => { if (cb.checked) sel.add(cb.dataset.psel); else sel.delete(cb.dataset.psel); cb.closest("tr")?.classList.toggle("sel", cb.checked); bulkBar(); };
+  });
+  const selAll = document.getElementById("pselall");
+  if (selAll) selAll.onchange = () => {
+    ROOT.querySelectorAll("tr.prow:not([hidden]) [data-psel]").forEach((cb) => { cb.checked = selAll.checked; cb.onchange(); });
+  };
+  const find = document.getElementById("pfind");
+  const applyFind = () => {
+    const words = PFIND.toLowerCase().split(/\s+/).filter(Boolean);
+    ROOT.querySelectorAll("tr.prow").forEach((tr) => { tr.hidden = !words.every((w) => tr.dataset.find.includes(w)); });
+  };
+  if (find) { find.value = PFIND; applyFind(); find.oninput = () => { PFIND = find.value; applyFind(); }; } else PFIND = "";
+  const bulkMail = document.getElementById("pbulk-mail");
+  if (bulkMail) bulkMail.onclick = async () => {
+    const chosen = presenters.filter((p) => sel.has(p.id));
+    const due = chosen.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    if (!due.length) return toast("Everyone ticked has already signed.");
+    const skip = chosen.length - due.length;
+    if (!confirm(`Email their agreement link to ${due.length} presenter${due.length === 1 ? "" : "s"}?${skip ? `\n\n${skip} who already signed will be left out.` : ""}`)) return;
+    sel.clear();
+    await invite(ev.id, due.map((p) => p.id), due.some((p) => (p.mail ?? []).some((m) => m.type !== "called")));
+  };
+  const bulkCopy = document.getElementById("pbulk-copy");
+  if (bulkCopy) bulkCopy.onclick = async () => {
+    const list = presenters.filter((p) => sel.has(p.id)).map((p) => p.email).join("; ");
+    try { await navigator.clipboard.writeText(list); toast(`Copied ${sel.size} address${sel.size === 1 ? "" : "es"}. Paste them into Outlook.`); }
+    catch { prompt("Copy these addresses:", list); }
+  };
+  const bulkClear = document.getElementById("pbulk-clear");
+  if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // The overview's to-do rows do the job right there, the same as on the home page.
   wireHomeConsole();
   ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = () => { const [eid, pid] = b.dataset.goreview.split("|"); view = { name: "review", eventId: eid, presenterId: pid }; render(); }; });

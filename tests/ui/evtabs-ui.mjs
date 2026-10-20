@@ -52,7 +52,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-overview-wide.png", fullPage: true }); else await p.screenshot({ path: D + "evtabs-overview-phone.png", fullPage: true });
 
   await p.locator('[data-tab="people"]').click(); await p.waitForTimeout(300);
-  ok(`${tag}: People shows the presenters, volunteers and who is coming`, (await shown(p)) === "people" && await p.locator('details[data-fold="sec-presenters"]').isVisible() && await p.locator('details[data-fold="sec-volunteers"]').isVisible());
+  ok(`${tag}: People shows the presenters, with a switch to the volunteers and who is coming`, (await shown(p)) === "people" && await p.locator('details[data-fold="sec-presenters"]').isVisible() && (await p.locator("[data-pseg]").count()) === 3);
   ok(`${tag}: the tab is in the address`, /tab%22%3A%22people|"tab":"people"/.test(decodeURIComponent(p.url())) || /people/.test(decodeURIComponent(p.url())), p.url());
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-people-wide.png" }); else await p.screenshot({ path: D + "evtabs-people-phone.png" });
   await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1200);

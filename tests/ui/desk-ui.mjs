@@ -44,7 +44,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: the failed send is kept in a red box`, /could not be sent/.test(await fold.innerText()));
 
   // Presenters were not touched.
-  ok(`${tag}: the presenter list still has just Dana, and no volunteer is among them`, (await page.locator('details[data-fold="sec-presenters"] .trow').count()) === 1);
+  ok(`${tag}: the presenter list still has just Dana, and no volunteer is among them`, (await page.locator('details[data-fold="sec-presenters"] tr.prow').count()) === 1);
 
   // The volunteer lead: picked from the board, saved at once, and it can be put back.
   ok(`${tag}: a Volunteer lead picker sits at the top, defaulting to the event lead`, await page.locator("#v-lead").count() === 1 && /Same as the event lead \(Andrew Hammond\)/.test(await page.locator("#v-lead option:checked").innerText()));

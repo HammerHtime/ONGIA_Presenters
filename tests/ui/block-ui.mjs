@@ -27,7 +27,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const open = async (first) => { await page.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await page.waitForTimeout(1200);
     await page.evaluate(() => { const bar = document.querySelector(".bar"); if (bar) bar.style.position = "static"; });
     const sec = page.locator('details[data-fold="sec-presenters"]'); if (!(await sec.evaluate((d) => d.open))) await sec.locator("summary").first().click();
-    await page.locator(".trow", { hasText: first }).locator("text=/Review|Open|View/").first().click().catch(async () => { await page.locator(".trow", { hasText: first }).click(); });
+    await page.locator("tr.prow", { hasText: first }).locator("text=/Review|Details/").first().click();
     await page.waitForTimeout(1200); };
   // Ann: wants a room
   await open("Ann");
