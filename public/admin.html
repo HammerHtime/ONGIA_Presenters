@@ -2922,9 +2922,10 @@ function eventScreen(data) {
       <div class="cardacts"><button class="mini ghost" id="readyhide">Hide this</button></div></div>
     <ul class="ready">${readyItems.map((x) => `<li class="${x.done ? "done" : ""}"><span class="pill ${x.done ? "done" : "wait"}">${x.done ? "Done" : "To do"}</span><span class="rw">${x.what}</span>${x.done ? "" : x.btn}</li>`).join("")}</ul></div>`;
   const overviewHtml = readyCard + (`${overdue.length ? `<div class="bad" style="margin:0 0 14px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}`)
-    + `<div class="evgrid"><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
+    // The left column is the to-do list and who does what; the right, what is coming. Two columns of about the same height.
+    + `<div class="evgrid"><div><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
         <div class="qlist">${todoHtml || `<div class="qempty">Nothing needs you on this event right now.</div>`}${Qev.waiting.length ? `<div class="qmailh">Waiting on them</div>${Qev.waiting.map(evQRow).join("")}` : ""}</div></div>
-      <div>${comingCard}${whoCard}</div></div>`
+      ${whoCard}</div><div>${comingCard}</div></div>`
     + checklistCard(ev, checklist);
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
