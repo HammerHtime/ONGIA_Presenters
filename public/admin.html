@@ -47,12 +47,14 @@
 
   .bar{background:var(--navy-deep);color:#fff;padding:13px 20px;display:flex;align-items:center;
        gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;
-       padding-top:calc(12px + env(safe-area-inset-top,0px))}
+       padding-top:calc(12px + env(safe-area-inset-top,0px));
+       /* The logo and the buttons line up with the page below (1040px wide, centred), not the screen's edges. */
+       padding-left:max(20px, calc((100% - 1040px) / 2));padding-right:max(20px, calc((100% - 1040px) / 2))}
   .bar .logo{height:28px;width:auto;display:block;flex:none}
   @media (max-width:480px){.bar .logo{height:23px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
   .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-  .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;
+  .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;white-space:nowrap;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
 
@@ -1228,7 +1230,7 @@ async function signInScreen(message) {
 
 /* ---------- events list ---------- */
 function listScreen(events, inbox = null) {
-  BARRIGHT.innerHTML = `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search presenters, volunteers, events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
+  BARRIGHT.innerHTML = `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search people and events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
   queueMicrotask(healthStrip);
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
