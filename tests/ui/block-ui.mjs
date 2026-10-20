@@ -44,6 +44,11 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await page.check('input[name="r-block"][value="master"]'); await page.waitForTimeout(200);
   ok(`${tag}: the choices look like round buttons, so the one picked shows its dot`, (await page.locator('input[name="r-block"]').first().evaluate((e) => getComputedStyle(e).appearance)) !== "none");
   await page.locator("#r-block").screenshot({ path: OUT + `block-picked-${tag}.png` });
+  await page.locator('input[name="r-block"][value="master"]').click(); await page.waitForTimeout(150);
+  ok(`${tag}: clicking the chosen one again clears it`, (await page.locator('input[name="r-block"]:checked').count()) === 0 && /not chosen yet/.test(await page.innerText("#readback")));
+  await page.locator('input[name="r-block"][value="own"]').click(); await page.waitForTimeout(100);
+  await page.locator('label:has(input[name="r-block"][value="master"])').click(); await page.waitForTimeout(150);
+  ok(`${tag}: and clicking the other switches to it (by its words too)`, (await page.locator('input[name="r-block"][value="master"]').isChecked()) && !(await page.locator('input[name="r-block"][value="own"]').isChecked()));
   ok(`${tag}: choosing updates the read-back`, /on ONGIA's master block/.test(await page.innerText("#readback")) && /accommodation \(master block\)/.test(await page.innerText("#readback")));
   await page.click("#approve"); await page.waitForTimeout(2500);
   ok(`${tag}: the confirm box repeats the choice`, /Hotel room: on ONGIA's master block/.test(confirmText), confirmText);

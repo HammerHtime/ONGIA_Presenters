@@ -6443,6 +6443,17 @@ function reviewScreen(data) {
   };
   ROOT.querySelectorAll("[data-cover]").forEach((c) => c.addEventListener("change", readback));
   ROOT.querySelectorAll('input[name="r-block"]').forEach((c) => c.addEventListener("change", readback));
+  // A second click on the chosen one clears it (Andrew 21 Oct 2026), so a wrong pick can be taken back, not only switched.
+  ROOT.querySelectorAll('input[name="r-block"]').forEach((c) => {
+    const was = () => { c.dataset.was = c.checked ? "1" : ""; };
+    c.addEventListener("pointerdown", was);
+    c.closest("label")?.addEventListener("pointerdown", was);
+    c.addEventListener("keydown", (e) => { if (e.key === " ") was(); });
+    c.addEventListener("click", () => {
+      if (c.dataset.was === "1") { c.checked = false; c.dispatchEvent(new Event("change", { bubbles: true })); }
+      c.dataset.was = "";
+    });
+  });
   ROOT.querySelectorAll("#r-tf, #r-tt, #r-hf, #r-ht").forEach((d) => d.addEventListener("change", readback));
   readback();
 
