@@ -10,7 +10,8 @@ import { tokensMatch } from "./ids.mjs";
  *   MS_TENANT_ID          ONGIA's Microsoft 365 tenant (already set for email)
  *   MS_SIGNIN_CLIENT_ID   the "ONGIA Events desk sign-in" app registration
  *   DESK_OWNERS           who can never be locked out and who alone decides who
- *                         else may sign in (default president@ongia.ca)
+ *                         else may sign in (default president@ongia.ca; the VP,
+ *                         COSTING_USERS, has the same access)
  *
  * The shared ADMIN_KEY stays: background jobs call each other with it, and it
  * signs the sessions. Retiring it for people means changing it to a long random
@@ -26,8 +27,13 @@ export function signinConfig() {
   return { authority: `${AUTHORITY()}/${tenant}`, client };
 }
 
-export const deskOwners = () =>
-  String(process.env.DESK_OWNERS || "president@ongia.ca").split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+/**
+ * The desk's owners: the president, and the VP of operations, who has the same access (Andrew, 20 Oct 2026). Both can
+ * never be locked out, decide who else may sign in, and see the backups. DESK_OWNERS replaces the president's
+ * address and COSTING_USERS the VP's, the same setting that gives the VP the costing.
+ */
+const list = (v) => String(v).split(/[,\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
+export const deskOwners = () => [...new Set([...list(process.env.DESK_OWNERS || "president@ongia.ca"), ...list(process.env.COSTING_USERS || "vp_operations@ongia.ca")])];
 
 export const isOwner = (email) => deskOwners().includes(String(email ?? "").toLowerCase());
 

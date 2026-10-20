@@ -5913,18 +5913,19 @@ function deliveryMarkup(d = {}) {
 
 /* ---------- Back: every screen is a step in the browser's history ---------- */
 let NAV_POP = false, NAV_FIRST = true;
-const viewHash = (v) => "#v=" + encodeURIComponent(JSON.stringify(v, (k, x) => (x !== null && typeof x === "object" && k !== "" ? undefined : x)));
+// The home page keeps a plain address; every other screen carries itself in the hash.
+const viewHash = (v) => v.name === "list" ? "" : "#v=" + encodeURIComponent(JSON.stringify(v, (k, x) => (x !== null && typeof x === "object" && k !== "" ? undefined : x)));
 const parseViewHash = (h) => { if (!String(h).startsWith("#v=")) return null; try { const v = JSON.parse(decodeURIComponent(h.slice(3))); return v && typeof v.name === "string" ? v : null; } catch { return null; } };
 function syncHistory() {
   const h = viewHash(view);
   if (NAV_POP) { NAV_POP = false; return; }
-  if (location.hash === h) return;
+  if (location.hash === h) { NAV_FIRST = false; return; }
   // The first screen replaces the entry the page opened with; every later one is a new step.
   try { (NAV_FIRST ? history.replaceState : history.pushState).call(history, null, "", location.pathname + location.search + h); } catch { /* a sandboxed frame has no history */ }
   NAV_FIRST = false;
 }
 window.addEventListener("popstate", () => {
-  const v = parseViewHash(location.hash);
+  const v = parseViewHash(location.hash) ?? (location.hash === "" ? { name: "list" } : null);
   if (!v) return;
   view = v; NAV_POP = true; render();
 });
