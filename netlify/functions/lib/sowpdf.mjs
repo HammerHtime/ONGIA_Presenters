@@ -26,6 +26,15 @@ const AMOUNT_W = 120;
 const cad = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmt = (v) => (v ? formatDate(v) : "");
 
+/** "ONGIA RBH-2026-001", or "ONGIA National Gang Summit" when there is no number: a long name loses its subtitle, then is cut at a word. */
+export function pdfTitle(event, sow) {
+  const number = String(sow?.invoice?.number ?? "").trim();
+  if (number) return `ONGIA ${number}`;
+  let name = String(event?.title ?? "").trim().split(/\s*[:–—]\s*|\s+-\s+/)[0] || "Statement of Work";
+  if (name.length > 48) name = `${name.slice(0, 48).replace(/\s+\S*$/, "")}…`;
+  return `ONGIA ${name}`;
+}
+
 /** `kind` is "sow" or "invoice". Resolves to a Buffer. */
 export async function buildSowPdf({ event, sow, kind = "sow" }) {
   const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
@@ -33,7 +42,12 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
   const t = totals(sow, which);
   const amount = new Map(t.lines.map((l) => [l.id, l.amount]));
 
-  const doc = new PDFDocument({ size: "LETTER", margin: 0, info: { Title: `${kind === "invoice" ? "Invoice" : "Statement of Work"} ${sow.invoice?.number ?? ""}`, Author: "ONGIA" } });
+  // The title a PDF viewer shows in its tab and offers when saving: "ONGIA" and the invoice number, or the event's name
+  // (shortened) if there is no number yet (Andrew 21 Oct 2026). displayTitle makes viewers show it instead of "unknown".
+  const doc = new PDFDocument({ size: "LETTER", margin: 0, displayTitle: true, info: {
+    Title: pdfTitle(event, sow), Author: "ONGIA",
+    Subject: `${kind === "invoice" ? "Invoice" : "Statement of Work"} · ${event.title ?? ""}`,
+  } });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
   const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
