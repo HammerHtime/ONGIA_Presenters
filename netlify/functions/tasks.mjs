@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, putMeta } from "./lib/store.mjs";
 import { taskTemplate, checklistOf, syncToTemplate, behindTemplate } from "./lib/checklist.mjs";
 import { fitsTitle } from "./lib/titles.mjs";
@@ -64,6 +64,7 @@ export default async (req) => {
   if (!eventId) return fail("Which event?");
   const event = await getEvent(eventId);
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
   event.tasks ??= [];
 
   if (req.method === "GET") return json(await list(event));

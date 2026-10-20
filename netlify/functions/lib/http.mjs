@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { tokensMatch } from "./ids.mjs";
-import { readSession } from "./auth.mjs";
+import { readSession, mayEditEvent, VIEW_ONLY } from "./auth.mjs";
 /** Small helpers so every function answers in the same shape. */
 
 export const json = (body, status = 200) =>
@@ -53,3 +53,8 @@ export function fileName(header, fallback) {
 }
 
 export const isEmail = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value ?? "").trim());
+
+/** Refuse a change to an event from someone who may only look at it (see mayEditEvent). Null when allowed. */
+export function editGuard(req, event) {
+  return mayEditEvent(adminWho(req), event) ? null : fail(VIEW_ONLY, 403);
+}

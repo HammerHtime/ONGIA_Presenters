@@ -146,3 +146,22 @@ export async function verifyIdToken(idToken, nonce, now = Date.now()) {
 
 /** For tests: forget the cached Microsoft keys. */
 export const resetAuthCache = () => { METADATA = null; };
+
+/**
+ * Who may change an event (Andrew, 20 Oct 2026): its own board members (the lead and the others attached to it), and the
+ * president and the VP on every event. Every other board member who can sign in sees the event but cannot change it.
+ * The same people may approve and sign a presenter's or a volunteer's agreement on it.
+ */
+export const onEventBoard = (who, event) => !!who?.email && (event?.board ?? []).some((m) => String(m.email ?? "").toLowerCase() === String(who.email).toLowerCase());
+export const mayEditEvent = (who, event) => who?.key === true || mayCost(who) || onEventBoard(who, event);
+export const VIEW_ONLY = "You can look at this event, but only its own board members, the president and the VP of operations can change it.";
+
+/**
+ * The person signing an approval: whoever is signed in with their Microsoft account, never a name typed in a box
+ * (audit F01, 20 Oct 2026). Only the shared desk key, which no person uses any more, still names itself.
+ */
+export function signerOf(who, typedName = "") {
+  if (who?.key === true) { const name = String(typedName ?? "").trim().slice(0, 120); return name ? { name, email: "", via: "desk key" } : null; }
+  const name = String(who?.name || who?.email || "").trim().slice(0, 120);
+  return name ? { name, email: String(who.email ?? "").toLowerCase(), via: "Microsoft sign-in" } : null;
+}

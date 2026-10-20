@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, isEmail, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, isEmail, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters, listVolunteers, getRoster } from "./lib/store.mjs";
 import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, onBoard, typeOf } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
@@ -28,6 +28,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
   const body = ["POST", "PUT"].includes(req.method) ? await req.json().catch(() => ({})) : null;
   // The board roster's names: anyone on it is always ONGIA's to pay for.
   const board = ((await getRoster()) ?? []).map((m) => m.name).filter(Boolean);

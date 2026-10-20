@@ -22,7 +22,7 @@
   :root{
     color-scheme:light;
     --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2; --sand:#e9e4d8;
-    --ink:#12161f; --ink-mid:#2c3448; --muted:#767f92;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#596176;
     --navy:#1a2f5e; --navy-deep:#0e1a35;
     --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
     --border:#ddd7c8; --hair:rgba(18,22,31,.10);
@@ -714,6 +714,7 @@
   #netpill.on{display:flex} #netpill::before{content:"";width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:wspin .7s linear infinite}
   @media (prefers-reduced-motion:reduce){#netbar{animation:none;background:var(--gold,#c9a84c)}.working::after,#netpill::before{animation-duration:2s}}
   .healthwrap{margin:0 0 16px}
+  .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
   .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:44px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .pastrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer} .pastrow:first-child{border-top:0} .pastrow:hover b{text-decoration:underline} .pastrow .porg{white-space:nowrap} .pastrow .s{font-size:13px;color:var(--muted);margin-top:2px}
   #backupline{margin-top:8px} #backupline .hstrip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap} #backupline .bkact{display:flex;gap:8px;align-items:center}
@@ -883,6 +884,9 @@ const todayIso = (now = new Date()) => {
 const SPONSORS_ON = false;
 
 /* ---------- feedback: a click is acknowledged, and the page says when it is working ---------- */
+// Every request the desk makes to its own server goes through apiFetch (and api() below), which is what drives the
+// working indicators. The browser's own fetch is left alone.
+let apiFetch = (...args) => fetch(...args);
 {
   const bar = document.createElement("div"); bar.id = "netbar"; bar.setAttribute("aria-hidden", "true");
   const pill = document.createElement("div"); pill.id = "netpill"; pill.setAttribute("role", "status"); pill.textContent = "Working…";
@@ -900,13 +904,10 @@ const SPONSORS_ON = false;
       if (lastBtn && lastBtn.isConnected && !startedFor && Date.now() - lastAt < 800) { startedFor = lastBtn; lastBtn.classList.add("working"); }
     } else settle();
   };
-  const realFetch = window.fetch.bind(window);
-  window.fetch = async (...args) => {
-    const url = String(args[0]?.url ?? args[0] ?? "");
-    const track = url.includes("/api/");
-    if (track) { inflight++; update(); }
-    try { return await realFetch(...args); }
-    finally { if (track) { inflight--; update(); } }
+  apiFetch = async (...args) => {
+    inflight++; update();
+    try { return await fetch(...args); }
+    finally { inflight--; update(); }
   };
   document.addEventListener("click", (e) => {
     const b = e.target.closest?.("button, .btn, label.btn, .chip");
@@ -921,7 +922,7 @@ let view = { name: "list", eventId: null };
 let busy = false;
 
 async function api(path, options = {}) {
-  const res = await fetch(`/api${path}`, {
+  const res = await apiFetch(`/api${path}`, {
     ...options,
     headers: { "content-type": "application/json", "x-admin-key": KEY, ...(options.headers ?? {}) },
   });
@@ -1059,7 +1060,8 @@ function listScreen(events, inbox = null) {
   const upcoming = events.filter((ev) => !isPast(ev));
   const past = events.filter(isPast).sort((a, b) => (b.lastDay || b.dayOne || "").localeCompare(a.lastDay || a.dayOne || ""));
   ROOT.innerHTML = `<div class="healthwrap" id="health"><div class="hstrip">Checking email and SharePoint…</div></div>`
-    + needsCard(events, inbox)
+    // Work only for the events you can act on; the rest are view only.
+    + needsCard(events.filter((e) => e.canEdit !== false), inbox)
     + homeInboxCard(events, inbox) + (inbox?.connected ? inboxDialogs() : "")
     + (upcoming.length ? "" : `<div class="card"><div class="empty"><p>No upcoming events.</p><div class="actions" style="justify-content:center"><button class="btn btn-gold" id="first">Create an event</button></div></div></div>`)
     + upcoming.map((ev) => {
@@ -2514,6 +2516,7 @@ function eventScreen(data) {
   if (shOff) shOff.onclick = async () => { try { await api(`/sheetcheck?event=${encodeURIComponent(ev.id)}&enable=0`, { method: "PUT" }); toast("Logistics sheet check is off for this event."); render(); } catch (e) { toast(e.message); } };
   if (sow) wireSow(ev, sow);
   wireRbhOffer(ev);
+  if (data.canEdit === false) makeViewOnly("This event is view only for you. Its own board members, the president and the VP of operations can change it.");
   if (receipts) wireReceipts(ev, receipts);
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
@@ -2542,7 +2545,7 @@ function eventScreen(data) {
       b.disabled = true; b.textContent = "Filing…";
       try {
         const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.refile)}&action=redeliver`, { method: "POST", body: JSON.stringify({ all: false }) });
-        toast(out.presenter?.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.presenter?.delivery?.filing?.error ?? "unknown"}`);
+        toast(out.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.delivery?.filing?.error ?? out.delivery?.filing?.reason ?? "unknown"}`);
         render();
       } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Retry filing"; }
     };
@@ -3082,6 +3085,16 @@ function wireRbhOffer(ev) {
 
 /** The invoice prefix an RBH event starts with (the same rule as sow.mjs): ITP for the ITP trainings, CFAOC for the forum, RBH for the rest. */
 const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP" : /organi[sz]ed crime|\bCFAOC\b/i.test(title) ? "CFAOC" : "RBH";
+/**
+ * A board member who isn't attached to an event may look but not change (the server refuses changes too): every
+ * control on the page is switched off, and a line at the top says why. Folding sections open and shut still works.
+ */
+function makeViewOnly(why) {
+  ROOT.classList.add("ro");
+  ROOT.querySelectorAll("button, input, select, textarea").forEach((el) => { el.disabled = true; el.title = why; });
+  ROOT.insertAdjacentHTML("afterbegin", `<div class="note viewonly" role="status" style="margin:0 0 14px"><b>View only.</b> ${esc(why.replace(/^This event is view only for you\. /, ""))}</div>`);
+}
+
 /** Provinces and territories, for the RBH event's tax. */
 const PROVINCE_NAMES = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", NT: "Northwest Territories", NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan", YT: "Yukon" };
 const SOW_STATUSES = [["draft", "Draft"], ["submitted", "Sent to RBH"], ["approved", "Approved"], ["invoiced", "Invoiced"], ["paid", "Paid"]];
@@ -3284,7 +3297,7 @@ function wireSow(ev, S) {
   const pdf = (kind) => guard(async () => {
     if (dirty) await save(true);
     if (kind === "invoice" && over().over && !String(sow.increaseReason ?? "").trim() && !confirm(`The invoice is ${over().pct}% over the statement of work and has no explanation for RBH yet. Make the PDF anyway?`)) return;
-    const res = await fetch(`/api${q}&doc=${kind}`, { headers: { "x-admin-key": KEY } });
+    const res = await apiFetch(`/api${q}&doc=${kind}`, { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
     window.open(URL.createObjectURL(await res.blob()), "_blank");
   });
@@ -3356,7 +3369,7 @@ function wireReceipts(ev, R0) {
 
   const fileBlob = async (id) => {
     if (urls[id]) return urls[id];
-    const res = await fetch(`/api${q}&file=${encodeURIComponent(id)}`, { headers: { "x-admin-key": KEY } });
+    const res = await apiFetch(`/api${q}&file=${encodeURIComponent(id)}`, { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error("Couldn't open the file.");
     return (urls[id] = URL.createObjectURL(await res.blob()));
   };
@@ -3478,7 +3491,7 @@ function wireReceipts(ev, R0) {
       if (said) said.textContent = `Sending ${f.name}…`;
       const out = await shrinkImage(f);
       if (out.size > 5 * 1024 * 1024) { toast(`${f.name} is over 5 MB. Take it again at a lower size, or save a smaller PDF.`); continue; }
-      const res = await fetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "x-file-name": encodeURIComponent(out.name) }, body: out });
+      const res = await apiFetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "x-file-name": encodeURIComponent(out.name) }, body: out });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) { toast(j.error ?? `Upload failed (${res.status})`); continue; }
       R = j; draw();
@@ -3766,7 +3779,7 @@ function wireRooming(ev, R) {
   const csv = document.getElementById("rm-csv");
   if (csv) csv.onclick = async () => {
     try {
-      const res = await fetch(`/api${q}&csv=1&keys=${encodeURIComponent(keys().join(","))}`, { headers: { "x-admin-key": KEY } });
+      const res = await apiFetch(`/api${q}&csv=1&keys=${encodeURIComponent(keys().join(","))}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
       const url = URL.createObjectURL(await res.blob());
       const a = Object.assign(document.createElement("a"), { href: url, download: `rooming-list-${ev.title.replace(/[^\w]+/g, "-").toLowerCase()}.csv` });
@@ -4333,7 +4346,7 @@ function wireAgenda(ev, A) {
       if (!f) return;
       up.disabled = true; up.textContent = "Uploading…";
       try {
-        const res = await fetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
+        const res = await apiFetch(`/api${q}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
         const out = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
         render();
@@ -4344,7 +4357,7 @@ function wireAgenda(ev, A) {
   if (open) open.onclick = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
+      const res = await apiFetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The agenda could not be opened.");
       window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
     } catch (err) { toast(err.message); }
@@ -4862,8 +4875,8 @@ function volunteerDialogs() {
             <div class="field"><label for="vr-pays">Who pays</label><select id="vr-pays"><option value="ONGIA">ONGIA</option><option value="Guest">The volunteer</option></select></div>
             <p class="hint" id="vr-sum"></p>
           </div>
-          <div class="field"><label for="vr-name">Your name <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(this is your signature on the final copy)</span></label>
-            <input id="vr-name" autocomplete="name"></div>
+          <div class="field"><label for="vr-name">${WHO?.email ? "Signing as" : "Your name"} <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(this is your signature on the final copy)</span></label>
+            <input id="vr-name" autocomplete="name"${WHO?.email ? ` value="${esc(WHO.name || WHO.email)}" readonly aria-readonly="true" style="background:var(--sunk)"` : ""}></div>
           <div id="vr-err"></div>
           <div class="actions" style="margin-top:18px;flex-wrap:wrap">
             <button class="btn btn-gold" type="button" id="vr-go" disabled>Approve and send the final copy</button>
@@ -4969,7 +4982,7 @@ function wireVolunteers(ev, V) {
   ROOT.querySelectorAll("[data-vpdf]").forEach((b) => {
     b.onclick = async () => {
       try {
-        const res = await fetch(`/api/volunteers?${q}&id=${encodeURIComponent(b.dataset.vpdf)}&pdf=1`, { headers: { "x-admin-key": KEY } });
+        const res = await apiFetch(`/api/volunteers?${q}&id=${encodeURIComponent(b.dataset.vpdf)}&pdf=1`, { headers: { "x-admin-key": KEY } });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
         const url = URL.createObjectURL(await res.blob());
         window.open(url, "_blank");
@@ -5008,7 +5021,7 @@ function wireVolunteers(ev, V) {
       document.querySelectorAll("#vr-need button").forEach((x) => x.setAttribute("aria-pressed", "false"));
       vrIn.innerHTML = guestDays(ROOMING?.window, "in", ev); vrOut.innerHTML = guestDays(ROOMING?.window, "out", ev);
       document.getElementById("vr-pays").value = "ONGIA";
-      vrName.value = WHO?.name ?? ""; document.getElementById("vr-err").innerHTML = "";
+      vrName.value = WHO?.name || WHO?.email || ""; document.getElementById("vr-err").innerHTML = "";
       vrCheck(); vr.showModal();
     };
   });
@@ -5585,7 +5598,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
         if (what === "again") { try { draw(await api(`${q}&again=1`, { method: "POST" })); } catch (err) { toast(err.message); } }
         if (what === "open") {
           try {
-            const res = await fetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
+            const res = await apiFetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Could not open it (${res.status})`);
             const url = URL.createObjectURL(await res.blob());
             window.open(url, "_blank");
@@ -5601,7 +5614,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
 /** Fetch with the admin header, then open — a plain link can't carry the key. */
 async function openPdf(eventId, presenterId, preview = false) {
   try {
-    const res = await fetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1${preview ? "&preview=1" : ""}`,
+    const res = await apiFetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1${preview ? "&preview=1" : ""}`,
       { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
     const url = URL.createObjectURL(await res.blob());
@@ -5721,14 +5734,17 @@ function reviewScreen(data) {
         <textarea id="r-note" placeholder="Per board discussion 3 Dec…"></textarea>
         <p class="hint">Optional. Kept on the record; the presenter never sees it.</p></div>
       <div class="row2">
-        <div class="field"><label for="r-name">Your name</label><input id="r-name" value="${esc(sessionStorage.getItem("ongia-approver") || ev.reviewer?.name || "")}" placeholder="Andrew Hammond">
-          <p class="hint">This is your signature on the agreement.</p></div>
+        <div class="field"><label for="r-name">Signing as</label>${data.signer
+          ? `<input id="r-name" value="${esc(data.signer.name)}" readonly aria-readonly="true" style="background:var(--sunk)">
+          <p class="hint">Your signature on the agreement is you, as signed in (${esc(data.signer.email)}). Someone else signs by signing in as themselves.</p>`
+          : `<input id="r-name" value="${esc(sessionStorage.getItem("ongia-approver") || ev.reviewer?.name || "")}" placeholder="Andrew Hammond">
+          <p class="hint">This is your signature on the agreement.</p>`}</div>
         <div class="field"><label for="r-role">Title / role</label><input id="r-role" value="${esc(sessionStorage.getItem("ongia-approver-role") ?? "")}" placeholder="President, ONGIA"></div>
       </div>
       <div class="readback" id="readback"></div>
       <div class="sigbox" id="sigline">&nbsp;</div>
       ${!ev.reviewer?.name && !ev.contact?.name ? `<div class="note">This event has no lead board member, so the PDF will show you as the ONGIA contact, reached through the speakers mailbox. To name someone else, edit the event and pick a lead first.</div>` : ""}
-      <label class="attest"><input type="checkbox" id="r-attest"><span>My typed name is my electronic signature. Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
+      <label class="attest"><input type="checkbox" id="r-attest"><span>${data.signer ? `Signing as ${esc(data.signer.name)} is my electronic signature.` : "My typed name is my electronic signature."} Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button>
         <button class="btn btn-ghost" id="preview">Preview the agreement</button></div>
@@ -5741,12 +5757,13 @@ function reviewScreen(data) {
     </div></div>`;
 
   ROOT.innerHTML = submission + (s.talk || approved ? decision : "");
+  if (data.canEdit === false) queueMicrotask(() => makeViewOnly("This agreement is view only for you. It is approved and signed by the event's own board members, the president or the VP of operations."));
   if (!s.talk && !approved) return;
 
   // An <img src> cannot carry the admin header, so fetch it and hand over a blob.
   const shotImg = document.getElementById("shot-img");
   if (shotImg) {
-    fetch(`/api/headshot?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { headers: { "x-admin-key": KEY } })
+    apiFetch(`/api/headshot?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}`, { headers: { "x-admin-key": KEY } })
       .then((res) => (res.ok ? res.blob() : Promise.reject(new Error("no image"))))
       .then((blob) => { shotImg.src = URL.createObjectURL(blob); })
       .catch(() => { shotImg.remove(); });
@@ -5934,6 +5951,7 @@ window.addEventListener("popstate", () => {
 async function render() {
   if (!KEY) return signInScreen();
   syncHistory();
+  ROOT.classList.remove("ro");   // a view-only page's dimming goes with it
   whoami();
   try {
     if (view.name === "new") { await Promise.all([loadRoster(), loadLetterChoices()]); return eventFormScreen(); }

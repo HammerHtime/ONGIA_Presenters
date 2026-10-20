@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
 import { wixConfigured, wixHealth, listWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
@@ -33,6 +33,7 @@ export default async (req) => {
   if (req.method === "PUT") {
     const event = await getEvent(url.searchParams.get("event"));
     if (!event) return fail("No such event.", 404);
+    const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
     if (url.searchParams.get("unlink")) return unlink(event);
     return link(event, text(url.searchParams.get("link"), 80));
   }
@@ -41,6 +42,7 @@ export default async (req) => {
     if (url.searchParams.get("import")) return importEvent(text(url.searchParams.get("import"), 80));
     const event = await getEvent(url.searchParams.get("event"));
     if (!event) return fail("No such event.", 404);
+    const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
     return syncOne(event);
   }
   return fail("Method not allowed.", 405);

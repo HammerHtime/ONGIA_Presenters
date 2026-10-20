@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, fileName, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, fileName, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, putAgenda, getAgenda, getAgendaRead, putAgendaRead, deleteKey } from "./lib/store.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 import { cleanSchedule, trainingDays } from "./lib/agenda.mjs";
@@ -28,6 +28,7 @@ export default async (req) => {
   if (!eventId) return fail("Which event?");
   const event = await getEvent(eventId);
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
 
   if (req.method === "GET") {
     if (url.searchParams.get("file")) {

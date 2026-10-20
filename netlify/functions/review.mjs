@@ -1,4 +1,5 @@
-import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
+import { mayEditEvent, signerOf, VIEW_ONLY } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, getPresenter, putPresenter, putPdf, getPdf, getHeadshot } from "./lib/store.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
@@ -28,33 +29,39 @@ export default async (req) => {
   const [event, presenter] = await Promise.all([getEvent(eventId), getPresenter(eventId, presenterId)]);
   if (!event || !presenter) return fail("No such presenter on that event.", 404);
 
-  if (req.method === "GET") return show(event, presenter);
+  if (req.method === "GET") return show(event, presenter, adminWho(req));
   if (req.method !== "POST") return fail("Method not allowed.", 405);
 
+  // Approving, sending back and refiling are for the event's own board members, the president and the VP.
+  const who = adminWho(req);
+  if (!mayEditEvent(who, event)) return fail(VIEW_ONLY, 403);
   const body = (await req.json().catch(() => null)) ?? {};
   const origin = siteUrl(req);
   switch (url.searchParams.get("action")) {
-    case "approve": return approve(event, presenter, body, origin);
-    case "return": return sendBack(event, presenter, body, origin);
+    case "approve": return approve(event, presenter, body, origin, who);
+    case "return": return sendBack(event, presenter, body, origin, who);
     case "redeliver": return redeliver(event, presenter, body, origin);
     default: return fail("action must be approve, return or redeliver.");
   }
 };
 
-async function show(event, presenter) {
+async function show(event, presenter, who = { key: true }) {
   const headshot = await getHeadshot(event.id, presenter.id);
   return json({
     event: describeEvent(event),
     presenter,
     headshot: headshot ? { name: headshot.name, type: headshot.type, size: headshot.bytes.byteLength } : null,
     pdfReady: presenter.status === "approved",
+    canEdit: mayEditEvent(who, event),
+    // Who will sign: the signed-in person (the desk key, which no person uses any more, types a name).
+    signer: who.key === true ? null : { name: who.name || who.email, email: who.email },
   });
 }
 
 const COST_KEYS = ["transport", "hotel", "meals", "other"];
 const COST_LABELS = { transport: "transportation", hotel: "accommodation", meals: "meals", other: "other costs" };
 
-async function approve(event, presenter, body, origin) {
+async function approve(event, presenter, body, origin, who) {
   if (presenter.status !== "submitted" && presenter.status !== "returned") {
     return fail(
       presenter.status === "approved"
@@ -63,9 +70,11 @@ async function approve(event, presenter, body, origin) {
       409
     );
   }
-  const approverName = text(body.approverName, 120);
+  // The signature is the signed-in person, not a name typed in a box.
+  const signer = signerOf(who, body.approverName);
+  if (!signer) return fail("The approving board member's name is required — it is the signature.");
+  const approverName = signer.name;
   const approverRole = text(body.approverRole, 120);
-  if (!approverName) return fail("The approving board member's name is required — it is the signature.");
   if (body.attest !== true) return fail("Please confirm the electronic signature.");
 
   const ongiaCovers = {};
@@ -103,7 +112,7 @@ async function approve(event, presenter, body, origin) {
     hotel: dates.hotel,
     otherText: text(body.otherText, 200),
     note: text(body.note, 2000),
-    approver: { name: approverName, role: approverRole },
+    approver: { name: approverName, role: approverRole, email: signer.email, via: signer.via },
     approvedAt: now,
   };
   presenter.status = "approved";
@@ -124,7 +133,7 @@ async function approve(event, presenter, body, origin) {
   return json({ ok: true, presenter, delivery: presenter.delivery });
 }
 
-async function sendBack(event, presenter, body, origin) {
+async function sendBack(event, presenter, body, origin, who) {
   if (presenter.status === "approved") return fail("Already approved; it can't be returned.", 409);
   if (presenter.status !== "submitted" && presenter.status !== "returned") {
     return fail("The presenter hasn't submitted yet, so there is nothing to send back.", 409);
@@ -136,7 +145,7 @@ async function sendBack(event, presenter, body, origin) {
   presenter.review = {
     ...(presenter.review ?? {}),
     returnNote: note,
-    returnedBy: text(body.approverName, 120),
+    returnedBy: signerOf(who, body.approverName)?.name ?? "",
     returnedAt: new Date().toISOString(),
   };
   const link = `${origin}/a/${presenter.token}`;

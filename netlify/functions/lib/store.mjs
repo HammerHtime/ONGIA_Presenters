@@ -26,18 +26,49 @@ import { todayIso } from "./deadlines.mjs";
  */
 const store = () => getStore({ name: "ongia-agreements", consistency: "strong" });
 
-const read = async (key) => (await store().get(key, { type: "json" })) ?? null;
+const SNAP = "__asRead";
+/** Remember how a record looked when it was read (out of sight: not saved, not copied by a spread). */
+const remember = (obj, json = JSON.stringify(obj)) => {
+  if (obj && typeof obj === "object") Object.defineProperty(obj, SNAP, { value: json, enumerable: false, configurable: true, writable: true });
+  return obj;
+};
+const read = async (key) => remember((await store().get(key, { type: "json" })) ?? null);
 const write = (key, value) => store().setJSON(key, value);
 
+/**
+ * Saving a record that someone else (a person, or the morning run) changed after it was read: rather than writing the
+ * whole stale copy over theirs, only the fields this writer changed are laid onto the latest version (audit F04,
+ * 20 Oct 2026). So the morning reminder run noting an email cannot undo an approval made while it was sending, and
+ * two people editing different parts of an event both keep their changes. A record read without the snapshot (a copy
+ * made with a spread, or a new record) is simply written, as before.
+ */
+export async function writeMerged(key, value) {
+  const asRead = value?.[SNAP];
+  if (!asRead) { await write(key, value); return remember(value); }
+  const current = await store().get(key, { type: "json" });
+  if (!current || JSON.stringify(current) === asRead) { await write(key, value); return remember(value); }
+  const before = JSON.parse(asRead);
+  const merged = { ...current };
+  for (const k of new Set([...Object.keys(before), ...Object.keys(value)])) {
+    if (JSON.stringify(before[k]) === JSON.stringify(value[k])) continue;      // not changed by this writer: keep theirs
+    if (value[k] === undefined) delete merged[k]; else merged[k] = value[k];
+  }
+  await write(key, merged);
+  for (const k of Object.keys(value)) if (!(k in merged)) delete value[k];
+  Object.assign(value, merged);           // the caller carries on with the record as it now stands
+  return remember(value);
+}
+
 export async function putEvent(event) {
-  await write(`event:${event.id}`, event);
+  await writeMerged(`event:${event.id}`, event);
   return event;
 }
 
 export const getEvent = async (id) => {
   const event = await read(`event:${id}`);
   if (!event) return event;
-  return withLead(event, (await getRoster()) ?? []);
+  // The lead's contact is reconciled into a copy; it keeps the snapshot of the record as read.
+  return remember(withLead(event, (await getRoster()) ?? []), event[SNAP]);
 };
 
 export async function listEvents() {
@@ -50,7 +81,7 @@ export async function listEvents() {
   const over = (e) => String(e.lastDay || e.dayOne) < today;
   return events
     .filter(Boolean)
-    .map((e) => withLead(e, roster))
+    .map((e) => remember(withLead(e, roster), e[SNAP]))
     .sort((a, b) => {
       if (over(a) !== over(b)) return over(a) ? 1 : -1;
       const cmp = String(a.dayOne).localeCompare(String(b.dayOne));
@@ -83,7 +114,7 @@ function withLead(event, roster) {
 }
 
 export async function putPresenter(presenter) {
-  await write(`presenter:${presenter.eventId}:${presenter.id}`, presenter);
+  await writeMerged(`presenter:${presenter.eventId}:${presenter.id}`, presenter);
   if (presenter.token) {
     await write(`token:${presenter.token}`, {
       eventId: presenter.eventId,
@@ -101,7 +132,7 @@ export const getPresenter = (eventId, id) => read(`presenter:${eventId}:${id}`);
 // presenter counts, reminders or rooming rows can pick one up by accident.
 
 export async function putVolunteer(volunteer) {
-  await write(`volunteer:${volunteer.eventId}:${volunteer.id}`, volunteer);
+  await writeMerged(`volunteer:${volunteer.eventId}:${volunteer.id}`, volunteer);
   if (volunteer.token) await write(`vtoken:${volunteer.token}`, { eventId: volunteer.eventId, volunteerId: volunteer.id });
   return volunteer;
 }

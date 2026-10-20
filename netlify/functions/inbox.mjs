@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text, editGuard } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { withoutOffers } from "./lib/sow.mjs";
 import { getEvent, getInbox, putInbox, getMeta, putMeta } from "./lib/store.mjs";
@@ -36,6 +36,7 @@ export default async (req) => {
     return json(out);
   }
 
+  if (eventId !== UNFILED) { const viewOnly = editGuard(req, await getEvent(eventId)); if (viewOnly) return viewOnly; }
   const body = await req.json().catch(() => ({}));
   const box = (await getInbox(eventId)) ?? { items: [] };
 

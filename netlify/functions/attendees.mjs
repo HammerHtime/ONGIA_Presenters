@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, text } from "./lib/http.mjs";
+import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
 import { readCsv, merge, tally, writeableTo } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
@@ -28,6 +28,7 @@ export default async (req) => {
   if (!eventId) return fail("Which event?");
   const event = await getEvent(eventId);
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
 
   if (req.method === "GET") return json(await show(event));
   if (req.method === "POST") {

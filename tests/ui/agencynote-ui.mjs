@@ -1,0 +1,40 @@
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
+const OUT = new URL(".", import.meta.url).pathname;
+const S = "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
+const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
+let pass = 0, fail = 0;
+const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
+const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: "Western Symposium", city: "Victoria", venue: "V", dayOne: "2026-11-09", lastDay: "2026-11-12", invite: false,
+  board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }], presenters: [{ first: "Dana", last: "Test", email: "dana@example.ca", organization: "Test Police" }] }) })).event;
+const p = (await api(`/api/events?id=${ev.id}`)).presenters[0];
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
+  const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+  const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
+  await page.goto(`${S}/a/${p.token}`, { waitUntil: "networkidle" }); await page.waitForTimeout(800);
+  const next = async () => { await page.click("#next"); await page.waitForTimeout(400); };
+  await next(); await page.fill("#f-phone", "416-555-0100"); await next();
+  await page.fill("#f-talk", "X"); await page.fill("#f-bio", "word ".repeat(40)); await page.fill("#f-outline", "An outline of the talk."); await next();
+  ok(`${tag}: on the travel and hotel step`, await page.locator("#q-hotel").count() === 1);
+  await page.click('[data-set="hotel"][data-val="yes"]'); await page.waitForTimeout(300);
+  ok(`${tag}: saying yes to a room shows the check-in and check-out`, await page.locator("#f-hf").count() === 1 && await page.locator("#f-ht").count() === 1);
+  ok(`${tag}: no note before the agency question is answered`, await page.locator("#hotel-agency-note").count() === 0);
+  await page.click('[data-path="expenses.hotel"][data-val="no"]'); await page.waitForTimeout(250);
+  ok(`${tag}: answering no gives no note`, await page.locator("#hotel-agency-note").count() === 0);
+  await page.click('[data-path="expenses.hotel"][data-val="yes"]'); await page.waitForTimeout(250);
+  const note = page.locator("#hotel-agency-note");
+  ok(`${tag}: answering yes shows the note, under the question`, await note.count() === 1 && /^ONGIA will make the hotel reservation on your behalf, and you will pay the hotel when you check out\.$/.test((await note.innerText()).trim()) && !/reimburse/i.test(await note.innerText()));
+  ok(`${tag}: it is bold and red`, await note.evaluate((e) => getComputedStyle(e).fontWeight >= 700 && /rgb\(143, 45, 28\)/.test(getComputedStyle(e).color)));
+  ok(`${tag}: the date fields are still there and not greyed out`, await page.locator("#f-hf").count() === 1 && await page.locator("#f-hf").first().isEnabled().catch(() => true));
+  await note.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: OUT + `agencynote-${tag}.png` });
+  ok(`${tag}: fits the screen`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+  await page.click("#lang"); await page.waitForTimeout(400);
+  ok(`${tag}: French says it in French`, /^ONGIA fera la réservation d'hôtel en votre nom, et vous paierez l'hôtel à votre départ\.$/.test((await page.locator("#hotel-agency-note").innerText()).trim()) && !/rembours/i.test(await page.locator("#hotel-agency-note").innerText()));
+  await page.locator("#hotel-agency-note").scrollIntoViewIfNeeded(); await page.screenshot({ path: OUT + `agencynote-fr-${tag}.png` });
+  await page.click('[data-set="hotel"][data-val="no"]'); await page.waitForTimeout(300);
+  ok(`${tag}: changing to no room removes the question and the note`, await page.locator("#hotel-agency-note").count() === 0 && await page.locator("#q-cov-hotel").count() === 0);
+  ok(`${tag}: no page errors`, errs.length === 0, errs.join("|"));
+  await page.close();
+}
+await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin } from "./lib/http.mjs";
+import { json, fail, requireAdmin, editGuard } from "./lib/http.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, listPresenters, putPresenter } from "./lib/store.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
@@ -26,6 +26,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const event = await getEvent(url.searchParams.get("id"));
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
 
   const body = (await req.json().catch(() => null)) ?? {};
   const wanted = Array.isArray(body.presenterIds) ? new Set(body.presenterIds) : null;

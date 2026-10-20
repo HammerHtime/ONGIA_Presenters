@@ -172,3 +172,19 @@ been made for 30 hours. Restrict the SharePoint folder to the president and the 
 Restore: `node scripts/restore-backup.mjs <zip>` is a dry run that lists what is inside and checks every record;
 `--code <folder>` unpacks the code; `NETLIFY_SITE_ID=… NETLIFY_AUTH_TOKEN=… … --apply` writes the records back
 and reads each one back to confirm.
+
+## Who can do what
+
+- **President and VP of operations** (the desk owners): everything, on every event, including the costing, the
+  backups, deleting an event, and deciding who else may sign in.
+- **An event's own board members** (its lead and the others attached to it): change that event, and approve, sign
+  or send back its presenters' and volunteers' agreements.
+- **Any other board member who can sign in**: look at the event, nothing more. The page says "View only" and its
+  controls are switched off; the server refuses the change as well.
+
+An approval is signed by whoever is signed in with their Microsoft account; the name is not typed. Saving a record
+that someone else changed in the meantime keeps both changes (only the fields this save changed are written).
+
+## Tests
+
+`npm test` runs the server tests and the screen tests (phone and desktop); see `tests/README.md`.

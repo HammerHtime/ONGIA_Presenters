@@ -1,4 +1,5 @@
-import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text, isEmail, editGuard } from "./lib/http.mjs";
+import { signerOf } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, putEvent, listVolunteers, getVolunteer, putVolunteer, getPdf, deleteKey, getRoster } from "./lib/store.mjs";
 import { volunteerContact } from "./lib/mail.mjs";
@@ -27,6 +28,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
+  if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
   const id = url.searchParams.get("id");
   const origin = siteUrl(req);
 
@@ -40,7 +42,7 @@ export default async (req) => {
   if (req.method === "POST") {
     const action = url.searchParams.get("action");
     if (action === "invite") return sendLinks(event, body, origin);
-    if (action === "approve") return approve(event, id, body);
+    if (action === "approve") return approve(event, id, body, adminWho(req));
     if (action === "redeliver") return redeliver(event, id, body);
     return add(event, body, origin);
   }
@@ -148,12 +150,14 @@ async function remove(event, id, finalToo, reason) {
  * "no room needed". Then the PDF is built, filed, emailed back to the volunteer, and the nights
  * appear on the hotel list.
  */
-async function approve(event, id, body) {
+async function approve(event, id, body, who) {
   const v = id ? await getVolunteer(event.id, id) : null;
   if (!v) return fail("No such volunteer.", 404);
   if (v.status !== "submitted") return fail(v.status === "signed" ? "Already final. Use redeliver to resend or refile it." : "They haven't signed yet, so there is nothing to approve.", 409);
-  const approverName = text(body.approverName, 120);
-  if (!approverName) return fail("The approving board member's name is required — it is the signature.");
+  // The signature is the signed-in person, not a name typed in a box.
+  const signer = signerOf(who, body.approverName);
+  if (!signer) return fail("The approving board member's name is required — it is the signature.");
+  const approverName = signer.name;
 
   const need = body?.hotel?.need;
   if (need !== "yes" && need !== "no") return fail("Choose their hotel nights, or say that no room is needed. It can't be made final until you do.");
@@ -166,7 +170,7 @@ async function approve(event, id, body) {
     if (win && (from < win.from || to > win.to)) return fail(`Rooms can be booked from ${formatDate(win.from)} to ${formatDate(win.to)}, three days either side of the training.`);
     hotel = { from, to, nights: Math.round((Date.parse(to) - Date.parse(from)) / 86400000), pays: body.hotel.pays === "Guest" ? "Guest" : "ONGIA" };
   }
-  v.review = { hotel, approver: { name: approverName }, approvedAt: new Date().toISOString() };
+  v.review = { hotel, approver: { name: approverName, email: signer.email, via: signer.via }, approvedAt: new Date().toISOString() };
   v.status = "signed";
   // The decision is saved before any network call: an email hiccup must never lose a board member's answer.
   await putVolunteer(v);

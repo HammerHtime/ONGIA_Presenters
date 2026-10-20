@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
-import { mayCost } from "./lib/auth.mjs";
+import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts } from "./lib/store.mjs";
@@ -35,9 +35,12 @@ export default async (req) => {
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
   // Costs on an RBH event (its hotel rate, its contract, its offers, its SOW) are for the president and the VP.
-  const canCost = mayCost(adminWho(req));
+  const who = adminWho(req);
+  const canCost = mayCost(who);
 
-  if (req.method === "GET") return id ? showEvent(id, canCost) : showList(canCost);
+  if (req.method === "GET") return id ? showEvent(id, canCost, who) : showList(canCost, who);
+  // A change to an existing event is for its own board members, the president and the VP; everyone else may only look.
+  if (id) { const target = await getEvent(id); if (target && !mayEditEvent(who, target)) return fail(VIEW_ONLY, 403); }
   if (req.method === "POST") {
     if (url.searchParams.get("folder")) return createFolder(id);
     if (url.searchParams.get("uploadlink")) return createUpload(id);
@@ -283,7 +286,7 @@ async function deleteEvent(id, canCost = true) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   // Deleting an RBH event deletes its statement of work and invoice too, so only those who may see them can.
-  if (event.kind === "rbh" && !canCost) return fail("An RBH event can only be deleted by the president or the VP of operations.", 403);
+  if (!canCost) return fail("Only the president and the VP of operations can delete an event.", 403);
   const people = await listPresenters(id);
   for (const p of people) {
     await Promise.all([
@@ -415,7 +418,7 @@ async function createFolder(id) {
   }
 }
 
-async function showList(canCost = true) {
+async function showList(canCost = true, who = { key: true }) {
   const events = await listEvents();
   const withCounts = await Promise.all(
     events.map(async (event) => {
@@ -425,6 +428,7 @@ async function showList(canCost = true) {
       const seen = canCost ? event : redactEvent(event);
       return {
         ...seen,
+        canEdit: mayEditEvent(who, event),
         counts: countStatuses(people),
         presenterCount: people.length,
         // The desk's own jobs, tallied here so the year view and the attention
@@ -451,11 +455,11 @@ async function showList(canCost = true) {
   return json({ canCost, events: withCounts, inbox: { connected: inboxConfigured(), unfiled: unfiledBox ? inboxCounts(unfiledBox) : null, unfiledItems: inboxForList(unfiledBox) } });
 }
 
-async function showEvent(id, canCost = true) {
+async function showEvent(id, canCost = true, who = { key: true }) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event: canCost ? event : redactEvent(event), canCost, provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters) });
+  return json({ event: canCost ? event : redactEvent(event), canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters) });
 }
 
 export function countStatuses(presenters) {
