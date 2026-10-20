@@ -791,6 +791,7 @@
   .pkv{display:grid;grid-template-columns:82px 1fr;gap:6px 10px;margin:8px 0 14px} .pkv dt{color:var(--muted)} .pkv dd{margin:0}
   .pacts{display:flex;gap:6px;flex-wrap:wrap}
   .pscrim{display:none}
+  .vtable .pact{width:1%;white-space:nowrap} .vacts{display:flex;gap:5px;justify-content:flex-end}
   .etabp .mailsw{border-bottom:0}
   .evgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:0 18px;align-items:start}
   .evgrid > *{min-width:0}
@@ -815,6 +816,11 @@
     .ptable td.pa{grid-column:2;min-width:0} .ptable td.pa .psub{display:none}
     .ptable td.pm{grid-column:2} .ptable td.pr,.ptable td.pd{display:none}
     .ptable .pn .psub:not(.ptalk){display:none} .ptable .ptalk{display:none}
+    .vtable tr.vrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 4px;border-top:1px solid var(--border)}
+    .vtable tbody tr.vrow:first-child{border-top:0}
+    .vtable td.pn{grid-column:1} .vtable td.pr{display:block;grid-column:2;grid-row:1;text-align:right;white-space:normal}
+    .vtable td.pa{grid-column:1 / -1} .vtable td.pa .psub{display:block}
+    .vtable td.pact{grid-column:1 / -1;width:auto} .vacts{justify-content:flex-start;flex-wrap:wrap}
     .etabs{padding:2px 6px;flex-wrap:wrap;overflow:visible;gap:0 2px} .etab{padding:10px 9px 8px;font-size:13.5px}
   }
   .qcard .card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -2799,7 +2805,7 @@ function eventScreen(data) {
         ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th>Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>${drawer}</div>
     </div>`))
-      + pv("volunteers", volunteerCard(ev, volunteers))
+      + pv("volunteers", volunteerCard(ev, volunteers, rooming))
       + pv("guests", attendeesCard(ev, guests)))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
@@ -5190,7 +5196,7 @@ function lettersScreen(data, events, pickId = null) {
 /* ---------- volunteers ---------- */
 // People who sign the ONGIA Volunteer Terms before an event. Their own list, link and signed
 // copy; no review, no materials, and nothing here touches the presenter counts.
-function volunteerCard(ev, V) {
+function volunteerCard(ev, V, R = null) {
   const list = V?.volunteers ?? [];
   const c = V?.counts ?? { total: 0, signed: 0, waiting: 0, uninvited: 0, notFiled: 0 };
   const day = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
@@ -5220,19 +5226,18 @@ function volunteerCard(ev, V) {
     } else if (v.status === "submitted") main = b(`data-vreview="${id}"`, "Review", "gold");
     else if (!(v.mail ?? []).length) main = b(`data-vinvite="${id}"`, "Email link", "gold");
     else rest.push(b(`data-vinvite="${id}"`, "Email again"));
-    rest.push(b(`data-vcopy="${esc(`${location.origin}/v/${v.token}`)}"`, "Copy link"), b(`data-vedit="${id}" title="Correct their name or email, or remove them from the event"`, "Edit"));
-    // Same block as a presenter's row: an odd one out takes the width, so Copy link | Edit stay paired.
-    const pairs = rest.map((h, i) => (i === 0 && rest.length % 2 ? h.replace('class="mini', 'class="mini wide') : h));
-    return (main ? main.replace('class="mini', 'class="mini wide') : "") + pairs.join("");
+    rest.push(b(`data-vcopy="${esc(`${location.origin}/v/${v.token}`)}"`, "Copy link"), b(`data-vedit="${id}" title="Correct their name or email, or remove them from the event"`, "Correct or remove"));
+    return main + rest.join("");
   };
+  // A table like the presenters' (redesign step 3), with every button on the row: a volunteer has only a few.
+  const roomOf = (v) => (R?.rows ?? []).find((r) => r.who === "volunteer" && r.key === v.id) ?? null;
   const rows = list.map((v) => {
-    const a = cell(v);
-    return `<div class="trow">
-      <div class="who"><div class="av">${esc(`${v.first[0] ?? ""}${v.last[0] ?? ""}`.toUpperCase())}</div>
-        <div><div class="pname">${esc(v.first)} ${esc(v.last)}${v.language === "fr" ? ' <span class="pill" style="font-size:10px;padding:2px 7px">FR</span>' : ""}</div>
-          <div class="porg" title="${esc(v.organization || v.email)}">${esc(v.organization || v.email)}</div></div></div>
-      <div class="cell"><div class="cl">Agreement</div>${a.pill}<div class="porg">${a.sub}</div></div>
-      <div class="act pact">${actions(v, a)}</div></div>`;
+    const a = cell(v), r = roomOf(v);
+    return `<tr class="vrow">
+      <td class="pn"><b>${esc(v.first)} ${esc(v.last)}</b>${v.language === "fr" ? ' <span class="pill info pflag">FR</span>' : ""}<span class="psub">${esc(v.organization || v.email)}</span></td>
+      <td class="pa">${a.pill}<span class="psub">${a.sub}</span></td>
+      <td class="pr">${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))}<span class="psub">${r.nights} night${r.nights === 1 ? "" : "s"}</span>` : v.status === "submitted" ? `<span class="porg">asked for a room</span>` : `<span class="porg">—</span>`}</td>
+      <td class="pact"><span class="vacts">${actions(v, a)}</span></td></tr>`;
   }).join("");
   const failedSends = list.filter((v) => v.lastSendError && v.status !== "signed");
   const line = list.length
@@ -5250,7 +5255,7 @@ function volunteerCard(ev, V) {
     <div class="actions vbar" style="margin:0 0 14px;justify-content:flex-start;flex-wrap:wrap">
       <button class="btn btn-gold" id="v-add">Add volunteers</button>
       ${c.waiting ? `<button class="btn btn-ghost" id="v-mailall">Email all outstanding</button>` : ""}</div>
-    <div class="tlist">${list.length ? `<div class="thead"><span>Volunteer</span><span>Agreement</span><span></span></div>${rows}` : `<div class="empty">No volunteers yet. Add their names, emails and agency to send each their agreement.</div>`}</div>
+    ${list.length ? `<div class="ptwrap"><table class="ptable vtable"><thead><tr><th>Volunteer</th><th>Agreement</th><th>Room</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">No volunteers yet. Add their names, emails and agency to send each their agreement.</div>`}
   </div>`, { open: c.review > 0 });
 }
 

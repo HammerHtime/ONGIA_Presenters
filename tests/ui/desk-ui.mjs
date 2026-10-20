@@ -37,7 +37,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: no mail here, so it says they were not emailed and where to go next`, /Not emailed/.test(out) && /Email link/.test(out));
   await page.screenshot({ path: OUT + `desk-add-result-${tag}.png` });
   await page.click("#va-close");
-  const rows = page.locator('details[data-fold="sec-volunteers"] .trow');
+  const rows = page.locator('details[data-fold="sec-volunteers"] tr.vrow');
   await rows.first().waitFor({ timeout: 8000 }); await page.waitForTimeout(400);
   ok(`${tag}: the two appear, never sent, each with Email link / Copy link / Edit`, await rows.count() === 2 && /never sent/i.test(await rows.nth(0).innerText()) && await rows.nth(0).locator("[data-vinvite]").count() === 1 && await rows.nth(0).locator("[data-vcopy]").count() === 1 && await rows.nth(0).locator("[data-vedit]").count() === 1);
   ok(`${tag}: the badge and line count them`, /never sent/.test(await fold.locator("summary").innerText()) && /2 volunteers/.test(await fold.locator("summary").innerText()), await fold.locator("summary").innerText());
@@ -81,7 +81,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: she signs from her own link`, sign.status === 200);
   await page.goto(S + "/admin.html#event/" + ev.id, { waitUntil: "networkidle" }); await page.waitForTimeout(1500);
   const f2 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f2.evaluate((d) => d.open))) await f2.locator("summary").click();
-  const row0 = page.locator('details[data-fold="sec-volunteers"] .trow').nth(0);
+  const row0 = page.locator('details[data-fold="sec-volunteers"] tr.vrow').nth(0);
   ok(`${tag}: her row says Signed, and the filing problem shows because there is no SharePoint here`, /signed/i.test(await row0.innerText()) && /not filed/i.test(await row0.innerText()) && await row0.locator("[data-vrefile]").count() === 1, await row0.innerText());
   ok(`${tag}: a signed row offers PDF and Retry filing`, await row0.locator("[data-vpdf]").count() === 1);
   ok(`${tag}: the line counts her as signed`, /1 signed/.test(await f2.locator("summary").innerText()));
@@ -99,8 +99,8 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   }
   await page.goto(S + "/admin.html#event/" + ev.id, { waitUntil: "networkidle" }); await page.waitForTimeout(1500);
   const f3 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f3.evaluate((d) => d.open))) await f3.locator("summary").click();
-  ok(`${tag}: two volunteers are waiting: a Needs review pill, a Review button, and a count in the heading`, (await f3.locator('.trow:has-text("Needs review")').count()) === 2 && (await f3.locator("[data-vreview]").count()) === 2 && /2 to review/.test(await f3.locator("summary").innerText()));
-  const hrow = f3.locator('.trow', { hasText: "Hana Hotel" });
+  ok(`${tag}: two volunteers are waiting: a Needs review pill, a Review button, and a count in the heading`, (await f3.locator('tr.vrow:has-text("Needs review")').count()) === 2 && (await f3.locator("[data-vreview]").count()) === 2 && /2 to review/.test(await f3.locator("summary").innerText()));
+  const hrow = f3.locator('tr.vrow', { hasText: "Hana Hotel" });
   await hrow.locator("[data-vreview]").click(); await page.waitForTimeout(300);
   ok(`${tag}: Review opens a sheet, and Approve is off to begin with`, await page.isVisible("#vreview") && await page.isDisabled("#vr-go"));
   await page.fill("#vr-name", "Raj Jaswal"); await page.waitForTimeout(100);
@@ -120,7 +120,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: her nights are on the Hotel rooms list as a Volunteer, 5 nights, ONGIA pays`, await hr.count() === 1 && /Volunteer/.test(await hr.innerText()) && /5 nights/.test(await hr.innerText()) && /ONGIA pays/i.test(await hr.innerText()), await hotel.innerText());
   ok(`${tag}: and her row there has no presenter-style Edit button`, (await hr.locator(".gedit").count()) === 0);
   await page.screenshot({ path: OUT + `desk-hotel-list-${tag}.png`, fullPage: false });
-  const zrow = page.locator('details[data-fold="sec-volunteers"] .trow', { hasText: "Zed Zero" });
+  const zrow = page.locator('details[data-fold="sec-volunteers"] tr.vrow', { hasText: "Zed Zero" });
   await zrow.locator("[data-vreview]").click(); await page.waitForTimeout(300);
   await page.fill("#vr-name", "Raj Jaswal"); await page.click('#vr-need [data-need="no"]'); await page.waitForTimeout(150);
   ok(`${tag}: 'No room needed' needs no dates: Approve wakes`, !(await page.isDisabled("#vr-go")) && !(await page.isVisible("#vr-in")));
@@ -130,7 +130,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: nothing runs off the side`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
   // Remove the other one: reason, then DELETE.
-  const row1 = page.locator('details[data-fold="sec-volunteers"] .trow').nth(1);
+  const row1 = page.locator('details[data-fold="sec-volunteers"] tr.vrow').nth(1);
   await row1.locator("[data-vedit]").click(); await page.waitForTimeout(300);
   await page.click("#ve-remove"); await page.waitForTimeout(300);
   ok(`${tag}: removing is two steps: the button is off until DELETE is typed`, await page.isDisabled("#vrm-go"));
