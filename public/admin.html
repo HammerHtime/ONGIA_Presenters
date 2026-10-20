@@ -613,6 +613,7 @@
   .noroom .nr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
   .noroom .nr span{font-size:14px;min-width:0;overflow-wrap:anywhere}
   .gform{display:grid;grid-template-columns:2fr 1.3fr 1fr 1.2fr 1.2fr auto;gap:8px;align-items:end;margin-top:10px}
+  .gform .gdesc{grid-column:1 / -1} .gform .gdesc[hidden]{display:none}
   .room .gedit{border:1px solid var(--border);background:var(--card);color:var(--ink-mid);cursor:pointer;font:inherit;
                font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;margin-left:4px;vertical-align:1px}
   .room .gedit:hover{border-color:var(--navy);color:var(--navy)}
@@ -3547,7 +3548,8 @@ function hotelStrip(ev, C) {
 const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, " ").trim();
 
 /** Who a room is for — the same four the server takes, in Andrew's order. */
-const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
+// "Other" is a comped room for another association, a dignitary and so on; it always says who they are (the note).
+const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest", "Other"];
 
 /**
  * The only dates offered for a guest's room: three days before the training to
@@ -4292,7 +4294,7 @@ function roomingCard(ev, R, C = null) {
       ${noRoom(ev, R)}
       <details class="settings" id="rg-details" style="margin-top:12px">
         <summary>Add people by hand or from a spreadsheet${R.guests.length ? ` (${R.guests.length} added)` : ""}</summary>
-        <p class="hint" style="margin-top:8px">Board members, volunteers, ONGIA guests, and any presenter who is not on the desk.
+        <p class="hint" style="margin-top:8px">Board members, volunteers, ONGIA guests, others (a comped room for another association, a dignitary and so on: pick Other and say who they are), and any presenter who is not on the desk.
           Presenters with an agreement come onto the list by themselves.</p>
         <div id="rm-guests">${R.guests.map((g) => `<div class="room"><span></span><div class="rn">${esc(g.name)}<div class="ro">
           <select data-rmtype="${esc(g.id)}" aria-label="Who ${esc(g.name)} is" style="width:auto;padding:3px 8px;font-size:12.5px;margin:3px 0">
@@ -4307,6 +4309,7 @@ function roomingCard(ev, R, C = null) {
           <div><label for="rg-in">Check-in</label><select id="rg-in">${guestDays(R.window, "in", ev)}</select></div>
           <div><label for="rg-out">Check-out</label><select id="rg-out">${guestDays(R.window, "out", ev)}</select></div>
           <div><button class="mini" id="rg-add">Add</button></div>
+          <div class="gdesc" id="rg-descbox" hidden><label for="rg-desc">Who they are</label><input id="rg-desc" maxlength="120" autocomplete="off" placeholder="e.g. Peel Police Association, visiting dignitary"></div>
         </div>
         <p class="hint" id="rg-said" style="margin:6px 0 0"></p>
         <p class="hint" id="rg-boardnote" style="margin:4px 0 0" hidden>On the ONGIA board, so ONGIA pays.</p>
@@ -4432,9 +4435,20 @@ function wireRooming(ev, R) {
   const add = document.getElementById("rg-add");
   if (add) add.onclick = (e) => {
     e.preventDefault();
-    saveGuests([...R.guests, { name: document.getElementById("rg-name").value, type: document.getElementById("rg-type").value,
-      checkIn: document.getElementById("rg-in").value, checkOut: document.getElementById("rg-out").value, billing: document.getElementById("rg-bill").value }]);
+    const type = document.getElementById("rg-type").value, desc = document.getElementById("rg-desc")?.value.trim() ?? "";
+    if (type === "Other" && !desc) { const said = document.getElementById("rg-said"); said.textContent = "Say who they are, e.g. Peel Police Association or a visiting dignitary."; said.style.color = "var(--late)"; document.getElementById("rg-desc")?.focus(); return; }
+    saveGuests([...R.guests, { name: document.getElementById("rg-name").value, type,
+      checkIn: document.getElementById("rg-in").value, checkOut: document.getElementById("rg-out").value, billing: document.getElementById("rg-bill").value,
+      ...(type === "Other" ? { note: desc } : {}) }]);
   };
+  // "Other" asks who they are.
+  const rgType = document.getElementById("rg-type");
+  if (rgType) rgType.addEventListener("change", () => { const box = document.getElementById("rg-descbox"); if (box) box.hidden = rgType.value !== "Other"; if (rgType.value === "Other") document.getElementById("rg-desc")?.focus(); });
+  const geType = document.getElementById("ge-type");
+  if (geType) geType.addEventListener("change", () => {
+    const lab = document.querySelector('label[for="ge-note"]');
+    if (lab) lab.textContent = geType.value === "Other" ? "Who they are (required)" : "Note (optional)";
+  });
 
   // The blank sheet: the same columns as the form, ready for Excel.
   const blank = document.getElementById("rg-blank");
@@ -4534,6 +4548,7 @@ function wireRooming(ev, R) {
       document.getElementById("ge-in").innerHTML = guestDays(R.window, "in", ev, g.checkIn);
       document.getElementById("ge-out").innerHTML = guestDays(R.window, "out", ev, g.checkOut);
       document.getElementById("ge-note").value = g.note || "";
+      document.querySelector('label[for="ge-note"]').textContent = g.type === "Other" ? "Who they are (required)" : "Note (optional)";
       document.getElementById("ge-said").textContent = "";
       lockEdit?.();
       gd.showModal();

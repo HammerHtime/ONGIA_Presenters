@@ -30,8 +30,9 @@ export const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").re
 /** Whether a name is on the board roster (a list of names). */
 export const onBoard = (name, board = []) => Boolean(sameName(name)) && board.some((b) => sameName(b) === sameName(name));
 
-/** Who a room is for. Andrew's four, in his order (6 Oct 2026). */
-export const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest"];
+/** Who a room is for. Andrew's four, in his order (6 Oct 2026), and Other (21 Oct 2026): a comped room for another
+ *  association, a dignitary and so on, always with a word saying who they are. */
+export const GUEST_TYPES = ["Board Member", "Presenter", "Volunteer", "ONGIA Guest", "Other"];
 
 /** "board", "Board member", "SPEAKER" → one of the four; anything else is null. */
 export function typeOf(v) {
@@ -41,6 +42,7 @@ export function typeOf(v) {
   if (/^(presenter|speaker|trainer|facilitator)s?$/.test(s)) return "Presenter";
   if (/^volunteers?$/.test(s)) return "Volunteer";
   if (/^(ongia )?guests?$/.test(s)) return "ONGIA Guest";
+  if (/^others?$|dignitar|association|^comp/.test(s)) return "Other";
   return null;
 }
 
@@ -140,6 +142,7 @@ export function cleanGuest(g, makeId, win = null, had = null) {
   // types existed keeps no type rather than being given a wrong one.
   const type = typeOf(g?.type);
   if (!type && !had) return { problem: `${name}: pick who they are (${GUEST_TYPES.join(", ")}).` };
+  if (type === "Other" && !String(g?.note ?? "").trim()) return { problem: `${name}: say who they are, e.g. "Peel Police Association" or "Visiting dignitary".` };
   if (!isDate(g?.checkIn) || !isDate(g?.checkOut)) return { problem: `${name} needs a check-in and a check-out date.` };
   if (g.checkOut <= g.checkIn) return { problem: `${name}: check-out must be after check-in.` };
   const unchanged = had && had.checkIn === g.checkIn && had.checkOut === g.checkOut;

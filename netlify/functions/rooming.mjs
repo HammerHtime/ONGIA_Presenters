@@ -48,7 +48,7 @@ export default async (req) => {
   if (req.method === "PUT" && url.searchParams.get("listed")) {
     if (!rows.some((r) => r.who === "presenter" && r.key === body?.id)) return fail("That presenter is not on the rooming list.", 404);
     const type = typeOf(body?.type);
-    if (!type) return fail("Pick how they are listed: Board Member, Presenter, Volunteer or ONGIA Guest.");
+    if (!type) return fail("Pick how they are listed: Board Member, Presenter, Volunteer, ONGIA Guest or Other.");
     event.roomingTypes = { ...(event.roomingTypes ?? {}) };
     if (type === "Presenter") delete event.roomingTypes[body.id]; else event.roomingTypes[body.id] = type;
     await putEvent(event);
