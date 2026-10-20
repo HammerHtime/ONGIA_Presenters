@@ -1222,7 +1222,7 @@ function eventFormScreen(existing = null) {
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-rbh"${ev?.kind === "rbh" ? " checked" : ""}><span><b>This is an RBH event.</b></span></label>
         <div class="row2" style="margin-top:10px">
           <div class="field"><label for="e-prov">Province where it is held</label><select id="e-prov"><option value="">Pick one</option>${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${ev?.province === k ? " selected" : ""}>${n}</option>`).join("")}</select></div>
-          <div class="field"><label for="e-prefix">Invoice number starts with</label><input id="e-prefix" maxlength="8" value="${v("invoicePrefix", "ITP")}" placeholder="ITP"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like ITP-2026-001. The desk keeps count.</p></div>
+          <div class="field"><label for="e-prefix">Invoice number starts with</label><input id="e-prefix" maxlength="8" value="${esc(ev?.invoicePrefix || defaultPrefix(ev?.title))}" data-auto="${ev?.invoicePrefix ? "0" : "1"}" placeholder="RBH"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like RBH-2026-001. ITP for the ITP trainings, CFAOC for the forum, RBH for the rest. The desk keeps count.</p></div>
         </div>
       </details>`}
       <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
@@ -1519,6 +1519,11 @@ function eventFormScreen(existing = null) {
   showDeadlines();
   showLeadPhone();
 
+  // The invoice prefix follows the title (ITP, CFAOC or RBH) until someone types their own.
+  if ($("e-prefix") && $("e-title")) {
+    $("e-prefix").addEventListener("input", () => { $("e-prefix").dataset.auto = "0"; });
+    $("e-title").addEventListener("input", () => { if ($("e-prefix").dataset.auto === "1") $("e-prefix").value = defaultPrefix($("e-title").value); });
+  }
   // Start from a Wix event: fill in what Wix knows, and link it once the event is created.
   let wixPick = null;
   if ($("wx-pick")) $("wx-pick").onclick = async () => {
@@ -3058,7 +3063,7 @@ function rbhOfferCard(ev, guess) {
       <button class="btn btn-ghost" id="rbh-open">Yes, it's an RBH event…</button></div>
     <div id="rbh-form" hidden style="padding:0 20px 20px"><div class="row2">
       <div class="field"><label for="rbh-prov">Province where it is held (sets the sales tax)</label><select id="rbh-prov"><option value="">Pick one</option>${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${(ev.province || guess) === k ? " selected" : ""}>${n}</option>`).join("")}</select></div>
-      <div class="field"><label for="rbh-prefix">Invoice number starts with</label><input id="rbh-prefix" maxlength="8" value="${esc(ev.invoicePrefix || "ITP")}"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like ITP-2026-001.</p></div></div>
+      <div class="field"><label for="rbh-prefix">Invoice number starts with</label><input id="rbh-prefix" maxlength="8" value="${esc(ev.invoicePrefix || defaultPrefix(ev.title))}"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like RBH-2026-001. ITP for the ITP trainings, CFAOC for the forum, RBH for the rest.</p></div></div>
       <div class="actions" style="margin-top:6px"><button class="btn btn-gold" id="rbh-go">Mark it as an RBH event</button><button class="btn btn-ghost" id="rbh-cancel">Not now</button></div></div></div>`;
 }
 function wireRbhOffer(ev) {
@@ -3075,6 +3080,8 @@ function wireRbhOffer(ev) {
   };
 }
 
+/** The invoice prefix an RBH event starts with (the same rule as sow.mjs): ITP for the ITP trainings, CFAOC for the forum, RBH for the rest. */
+const defaultPrefix = (title = "") => /\bITP\b|RDHITP|illicit trade/i.test(title) ? "ITP" : /organi[sz]ed crime|\bCFAOC\b/i.test(title) ? "CFAOC" : "RBH";
 /** Provinces and territories, for the RBH event's tax. */
 const PROVINCE_NAMES = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", NT: "Northwest Territories", NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan", YT: "Yukon" };
 const SOW_STATUSES = [["draft", "Draft"], ["submitted", "Sent to RBH"], ["approved", "Approved"], ["invoiced", "Invoiced"], ["paid", "Paid"]];

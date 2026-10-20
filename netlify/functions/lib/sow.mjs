@@ -148,6 +148,16 @@ export function redactEvent(event) {
 export const withoutOffers = (items) => (items ?? []).filter((x) => x.kind !== "offer");
 
 /* ---------- invoice numbers ---------- */
+/**
+ * What an RBH event's invoice numbers start with, unless someone types another (Andrew, 20 Oct 2026): the ITP
+ * trainings use ITP, the Canadian Forum Against Organized Crime uses CFAOC, and every other RBH event RBH.
+ */
+export function defaultPrefix(title = "") {
+  const t = String(title);
+  if (/\bITP\b|RDHITP|illicit trade/i.test(t)) return "ITP";
+  if (/organi[sz]ed crime|\bCFAOC\b/i.test(t)) return "CFAOC";
+  return "RBH";
+}
 export const cleanPrefix = (p) => String(p ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 8) || "RBH";
 export const invoiceNumber = (prefix, year, seq) => `${cleanPrefix(prefix)}-${year}-${String(seq).padStart(3, "0")}`;
 

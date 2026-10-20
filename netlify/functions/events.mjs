@@ -10,7 +10,7 @@ import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUpload
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
 import { describeEvent } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
-import { PROVINCES, cleanPrefix, redactEvent, withoutOffers, guessProvince } from "./lib/sow.mjs";
+import { PROVINCES, cleanPrefix, redactEvent, withoutOffers, guessProvince, defaultPrefix } from "./lib/sow.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
 import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checklist.mjs";
 
@@ -149,7 +149,7 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // Only someone who may see the costs can make an event an RBH event, unmake it, or change its tax and numbering.
     kind: !canCost || body.kind === undefined ? (event.kind ?? "") : (body.kind === "rbh" ? "rbh" : ""),
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
-    invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(body.invoicePrefix),
+    invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.
     letters: cleanLetters(body.letters, event.letters),
@@ -246,7 +246,7 @@ async function setRbh(id, body, canCost) {
     event.kind = "rbh";
     const given = text(body.province, 2).toUpperCase();
     event.province = PROVINCES[given] ? given : (event.province || guessProvince(event.city));
-    event.invoicePrefix = cleanPrefix(body.invoicePrefix || event.invoicePrefix || "ITP");
+    event.invoicePrefix = cleanPrefix(body.invoicePrefix || event.invoicePrefix || defaultPrefix(event.title));
   } else {
     if (event.kind === "rbh" && ((await getSow(id)) || (await getReceipts(id)).items.length)) return fail("This event already has a statement of work or receipts, so it can't be changed back. They would disappear from view.", 409);
     event.kind = "";

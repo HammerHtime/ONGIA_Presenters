@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
-import { STANDARD_LINES, TEMPLATES, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
+import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -47,7 +47,7 @@ async function copyChoices(event) {
 }
 
 async function nextInvoiceNumber(event) {
-  const prefix = cleanPrefix(event.invoicePrefix || "ITP");
+  const prefix = cleanPrefix(event.invoicePrefix || defaultPrefix(event.title));
   const year = String(event.dayOne ?? "").slice(0, 4) || String(new Date().getFullYear());
   const key = `invseq:${prefix}-${year}`;
   const seq = ((await getMeta(key))?.seq ?? 0) + 1;
