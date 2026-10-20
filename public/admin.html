@@ -700,6 +700,19 @@
   @media (max-width:700px){.cardacts{margin-left:0;justify-content:flex-start;width:100%;margin-top:8px}}
   .evcard{cursor:pointer} .evcard:hover{box-shadow:0 6px 20px rgba(18,22,31,.08)}
   /* Working: a quiet line under the bar. Broken: a red box that cannot be missed. */
+  /* Every click shows it was heard, and the page shows when it is working */
+  button,.btn,.mini,.chip,.atab{transition:transform .08s,filter .08s,opacity .15s}
+  button:active:not(:disabled),.btn:active,.mini:active,.chip:active,.atab:active,label.btn:active{transform:scale(.96);filter:brightness(.9)}
+  .clicked{outline:3px solid rgba(201,168,76,.55);outline-offset:1px}
+  .working{position:relative;pointer-events:none;opacity:.8;cursor:progress}
+  .working::after{content:"";display:inline-block;width:.85em;height:.85em;margin-left:.6em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:wspin .7s linear infinite;vertical-align:-.12em}
+  @keyframes wspin{to{transform:rotate(360deg)}}
+  #netbar{position:fixed;top:0;left:0;right:0;height:4px;z-index:10000;opacity:0;pointer-events:none;transition:opacity .2s;background:linear-gradient(90deg,transparent 0,var(--gold,#c9a84c) 50%,transparent 100%) no-repeat;background-size:40% 100%;animation:netslide 1s linear infinite}
+  #netbar.on{opacity:1}
+  @keyframes netslide{from{background-position:-40% 0}to{background-position:140% 0}}
+  #netpill{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10000;background:var(--navy-deep,#0e1a35);color:#fff;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);display:none;align-items:center;gap:10px}
+  #netpill.on{display:flex} #netpill::before{content:"";width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:wspin .7s linear infinite}
+  @media (prefers-reduced-motion:reduce){#netbar{animation:none;background:var(--gold,#c9a84c)}.working::after,#netpill::before{animation-duration:2s}}
   .healthwrap{margin:0 0 16px}
   .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:10px 18px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:44px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .pastrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer} .pastrow:first-child{border-top:0} .pastrow:hover b{text-decoration:underline} .pastrow .porg{white-space:nowrap} .pastrow .s{font-size:13px;color:var(--muted);margin-top:2px}
@@ -868,6 +881,40 @@ const todayIso = (now = new Date()) => {
  * turning it back on is this one line. Anything already stored is left alone.
  */
 const SPONSORS_ON = false;
+
+/* ---------- feedback: a click is acknowledged, and the page says when it is working ---------- */
+{
+  const bar = document.createElement("div"); bar.id = "netbar"; bar.setAttribute("aria-hidden", "true");
+  const pill = document.createElement("div"); pill.id = "netpill"; pill.setAttribute("role", "status"); pill.textContent = "Working…";
+  document.body.append(bar, pill);
+  let inflight = 0, barT = null, pillT = null, lastBtn = null, lastAt = 0, startedFor = null;
+  const settle = () => {
+    clearTimeout(barT); clearTimeout(pillT); bar.classList.remove("on"); pill.classList.remove("on");
+    if (startedFor) { const b = startedFor; startedFor = null; setTimeout(() => b.classList.remove("working"), Math.max(0, 350 - (Date.now() - lastAt))); }
+  };
+  const update = () => {
+    if (inflight > 0) {
+      // Quick background checks (polling) never flash; anything over a quarter of a second shows the bar, over a second the words.
+      clearTimeout(barT); barT = setTimeout(() => bar.classList.add("on"), 250);
+      clearTimeout(pillT); pillT = setTimeout(() => pill.classList.add("on"), 1200);
+      if (lastBtn && lastBtn.isConnected && !startedFor && Date.now() - lastAt < 800) { startedFor = lastBtn; lastBtn.classList.add("working"); }
+    } else settle();
+  };
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const url = String(args[0]?.url ?? args[0] ?? "");
+    const track = url.includes("/api/");
+    if (track) { inflight++; update(); }
+    try { return await realFetch(...args); }
+    finally { if (track) { inflight--; update(); } }
+  };
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("button, .btn, label.btn, .chip");
+    if (!b || b.disabled || b.classList.contains("working")) return;
+    lastBtn = b; lastAt = Date.now();
+    b.classList.add("clicked"); setTimeout(() => b.classList.remove("clicked"), 300);
+  }, true);
+}
 
 let KEY = sessionStorage.getItem("ongia-admin-key") ?? "";
 let view = { name: "list", eventId: null };
@@ -5857,9 +5904,28 @@ function deliveryMarkup(d = {}) {
     line("Board notified", d.boardEmail);
 }
 
+/* ---------- Back: every screen is a step in the browser's history ---------- */
+let NAV_POP = false, NAV_FIRST = true;
+const viewHash = (v) => "#v=" + encodeURIComponent(JSON.stringify(v, (k, x) => (x !== null && typeof x === "object" && k !== "" ? undefined : x)));
+const parseViewHash = (h) => { if (!String(h).startsWith("#v=")) return null; try { const v = JSON.parse(decodeURIComponent(h.slice(3))); return v && typeof v.name === "string" ? v : null; } catch { return null; } };
+function syncHistory() {
+  const h = viewHash(view);
+  if (NAV_POP) { NAV_POP = false; return; }
+  if (location.hash === h) return;
+  // The first screen replaces the entry the page opened with; every later one is a new step.
+  try { (NAV_FIRST ? history.replaceState : history.pushState).call(history, null, "", location.pathname + location.search + h); } catch { /* a sandboxed frame has no history */ }
+  NAV_FIRST = false;
+}
+window.addEventListener("popstate", () => {
+  const v = parseViewHash(location.hash);
+  if (!v) return;
+  view = v; NAV_POP = true; render();
+});
+
 /* ---------- render ---------- */
 async function render() {
   if (!KEY) return signInScreen();
+  syncHistory();
   whoami();
   try {
     if (view.name === "new") { await Promise.all([loadRoster(), loadLetterChoices()]); return eventFormScreen(); }
@@ -5940,6 +6006,7 @@ const load = render;
   const e = location.hash.match(/^#event\/([^/]+)$/);
   if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); }
 }
+{ const v = parseViewHash(location.hash); if (v && !location.hash.startsWith("#review") ) { view = v; NAV_FIRST = true; } }
 window.addEventListener("hashchange", () => {
   const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);
   if (m) { view = { name: "review", eventId: decodeURIComponent(m[1]), presenterId: decodeURIComponent(m[2]) }; history.replaceState(null, "", location.pathname); render(); }
