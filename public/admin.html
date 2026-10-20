@@ -872,7 +872,10 @@
   .evt{width:calc(100% - 24px);margin:2px 12px 8px;border-collapse:separate;border-spacing:0 8px}
   .evt th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);text-align:left;padding:8px 14px 0}
   .evt td{padding:12px 14px;vertical-align:middle;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-  .evt td:first-child{border-left:1px solid var(--border);border-radius:14px 0 0 14px}
+  .evt td:first-child{border-left:5px solid var(--navy);border-radius:14px 0 0 14px}
+  .evt tr.attn td:first-child{border-left-color:var(--late)}
+  #upcoming{background:#ebe6da}
+  .evt tr.evrow{filter:drop-shadow(0 2px 5px rgba(14,26,53,.10))}
   .evt td:last-child{border-right:1px solid var(--border);border-radius:0 14px 14px 0}
   .evt tr.evrow{cursor:pointer} .evt tr.evrow:hover td{background:var(--gold-pale);border-color:var(--edge)}
   .evt h2{font-family:var(--fb);font-size:15px;font-weight:700;margin:0} .evt .s{font-size:13px;color:var(--muted)}
@@ -888,7 +891,8 @@
     .qgroup{padding:11px 14px 9px;flex-wrap:nowrap} .qgh{flex:1 1 auto} .qgh b{font-size:15.5px} .qgn{display:none}
     .qrow{grid-template-columns:26px 1fr;padding:12px 14px} .qwhen{grid-column:2} .qact{grid-column:2;justify-self:start;margin-top:4px}
     .evt thead{display:none} .evt,.evt tbody{display:block} .evt{width:auto;margin:10px}
-    .evt tr{display:block;padding:12px 14px;margin:0 0 8px;background:#fff;border:1px solid var(--border);border-radius:14px}
+    .evt tr{display:block;padding:12px 14px;margin:0 0 10px;background:#fff;border:1px solid var(--border);border-left:5px solid var(--navy);border-radius:14px;box-shadow:0 2px 8px rgba(14,26,53,.10);filter:none}
+    .evt tr.attn{border-left-color:var(--late)}
     .evt tr.evrow:hover{background:var(--gold-pale)}
     .evt td,.evt td:first-child,.evt td:last-child{display:block;border:0;padding:2px 0;background:none;border-radius:0} .evt td.o{display:none} .evt .lab{display:inline}
   }
@@ -1415,7 +1419,9 @@ function eventsTable(upcoming) {
     }
     if (ev.canEdit === false) pills.push(`<span class="pill grey">view only</span>`);
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
-    return `<tr class="evcard evrow" data-open="${esc(ev.id)}" role="link" tabindex="0">
+    // The tile's left edge says whether the event needs you (red) or not (navy).
+    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
+    return `<tr class="evcard evrow${attn ? " attn" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
