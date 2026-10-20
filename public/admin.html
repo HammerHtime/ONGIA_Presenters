@@ -85,6 +85,9 @@
   #e-people,#p-rows{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13.5px}
   input[type=checkbox]{-webkit-appearance:checkbox;appearance:auto;width:20px;height:20px;padding:0;margin:0;
     border:0;border-radius:4px;background:none;accent-color:var(--gold);flex:none}
+  /* Round choices too: the rule above for text boxes took away their look, so a chosen one showed no dot (Andrew 21 Oct 2026). */
+  input[type=radio]{-webkit-appearance:radio;appearance:auto;width:20px;height:20px;padding:0;margin:0;
+    border:0;border-radius:50%;background:none;accent-color:var(--gold);flex:none}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
