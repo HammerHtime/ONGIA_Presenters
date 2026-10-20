@@ -154,7 +154,7 @@ export const withoutOffers = (items) => (items ?? []).filter((x) => x.kind !== "
  */
 export function defaultPrefix(title = "") {
   const t = String(title);
-  if (/\bITP\b|RDHITP|illicit trade/i.test(t)) return "ITP";
+  if (/ITP\b|illicit trade/i.test(t)) return "ITP";
   if (/organi[sz]ed crime|\bCFAOC\b/i.test(t)) return "CFAOC";
   return "RBH";
 }

@@ -3081,7 +3081,7 @@ function wireRbhOffer(ev) {
 }
 
 /** The invoice prefix an RBH event starts with (the same rule as sow.mjs): ITP for the ITP trainings, CFAOC for the forum, RBH for the rest. */
-const defaultPrefix = (title = "") => /\bITP\b|RDHITP|illicit trade/i.test(title) ? "ITP" : /organi[sz]ed crime|\bCFAOC\b/i.test(title) ? "CFAOC" : "RBH";
+const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP" : /organi[sz]ed crime|\bCFAOC\b/i.test(title) ? "CFAOC" : "RBH";
 /** Provinces and territories, for the RBH event's tax. */
 const PROVINCE_NAMES = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", NT: "Northwest Territories", NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan", YT: "Yukon" };
 const SOW_STATUSES = [["draft", "Draft"], ["submitted", "Sent to RBH"], ["approved", "Approved"], ["invoiced", "Invoiced"], ["paid", "Paid"]];
