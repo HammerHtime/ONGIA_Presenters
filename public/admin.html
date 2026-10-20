@@ -467,13 +467,20 @@
   @media (max-width:560px){.guest{grid-template-columns:1fr auto}.guest .src{grid-column:2}}
   .mini.solid{background:var(--navy);border-color:var(--navy);color:#fff}
   /* Hotel rooms: one row per room — tick, who, the nights, who pays. */
-  .rooms{display:grid;gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-top:4px}
-  .room{background:var(--sunk);display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 14px;align-items:center;padding:10px 14px}
-  .room.unconf{background:var(--card)}
-  .room .rn{font-weight:600;min-width:0;overflow-wrap:anywhere}
-  .room .ro{font-size:12.5px;color:var(--muted)}
-  .room .rd{font-size:13.5px;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
-  .room .rd small{display:block;color:var(--muted);font-size:12px}
+  /* Option A (Andrew, 21 Oct 2026): a box per billing group, a small heading per kind of person, one tight line each. */
+  .rooms{display:block;border:1.5px solid var(--edge);border-radius:14px;overflow:hidden;margin-top:4px;background:#fff}
+  .room{background:#fff;display:grid;grid-template-columns:auto minmax(150px,1.1fr) minmax(0,1.4fr) auto auto;gap:2px 12px;align-items:center;padding:5px 12px;border-top:1px solid var(--border);font-size:14px}
+  .room.unconf{background:#fbf8f1}
+  .room .rn{font-weight:600;min-width:0;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .room .rn .gedit{font-size:11.5px;padding:1px 8px}
+  .room .ro{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* The kind is in the small heading above, and "ONGIA pays" in the box's heading: both kept only for screen readers. */
+  .room .rtype,.room .rb.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;padding:0;border:0}
+  .room .rd{font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+  .room .rd small{color:var(--muted);font-size:12px;margin-left:4px}
+  .rooms .rkind{display:flex;gap:8px;align-items:baseline;padding:5px 12px;background:var(--sand);font-size:11.5px;font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mid);border-top:1px solid var(--border)}
+  .rooms .rkind:first-child{border-top:0}
+  .rooms .rkind b{font-family:var(--fb);letter-spacing:0;color:var(--ink)} .rooms .rkind span{margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--fb);color:var(--muted)}
   .room .rb{font-family:var(--fu);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:3px 9px;
     border:1px solid var(--border);color:var(--ink-mid);white-space:nowrap}
   .room .rb.ongia{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -607,6 +614,7 @@
   .roomgroup{margin:14px 0 0}
   .roomgroup .rghead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 0 6px;font-size:14px}
   .roomgroup .rghead span{background:var(--gold-pale);border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700}
+  .roomgroup + .roomgroup{margin-top:16px}
   .roomgroup .rghead small{flex-basis:100%;color:var(--muted);font-size:12.5px}
   .noroom{margin:12px 0 0;padding:12px 14px;border:1px dashed var(--border);border-radius:12px;background:var(--card2,transparent)}
   .noroom b{font-size:13px}
@@ -646,11 +654,12 @@
   .gread li{margin:0 0 2px}
   .gform label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
   @media (max-width:640px){
-    .room{grid-template-columns:auto 1fr auto}
-    .room .rd{grid-column:2/-1;text-align:left}
-    /* The pay pill under the dates, so the name has the row's full width. */
-    .room .rb{grid-column:2/-1;grid-row:3;justify-self:start}
-    .room .rn{grid-column:2/-1}
+    /* A phone: name, then who they are, then the nights and who pays, all under the name. */
+    .room{grid-template-columns:auto minmax(0,1fr);padding:7px 10px}
+    .room .rn,.room .ro,.room .rd,.room .rb{grid-column:2}
+    .room .ro{white-space:normal}
+    .room .rd{text-align:left}
+    .room .rb{justify-self:start}
     .gform{grid-template-columns:1fr 1fr}
     .gform .gname{grid-column:1/-1}
   }
@@ -4238,11 +4247,25 @@ function wireSheet(ev, SC) {
   ROOT.querySelectorAll("[data-shlink-clear]").forEach((b) => { b.onclick = () => link(b.dataset.shlinkClear, ""); });
 }
 
-/** The list in the groups the hotel gets it in: master block first, then everyone paying their own. */
+/**
+ * The list in the groups the hotel gets it in: master block first, then everyone paying their own, then those waiting
+ * for approval. Each is its own box with its rooms and nights; inside, a small heading per group (board, presenters,
+ * volunteers, guests, other) and one tight line per person (Andrew chose this, option A, 21 Oct 2026: no dead space).
+ */
+const ROOM_KINDS = [["Board Member", "Board members"], ["Presenter", "Presenters"], ["Volunteer", "Volunteers"], ["ONGIA Guest", "ONGIA guests"], ["Other", "Other"]];
 function roomGroups(rows, row) {
   const master = rows.filter((r) => r.billing === "ONGIA"), own = rows.filter((r) => r.billing === "Guest"), tbc = rows.filter((r) => r.billing !== "ONGIA" && r.billing !== "Guest");
-  const group = (title, note, list) => list.length ? `<div class="roomgroup"><div class="rghead"><b>${title}</b> <span>${list.length}</span><small>${note}</small></div>
-    <div class="rooms">${list.map(row).join("")}</div></div>` : "";
+  const nightsOf = (list) => list.reduce((n, r) => n + (r.nights || 0), 0);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const byKind = (list) => {
+    const known = new Set(ROOM_KINDS.map(([k]) => k));
+    return [...ROOM_KINDS, ["", "Type not set"]].map(([k, label]) => {
+      const part = list.filter((r) => (k ? r.type === k : !known.has(r.type))).sort((a, b) => a.name.localeCompare(b.name));
+      return part.length ? `<div class="rkind">${label} <b>${part.length}</b><span>${plural(nightsOf(part), "night")}</span></div>${part.map(row).join("")}` : "";
+    }).join("");
+  };
+  const group = (title, note, list) => list.length ? `<div class="roomgroup"><div class="rghead"><b>${title}</b> <span>${plural(list.length, "room")} · ${plural(nightsOf(list), "night")}</span><small>${note}</small></div>
+    <div class="rooms">${byKind(list)}</div></div>` : "";
   return group("Master block (ONGIA pays)", "ONGIA pays the hotel for these.", master)
     + group("Not on the master block", "Each one pays their own room, so the hotel is told not to bill ONGIA.", own)
     + group("Waiting for approval", "Which group they go in is chosen when the agreement is approved.", tbc);
@@ -4254,16 +4277,18 @@ function roomingCard(ev, R, C = null) {
   ROOMING = R;
   const conf = R.rows.filter((r) => r.confirmed);
   const nightsAll = conf.reduce((n, r) => n + r.nights, 0);
+  // One tight line: tick, name and Edit, who they are, the nights; who pays only where the box heading doesn't say it.
   const row = (r) => {
     const [cls, w0] = BILL[r.billing] ?? ["", r.billing];
     const word = r.billing === "Guest" ? `${r.name} pays` : w0;
+    const type = r.type || (r.who === "guest" ? "type not set" : "Presenter");
+    const about = [r.who === "presenter" && r.type !== "Presenter" ? "presenting" : "", r.organization || "", r.board && r.type !== "Board Member" ? "on the board" : ""].filter(Boolean).join(" · ");
     return `<label class="room${r.confirmed ? "" : " unconf"}">
       <input type="checkbox" data-room="${esc(r.key)}"${r.confirmed ? " checked" : ""}>
-      <div class="rn">${esc(r.name)} ${r.who === "volunteer" ? "" : `<button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>`}<div class="ro">${[esc(r.type || (r.who === "guest" ? "type not set" : "Presenter")),
-        r.who === "presenter" && r.type !== "Presenter" ? "presenting" : "",
-        esc(r.organization || "")].filter(Boolean).join(" · ")}${r.board && r.type !== "Board Member" ? " · on the board" : ""}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div></div>
-      <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))}<small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
-      <span class="rb ${cls}">${esc(word)}</span></label>`;
+      <div class="rn">${esc(r.name)} ${r.who === "volunteer" ? "" : `<button type="button" class="gedit" ${r.who === "guest" ? "data-gedit" : "data-pedit"}="${esc(r.key)}" aria-label="Edit ${esc(r.name)}">Edit</button>`}</div>
+      <div class="ro"><span class="rtype">${esc(type)}${about ? " · " : ""}</span>${esc(about)}${r.confirmed ? "" : ` · <span style="color:var(--wait)">${esc(r.why)}</span>`}</div>
+      <div class="rd">${esc(shortDate(r.checkIn))} → ${esc(shortDate(r.checkOut))} <small>${r.nights} night${r.nights === 1 ? "" : "s"}</small></div>
+      ${r.billing === "ONGIA" ? `<span class="rb sr">ONGIA pays</span>` : `<span class="rb ${cls}">${esc(word)}</span>`}</label>`;
   };
   const sent = R.sent
     ? `<p class="roomsent">Sent to <b>${esc(R.sent.to)}</b> on ${esc(fmtDate(R.sent.at.slice(0, 10)))} (${R.sent.count} room${R.sent.count === 1 ? "" : "s"}).</p>

@@ -117,7 +117,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: approved: final, with the nights and the board member's name`, hv2.status === "signed" && hv2.review.hotel.from === "2026-11-08" && hv2.review.hotel.to === "2026-11-13" && hv2.review.approver.name === "Raj Jaswal");
   const hotel = page.locator('details[data-fold="sec-hotel"]'); if (!(await hotel.evaluate((d) => d.open))) await hotel.locator("> summary").click();
   const hr = hotel.locator(".room", { hasText: "Hana Hotel" });
-  ok(`${tag}: her nights are on the Hotel rooms list as a Volunteer, 5 nights, ONGIA pays`, await hr.count() === 1 && /Volunteer/.test(await hr.innerText()) && /5 nights/.test(await hr.innerText()) && /ONGIA pays/i.test(await hr.innerText()), await hotel.innerText());
+  ok(`${tag}: her nights are on the Hotel rooms list as a Volunteer, 5 nights, ONGIA pays`, await hr.count() === 1 && /Volunteer/.test(await hr.innerText()) && /5 nights/.test(await hr.innerText()) && /Hana Hotel/.test(await hotel.locator(".roomgroup", { hasText: "Master block (ONGIA pays)" }).innerText()), await hotel.innerText());
   ok(`${tag}: and her row there has no presenter-style Edit button`, (await hr.locator(".gedit").count()) === 0);
   await page.screenshot({ path: OUT + `desk-hotel-list-${tag}.png`, fullPage: false });
   const zrow = page.locator('details[data-fold="sec-volunteers"] tr.vrow', { hasText: "Zed Zero" });
