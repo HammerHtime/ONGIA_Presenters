@@ -10,6 +10,7 @@ const ev = await mk({ kind: "rbh", province: "QC", invoicePrefix: "ITP", title: 
 const plain = await mk({ title: "Ordinary Event UI" });
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const page = await b.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 2 });
+await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
 const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
 await page.addInitScript(() => { window.__opened = []; window.open = (u) => { window.__opened.push(String(u)); return null; }; });
 page.on("dialog", (d) => d.accept());

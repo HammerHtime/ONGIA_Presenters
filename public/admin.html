@@ -728,6 +728,28 @@
   .qcount b{font-family:var(--fd);font-size:34px;line-height:1;font-weight:400}
   .qcount .l{display:block;font-weight:700} .qcount .d{display:block;font-size:12.5px;color:var(--muted)}
   .qcount.on{border-color:var(--gold);background:var(--gold-pale);box-shadow:inset 0 -3px 0 var(--gold)}
+  /* the event page in tabs (redesign step 2) */
+  .evhead{margin-bottom:16px}
+  .evhead .kp{display:flex;gap:6px 18px;flex-wrap:wrap;margin-top:8px;font-size:13.5px;color:var(--ink-mid)}
+  .evhead .kp b{font-size:16px;color:var(--ink)}
+  .etabs{display:flex;gap:2px;overflow-x:auto;padding:0 12px;border-top:1px solid var(--border);scrollbar-width:none}
+  .etabs::-webkit-scrollbar{display:none}
+  .etab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px 10px;font:inherit;font-weight:700;font-size:14px;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
+  .etab:hover{color:var(--navy)}
+  .etab.on{color:var(--navy);border-bottom-color:var(--gold)}
+  .etab .n{background:var(--late-bg);color:var(--late);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
+  .etabp[hidden]{display:none}
+  .etabp .mailsw{border-bottom:0}
+  .evgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:0 18px;align-items:start}
+  .evgrid > *{min-width:0}
+  .evsoon .mile{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px dashed var(--border);font-size:14px}
+  .evsoon .mile:first-child{border-top:0;padding-top:0}
+  .evsoon .md{width:62px;flex:none;font-weight:700;font-size:13.5px}
+  .evsoon .mt{flex:1;min-width:0}
+  @media (max-width:760px){
+    .evgrid{grid-template-columns:1fr}
+    .etabs{padding:2px 6px;flex-wrap:wrap;overflow:visible;gap:0 2px} .etab{padding:10px 9px 8px;font-size:13.5px}
+  }
   .qcard .card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .qseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-left:auto}
   .qseg button{border:0;background:#fff;padding:7px 14px;font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer;min-height:36px}
@@ -1143,7 +1165,8 @@ const onBoardOf = (ev) => !!WHO?.email && (ev.board ?? []).some((m) => String(m.
 const qScope = () => { try { return localStorage.getItem("ongia-queue-scope") || "all"; } catch { return "all"; } };
 const qTab = () => { try { return sessionStorage.getItem("ongia-queue-tab") || "needs"; } catch { return "needs"; } };
 
-function homeQueues(events, inbox) {
+// `here`: drawn on the event's own page, so its buttons switch tabs there instead of opening the event.
+function homeQueues(events, inbox, { here = false } = {}) {
   const today = todayIso();
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const ago = (iso) => { if (!iso) return ""; const d = -days(String(iso).slice(0, 10)); return d <= 0 ? "today" : `${d} day${d === 1 ? "" : "s"}`; };
@@ -1160,7 +1183,7 @@ function homeQueues(events, inbox) {
       needs.push(row({ rank: 0, icon: "!", cls: "late", title: n === 1 ? "Link never sent" : `${n} links never sent`, who: names(a.uninvited), note: "No reminder will ever reach them",
         btn: `<button class="btn btn-gold btn-sm" data-qsend="${esc(`${ev.id}|${a.uninvited.map((x) => x.id).join(",")}`)}">${n === 1 ? "Send link" : `Send ${n} links`}</button>` }));
     }
-    if ((a.sendFailed ?? []).length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`, who: names(a.sendFailed), note: "Fix the address on the event", btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
+    if ((a.sendFailed ?? []).length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`, who: names(a.sendFailed), note: "Fix the address on the event", btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="people">Show them</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
     const blockers = blockersOf(ev);
     if (blockers.length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: "Event is blocked", who: esc(blockers.map((b) => b.short).join(", ")), btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Fix it</button>` }));
     const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
@@ -1175,7 +1198,7 @@ function homeQueues(events, inbox) {
         btn: `<button class="btn btn-ghost btn-sm" data-qremind="${esc(`${ev.id}|${chased.map((x) => x.id).join(",")}`)}">${chased.length === 1 ? "Email again" : `Email all ${chased.length}`}</button>` }));
     }
     const k = ev.checklist;
-    if (k?.late) needs.push(row({ rank: 3, icon: "☑", cls: "you", title: `${k.late} checklist job${k.late === 1 ? "" : "s"} overdue`, who: `${k.done} of ${k.total} done`, btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open checklist</button>` }));
+    if (k?.late) needs.push(row({ rank: 3, icon: "☑", cls: "you", title: `${k.late} checklist job${k.late === 1 ? "" : "s"} overdue`, who: `${k.done} of ${k.total} done`, btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="overview|sec-tasks">Open checklist</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open checklist</button>` }));
   }
   needs.sort((a, b) => a.rank - b.rank);
   // Email: the same rows as before (tick, ⋯, open in Outlook), in the same queue.
@@ -1309,7 +1332,7 @@ function pastEventsCard(past) {
       <div class="s">${esc(ev.city)} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div>
       <span class="porg">${c.total ?? 0} presenter${c.total === 1 ? "" : "s"}</span></div>`;
   }).join("");
-  return secFold("past", "Past events", `${past.length} event${past.length === 1 ? "" : "s"} that ${past.length === 1 ? "has" : "have"} finished`, "", `<div class="card-body" style="padding-top:6px">${rows}</div>`, { id: "pastevents" });
+  return secFold("past", "Past events", `${past.length} event${past.length === 1 ? "" : "s"} that ${past.length === 1 ? "has" : "have"} finished`, "", `<div class="card-body" style="padding-top:6px">${rows}</div>`, { id: "pastevents", open: false });
 }
 
 /**
@@ -2600,16 +2623,70 @@ function eventScreen(data) {
     sendFailed.length ? `<span class="late">${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} failed</span>` : ""].filter(Boolean).join(" · ");
   const settingsLine = "SharePoint folder, upload link, the board, delete";
 
-  ROOT.innerHTML = `<div class="card">
-    <div class="card-head"><div><h2>${esc(ev.title)}</h2>
-      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}
+  // The event page in tabs (redesign step 2, Andrew 20 Oct 2026). The whole event still loads in one go, so a tab
+  // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
+  const showMoney = !!(sow || receipts);
+  const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
+    ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["settings", "Settings"]];
+  const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
+  const lead = ev.reviewer?.name ?? "";
+  let mailTodo = 0;
+  try { mailTodo = inbox?.items ? ibGroups(inbox.items.map((x) => ({ x, ev }))).todo.filter(({ x }) => x.status === "open").length : 0; } catch { mailTodo = 0; }
+  const tabBadge = { people: count("review") + count("failed") + count("uninvited") + sendFailed.length, communications: mailTodo };
+  const signedN = count("final") + count("failed");
+  const conf = (rooming?.rows ?? []).filter((r) => r.confirmed);
+  const nightsN = conf.reduce((n, r) => n + r.nights, 0);
+  const keyNums = [
+    `<span><b>${signedN}</b> of ${c.total} agreement${c.total === 1 ? "" : "s"} signed</span>`,
+    c.total ? `<span><b>${finalGot}</b> of ${c.total} final materials</span>` : "",
+    conf.length ? `<span><b>${conf.length}</b> room${conf.length === 1 ? "" : "s"} · <b>${nightsN}</b> night${nightsN === 1 ? "" : "s"}</span>` : "",
+    guests?.counts?.total ? `<span><b>${guests.counts.attending ?? 0}</b> registered</span>` : "",
+  ].filter(Boolean).join("");
+
+  // Overview: what needs doing on this event (the home page's queue, this event only), what is coming, and who does what.
+  const listEv = (allEvents ?? []).find((e) => e.id === ev.id) ?? null;
+  const Qev = listEv ? homeQueues([listEv], null, { here: true }) : { needs: [], waiting: [] };
+  const evQRow = (r) => `<div class="qrow"><span class="qic ${r.cls}" aria-hidden="true">${r.icon}</span>
+    <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}${r.note ? `<div class="qev">${esc(r.note)}</div>` : ""}</div>
+    <span class="qwhen">${r.when ?? ""}</span><span class="qact">${r.btn}</span></div>`;
+  const todoHtml = Qev.needs.filter((r) => r.title !== "Event is blocked").map(evQRow).join("")
+    + (mailTodo ? evQRow({ icon: "✉", cls: "you", title: `${mailTodo} email${mailTodo === 1 ? "" : "s"} to deal with`, note: "From your inbox, filed to this event",
+        btn: `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open email</button>` }) : "");
+  const soon = [
+    ...nextDl.filter((x) => x.d >= 0).map((x) => ({ iso: x.iso, d: x.d, what: x.l,
+      extra: x.l === "Training starts" || !presenters.length ? "" : stillOut(x.l) ? `${stillOut(x.l)} still to come in` : "all in" })),
+    ...(checklist?.tasks ?? []).filter((t) => t.scheduled && t.due && !t.done && !t.na && daysTo(t.due) >= 0)
+      .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "" })),
+  ].sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, 6);
+  const comingCard = `<div class="card"><div class="card-head"><div><h2>Coming up</h2></div></div><div class="card-body evsoon">${soon.length
+    ? soon.map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}</span>
+        <span class="pill ${x.d <= 14 ? "wait" : "grey"}">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("")
+    : `<div class="porg">Nothing dated coming up.</div>`}</div></div>`;
+  const boardOthers = (ev.board ?? []).filter((m) => !m.lead).map((m) => esc(m.name || m.email));
+  const whoCard = `<div class="card"><div class="card-head"><div><h2>Who does what</h2></div></div><div class="card-body" style="font-size:14px">
+    <div>${lead ? `<b>Lead:</b> ${esc(lead)} · signs and answers presenters` : `<span class="pill late">no lead</span> Pick one on Edit event.`}</div>
+    <div style="margin-top:6px"><b>Board on this event:</b> ${boardOthers.length ? boardOthers.join(", ") : "nobody else yet"}</div>
+    <div class="porg" style="margin-top:6px">They, the president and the VP of operations can change this event. The rest of the board sees it as view only.</div></div></div>`;
+  const overviewHtml = (`${overdue.length ? `<div class="bad" style="margin:0 0 14px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}`)
+    + `<div class="evgrid"><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
+        <div class="qlist">${todoHtml || `<div class="qempty">Nothing needs you on this event right now.</div>`}${Qev.waiting.length ? `<div class="qmailh">Waiting on them</div>${Qev.waiting.map(evQRow).join("")}` : ""}</div></div>
+      <div>${comingCard}${whoCard}</div></div>`
+    + checklistCard(ev, checklist);
+  // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
+  let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
+  const panel = (k, html) => `<section class="etabp" data-panel="${k}"${k === tab || allTabs ? "" : " hidden"}>${html}</section>`;
+
+  ROOT.innerHTML = `<div class="card evhead">
+    <div class="card-head"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2>
+      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}${lead ? ` · Lead: ${esc(lead)}` : ""}
         ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
-      ${overdue.length ? `<div class="bad" style="margin-top:10px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}
+      <div class="kp">${keyNums}</div>
       ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
       <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
-    ${mailSwitch(ev, guests)}</div>`
-    + secFold("presenters", "Presenters", presenterLine, presenterBadge, `
+    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}</button>`).join("")}</nav></div>`
+    + panel("overview", overviewHtml)
+    + panel("people", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
     <div class="tiles">
       <div class="tile"><div class="k">Presenters</div><div class="v">${c.total}</div></div>
       <div class="tile"><div class="k">Waiting on them</div><div class="v">${count("notstarted") + count("progress") + count("uninvited")}</div></div>
@@ -2631,18 +2708,12 @@ function eventScreen(data) {
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address on the presenter, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
       <div class="filters">${chips}</div>
       <div class="tlist">${show.length ? `<div class="thead"><span>Presenter</span><span>Agreement</span><span></span></div>` : ""}${rows}</div>
-    </div>`)
-    + volunteerCard(ev, volunteers)
-    + inboxCard(ev, inbox) + inboxDialogs()
-    + checklistCard(ev, checklist) + jobDialog()
-    + (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "")
-    + (sow ? sowCard(ev, sow) : "")
-    + (receipts ? receiptsCard(ev, receipts) : "")
-    + (sheetShown ? sheetCard(ev, sheetcheck) : "")
-    + roomingCard(ev, rooming, contract) + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs()
-    + attendeesCard(ev, guests) + wixDialog()
-    + agendaCard(ev, agenda)
-    + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
+    </div>`) + volunteerCard(ev, volunteers) + attendeesCard(ev, guests))
+    + panel("program", agendaCard(ev, agenda))
+    + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
+    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + inboxCard(ev, inbox))
+    + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
         <dt class="top">Uploads</dt><dd><div class="stack">${!ev.materialsUploadUrl
@@ -2656,7 +2727,9 @@ function eventScreen(data) {
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
-    </div>`, { id: "evsettings" })
+    </div>`, { id: "evsettings" }))
+    // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
+    + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="prm">
       <form method="dialog">
         <div class="sheet-head"><h2 id="prm-title">Remove this presenter?</h2>
@@ -2713,11 +2786,26 @@ function eventScreen(data) {
   wireRbhOffer(ev);
   if (data.canEdit === false) makeViewOnly("This event is view only for you. Its own board members, the president and the VP of operations can change it.");
   if (receipts) wireReceipts(ev, receipts);
+  // Tabs: switching is instant (everything is already on the page) and swaps the address in place, so Back still leaves the event.
+  const showTab = (k, focus = null) => {
+    view = { ...view, tab: k };
+    ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
+    ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+    try { history.replaceState(null, "", location.pathname + location.search + viewHash(view)); } catch { /* no history in a sandboxed frame */ }
+    const el = focus ? ROOT.querySelector(focus) : null;
+    if (el) { if (el.tagName === "DETAILS") el.open = true; el.scrollIntoView({ block: "start", behavior: "smooth" }); }
+  };
+  ROOT.querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
+  ROOT.querySelectorAll("[data-gotab]").forEach((b) => { b.onclick = () => { const [k, fold] = b.dataset.gotab.split("|"); showTab(k, fold ? `details[data-fold="${fold}"]` : null); }; });
+  // The overview's to-do rows do the job right there, the same as on the home page.
+  wireHomeConsole();
+  ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = () => { const [eid, pid] = b.dataset.goreview.split("|"); view = { name: "review", eventId: eid, presenterId: pid }; render(); }; });
   // A blocked event's fix buttons drive the same actions as the settings block.
   ROOT.querySelectorAll("[data-fix]").forEach((b) => {
     b.onclick = () => {
       const act = b.dataset.fix;
       if (act === "edit") { view = { name: "edit", eventId: ev.id }; render(); return; }
+      showTab("settings");
       const target = document.getElementById(act === "mklink" ? "mklink" : "mkfolder");
       const box = document.getElementById("evsettings");
       if (box) box.open = true;
@@ -4346,7 +4434,8 @@ const foldOpen = (id, start = true) => {
  * card. Every section starts closed, so an event opens as a short list of what is
  * there instead of twenty screens of it; each one then stays the way he left it.
  */
-function secFold(key, title, line, badge, inner, { id = "", open = false } = {}) {
+// Open unless the person closed it: on the tabbed event page each card is what the tab is for.
+function secFold(key, title, line, badge, inner, { id = "", open = true } = {}) {
   return `<details class="card ibfold secfold"${id ? ` id="${id}"` : ""} data-fold="sec-${key}"${foldOpen(`sec-${key}`, open) ? " open" : ""}>
     <summary class="card-head"><div><h2>${title}</h2>${line ? `<div class="s">${line}</div>` : ""}</div>
       ${badge ? `<span class="ibcount">${badge}</span>` : ""}<span class="ibcaret" aria-hidden="true">▾</span></summary>

@@ -15,6 +15,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   console.log(`— ${tag}`);
   const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true, canCost: true }]);
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));

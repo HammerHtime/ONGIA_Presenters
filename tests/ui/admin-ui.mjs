@@ -16,6 +16,7 @@ const rbh = await mk(`RBH ${T}`, { kind: "rbh", province: "QC", invoicePrefix: "
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const as = async (email, vp) => {
   const page = await b.newPage({ viewport: vp, deviceScaleFactor: 2 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email, name: email });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email, name: email, owner: email === "president@ongia.ca", canCost: true }]);
   page.on("dialog", (d) => d.accept()); page.errs = []; page.on("pageerror", (e) => page.errs.push(String(e)));

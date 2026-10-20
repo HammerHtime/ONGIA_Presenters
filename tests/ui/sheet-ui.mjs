@@ -27,6 +27,8 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await submit("Newcomer", "no", null, null, null, "");                        // not on the sheet
 
   const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
   let sent = ""; page.on("request", (r) => { if (/sheetcheck/.test(r.url()) && r.method() === "PUT") sent += r.postData() ?? ""; });
   await page.goto(`${S}/admin.html`, { waitUntil: "networkidle" });

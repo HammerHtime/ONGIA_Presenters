@@ -19,6 +19,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
       hotel: x[0], ...(x[0] === "yes" ? { hotelFrom: "2026-11-08", hotelTo: "2026-11-13" } : {}), expenses: { transport: "no", hotel: x[1], meals: "no", other: "no", otherText: "" } }) });
   }
   const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
   let confirmText = ""; page.on("dialog", (d) => { confirmText = d.message(); d.accept(); });
   await page.goto(`${S}/admin.html`, { waitUntil: "networkidle" });

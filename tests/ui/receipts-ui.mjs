@@ -18,6 +18,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 // A camera-sized photo (well over the 5 MB limit), made in the browser rather than kept in the repository.
 const BIG = await (async () => {
   const pg = await b.newPage();
+  await pg.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const b64 = await pg.evaluate(async () => {
     const c = document.createElement("canvas"); c.width = 3200; c.height = 3200;
     const x = c.getContext("2d"), img = x.createImageData(c.width, c.height);
@@ -33,6 +34,7 @@ const BIG = await (async () => {
 })();
 const as = async (email, name, vp) => {
   const page = await b.newPage({ viewport: vp });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email, name });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} },
     [token, { email, name, owner: false, canCost: ["president@ongia.ca", "vp_operations@ongia.ca"].includes(email) }]);

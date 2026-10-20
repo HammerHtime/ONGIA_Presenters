@@ -12,6 +12,7 @@ const mk = async (title, city, province) => (await api("/api/events", { method: 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const open = async (ev, vp) => {
   const page = await b.newPage({ viewport: vp, deviceScaleFactor: 2 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true, canCost: true }]);
   page.errs = []; page.on("pageerror", (e) => page.errs.push(String(e)));

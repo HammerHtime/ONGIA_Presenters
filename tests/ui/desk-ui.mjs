@@ -12,6 +12,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 
 for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   page.on("dialog", (d) => d.accept());
@@ -141,7 +142,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const left = (await api(`/api/volunteers?event=${ev.id}`)).volunteers;
   ok(`${tag}: removed, and Vera is still there`, left.some((v) => v.first === "Vera") && !left.some((v) => v.first === "Marc"));
   ok(`${tag}: the event keeps the reason`, /No longer available/.test(JSON.stringify((await api(`/api/events?id=${ev.id}`)).event.removedPresenters)));
-  const st = page.locator("#evsettings"); await st.locator("summary").click().catch(() => {}); await page.waitForTimeout(200);
+  const st = page.locator("#evsettings"); if (!(await st.evaluate((d) => d.open))) await st.locator("summary").click().catch(() => {}); await page.waitForTimeout(200);
   ok(`${tag}: Event settings lists them as a removed volunteer, with the reason`, /volunteer/.test(await page.locator("#evsettings").innerText()) && /No longer available/.test(await page.locator("#evsettings").innerText()));
   ok(`${tag}: no script errors`, errs.length === 0, errs.join("; "));
   // Clean up so the second pass starts fresh.

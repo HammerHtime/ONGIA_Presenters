@@ -13,6 +13,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || u
 for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const ev = await mk(tag);
   const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
   await page.goto(`${S}/admin.html`, { waitUntil: "networkidle" });
   await page.fill('input[type="password"]', "testkey"); await page.keyboard.press("Enter"); await page.waitForTimeout(1200);

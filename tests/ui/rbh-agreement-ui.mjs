@@ -22,6 +22,7 @@ const toStep3 = async (page, p) => {
 for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   for (const [label, X] of [["RBH", R], ["ordinary", O]]) {
     const page = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: w < 500 });
+    await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
     const errs = []; page.on("pageerror", (e) => errs.push(String(e)));
     const next = await toStep3(page, X.p);
     const rbh = label === "RBH";
@@ -51,6 +52,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
 // French wording on step 3 of the RBH form
 {
   const page = await b.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const next = await toStep3(page, R.p);
   await page.click("#lang"); await page.waitForTimeout(400);
   const t = await page.locator("body").innerText();
@@ -65,6 +67,7 @@ await sub(O, { travel: "yes", travelFrom: "2026-09-27", travelTo: "2026-10-02", 
 for (const [label, X] of [["RBH", R], ["ordinary", O]]) {
   const rbh = label === "RBH";
   const page = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email: "treasurer@ongia.ca", name: "Raj Jaswal" });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "treasurer@ongia.ca", name: "Raj Jaswal", owner: false, canCost: false }]);
   const errs = []; page.on("pageerror", (e) => errs.push(String(e)));

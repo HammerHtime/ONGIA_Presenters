@@ -16,6 +16,7 @@ await api(`/api/sow?event=${ev.id}&create=1`, { method: "POST", body: JSON.strin
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const as = async (email, name) => {
   const page = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.addInitScript(() => { try { sessionStorage.setItem("ongia-test-alltabs", "1"); } catch {} });   // every tab of the event page shown at once: this file tests the sections, evtabs-ui tests the tabs
   const token = issueSession({ email, name });
   await page.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch { /* a sandboxed frame has no storage */ } },
     [token, { email, name, owner: false, canCost: ["president@ongia.ca", "vp_operations@ongia.ca"].includes(email) }]);
