@@ -43,11 +43,30 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   // Headshots in the list.
   await go({ name: "event", eventId: ev.id, tab: "people" });
   await p.waitForTimeout(800);
+  // A tile that needs you says so, in colour.
+  const t0 = p.locator(".etile").first();
+  ok(`${tag}: the agreements tile is flagged Needs you while agreements wait for review`, /attn|behind/.test(await t0.getAttribute("class")) && /Needs you|Past due/i.test(await t0.innerText()), await t0.innerText());
+  await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);
+  await t0.click(); await p.waitForTimeout(500);
+  ok(`${tag}: clicking it opens People, cut to the ones that need you`, (await p.locator(".etabp:not([hidden])").getAttribute("data-panel")) === "people" && /Needs me/.test(await p.locator(".fchip.on").innerText()) && (await p.locator("tr.prow:not([hidden])").count()) >= 1, await p.locator(".fchip.on").innerText().catch(() => ""));
+  await p.locator(".etile", { hasText: "Wix registrations" }).click(); await p.waitForTimeout(400);
+  ok(`${tag}: the Wix tile opens Who's coming`, (await p.locator("[data-pseg].on").getAttribute("data-pseg")) === "guests");
+  await p.locator(".etile", { hasText: "Hotel" }).first().click(); await p.waitForTimeout(400);
+  ok(`${tag}: the hotel tile opens the hotel list on Logistics`, (await p.locator(".etabp:not([hidden])").getAttribute("data-panel")) === "logistics" && await p.locator('details[data-fold="sec-hotel"]').isVisible());
+  await go({ name: "event", eventId: ev.id, tab: "people", pview: "presenters", filter: "all" });
   ok(`${tag}: a presenter with a photo shows it in the list`, (await p.locator("tr.prow", { hasText: "Ann First" }).locator(".pav img").count()) === 1);
   ok(`${tag}: one without shows their initials`, (await p.locator("tr.prow", { hasText: "Cal Never" }).locator(".pav").innerText()).trim() === "CN");
   ok(`${tag}: the talk title is not in the row (it is in the panel)`, !/A sample talk/.test(await p.locator("tr.prow", { hasText: "Ann First" }).innerText()));
   ok(`${tag}: nothing scrolls sideways`, !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)));
-  if (tag === "wide") await p.screenshot({ path: `${D}layout-people-${tag}.png` });
+  if (tag === "wide") {
+    await p.screenshot({ path: `${D}layout-people-${tag}.png` });
+    for (const width of [1440, 1180, 1024]) {
+      await p.setViewportSize({ width, height: 900 }); await p.waitForTimeout(200);
+      const dims = await p.locator(".ptwrap").evaluate((e) => [e.scrollWidth, e.clientWidth, [...e.querySelectorAll("th")].map((t) => Math.round(t.getBoundingClientRect().width)).join(",")]);
+      ok(`${tag}: at ${width} wide the presenter table fits, with nothing to scroll sideways`, dims[0] <= dims[1] + 1, JSON.stringify(dims));
+    }
+    await p.setViewportSize({ width: w, height: h });
+  }
 
   // The lead can be changed from the side column.
   await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);

@@ -758,7 +758,14 @@
   .etile .n{font-size:23px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .etile .n small{font-size:14.5px;font-weight:600;color:var(--muted)}
   .etile .l{font-size:13px;font-weight:600;color:var(--ink-mid)}
   .etile .s{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .etile.behind{box-shadow:inset 4px 0 0 var(--late)} .etile.behind .s{color:var(--late);font-weight:600}
+  .etile{position:relative}
+  .etile.tgo{cursor:pointer;transition:transform .12s, box-shadow .12s} .etile.tgo:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.18)}
+  .etile.attn.tgo:hover{box-shadow:inset 0 0 0 2.5px var(--gold),0 6px 16px rgba(0,0,0,.18)} .etile.behind.tgo:hover{box-shadow:inset 0 0 0 2.5px var(--late),0 6px 16px rgba(0,0,0,.18)}
+  .etile .tflag{display:inline-block;margin:0 0 5px;font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:1px 8px;font-weight:600}
+  .etile.behind{background:#fbe1dc;box-shadow:inset 0 0 0 2.5px var(--late)} .etile.behind .n,.etile.behind .l{color:var(--late)} .etile.behind .s{color:var(--late);font-weight:600}
+  .etile.behind .tflag{background:var(--late);color:#fff}
+  .etile.attn{background:var(--gold-pale);box-shadow:inset 0 0 0 2.5px var(--gold)} .etile.attn .s{color:#6b4e08;font-weight:600}
+  .etile.attn .tflag{background:var(--gold);color:#1c1608}
   .meter{height:6px;border-radius:99px;background:var(--sunk);margin-top:7px;overflow:hidden;display:flex}
   .meter i{display:block;height:100%} .meter .a{background:var(--done)} .meter .b{background:var(--gold-light)}
   .evhead .etabs{background:#fff;border:1.5px solid var(--edge);border-top:0;border-radius:0 0 20px 20px;box-shadow:var(--shadow)}
@@ -796,8 +803,20 @@
   .pav img{width:100%;height:100%;object-fit:cover;display:block}
   .pav.big{width:60px;height:60px;font-size:19px}
   .pnl{display:flex;align-items:center;gap:10px;min-width:0}
-  .pnl .pnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pnl .pnm .porg{margin-left:8px;font-size:13px}
+  .pnl .pnm{min-width:0;display:flex;flex-direction:column}
+  .pnl .pnn,.pnl .pnm .porg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pnl .pnm .porg{font-size:12.5px}
+  /* The presenter table fits the page (Andrew 21 Oct 2026): fixed columns, long names and notes cut short, nothing to scroll sideways. */
+  @media (min-width:761px){
+    .ptable:not(.gtable):not(.vtable){table-layout:fixed}
+    .ptable .thn{width:auto} .ptable .tha{width:24%} .ptable .thm{width:104px} .ptable .thr{width:112px} .ptable .thx{width:124px} .ptable .thd{width:42px}
+    .ptable .pa .psub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .ptable .pa .pill{white-space:nowrap} .ptable td.pr{white-space:normal} .ptable .pn{min-width:0}
+    .ptable .px .mini{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+    .ptable td.pd{padding-left:0;padding-right:4px;text-align:right} .ptable td.pd .pmore{padding:2px 6px}
+  }
+  /* On a narrower screen the Room column goes (each presenter's panel shows the room), so the names keep their room. */
+  @media (min-width:761px) and (max-width:1320px){ .ptable .pr, .ptable .thr{display:none} }
   .pdh{display:flex;gap:12px;align-items:center;margin-bottom:6px}
   @media (max-width:1100px){.evtiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media (max-width:900px){.evbody{grid-template-columns:1fr} .evbody.withdrawer #sidepanels{display:block}}
@@ -805,8 +824,7 @@
     .evband{padding:16px 16px 14px;border-radius:18px 18px 0 0} .evband h2{font-size:22px} .bacts{justify-content:flex-start}
     .evtiles{grid-template-columns:1fr 1fr;gap:8px} .etile .n{font-size:20px}
     .sharedbar .chip:not(.solid){display:none}
-    .pnl .pnm .porg{display:block;margin:0}
-    .pnl .pnm{white-space:normal}
+    .pnl .pnn,.pnl .pnm .porg{white-space:normal}
   }
   .readycard .ready{list-style:none;margin:0;padding:6px 20px 12px}
   .readycard .ready li{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:14px}
@@ -2583,6 +2601,42 @@ function sponsorsScreen(list, settings) {
 // Ticked presenters (per event) and the find box's text survive a redraw of the event page.
 const PSEL = new Map();
 let PFIND = "";
+/**
+ * Opening an event brings in what changed outside the desk (Andrew 21 Oct 2026): new Wix registrations and new files in
+ * the upload folder. It runs behind the page, at most every 10 minutes per event, and redraws only if something changed
+ * and you are not in the middle of typing.
+ */
+const FRESH_AT = new Map();
+async function freshen(id, { guests, materials, event, canEdit }) {
+  if (canEdit === false) return;
+  const now = Date.now(), WAIT = 10 * 60 * 1000;
+  if (now - (FRESH_AT.get(id) ?? 0) < WAIT) return;
+  FRESH_AT.set(id, now);
+  const stale = (iso) => !iso || now - Date.parse(iso) > WAIT;
+  const said = [];
+  const jobs = [];
+  if (guests?.wix?.eventId && stale(guests.syncedAt)) {
+    jobs.push(api(`/wix?event=${encodeURIComponent(id)}`, { method: "POST" }).then((o) => {
+      if (o.added) said.push(`${o.added} new registration${o.added === 1 ? "" : "s"}`);
+      if (o.withdrawn) said.push(`${o.withdrawn} withdrew`);
+      return (o.added || 0) + (o.changed || 0) + (o.withdrawn || 0) > 0;
+    }).catch(() => false));
+  }
+  if (event?.materialsUploadUrl && stale(materials?.scan?.checkedAt)) {
+    jobs.push(api(`/materials?event=${encodeURIComponent(id)}&scan=1`, { method: "POST" }).then((o) => {
+      const moved = JSON.stringify(o.status ?? {}) !== JSON.stringify(materials?.status ?? {});
+      if (moved) said.push("new uploads");
+      return moved || (o.scan?.total ?? 0) !== (materials?.scan?.total ?? 0);
+    }).catch(() => false));
+  }
+  if (!jobs.length) return;
+  const changed = (await Promise.all(jobs)).some(Boolean);
+  if (!changed || view.name !== "event" || view.eventId !== id) return;
+  const busy = document.querySelector("dialog[open]") || document.activeElement?.matches?.("input:not([type=checkbox]):not([type=radio]), textarea, select");
+  if (busy) { if (said.length) toast(`Updated: ${said.join(", ")}. It shows the next time the page redraws.`); return; }
+  await render();
+  if (said.length) toast(`Updated: ${said.join(", ")}.`);
+}
 /** "Tue 20 Oct, 4:12 PM", in the desk's time zone. */
 function signInTime(iso) {
   const t = new Date(iso);
@@ -2664,7 +2718,7 @@ function eventScreen(data) {
 
   const today = todayIso();
   const daysTo = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
-  const short = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "") : "");
+  const short = (iso) => (iso ? fmtDate(iso.slice(0, 10)).replace(/^\w+ /, "").replace(new RegExp(` ${today.slice(0, 4)}$`), "") : "");
 
   // The reminder cadence, mirrored from netlify/functions/lib/reminders.mjs so a
   // row can say when the next automatic nudge goes out — or that it is paused.
@@ -2710,7 +2764,7 @@ function eventScreen(data) {
     const chased = `${n} reminder${n === 1 ? "" : "s"}`;
     if (p.status === "returned") return { bucket: "progress", pill: `<span class="pill late">Sent back</span>`,
       sub: `${short(p.review?.returnedAt)} · waiting for changes${calledLine}` };
-    const callPill = hard && !calls.length ? `<div style="margin-top:5px"><span class="pill late">Call them</span></div>` : "";
+    const callPill = hard && !calls.length ? ` <span class="pill late">Call them</span>` : "";
     if (p.openedAt) return { bucket: "progress", pill: `<span class="pill ${hard ? "late" : "wait"}">Opened, not finished</span>${callPill}`,
       sub: `opened ${short(p.openedAt)} · ${chased}, last ${short(mails.at(-1).at)}${calledLine}${nextLine()}` };
     return { bucket: "notstarted", pill: `<span class="pill ${hard ? "late" : "wait"}">Not opened</span>${callPill}`,
@@ -2883,8 +2937,8 @@ function eventScreen(data) {
     const r = roomOf(p);
     return `<tr class="prow${view.person === p.id ? " open" : ""}${sel.has(p.id) ? " sel" : ""}" data-person="${esc(p.id)}" data-find="${esc(`${name(p)} ${p.organization ?? ""} ${p.email}`.toLowerCase())}">
       <td class="pc"><input type="checkbox" data-psel="${esc(p.id)}"${sel.has(p.id) ? " checked" : ""} aria-label="Select ${esc(name(p))}"></td>
-      <td class="pn"><div class="pnl"><span class="pav" data-shot="${esc(p.id)}" aria-hidden="true">${esc(initialsOf(p))}</span><span class="pnm"><b>${esc(name(p))}</b>${flags(p)}<span class="porg">${esc(p.organization || p.email)}</span></span></div></td>
-      <td class="pa">${a.pill}<span class="psub">${a.sub}</span></td>
+      <td class="pn"><div class="pnl"><span class="pav" data-shot="${esc(p.id)}" aria-hidden="true">${esc(initialsOf(p))}</span><span class="pnm"><span class="pnn"><b>${esc(name(p))}</b>${flags(p)}</span><span class="porg" title="${esc(p.organization || p.email)}">${esc(p.organization || p.email)}</span></span></div></td>
+      <td class="pa">${a.pill}<span class="psub" title="${esc(a.sub.replace(/<[^>]+>/g, ""))}">${a.sub}</span></td>
       <td class="pm"><span class="mchips">${matChips(p)}</span></td>
       <td class="pr">${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))}<span class="psub">${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}</span>` : `<span class="porg">—</span>`}</td>
       <td class="px">${nextCell(p, a, A)}</td>
@@ -3056,23 +3110,29 @@ function eventScreen(data) {
   const weekAgo = Date.now() - 7 * 86400000;
   const newGuests = (guests?.people ?? []).filter((g) => g.status === "ATTENDING" && g.addedAt && Date.parse(g.addedAt) >= weekAgo).length;
   const cutoff = ev.hotel?.cutoff && daysTo(ev.hotel.cutoff) >= 0 ? ev.hotel.cutoff : null;
+  const cutoffGone = ev.hotel?.cutoff && daysTo(ev.hotel.cutoff) < 0 && daysTo(ev.dayOne) >= 0 ? ev.hotel.cutoff : null;
   const nextUp = nextDl.find((x) => x.d >= 0);
-  const tile = (cls, n, l, sub, meter = "") => `<div class="etile${cls ? " " + cls : ""}"><div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
+  // Past due: red, with "Past due". Needs you soon (or now): gold, with "Needs you". Andrew, 21 Oct 2026: a thin edge was too easy to miss.
+  // Each tile opens what it is about, with the list cut to what is missing (Andrew 21 Oct 2026): tab | people view | filter | place.
+  const tile = (cls, n, l, sub, meter = "", go = "") => `<div class="etile${cls ? " " + cls : ""}${go ? " tgo" : ""}"${go ? ` data-tgo="${go}" role="button" tabindex="0" title="Show me"` : ""}>${cls === "behind" ? `<span class="tflag">Past due</span>` : cls === "attn" ? `<span class="tflag">Needs you</span>` : ""}<div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
+  const soonDays = (iso, n) => !!iso && daysTo(iso) >= 0 && daysTo(iso) <= n;
   const meter = (a, b) => `<div class="meter" aria-hidden="true"><i class="a" style="width:${pct(a)}%"></i><i class="b" style="width:${pct(b)}%"></i></div>`;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const tiles = [
-    tile(lateA ? "behind" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
+    tile(lateA ? "behind" : reviewN || (outA && soonDays(dueA, 7)) ? "attn" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
       [reviewN ? `${reviewN} to review` : "", lateA ? "due date passed" : dueA ? `due ${esc(short(dueA))}` : ""].filter(Boolean).join(" · ") || (c.total ? "all in" : "No presenters yet"),
-      meter(signedN, reviewN)),
-    tile(lateF ? "behind" : "", `${finalGot} <small>/ ${c.total}</small>`, "Final materials",
+      meter(signedN, reviewN), `people|presenters|${count("review") + count("uninvited") + count("failed") || sendFailed.length ? "needs" : outA ? "waiting" : "all"}`),
+    tile(lateF ? "behind" : finalGot < presenters.length && soonDays(dueF, 14) ? "attn" : "", `${finalGot} <small>/ ${c.total}</small>`, "Final materials",
       [`${plural(draftGot, "draft")} in`, dueF ? (lateF ? "finals overdue" : `finals due ${esc(short(dueF))}`) : ""].filter(Boolean).join(" · "),
-      meter(finalGot, Math.max(0, draftGot - finalGot))),
-    tile("", conf.length ? `${conf.length} <small>${conf.length === 1 ? "room" : "rooms"}</small> · ${nightsN} <small>${nightsN === 1 ? "night" : "nights"}</small>` : `0 <small>rooms</small>`, "Hotel",
-      conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet"),
+      meter(finalGot, Math.max(0, draftGot - finalGot)), `people|presenters|${presenters.length - finalGot ? "materials" : "all"}`),
+    tile(roomWait ? "attn" : "", conf.length ? `${conf.length} <small>${conf.length === 1 ? "room" : "rooms"}</small> · ${nightsN} <small>${nightsN === 1 ? "night" : "nights"}</small>` : `0 <small>rooms</small>`, "Hotel",
+      conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet", "",
+      `logistics|||${roomWait ? "waiting" : "hotel"}`),
     tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
-      !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked"),
-    cutoff ? tile(daysTo(cutoff) <= 7 ? "behind" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`)
-      : nextUp ? tile("", `${nextUp.d} <small>${nextUp.d === 1 ? "day" : "days"}</small>`, esc(nextUp.l), esc(plainDay(nextUp.iso)))
+      !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked", "", "people|guests"),
+    cutoff ? tile(daysTo(cutoff) <= 7 ? "attn" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`, "", "logistics|||hotel")
+      : cutoffGone ? tile("behind", `${-daysTo(cutoffGone)} <small>${daysTo(cutoffGone) === -1 ? "day" : "days"} ago</small>`, "Hotel cut-off", `${esc(plainDay(cutoffGone))} · rooming list`, "", "logistics|||hotel")
+      : nextUp ? tile("", `${nextUp.d} <small>${nextUp.d === 1 ? "day" : "days"}</small>`, esc(nextUp.l), esc(plainDay(nextUp.iso)), "", "overview|||tasks")
       : tile("", "—", "Next date", "Nothing dated coming up"),
   ].join("");
   const I = {
@@ -3110,7 +3170,7 @@ function eventScreen(data) {
         <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
         <span class="pbnote">Approving is always one at a time</span></div>
       <div class="ptwrap">${show.length
-        ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th class="thr">Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+        ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th class="thn">Presenter</th><th class="tha">Agreement</th><th class="thm">Materials</th><th class="thr">Room</th><th class="thx">Next</th><th class="thd"></th></tr></thead><tbody>${rows}</tbody></table>`
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
@@ -3295,6 +3355,22 @@ function eventScreen(data) {
   };
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
+  // A tile opens its tab, cut to what is missing, and brings the work into view.
+  ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
+    const go = () => {
+      const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");
+      view = { ...view, tab: tabTo, ...(pv ? { pview: pv } : {}), ...(filt ? { filter: filt } : {}) };
+      keepAddress();
+      eventScreen(data);
+      const target = place === "waiting" ? [...ROOT.querySelectorAll(".roomgroup")].find((g) => /Waiting/i.test(g.querySelector(".rghead")?.textContent ?? ""))
+        : place === "hotel" ? ROOT.querySelector('details[data-fold="sec-hotel"]')
+        : place === "tasks" ? ROOT.querySelector('details[data-fold="sec-tasks"]')
+        : document.getElementById("evbody");
+      (target ?? document.getElementById("evbody"))?.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+    t.onclick = go;
+    t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+  });
   // Change the lead right here (Andrew 21 Oct 2026): this event's board first, then the rest of the board list.
   const leadBtn = document.getElementById("leadchange");
   if (leadBtn) leadBtn.onclick = () => {
@@ -6897,7 +6973,9 @@ async function drawScreen() {
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       const receipts = data.event?.kind === "rbh" ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
-      return eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
+      const out = eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
+      freshen(view.eventId, { guests, materials, event: data.event, canEdit: data.canEdit });
+      return out;
     }
     if (view.name === "unfiled" && EMAIL_ON) {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);
