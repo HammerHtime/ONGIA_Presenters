@@ -22,8 +22,8 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await page.locator(`[data-open="${ev.id}"]`).first().evaluate((e) => e.click()); await page.waitForTimeout(1200);
   await page.evaluate(() => { const bar = document.querySelector(".bar"); if (bar) bar.style.position = "static"; });
   const fold = page.locator('details[data-fold="sec-volunteers"]');
-  ok(`${tag}: a Volunteers section sits on the event page, with its line`, await fold.count() === 1 && /Volunteers sign the ONGIA Volunteer Terms|volunteer/.test(await fold.locator("summary").innerText()));
-  if (!(await fold.evaluate((d) => d.open))) await fold.locator("summary").click();
+  ok(`${tag}: a Volunteers section sits on the event page, with its line`, await fold.count() === 1 && /Volunteers sign the ONGIA Volunteer Terms|volunteer/.test(await fold.locator("> summary").innerText()));
+  if (!(await fold.evaluate((d) => d.open))) await fold.locator("> summary").click();
   await page.waitForTimeout(300);
   ok(`${tag}: empty, it says what to do`, /No volunteers yet/.test(await fold.innerText()));
 
@@ -40,7 +40,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const rows = page.locator('details[data-fold="sec-volunteers"] tr.vrow');
   await rows.first().waitFor({ timeout: 8000 }); await page.waitForTimeout(400);
   ok(`${tag}: the two appear, never sent, each with Email link / Copy link / Edit`, await rows.count() === 2 && /never sent/i.test(await rows.nth(0).innerText()) && await rows.nth(0).locator("[data-vinvite]").count() === 1 && await rows.nth(0).locator("[data-vcopy]").count() === 1 && await rows.nth(0).locator("[data-vedit]").count() === 1);
-  ok(`${tag}: the badge and line count them`, /never sent/.test(await fold.locator("summary").innerText()) && /2 volunteers/.test(await fold.locator("summary").innerText()), await fold.locator("summary").innerText());
+  ok(`${tag}: the badge and line count them`, /never sent/.test(await fold.locator("> summary").innerText()) && /2 volunteers/.test(await fold.locator("> summary").innerText()), await fold.locator("> summary").innerText());
   ok(`${tag}: the failed send is kept in a red box`, /could not be sent/.test(await fold.innerText()));
 
   // Presenters were not touched.
@@ -80,11 +80,11 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
     body: JSON.stringify({ first: "Vera", last: "Volunteer", email: vera.email, phone: "4165550123", organization: "Peel Regional Police Service", accommodation: "no", termsAccepted: true, standing: true, signature: "Vera Volunteer", agreed: true, language: "en" }) });
   ok(`${tag}: she signs from her own link`, sign.status === 200);
   await page.goto(S + "/admin.html#event/" + ev.id, { waitUntil: "networkidle" }); await page.waitForTimeout(1500);
-  const f2 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f2.evaluate((d) => d.open))) await f2.locator("summary").click();
+  const f2 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f2.evaluate((d) => d.open))) await f2.locator("> summary").click();
   const row0 = page.locator('details[data-fold="sec-volunteers"] tr.vrow').nth(0);
   ok(`${tag}: her row says Signed, and the filing problem shows because there is no SharePoint here`, /signed/i.test(await row0.innerText()) && /not filed/i.test(await row0.innerText()) && await row0.locator("[data-vrefile]").count() === 1, await row0.innerText());
   ok(`${tag}: a signed row offers PDF and Retry filing`, await row0.locator("[data-vpdf]").count() === 1);
-  ok(`${tag}: the line counts her as signed`, /1 signed/.test(await f2.locator("summary").innerText()));
+  ok(`${tag}: the line counts her as signed`, /1 signed/.test(await f2.locator("> summary").innerText()));
   await row0.locator("[data-vpdf]").click(); await page.waitForTimeout(700);
   ok(`${tag}: PDF opens the signed copy`, /^blob:/.test(await page.evaluate(() => window.__opened ?? "")));
   await row0.locator("[data-vrefile]").click(); await page.waitForTimeout(900);
@@ -98,8 +98,8 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
     await fetch(`${S}/api/volunteer?t=${v.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: v.first, last: v.last, email: v.email, phone: "4165550188", organization: "OPP", accommodation: "yes", termsAccepted: true, standing: true, signature: `${v.first} ${v.last}`, agreed: true, language: "en" }) });
   }
   await page.goto(S + "/admin.html#event/" + ev.id, { waitUntil: "networkidle" }); await page.waitForTimeout(1500);
-  const f3 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f3.evaluate((d) => d.open))) await f3.locator("summary").click();
-  ok(`${tag}: two volunteers are waiting: a Needs review pill, a Review button, and a count in the heading`, (await f3.locator('tr.vrow:has-text("Needs review")').count()) === 2 && (await f3.locator("[data-vreview]").count()) === 2 && /2 to review/.test(await f3.locator("summary").innerText()));
+  const f3 = page.locator('details[data-fold="sec-volunteers"]'); if (!(await f3.evaluate((d) => d.open))) await f3.locator("> summary").click();
+  ok(`${tag}: two volunteers are waiting: a Needs review pill, a Review button, and a count in the heading`, (await f3.locator('tr.vrow:has-text("Needs review")').count()) === 2 && (await f3.locator("[data-vreview]").count()) === 2 && /2 to review/.test(await f3.locator("> summary").innerText()));
   const hrow = f3.locator('tr.vrow', { hasText: "Hana Hotel" });
   await hrow.locator("[data-vreview]").click(); await page.waitForTimeout(300);
   ok(`${tag}: Review opens a sheet, and Approve is off to begin with`, await page.isVisible("#vreview") && await page.isDisabled("#vr-go"));

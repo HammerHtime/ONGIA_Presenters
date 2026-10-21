@@ -51,13 +51,16 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: and clicking the other switches to it (by its words too)`, (await page.locator('input[name="r-block"][value="master"]').isChecked()) && !(await page.locator('input[name="r-block"][value="own"]').isChecked()));
   ok(`${tag}: choosing updates the read-back`, /on ONGIA's master block/.test(await page.innerText("#readback")) && /accommodation \(master block\)/.test(await page.innerText("#readback")));
   await page.click("#approve"); await page.waitForTimeout(2500);
-  ok(`${tag}: the confirm box repeats the choice`, /Hotel room: on ONGIA's master block/.test(confirmText), confirmText);
+  ok(`${tag}: no pop-up: the read-back above the button already said it`, confirmText === "", confirmText);
+  const reopen = async (first) => { await page.goto(`${S}/admin.html#review/${ev.id}/${list.find((x) => x.first === first).id}`, { waitUntil: "networkidle" }); await page.waitForTimeout(1500); };
+  await reopen("Ann");
   ok(`${tag}: Ann is approved, and the decision shows where the room sits`, /on ONGIA's master block/.test(await page.locator("body").innerText()));
   // Bob: agency pays
   await open("Bob");
   ok(`${tag}: Bob's screen says his agency is covering, and that they pay at check-out`, /agency is covering/.test(await page.innerText("#r-block")) && /pay the hotel at check-out/.test(await page.innerText("#r-block")) && /\[their name\] pays/.test(await page.innerText("#r-block")));
   await page.check('input[name="r-block"][value="own"]'); await page.fill("#r-name", "Raj Jaswal"); await page.check("#r-attest");
   await page.click("#approve"); await page.waitForTimeout(2500);
+  await reopen("Bob");
   ok(`${tag}: Bob is approved as not on the master block`, /not on the master block, they pay their own/.test(await page.locator("body").innerText()), "");
   // Di: no hotel, nothing to choose
   await open("Di");

@@ -48,8 +48,8 @@
   .bar{background:var(--navy-deep);color:#fff;padding:13px 20px;display:flex;align-items:center;
        gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;
        padding-top:calc(12px + env(safe-area-inset-top,0px));
-       /* The logo and the buttons line up with the page below (1040px wide, centred), not the screen's edges. */
-       padding-left:max(20px, calc((100% - 1040px) / 2));padding-right:max(20px, calc((100% - 1040px) / 2))}
+       /* The logo and the buttons line up with the page below (1200px wide, centred), not the screen's edges. */
+       padding-left:max(20px, calc((100% - 1200px) / 2));padding-right:max(20px, calc((100% - 1200px) / 2))}
   .bar .logo{height:28px;width:auto;display:block;flex:none}
   @media (max-width:480px){.bar .logo{height:23px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
@@ -57,8 +57,9 @@
   .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;white-space:nowrap;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .sharedbar{display:contents}
 
-  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 70px}
+  .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 70px}
   .card{background:var(--card);border:1.5px solid var(--edge);border-radius:20px;
         box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
   .card-head{background:var(--sand);padding:17px 22px;border-bottom:1.5px solid var(--edge);
@@ -709,6 +710,7 @@
   .hsearch{position:relative;flex:1 1 200px;max-width:360px;margin-right:auto}
   .hsearch input{width:100%;margin:0;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;padding:9px 16px;min-height:40px;font-size:14px}
   .hsearch input::placeholder{color:rgba(255,255,255,.7)}
+  @media (min-width:761px){.bar .hsearch{min-width:230px}}
   .hsres{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;color:var(--ink);border:1.5px solid var(--edge);border-radius:14px;box-shadow:var(--shadow);max-height:60vh;overflow:auto;z-index:30;text-align:left}
   .hsr{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--border);padding:10px 14px;cursor:pointer}
   .hsr:first-child{border-top:0} .hsr:hover,.hsr:focus{background:var(--gold-pale)}
@@ -732,6 +734,76 @@
   .etab .n{background:var(--late-bg);color:var(--late);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
   .etabp[hidden]{display:none}
   .crumbs{display:flex;gap:16px;margin:-6px 0 10px}
+  /* The signed-in person, at the right of the bar on every screen. */
+  .bar .me{display:inline-flex;align-items:center;gap:8px;margin-left:4px;padding-left:12px;border-left:1px solid rgba(255,255,255,.2);font-size:13px;color:rgba(255,255,255,.82);white-space:nowrap}
+  .bar .me i{font-style:normal;width:28px;height:28px;border-radius:50%;background:var(--gold-pale);color:var(--navy-deep);display:grid;place-items:center;font-weight:700;font-size:11.5px}
+  @media (max-width:760px){.bar .me span{display:none}.bar .me{border:0;padding-left:0}}
+  /* The event page (Andrew 21 Oct 2026): a navy band with the key numbers as tiles, the tabs under it, the work on the
+     left and the event's side column on the right. */
+  .evhead{margin-bottom:18px}
+  .evband{background:var(--navy);color:#fff;border-radius:20px 20px 0 0;padding:20px 24px 18px;border-bottom:3px solid var(--gold)}
+  .evband .bhead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .evband .bhead>div:first-child{flex:1 1 380px;min-width:0}
+  .evband h2{font-family:var(--fd);font-size:28px;line-height:1.15;color:#fff}
+  .evband .tag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:1px 9px;margin-left:8px;vertical-align:5px}
+  .bmeta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:14px;color:rgba(255,255,255,.8)}
+  .bmeta>span{display:inline-flex;align-items:center;gap:6px;min-width:0} .bmeta svg{width:15px;height:15px;flex:none;opacity:.75}
+  .bmeta .seen{font-size:12px;white-space:nowrap;opacity:.78;margin-left:4px}
+  .bacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .bacts .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.42)}
+  .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .bacts .mini:disabled{opacity:.5}
+  .evtiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:18px}
+  .etile{background:#fff;color:var(--ink);border-radius:14px;padding:11px 14px 12px;min-width:0}
+  .etile .n{font-size:23px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .etile .n small{font-size:14.5px;font-weight:600;color:var(--muted)}
+  .etile .l{font-size:13px;font-weight:600;color:var(--ink-mid)}
+  .etile .s{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .etile.behind{box-shadow:inset 4px 0 0 var(--late)} .etile.behind .s{color:var(--late);font-weight:600}
+  .meter{height:6px;border-radius:99px;background:var(--sunk);margin-top:7px;overflow:hidden;display:flex}
+  .meter i{display:block;height:100%} .meter .a{background:var(--done)} .meter .b{background:var(--gold-light)}
+  .evhead .etabs{background:#fff;border:1.5px solid var(--edge);border-top:0;border-radius:0 0 20px 20px;box-shadow:var(--shadow)}
+  .etab .lock{font-size:11px;font-weight:600;color:var(--muted);margin-left:4px}
+  .evbody{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+  .evmain{min-width:0} .evside{min-width:0}
+  .evside .card{margin-bottom:14px}
+  .evside .card-head{padding:12px 16px 10px;flex-wrap:nowrap} .evside .card-head>div:first-child{flex:1 1 0;min-width:0} .evside .card-head .cardacts{flex:none;width:auto;margin:0 0 0 auto} .evside .card-head h2{font-size:18px} .evside .card-body{padding:10px 16px 14px;font-size:13.5px}
+  .evside .who{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .skv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;margin:0} .skv dt{color:var(--muted)} .skv dd{margin:0;overflow-wrap:anywhere}
+  .skv .seen{display:block;font-size:12px;color:var(--muted);white-space:nowrap}
+  .smoney{display:grid;grid-template-columns:1fr auto;gap:5px 10px} .smoney b{text-align:right}
+  .sready{list-style:none;margin:0;padding:0}
+  .sready li{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--hair)} .sready li:first-child{border-top:0}
+  .sready .rw{flex:1;min-width:0} .sready li.done .rw{color:var(--muted)}
+  .stick{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--edge);flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:#fff}
+  .sready li.done .stick{background:var(--done);border-color:var(--done)}
+  .ssoon .mile{display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--hair);align-items:baseline} .ssoon .mile:first-child{border-top:0}
+  .ssoon .md{width:52px;flex:none;font-weight:700;white-space:nowrap} .ssoon .mt{flex:1;min-width:0} .ssoon .ml{color:var(--muted);font-size:12.5px;white-space:nowrap}
+  /* A presenter's panel takes the side column's place; the Room column and the status notes step aside. */
+  .evbody.withdrawer #sidepanels{display:none} .evbody:not(.withdrawer) #pdslot{display:none}
+  .evside .pdrawer{top:76px;max-height:calc(100vh - 92px);overflow:auto}
+  .ok-t{color:var(--done);font-weight:700} .bad-t{color:var(--late);font-weight:700}
+  .evbody.withdrawer .ptable .pr, .evbody.withdrawer .ptable .thr, .evbody.withdrawer .ptable .pa .psub{display:none}
+  /* Inside a tab a section is not folded: the tab already does that job. */
+  .etabp details.secfold>summary{cursor:default} .etabp details.secfold>summary .ibcaret{display:none}
+  .pview[data-pview="presenters"]>details.secfold>summary{display:none}
+  .pview>details.secfold{border-radius:18px}
+  /* Headshots: the photo the presenter uploaded, or their initials until they do. */
+  .pav{width:34px;height:34px;border-radius:50%;flex:none;overflow:hidden;display:inline-grid;place-items:center;font-weight:700;font-size:12px;background:var(--sunk);color:var(--ink-mid);box-shadow:0 0 0 1px var(--border);border:1.5px solid #fff}
+  .pav img{width:100%;height:100%;object-fit:cover;display:block}
+  .pav.big{width:60px;height:60px;font-size:19px}
+  .pnl{display:flex;align-items:center;gap:10px;min-width:0}
+  .pnl .pnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pnl .pnm .porg{margin-left:8px;font-size:13px}
+  .pdh{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+  @media (max-width:1100px){.evtiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:900px){.evbody{grid-template-columns:1fr} .evbody.withdrawer #sidepanels{display:block}}
+  @media (max-width:760px){
+    .evband{padding:16px 16px 14px;border-radius:18px 18px 0 0} .evband h2{font-size:22px} .bacts{justify-content:flex-start}
+    .evtiles{grid-template-columns:1fr 1fr;gap:8px} .etile .n{font-size:20px}
+    .sharedbar .chip:not(.solid){display:none}
+    .pnl .pnm .porg{display:block;margin:0}
+    .pnl .pnm{white-space:normal}
+  }
   .readycard .ready{list-style:none;margin:0;padding:6px 20px 12px}
   .readycard .ready li{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:14px}
   .readycard .ready li:first-child{border-top:0}
@@ -938,6 +1010,12 @@
   @media (max-width:560px){.cost{grid-template-columns:1fr}}
   .readback{margin-top:14px;background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:11px 14px;font-size:13.5px}
   .readback b{color:var(--navy)}
+  .readback.near{background:var(--gold-pale);border-color:#e3c56b}
+  .howit{margin:0 0 14px;font-size:13.5px;color:var(--ink-mid)} .howit>summary{list-style:none;cursor:pointer} .howit>summary::-webkit-details-marker{display:none}
+  .howit .howlink{color:var(--navy);text-decoration:underline;font-weight:600;margin-left:4px} .howit[open] .howlink{display:none}
+  .rvgrid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
+  .rvgrid>.card{margin-top:0 !important;min-width:0}
+  @media (max-width:1100px){.rvgrid{grid-template-columns:1fr} .rvgrid>.card:last-child{margin-top:16px !important}}
   .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
   .board{display:grid;gap:6px;margin-top:4px}
   .bdrop{position:relative}
@@ -1038,12 +1116,14 @@ let CRUMBS = [];
 const placeCrumbs = () => {
   const back = BARRIGHT.querySelectorAll("#back, #cancel, #home");
   if (back.length) CRUMBS = [...back];
-  else if (BARRIGHT.childElementCount) CRUMBS = [];        // a screen with its own bar (home) has no way back
+  else if ([...BARRIGHT.children].some((el) => !el.classList.contains("sharedbar"))) CRUMBS = [];   // a screen with its own bar (home) has no way back
   if (!CRUMBS.length) return;
   let row = ROOT.querySelector(":scope > .crumbs");
   if (row && CRUMBS.every((b) => row.contains(b))) return;  // already in place (and this stops the observers echoing)
   if (!row) { row = document.createElement("nav"); row.className = "crumbs"; row.setAttribute("aria-label", "Back"); ROOT.prepend(row); }
   CRUMBS.forEach((b) => { b.classList.remove("chip"); b.classList.add("crumb"); row.append(b); });
+  // Every screen with a way back also gets the home page's buttons in the bar.
+  if (KEY && !BARRIGHT.querySelector("#theyear")) { BARRIGHT.insertAdjacentHTML("beforeend", `<span class="sharedbar">${barChips()}</span>`); wireBarChips(); }
 };
 // Screens that draw their page after the bar wipe the row: put it back whenever either changes.
 new MutationObserver(placeCrumbs).observe(BARRIGHT, { childList: true });
@@ -1230,15 +1310,25 @@ async function signInScreen(message) {
 }
 
 /* ---------- events list ---------- */
-function listScreen(events, inbox = null) {
-  BARRIGHT.innerHTML = `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search people and events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`;
-  queueMicrotask(healthStrip);
+/** The bar's buttons, the same on every screen once signed in (audit, 21 Oct 2026): search, the year, letters, admin, new event, and who you are. */
+function barChips() {
+  const who = WHO?.name || WHO?.email || "";
+  const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search people and events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
+    + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
+}
+function wireBarChips() {
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: "board" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
   wireSearch();
+}
+function listScreen(events, inbox = null) {
+  BARRIGHT.innerHTML = barChips();
+  queueMicrotask(healthStrip);
+  wireBarChips();
 
   if (!events.length) {
     ROOT.innerHTML = `<div class="healthwrap" id="health"><div class="hstrip">Checking email and SharePoint…</div></div><div class="card"><div class="empty">
@@ -1553,6 +1643,16 @@ function eventFormScreen(existing = null) {
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
         <p class="hint" style="margin:6px 0 0">Optional now — you can add more later from the event page.</p></div>`}
+      <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
+        <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
+        <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
+        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
+        <div id="adv" hidden>
+          <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
+            <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
+            <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link; the app refuses anything that would let presenters see the folder. Clear it and the app makes a fresh upload-only link for the folder above.</p></div>
+        </div>
+      </div>
       <div class="morehead"><b>More options</b><span>All of these can be set or changed later, on Edit event.</span></div>
       ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" ? " open" : ""}>
         <summary>RBH event</summary>
@@ -1627,18 +1727,8 @@ function eventFormScreen(existing = null) {
             Write and change the letters themselves on the <b>Letters</b> screen.</p></div>
       </details>
       <details class="settings" style="margin-top:4px">
-        <summary>Presentation slot and SharePoint folder</summary>
+        <summary>Presentation slot</summary>
         <div class="field" style="margin-top:12px"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" min="15" step="5" value="${v("sessionMinutes", 70)}" style="max-width:160px"></div>
-      <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
-        <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
-        <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
-        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
-        <div id="adv" hidden>
-          <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
-            <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
-            <p class="hint" style="margin:6px 0 0">Must be a SharePoint <b>Request files</b> link; the app refuses anything that would let presenters see the folder. Clear it and the app makes a fresh upload-only link for the folder above.</p></div>
-        </div>
-      </div>
       </details>
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="create">${ev ? "Save changes" : "Create event"}</button></div>
@@ -2489,6 +2579,54 @@ function sponsorsScreen(list, settings) {
 // Ticked presenters (per event) and the find box's text survive a redraw of the event page.
 const PSEL = new Map();
 let PFIND = "";
+/** "Tue 20 Oct, 4:12 PM", in the desk's time zone. */
+function signInTime(iso) {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: DESK_TZ, weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })
+    .formatToParts(t).map((x) => [x.type, x.value]));
+  return `${p.weekday} ${p.day} ${p.month}, ${p.hour}:${p.minute} ${String(p.dayPeriod ?? "").replace(/\./g, "").toUpperCase()}`;
+}
+const initialsOf = (p) => `${(p.first ?? "").trim()[0] ?? ""}${(p.last ?? "").trim()[0] ?? ""}`.toUpperCase() || "?";
+/**
+ * Presenters' headshots in the list and the panel. The photo can be up to 5 MB, so each is fetched once, shrunk to a
+ * small square in the browser and kept for the session; until then (or with no photo) the circle shows their initials.
+ */
+const SHOTS = new Map();
+let SHOT_Q = [], SHOT_RUNNING = 0;
+function shotFor(eventId, p) {
+  const key = `${p.id}:${p.submittedAt ?? ""}`;
+  if (SHOTS.has(key)) return SHOTS.get(key);
+  let kept = null; try { kept = sessionStorage.getItem(`ongia-shot-${key}`); } catch { /* no storage */ }
+  const job = kept ? Promise.resolve(kept) : new Promise((resolve) => {
+    SHOT_Q.push(async () => {
+      try {
+        const res = await apiFetch(`/api/headshot?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(p.id)}`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) return resolve(null);
+        const bmp = await createImageBitmap(await res.blob());
+        const side = Math.min(bmp.width, bmp.height), c = document.createElement("canvas");
+        c.width = c.height = 128;
+        c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, 128, 128);
+        const url = c.toDataURL("image/jpeg", 0.82);
+        try { sessionStorage.setItem(`ongia-shot-${key}`, url); } catch { /* full or blocked: keep it in memory only */ }
+        resolve(url);
+      } catch { resolve(null); }
+    });
+    pumpShots();
+  });
+  SHOTS.set(key, job);
+  return job;
+}
+function pumpShots() {
+  while (SHOT_RUNNING < 4 && SHOT_Q.length) { const run = SHOT_Q.shift(); SHOT_RUNNING++; run().finally(() => { SHOT_RUNNING--; pumpShots(); }); }
+}
+function loadShots(root, eventId, presenters) {
+  root.querySelectorAll(".pav[data-shot]").forEach((el) => {
+    const p = presenters.find((x) => x.id === el.dataset.shot);
+    if (!p?.submission?.headshotName || el.querySelector("img")) return;
+    shotFor(eventId, p).then((url) => { if (url && el.isConnected) el.innerHTML = `<img src="${url}" alt="">`; });
+  });
+}
 const VIEW_WHY = "This event is view only for you. Its own board members, the president and the VP of operations can change it.";
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
@@ -2501,8 +2639,16 @@ function eventScreen(data) {
   // Wired after the card renders (the buttons live on it, not in the top bar).
   const wireActions = () => {
     document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
-    document.getElementById("add").onclick = () => { view = { name: "add", eventId: ev.id }; render(); };
+    document.getElementById("add").onclick = openAdd;
     document.getElementById("mailall").onclick = mailAll;
+  };
+  // Add presenters (audit, 21 Oct 2026): a pop-up over the event, the way Add volunteers works, not a separate screen.
+  let addedAny = false;
+  const openAdd = () => {
+    const d = document.getElementById("padd");
+    document.getElementById("padd-said").innerHTML = "";
+    d.showModal();
+    document.getElementById("p-rows").focus();
   };
   const mailAll = async () => {
     const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
@@ -2733,7 +2879,7 @@ function eventScreen(data) {
     const r = roomOf(p);
     return `<tr class="prow${view.person === p.id ? " open" : ""}${sel.has(p.id) ? " sel" : ""}" data-person="${esc(p.id)}" data-find="${esc(`${name(p)} ${p.organization ?? ""} ${p.email}`.toLowerCase())}">
       <td class="pc"><input type="checkbox" data-psel="${esc(p.id)}"${sel.has(p.id) ? " checked" : ""} aria-label="Select ${esc(name(p))}"></td>
-      <td class="pn"><b>${esc(name(p))}</b>${flags(p)}<span class="psub">${esc(p.organization || p.email)}</span>${p.submission?.talk ? `<span class="psub ptalk">${esc(p.submission.talk)}</span>` : ""}</td>
+      <td class="pn"><div class="pnl"><span class="pav" data-shot="${esc(p.id)}" aria-hidden="true">${esc(initialsOf(p))}</span><span class="pnm"><b>${esc(name(p))}</b>${flags(p)}<span class="porg">${esc(p.organization || p.email)}</span></span></div></td>
       <td class="pa">${a.pill}<span class="psub">${a.sub}</span></td>
       <td class="pm"><span class="mchips">${matChips(p)}</span></td>
       <td class="pr">${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))}<span class="psub">${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}</span>` : `<span class="porg">—</span>`}</td>
@@ -2761,7 +2907,7 @@ function eventScreen(data) {
     };
     return `<div class="pscrim" data-pclose></div><aside class="pdrawer" id="pdrawer" aria-label="${esc(name(p))}">
       <button type="button" class="pclose" data-pclose aria-label="Close">×</button>
-      <div class="plab">Presenter</div><h3>${esc(name(p))}</h3>${flags(p) ? `<div>${flags(p)}</div>` : ""}
+      <div class="pdh"><span class="pav big" data-shot="${esc(p.id)}" aria-hidden="true">${esc(initialsOf(p))}</span><div><div class="plab">Presenter</div><h3>${esc(name(p))}</h3></div></div>${flags(p) ? `<div>${flags(p)}</div>` : ""}
       <div class="porg">${[esc(p.email), esc(phone)].filter(Boolean).join(" · ")}${p.organization ? `<br>${esc(p.organization)}` : ""}${p.submission?.talk ? ` · “${esc(p.submission.talk)}”` : ""}</div>
       <ol class="ptl">${stepsOf(p).map(step).join("")}</ol>
       <dl class="pkv"><dt>Agreement</dt><dd>${a.pill}<div class="porg">${a.sub}</div></dd>
@@ -2810,6 +2956,11 @@ function eventScreen(data) {
   const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
     ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
+  // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
+  let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
+  const PVIEWS = [["presenters", "Presenters", presenters.length], ["volunteers", "Volunteers", volunteers?.counts?.total ?? (volunteers?.volunteers ?? []).length],
+    ["guests", "Who's coming", guests?.counts?.attending ?? 0]];
+  const pview = PVIEWS.some(([k]) => k === view.pview) ? view.pview : "presenters";
   const lead = ev.reviewer?.name ?? "";
   let mailTodo = 0;
   try { mailTodo = EMAIL_ON && inbox?.items ? ibGroups(inbox.items.map((x) => ({ x, ev }))).todo.filter(({ x }) => x.status === "open").length : 0; } catch { mailTodo = 0; }
@@ -2817,12 +2968,6 @@ function eventScreen(data) {
   const signedN = count("final") + count("failed");
   const conf = (rooming?.rows ?? []).filter((r) => r.confirmed);
   const nightsN = conf.reduce((n, r) => n + r.nights, 0);
-  const keyNums = [
-    `<span><b>${signedN}</b> of ${c.total} agreement${c.total === 1 ? "" : "s"} signed</span>`,
-    c.total ? `<span><b>${finalGot}</b> of ${c.total} final materials</span>` : "",
-    conf.length ? `<span><b>${conf.length}</b> room${conf.length === 1 ? "" : "s"} · <b>${nightsN}</b> night${nightsN === 1 ? "" : "s"}</span>` : "",
-    guests?.counts?.total ? `<span><b>${guests.counts.attending ?? 0}</b> registered</span>` : "",
-  ].filter(Boolean).join("");
 
   // Overview: what needs doing on this event (the home page's queue, this event only), what is coming, and who does what.
   // This event's own to-do rows: the event fetch carries the same attention and checklist tally as the list.
@@ -2840,15 +2985,32 @@ function eventScreen(data) {
     ...(checklist?.tasks ?? []).filter((t) => t.scheduled && t.due && !t.done && !t.na && daysTo(t.due) >= 0)
       .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "" })),
   ].sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, 6);
-  const comingCard = `<div class="card"><div class="card-head"><div><h2>Coming up</h2></div></div><div class="card-body evsoon">${soon.length
+  const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2></div></div><div class="card-body">${soon.length
     ? soon.map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}</span>
-        <span class="pill ${x.d <= 14 ? "wait" : "grey"}">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("")
+        <span class="ml">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("")
     : `<div class="porg">Nothing dated coming up.</div>`}</div></div>`;
   const boardOthers = (ev.board ?? []).filter((m) => !m.lead).map((m) => esc(m.name || m.email));
-  const whoCard = `<div class="card"><div class="card-head"><div><h2>Who does what</h2></div></div><div class="card-body" style="font-size:14px">
-    <div>${lead ? `<b>Lead:</b> ${esc(lead)} · signs and answers presenters` : `<span class="pill late">no lead</span> Pick one on Edit event.`}</div>
-    <div style="margin-top:6px"><b>Board on this event:</b> ${boardOthers.length ? boardOthers.join(", ") : "nobody else yet"}</div>
-    <div class="porg" style="margin-top:6px">They, the president and the VP of operations can change this event. The rest of the board sees it as view only.</div></div></div>`;
+  // When the lead last signed in to the desk (Andrew 21 Oct 2026): small, beside their name, never wrapping.
+  const leadMember = lead ? (ROSTER ?? []).find((m) => (ev.reviewer?.email && (m.email ?? "").toLowerCase() === ev.reviewer.email.toLowerCase()) || (m.name && m.name === lead)) : null;
+  const seenWords = !leadMember ? "" : leadMember.lastSignIn ? `last signed in ${signInTime(leadMember.lastSignIn)}` : "never signed in";
+  const folderTail = (ev.sharePointFolder ?? "").split("/").filter(Boolean).slice(-2).join("/");
+  const vlead = volunteers?.lead?.name ?? "";
+  const whoCard = `<div class="card" id="whocard"><div class="card-head"><div><h2>Lead and folder</h2></div></div><div class="card-body">
+    <dl class="skv"><dt>Lead</dt><dd>${lead ? `${esc(lead)}${seenWords ? `<span class="seen">${esc(seenWords)}</span>` : ""}` : `<span class="pill late">no lead</span> Pick one on Edit event.`}</dd>
+      <dt>Volunteers</dt><dd>${vlead ? esc(vlead) : lead ? "the lead" : "—"}</dd>
+      <dt>Board</dt><dd>${boardOthers.length ? boardOthers.join(", ") : "nobody else yet"}</dd>
+      <dt>Folder</dt><dd>${ev.sharePointFolder ? `${ev.sharePointFolderUrl ? `<a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">…/${esc(folderTail)}</a>` : `…/${esc(folderTail)}`}` : `<span class="said bad-t">not set</span>`}</dd>
+      <dt>Upload link</dt><dd>${ev.materialsUploadUrl ? (ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="ok-t">upload-only ✓</span>` : `<span class="bad-t">not checked</span>`) : `<span class="bad-t">not made yet</span>`}</dd></dl>
+    <p class="porg" style="margin:8px 0 0;font-size:12.5px">The lead, the board on this event, the president and the VP of operations can change this event. The rest of the board sees it as view only.</p></div></div>`;
+  // The RBH money at a glance: the president's and the VP's only (anyone else is refused the SOW, so this never shows).
+  const sowNow = sow?.sow ?? null;
+  const rbhCard = sow ? `<div class="card" id="rbhcard"><div class="card-head"><div><h2>RBH quick view</h2></div><span class="who">President &amp; VP</span></div><div class="card-body">
+    ${sowNow ? `<div class="smoney"><span>Statement of work</span><b>${esc((SOW_STATUSES.find(([k]) => k === sowNow.status) ?? [, sowNow.status])[1])}</b>
+      <span>Estimate, with fee and tax</span><b>${usd(sow.estimate?.total ?? 0)}</b>
+      ${receipts ? `<span>Receipts so far</span><b>${usd(receipts.total ?? 0)}</b>` : ""}
+      <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>`
+    : `<div class="porg">No statement of work yet.</div>`}
+    <div style="margin-top:10px"><button class="mini" data-gotab="money">Open Money</button></div></div></div>` : "";
   // Getting ready (redesign step 4): what a new event still needs, each with the button that does it. It stays on the
   // Overview until everything is done (or it is hidden), and never shows on an event that is over.
   let readyHidden = false; try { readyHidden = localStorage.getItem(`ongia-ready-hide-${ev.id}`) === "1"; } catch { /* no storage */ }
@@ -2864,32 +3026,69 @@ function eventScreen(data) {
   const readyOpen = readyItems.filter((x) => !x.done).length;
   const isOver = (ev.lastDay || ev.dayOne || "9999") < today;
   const readyCard = readyHidden || isOver || !readyOpen ? "" : `<div class="card readycard" id="readycard"><div class="card-head"><div><h2>Getting ready</h2>
-      <div class="s">${readyItems.length - readyOpen} of ${readyItems.length} done. This goes away once everything is set up.</div></div>
+      <div class="s">${readyItems.length - readyOpen} of ${readyItems.length} done</div></div>
       <div class="cardacts"><button class="mini ghost" id="readyhide">Hide this</button></div></div>
-    <ul class="ready">${readyItems.map((x) => `<li class="${x.done ? "done" : ""}"><span class="pill ${x.done ? "done" : "wait"}">${x.done ? "Done" : "To do"}</span><span class="rw">${x.what}</span>${x.done ? "" : x.btn}</li>`).join("")}</ul></div>`;
-  const overviewHtml = readyCard + (`${overdue.length ? `<div class="bad" style="margin:0 0 14px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}`)
+    <div class="card-body"><ul class="sready">${readyItems.map((x) => `<li class="${x.done ? "done" : ""}"><span class="stick" aria-label="${x.done ? "Done" : "To do"}">${x.done ? "✓" : ""}</span><span class="rw">${x.what}</span>${x.done ? "" : x.btn}</li>`).join("")}</ul></div></div>`;
+  const overviewHtml = (`${overdue.length ? `<div class="bad" style="margin:0 0 14px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}`)
     // The left column is the to-do list and who does what; the right, what is coming. Two columns of about the same height.
-    + `<div class="evgrid"><div><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
+    + `<div><div><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
         <div class="qlist">${todoHtml || `<div class="qempty">Nothing needs you on this event right now.</div>`}${Qev.waiting.length ? `<div class="qmailh">Waiting on them</div>${Qev.waiting.map(evQRow).join("")}` : ""}</div></div>
-      ${whoCard}</div><div>${comingCard}</div></div>`
+      </div></div>`
     + checklistCard(ev, checklist);
-  // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
-  let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
-  const PVIEWS = [["presenters", "Presenters", presenters.length], ["volunteers", "Volunteers", volunteers?.counts?.total ?? (volunteers?.volunteers ?? []).length],
-    ["guests", "Who's coming", guests?.counts?.attending ?? 0]];
-  const pview = PVIEWS.some(([k]) => k === view.pview) ? view.pview : "presenters";
   const pv = (k, html) => `<div class="pview" data-pview="${k}"${k === pview || allTabs ? "" : " hidden"}>${html}</div>`;
   const panel = (k, html) => `<section class="etabp" data-panel="${k}"${k === tab || allTabs ? "" : " hidden"}>${html}</section>`;
 
-  ROOT.innerHTML = `<div class="card evhead">
-    <div class="card-head"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2>
-      <div class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}${lead ? ` · Lead: ${esc(lead)}` : ""}
-        ${upcoming ? ` · <b>${esc(upcoming.l)} ${upcoming.d === 0 ? "today" : upcoming.d > 0 ? `in ${upcoming.d} day${upcoming.d === 1 ? "" : "s"}` : `${-upcoming.d} day${upcoming.d === -1 ? "" : "s"} ago`}</b>` : ""}</div>
-      <div class="kp">${keyNums}</div>
-      ${blockers.length ? `<div class="blocked"><b>This event is blocked.</b>${blockers.map((b) => `
-        <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : ""}</div>
-      <div class="cardacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini" id="add">Add presenters</button></div></div>
-    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}</button>`).join("")}</nav></div>`
+  // The key numbers as tiles (Andrew 21 Oct 2026). A tile turns red at the edge only when something is behind.
+  const reviewN = count("review");
+  const dueA = ev.noDeadlines ? null : ev.deadlines?.agreement;
+  const outA = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved").length;
+  const lateA = !!dueA && daysTo(dueA) < 0 && outA > 0;
+  const dueF = ev.deadlines?.final;
+  const lateF = !!dueF && daysTo(dueF) < 0 && finalGot < presenters.length;
+  const pct = (n) => (c.total ? Math.round((n / c.total) * 100) : 0);
+  const masterN = conf.filter((r) => r.billing === "ONGIA").length;
+  const roomWait = (rooming?.rows ?? []).filter((r) => !r.confirmed).length;
+  const weekAgo = Date.now() - 7 * 86400000;
+  const newGuests = (guests?.people ?? []).filter((g) => g.status === "ATTENDING" && g.addedAt && Date.parse(g.addedAt) >= weekAgo).length;
+  const cutoff = ev.hotel?.cutoff && daysTo(ev.hotel.cutoff) >= 0 ? ev.hotel.cutoff : null;
+  const nextUp = nextDl.find((x) => x.d >= 0);
+  const tile = (cls, n, l, sub, meter = "") => `<div class="etile${cls ? " " + cls : ""}"><div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
+  const meter = (a, b) => `<div class="meter" aria-hidden="true"><i class="a" style="width:${pct(a)}%"></i><i class="b" style="width:${pct(b)}%"></i></div>`;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const tiles = [
+    tile(lateA ? "behind" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
+      [reviewN ? `${reviewN} to review` : "", lateA ? "due date passed" : dueA ? `due ${esc(short(dueA))}` : ""].filter(Boolean).join(" · ") || (c.total ? "all in" : "No presenters yet"),
+      meter(signedN, reviewN)),
+    tile(lateF ? "behind" : "", `${finalGot} <small>/ ${c.total}</small>`, "Final materials",
+      [`${plural(draftGot, "draft")} in`, dueF ? (lateF ? "finals overdue" : `finals due ${esc(short(dueF))}`) : ""].filter(Boolean).join(" · "),
+      meter(finalGot, Math.max(0, draftGot - finalGot))),
+    tile("", conf.length ? `${conf.length} <small>${conf.length === 1 ? "room" : "rooms"}</small> · ${nightsN} <small>${nightsN === 1 ? "night" : "nights"}</small>` : `0 <small>rooms</small>`, "Hotel",
+      conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet"),
+    tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
+      !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked"),
+    cutoff ? tile(daysTo(cutoff) <= 7 ? "behind" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`)
+      : nextUp ? tile("", `${nextUp.d} <small>${nextUp.d === 1 ? "day" : "days"}</small>`, esc(nextUp.l), esc(plainDay(nextUp.iso)))
+      : tile("", "—", "Next date", "Nothing dated coming up"),
+  ].join("");
+  const I = {
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+    me: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>',
+  };
+  const readyShown = !!readyCard;
+  const blockedHtml = blockers.length && !readyShown ? `<div class="blocked" style="margin:0 0 16px"><b>This event is blocked.</b>${blockers.map((b) => `
+        <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : "";
+  const sideOn = !!view.person && (allTabs || (tab === "people" && pview === "presenters"));
+
+  ROOT.innerHTML = `<div class="evhead"><section class="evband">
+    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}</h2>
+      <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
+        <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
+        ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div></div>
+      <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
+    <div class="evtiles">${tiles}</div></section>
+    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
+    <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
@@ -2905,9 +3104,9 @@ function eventScreen(data) {
       <div class="pbulk" id="pbulk"${sel.size ? "" : " hidden"}><b id="pbulk-n">${sel.size} selected</b>
         <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
         <span class="pbnote">Approving is always one at a time</span></div>
-      <div class="playout${drawer ? " withdrawer" : ""}"><div class="ptwrap">${show.length
-        ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th>Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-        : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div><div id="pdslot" class="pdslot">${drawer}</div></div>
+      <div class="ptwrap">${show.length
+        ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th class="thr">Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
       + pv("guests", attendeesCard(ev, guests)))
@@ -2930,18 +3129,36 @@ function eventScreen(data) {
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" }))
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard}${whoCard}${rbhCard}${comingCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
-    + `<dialog class="sheet" id="prm">
+    + `<dialog class="sheet" id="padd">
+      <form method="dialog">
+        <div class="sheet-head"><h2>Add presenters</h2>
+          <p class="hint" style="margin-top:6px">One per line: first name, last name, email, organization.</p></div>
+        <div class="sheet-body">
+          <div class="field"><label for="p-rows">Presenters</label>
+            <textarea id="p-rows" style="min-height:150px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, Service de police de la Ville de Montréal"></textarea>
+            <p class="hint">Name and email are needed; organization is optional. Phone, biography and the rest they fill in themselves.</p></div>
+          <div id="padd-said"></div>
+          <label class="attest" style="margin-top:4px"><input type="checkbox" id="p-invite" checked><span>Email each presenter their agreement link now</span></label>
+          <div class="actions" style="margin-top:16px;flex-wrap:wrap">
+            <button class="btn btn-gold" type="button" id="padd-save">Add presenters</button>
+            <button class="btn btn-ghost" value="done" formnovalidate id="padd-done">Close</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="sheet" id="prm">
       <form method="dialog">
         <div class="sheet-head"><h2 id="prm-title">Remove this presenter?</h2>
           <p class="hint" style="margin-top:6px" id="prm-what"></p></div>
         <div class="sheet-body">
-          <div class="field"><label for="prm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
+          <div id="prm-full"><div class="field"><label for="prm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
             <textarea id="prm-why" maxlength="600" style="min-height:80px" placeholder="e.g. Called to court; replaced by another presenter"></textarea>
             <p class="hint" style="margin:6px 0 0">Keep it short. Leave out case details and anything confidential.</p></div>
           <div class="field"><label for="prm-confirm">Type DELETE to confirm</label>
-            <input id="prm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+            <input id="prm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>
           <div class="actions" style="margin-top:18px;flex-wrap:wrap">
             <button class="btn btn-late" id="prm-go" value="remove" disabled>Remove presenter</button>
             <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
@@ -2972,6 +3189,8 @@ function eventScreen(data) {
     </dialog>`;
 
   CHECKLIST = checklist;
+  ROOT.querySelectorAll(".etabp details.secfold").forEach((d) => { d.open = true; d.querySelector(":scope > summary")?.addEventListener("click", (e) => e.preventDefault()); });
+  loadShots(ROOT, ev.id, presenters);
   wireActions();
   wireChecklist(ev);
   wireRooming(ev, rooming);
@@ -2989,8 +3208,11 @@ function eventScreen(data) {
   if (data.canEdit === false) makeViewOnly(VIEW_WHY);
   if (receipts) wireReceipts(ev, receipts);
   // Tabs: switching is instant (everything is already on the page) and swaps the address in place, so Back still leaves the event.
+  // The presenter panel shows in the side column's place, only on People → Presenters.
+  const syncSide = () => document.getElementById("evbody")?.classList.toggle("withdrawer", !!view.person && (allTabs || ((view.tab ?? "overview") === "people" && (view.pview ?? "presenters") === "presenters")) && !!document.getElementById("pdrawer"));
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
+    syncSide();
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     try { history.replaceState(null, "", location.pathname + location.search + viewHash(view)); } catch { /* no history in a sandboxed frame */ }
@@ -3006,6 +3228,7 @@ function eventScreen(data) {
       view = { ...view, pview: b.dataset.pseg }; keepAddress();
       ROOT.querySelectorAll("[data-pview]").forEach((d) => { d.hidden = d.dataset.pview !== b.dataset.pseg; });
       ROOT.querySelectorAll("[data-pseg]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", String(x === b)); });
+      syncSide();
     };
   });
   const setPerson = (id) => {
@@ -3013,7 +3236,8 @@ function eventScreen(data) {
     const slot = document.getElementById("pdslot");
     if (!slot) return eventScreen(data);
     slot.innerHTML = drawerFor(id);
-    slot.closest(".playout")?.classList.toggle("withdrawer", !!slot.innerHTML);
+    syncSide();
+    loadShots(slot, ev.id, presenters);
     ROOT.querySelectorAll("tr.prow").forEach((tr) => tr.classList.toggle("open", tr.dataset.person === id));
     wireActs(slot);
     slot.querySelectorAll("[data-pclose]").forEach((b) => { b.onclick = () => setPerson(null); });
@@ -3067,7 +3291,25 @@ function eventScreen(data) {
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // Getting ready's buttons.
-  ROOT.querySelectorAll("[data-readyadd]").forEach((b) => { b.onclick = () => { view = { name: "add", eventId: ev.id }; render(); }; });
+  ROOT.querySelectorAll("[data-readyadd]").forEach((b) => { b.onclick = openAdd; });
+  document.getElementById("padd").addEventListener("close", () => { if (addedAny) render(); });
+  document.getElementById("padd-save").onclick = async (e) => {
+    const said = document.getElementById("padd-said");
+    const list = document.getElementById("p-rows").value.split("\n").map((l) => l.trim()).filter(Boolean)
+      .map((line) => { const [first, last, email, organization] = line.split(",").map((x) => (x ?? "").trim()); return { first, last, email, organization }; });
+    if (!list.length) { said.innerHTML = `<div class="bad">Type at least one presenter: first name, last name, email.</div>`; return; }
+    e.target.disabled = true; e.target.textContent = "Adding…";
+    try {
+      const out = await api(`/events?id=${encodeURIComponent(ev.id)}&add=1`, { method: "POST", body: JSON.stringify({ presenters: list, invite: document.getElementById("p-invite").checked }) });
+      if (out.added.length) addedAny = true;
+      const emailed = out.added.filter((a) => a.invited).length;
+      said.innerHTML = `<div class="note"><b>${out.added.length} added${emailed ? `, ${emailed} emailed` : ""}.</b> ${out.added.map((a) => esc(a.name)).join(", ")}</div>`
+        + (out.notSent?.length ? `<div class="bad"><b>Not emailed:</b> ${out.notSent.map((r) => `${esc(r.name)} — ${esc(r.why)}`).join("; ")}</div>` : "")
+        + (out.rejected.length ? `<div class="bad"><b>${out.rejected.length} skipped.</b><br>${out.rejected.map((r) => esc(r.why)).join("<br>")}</div>` : "");
+      document.getElementById("p-rows").value = "";
+    } catch (err) { said.innerHTML = `<div class="bad"><b>Couldn't add them.</b> ${esc(err.message)}</div>`; }
+    e.target.disabled = false; e.target.textContent = "Add presenters";
+  };
   ROOT.querySelectorAll("[data-readyhotel]").forEach((b) => { b.onclick = () => { view = { name: "edit", eventId: ev.id, focus: "hotel" }; render(); }; });
   ROOT.querySelectorAll("[data-readywix]").forEach((b) => { b.onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); eventScreen(data); }; });
   const readyHide = document.getElementById("readyhide");
@@ -3143,8 +3385,9 @@ function eventScreen(data) {
     } catch (e) { toast(e.message); }
   });
 
-  // Two steps, for anyone: say yes, then type DELETE. A signed agreement can go too
-  // (a presenter called to court, or one ONGIA no longer wants); its copy stays in SharePoint.
+  // Someone who signed: two steps (a reason, then type DELETE), because a signed agreement is a record. A signed one can go
+  // too (a presenter called to court, or one ONGIA no longer wants); its copy stays in SharePoint. Someone who never
+  // signed: one "are you sure?" (audit, 21 Oct 2026).
   const peRemove = document.getElementById("pe-remove");
   if (peRemove) peRemove.onclick = async () => {
     const p = presenters.find((x) => x.id === pedit.dataset.presenter);
@@ -3153,14 +3396,18 @@ function eventScreen(data) {
     const final = p.status === "approved";
     const prm = document.getElementById("prm"), go = document.getElementById("prm-go"), typed = document.getElementById("prm-confirm");
     pedit.close();
+    const signed = ["submitted", "approved", "returned"].includes(p.status);
     document.getElementById("prm-title").textContent = `Remove ${name}?`;
-    document.getElementById("prm-what").textContent = `Their agreement link stops working and they come off this event${final ? ". Their signed agreement stays in SharePoint." : "."}`;
-    document.getElementById("prm-why").value = ""; typed.value = ""; go.disabled = true;
+    document.getElementById("prm-what").textContent = signed
+      ? `Their agreement link stops working and they come off this event${final ? ". Their signed agreement stays in SharePoint." : "."}`
+      : `${name} never signed, so there is no agreement on file. Their link stops working and they come off this event.`;
+    document.getElementById("prm-full").hidden = !signed;
+    document.getElementById("prm-why").value = ""; typed.value = ""; go.disabled = signed;
     // The button wakes only once DELETE is typed: the second step.
     typed.oninput = () => { go.disabled = typed.value.trim().toUpperCase() !== "DELETE"; };
     prm.returnValue = "";
     prm.onclose = async () => {
-      if (prm.returnValue !== "remove" || typed.value.trim().toUpperCase() !== "DELETE") return;
+      if (prm.returnValue !== "remove" || (signed && typed.value.trim().toUpperCase() !== "DELETE")) return;
       try {
         await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}${final ? "&final=1" : ""}`,
           { method: "DELETE", body: JSON.stringify({ reason: document.getElementById("prm-why").value }) });
@@ -3168,7 +3415,7 @@ function eventScreen(data) {
       } catch (e) { toast(e.message); }
     };
     prm.showModal();
-    document.getElementById("prm-why").focus();
+    if (signed) document.getElementById("prm-why").focus(); else go.focus();
   };
   // The presenter buttons, on the table and in the side panel: wired for the whole page, and again for the panel alone
   // when it opens (it is redrawn on its own, not with the page).
@@ -5414,9 +5661,10 @@ function volunteerCard(ev, V, R = null) {
     : "Volunteers sign the ONGIA Volunteer Terms";
   const badge = [c.review ? `<span class="you">${c.review} to review</span>` : "", c.uninvited ? `<span class="late">${c.uninvited} never sent</span>` : "", c.notFiled ? `<span class="late">${c.notFiled} not filed</span>` : ""].filter(Boolean).join(" · ");
   return secFold("volunteers", "Volunteers", line, badge, `<div class="card-body">
-    <div class="note" style="margin:0 0 14px">Each volunteer is emailed a link, reads the <b>ONGIA Volunteer Terms</b> (professional conduct, representing ONGIA and their own organization, behaviour and language),
+    <details class="howit"><summary>Each volunteer gets a link, signs the <b>ONGIA Volunteer Terms</b>, and their signed copy is filed in SharePoint. <span class="howlink">How it works</span></summary>
+      <div class="note" style="margin:8px 0 0">Each volunteer is emailed a link, reads the <b>ONGIA Volunteer Terms</b> (professional conduct, representing ONGIA and their own organization, behaviour and language),
       confirms they are in good standing and not under a formal investigation, says whether they need a hotel room, and signs by typing their name. The signed copy is emailed to them, filed in SharePoint under <b>Volunteer Agreements</b>, and the board is told.
-      <span class="porg">If they need a room, a board member chooses their hotel nights first (or says none after all); only then is it final, and the nights go on the <b>Hotel rooms</b> list. Nothing to do with presenters.</span></div>
+      <span class="porg">If they need a room, a board member chooses their hotel nights first (or says none after all); only then is it final, and the nights go on the <b>Hotel rooms</b> list. Nothing to do with presenters.</span></div></details>
     ${leadPicker(ev, V)}
     ${failedSends.length ? `<div class="sendfail"><b>${failedSends.length} email${failedSends.length === 1 ? "" : "s"} could not be sent.</b>
       <div style="margin-top:6px">${failedSends.map((v) => `${esc(v.first)} ${esc(v.last)} — ${esc(v.lastSendError.why)}`).join("<br>")}</div>
@@ -6322,12 +6570,12 @@ function reviewScreen(data) {
           <p class="hint">This is your signature on the agreement.</p>`}</div>
         <div class="field"><label for="r-role">Title / role</label><input id="r-role" value="${esc(sessionStorage.getItem("ongia-approver-role") ?? "")}" placeholder="President, ONGIA"></div>
       </div>
-      <div class="readback" id="readback"></div>
       <div class="sigbox" id="sigline">&nbsp;</div>
       ${!ev.reviewer?.name && !ev.contact?.name ? `<div class="note">This event has no lead board member, so the PDF will show you as the ONGIA contact, reached through the speakers mailbox. To name someone else, edit the event and pick a lead first.</div>` : ""}
       <label class="attest"><input type="checkbox" id="r-attest"><span>${data.signer ? `Signing as ${esc(data.signer.name)} is my electronic signature.` : "My typed name is my electronic signature."} Approving issues the final PDF, emails it to the presenter, files it to SharePoint and notifies the board.</span></label>
+      <div class="readback near" id="readback"></div>
       <div id="problem"></div>
-      <div class="actions"><button class="btn btn-gold" id="approve">Approve &amp; issue final</button>
+      <div class="actions"><button class="btn btn-gold" id="approve">${(data.waiting ?? []).length ? `Approve &amp; open next (${data.waiting.length} left)` : "Approve &amp; issue final"}</button>
         <button class="btn btn-ghost" id="preview">Preview the agreement</button></div>
       <p class="hint">Preview opens the document as it will read, photo and all, stamped DRAFT. It approves nothing, emails nobody and files nothing.</p>
       <hr style="border:0;border-top:1px solid var(--hair);margin:20px 0">
@@ -6337,7 +6585,8 @@ function reviewScreen(data) {
       <div class="actions"><button class="btn btn-late" id="return">Send back to presenter</button></div>
     </div></div>`;
 
-  ROOT.innerHTML = submission + (s.talk || approved ? decision : "");
+  // On a computer the decision sits beside the submission, so Approve is never below a long biography (audit, 21 Oct 2026).
+  ROOT.innerHTML = s.talk || approved ? `<div class="rvgrid">${submission}${decision}</div>` : submission;
   if (data.canEdit === false) queueMicrotask(() => makeViewOnly("This agreement is view only for you. It is approved and signed by the event's own board members, the president or the VP of operations."));
   if (!s.talk && !approved) return;
 
@@ -6434,21 +6683,21 @@ function reviewScreen(data) {
       document.getElementById("r-block").scrollIntoView({ block: "center", behavior: "smooth" });
       return (problem.innerHTML = `<div class="bad"><b>Choose how the hotel room is paid.</b> Pick "On ONGIA's master block" or "Not on the master block" under the hotel dates.</div>`);
     }
+    // One confirmation (audit, 21 Oct 2026): the signature tick, with what you are approving shown right above the button.
     if (!body.attest) return (problem.innerHTML = `<div class="bad"><b>Please confirm</b> the electronic signature.</div>`);
-    const covered = COSTS.filter(([k]) => covers[k]).map(([, l]) => l.split(" (")[0]);
-    if (hotelBlock === "master") covered.push("Accommodation (master block)");
-    if (!confirm(`Approve ${p.first} ${p.last}'s agreement?\n\nONGIA covers: ${covered.join(", ") || "nothing"}.${s.hotel === "yes" ? `\nHotel room: ${hotelBlock === "master" ? "on ONGIA's master block" : "NOT on the master block; they pay their own"}.` : ""}\n\nThis issues the final PDF and emails it.`)) return;
     sessionStorage.setItem("ongia-approver", body.approverName);
     sessionStorage.setItem("ongia-approver-role", body.approverRole);
     e.target.disabled = true; e.target.textContent = "Issuing final copy…";
     try {
       await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(p.id)}&action=approve`,
         { method: "POST", body: JSON.stringify(body) });
-      toast("Approved. Final PDF issued.");
+      const next = (data.waiting ?? [])[0];
+      toast(next ? `Approved. Final PDF issued. Next: ${next.name}.` : "Approved. Final PDF issued.");
+      if (next) view = { name: "review", eventId: ev.id, presenterId: next.id };
       render();
     } catch (err) {
       problem.innerHTML = `<div class="bad"><b>Not approved.</b> ${esc(err.message)}</div>`;
-      e.target.disabled = false; e.target.textContent = "Approve & issue final";
+      e.target.disabled = false; e.target.textContent = (data.waiting ?? []).length ? `Approve & open next (${data.waiting.length} left)` : "Approve & issue final";
     }
   };
 
@@ -6615,7 +6864,11 @@ async function drawScreen() {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);
       return unfiledScreen(inbox, list.events ?? []);
     }
-    if (view.name === "review") return reviewScreen(await api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`));
+    if (view.name === "review") {
+      const [rv, evd] = await Promise.all([api(`/review?event=${encodeURIComponent(view.eventId)}&presenter=${encodeURIComponent(view.presenterId)}`),
+        api(`/events?id=${encodeURIComponent(view.eventId)}`).catch(() => null)]);
+      return reviewScreen({ ...rv, waiting: (evd?.presenters ?? []).filter((x) => x.status === "submitted" && x.id !== view.presenterId).map((x) => ({ id: x.id, name: `${x.first} ${x.last}`.trim() })) });
+    }
     const list = await api("/events");
     return listScreen(list.events, list.inbox);
   } catch (e) {

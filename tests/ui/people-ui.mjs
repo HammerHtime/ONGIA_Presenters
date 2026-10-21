@@ -106,14 +106,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator('[data-pseg="volunteers"]').click(); await p.waitForTimeout(200);
   ok(`${tag}: Volunteers swaps the list for the volunteers`, await p.locator('details[data-fold="sec-volunteers"]').isVisible() && !(await p.locator('details[data-fold="sec-presenters"]').isVisible()));
   await p.locator('[data-pseg="guests"]').click(); await p.waitForTimeout(200);
-  ok(`${tag}: Who's coming shows the attendee list`, /Who is coming/i.test(await p.locator('.pview:not([hidden])').innerText()));
+  ok(`${tag}: Who's coming shows the attendee list`, await p.locator('.pview:not([hidden]) details[data-fold="sec-guests"]').isVisible());
   const gshown = () => p.locator("tr.grow:not([hidden])").count();
   ok(`${tag}: as a table, showing the 7 coming to start with`, (await p.locator("table.gtable").count()) === 1 && (await gshown()) === 7, String(await gshown()));
   ok(`${tag}: with cuts for coming, waitlist, not coming and all, with counts`, /Coming\s*7/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))) && /Waitlist\s*2/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))), await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|")));
   await p.locator('[data-gcutbtn="waitlist"]').click(); await p.waitForTimeout(150);
   ok(`${tag}: Waitlist shows the two`, (await gshown()) === 2 && /waitlist/i.test(await p.locator("tr.grow:not([hidden])").first().innerText()));
   await p.locator('[data-gcutbtn="all"]').click(); await p.fill("#gfind", "agency 5"); await p.waitForTimeout(150);
-  ok(`${tag}: the find box finds by organization`, (await gshown()) === 1 && /Guest5 Sample5/.test(await p.locator("tr.grow:not([hidden])").innerText()));
+  ok(`${tag}: the find box finds by organization`, (await gshown()) === 1 && /Guest5 Sample5/.test(await p.locator("tr.grow:not([hidden])").innerText()), `${await gshown()} shown: ${(await p.locator("tr.grow:not([hidden])").allInnerTexts()).join(" / ").slice(0, 300)}`);
   await p.fill("#gfind", ""); await p.locator('[data-gcutbtn="coming"]').click(); await p.waitForTimeout(150);
   if (tag === "wide") await p.screenshot({ path: `${D}people-guests-${tag}.png` }); else await p.screenshot({ path: `${D}people-guests-${tag}.png`, fullPage: true });
   await p.locator('[data-pseg="presenters"]').click(); await p.waitForTimeout(200);

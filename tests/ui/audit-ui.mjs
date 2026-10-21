@@ -35,8 +35,8 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await p.locator("tr.prow", { hasText: "Ann One" }).locator(".pn").click(); await p.waitForTimeout(500);
   ok(`${tag}: a presenter's panel opens to read, with its buttons switched off but its close button working`, await p.locator("#pdrawer").isVisible() && (await p.locator("#pdrawer [data-review], #pdrawer [data-edit], #pdrawer [data-copy]").evaluateAll((els) => els.length > 0 && els.every((e) => e.disabled))) && (await p.locator("#pdrawer [data-pclose]:not([disabled])").count()) >= 1);
   await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(300);
-  const fold = p.locator("details.secfold").first(); const was = await fold.evaluate((d) => d.open); await fold.locator("summary").click(); await p.waitForTimeout(200);
-  ok(`${tag}: but the sections still open and shut, to read`, (await fold.evaluate((d) => d.open)) !== was);
+  const fold = p.locator(".etabp details.secfold").first(); await fold.locator("summary").click({ force: true }).catch(() => {}); await p.waitForTimeout(200);
+  ok(`${tag}: and every section in a tab is open to read (the tab does the folding)`, await fold.evaluate((d) => d.open) && (await p.locator(".etabp details.secfold:not([open])").count()) === 0);
   await p.screenshot({ path: D + `viewonly-${tag}.png` });
   ok(`${tag}: the switched-off controls look switched off`, await p.locator("#root, main").first().evaluate(() => { const b = document.querySelector(".ro button:disabled"); return !!b && parseFloat(getComputedStyle(b).opacity) < 0.7; }));
   ok(`${tag}: the "All events" button still works`, await (async () => { await p.click("#back"); await p.waitForTimeout(800); return (await p.locator(".evcard, .empty").count()) > 0; })());

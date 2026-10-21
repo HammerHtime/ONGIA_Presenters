@@ -46,16 +46,33 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: the event has its tabs, in order, and no Money tab on an ordinary event`, names.join(",") === "Overview,People,Program,Logistics,Communications,Settings", names.join(","));
   ok(`${tag}: it opens on Overview`, (await shown(p)) === "overview");
   const ov = await p.locator('.etabp[data-panel="overview"]').innerText();
-  ok(`${tag}: Overview has To do on this event, Coming up, Who does what and the checklist`, /To do on this event/.test(ov) && /Coming up/.test(ov) && /Who does what/.test(ov) && /Your checklist/.test(ov));
+  const side = await p.locator("#sidepanels").innerText();
+  ok(`${tag}: Overview has To do on this event and the checklist; Coming up and Lead and folder are in the side column`, /To do on this event/.test(ov) && /Your checklist/.test(ov) && /Coming up/.test(side) && /Lead and folder/.test(side), side.slice(0, 300));
   ok(`${tag}: To do lists the agreement to review, with its button`, /Review agreement · Rev Iewer/.test(ov) && (await p.locator('.etabp[data-panel="overview"] [data-goreview]').count()) === 1, ov.slice(0, 400));
-  ok(`${tag}: Who does what names the lead and the rest of the board`, /Lead: Raj Jaswal/.test(ov) && /Board on this event: Barb Konkle/.test(ov));
-  ok(`${tag}: the header carries the key numbers`, /0 of 2 agreements signed/.test(await p.locator(".evhead .kp").innerText()), await p.locator(".evhead .kp").innerText());
+  ok(`${tag}: Lead and folder names the lead and the rest of the board`, /Lead\s*Raj Jaswal/.test(side) && /Board\s*Barb Konkle/.test(side), side);
+  const band = await p.locator(".evband").innerText();
+  ok(`${tag}: the navy band carries the lead, with when they last signed in`, /Lead: Raj Jaswal/.test(band) && /(last signed in|never signed in)/.test(band), band.slice(0, 300));
+  const tiles = await p.locator(".etile").allInnerTexts();
+  ok(`${tag}: five tiles: agreements, final materials, hotel, Wix registrations, the next date`, tiles.length === 5 && /0\s*\/\s*\d+\s*Agreements signed/.test(tiles[0]) && /Final materials/.test(tiles[1]) && /Hotel/.test(tiles[2]) && /Wix registrations/.test(tiles[3]), tiles.join(" | "));
+  ok(`${tag}: the bar has the home page's buttons here too`, (await p.locator(".bar #theyear").count()) === 1 && (await p.locator(".bar #newevent").count()) === 1 && (await p.locator("#root > .crumbs #back").count()) === 1);
   ok(`${tag}: the People tab carries a count of what needs you there`, /People\s*\d+/.test((await tabs(p))[1]), (await tabs(p))[1]);
   ok(`${tag}: the presenters are not on the Overview`, !(await p.locator('details[data-fold="sec-presenters"]').isVisible()));
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-overview-wide.png", fullPage: true }); else await p.screenshot({ path: D + "evtabs-overview-phone.png", fullPage: true });
 
   await p.locator('[data-tab="people"]').click(); await p.waitForTimeout(300);
   ok(`${tag}: People shows the presenters, with a switch to the volunteers and who is coming`, (await shown(p)) === "people" && await p.locator('details[data-fold="sec-presenters"]').isVisible() && (await p.locator("[data-pseg]").count()) === 3);
+  ok(`${tag}: the side column stays beside every tab`, await p.locator("#sidepanels").isVisible());
+  await p.locator("tr.prow", { hasText: "Rev Iewer" }).locator(".pn").click(); await p.waitForTimeout(500);
+  ok(`${tag}: a presenter's panel takes the side column's place, and the Room column steps aside`, await p.locator("#pdrawer").isVisible() && (tag === "phone" || (!(await p.locator("#sidepanels").isVisible()) && !(await p.locator(".ptable th.thr").isVisible()))));
+  await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(300);
+  ok(`${tag}: closing it brings the side column back`, await p.locator("#sidepanels").isVisible() && (await p.locator("#pdrawer").count()) === 0);
+  await p.locator("#add").click(); await p.waitForTimeout(300);
+  ok(`${tag}: Add presenters opens over the event, not on its own screen`, await p.locator("#padd").isVisible() && (await p.locator(".etab").count()) > 0);
+  await p.fill("#p-rows", `Pop, Up${tag}, pop.up.${tag}.${T}@example.ca, Org`); await p.locator("#p-invite").uncheck();
+  await p.click("#padd-save"); await p.waitForTimeout(1200);
+  ok(`${tag}: it says who was added`, /1 added/.test(await p.locator("#padd-said").innerText()), await p.locator("#padd-said").innerText());
+  await p.click("#padd-done"); await p.waitForTimeout(1500);
+  ok(`${tag}: closing it shows them on the event`, (await p.locator("tr.prow", { hasText: `Pop Up${tag}` }).count()) === 1);
   ok(`${tag}: the tab is in the address`, /tab%22%3A%22people|"tab":"people"/.test(decodeURIComponent(p.url())) || /people/.test(decodeURIComponent(p.url())), p.url());
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-people-wide.png" }); else await p.screenshot({ path: D + "evtabs-people-phone.png" });
   await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1200);
@@ -78,8 +95,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   // RBH: a Money tab for the president, with the SOW.
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(900);
   await p.locator(`[data-open="${R.id}"]`).click(); await p.waitForTimeout(1800);
-  const rn = (await tabs(p)).map((t) => t.replace(/\s*\d+$/, "").trim());
-  ok(`${tag}: an RBH event adds a Money tab for the president`, rn.includes("Money"), rn.join(","));
+  const rn = await p.locator(".etab").evaluateAll((els) => els.map((e) => e.dataset.tab));
+  ok(`${tag}: an RBH event adds a Money tab for the president`, rn.includes("money"), rn.join(","));
   await p.locator('[data-tab="money"]').click(); await p.waitForTimeout(300);
   ok(`${tag}: Money holds the SOW`, await p.locator('details[data-fold="sec-sow"]').isVisible());
   ok(`${tag}: no page errors`, p.errs.length === 0, p.errs.join(" | "));
