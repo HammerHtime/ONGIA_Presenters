@@ -54,9 +54,10 @@ ok("the server's own figures are the same: $76,380.19", server.estimate.total ==
 await f3.scrollIntoViewIfNeeded(); await page.screenshot({ path: D + "sow-draft.png" });
 // status -> approved: locks
 await f3.locator("#sw-status").selectOption("submitted"); await page.waitForTimeout(1500);
+ok("sent to RBH: the amounts lock straight away, and it says so", /Amounts locked: sent to RBH/.test(await page.locator("#sowcard").innerText()) && await page.locator("#sowcard .ln-est").first().isDisabled());
 await page.locator("#sowcard #sw-status").selectOption("approved"); await page.waitForTimeout(1500);
 const f4 = page.locator("#sowcard"); if (!(await f4.evaluate((d) => d.open))) await f4.locator("summary").first().click();
-ok("approved: the estimates lock, and it says so", /Estimates locked/.test(await f4.innerText()) && await f4.locator(".ln-est").first().isDisabled() && await f4.locator(".ln-name").first().isDisabled() && await f4.locator("#sw-add").isDisabled());
+ok("approved: still locked", /Amounts locked/.test(await f4.innerText()) && await f4.locator(".ln-est").first().isDisabled() && await f4.locator(".ln-name").first().isDisabled() && await f4.locator("#sw-add").isDisabled());
 ok("descriptions and the invoice amounts stay editable", await f4.locator(".ln-desc").first().isEnabled() && await f4.locator(".ln-act").first().isEnabled());
 ok("the invoice column and the invoice totals appear", await f4.locator("#sw-table th.act").first().isVisible() && await f4.locator("#sw-sums th.act").isVisible());
 const rowOf = (name) => f4.locator("#sw-table tbody tr", { has: page.locator(`.ln-name[value="${name}"]`) });
@@ -92,13 +93,18 @@ await f5.locator("#sw-pdf-inv").click(); await page.waitForTimeout(1500);
 ok("the invoice PDF opens", (await page.evaluate(() => window.__opened)).some((u) => u.startsWith("blob:")));
 await f5.locator("#sw-file-inv").click(); await page.waitForTimeout(1500);
 ok("filing with no Microsoft connection says so in a toast", /Microsoft credentials/.test(await page.locator(".toast").innerText().catch(() => "")), await page.locator(".toast").innerText().catch(() => ""));
-await f5.locator("#sw-unlock").click(); await page.waitForTimeout(1500);
+await f5.locator("#sw-unlock").click(); await page.waitForTimeout(200);
+ok("Edit amounts asks for the word EDIT, and Unlock stays off until it is typed", await f5.locator("#sw-word").isVisible() && await f5.locator("#sw-unlockgo").isDisabled());
+await f5.locator("#sw-word").fill("edit"); await page.waitForTimeout(100);
+await f5.locator("#sw-unlockgo").click(); await page.waitForTimeout(1500);
 const f6 = page.locator("#sowcard"); if (!(await f6.evaluate((d) => d.open))) await f6.locator("summary").first().click();
-ok("unlocked: estimates editable again, and it says unlocked", /Estimates unlocked/.test(await f6.innerText()) && await f6.locator(".ln-est").first().isEnabled());
+ok("unlocked: amounts editable again, and it says unlocked", /Amounts unlocked/.test(await f6.innerText()) && await f6.locator(".ln-est").first().isEnabled());
+await f6.locator(".ln-est").first().fill("$123.00"); await f6.locator("#sw-save").click(); await page.waitForTimeout(1500);
+ok("a changed amount shows against the copy RBH was sent", /Changed since you sent it to RBH/.test(await page.locator("#sowcard").innerText()) && /→ \$123\.00/.test(await page.locator("#sowcard").innerText()), (await page.locator("#sowcard").innerText()).slice(0, 400));
 await f6.locator("#sw-prov").selectOption("ON"); await f6.locator("#sw-useprov").click(); await page.waitForTimeout(1500);
 const f7 = page.locator("#sowcard"); if (!(await f7.evaluate((d) => d.open))) await f7.locator("summary").first().click();
 ok("switching to Ontario gives one HST line at 13%", (await f7.locator(".tx-name").evaluateAll((e) => e.map((x) => x.value))).join() === "HST" && /HST \(13%\)/.test(await f7.locator("#sw-sums").innerText()));
-ok("the history lists what happened", /Unlocked the estimates/.test(await f7.locator("details.settings", { hasText: "History" }).innerText().catch(() => "")) || (await f7.locator("details.settings summary", { hasText: "History" }).count()) === 1);
+ok("the history lists what happened", /Unlocked the amounts/.test(await f7.locator("details.settings", { hasText: "History" }).innerText().catch(() => "")) || (await f7.locator("details.settings summary", { hasText: "History" }).count()) === 1);
 // the event form
 await page.click("#back").catch(() => {}); await page.waitForTimeout(600);
 await page.locator(`[data-open="${ev.id}"]`).first().evaluate((e) => e.click()); await page.waitForTimeout(1200);

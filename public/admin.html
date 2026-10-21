@@ -4061,6 +4061,7 @@ function wireMoney(root) {
 }
 const usd = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.status);
+const sentOrLater = (sow) => ["submitted", "approved", "invoiced", "paid"].includes(sow.status);
 
 /** An RBH event's statement of work and invoice: the president's and the VP's, nobody else's. */
 function sowCard(ev, S) {
@@ -4093,7 +4094,7 @@ function wireSow(ev, S) {
     return;
   }
   const sow = JSON.parse(JSON.stringify(S.sow));
-  let locked = S.locked, dirty = false;
+  let locked = S.locked, dirty = false, changes = S.changedSinceSent ?? [];
   SOW_DIRTY = () => dirty;
   const body = document.getElementById("sw-body");
   const $ = (id) => document.getElementById(id);
@@ -4116,9 +4117,14 @@ function wireSow(ev, S) {
         <div><div class="cap">Invoice number</div><div class="invno">${esc(sow.invoice.number)}</div></div>
         <div><div class="cap">Status</div><select id="sw-status" style="width:auto;margin:0">${SOW_STATUSES.map(([k, w]) => `<option value="${k}"${sow.status === k ? " selected" : ""}>${w}</option>`).join("")}</select>
           <span class="ag" id="sw-statusat">${sow.statusAt?.[sow.status] ? esc(fmtDate(sow.statusAt[sow.status].slice(0, 10))) : ""}</span></div>
-        <div id="sw-lock">${locked ? `<span class="shchip good">Estimates locked</span> <button class="mini ghost" id="sw-unlock">Unlock to change them</button>`
-          : afterApproval(sow) ? `<span class="shchip warn">Estimates unlocked</span> <button class="mini ghost" id="sw-relock">Lock them again</button>` : ""}</div>
+        <div id="sw-lock">${locked ? `<span class="shchip good">Amounts locked: sent to RBH</span> <button class="mini ghost" id="sw-unlock">Edit amounts</button>
+            <span id="sw-unlockbox" hidden><input id="sw-word" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type EDIT" aria-label="Type EDIT to change the amounts" style="width:110px;margin:0 4px;padding:5px 10px;min-height:0;display:inline-block">
+            <button class="mini gold" id="sw-unlockgo" disabled>Unlock</button> <button class="mini ghost" id="sw-unlockno">Cancel</button></span>`
+          : sentOrLater(sow) ? `<span class="shchip warn">Amounts unlocked</span> <button class="mini ghost" id="sw-relock">Lock them again</button>` : ""}</div>
       </div>
+      ${changes.length ? `<div class="bad" style="margin:0 0 14px"><b>Changed since you sent it to RBH${sow.sent?.at ? ` on ${esc(fmtDate(sow.sent.at.slice(0, 10)))}` : ""}.</b> RBH's copy does not have these:
+        <ul style="margin:6px 0 0;padding-left:18px">${changes.map((c) => `<li>${esc(c.name || "A line")}: ${c.was === null ? "added" : usd(c.was)} → ${c.now === null ? "taken out" : usd(c.now)}${c.what === "amount changed" || c.what === "added" || c.what === "taken out" ? "" : ` (${esc(c.what)})`}</li>`).join("")}</ul>
+        <div style="margin-top:6px">Send RBH the new SOW and mark it sent again, or put the amounts back.</div></div>` : ""}
       <div class="row2"><div class="field"><label for="sw-title">Program name (the big gold title)</label><input id="sw-title" value="${esc(sow.program.title)}"></div>
         <div class="field"><label for="sw-place">Place</label><input id="sw-place" value="${esc(sow.program.place)}"></div></div>
       <div class="row2"><div class="field"><label for="sw-note">Note on the page (shows in red; optional)</label><input id="sw-note" value="${esc(sow.program.note)}" placeholder="Expecting a large class this training (10-12 ppl)"></div>
@@ -4217,7 +4223,7 @@ function wireSow(ev, S) {
   const save = async (quiet) => {
     read();
     const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null }) });
-    Object.assign(sow, out.sow); locked = out.locked; dirty = false;
+    Object.assign(sow, out.sow); locked = out.locked; changes = out.changedSinceSent ?? changes; dirty = false;
     if (!quiet) { toast("Saved."); render(); }
     return out;
   };
@@ -4249,7 +4255,12 @@ function wireSow(ev, S) {
     $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; };
     $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
     $("sw-status").onchange = guard(async () => { if (dirty) await save(true); await api(`${q}&status=${$("sw-status").value}`, { method: "PUT" }); toast("Status changed."); render(); });
-    $("sw-unlock")?.addEventListener("click", guard(async () => { if (!confirm("Unlock the estimates? Do this only if RBH has agreed to a change. It is noted in the history.")) return; await api(`${q}&unlock=1`, { method: "PUT" }); render(); }));
+    // Changing what RBH was sent takes a click and the word EDIT (Andrew 21 Oct 2026); it is noted in the history.
+    $("sw-unlock")?.addEventListener("click", () => { $("sw-unlock").hidden = true; $("sw-unlockbox").hidden = false; $("sw-word").focus(); });
+    $("sw-unlockno")?.addEventListener("click", () => { $("sw-unlockbox").hidden = true; $("sw-unlock").hidden = false; $("sw-word").value = ""; $("sw-unlockgo").disabled = true; });
+    $("sw-word")?.addEventListener("input", () => { $("sw-unlockgo").disabled = $("sw-word").value.trim().toUpperCase() !== "EDIT"; });
+    $("sw-word")?.addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("sw-unlockgo").disabled) $("sw-unlockgo").click(); });
+    $("sw-unlockgo")?.addEventListener("click", guard(async () => { await api(`${q}&unlock=1`, { method: "PUT", body: JSON.stringify({ word: $("sw-word").value }) }); toast("Amounts unlocked. RBH has the copy you sent; changes show against it."); render(); }));
     $("sw-relock")?.addEventListener("click", guard(async () => { await api(`${q}&unlock=0`, { method: "PUT" }); render(); }));
     $("sw-save").onclick = guard(() => save(false));
     $("sw-pdf-sow").onclick = pdf("sow"); $("sw-pdf-inv").onclick = pdf("invoice");

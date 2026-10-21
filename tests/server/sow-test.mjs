@@ -84,7 +84,13 @@ ok("so does the invoice", r.status === 200 && Buffer.from(await r.res.arrayBuffe
 
 console.log("— statuses and the lock");
 r = await call(sowFn, `/api/sow?event=${ev.id}&status=submitted`, "PUT");
-ok("marked sent to RBH, with the date kept", r.sow.status === "submitted" && !!r.sow.statusAt.submitted && r.locked === false);
+ok("marked sent to RBH, with the date kept, and the amounts lock right away", r.sow.status === "submitted" && !!r.sow.statusAt.submitted && r.locked === true);
+ok("the copy RBH was sent is kept", r.sow.sent?.lines?.length === r.sow.lines.length && !!r.sow.sent.at);
+let sentLines = r.sow;
+r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: sentLines.lines.map((l) => (l.name === "Dinners" ? { ...l, estimate: 1 } : l)), taxes: sentLines.taxes });
+ok("once sent, a changed amount is refused", r.status === 409 && /sent to RBH/.test(r.error));
+r = await call(sowFn, `/api/sow?event=${ev.id}&unlock=1`, "PUT");
+ok("unlocking without the word is refused", r.status === 400 && /EDIT/.test(r.error));
 const edit = (sow, over) => sow.lines.map((l) => ({ ...l, ...over(l) }));
 r = await call(sowFn, `/api/sow?event=${ev.id}&status=approved`, "PUT");
 ok("marked approved: the estimates lock", r.sow.status === "approved" && r.locked === true);
@@ -96,10 +102,11 @@ ok("an actual can still be typed, and the invoice figures follow", r.status === 
 ok("the SOW's own figures did not move", r.estimate.subtotal === 55360);
 ok("the invoice is 2.1% under the SOW, so nothing needs explaining", r.increase.pct === -2.1 && r.increase.over === false, JSON.stringify(r.increase));
 cur = r.sow;
-r = await call(sowFn, `/api/sow?event=${ev.id}&unlock=1`, "PUT");
-ok("unlocking is allowed and noted", r.locked === false && r.sow.history.some((h) => /Unlocked/.test(h.what)));
+r = await call(sowFn, `/api/sow?event=${ev.id}&unlock=1`, "PUT", { word: "edit" });
+ok("typing EDIT unlocks, and it is noted", r.locked === false && r.sow.history.some((h) => /Unlocked/.test(h.what)));
 r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: edit(r.sow, (l) => (l.name === "Dinners" ? { estimate: 3500 } : {})), taxes: r.sow.taxes });
-ok("then an estimate can change, and the history says so", r.status === 200 && r.sow.history.some((h) => /edited after approval/.test(h.what)));
+ok("then an amount can change, and the history says so", r.status === 200 && r.sow.history.some((h) => /changed after it was sent/.test(h.what)));
+ok("and the page is told exactly what differs from RBH's copy", r.changedSinceSent?.length === 1 && r.changedSinceSent[0].name === "Dinners" && r.changedSinceSent[0].now === 3500, JSON.stringify(r.changedSinceSent));
 r = await call(sowFn, `/api/sow?event=${ev.id}&status=invoiced`, "PUT");
 r = await call(sowFn, `/api/sow?event=${ev.id}&status=paid`, "PUT");
 ok("invoiced and paid are kept with dates", r.sow.status === "paid" && !!r.sow.statusAt.invoiced && !!r.sow.statusAt.paid);

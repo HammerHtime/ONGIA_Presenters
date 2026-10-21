@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
-import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money } from "./lib/sow.mjs";
+import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -31,6 +31,7 @@ const view = async (event, raw) => {
   actual: sow ? totals(sow, "actual") : null,
   increase: sow ? increase(sow) : null,
   locked: sow ? isLocked(sow) : false,
+  changedSinceSent: sow ? changesSinceSent(sow) : [],
   copyFrom: sow ? [] : await copyChoices(event),
   templates: sow ? [] : Object.entries(TEMPLATES).map(([key, t]) => ({ key, title: t.title, blurb: t.blurb, total: t.lines.reduce((n, l) => n + l.estimate, 0) })),
   };
@@ -116,6 +117,8 @@ export default async (req) => {
     if (!STATUSES.includes(s)) return fail("That isn't a status.");
     const next = { ...sow };
     stampStatus(next, s);
+    // Sent (or sent again): the amounts lock, and the copy RBH now has is kept to compare against.
+    if (s === "submitted") { next.unlocked = false; next.sent = sentCopy(next); }
     if (s === "approved") next.unlocked = false;
     note(next, name, `Marked ${s}`);
     await putSow(id, next);
@@ -123,8 +126,10 @@ export default async (req) => {
   }
 
   if (req.method === "PUT" && q("unlock")) {
+    // Unlocking takes the word EDIT typed on the page, so a change to what RBH was sent is never an accident.
+    if (q("unlock") === "1" && String((await req.json().catch(() => null))?.word ?? "").trim().toUpperCase() !== "EDIT") return fail("Type EDIT to change the amounts.", 400);
     const next = { ...sow, unlocked: q("unlock") === "1" };
-    note(next, name, next.unlocked ? "Unlocked the estimates after approval" : "Locked the estimates again");
+    note(next, name, next.unlocked ? "Unlocked the amounts after it was sent to RBH" : "Locked the amounts again");
     await putSow(id, next);
     return json(await view(event, next));
   }
@@ -150,7 +155,7 @@ export default async (req) => {
       // After approval the estimates are what RBH agreed to: names, types, amounts and the list of lines stay,
       // and only descriptions and the actuals (the invoice) change until it is unlocked.
       const same = lines.length === sow.lines.length && lines.every((l, i) => l.id === sow.lines[i].id && l.name === sow.lines[i].name && l.type === sow.lines[i].type && l.estimate === sow.lines[i].estimate);
-      if (!same) return fail("This was approved, so the estimates are locked. Unlock them first if RBH has agreed to a change.", 409);
+      if (!same) return fail("This was sent to RBH, so the amounts are locked. Click Edit amounts and type EDIT if RBH has agreed to a change.", 409);
     }
     const next = {
       ...sow,
@@ -166,8 +171,8 @@ export default async (req) => {
       // The explanation for RBH when the invoice is 20% or more over the SOW; it prints on the invoice only then.
       increaseReason: body.increaseReason === undefined ? (sow.increaseReason ?? "") : text(body.increaseReason, 1500),
     };
-    const changedAfterApproval = STATUSES.indexOf(sow.status) >= STATUSES.indexOf("approved") && JSON.stringify(sow.lines.map((l) => l.estimate)) !== JSON.stringify(lines.map((l) => l.estimate));
-    if (changedAfterApproval) note(next, name, "Estimates edited after approval");
+    const changedAfterSent = STATUSES.indexOf(sow.status) >= STATUSES.indexOf("submitted") && JSON.stringify(sow.lines.map((l) => l.estimate)) !== JSON.stringify(lines.map((l) => l.estimate));
+    if (changedAfterSent) note(next, name, "Amounts changed after it was sent to RBH");
     await putSow(id, next);
     return json(await view(event, next));
   }

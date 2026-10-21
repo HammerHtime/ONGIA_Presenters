@@ -191,4 +191,23 @@ export function stampStatus(sow, status, now = new Date().toISOString()) {
   sow.status = status;
   sow.statusAt = { ...(sow.statusAt ?? {}), [status]: now };
 }
-export const isLocked = (sow) => STATUSES.indexOf(sow.status) >= STATUSES.indexOf("approved") && !sow.unlocked;
+// The amounts lock the moment it is sent to RBH (Andrew 21 Oct 2026), not only once RBH approves: what RBH has is what stands.
+export const isLocked = (sow) => STATUSES.indexOf(sow.status) >= STATUSES.indexOf("submitted") && !sow.unlocked;
+
+/** The copy RBH was sent: kept when it is marked sent, to say exactly what has changed since. */
+export const sentCopy = (sow, at = new Date().toISOString()) => ({ at, lines: sow.lines.map((l) => ({ id: l.id, name: l.name, type: l.type, estimate: l.estimate })), taxes: sow.taxes });
+
+/** Each line whose name or amount differs from the copy RBH was sent, and lines added or taken out since. */
+export function changesSinceSent(sow) {
+  const sent = sow.sent;
+  if (!sent?.lines) return [];
+  const now = new Map(sow.lines.map((l) => [l.id, l])), then = new Map(sent.lines.map((l) => [l.id, l]));
+  const out = [];
+  for (const l of sent.lines) {
+    const n = now.get(l.id);
+    if (!n) out.push({ name: l.name, was: l.estimate, now: null, what: "taken out" });
+    else if (n.estimate !== l.estimate || n.name !== l.name || n.type !== l.type) out.push({ name: n.name, was: l.estimate, now: n.estimate, what: n.name !== l.name ? `renamed from "${l.name}"` : n.type !== l.type ? "type changed" : "amount changed" });
+  }
+  for (const n of sow.lines) if (!then.has(n.id)) out.push({ name: n.name, was: null, now: n.estimate, what: "added" });
+  return out;
+}
