@@ -32,6 +32,9 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const anyEnabled = await p.evaluate(() => [...document.querySelectorAll("button, input, select, textarea")].filter((e) => !e.disabled && !e.closest("header, #barright, .bar") && e.id !== "signout" && !e.matches(".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind") && e.offsetParent !== null).map((e) => e.id || e.textContent.trim().slice(0, 30)));
   ok(`${tag}: every button and box on the event is switched off`, anyEnabled.length === 0, JSON.stringify(anyEnabled.slice(0, 8)));
   ok(`${tag}: but looking around still works: the tabs, the people switch and the way back`, (await p.locator(".etab:not([disabled])").count()) >= 6 && (await p.locator("[data-pseg]:not([disabled])").count()) === 3 && (await p.locator(".crumb:not([disabled])").count()) === 1);
+  await p.locator("tr.prow", { hasText: "Ann One" }).locator(".pn").click(); await p.waitForTimeout(500);
+  ok(`${tag}: a presenter's panel opens to read, with its buttons switched off but its close button working`, await p.locator("#pdrawer").isVisible() && (await p.locator("#pdrawer [data-review], #pdrawer [data-edit], #pdrawer [data-copy]").evaluateAll((els) => els.length > 0 && els.every((e) => e.disabled))) && (await p.locator("#pdrawer [data-pclose]:not([disabled])").count()) >= 1);
+  await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(300);
   const fold = p.locator("details.secfold").first(); const was = await fold.evaluate((d) => d.open); await fold.locator("summary").click(); await p.waitForTimeout(200);
   ok(`${tag}: but the sections still open and shut, to read`, (await fold.evaluate((d) => d.open)) !== was);
   await p.screenshot({ path: D + `viewonly-${tag}.png` });

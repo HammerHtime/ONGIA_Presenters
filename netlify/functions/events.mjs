@@ -424,7 +424,6 @@ async function showList(canCost = true, viewer = { key: true }) {
     events.map(async (event) => {
       const [people, box] = await Promise.all([listPresenters(event.id), getInbox(event.id)]);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
-      const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
       const seen = canCost ? event : redactEvent(event);
       return {
         ...seen,
@@ -441,13 +440,7 @@ async function showList(canCost = true, viewer = { key: true }) {
         inbox: canCost || event.kind !== "rbh" ? inboxCounts(box) : { ...inboxCounts(box), offers: 0 },
         inboxItems: canCost || event.kind !== "rbh" ? inboxForList(box) : withoutOffers(inboxForList(box)),
         // Enough to name a problem on the dashboard without opening the event.
-        attention: {
-          review: who((p) => p.status === "submitted"),
-          uninvited: who((p) => p.status !== "approved" && p.status !== "submitted" && !p.mail?.length),
-          failed: who((p) => p.status === "approved" && p.delivery?.filing && p.delivery.filing.ok === false),
-          sendFailed: who((p) => !!p.lastSendError),
-          outstanding: who((p) => p.status !== "approved" && p.status !== "submitted"),
-        },
+        attention: attentionOf(people),
       };
     })
   );
@@ -455,11 +448,25 @@ async function showList(canCost = true, viewer = { key: true }) {
   return json({ canCost, events: withCounts, inbox: { connected: inboxConfigured(), unfiled: unfiledBox ? inboxCounts(unfiledBox) : null, unfiledItems: inboxForList(unfiledBox) } });
 }
 
+// The same attention and checklist tally as the list carries, so the event page need not load every event to show its own to-do rows.
 async function showEvent(id, canCost = true, who = { key: true }) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event: canCost ? event : redactEvent(event), canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters) });
+  return json({ event: canCost ? event : redactEvent(event), canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
+    attention: attentionOf(presenters), checklistCounts: checklistOf(event).counts });
+}
+
+/** Who on an event needs someone: to review, never sent a link, not filed, an email that bounced, not signed yet. */
+export function attentionOf(people) {
+  const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
+  return {
+    review: who((p) => p.status === "submitted"),
+    uninvited: who((p) => p.status !== "approved" && p.status !== "submitted" && !p.mail?.length),
+    failed: who((p) => p.status === "approved" && p.delivery?.filing && p.delivery.filing.ok === false),
+    sendFailed: who((p) => !!p.lastSendError),
+    outstanding: who((p) => p.status !== "approved" && p.status !== "submitted"),
+  };
 }
 
 export function countStatuses(presenters) {

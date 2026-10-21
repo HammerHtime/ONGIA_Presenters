@@ -38,7 +38,10 @@ const shown = (p) => p.locator(".etabp:not([hidden])").getAttribute("data-panel"
 for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   console.log(`— ${tag}`);
   const p = await open({ width: w, height: h });
+  const lists = []; const seeList = (r) => { if (/\/api\/events(\?|$)/.test(r.url()) && !/[?&]id=/.test(r.url())) lists.push(r.url()); }; p.on("request", seeList);
   await p.locator(`[data-open="${A.id}"]`).click(); await p.waitForTimeout(1500);
+  p.off("request", seeList);
+  ok(`${tag}: opening the event loads only that event, not the list of every event`, lists.length === 0, lists.join(" "));
   const names = (await tabs(p)).map((t) => t.replace(/\s*\d+$/, "").trim());
   ok(`${tag}: the event has its tabs, in order, and no Money tab on an ordinary event`, names.join(",") === "Overview,People,Program,Logistics,Communications,Settings", names.join(","));
   ok(`${tag}: it opens on Overview`, (await shown(p)) === "overview");

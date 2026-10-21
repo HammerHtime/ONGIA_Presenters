@@ -182,29 +182,6 @@
   .trow .act.pact{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:236px;justify-self:end}
   .trow .act.pact .mini{width:100%;justify-content:center;text-align:center}
   .trow .act.pact .wide{grid-column:1/-1}
-  /* The six steps of one presenter's agreement, in the order they happen.
-     Squares are ONGIA's move, circles are the presenter's. */
-  .steps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:7px 15px;
-         margin-top:11px;padding-top:10px;border-top:1px dashed var(--edge)}
-  .scount{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-          color:var(--muted);white-space:nowrap}
-  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;
-        background:none;border:0;padding:0;font-family:inherit;line-height:1.5}
-  button.step{cursor:pointer} button.step:hover{color:var(--ink)} button.step:hover i{border-color:var(--ink-mid)}
-  .step i{flex:none;width:14px;height:14px;border-radius:999px;border:1.5px solid var(--border);
-          background:var(--sunk);display:grid;place-items:center;font-size:9px;font-weight:700;
-          line-height:1;color:transparent}
-  /* Done keeps its green tick — that is the thing being watched for — but the
-     label goes quiet, so a finished row reads as calm rather than as six greens. */
-  .step.done i{background:var(--done);border-color:var(--done);color:#fff}
-  .step.done i::after{content:"\2713"}
-  .step.soon i{border-color:var(--wait);background:var(--wait-bg)}
-  /* Red is spent only on a step this row is behind its peers on. A date the whole
-     event has missed is the event's problem and the banner says it once. */
-  .step.late{color:var(--late);font-weight:600} .step.late i{border-color:var(--late);background:var(--late)}
-  .step.late i::after{content:"!";color:#fff}
-  .step.you{color:var(--navy);font-weight:700} .step.you i{border-color:var(--navy);background:var(--navy);color:#fff}
-  .step.you i::after{content:"\2022"}
   @supports (grid-template-columns: subgrid){
     .tlist{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(190px,1fr) 236px;column-gap:14px}
     .tlist>.trow{grid-column:1/-1;grid-template-columns:subgrid}
@@ -785,6 +762,7 @@
   .pbulk .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
   .pbnote{margin-left:auto;font-size:12.5px;opacity:.75}
   .playout.withdrawer{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+  .pdslot{display:contents}
   .ptwrap{min-width:0;overflow-x:auto}
   .ptable{width:100%;border-collapse:collapse;font-size:14px}
   .ptable th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--navy);white-space:nowrap}
@@ -932,7 +910,6 @@
   /* Fingers, not pointers: tall enough to tap, but tight (Andrew 20 Oct 2026: the ovals were taking too much room). */
   @media (pointer:coarse){
     .mini,.fchip{min-height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px}
-    button.step{min-height:44px;padding:0 4px}
     .member input[type=checkbox],.member input[type=radio]{width:22px;height:22px}
     .member .rphone{min-height:44px}
     .member label.deskpick{min-height:44px}
@@ -1524,55 +1501,6 @@ function blockersOf(ev) {
   return out;
 }
 
-/**
- * The front page of the desk: everything that is true, known to the app, and
- * otherwise invisible until someone opens each event in turn.
- */
-function needsCard(events, inbox = null) {
-  const today = todayIso();
-  const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
-  const rows = [];
-  const names = (list, max = 4) => {
-    const n = list.map((x) => esc(x.name));
-    return n.length <= max ? n.join(", ") : `${n.slice(0, max).join(", ")} and ${n.length - max} more`;
-  };
-  for (const ev of events) {
-    const a = ev.attention ?? {};
-    const where = `${esc(ev.city)} · ${esc(ev.title)}`;
-    for (const pr of a.review ?? []) rows.push({ cls: "act", rank: 0,
-      title: "Waiting for your signature", who: `${esc(pr.name)} — ${where}`, label: "Review", goreview: `${ev.id}|${pr.id}` });
-    if ((a.uninvited ?? []).length) rows.push({ cls: "stop", rank: 1,
-      title: `${a.uninvited.length} presenter${a.uninvited.length === 1 ? " has" : "s have"} never been sent a link`,
-      who: `${names(a.uninvited)} — ${where}. No reminder will ever reach them.`, label: "Open event", goev: ev.id });
-    if ((a.failed ?? []).length) rows.push({ cls: "stop", rank: 2,
-      title: `${a.failed.length} signed agreement${a.failed.length === 1 ? "" : "s"} never reached SharePoint`,
-      who: `${names(a.failed)} — ${where}`, label: "Open event", goev: ev.id });
-    if ((a.sendFailed ?? []).length) rows.push({ cls: "stop", rank: 2,
-      title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`,
-      who: `${names(a.sendFailed)} — ${where}`, label: "Open event", goev: ev.id });
-    const blockers = blockersOf(ev);
-    if (blockers.length) rows.push({ cls: "stop", rank: 3,
-      title: `Event is blocked: ${blockers.map((b) => b.short).join(", ")}`,
-      who: `${where}${ev.deadlines?.agreement && !ev.noDeadlines ? ` · agreements due ${esc(fmtDate(ev.deadlines.agreement))}` : ""}`, label: "Open event", goev: ev.id });
-    const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
-    const out = (a.outstanding ?? []).length;
-    if (due && days(due) < 0 && out) rows.push({ cls: "stop", rank: 4,
-      title: `${out} agreement${out === 1 ? "" : "s"} overdue by ${-days(due)} day${days(due) === -1 ? "" : "s"}`,
-      who: `${names(a.outstanding)} — ${where}`, label: "Open event", goev: ev.id });
-    // ONGIA's own jobs, which nobody else is going to chase.
-    const k = ev.checklist;
-    if (k?.late) rows.push({ cls: "stop", rank: 5,
-      title: `${k.late} job${k.late === 1 ? "" : "s"} on your own checklist overdue`,
-      who: `${where} · ${k.done} of ${k.total} done`, label: "Open event", goev: ev.id });
-  }
-  rows.sort((a, b) => a.rank - b.rank);
-  const live = events.filter((e) => (e.lastDay || e.dayOne) >= today).length;
-  const body = rows.length
-    ? rows.map((r) => `<div class="nrow ${r.cls}"><div class="why"><b>${r.title}</b><div class="who">${r.who}</div></div>
-        <button class="mini${r.goreview ? " gold" : ""}" ${r.goreview ? `data-goreview="${esc(r.goreview)}"` : r.unfiled ? `data-gounfiled="1"` : `data-goev="${esc(r.goev)}"`}>${r.label}</button></div>`).join("")
-    : `<div class="allclear">Nothing needs you today. ${live} event${live === 1 ? "" : "s"} on the rails.</div>`;
-  return `<div class="needs"><h2>Needs you now</h2>${body}</div>`;
-}
 
 /* ---------- new event ---------- */
 function eventFormScreen(existing = null) {
@@ -2561,6 +2489,7 @@ function sponsorsScreen(list, settings) {
 // Ticked presenters (per event) and the find box's text survive a redraw of the event page.
 const PSEL = new Map();
 let PFIND = "";
+const VIEW_WHY = "This event is view only for you. Its own board members, the president and the VP of operations can change it.";
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
@@ -2813,8 +2742,10 @@ function eventScreen(data) {
   }).join("");
 
   // Everything about one presenter: the steps with their dates, the room, the emails and calls, and every button.
-  const dp = view.person ? enriched.find(({ p }) => p.id === view.person) : null;
-  const drawer = !dp ? "" : (() => {
+  // Drawn on its own (audit, 21 Oct 2026): opening or closing it replaces only the panel, not the whole event page.
+  const drawerFor = (pid) => {
+    const dp = pid ? enriched.find(({ p }) => p.id === pid) : null;
+    if (!dp) return "";
     const { p, a } = dp;
     const A = actsOf(p, a, `${location.origin}/a/${p.token}`);
     const mails = (p.mail ?? []).filter((m) => m.type !== "called"), calls = (p.mail ?? []).filter((m) => m.type === "called");
@@ -2838,7 +2769,8 @@ function eventScreen(data) {
         <dt>Emails</dt><dd>${mails.length ? `${mails.length} sent · last ${esc(short(mails.at(-1).at))}` : "None sent"}</dd>
         <dt>Calls</dt><dd>${calls.length ? `${calls.length} logged · last ${esc(short(calls.at(-1).at))}` : "None logged"}</dd></dl>
       <div class="pacts">${A.main}${A.rest.join("")}</div></aside>`;
-  })();
+  };
+  const drawer = drawerFor(view.person);
 
   const chips = [["needs", "Needs me"], ["waiting", "Waiting on them"], ["materials", "Materials due soon"], ["signed", "Signed"], ["all", "All"]]
     .filter(([k]) => k !== "materials" || viewN(k) > 0 || filter === k)
@@ -2893,7 +2825,8 @@ function eventScreen(data) {
   ].filter(Boolean).join("");
 
   // Overview: what needs doing on this event (the home page's queue, this event only), what is coming, and who does what.
-  const listEv = (allEvents ?? []).find((e) => e.id === ev.id) ?? null;
+  // This event's own to-do rows: the event fetch carries the same attention and checklist tally as the list.
+  const listEv = data.attention ? { ...ev, attention: data.attention, checklist: data.checklistCounts } : null;
   const Qev = listEv ? homeQueues([listEv], null, { here: true }) : { needs: [], waiting: [] };
   const evQRow = (r) => `<div class="qrow"><span class="qic ${r.cls}" aria-hidden="true">${r.icon}</span>
     <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}${r.note ? `<div class="qev">${esc(r.note)}</div>` : ""}</div>
@@ -2974,7 +2907,7 @@ function eventScreen(data) {
         <span class="pbnote">Approving is always one at a time</span></div>
       <div class="playout${drawer ? " withdrawer" : ""}"><div class="ptwrap">${show.length
         ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th>Presenter</th><th>Agreement</th><th>Materials</th><th>Room</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-        : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>${drawer}</div>
+        : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div><div id="pdslot" class="pdslot">${drawer}</div></div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
       + pv("guests", attendeesCard(ev, guests)))
@@ -3053,7 +2986,7 @@ function eventScreen(data) {
   if (shOff) shOff.onclick = async () => { try { await api(`/sheetcheck?event=${encodeURIComponent(ev.id)}&enable=0`, { method: "PUT" }); toast("Logistics sheet check is off for this event."); render(); } catch (e) { toast(e.message); } };
   if (sow) wireSow(ev, sow);
   wireRbhOffer(ev);
-  if (data.canEdit === false) makeViewOnly("This event is view only for you. Its own board members, the president and the VP of operations can change it.");
+  if (data.canEdit === false) makeViewOnly(VIEW_WHY);
   if (receipts) wireReceipts(ev, receipts);
   // Tabs: switching is instant (everything is already on the page) and swaps the address in place, so Back still leaves the event.
   const showTab = (k, focus = null) => {
@@ -3075,8 +3008,19 @@ function eventScreen(data) {
       ROOT.querySelectorAll("[data-pseg]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", String(x === b)); });
     };
   });
+  const setPerson = (id) => {
+    view = { ...view, person: id }; keepAddress();
+    const slot = document.getElementById("pdslot");
+    if (!slot) return eventScreen(data);
+    slot.innerHTML = drawerFor(id);
+    slot.closest(".playout")?.classList.toggle("withdrawer", !!slot.innerHTML);
+    ROOT.querySelectorAll("tr.prow").forEach((tr) => tr.classList.toggle("open", tr.dataset.person === id));
+    wireActs(slot);
+    slot.querySelectorAll("[data-pclose]").forEach((b) => { b.onclick = () => setPerson(null); });
+    if (data.canEdit === false) lockForView(slot, VIEW_WHY);
+  };
   const openPerson = (id) => {
-    view = { ...view, person: id }; keepAddress(); eventScreen(data);
+    setPerson(id);
     const d = document.getElementById("pdrawer");
     if (d && !matchMedia("(max-width:760px)").matches) d.scrollIntoView({ block: "nearest", behavior: "smooth" });
   };
@@ -3084,7 +3028,7 @@ function eventScreen(data) {
     tr.onclick = (e) => { if (e.target.closest("button, input, a, label")) return; openPerson(tr.dataset.person); };
   });
   ROOT.querySelectorAll("[data-pshow]").forEach((b) => { b.onclick = () => openPerson(b.dataset.pshow); });
-  ROOT.querySelectorAll("[data-pclose]").forEach((b) => { b.onclick = () => { view = { ...view, person: null }; keepAddress(); eventScreen(data); }; });
+  ROOT.querySelectorAll("[data-pclose]").forEach((b) => { b.onclick = () => setPerson(null); });
   const bulkBar = () => {
     const bar = document.getElementById("pbulk");
     if (!bar) return;
@@ -3144,37 +3088,7 @@ function eventScreen(data) {
       else toast("Open Event settings to finish this.");
     };
   });
-  ROOT.querySelectorAll("[data-called]").forEach((b) => {
-    b.onclick = async () => {
-      b.disabled = true; b.textContent = "Saving…";
-      try {
-        await api(`/invite?id=${encodeURIComponent(ev.id)}&called=1`, { method: "POST", body: JSON.stringify({ presenterIds: [b.dataset.called] }) });
-        toast("Call logged. Automatic reminders pause for a week.");
-        render();
-      } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Called them"; }
-    };
-  });
-  ROOT.querySelectorAll("[data-refile]").forEach((b) => {
-    b.onclick = async () => {
-      b.disabled = true; b.textContent = "Filing…";
-      try {
-        const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.refile)}&action=redeliver`, { method: "POST", body: JSON.stringify({ all: false }) });
-        toast(out.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.delivery?.filing?.error ?? out.delivery?.filing?.reason ?? "unknown"}`);
-        render();
-      } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Retry filing"; }
-    };
-  });
   ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
-  ROOT.querySelectorAll("[data-mat]").forEach((b) => {
-    b.onclick = async () => {
-      b.disabled = true;
-      try {
-        const out = await api(`/materials?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.mat)}`,
-          { method: "POST", body: JSON.stringify({ [b.dataset.key]: b.dataset.on === "1" }) });
-        eventScreen({ ...data, materials: out });
-      } catch (e) { toast(e.message); b.disabled = false; }
-    };
-  });
   const rescan = document.getElementById("rescan");
   if (rescan) rescan.onclick = async () => {
     rescan.disabled = true; rescan.textContent = "Checking…";
@@ -3212,29 +3126,6 @@ function eventScreen(data) {
     catch (e) { toast(e.message); }
   };
   const pedit = document.getElementById("pedit");
-  ROOT.querySelectorAll("[data-edit]").forEach((b) => {
-    b.onclick = () => {
-      const p = presenters.find((x) => x.id === b.dataset.edit);
-      if (!p) return;
-      pedit.dataset.presenter = p.id;
-      document.getElementById("pe-first").value = p.first ?? "";
-      document.getElementById("pe-last").value = p.last ?? "";
-      document.getElementById("pe-email").value = p.email ?? "";
-      document.getElementById("pe-org").value = p.organization ?? "";
-      // Say up front what a correction will and won't reach.
-      const sent = (p.mail ?? []).some((m) => m.type !== "called");
-      document.getElementById("pe-warn").innerHTML =
-        p.status === "approved"
-          ? `<div class="note" style="margin-top:14px">This agreement is already final and filed. Correcting it here does not
-             change the PDF in SharePoint — use <b>Rebuild the PDF</b> on their details screen if the document itself is wrong.</div>`
-          : sent
-            ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving,
-               use <b>Email link</b> on their row to send it to the corrected one.</div>`
-            : "";
-      pedit.showModal();
-      document.getElementById("pe-email").focus();
-    };
-  });
   pedit?.addEventListener("close", async () => {
     if (pedit.returnValue !== "save") return;
     const id = pedit.dataset.presenter;
@@ -3279,18 +3170,76 @@ function eventScreen(data) {
     prm.showModal();
     document.getElementById("prm-why").focus();
   };
-  ROOT.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
-  ROOT.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });
-  ROOT.querySelectorAll("[data-copy]").forEach((b) => {
-    b.onclick = async () => {
-      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
-      catch { prompt("Copy this link:", b.dataset.copy); }
-      setTimeout(() => (b.textContent = "Copy link"), 1600);
-    };
-  });
-  ROOT.querySelectorAll("[data-review]").forEach((b) => {
-    b.onclick = () => { view = { name: "review", eventId: ev.id, presenterId: b.dataset.review }; render(); };
-  });
+  // The presenter buttons, on the table and in the side panel: wired for the whole page, and again for the panel alone
+  // when it opens (it is redrawn on its own, not with the page).
+  function wireActs(root) {
+    root.querySelectorAll("[data-called]").forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = "Saving…";
+        try {
+          await api(`/invite?id=${encodeURIComponent(ev.id)}&called=1`, { method: "POST", body: JSON.stringify({ presenterIds: [b.dataset.called] }) });
+          toast("Call logged. Automatic reminders pause for a week.");
+          render();
+        } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Called them"; }
+      };
+    });
+    root.querySelectorAll("[data-refile]").forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = "Filing…";
+        try {
+          const out = await api(`/review?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.refile)}&action=redeliver`, { method: "POST", body: JSON.stringify({ all: false }) });
+          toast(out.delivery?.filing?.ok ? "Filed to SharePoint." : `Still failing: ${out.delivery?.filing?.error ?? out.delivery?.filing?.reason ?? "unknown"}`);
+          render();
+        } catch (e) { toast(e.message); b.disabled = false; b.textContent = "Retry filing"; }
+      };
+    });
+    root.querySelectorAll("[data-mat]").forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          const out = await api(`/materials?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.mat)}`,
+            { method: "POST", body: JSON.stringify({ [b.dataset.key]: b.dataset.on === "1" }) });
+          eventScreen({ ...data, materials: out });
+        } catch (e) { toast(e.message); b.disabled = false; }
+      };
+    });
+    root.querySelectorAll("[data-edit]").forEach((b) => {
+      b.onclick = () => {
+        const p = presenters.find((x) => x.id === b.dataset.edit);
+        if (!p) return;
+        pedit.dataset.presenter = p.id;
+        document.getElementById("pe-first").value = p.first ?? "";
+        document.getElementById("pe-last").value = p.last ?? "";
+        document.getElementById("pe-email").value = p.email ?? "";
+        document.getElementById("pe-org").value = p.organization ?? "";
+        // Say up front what a correction will and won't reach.
+        const sent = (p.mail ?? []).some((m) => m.type !== "called");
+        document.getElementById("pe-warn").innerHTML =
+          p.status === "approved"
+            ? `<div class="note" style="margin-top:14px">This agreement is already final and filed. Correcting it here does not
+               change the PDF in SharePoint — use <b>Rebuild the PDF</b> on their details screen if the document itself is wrong.</div>`
+            : sent
+              ? `<div class="note" style="margin-top:14px">Their link has already been emailed to the old address. After saving,
+                 use <b>Email link</b> on their row to send it to the corrected one.</div>`
+              : "";
+        pedit.showModal();
+        document.getElementById("pe-email").focus();
+      };
+    });
+    root.querySelectorAll("[data-invite]").forEach((b) => { b.onclick = () => invite(ev.id, [b.dataset.invite], b.textContent === "Remind"); });
+    root.querySelectorAll("[data-pdf]").forEach((b) => { b.onclick = () => openPdf(ev.id, b.dataset.pdf); });
+    root.querySelectorAll("[data-copy]").forEach((b) => {
+      b.onclick = async () => {
+        try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
+        catch { prompt("Copy this link:", b.dataset.copy); }
+        setTimeout(() => (b.textContent = "Copy link"), 1600);
+      };
+    });
+    root.querySelectorAll("[data-review]").forEach((b) => {
+      b.onclick = () => { view = { name: "review", eventId: ev.id, presenterId: b.dataset.review }; render(); };
+    });
+  }
+  wireActs(ROOT);
 }
 
 /* ---------- the desk's own checklist ---------- */
@@ -3707,12 +3656,13 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  * A board member who isn't attached to an event may look but not change (the server refuses changes too): every
  * control on the page is switched off, and a line at the top says why. Folding sections open and shut still works.
  */
+// Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
+// filters, the find box, opening a person's details, the way back) still works.
+const VIEW_LOOK = ".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
+const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");
-  // Only what changes something is switched off: looking around (the tabs, the people switch and filters, the find
-  // box, opening a person's details, the way back) still works.
-  const LOOK = ".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
-  ROOT.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(LOOK)) return; el.disabled = true; el.title = why; });
+  lockForView(ROOT, why);
   ROOT.insertAdjacentHTML("afterbegin", `<div class="note viewonly" role="status" style="margin:0 0 14px"><b>View only.</b> ${esc(why.replace(/^This event is view only for you\. /, ""))}</div>`);
 }
 
@@ -4824,26 +4774,7 @@ function foldHead(title, line, todoN, chaseN, themN) {
     <span class="ibcount">${counts}</span><span class="ibcaret" aria-hidden="true">▾</span></summary>`;
 }
 
-/** The home page's list: every event's email to-dos in one place, most urgent first. */
-const HOME_ROWS = 10;
 const EVENT_ROWS = 8;
-function homeInboxCard(events, inbox) {
-  if (!inbox?.connected) return "";
-  const pairs = events.flatMap((ev) => (ev.inboxItems ?? []).map((x) => ({ x, ev })))
-    .concat((inbox.unfiledItems ?? []).map((x) => ({ x, ev: { id: "_unfiled", title: "Not on the desk yet" } })));
-  const { todo, them } = ibGroups(pairs);
-  const open = (rows) => rows.filter(({ x }) => x.status === "open").length;
-  if (!todo.length && !them.length) return `<div class="card" id="homeinbox"><div class="card-head"><div><h2>Your email to-dos</h2></div></div>
-    <div class="card-body ib"><p class="ibempty">Nothing waiting from your email.</p></div></div>`;
-  const list = (rows, id) => `<div class="ibrows" id="${id}">${rows.map(({ x, ev }, i) => (i === HOME_ROWS ? `<div class="ibmorerows" hidden>` : "") + ibRow(x, ev, { showEvent: true })).join("")}${rows.length > HOME_ROWS ? "</div>" : ""}</div>
-    ${rows.length > HOME_ROWS ? `<button class="mini ibshowall" data-ibshow="${id}">Show all ${rows.length}</button>` : ""}`;
-  const chase = them.filter(({ x }) => x.status === "open" && ibUrgency(x).chase).length;
-  return `<details class="card ibfold" id="homeinbox" data-fold="home"${foldOpen("home") ? " open" : ""}>
-    ${foldHead("Your email to-dos", "Every event, most urgent first. Tick what is done; it stays crossed out today, then folds away.", open(todo), chase, open(them))}
-    <div class="card-body ib">${todo.length ? `<h3>To do<b>${open(todo)}</b></h3>${list(todo, "hib-todo")}` : ""}
-      ${them.length ? `<h3>Waiting on others<b>${open(them)}</b>${chase ? ` <span style="color:var(--wait);letter-spacing:.06em">· ${chase} to chase</span>` : ""}</h3>${list(them, "hib-them")}` : ""}
-    </div></details>`;
-}
 
 function inboxDialogs() {
   return `<dialog class="sheet" id="ibdlg"><form method="dialog">
@@ -5886,34 +5817,7 @@ function backupScreen(B) {
 }
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
-/**
- * The hotel cut-off and every dated job still to do, soonest first, so each
- * event's card shows what is coming without opening it. A cut-off that has
- * passed is left off; a job that is late stays, in red.
- */
-function datesLine(ev) {
-  const items = (ev.dates ?? []).filter((d) => d.kind !== "cutoff" || !d.passed);
-  if (!items.length) return "";
-  const day = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
-  return `<div class="kdates"><span class="kl">Dates</span>${items.map((d) =>
-    `<span class="kd${d.late ? " late" : d.kind === "cutoff" ? " cut" : ""}"><b>${esc(day(d.date))}</b> ${esc(d.what)}${d.late ? " (late)" : ""}</span>`).join("")}</div>`;
-}
 
-function nextLine(ev, c) {
-  const today = todayIso();
-  const d = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
-  const items = [["Agreements due", ev.deadlines?.agreement, c.invited + c.opened], ["Draft materials due", ev.deadlines?.draft, c.total - (ev.materials?.draft ?? 0)],
-    ["Final materials due", ev.deadlines?.final, c.total - (ev.materials?.final ?? 0)], ["Training starts", ev.dayOne, 0]].filter((x) => x[1]).map(([l, iso, open]) => ({ l, iso, open, days: d(iso) }));
-  const late = items.filter((x) => x.days < 0 && x.open > 0 && x.l !== "Training starts");
-  const next = items.find((x) => x.days >= 0);
-  const when = (x) => x.days === 0 ? "today" : x.days > 0 ? `in ${x.days} day${x.days === 1 ? "" : "s"}` : `${-x.days} day${x.days === -1 ? "" : "s"} ago`;
-  const parts = [];
-  if (!c.total) parts.push("<b>No presenters yet.</b> Open the event to add them.");
-  if (late.length) parts.push(`<span class="pill late">overdue</span> ${late.map((x) => `${esc(x.l.replace(" due", ""))}: ${x.open} outstanding (${when(x)})`).join(" · ")}`);
-  if (next) parts.push(`${parts.length ? "<br>" : ""}<b>${esc(next.l)}</b> ${esc(fmtDate(next.iso))} · ${when(next)}`);
-  if (!parts.length) parts.push("This event is in the past.");
-  return `<div style="font-size:13.5px;line-height:1.7">${parts.join(" ")}</div>`;
-}
 
 /* ---------- board roster ---------- */
 let ROSTER = [];
@@ -6695,7 +6599,7 @@ async function drawScreen() {
         api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/agenda?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         EMAIL_ON ? api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null,
-        api("/events").catch(() => ({ events: [] })),
+        EMAIL_ON ? api("/events").catch(() => ({ events: [] })) : null,   // every event, only for filing email to another event
         api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
         api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null),   // the sheet check: refused (so hidden) for anyone but the president and the VP
         loadRoster(),   // the board, for the volunteer lead picker
@@ -6705,7 +6609,7 @@ async function drawScreen() {
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       const receipts = data.event?.kind === "rbh" ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
-      return eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list.events ?? [] });
+      return eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
     }
     if (view.name === "unfiled" && EMAIL_ON) {
       const [inbox, list] = await Promise.all([api("/inbox?event=_unfiled").catch(() => null), api("/events")]);

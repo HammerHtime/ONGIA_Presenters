@@ -60,9 +60,12 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.fill("#pfind", ""); await p.waitForTimeout(150);
   ok(`${tag}: and clearing it brings everyone back`, (await p.locator("tr.prow:not([hidden])").count()) === 8);
 
-  // One presenter's panel.
+  // One presenter's panel. Opening and closing it leaves the rest of the page as it is (no full redraw).
+  await p.evaluate(() => { document.querySelector(".ptable").dataset.kept = "1"; });
+  let calls = 0; const count = (r) => { if (/\/api\/events/.test(r.url())) calls++; }; p.on("request", count);
   await p.locator("tr.prow", { hasText: "Rev Iewer" }).locator(".pn").click(); await p.waitForTimeout(500);
   const dr = p.locator("#pdrawer");
+  ok(`${tag}: the panel opens without redrawing the page or reloading the event`, (await p.locator('.ptable[data-kept="1"]').count()) === 1 && calls === 0 && (await p.locator("tr.prow.open", { hasText: "Rev Iewer" }).count()) === 1, `calls=${calls}`);
   ok(`${tag}: clicking a row opens everything about that presenter`, await dr.isVisible() && /Rev Iewer/.test(await dr.innerText()) && /Street gangs and social media/.test(await dr.innerText()));
   ok(`${tag}: the panel lists the steps, with the board review waiting on you`, (await dr.locator(".ptl li").count()) === 7 && /Approved: waiting on you/.test(await dr.innerText()), await dr.locator(".ptl").innerText());
   ok(`${tag}: and the buttons: Review, Copy link, Correct or remove, Mark received`, (await dr.locator("[data-review]").count()) === 1 && (await dr.locator("[data-copy]").count()) === 1 && (await dr.locator("[data-edit]").count()) === 1 && (await dr.locator("[data-mat]").count()) === 2);
@@ -73,7 +76,12 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: Mark received ticks the final material, and the row's chip turns done`, /Clear/.test(await p.locator('#pdrawer [data-mat][data-key="final"]').innerText()) && (await p.locator("tr.prow", { hasText: "Rev Iewer" }).locator('.mchip.done[data-key="final"]').count()) === 1);
   await p.locator('#pdrawer [data-mat][data-key="final"]').click(); await p.waitForTimeout(900);
   await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(400);
-  ok(`${tag}: × closes it`, (await p.locator("#pdrawer").count()) === 0);
+  ok(`${tag}: × closes it`, (await p.locator("#pdrawer").count()) === 0 && (await p.locator("tr.prow.open").count()) === 0);
+  await p.evaluate(() => { document.querySelector(".ptable").dataset.kept = "1"; });   // Mark received saves and redraws; mark the table again
+  calls = 0; await p.locator("tr.prow", { hasText: "Cy Placeholder" }).locator(".pn").click(); await p.waitForTimeout(400);
+  await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(300);
+  ok(`${tag}: opening and closing another presenter still reloads nothing`, calls === 0 && (await p.locator('.ptable[data-kept="1"]').count()) === 1, `calls=${calls}`);
+  p.off("request", count);
 
   // Several at once.
   await p.locator("tr.prow", { hasText: "Ada Sample" }).locator("[data-psel]").check();
