@@ -5764,11 +5764,11 @@ function volunteerDialogs() {
         <div class="sheet-head"><h2 id="vrm-title">Remove this volunteer?</h2>
           <p class="hint" style="margin-top:6px" id="vrm-what"></p></div>
         <div class="sheet-body">
-          <div class="field"><label for="vrm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
+          <div id="vrm-full"><div class="field"><label for="vrm-why">Reason <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(kept on file with the event)</span></label>
             <textarea id="vrm-why" maxlength="600" style="min-height:80px" placeholder="e.g. No longer available; replaced by another volunteer"></textarea>
             <p class="hint" style="margin:6px 0 0">Keep it short. Leave out case details and anything confidential.</p></div>
           <div class="field"><label for="vrm-confirm">Type DELETE to confirm</label>
-            <input id="vrm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+            <input id="vrm-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>
           <div class="actions" style="margin-top:18px;flex-wrap:wrap">
             <button class="btn btn-late" id="vrm-go" value="remove" disabled>Remove volunteer</button>
             <button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button>
@@ -5927,22 +5927,27 @@ function wireVolunteers(ev, V) {
     const v = list.find((x) => x.id === vedit.dataset.id);
     if (!v) return;
     const signed = v.status === "signed";
+    // As for presenters (Andrew 21 Oct 2026): someone who signed takes a reason and DELETE; someone who never did, one "are you sure?".
+    const everSigned = signed || v.status === "submitted";
     const vrm = document.getElementById("vrm"), vgo = document.getElementById("vrm-go"), typed = document.getElementById("vrm-confirm");
     vedit.close();
     document.getElementById("vrm-title").textContent = `Remove ${named(v)}?`;
-    document.getElementById("vrm-what").textContent = `Their agreement link stops working and they come off this event${signed ? ". Their signed agreement stays in SharePoint." : "."}`;
-    document.getElementById("vrm-why").value = ""; typed.value = ""; vgo.disabled = true;
+    document.getElementById("vrm-what").textContent = everSigned
+      ? `Their agreement link stops working and they come off this event${signed ? ". Their signed agreement stays in SharePoint." : "."}`
+      : `${named(v)} never signed, so there is no agreement on file. Their link stops working and they come off this event.`;
+    document.getElementById("vrm-full").hidden = !everSigned;
+    document.getElementById("vrm-why").value = ""; typed.value = ""; vgo.disabled = everSigned;
     typed.oninput = () => { vgo.disabled = typed.value.trim().toUpperCase() !== "DELETE"; };
     vrm.returnValue = "";
     vrm.onclose = async () => {
-      if (vrm.returnValue !== "remove" || typed.value.trim().toUpperCase() !== "DELETE") return;
+      if (vrm.returnValue !== "remove" || (everSigned && typed.value.trim().toUpperCase() !== "DELETE")) return;
       try {
         await api(`/volunteers?${q}&id=${encodeURIComponent(v.id)}${signed ? "&final=1" : ""}`, { method: "DELETE", body: JSON.stringify({ reason: document.getElementById("vrm-why").value }) });
         toast(`${named(v)} removed.`); render();
       } catch (e) { toast(e.message); }
     };
     vrm.showModal();
-    document.getElementById("vrm-why").focus();
+    if (everSigned) document.getElementById("vrm-why").focus(); else vgo.focus();
   };
 }
 

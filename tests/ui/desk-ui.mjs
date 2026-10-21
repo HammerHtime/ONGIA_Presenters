@@ -129,21 +129,25 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: he is final with no nights, and nothing was added to the hotel list for him`, zv.status === "signed" && zv.review.hotel === null && !(await api(`/api/rooming?event=${ev.id}`)).rows.some((x) => /Zed/.test(x.name)));
   ok(`${tag}: nothing runs off the side`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
-  // Remove the other one: reason, then DELETE.
-  const row1 = page.locator('details[data-fold="sec-volunteers"] tr.vrow').nth(1);
-  await row1.locator("[data-vedit]").click(); await page.waitForTimeout(300);
+  // Someone who signed: a reason, then DELETE.
+  const signedV = (await api(`/api/volunteers?event=${ev.id}`)).volunteers.find((v) => v.status === "signed");
+  await page.locator('details[data-fold="sec-volunteers"] tr.vrow', { hasText: `${signedV.first} ${signedV.last}` }).locator("[data-vedit]").click(); await page.waitForTimeout(300);
   await page.click("#ve-remove"); await page.waitForTimeout(300);
-  ok(`${tag}: removing is two steps: the button is off until DELETE is typed`, await page.isDisabled("#vrm-go"));
-  await page.fill("#vrm-why", "No longer available");
+  ok(`${tag}: removing someone who signed is two steps: a reason, and the button is off until DELETE is typed`, await page.locator("#vrm-full").isVisible() && await page.isDisabled("#vrm-go"));
   await page.fill("#vrm-confirm", "delete"); await page.waitForTimeout(150);
   ok(`${tag}: typing DELETE wakes it`, !(await page.isDisabled("#vrm-go")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  // Marc never signed: one "are you sure?".
+  const row1 = page.locator('details[data-fold="sec-volunteers"] tr.vrow', { hasText: "Marc Thibault" });
+  await row1.locator("[data-vedit]").click(); await page.waitForTimeout(300);
+  await page.click("#ve-remove"); await page.waitForTimeout(300);
+  ok(`${tag}: removing someone who never signed is one step: no reason or DELETE`, !(await page.locator("#vrm-full").isVisible()) && !(await page.isDisabled("#vrm-go")) && /never signed/.test(await page.locator("#vrm-what").innerText()));
   await page.screenshot({ path: OUT + `desk-remove-${tag}.png` });
   await page.click("#vrm-go"); await page.waitForTimeout(1000);
   const left = (await api(`/api/volunteers?event=${ev.id}`)).volunteers;
   ok(`${tag}: removed, and Vera is still there`, left.some((v) => v.first === "Vera") && !left.some((v) => v.first === "Marc"));
-  ok(`${tag}: the event keeps the reason`, /No longer available/.test(JSON.stringify((await api(`/api/events?id=${ev.id}`)).event.removedPresenters)));
   const st = page.locator("#evsettings"); if (!(await st.evaluate((d) => d.open))) await st.locator("summary").click().catch(() => {}); await page.waitForTimeout(200);
-  ok(`${tag}: Event settings lists them as a removed volunteer, with the reason`, /volunteer/.test(await page.locator("#evsettings").innerText()) && /No longer available/.test(await page.locator("#evsettings").innerText()));
+  ok(`${tag}: Event settings lists him as a removed volunteer`, /Marc Thibault/.test(await page.locator("#evsettings").innerText()) && /volunteer/.test(await page.locator("#evsettings").innerText()));
   ok(`${tag}: no script errors`, errs.length === 0, errs.join("; "));
   // Clean up so the second pass starts fresh.
   for (const v of (await api(`/api/volunteers?event=${ev.id}`)).volunteers) await api(`/api/volunteers?event=${ev.id}&id=${v.id}&final=1`, { method: "DELETE", body: JSON.stringify({ reason: "test" }) });
