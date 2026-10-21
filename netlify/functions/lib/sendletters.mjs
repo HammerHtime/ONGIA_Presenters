@@ -69,7 +69,9 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   if (problems.length) return { event: event.id, title: event.title, kind, blocked: problems };
 
   const stored = (await getAttendees(event.id)) ?? { people: [] };
-  const owed = writeableTo(stored.people ?? []).filter((p) => !(p.sent ?? []).includes(kind));
+  // Once per address: an address that has had it (on any of its rows) is not written to again.
+  const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes(kind)).map((p) => p.email));
+  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email));
   if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: letter.name };
   if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
 
@@ -87,8 +89,11 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
     try {
       const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...mail, attachments });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
-      person.sent = [...(person.sent ?? []), kind];
-      person.sentAt = { ...(person.sentAt ?? {}), [kind]: new Date().toISOString() };
+      // Everyone at that address has had it: their guests on the same registration too.
+      for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
+        same.sent = [...new Set([...(same.sent ?? []), kind])];
+        same.sentAt = { ...(same.sentAt ?? {}), [kind]: new Date().toISOString() };
+      }
       sent++;
       await putAttendees(event.id, stored);
     } catch (e) {

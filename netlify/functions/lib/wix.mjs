@@ -120,6 +120,16 @@ export async function listWixEvents({ limit = 100 } = {}) {
   return (out.events ?? []).map(tidyEvent);
 }
 
+/** The names of an RSVP's extra guests, from wherever Wix put them on the form; none is fine. */
+function guestNamesOf(g) {
+  const d = g.guestDetails ?? {};
+  const direct = d.additionalGuestDetails?.guestNames ?? g.additionalGuestDetails?.guestNames ?? [];
+  const fromForm = (d.formResponse?.inputValues ?? [])
+    .filter((v) => /guest/i.test(v.inputName ?? "") && Array.isArray(v.values))
+    .flatMap((v) => v.values);
+  return [...direct, ...fromForm].map((x) => String(x ?? "").trim()).filter((x) => x && !/^\d+$/.test(x));
+}
+
 /** One guest, reduced to a person the desk can write to. */
 function tidyGuest(g) {
   const d = g.guestDetails ?? {};
@@ -142,6 +152,8 @@ function tidyGuest(g) {
     orderNumber: g.orderNumber ?? "",
     checkedIn: d.checkedIn === true,
     totalGuests: g.totalGuests ?? 1,
+    // The names an RSVP gave for the people they are bringing, when the form asked for them.
+    guestNames: guestNamesOf(g),
     updatedAt: g.updatedDate ?? g.createdDate ?? null,
   };
 }
@@ -180,27 +192,39 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
 }
 
 /**
- * The people actually coming, out of every guest record Wix has for an event.
+ * The people actually coming, out of every guest record Wix has for an event: one row for every registration, the way
+ * Wix counts them (Andrew, 21 Oct 2026: Wix showed 45 and the desk 26, because the desk kept one row per email address
+ * and ignored an RSVP's "+ guests").
  *
- * A free event has one RSVP per person. A ticketed one has a BUYER per order
- * and a TICKET_HOLDER per ticket: the holders are who attends, while a buyer
- * is often an assistant booking for a whole unit. So the desk takes the RSVPs
- * and the ticket holders, and falls back to an order's buyer only when one of
- * that order's tickets was bought without the holder's email, so somebody
- * still gets the letters to pass on.
+ * A free event has one RSVP per registration, which may bring more people ("totalGuests"): each extra person is a row of
+ * their own, named if the form asked for names, else "guest of" the person who registered them. A ticketed event has a
+ * BUYER per order and a TICKET_HOLDER per ticket: every ticket is a row, and a ticket with no email of its own uses the
+ * buyer's, so the letters still reach someone who can pass them on. A buyer is a row only when their order has no
+ * ticket holders at all. Letters go once per email address however many rows share it.
  */
 export function attendeesOf(guests) {
+  const name = (g) => `${g.first} ${g.last}`.trim() || g.email;
+  const split = (whole) => { const p = String(whole ?? "").trim().split(/\s+/).filter(Boolean); return p.length > 1 ? { first: p.slice(0, -1).join(" "), last: p.at(-1) } : { first: p[0] ?? "", last: "" }; };
   const rsvp = guests.filter((g) => g.guestType === "RSVP" || !g.guestType);
   const holders = guests.filter((g) => g.guestType === "TICKET_HOLDER");
-  const orphanOrders = new Set(holders.filter((g) => !g.email && g.orderNumber).map((g) => g.orderNumber));
-  const buyers = guests.filter((g) => g.guestType === "BUYER" && g.orderNumber && orphanOrders.has(g.orderNumber));
-  const seen = new Set();
-  return [...rsvp, ...holders, ...buyers].filter((g) => {
-    if (!g.email) return false;
-    if (seen.has(g.email)) return false;
-    seen.add(g.email);
-    return true;
-  });
+  const buyers = guests.filter((g) => g.guestType === "BUYER");
+  const buyerOf = new Map(buyers.filter((b) => b.orderNumber).map((b) => [b.orderNumber, b]));
+  const ordersWithTickets = new Set(holders.map((h) => h.orderNumber).filter(Boolean));
+  const out = [];
+  for (const g of rsvp) {
+    out.push({ ...g, key: `wix:${g.id}` });
+    const extra = Math.max(0, Math.min(50, (Number(g.totalGuests) || 1) - 1));
+    for (let n = 1; n <= extra; n++) {
+      const given = split(g.guestNames?.[n - 1]);
+      out.push({ ...g, key: `wix:${g.id}:${n + 1}`, first: given.first, last: given.last, phone: "", guestOf: name(g) });
+    }
+  }
+  for (const h of holders) {
+    const b = h.orderNumber ? buyerOf.get(h.orderNumber) : null;
+    out.push({ ...h, key: `wix:${h.id}`, email: h.email || b?.email || "", ...(!h.first && !h.last && b ? { guestOf: name(b) } : {}) });
+  }
+  for (const b of buyers) if (!b.orderNumber || !ordersWithTickets.has(b.orderNumber)) out.push({ ...b, key: `wix:${b.id}` });
+  return out;
 }
 
 /** The whole site's guests, grouped by the Wix event they belong to. */

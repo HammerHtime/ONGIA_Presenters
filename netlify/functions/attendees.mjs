@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
-import { readCsv, merge, tally, writeableTo } from "./lib/attendees.mjs";
+import { readCsv, merge, tally, writeableTo, keyOf } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { letterProblems, eventProblems } from "./lib/letters.mjs";
 
@@ -37,7 +37,7 @@ export default async (req) => {
   }
   if (req.method === "DELETE") {
     if (url.searchParams.get("all")) return clear(event);
-    return removeOne(event, url.searchParams.get("email"));
+    return removeOne(event, url.searchParams.get("email"), url.searchParams.get("key"));
   }
   return fail("Method not allowed.", 405);
 };
@@ -73,7 +73,7 @@ async function letterStatus(event, stored) {
       on: due.on ?? null,
       why: due.due ? "due now" : due.why,
       reaches: writeableTo(people).length,
-      had: people.filter((p) => (p.sent ?? []).includes(kind)).length,
+      had: new Set(people.filter((p) => (p.sent ?? []).includes(kind)).map((p) => p.email)).size,
       problems: letter ? [...letterProblems(letter), ...eventProblems(letter, event)] : [],
     };
   }
@@ -100,11 +100,11 @@ async function takeCsv(req, event) {
   return json({ ok: true, added: out.added, changed: out.changed, skipped, counts: tally(out.people) });
 }
 
-async function removeOne(event, email) {
-  const who = text(email, 200).toLowerCase();
-  if (!who) return fail("Which person?");
+async function removeOne(event, email, key) {
+  const who = text(email, 200).toLowerCase(), row = text(key, 200);
+  if (!who && !row) return fail("Which person?");
   const stored = (await getAttendees(event.id)) ?? { people: [] };
-  const people = (stored.people ?? []).filter((p) => p.email !== who);
+  const people = (stored.people ?? []).filter((p) => (row ? keyOf(p) !== row : p.email !== who));
   if (people.length === (stored.people ?? []).length) return fail("Nobody on this list has that address.", 404);
   await putAttendees(event.id, { ...stored, people });
   return json({ ok: true, counts: tally(people) });

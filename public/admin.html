@@ -5364,9 +5364,10 @@ function attendeesCard(ev, guests) {
   const GCUT = { ATTENDING: "coming", IN_WAITLIST: "waitlist", NOT_ATTENDING: "notcoming", WITHDRAWN: "withdrew" };
   const rows = people.map((p) => {
     const [cls, word] = GUEST_WORDS[p.status] ?? ["idle", String(p.status ?? "").toLowerCase()];
-    const name = [p.first, p.last].filter(Boolean).join(" ") || p.email;
+    const named = [p.first, p.last].filter(Boolean).join(" ");
+    const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
     return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""}`.toLowerCase())}">
-      <td class="pn"><b>${esc(name)}</b><span class="psub">${esc(p.email)}</span></td>
+      <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span></td>
       <td class="go">${esc(p.organization || "")}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
       <td class="gs" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</td></tr>`;

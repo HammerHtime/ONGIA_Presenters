@@ -121,10 +121,11 @@ async function syncOne(event) {
  */
 async function absorb(eventId, guests) {
   const stored = (await getAttendees(eventId)) ?? { people: [] };
+  // Every registration is a row, keyed by its Wix guest (and place in an RSVP), even one with no email of its own.
   const incoming = guests.map((g) => ({
-    first: g.first, last: g.last, email: g.email, phone: g.phone,
-    organization: "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id,
-  })).filter((p) => p.email);
+    key: g.key ?? `wix:${g.id}`, first: g.first, last: g.last, email: g.email, phone: g.phone,
+    organization: "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id, ...(g.guestOf ? { guestOf: g.guestOf } : {}),
+  }));
   const out = merge(stored.people ?? [], incoming, { source: "wix", authoritative: true });
   const at = new Date().toISOString();
   await putAttendees(eventId, {
