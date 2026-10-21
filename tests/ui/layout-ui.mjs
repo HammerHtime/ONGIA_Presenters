@@ -49,6 +49,25 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: nothing scrolls sideways`, !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)));
   if (tag === "wide") await p.screenshot({ path: `${D}layout-people-${tag}.png` });
 
+  // The lead can be changed from the side column.
+  await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);
+  await p.click("#leadchange"); await p.waitForTimeout(200);
+  const pick = await p.locator("#leadpick option").evaluateAll((o) => o.map((x) => ({ v: x.value, t: x.textContent })).filter((x) => x.v && !/Andrew Hammond/.test(x.t)));
+  await p.selectOption("#leadpick", pick[0].v); await p.click("#leadsave"); await p.waitForTimeout(1800);
+  const after = (await api(`/api/events?id=${ev.id}`)).event;
+  ok(`${tag}: the lead can be changed from Lead and folder`, after.reviewer?.email === pick[0].v && after.board.find((m) => m.lead)?.email === pick[0].v && after.board.some((m) => m.email === "president@ongia.ca" && !m.lead), JSON.stringify(after.board));
+  ok(`${tag}: and the band shows the new lead`, new RegExp(`Lead: ${pick[0].t.trim()}`).test(await p.locator(".evband").innerText()));
+  await api(`/api/events?id=${ev.id}&lead=1`, { method: "PUT", body: JSON.stringify({ email: "president@ongia.ca" }) });
+  // Finished checklist jobs sink to the bottom.
+  await go({ name: "event", eventId: ev.id });
+  const jobs = () => p.locator('.etabp[data-panel="overview"] .job .what').allInnerTexts();
+  const first = (await jobs())[0];
+  await p.locator('.etabp[data-panel="overview"] .job [data-tick]').first().check(); await p.waitForTimeout(1800);
+  const now = await jobs();
+  const firstDone = await p.locator('.etabp[data-panel="overview"] .job.done').first().locator(".what").innerText();
+  ok(`${tag}: a ticked checklist job moves below the ones still to do`, now[0] !== first && firstDone === first && (await p.locator('.etabp[data-panel="overview"] .job:not(.done):not(.na) ~ .job.done').count()) >= 0 && await p.evaluate(() => { const js = [...document.querySelectorAll('.etabp[data-panel="overview"] .job')]; const i = js.findIndex((j) => j.classList.contains("done")); return i > 0 && js.slice(i).every((j) => j.classList.contains("done") || j.classList.contains("na")); }), now.slice(0, 3).join(" | "));
+  await go({ name: "event", eventId: ev.id, tab: "people" });
+
   // Removing someone who never signed: one "are you sure?".
   await p.locator("tr.prow", { hasText: "Cal Never" }).locator(".pn").click(); await p.waitForTimeout(500);
   await p.locator("#pdrawer [data-edit]").click(); await p.waitForTimeout(300);

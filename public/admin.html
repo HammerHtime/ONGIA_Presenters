@@ -770,6 +770,10 @@
   .evside .who{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .skv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;margin:0} .skv dt{color:var(--muted)} .skv dd{margin:0;overflow-wrap:anywhere}
   .skv .seen{display:block;font-size:12px;color:var(--muted);white-space:nowrap}
+  .readyback{margin:0 0 12px;font-size:13px}
+  .linkbtn{appearance:none;border:0;background:none;padding:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);text-decoration:underline;cursor:pointer}
+  #leadbox select{width:100%;margin:0;padding:6px 10px;font-size:13.5px;min-height:0}
+  .leadacts{display:flex;gap:6px;margin-top:6px}
   .smoney{display:grid;grid-template-columns:1fr auto;gap:5px 10px} .smoney b{text-align:right}
   .sready{list-style:none;margin:0;padding:0}
   .sready li{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--hair)} .sready li:first-child{border-top:0}
@@ -2996,7 +3000,8 @@ function eventScreen(data) {
   const folderTail = (ev.sharePointFolder ?? "").split("/").filter(Boolean).slice(-2).join("/");
   const vlead = volunteers?.lead?.name ?? "";
   const whoCard = `<div class="card" id="whocard"><div class="card-head"><div><h2>Lead and folder</h2></div></div><div class="card-body">
-    <dl class="skv"><dt>Lead</dt><dd>${lead ? `${esc(lead)}${seenWords ? `<span class="seen">${esc(seenWords)}</span>` : ""}` : `<span class="pill late">no lead</span> Pick one on Edit event.`}</dd>
+    <dl class="skv"><dt>Lead</dt><dd id="leadbox">${lead ? `${esc(lead)}${seenWords ? `<span class="seen">${esc(seenWords)}</span>` : ""}` : `<span class="pill late">no lead</span>`}
+        <button type="button" class="linkbtn" id="leadchange">${lead ? "Change" : "Pick a lead"}</button></dd>
       <dt>Volunteers</dt><dd>${vlead ? esc(vlead) : lead ? "the lead" : "—"}</dd>
       <dt>Board</dt><dd>${boardOthers.length ? boardOthers.join(", ") : "nobody else yet"}</dd>
       <dt>Folder</dt><dd>${ev.sharePointFolder ? `${ev.sharePointFolderUrl ? `<a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">…/${esc(folderTail)}</a>` : `…/${esc(folderTail)}`}` : `<span class="said bad-t">not set</span>`}</dd>
@@ -3129,7 +3134,7 @@ function eventScreen(data) {
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" }))
-    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard}${whoCard}${rbhCard}${comingCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${rbhCard}${comingCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="padd">
@@ -3290,6 +3295,30 @@ function eventScreen(data) {
   };
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
+  // Change the lead right here (Andrew 21 Oct 2026): this event's board first, then the rest of the board list.
+  const leadBtn = document.getElementById("leadchange");
+  if (leadBtn) leadBtn.onclick = () => {
+    const box = document.getElementById("leadbox");
+    const onEvent = (ev.board ?? []).filter((m) => m.email);
+    const seen = new Set(onEvent.map((m) => m.email.toLowerCase()));
+    const others = (ROSTER ?? []).filter((m) => m.email && m.name && !seen.has(m.email.toLowerCase()));
+    const cur = (ev.reviewer?.email ?? "").toLowerCase();
+    const opt = (m) => `<option value="${esc(m.email)}"${m.email.toLowerCase() === cur ? " selected" : ""}>${esc(m.name || m.email)}</option>`;
+    box.innerHTML = `<select id="leadpick" aria-label="Lead board member">${cur ? "" : `<option value="">Pick a board member…</option>`}
+        ${onEvent.length ? `<optgroup label="On this event">${onEvent.map(opt).join("")}</optgroup>` : ""}
+        ${others.length ? `<optgroup label="Other board members">${others.map(opt).join("")}</optgroup>` : ""}</select>
+      <div class="leadacts"><button type="button" class="mini gold" id="leadsave">Save</button><button type="button" class="mini" id="leadcancel">Cancel</button></div>
+      <div class="porg" style="margin-top:4px">Presenters reply to the lead, and their name goes on new agreements.</div>`;
+    document.getElementById("leadcancel").onclick = () => eventScreen(data);
+    document.getElementById("leadsave").onclick = async (e) => {
+      const email = document.getElementById("leadpick").value;
+      if (!email) return toast("Pick a board member first.");
+      if (email.toLowerCase() === cur) return eventScreen(data);
+      e.target.disabled = true; e.target.textContent = "Saving…";
+      try { await api(`/events?id=${encodeURIComponent(ev.id)}&lead=1`, { method: "PUT", body: JSON.stringify({ email }) }); toast("Lead changed."); render(); }
+      catch (err) { toast(err.message); e.target.disabled = false; e.target.textContent = "Save"; }
+    };
+  };
   // Getting ready's buttons.
   ROOT.querySelectorAll("[data-readyadd]").forEach((b) => { b.onclick = openAdd; });
   document.getElementById("padd").addEventListener("close", () => { if (addedAny) render(); });
@@ -3313,7 +3342,10 @@ function eventScreen(data) {
   ROOT.querySelectorAll("[data-readyhotel]").forEach((b) => { b.onclick = () => { view = { name: "edit", eventId: ev.id, focus: "hotel" }; render(); }; });
   ROOT.querySelectorAll("[data-readywix]").forEach((b) => { b.onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); eventScreen(data); }; });
   const readyHide = document.getElementById("readyhide");
-  if (readyHide) readyHide.onclick = () => { try { localStorage.setItem(`ongia-ready-hide-${ev.id}`, "1"); } catch { /* no storage */ } document.getElementById("readycard")?.remove(); };
+  // Hidden by mistake, or wanted again: one click brings it back.
+  const readyShow = document.getElementById("readyshow");
+  if (readyShow) readyShow.onclick = () => { try { localStorage.removeItem(`ongia-ready-hide-${ev.id}`); } catch { /* no storage */ } eventScreen(data); };
+  if (readyHide) readyHide.onclick = () => { try { localStorage.setItem(`ongia-ready-hide-${ev.id}`, "1"); } catch { /* no storage */ } eventScreen(data); };
   // The overview's to-do rows do the job right there, the same as on the home page.
   wireHomeConsole();
   ROOT.querySelectorAll("[data-goreview]").forEach((b) => { b.onclick = () => { const [eid, pid] = b.dataset.goreview.split("|"); view = { name: "review", eventId: eid, presenterId: pid }; render(); }; });
@@ -3531,7 +3563,9 @@ function checklistCard(ev, checklist) {
   // late ones are red already and do not need a second mark.
   const nextId = tasks.find((t) => !t.done && !t.na && !t.late)?.id ?? null;
 
-  const rows = tasks.map((t) => {
+  // Finished jobs sink to the bottom (Andrew 21 Oct 2026), so what is left to do is at the top; not-needed ones go last.
+  const ordered = [...tasks.filter((t) => !t.done && !t.na), ...tasks.filter((t) => t.done && !t.na), ...tasks.filter((t) => t.na)];
+  const rows = ordered.map((t) => {
     const when = t.na
       ? `<span>not needed for this one</span>`
       : t.scheduled

@@ -63,6 +63,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: Hide this takes it away`, (await p.locator("#readycard").count()) === 0);
   await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   ok(`${tag}: and it stays hidden`, (await p.locator("#readycard").count()) === 0);
+  await p.click("#readyshow"); await p.waitForTimeout(300);
+  ok(`${tag}: Show Getting ready brings it back`, await p.locator("#readycard").isVisible());
   ok(`${tag}: nothing scrolls sideways`, !(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)));
   ok(`${tag}: no page errors`, errs.length === 0, errs.join(" | "));
   await p.close();

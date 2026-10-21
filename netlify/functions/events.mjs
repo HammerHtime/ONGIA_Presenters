@@ -54,6 +54,7 @@ export default async (req) => {
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
+    if (url.searchParams.get("lead")) return setLead(id, body);
     const presenterId = url.searchParams.get("presenter");
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
@@ -241,6 +242,37 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
  * and the VP only. Province and invoice prefix go with it; the province is guessed from the city if none is given.
  * An event that already has a statement of work or receipts cannot be unmarked: its costing would vanish from view.
  */
+/**
+ * Change only the lead, from the event page (Andrew 21 Oct 2026), without touching anything else on the event. The new
+ * lead may be on the event's board already or anyone on the board list; the old lead stays on the event's board.
+ *   PUT /api/events?id=…&lead=1   { email }
+ */
+async function setLead(id, body) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  const email = text(body.email, 200).toLowerCase();
+  if (!isEmail(email)) return fail("Pick the board member who should lead this event.");
+  const roster = (await getRoster()) ?? [];
+  const fromRoster = roster.find((m) => (m.email ?? "").toLowerCase() === email);
+  const board = (event.board ?? []).map((m) => ({ ...m, lead: false }));
+  let lead = board.find((m) => (m.email ?? "").toLowerCase() === email);
+  if (!lead) {
+    if (!fromRoster?.name) return fail("That person is not on the board list. Add them under Admin → Board members first.");
+    lead = { name: fromRoster.name, email: fromRoster.email, phone: formatPhone(fromRoster.phone ?? ""), lead: false };
+    board.push(lead);
+  }
+  lead.lead = true;
+  if (!lead.phone) lead.phone = fromRoster?.phone ?? "";
+  event.board = board;
+  // The same three places a save from Edit event keeps in step: who reviews, who presenters reach, who else is told.
+  event.reviewer = { name: lead.name, email: lead.email, phone: lead.phone };
+  event.contact = { name: lead.name, email: lead.email, phone: lead.phone };
+  event.notify = board.filter((m) => !m.lead).map((m) => m.email);
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, event });
+}
+
 async function setRbh(id, body, canCost) {
   if (!canCost) return fail("Only the president and the VP of operations can mark an event as an RBH event.", 403);
   const event = id && (await getEvent(id));
