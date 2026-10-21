@@ -11,26 +11,28 @@ const g = (id, type, first, last, email, extra = {}) => ({ id, eventId: "wx1", f
 const guests = [
   g("r1", "RSVP", "Dana", "Sample", "coord@example.ca", { totalGuests: 3, guestNames: ["Pat Two"] }),   // brings two people, names one
   g("r2", "RSVP", "Lee", "Example", "coord@example.ca"),                                               // registered by the same coordinator
-  g("b1", "BUYER", "Sam", "Buyer", "buyer@example.ca", { orderNumber: "O1" }),
-  g("h1", "TICKET_HOLDER", "Ann", "Holder", "ann@example.ca", { orderNumber: "O1" }),
-  g("h2", "TICKET_HOLDER", "", "", "", { orderNumber: "O1" }),                                         // a ticket with no details
-  g("b2", "BUYER", "Solo", "Buyer", "solo@example.ca", { orderNumber: "O2" }),                         // an order with no ticket holders
+  g("b1", "BUYER", "Sam", "Buyer", "buyer@example.ca", { orderNumber: "O1", tickets: ["T1", "T2", "T3"] }),   // three tickets, holders for two
+  g("h1", "TICKET_HOLDER", "Ann", "Holder", "ann@example.ca", { orderNumber: "O1", ticketNumber: "T1" }),
+  g("h2", "TICKET_HOLDER", "", "", "", { orderNumber: "O1", ticketNumber: "T2" }),                     // a ticket with no details
+  g("b2", "BUYER", "Solo", "Buyer", "solo@example.ca", { orderNumber: "O2", tickets: ["T4", "T5", "T6"] }),  // three tickets, no holder records at all
 ];
 const rows = attendeesOf(guests);
-ok("every registration is a row: 3 for the RSVP with two guests, 1 more RSVP, 2 tickets, 1 buyer with no tickets", rows.length === 7, rows.map((r) => r.key).join(" "));
+ok("every registration is a row: 3 for the RSVP with two guests, 1 more RSVP, and all 6 tickets from two orders", rows.length === 10, rows.map((r) => r.key).join(" "));
+ok("an order kept as the buyer only counts every ticket on it: the buyer and two guests of theirs", rows.filter((r) => r.id === "b2").length === 3 && rows.filter((r) => r.guestOf === "Solo Buyer").length === 2);
+ok("a ticket with no holder record is a guest of the buyer", rows.some((r) => r.key === "wix:b1:tT3" && r.guestOf === "Sam Buyer" && r.email === "buyer@example.ca"));
 ok("an RSVP's named guest takes the name given", rows.some((r) => r.key === "wix:r1:2" && r.first === "Pat" && r.last === "Two"));
 ok("an unnamed guest is the guest of whoever registered them", rows.some((r) => r.key === "wix:r1:3" && !r.first && r.guestOf === "Dana Sample"));
 ok("two people sharing one email are both there", rows.filter((r) => r.email === "coord@example.ca").length === 4);
 ok("a ticket with no email uses the buyer's, and says whose guest it is", rows.some((r) => r.key === "wix:h2" && r.email === "buyer@example.ca" && r.guestOf === "Sam Buyer"));
-ok("a buyer whose order has tickets is not counted again", !rows.some((r) => r.key === "wix:b1"));
+ok("a buyer whose order has ticket holders is not counted again on top of the tickets", !rows.some((r) => r.key === "wix:b1"));
 
 const toIncoming = (list) => list.map((x) => ({ key: x.key, first: x.first, last: x.last, email: x.email, phone: x.phone, organization: "", status: x.status, source: "wix", wixGuestId: x.id, ...(x.guestOf ? { guestOf: x.guestOf } : {}) }));
 let out = merge([], toIncoming(rows), { source: "wix", authoritative: true });
-ok("a first pull adds all seven, and seven are coming", out.added === 7 && tally(out.people).attending === 7);
+ok("a first pull adds all ten, and ten are coming", out.added === 10 && tally(out.people).attending === 10);
 ok("letters go once per address (4 addresses)", writeableTo(out.people).length === 4, writeableTo(out.people).map((p) => p.email).join(","));
 
 const again = merge(out.people, toIncoming(rows), { source: "wix", authoritative: true });
-ok("pulling again changes nothing", again.added === 0 && again.changed === 0 && again.withdrawn === 0 && again.people.length === 7);
+ok("pulling again changes nothing", again.added === 0 && again.changed === 0 && again.withdrawn === 0 && again.people.length === 10);
 const less = merge(out.people, toIncoming(rows.filter((r) => r.key !== "wix:r2")), { source: "wix", authoritative: true });
 ok("someone Wix stops listing has withdrawn, and only them", less.withdrawn === 1 && less.people.find((p) => p.key === "wix:r2")?.status === "WITHDRAWN");
 
@@ -46,7 +48,7 @@ ok("the RSVP keeps its letter history and date", moved.people.find((p) => p.key 
 ok("the buyer's history goes to the ticket that uses their address", moved.people.find((p) => p.key === "wix:h2")?.sent?.includes("welcome"));
 ok("so no address that had the letter is owed it again", writeableTo(moved.people).filter((p) => !moved.people.some((q) => q.email === p.email && (q.sent ?? []).includes("welcome"))).map((p) => p.email).sort().join(",") === "ann@example.ca,hand@example.ca,solo@example.ca");
 ok("the person typed in by hand stays", moved.people.some((p) => p.email === "hand@example.ca" && p.source === "csv"));
-ok("eight rows in all (seven from Wix and one by hand)", moved.people.length === 8, String(moved.people.length));
+ok("eleven rows in all (ten from Wix and one by hand)", moved.people.length === 11, String(moved.people.length));
 
 // A spreadsheet adds detail to a Wix row without making a second one.
 const sheet = merge(out.people, [{ first: "Ann", last: "Holder", email: "ann@example.ca", organization: "Sample Police Service", status: "ATTENDING", source: "csv" }], { source: "csv" });

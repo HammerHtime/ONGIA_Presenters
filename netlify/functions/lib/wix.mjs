@@ -150,6 +150,9 @@ function tidyGuest(g) {
     guestType: g.guestType ?? "",
     // Ties a ticket holder to the buyer who paid for the order.
     orderNumber: g.orderNumber ?? "",
+    // A ticket holder's own ticket; a buyer lists every ticket in the order (the order's real head count).
+    ticketNumber: g.ticketNumber ?? "",
+    tickets: (g.tickets ?? []).map((t) => t?.number).filter(Boolean),
     checkedIn: d.checkedIn === true,
     totalGuests: g.totalGuests ?? 1,
     // The names an RSVP gave for the people they are bringing, when the form asked for them.
@@ -198,9 +201,9 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
  *
  * A free event has one RSVP per registration, which may bring more people ("totalGuests"): each extra person is a row of
  * their own, named if the form asked for names, else "guest of" the person who registered them. A ticketed event has a
- * BUYER per order and a TICKET_HOLDER per ticket: every ticket is a row, and a ticket with no email of its own uses the
- * buyer's, so the letters still reach someone who can pass them on. A buyer is a row only when their order has no
- * ticket holders at all. Letters go once per email address however many rows share it.
+ * BUYER per order, listing the order's tickets, and a TICKET_HOLDER per ticket when Wix asked for each holder's details:
+ * every ticket is a row, and a ticket with no email of its own uses the buyer's, so the letters still reach someone who
+ * can pass them on. Letters go once per email address however many rows share it.
  */
 export function attendeesOf(guests) {
   const name = (g) => `${g.first} ${g.last}`.trim() || g.email;
@@ -209,7 +212,6 @@ export function attendeesOf(guests) {
   const holders = guests.filter((g) => g.guestType === "TICKET_HOLDER");
   const buyers = guests.filter((g) => g.guestType === "BUYER");
   const buyerOf = new Map(buyers.filter((b) => b.orderNumber).map((b) => [b.orderNumber, b]));
-  const ordersWithTickets = new Set(holders.map((h) => h.orderNumber).filter(Boolean));
   const out = [];
   for (const g of rsvp) {
     out.push({ ...g, key: `wix:${g.id}` });
@@ -223,7 +225,18 @@ export function attendeesOf(guests) {
     const b = h.orderNumber ? buyerOf.get(h.orderNumber) : null;
     out.push({ ...h, key: `wix:${h.id}`, email: h.email || b?.email || "", ...(!h.first && !h.last && b ? { guestOf: name(b) } : {}) });
   }
-  for (const b of buyers) if (!b.orderNumber || !ordersWithTickets.has(b.orderNumber)) out.push({ ...b, key: `wix:${b.id}` });
+  // Wix often keeps only the buyer's record for an order, with every ticket listed on it (Andrew 21 Oct 2026: 43 orders,
+  // 65 tickets). Every ticket counts: one with no holder of its own is a row "guest of" the buyer, and when the order
+  // has no holders at all the buyer is the first ticket.
+  for (const b of buyers) {
+    const hs = holders.filter((h) => b.orderNumber && h.orderNumber === b.orderNumber);
+    const covered = new Set(hs.map((h) => h.ticketNumber).filter(Boolean));
+    const count = b.tickets?.length || Math.max(1, Number(b.totalGuests) || 1);
+    let left = b.tickets?.length ? b.tickets.filter((n) => !covered.has(n)) : Array.from({ length: Math.max(0, count - hs.length) }, (_, i) => String(i + 1));
+    if (b.tickets?.length && hs.length && !hs.some((h) => h.ticketNumber)) left = left.slice(hs.length);   // holders with no ticket number still use up tickets
+    if (!hs.length) { out.push({ ...b, key: `wix:${b.id}` }); left = left.slice(1); }
+    for (const n of left) out.push({ ...b, key: `wix:${b.id}:t${n}`, first: "", last: "", phone: "", guestOf: name(b) });
+  }
   return out;
 }
 
