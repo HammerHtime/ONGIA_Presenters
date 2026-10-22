@@ -220,7 +220,7 @@ export function summarize({ before, after, beforeFr, afterFr, people, photoChang
   const ag0 = b.agenda ?? [], ag1 = a.agenda ?? [];
   if (!same(ag0, ag1)) {
     const changed = ag1.filter((r, i) => !same(r, ag0[i])).length;
-    lines.push(ag0.length === ag1.length ? `Program: ${plural(changed, "line")} changed.` : `Program: ${ag0.length} lines → ${ag1.length}${changed ? `, ${plural(changed, "line")} new or changed` : ""}.`);
+    lines.push(ag0.length === ag1.length ? `Program: ${plural(changed, "line")} changed.` : `Program: was ${plural(ag0.length, "line")}, now ${ag1.length}${changed ? `; ${changed} new or changed` : ""}.`);
   }
   const fw = new Map((beforeFr?.speakers ?? []).map((s) => [s.name, s]));
   const frChanged = (afterFr?.speakers ?? []).filter((s) => fw.has(s.name) && (!same(fw.get(s.name).bio, s.bio) || !same(fw.get(s.name).title, s.title))).map((s) => s.name);
@@ -248,7 +248,7 @@ export class GitHubError extends Error {
 /** A small GitHub client for one repository. `fetchImpl` is for tests. */
 export function github({ token = githubToken(), repo = REPO(), fetchImpl = fetch } = {}) {
   const call = async (method, path, body) => {
-    const res = await fetchImpl(`https://api.github.com/repos/${repo}${path}`, {
+    const res = await fetchImpl(`${process.env.CFAOC_GITHUB_API || "https://api.github.com"}/repos/${repo}${path}`, {
       method,
       headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "ongia-events-desk", ...(body ? { "content-type": "application/json" } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),

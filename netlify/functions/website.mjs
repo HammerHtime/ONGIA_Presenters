@@ -124,7 +124,7 @@ async function fill(event, fetchImpl) {
   take("hotelRate", ev.hotel?.rate, "hotel rate");
   if (!w.agenda.length && ev.agenda?.length) {
     w.agenda = cleanWebsite({ agenda: ev.agenda.map((r, i) => ({ ...r, titleFr: fr.agenda?.[i]?.title, detailFr: fr.agenda?.[i]?.detail, abstractFr: fr.agenda?.[i]?.abstract })) }).agenda;
-    filled.push(`the program (${w.agenda.length} lines)`);
+    filled.push(`the program (${w.agenda.length} ${w.agenda.length === 1 ? "line" : "lines"})`);
   }
   event.website = w;
   // The desk does not hold everything the website file does. Say what stays there.
