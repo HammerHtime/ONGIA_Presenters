@@ -30,6 +30,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await p.locator(`[data-open="${ev.id}"]`).first().evaluate((e) => e.click()); await p.waitForTimeout(1500);
   ok(`${tag}: a board member not on the event sees it, with a "View only" line at the top saying why`, /View only\./.test(await p.locator(".viewonly").innerText()) && new RegExp(`Audit UI ${T}`).test(await p.locator("body").innerText()));
   const anyEnabled = await p.evaluate(() => [...document.querySelectorAll("button, input, select, textarea")].filter((e) => !e.disabled && !e.closest("header, #barright, .bar") && e.id !== "signout" && !e.matches(".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind") && e.offsetParent !== null).map((e) => e.id || e.textContent.trim().slice(0, 30)));
+  ok(`${tag}: a board member not on the event gets no website export`, (await p.locator("#webexport").count()) === 0);
   ok(`${tag}: every button and box on the event is switched off`, anyEnabled.length === 0, JSON.stringify(anyEnabled.slice(0, 8)));
   ok(`${tag}: but looking around still works: the tabs, the people switch and the way back`, (await p.locator(".etab:not([disabled])").count()) >= 6 && (await p.locator("[data-pseg]:not([disabled])").count()) === 3 && (await p.locator(".crumb:not([disabled])").count()) === 1);
   await p.locator("tr.prow", { hasText: "Ann One" }).locator(".pn").click(); await p.waitForTimeout(500);

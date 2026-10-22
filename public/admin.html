@@ -3194,6 +3194,7 @@ function eventScreen(data) {
           ? `<span class="said">no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</span><button class="mini" id="mklink">Create upload link</button>`
           : `<div class="line">${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}<span class="said">${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}</span></div><button class="mini" id="rescan">Check uploads now</button>${scan?.unmatched?.length ? `<div class="porg"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</div></dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
+        ${data.canCost ? `<dt class="top">For the website</dt><dd><div class="stack"><span class="said">The presenters who agreed to be shown publicly: name, organization, bio, talk, and their photo where they agreed to photos. Nothing else, and no one who said no.</span><button class="mini" id="webexport">Export presenters for the website</button></div></dd>` : ""}
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
         ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
           `<span>${esc(r.name)} <span class="porg">· ${r.role === "volunteer" ? "volunteer · " : ""}${r.status === "approved" || r.status === "signed" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
@@ -3447,6 +3448,22 @@ function eventScreen(data) {
     };
   });
   ROOT.querySelectorAll("[data-filter]").forEach((b) => { b.onclick = () => { view = { ...view, filter: b.dataset.filter }; eventScreen(data); }; });
+  // Presenters for the event's website (Andrew 22 Oct 2026): a zip of presenter-desk-export.json and photos/, only what each agreed to make public.
+  const webx = document.getElementById("webexport");
+  if (webx) webx.onclick = async () => {
+    webx.disabled = true; webx.textContent = "Making the export…";
+    try {
+      const res = await apiFetch(`/api/export?event=${encodeURIComponent(ev.id)}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Export failed (${res.status})`);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(await res.blob());
+      a.download = (res.headers.get("content-disposition") ?? "").match(/filename="([^"]+)"/)?.[1] ?? "presenters.zip";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast("Downloaded. It holds only the presenters who agreed to be shown publicly.");
+    } catch (e) { toast(e.message); }
+    webx.disabled = false; webx.textContent = "Export presenters for the website";
+  };
   const rescan = document.getElementById("rescan");
   if (rescan) rescan.onclick = async () => {
     rescan.disabled = true; rescan.textContent = "Checking…";

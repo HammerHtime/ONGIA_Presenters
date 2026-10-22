@@ -81,6 +81,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: Logistics shows the hotel rooms`, (await shown(p)) === "logistics" && await p.locator('details[data-fold="sec-hotel"]').isVisible());
   await p.locator('[data-tab="settings"]').click(); await p.waitForTimeout(200);
   ok(`${tag}: Settings shows the event settings and the delete button`, await p.locator("#evsettings").isVisible() && await p.locator("#delevent").isVisible());
+  ok(`${tag}: the president sees Export presenters for the website on Settings`, await p.locator("#webexport").isVisible());
   await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);
   await p.goBack(); await p.waitForTimeout(1200);
   ok(`${tag}: Back after switching tabs leaves the event for the home page`, (await p.locator("#queue").count()) === 1, p.url());
