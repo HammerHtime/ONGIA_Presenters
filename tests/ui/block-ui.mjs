@@ -6,7 +6,7 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 await api("/api/roster");
 const base = { phone: "4165550100", talk: "T", bio: "word ".repeat(40), outline: "An outline.", travel: "no", copyright: true, noInvestigation: true, termsAccepted: true,
-  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en" };
+  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en" };
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: "Block UI " + tag, city: "Toronto", dayOne: "2026-11-09", lastDay: "2026-11-12", invite: false,

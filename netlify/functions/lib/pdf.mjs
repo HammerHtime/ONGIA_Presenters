@@ -272,6 +272,8 @@ export async function buildAgreementPdf({ event, presenter, approval, headshot, 
     ["Presenter Photograph(s)", m.photo],
     ["Presentation Materials", m.materials],
     ["Presentation Summary", m.summary],
+    // Asked since 22 Oct 2026; an agreement signed before that has no line for it.
+    ...(m.bio ? [["Presenter Biography", m.bio]] : []),
   ]);
   // Answered on every agreement since 17 Oct 2026; one signed before that says nothing either way.
   if (s.sensitive) {

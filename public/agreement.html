@@ -324,7 +324,7 @@ en: {
   copyright: "I confirm that this presentation is my original work, or that I have obtained all necessary permissions, licences, or approvals to use any copyrighted material, images, content, trademarks, or other intellectual property included in my presentation.",
   media: "Media &amp; Content Sharing", mediaLede: "Please let us know how ONGIA may use and share your content. Your preferences help us respect your privacy while promoting valuable learning opportunities from the event.",
   mediaNote: "Note: You may choose different permissions for each item. Your selections will only apply to the content categories you authorize.",
-  photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary",
+  photos: "Photographs of you", materials: "Your presentation materials", summary: "Your presentation summary", bioShare: "Your biography",
   sensitiveTitle: "Who will be in the room",
   sensitiveQ: "Community partners from outside the justice community may be in the audience. Does your presentation contain anything they should not see?",
   sensitiveHint: "If yes, ONGIA will follow up with you before the event.",
@@ -449,7 +449,7 @@ fr: {
   copyright: "Je confirme que cette présentation est mon œuvre originale, ou que j'ai obtenu toutes les autorisations, licences ou approbations nécessaires pour utiliser tout matériel protégé par le droit d'auteur, toute image, tout contenu, toute marque de commerce ou toute autre propriété intellectuelle inclus dans ma présentation.",
   media: "Partage de contenu et médias", mediaLede: "Indiquez-nous comment ONGIA peut utiliser et partager votre contenu. Vos préférences nous aident à respecter votre vie privée tout en faisant connaître les occasions d'apprentissage offertes lors de l'événement.",
   mediaNote: "Remarque : vous pouvez choisir des autorisations différentes pour chaque élément. Vos choix s'appliquent uniquement aux catégories de contenu que vous autorisez.",
-  photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation",
+  photos: "Photos de vous", materials: "Votre matériel de présentation", summary: "Votre résumé de présentation", bioShare: "Votre biographie",
   sensitiveTitle: "Qui sera dans la salle",
   sensitiveQ: "Des partenaires communautaires de l'extérieur du milieu de la justice peuvent faire partie de l'auditoire. Votre présentation contient-elle des éléments qu'ils ne devraient pas voir?",
   sensitiveHint: "Si oui, ONGIA communiquera avec vous avant l'événement.",
@@ -558,7 +558,7 @@ const S = {
   hotel: null, hotelFrom: "", hotelTo: "",
   expenses: { transport: null, hotel: null, meals: null, other: null, otherText: "" },
   copyright: false, goodStanding: false, noInvestigation: false, termsAccepted: false,
-  media: { photo: {}, materials: {}, summary: {} },
+  media: { photo: {}, materials: {}, summary: {}, bio: {} },
   sensitive: null,
   signature: "", agreed: false,
 };
@@ -791,6 +791,7 @@ function stepMarkup() {
       ${consentRow(t("photos"), "photo")}
       ${consentRow(t("materials"), "materials")}
       ${consentRow(t("summary"), "summary")}
+      ${consentRow(t("bioShare"), "bio")}
       <div class="consent" id="q-sensitive"><h3>${t("sensitiveTitle")}</h3>
         <p class="qtext" style="margin:0 0 10px">${t("sensitiveQ")}</p>
         ${seg("sensitive", YESNO())}
@@ -1014,7 +1015,7 @@ function validate() {
   if (S.step === 4) {
     if (!S.copyright) add(t("vCopy"), "f-copy");
     // Name the rows that are unanswered rather than asking for "every line".
-    for (const [row, label] of [["photo", t("photos")], ["materials", t("materials")], ["summary", t("summary")]])
+    for (const [row, label] of [["photo", t("photos")], ["materials", t("materials")], ["summary", t("summary")], ["bio", t("bioShare")]])
       if (!S.media[row]?.internal || !S.media[row]?.public) add(t("vMediaRow", label), `c-${row}`);
     if (!S.sensitive) add(t("vSensitive"), "q-sensitive");
   }

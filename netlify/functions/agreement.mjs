@@ -179,10 +179,11 @@ async function submit(req, event, presenter) {
   if (body.noInvestigation !== true) problems.push("Please confirm you are not under a formal investigation.");
   if (body.termsAccepted !== true) problems.push("Please read and agree to the Presenter Terms.");
 
-  // Six choices, each required. Loose checkboxes are how the paper form came
-  // back half-answered; here nothing submits until all six are set.
+  // Eight choices, each required. Loose checkboxes are how the paper form came
+  // back half-answered; here nothing submits until all eight are set. The biography
+  // line (Andrew 22 Oct 2026) is what lets a bio go on an event's public website.
   const media = {};
-  for (const row of ["photo", "materials", "summary"]) {
+  for (const row of ["photo", "materials", "summary", "bio"]) {
     for (const surface of ["internal", "public"]) {
       const value = yesNo(body?.media?.[row]?.[surface]);
       if (!value) problems.push("Please answer every media-sharing line.");

@@ -22,7 +22,7 @@ const mk = async (title, who = KEY) => (await call(events, "/api/events", "POST"
 const ev = await mk("Audit Event");
 const answers = (p) => ({ first: p.first, last: p.last, email: p.email, phone: "4165550100", organization: "Org", talk: "T", bio: "word ".repeat(40), outline: "O", travel: "no", hotel: "no",
   expenses: { transport: "no", meals: "no", other: "no", otherText: "" }, copyright: true, noInvestigation: true, termsAccepted: true,
-  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", signature: `${p.first} ${p.last}`, agreed: true, language: "en" });
+  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", signature: `${p.first} ${p.last}`, agreed: true, language: "en" });
 const people = async (e) => store.listPresenters(e.id);
 for (const p of await people(ev)) await call(agreement, `/api/agreement?t=${p.token}`, "POST", answers(p), { "content-type": "application/json" });
 

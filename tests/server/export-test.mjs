@@ -28,6 +28,12 @@ ok("a photo only where they agreed to public photos", ada.photo === "photos/ada-
 ok("the consent answers that matter are recorded", ada.consent.publicPhoto === true && ada.consent.publicMaterials === true && bo.consent.publicPhoto === false);
 ok("no email, phone, signature or the community-partners answer anywhere", !/@example\.ca|416-555|sensitive|signature/i.test(JSON.stringify(json)));
 ok("session is empty: the desk keeps daily times, not each talk's slot", ada.session === null);
+// The biography line (22 Oct 2026): a no keeps them listed without a bio; an agreement from before it is "legacy".
+const withBio = (ans) => p("g7", "Gil", "Bioline", "approved", { ...media("yes", "no"), bio: { internal: "yes", public: ans } });
+const nob = (await websiteExport(ev, [withBio("no")], async () => null)).json.presenters[0];
+const yb = (await websiteExport(ev, [withBio("yes")], async () => null)).json.presenters[0];
+ok("a no to the biography line: listed, no bio", nob.bio === null && nob.consent.publicBio === "no" && yb.bio === "Gil's bio" && yb.consent.publicBio === "yes");
+ok("signed before the biography line: the summary covers it, marked legacy", ada.bio === "Ada's bio" && ada.consent.publicBio === "legacy");
 ok("file names are safe", slugOf("Anastasiya Vasyl'yeva-Émond") === "anastasiya-vasyl-yeva-emond");
 
 // Only the president and the VP may export.

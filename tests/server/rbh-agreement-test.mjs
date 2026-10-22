@@ -23,7 +23,7 @@ const mk = async (kind, title) => (await call(events, "/api/events", "POST", { t
 const rbh = await mk("rbh", "ITP RBH"), own = await mk("", "ONGIA Own");
 const pOf = async (ev) => (await listPresenters(ev.id))[0];
 const base = { phone: "4165550100", talk: "T", bio: "word ".repeat(40), outline: "An outline.", copyright: true, noInvestigation: true, termsAccepted: true,
-  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en", first: "Ann", last: "Presenter", organization: "Org", signature: "Ann Presenter" };
+  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en", first: "Ann", last: "Presenter", organization: "Org", signature: "Ann Presenter" };
 const form = async (ev) => (await call(agreement, `/api/agreement?t=${(await pOf(ev)).token}`, "GET", undefined, {}));
 ok("the form tells an RBH event's presenter there is no travel to ask about", (await form(rbh)).event.noTravel === true);
 ok("an ordinary event's form still asks", (await form(own)).event.noTravel === false);

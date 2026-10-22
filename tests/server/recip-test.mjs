@@ -47,7 +47,7 @@ console.log("— a presenter's agreement");
 const [dana] = await listPresenters(ev.id);
 const answers = { first: "Dana", last: "Presenter", email: "dana@example.ca", phone: "4165550100", organization: "Test Police", talk: "T", bio: "word ".repeat(40), outline: "An outline.",
   travel: "no", hotel: "no", expenses: { transport: "no", meals: "no", other: "no", otherText: "" }, copyright: true, noInvestigation: true, termsAccepted: true,
-  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", signature: "Dana Presenter", agreed: true, language: "en" };
+  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", signature: "Dana Presenter", agreed: true, language: "en" };
 let r = await call(agreement, `/api/agreement?t=${dana.token}`, "POST", answers, { "content-type": "application/json" });
 ok("she signs", r.status === 200, JSON.stringify(r));
 let m = lastTo(/Ready for review/);
