@@ -4065,6 +4065,7 @@ function renderWebsite(ev, W) {
     return `<details class="wsp" data-wsp="${esc(p.id)}"><summary><b>${esc(p.name)}</b><span class="porg">${esc(p.organization)}</span>
         <span class="wsp-tags">${p.photo ? `<span class="pill done">photo</span>` : `<span class="pill">no photo</span>`}${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
       <div class="row2">${f(`t-${p.id}`, "Job title", fr.title, { ph: "Supervisory Criminal Intelligence Analyst", max: 160 })}${f(`tf-${p.id}`, "Job title in French", fr.titleFr, { ph: "Analyste principal du renseignement criminel", max: 160 })}</div>
+      ${f(`gf-${p.id}`, "Organization in French", fr.orgFr, { ph: p.organization ? `Leave empty to show ${p.organization}` : "", max: 200 })}
       ${p.talk ? `<div class="field"><label>Talk</label><p class="said" style="margin:0">${esc(p.talk)}</p></div>${f(`kf-${p.id}`, "Talk title in French", fr.talkFr, { max: 300 })}` : ""}
       ${p.bio ? `<div class="field"><label for="ws-bf-${esc(p.id)}">Bio in French <span class="porg" style="text-transform:none;letter-spacing:0">· the English is from their agreement</span></label><textarea id="ws-bf-${esc(p.id)}" maxlength="6000" style="min-height:110px">${esc(fr.bioFr)}</textarea></div>` : ""}
       ${p.outline ? `<div class="field"><label for="ws-of-${esc(p.id)}">Talk description in French</label><textarea id="ws-of-${esc(p.id)}" maxlength="6000" style="min-height:80px">${esc(fr.outlineFr)}</textarea></div>` : ""}
@@ -4127,7 +4128,7 @@ function renderWebsite(ev, W) {
       loadWebsite(ev);
     } catch (x) { toast(x.message); done(); }
   };
-  const presenterBody = (id) => ({ title: val(`t-${id}`), titleFr: val(`tf-${id}`), talkFr: val(`kf-${id}`), bioFr: val(`bf-${id}`), outlineFr: val(`of-${id}`), frReviewed: !!document.getElementById(`ws-rv-${id}`)?.checked });
+  const presenterBody = (id) => ({ title: val(`t-${id}`), titleFr: val(`tf-${id}`), orgFr: val(`gf-${id}`), talkFr: val(`kf-${id}`), bioFr: val(`bf-${id}`), outlineFr: val(`of-${id}`), frReviewed: !!document.getElementById(`ws-rv-${id}`)?.checked });
   box.querySelectorAll("[data-wssave]").forEach((b) => { b.onclick = async () => {
     const id = b.dataset.wssave, done = busy(b, "Saving…");
     try { const out = await api(`/website?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(presenterBody(id)) });

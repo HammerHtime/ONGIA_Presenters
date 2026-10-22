@@ -70,7 +70,7 @@ export function cleanWebsite(given, had = {}) {
 export function cleanPresenterWeb(given, had = {}) {
   const pick = (k, n) => (given?.[k] === undefined ? had[k] ?? "" : text(given[k], n));
   const out = {
-    title: pick("title", 160), titleFr: pick("titleFr", 160),
+    title: pick("title", 160), titleFr: pick("titleFr", 160), orgFr: pick("orgFr", 200),
     talkFr: pick("talkFr", 300), bioFr: pick("bioFr", 6000), outlineFr: pick("outlineFr", 6000),
     frReviewed: given?.frReviewed === undefined ? had.frReviewed === true : given.frReviewed === true,
     frDraftedAt: had.frDraftedAt ?? null,
@@ -115,9 +115,9 @@ export async function buildDeskFile(event, presenters, headshotOf) {
     people.push(sp);
     // The French page shows the French where there is some, and the English where there is not yet.
     const bioFr = c.bio === "no" ? [] : paras(web.bioFr);
-    frSpeakers.push({ ...sp, ...(web.titleFr ? { title: web.titleFr } : {}), ...(bioFr.length ? { bio: bioFr } : {}) });
+    frSpeakers.push({ ...sp, ...(web.titleFr ? { title: web.titleFr } : {}), ...(web.orgFr ? { org: web.orgFr } : {}), ...(bioFr.length ? { bio: bioFr } : {}) });
     report.push({ id: p.id, name, bioConsent: c.bio, photo: !!photo, talk: s.talk || "", outline: s.outline || "",
-      frMissing: (bio.length && !bioFr.length) || (s.outline && !web.outlineFr) ? true : false, frReviewed: web.frReviewed });
+      frMissing: !!(bio.length && !bioFr.length), frReviewed: web.frReviewed });
   }
 
   const byId = new Map(report.map((r) => [r.id, r]));
@@ -144,7 +144,8 @@ export async function buildDeskFile(event, presenters, headshotOf) {
   const hotel = { ...(h.name ? { name: h.name } : {}), ...(w.hotelRate ? { rate: w.hotelRate } : {}), ...(h.link ? { bookingUrl: h.link } : {}),
     ...(w.groupCode ? { groupCode: w.groupCode } : {}), ...(h.cutoff ? { bookBy: h.cutoff } : {}) };
   const ev = {
-    slug: page, city, ...(province ? { province, provinceName: PROVINCES[province]?.name ?? "" } : {}),
+    // Publishing from the desk opens the page: a city still marked "to be announced" gets its page.
+    slug: page, status: "open", city, ...(province ? { province, provinceName: PROVINCES[province]?.name ?? "" } : {}),
     ...(timezone ? { timezone, timezoneLabel } : {}),
     ...(w.regionLabel ? { regionLabel: w.regionLabel } : {}),
     date: event.dayOne,
@@ -170,9 +171,12 @@ export const deepMerge = (base, over) => {
   return out;
 };
 
+/** The page name the site's build gives an event: its slug, or its region for a city whose page is not open yet. As in build.js. */
+export const pageKey = (ev) => ev?.slug || String(ev?.regionLabel ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
 /** What the website shows for a page: events.json's event with the desk file over it. */
 export function shownEvent(eventsJson, page, deskFile) {
-  const base = (eventsJson?.events ?? []).find((e) => e.slug === page) ?? null;
+  const base = (eventsJson?.events ?? []).find((e) => pageKey(e) === page) ?? null;
   const frBase = eventsJson?.i18n?.fr?.events?.[page] ?? null;
   return { en: deepMerge(base, deskFile?.event) ?? null, fr: deepMerge(frBase, deskFile?.fr) ?? null, existed: !!base };
 }
@@ -208,15 +212,16 @@ export function summarize({ before, after, beforeFr, afterFr, people, photoChang
   field("Date", b.date, a.date, day);
   field("Start time", b.startTime, a.startTime);
   field("End time", b.endTime, a.endTime);
-  if (!same(b.registerUrl, a.registerUrl)) lines.push(a.registerUrl ? "Registration link changed." : "Registration link removed.");
+  const linkLine = (label, x, y) => { if (!same(x, y)) lines.push(!y ? `${label} removed.` : x ? `${label} changed.` : `${label} added.`); };
+  linkLine("Registration link", b.registerUrl, a.registerUrl);
   field("Venue", b.venue?.name, a.venue?.name);
-  if (!same([b.venue?.street, b.venue?.postalCode], [a.venue?.street, a.venue?.postalCode])) lines.push("Venue address changed.");
+  linkLine("Venue address", [b.venue?.street, b.venue?.postalCode].filter(Boolean).join(" ") || "", [a.venue?.street, a.venue?.postalCode].filter(Boolean).join(" ") || "");
   field("Hotel", b.hotel?.name, a.hotel?.name);
   field("Hotel rate", b.hotel?.rate, a.hotel?.rate);
-  if (!same(b.hotel?.bookingUrl, a.hotel?.bookingUrl)) lines.push(a.hotel?.bookingUrl ? "Hotel booking link changed." : "Hotel booking link removed.");
+  linkLine("Hotel booking link", b.hotel?.bookingUrl, a.hotel?.bookingUrl);
   field("Hotel group code", b.hotel?.groupCode, a.hotel?.groupCode);
   field("Hotel booking deadline", b.hotel?.bookBy, a.hotel?.bookBy, day);
-  if (!same(b.blurb, a.blurb)) lines.push("The event's short description changed.");
+  linkLine("The event's short description", b.blurb, a.blurb);
   const ag0 = b.agenda ?? [], ag1 = a.agenda ?? [];
   if (!same(ag0, ag1)) {
     const changed = ag1.filter((r, i) => !same(r, ag0[i])).length;
@@ -228,10 +233,13 @@ export function summarize({ before, after, beforeFr, afterFr, people, photoChang
   if (!same(beforeFr?.agenda, afterFr?.agenda) && same(ag0, ag1) && (beforeFr?.agenda || afterFr?.agenda)) lines.push("Program in French changed.");
   const frTodo = people.filter((p) => p.frMissing).map((p) => p.name);
   const frUnread = people.filter((p) => !p.frMissing && !p.frReviewed).map((p) => p.name);
+  const agFr = afterFr?.agenda ?? [];
+  const noFrLines = ag1.filter((r, i) => r.title && agFr[i]?.title === r.title && !/^\d/.test(r.title)).length;
   const legacy = people.filter((p) => p.bioConsent === "legacy").map((p) => p.name);
   const notes = [];
   if (frTodo.length) notes.push(`No French yet for ${list(frTodo)}: the French page shows their English until there is.`);
   if (frUnread.length) notes.push(`French not marked as reviewed for ${list(frUnread)}.`);
+  if (noFrLines) notes.push(`${plural(noFrLines, "program line")} with no French: the French page shows the English.`);
   if (legacy.length) notes.push(`${list(legacy)} signed before the biography question; their yes to a public summary covers the bio, as before.`);
   return { lines, notes };
 }

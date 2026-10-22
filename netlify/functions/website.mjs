@@ -3,7 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, putEvent, listPresenters, getPresenter, putPresenter, getHeadshot } from "./lib/store.mjs";
 import { publicConsent, byLastName } from "./lib/public.mjs";
 import { isWebsiteEvent, cleanWebsite, cleanPresenterWeb, buildDeskFile, github, githubToken, readSite, planChanges, commitChanges,
-  draftFrench, GitHubError, REPO, BRANCH } from "./lib/website.mjs";
+  draftFrench, GitHubError, REPO, BRANCH, pageKey } from "./lib/website.mjs";
 
 /**
  * An event's page on the CFAOC symposium website, kept from the desk (Andrew 22 Oct 2026).
@@ -108,7 +108,7 @@ async function fill(event, fetchImpl) {
   const w = cleanWebsite({}, event.website ?? {});
   if (!w.page) return needsPage();
   const site = await readSite(github({ fetchImpl }), w.page);
-  const ev = (site.events?.events ?? []).find((e) => e.slug === w.page);
+  const ev = (site.events?.events ?? []).find((e) => pageKey(e) === w.page);
   if (!ev) return fail(`The website has no page called ${w.page} yet, so there is nothing to bring over. It will be added the first time you update the website.`, 404);
   const fr = site.events?.i18n?.fr?.events?.[w.page] ?? {};
   const filled = [];
@@ -129,18 +129,30 @@ async function fill(event, fetchImpl) {
   event.website = w;
   // The desk does not hold everything the website file does. Say what stays there.
   const notMoved = [!event.hotel?.link && ev.hotel?.bookingUrl ? "hotel booking link (put it on Edit event, Hotel)" : "", !event.hotel?.name && ev.hotel?.name ? "hotel name (Edit event, Hotel)" : ""].filter(Boolean);
-  // Job titles, matched by name: the agreement does not ask for one.
+  // Job titles, and the French already written for the site, matched by name: the agreement does not ask for a title.
+  // French brought over is not marked as reviewed: the desk only knows someone wrote it, not that someone read it.
   const people = await listPresenters(event.id);
+  const key = (s) => String(s ?? "").toLowerCase().replace(/^(cpl|cst|sgt|insp|supt|det|s\/sgt|d\/cst)\.?\s+/i, "").replace(/[^a-z]/g, "");
+  const frBy = new Map((fr.speakers ?? []).map((x) => [key(x.name), x]));
   const titled = [];
   for (const sp of ev.speakers ?? []) {
-    const key = (s) => String(s ?? "").toLowerCase().replace(/^(cpl|cst|sgt|insp|supt|det|s\/sgt|d\/cst)\.?\s+/i, "").replace(/[^a-z]/g, "");
     const p = people.find((x) => key(`${x.first} ${x.last}`) === key(sp.name));
-    if (!p || !sp.title || p.web?.title) continue;
-    p.web = cleanPresenterWeb({ title: sp.title }, p.web ?? {});
+    if (!p) continue;
+    const had = cleanPresenterWeb({}, p.web ?? {}), f = frBy.get(key(sp.name)) ?? {};
+    const frBio = Array.isArray(f.bio) ? f.bio.join("\n\n") : f.bio ?? "";
+    const enBio = Array.isArray(sp.bio) ? sp.bio.join("\n\n") : sp.bio ?? "";
+    const add = {
+      ...(!had.title && sp.title ? { title: sp.title } : {}),
+      ...(!had.titleFr && f.title && f.title !== sp.title ? { titleFr: f.title } : {}),
+      ...(!had.orgFr && f.org && f.org !== sp.org ? { orgFr: f.org } : {}),
+      ...(!had.bioFr && frBio && frBio !== enBio ? { bioFr: frBio } : {}),
+    };
+    if (!Object.keys(add).length) continue;
+    p.web = cleanPresenterWeb(add, had);
     await putPresenter(p);
     titled.push(`${p.first} ${p.last}`);
   }
-  if (titled.length) filled.push(`job titles for ${titled.join(", ")}`);
+  if (titled.length) filled.push(`job titles and French for ${titled.join(", ")}`);
   event.updatedAt = new Date().toISOString();
   await putEvent(event);
   return json({ ok: true, website: w, filled, notMoved });

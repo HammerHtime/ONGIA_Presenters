@@ -20,8 +20,8 @@ const eventsJson = {
     hotel: { name: "Delta Ocean Pointe", rate: "$249", rateUnit: "per night", bookingUrl: "https://example.com/book", highlights: ["On the harbour"] },
     speakers: [{ name: "Ada Sample", title: "Analyst", org: "Sample Police Service", bio: ["Old bio."] }, { name: "Hand Typed", org: "Somewhere" }],
     agenda: [{ time: "08:00", end: "08:30", title: "Coffee", detail: "Harbour Room" }, { time: "08:30", end: "09:15", title: "Opening talk", detail: "Ada Sample" }] },
-    { slug: "central-canada", status: "tba", city: "Toronto", date: "2027-03-23" }],
-  i18n: { fr: { events: { victoria: { provinceName: "Colombie-Britannique", agenda: [{ time: "08:00", end: "08:30", title: "Café", detail: "Salle Harbour" }, { time: "08:30", end: "09:15", title: "Conférence d'ouverture", detail: "Ada Sample" }] } } } },
+    { slug: "", regionLabel: "Central Canada", status: "tba", city: "Toronto", date: "2027-03-23", blurb: "The land-border corridor." }],
+  i18n: { fr: { events: { victoria: { provinceName: "Colombie-Britannique", speakers: [{ name: "Ada Sample", title: "Analyste", org: "Service de police modèle", bio: ["Ancienne bio."] }], agenda: [{ time: "08:00", end: "08:30", title: "Café", detail: "Salle Harbour" }, { time: "08:30", end: "09:15", title: "Conférence d'ouverture", detail: "Ada Sample" }] } } } },
 };
 seed({ "events.json": JSON.stringify(eventsJson, null, 2), "build.js": "// site", "static/styles.css": "body{}" });
 
@@ -81,7 +81,8 @@ ok("the hotel's internal contract rate is not published", !built.text.includes("
 ok("saving the page name", (await call("event=ev-west", { method: "PUT", body: { page: "Victoria" } })).body.website.page === "victoria");
 const filled = (await call("event=ev-west&fill=1")).body;
 ok("the one-time fill brings the website's times, address, rate and program into the desk", filled.ok && filled.website.startTime === "08:00" && filled.website.street === "100 Harbour Road" && filled.website.hotelRate === "$249" && filled.website.agenda.length === 2 && filled.website.agenda[0].titleFr === "Café", JSON.stringify(filled).slice(0, 300));
-ok("job titles come over by name", (await getPresenter("ev-west", "a1")).web?.title === "Analyst");
+const adaWeb = (await getPresenter("ev-west", "a1")).web;
+ok("job titles come over by name, with the French already on the site, not marked as reviewed", adaWeb?.title === "Analyst" && adaWeb.titleFr === "Analyste" && adaWeb.orgFr === "Service de police modèle" && adaWeb.bioFr === "Ancienne bio." && adaWeb.frReviewed === false, JSON.stringify(adaWeb));
 
 /* the change summary */
 const pv = (await call("event=ev-west&preview=1")).body;
@@ -150,6 +151,12 @@ ok("and the first event's page is untouched", read("desk/victoria.json").toStrin
 ok("its own clock and province", eastFile.event.timezone === "America/Halifax" && eastFile.event.province === "NB");
 const brandNew = { id: "ev-central", title: "Canadian Forum Against Organized Crime Central Symposium", city: "Winnipeg, MB", venue: "Hall", dayOne: "2027-06-01", board: [], website: { page: "prairies" } };
 await putEvent(brandNew);
+const central = { id: "ev-cent", title: "Canadian Forum Against Organized Crime Central Symposium", city: "Toronto, ON", venue: "Hall", dayOne: "2027-03-23", board: [], website: { page: "central-canada" } };
+await putEvent(central);
+const cpv = (await call("event=ev-cent&preview=1")).body;
+ok("a city already on the site as \"to be announced\" is found by its region and not called new", !/new section/.test(cpv.lines.join(" ")) && /first update/.test(cpv.lines.join(" ")), cpv.lines.join(" | "));
+await call("event=ev-cent&publish=1");
+ok("and publishing opens its page", JSON.parse(read("desk/central-canada.json")).event.status === "open");
 ok("a city the website has never had is announced as a new section", /A new section of the website/.test((await call("event=ev-central&preview=1")).body.lines.join(" ")));
 
 /* someone else pushes in between: the desk reads again and still makes one clean commit */
