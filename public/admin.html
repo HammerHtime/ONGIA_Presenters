@@ -971,7 +971,15 @@
   .hstrip.ok{padding:8px 4px;border:0;background:none}
   @media (min-width:761px){.bar .right{flex-wrap:nowrap}}
   @media (max-width:760px){
-    .bar .hsearch{order:3;flex-basis:100%;max-width:none;margin:2px 0 0}
+    /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); The year, Letters and Admin go under. */
+    .bar{flex-wrap:nowrap;gap:10px} .bar > .sub{display:none}
+    .bar .hsres{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 58px)}
+    .bar .logo{height:28px;width:25px;object-fit:cover;object-position:left center;align-self:flex-start;margin-top:4px}   /* the maple leaf alone: the wordmark leaves the search no room */
+    .bar .right{flex:1 1 0;min-width:0;gap:6px}
+    .bar .hsearch{order:0;flex:1 1 120px;min-width:0;max-width:none;margin:0}
+    .bar .hsearch input{min-height:36px;padding:7px 12px;font-size:14px}
+    .bar .chip{padding:7px 11px}
+    .bar .chip.solid{order:1} .bar .me{order:2;margin-left:0} .bar .chip:not(.solid){order:3}
     .qcounts{gap:8px} .qcount{flex-direction:column;gap:2px;padding:10px 12px} .qcount b{font-size:28px} .qcount .d{display:none}
     .qgroup{padding:11px 14px 9px;flex-wrap:nowrap} .qgh{flex:1 1 auto} .qgh b{font-size:15.5px} .qgn{display:none}
     .qrow{grid-template-columns:26px 1fr;padding:12px 14px} .qwhen{grid-column:2} .qact{grid-column:2;justify-self:start;margin-top:4px}
@@ -1336,7 +1344,7 @@ async function signInScreen(message) {
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="Search people and events…" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
