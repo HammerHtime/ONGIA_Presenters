@@ -56,7 +56,7 @@ const fakeClaude = { beta: { messages: { stream: (req) => ({ finalMessage: async
 } }) } } };
 
 /* who may */
-ok("only CFAOC events have a website", isWebsiteEvent(west) && !isWebsiteEvent({ title: "Human Trafficking Summit" }) && isWebsiteEvent({ title: "Canadian Forum Against Organized Crime Eastern Symposium" }) && isWebsiteEvent({ title: "2026 Canadian Forum Against Organized Crime - Victoria" }) && isWebsiteEvent({ title: "CFAOC Western Symposium" }) && !isWebsiteEvent({ title: "Organized Crime Awareness Day" }));
+ok("only CFAOC events have a website", isWebsiteEvent(west) && !isWebsiteEvent({ title: "Human Trafficking Summit" }) && isWebsiteEvent({ title: "Canadian Forum Against Organized Crime Eastern Symposium" }) && isWebsiteEvent({ title: "2026 Canadian Forum Against Organized Crime - Victoria" }) && isWebsiteEvent({ title: "CFAOC Western Symposium" }) && !isWebsiteEvent({ title: "Organized Crime Awareness Day" }) && isWebsiteEvent({ title: "Victoria 2026", invoicePrefix: "CFAOC" }));
 const board = { "x-admin-key": issueSession({ email: "secretary@ongia.ca", name: "Lee" }), "content-type": "application/json" };
 ok("a board member who is not the president or VP is refused", (await call("event=ev-west&preview=1", { headers: board })).status === 403);
 ok("another event has no website", (await call("event=ev-other", { method: "GET" })).status === 409);

@@ -19,7 +19,7 @@ import { publicConsent, byLastName, slugOf } from "./public.mjs";
  * the presenter export). Never an email, phone, travel, cost or the community-partners answer.
  */
 
-export const isWebsiteEvent = (event) => /canadian forum against organi[sz]ed crime|\bCFAOC\b/i.test(event?.title ?? "");
+export const isWebsiteEvent = (event) => /canadian forum against organi[sz]ed crime|\bCFAOC\b/i.test(event?.title ?? "") || event?.invoicePrefix === "CFAOC";
 
 export const REPO = () => process.env.CFAOC_REPO || "HammerHtime/cfaoc-symposium";
 export const BRANCH = () => process.env.CFAOC_BRANCH || "main";
