@@ -11,7 +11,8 @@ import { publicConsent, byLastName, slugOf } from "./public.mjs";
  *
  * The website (HammerHtime/cfaoc-symposium) is a static site built from events.json. The desk never rewrites that
  * file: it owns one file per event, desk/<page>.json, which the site's build lays over the event of the same page
- * name (or adds as a new city when there is none), and the presenters' photos under static/assets/speakers/<page>/.
+ * name (or adds as a new city when there is none). No headshots go on the site (Andrew 23 Oct 2026); any the desk
+ * once put under static/assets/speakers/<page>/ come down.
  * One press of "Update website" is one commit, so undoing it is reverting that commit.
  *
  * Only events whose title names the Canadian Forum Against Organized Crime (or CFAOC) have a website, for now.
@@ -81,42 +82,30 @@ export function cleanPresenterWeb(given, had = {}) {
 const paras = (s) => String(s ?? "").split(/\n\s*\n|\r\n\s*\r\n/).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
 
 /**
- * The event's desk file for the website, and the photos that go with it. Nothing in it changes from one press to the
+ * The event's desk file for the website. Nothing in it changes from one press to the
  * next unless the event or a presenter did: no dates of building, so pressing twice changes nothing.
- * `headshotOf(eventId, presenterId)` gives { bytes, type } or null.
  */
-export async function buildDeskFile(event, presenters, headshotOf) {
+export async function buildDeskFile(event, presenters) {
   const w = cleanWebsite({}, event.website ?? {});
   const page = w.page;
   const province = event.province || guessProvince(event.city) || "";
   const [timezone, timezoneLabel] = ZONES[province] ?? ["", ""];
   const city = String(event.city ?? "").split(",")[0].trim();
 
-  const people = [], photos = [], used = new Set(), frSpeakers = [], report = [];
+  const people = [], photos = [], frSpeakers = [], report = [];
   for (const p of byLastName(presenters)) {
     const c = publicConsent(p);
     if (!c.in) continue;
     const s = p.submission ?? {};
     const web = cleanPresenterWeb({}, p.web ?? {});
     const name = `${p.first} ${p.last}`.trim();
-    let photo = "";
-    if (c.photo && s.headshotName) {
-      const shot = await headshotOf(event.id, p.id).catch(() => null);
-      if (shot?.bytes?.byteLength) {
-        let file = `${slugOf(name) || p.id}.${shot.type === "image/png" ? "png" : "jpg"}`;
-        if (used.has(file)) file = file.replace(/\.(\w+)$/, `-${p.id.slice(0, 6)}.$1`);
-        used.add(file);
-        photos.push({ path: `static/assets/speakers/${page}/${file}`, bytes: new Uint8Array(shot.bytes) });
-        photo = `/assets/speakers/${page}/${file}`;
-      }
-    }
     const bio = c.bio === "no" ? [] : paras(s.bio);
-    const sp = { name, ...(web.title ? { title: web.title } : {}), ...(p.organization ? { org: p.organization } : {}), ...(bio.length ? { bio } : {}), ...(photo ? { photo } : {}) };
+    const sp = { name, ...(web.title ? { title: web.title } : {}), ...(p.organization ? { org: p.organization } : {}), ...(bio.length ? { bio } : {}) };
     people.push(sp);
     // The French page shows the French where there is some, and the English where there is not yet.
     const bioFr = c.bio === "no" ? [] : paras(web.bioFr);
     frSpeakers.push({ ...sp, ...(web.titleFr ? { title: web.titleFr } : {}), ...(web.orgFr ? { org: web.orgFr } : {}), ...(bioFr.length ? { bio: bioFr } : {}) });
-    report.push({ id: p.id, name, bioConsent: c.bio, photo: !!photo, talk: s.talk || "", outline: s.outline || "",
+    report.push({ id: p.id, name, bioConsent: c.bio, talk: s.talk || "", outline: s.outline || "",
       frMissing: !!(bio.length && !bioFr.length), frReviewed: web.frReviewed });
   }
 
@@ -205,6 +194,8 @@ export function summarize({ before, after, beforeFr, afterFr, people, photoChang
   if (bios.length) lines.push(`${plural(bios.length, "bio")} updated: ${list(bios)}.`);
   const ids = [...now.keys()].filter((n) => was.has(n) && (!same(was.get(n).title, now.get(n).title) || !same(was.get(n).org, now.get(n).org)));
   if (ids.length) lines.push(`Job title or organization changed: ${list(ids)}.`);
+  const unphoto = [...now.keys()].filter((n) => was.get(n)?.photo && !now.get(n).photo);
+  if (unphoto.length) lines.push(`Photo taken off: ${list(unphoto)}. The website shows no headshots.`);
   const pa = photoChanges.added.length, pr = photoChanges.replaced.length, pd = photoChanges.removed.length;
   if (pa || pr || pd) lines.push(`Photos: ${[pa ? `${pa} added` : "", pr ? `${pr} replaced` : "", pd ? `${pd} taken down` : ""].filter(Boolean).join(", ")}.`);
 

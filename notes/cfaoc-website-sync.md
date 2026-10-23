@@ -34,3 +34,6 @@ Spec: HammerHtime/general, branch claude/chief-of-staff-advisor-fyhzd1, chief-of
 - A presenter on the website with no signed, public agreement in the desk comes off the speaker cards on the
   first update (the summary names them). Names typed in a program line stay: that is staff's own text.
 - Only the president and VP (mayCost), only events titled "Canadian Forum Against Organized Crime…".
+
+- 23 Oct 2026 (Andrew): no headshots on the CFAOC website, whatever a presenter agreed to. The desk sends none, and
+  takes down any under static/assets/speakers/<page>/. The summary names anyone whose photo comes off.

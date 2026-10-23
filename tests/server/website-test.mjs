@@ -18,12 +18,12 @@ const eventsJson = {
   events: [{ slug: "victoria", status: "open", city: "Victoria", province: "BC", date: "2026-11-24", startTime: "08:00", endTime: "16:30", registerUrl: "https://www.ongia.org/event-details/old",
     blurb: "The Pacific gateway.", venue: { name: "Delta Ocean Pointe", street: "100 Harbour Road", city: "Victoria", region: "BC", postalCode: "V9A 0G1", country: "Canada" },
     hotel: { name: "Delta Ocean Pointe", rate: "$249", rateUnit: "per night", bookingUrl: "https://example.com/book", highlights: ["On the harbour"] },
-    speakers: [{ name: "Ada Sample", title: "Analyst", org: "Sample Police Service", bio: ["Old bio."] }, { name: "Hand Typed", org: "Somewhere" }],
+    speakers: [{ name: "Ada Sample", title: "Analyst", org: "Sample Police Service", bio: ["Old bio."], photo: "/assets/speakers/victoria/old-ada.jpg" }, { name: "Hand Typed", org: "Somewhere" }],
     agenda: [{ time: "08:00", end: "08:30", title: "Coffee", detail: "Harbour Room" }, { time: "08:30", end: "09:15", title: "Opening talk", detail: "Ada Sample" }] },
     { slug: "", regionLabel: "Central Canada", status: "tba", city: "Toronto", date: "2027-03-23", blurb: "The land-border corridor." }],
   i18n: { fr: { events: { victoria: { provinceName: "Colombie-Britannique", speakers: [{ name: "Ada Sample", title: "Analyste", org: "Service de police modèle", bio: ["Ancienne bio."] }], agenda: [{ time: "08:00", end: "08:30", title: "Café", detail: "Salle Harbour" }, { time: "08:30", end: "09:15", title: "Conférence d'ouverture", detail: "Ada Sample" }] } } } },
 };
-seed({ "events.json": JSON.stringify(eventsJson, null, 2), "build.js": "// site", "static/styles.css": "body{}" });
+seed({ "events.json": JSON.stringify(eventsJson, null, 2), "build.js": "// site", "static/styles.css": "body{}", "static/assets/speakers/victoria/old-ada.jpg": "jpegbytes" });
 
 /* ---- the desk ---- */
 const media = (summary, photo, bio) => ({ summary: { internal: "yes", public: summary }, photo: { internal: "yes", public: photo }, materials: { internal: "yes", public: "no" }, ...(bio ? { bio: { internal: "yes", public: bio } } : {}) });
@@ -65,11 +65,10 @@ ok("without a page name, the button says what to do", /Website page/.test((await
 /* consent: the same rule as the presenter export */
 const g = (await call("event=ev-west", { method: "GET" })).body;
 ok("the desk lists who would be shown: signed and yes to public summary only", g.presenters.filter((p) => p.shown).map((p) => p.name).join(",") === "Bo Example,Fay Nobio,Ada Sample", g.presenters.filter((p) => p.shown).map((p) => p.name).join(","));
-const built = await buildDeskFile(west, people, async (e, id) => (id === "a1" ? { bytes: new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]), type: "image/jpeg" } : id === "c3" ? { bytes: new Uint8Array([9]), type: "image/jpeg" } : null));
+const built = await buildDeskFile(west, people);
 const sp = built.file.event.speakers;
 ok("only public presenters go in (3 of 6)", sp.map((s) => s.name).join(",") === "Bo Example,Fay Nobio,Ada Sample");
-ok("a photo only with a yes to public photos", sp.find((s) => s.name === "Ada Sample").photo === "/assets/speakers//ada-sample.jpg" || sp.find((s) => s.name === "Ada Sample").photo?.endsWith("ada-sample.jpg"));
-ok("no photo for someone who said no to photos, and the private presenter's photo is never built", !sp.find((s) => s.name === "Bo Example").photo && built.photos.length === 1);
+ok("no headshots on the CFAOC site, even for someone who said yes to public photos (Andrew 23 Oct 2026)", sp.every((s) => !s.photo) && built.photos.length === 0 && !built.text.includes("photo"));
 ok("a no to the bio means no bio, but they are still listed", !sp.find((s) => s.name === "Fay Nobio").bio);
 ok("bios become paragraphs", JSON.stringify(sp.find((s) => s.name === "Bo Example").bio) === JSON.stringify(["Bo's bio.", "Second paragraph."]));
 ok("signed before the bio question: shown, marked to ask again", built.people.find((p) => p.name === "Ada Sample").bioConsent === "legacy");
@@ -90,7 +89,7 @@ const said = pv.lines.join(" | ");
 ok("summary: the first update from the desk", /first update from the desk/.test(said), said);
 ok("summary: new presenters named", /2 new presenters: Bo Example, Fay Nobio/.test(said), said);
 ok("summary: who comes off the website, by name", /1 presenter taken off the website: Hand Typed/.test(said), said);
-ok("summary: Ada's bio updated and her photo added", /1 bio updated: Ada Sample/.test(said) && /Photos: 1 added/.test(said), said);
+ok("summary: Ada's bio updated, and the photo the site had of her comes off", /1 bio updated: Ada Sample/.test(said) && /Photo taken off: Ada Sample/.test(said) && /Photos: 1 taken down/.test(said), said);
 ok("summary: the registration link brought over from the website is kept, so no change", !/Registration link/.test(said), said);
 ok("summary: French not there yet is flagged, and English is what shows", pv.notes.some((n) => /No French yet for .*English/.test(n)), pv.notes.join(" | "));
 ok("summary: the earlier-agreement bio is noted", pv.notes.some((n) => /Ada Sample signed before the biography question/.test(n)), pv.notes.join(" | "));
@@ -101,7 +100,7 @@ const before = G.ref;
 const pub = (await call("event=ev-west&publish=1")).body;
 ok("publishing makes one commit on main", pub.ok && G.ref !== before && G.commits.get(G.ref).parents[0] === before, JSON.stringify(pub).slice(0, 200));
 ok("the commit message names the event and who pressed", /Canadian Forum Against Organized Crime Western Symposium/.test(G.commits.get(G.ref).message) && /Pressed by/.test(G.commits.get(G.ref).message));
-ok("it writes desk/victoria.json and the one photo, and leaves events.json alone", !!read("desk/victoria.json") && !!read("static/assets/speakers/victoria/ada-sample.jpg") && read("events.json").toString() === JSON.stringify(eventsJson, null, 2));
+ok("it writes desk/victoria.json, takes the old photo down, and leaves events.json alone", !!read("desk/victoria.json") && !read("static/assets/speakers/victoria/old-ada.jpg") && read("events.json").toString() === JSON.stringify(eventsJson, null, 2));
 ok("the desk remembers the last update", (await getEvent("ev-west")).website.lastPublished?.commit === pub.commit);
 const shown = shownEvent(eventsJson, "victoria", JSON.parse(read("desk/victoria.json")));
 ok("the page keeps what the desk does not own (hotel highlights, blurb)", shown.en.hotel.highlights[0] === "On the harbour" && shown.en.blurb === "The Pacific gateway.");
@@ -124,19 +123,19 @@ await call("event=ev-west&publish=1");
 const fr2 = shownEvent(eventsJson, "victoria", JSON.parse(read("desk/victoria.json")));
 ok("the French page shows the edited French", fr2.fr.speakers.find((s) => s.name === "Bo Example").bio[0] === "Biographie de Bo, revue." && fr2.en.speakers.find((s) => s.name === "Bo Example").bio[0] === "Bo's bio.");
 
-/* consent withdrawn: the photo comes down */
-await putPresenter({ ...people[0], web: (await getPresenter("ev-west", "a1")).web, submission: { ...people[0].submission, media: media("yes", "no") } });
+/* consent withdrawn: the presenter comes off */
+await putPresenter({ ...people[0], web: (await getPresenter("ev-west", "a1")).web, submission: { ...people[0].submission, media: media("no", "no") } });
 const pv3 = (await call("event=ev-west&preview=1")).body;
-ok("a withdrawn photo yes takes the photo down", /Photos: 1 taken down/.test(pv3.lines.join(" ")), pv3.lines.join(" | "));
+ok("a withdrawn yes to public use takes the presenter off", /1 presenter taken off the website: Ada Sample/.test(pv3.lines.join(" ")), pv3.lines.join(" | "));
 await call("event=ev-west&publish=1");
-ok("and it is gone from the site", !read("static/assets/speakers/victoria/ada-sample.jpg"));
+ok("and she is gone from the site", !JSON.parse(read("desk/victoria.json")).event.speakers.some((s) => s.name === "Ada Sample"));
 
 /* rollback by revert */
 const deskBefore = read("desk/victoria.json", G.commits.get(G.ref).parents[0]).toString();
 revertHead();
-ok("reverting the last update puts the website file back as it was", read("desk/victoria.json").toString() === deskBefore && !!read("static/assets/speakers/victoria/ada-sample.jpg"));
+ok("reverting the last update puts the website file back as it was", read("desk/victoria.json").toString() === deskBefore && JSON.parse(read("desk/victoria.json")).event.speakers.some((s) => s.name === "Ada Sample"));
 const pv4 = (await call("event=ev-west&preview=1")).body;
-ok("after a revert, the desk sees the difference and would publish it again", pv4.unchanged === false && /Photos: 1 taken down/.test(pv4.lines.join(" ")));
+ok("after a revert, the desk sees the difference and would publish it again", pv4.unchanged === false && /taken off the website: Ada Sample/.test(pv4.lines.join(" ")));
 
 /* a second event is its own page */
 const east = { id: "ev-east", title: "Canadian Forum Against Organized Crime Eastern Symposium", city: "Moncton, NB", venue: "Delta Beauséjour", dayOne: "2027-03-30", board: [], website: { page: "atlantic-canada", startTime: "08:30", endTime: "16:00", registerUrl: "https://www.ongia.org/event-details/east" } };

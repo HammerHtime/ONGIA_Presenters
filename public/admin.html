@@ -4063,7 +4063,7 @@ function renderWebsite(ev, W) {
   const person = (p) => {
     const fr = p.web, frState = !fr.bioFr && p.bio ? `<span class="pill late">no French yet</span>` : fr.frReviewed ? `<span class="pill done">French reviewed</span>` : `<span class="pill">French not reviewed</span>`;
     return `<details class="wsp" data-wsp="${esc(p.id)}"><summary><b>${esc(p.name)}</b><span class="porg">${esc(p.organization)}</span>
-        <span class="wsp-tags">${p.photo ? `<span class="pill done">photo</span>` : `<span class="pill">no photo</span>`}${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
+        <span class="wsp-tags">${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
       <div class="row2">${f(`t-${p.id}`, "Job title", fr.title, { ph: "Supervisory Criminal Intelligence Analyst", max: 160 })}${f(`tf-${p.id}`, "Job title in French", fr.titleFr, { ph: "Analyste principal du renseignement criminel", max: 160 })}</div>
       ${f(`gf-${p.id}`, "Organization in French", fr.orgFr, { ph: p.organization ? `Leave empty to show ${p.organization}` : "", max: 200 })}
       ${p.talk ? `<div class="field"><label>Talk</label><p class="said" style="margin:0">${esc(p.talk)}</p></div>${f(`kf-${p.id}`, "Talk title in French", fr.talkFr, { max: 300 })}` : ""}
@@ -4093,7 +4093,7 @@ function renderWebsite(ev, W) {
     <div class="actions" style="margin-top:16px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="ws-save">Save website details</button>
       ${!last ? `<button type="button" class="btn btn-ghost" id="ws-fill">Bring over what the website shows today</button>` : ""}</div>
     <h3 class="wsh">Presenters on the website <span class="porg">· ${shown.length} of ${W.presenters.length}</span></h3>
-    <p class="hint" style="margin:0 0 10px">Only presenters who signed and said yes to their summary on public platforms. Photo only with a yes to photos. Never contact details.</p>
+    <p class="hint" style="margin:0 0 10px">Only presenters who signed and said yes to their summary on public platforms. No headshots and never contact details.</p>
     ${shown.length ? shown.map(person).join("") : `<p class="said">Nobody yet.</p>`}
     ${shown.some((p) => !p.web.bioFr && p.bio) ? `<button type="button" class="mini" id="ws-draftall" style="margin-top:8px">Draft the missing French for everyone</button>` : ""}
     ${hidden.length ? `<p class="porg" style="margin-top:12px"><b>Not on the website:</b> ${hidden.map((p) => `${esc(p.name)} (${why(p)})`).join(", ")}.</p>` : ""}

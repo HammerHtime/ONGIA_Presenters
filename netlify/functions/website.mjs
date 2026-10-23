@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
-import { getEvent, putEvent, listPresenters, getPresenter, putPresenter, getHeadshot } from "./lib/store.mjs";
+import { getEvent, putEvent, listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
 import { publicConsent, byLastName } from "./lib/public.mjs";
 import { isWebsiteEvent, cleanWebsite, cleanPresenterWeb, buildDeskFile, github, githubToken, readSite, planChanges, commitChanges,
   draftFrench, GitHubError, REPO, BRANCH, pageKey } from "./lib/website.mjs";
@@ -59,7 +59,7 @@ async function show(event) {
     presenters: presenters.map((p) => {
       const c = publicConsent(p);
       return { id: p.id, name: `${p.first} ${p.last}`.trim(), organization: p.organization || "", status: p.status,
-        shown: c.in, photo: !!(c.photo && p.submission?.headshotName), bioConsent: c.bio ?? null,
+        shown: c.in, bioConsent: c.bio ?? null,
         talk: p.submission?.talk || "", bio: c.bio === "no" ? "" : p.submission?.bio || "", outline: p.submission?.outline || "",
         web: cleanPresenterWeb({}, p.web ?? {}) };
     }),
@@ -163,7 +163,7 @@ async function plan(event, fetchImpl) {
   if (!w.page) return { error: needsPage() };
   if (!githubToken()) return { error: needsKey() };
   const gh = github({ fetchImpl });
-  const built = await buildDeskFile(event, await listPresenters(event.id), getHeadshot);
+  const built = await buildDeskFile(event, await listPresenters(event.id));
   const site = await readSite(gh, w.page);
   if (!site.events) return { error: fail("The website has no events.json, so the desk cannot tell what it would change. Nothing was sent.", 409) };
   return { gh, built, site, changes: planChanges(site, built) };
