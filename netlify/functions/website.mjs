@@ -16,7 +16,7 @@ import { isWebsiteEvent, cleanWebsite, cleanPresenterWeb, buildDeskFile, github,
  *   POST /api/website?event=…&preview=1             what "Update website" would change, in plain words
  *   POST /api/website?event=…&publish=1             make that change: one commit on the website's main branch
  *
- * Only for events whose title starts "Canadian Forum Against Organized Crime", and only for the president and the
+ * Only for events whose title names the Canadian Forum Against Organized Crime (or CFAOC), and only for the president and the
  * VP, like the presenter export: it is one person deciding what goes on a public site.
  */
 export default async (req, { fetchImpl, client } = {}) => {
@@ -27,7 +27,7 @@ export default async (req, { fetchImpl, client } = {}) => {
   const url = new URL(req.url);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
-  if (!isWebsiteEvent(event)) return fail("Only the Canadian Forum Against Organized Crime events have a website on the desk.", 409);
+  if (!isWebsiteEvent(event)) return fail("Only the Canadian Forum Against Organized Crime (CFAOC) events have a website on the desk.", 409);
   const q = (k) => url.searchParams.get(k);
   try {
     if (req.method === "GET") return show(event);

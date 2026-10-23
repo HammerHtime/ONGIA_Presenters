@@ -14,12 +14,12 @@ import { publicConsent, byLastName, slugOf } from "./public.mjs";
  * name (or adds as a new city when there is none), and the presenters' photos under static/assets/speakers/<page>/.
  * One press of "Update website" is one commit, so undoing it is reverting that commit.
  *
- * Only events whose title starts "Canadian Forum Against Organized Crime" have a website, for now.
+ * Only events whose title names the Canadian Forum Against Organized Crime (or CFAOC) have a website, for now.
  * The repository is public: only what each presenter agreed to make public goes in (publicConsent, shared with
  * the presenter export). Never an email, phone, travel, cost or the community-partners answer.
  */
 
-export const isWebsiteEvent = (event) => /^\s*canadian forum against organi[sz]ed crime\b/i.test(event?.title ?? "");
+export const isWebsiteEvent = (event) => /canadian forum against organi[sz]ed crime|\bCFAOC\b/i.test(event?.title ?? "");
 
 export const REPO = () => process.env.CFAOC_REPO || "HammerHtime/cfaoc-symposium";
 export const BRANCH = () => process.env.CFAOC_BRANCH || "main";

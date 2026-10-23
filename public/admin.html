@@ -4029,7 +4029,7 @@ async function readLogisticsXlsx(file) {
    Only the Canadian Forum Against Organized Crime events have a website on the desk, and only the president and the VP
    see this. What is typed here, and the presenters who agreed to be public, go to the CFAOC site with "Update website":
    a summary of what would change first, then one commit to the website, which rebuilds in about two minutes. */
-const isWebsiteEvent = (ev) => /^\s*canadian forum against organi[sz]ed crime\b/i.test(ev?.title ?? "");
+const isWebsiteEvent = (ev) => /canadian forum against organi[sz]ed crime|\bCFAOC\b/i.test(ev?.title ?? "");
 const WEB_SITE = "https://cfaoc-symposium.ca";
 function websiteCard() {
   return secFold("website", "Website", "The CFAOC symposium site: this event's page, presenters and program", "", `<div class="card-body" id="websync"><p class="porg">Loading the website details…</p></div>`, { id: "webfold" });
