@@ -60,7 +60,7 @@ const submit = async (first, hotel, from, to, agency) => {
   const p = (await listPresenters(ev.id)).find((x) => x.first === first);
   const res = await call(agreement, `/api/agreement?t=${p.token}`, "POST", { first, last: p.last, email: p.email, phone: "4165550100", organization: p.organization, talk: "T", bio: "word ".repeat(40), outline: "An outline.",
     travel: "no", hotel, ...(hotel === "yes" ? { hotelFrom: from, hotelTo: to } : {}), expenses: { transport: "no", hotel: hotel === "yes" ? agency : "n/a", meals: "no", other: "no", otherText: "" },
-    copyright: true, noInvestigation: true, termsAccepted: true, media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", signature: `${first} ${p.last}`, agreed: true, language: "en" }, { "content-type": "application/json" });
+    copyright: true, noInvestigation: true, termsAccepted: true, media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", signature: `${first} ${p.last}`, agreed: true, language: "en" }, { "content-type": "application/json" });
   if (res.status !== 200) console.log("submit", first, JSON.stringify(res));
   return p;
 };

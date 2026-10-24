@@ -2,6 +2,9 @@ import { fail, requireAdmin, adminWho } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listPresenters, getHeadshot } from "./lib/store.mjs";
 import { makeZip } from "./lib/zip.mjs";
+import { slugOf, publicConsent, byLastName } from "./lib/public.mjs";
+
+export { slugOf, publicConsent, byLastName };
 
 /**
  * The presenters of one event, for the event's own website (Andrew 22 Oct 2026).
@@ -30,20 +33,17 @@ export default async (req) => {
   return new Response(zip, { headers: { "content-type": "application/zip", "content-disposition": `attachment; filename="${slug}-presenters.zip"`, "cache-control": "no-store" } });
 };
 
-export const slugOf = (s) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
-const yes = (v) => v === "yes";
-
 /** What goes on a public website, decided per presenter from their own consent answers. `headshotOf` is for tests. */
 export async function websiteExport(event, presenters, headshotOf) {
-  const signed = presenters.filter((p) => p.status === "submitted" || p.status === "approved");
+  const signed = presenters.filter((p) => publicConsent(p).signed);
   const out = [], photos = [], used = new Set();
   let noConsent = 0;
-  for (const p of signed.sort((a, b) => `${a.last} ${a.first}`.localeCompare(`${b.last} ${b.first}`))) {
+  for (const p of byLastName(signed)) {
     const s = p.submission ?? {};
-    const media = s.media ?? {};
-    if (!yes(media.summary?.public)) { noConsent++; continue; }
+    const c = publicConsent(p);
+    if (!c.in) { noConsent++; continue; }
     let photo = null;
-    if (yes(media.photo?.public) && s.headshotName) {
+    if (c.photo && s.headshotName) {
       const shot = await headshotOf(event.id, p.id).catch(() => null);
       if (shot?.bytes?.byteLength) {
         let file = `${slugOf(`${p.first} ${p.last}`) || p.id}.${shot.type === "image/png" ? "png" : "jpg"}`;
@@ -58,14 +58,15 @@ export async function websiteExport(event, presenters, headshotOf) {
       first: p.first, last: p.last,
       title: null,                       // the agreement does not ask for a job title
       organization: p.organization || null,
-      bio: s.bio || null,                // empty when the presenter said ONGIA already has it, or the event keeps bios on file
+      bio: c.bio === "no" ? null : s.bio || null, // empty when they said no to it, said ONGIA already has it, or the event keeps bios on file
       photo,
       presentation: { title: s.talk || null, description: s.outline || null },
       session: null,                     // the desk keeps the event's daily times, not each talk's slot
       consent: {
         publicSummary: true,
-        publicPhoto: yes(media.photo?.public),
-        publicMaterials: yes(media.materials?.public),
+        publicPhoto: c.photo,
+        publicMaterials: c.materials,
+        publicBio: c.bio,                // "yes", "no", or "legacy": signed before the biography line was asked
       },
       agreement: p.status === "approved" ? "signed and approved" : "signed, waiting for board approval",
     });

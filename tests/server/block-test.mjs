@@ -18,7 +18,7 @@ const ev = (await call(events, "/api/events", "POST", { title: "Block Test", cit
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }],
   presenters: [["Ann", "Master"], ["Bob", "Agency"], ["Cy", "Owner"], ["Di", "NoRoom"]].map(([first, last]) => ({ first, last, email: `${first.toLowerCase()}@example.ca`, organization: "Org " + first })) })).event;
 const base = { phone: "4165550100", talk: "T", bio: "word ".repeat(40), outline: "An outline.", travel: "no", copyright: true, noInvestigation: true, termsAccepted: true,
-  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en" };
+  media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", agreed: true, language: "en" };
 const list = await listPresenters(ev.id);
 const by = (first) => list.find((p) => p.first === first);
 const plan = { Ann: { hotel: "yes", agency: "no" }, Bob: { hotel: "yes", agency: "yes" }, Cy: { hotel: "yes", agency: "no" }, Di: { hotel: "no", agency: "no" } };
