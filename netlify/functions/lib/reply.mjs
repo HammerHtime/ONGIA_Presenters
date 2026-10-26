@@ -233,8 +233,22 @@ export function renderReminder(event, person) {
 
 /** Who a reminder goes to: registered, had the email, and nobody at their address has answered yet. */
 export function stillToAnswer(people, answers) {
-  const answered = new Set(answers.filter((a) => a.source !== "desk").map((a) => a.email));
-  return writeableTo(people).filter((p) => (p.sent ?? []).includes("reply") && !answered.has(p.email));
+  const told = toldUs(people, answers);
+  return writeableTo(people).filter((p) => (p.sent ?? []).includes("reply") && !told.has(p.email));
+}
+
+/**
+ * The registered addresses that have already told us (Andrew 26 Oct 2026: "I don't want to send an email again to
+ * those who have answered already and who were on that Excel list"): anyone who answered the form, and anyone added
+ * on the desk, by hand or from his sheet. A desk entry usually has no email, so it is matched to a registration by
+ * first and last name. Neither the email nor its reminders go to these addresses.
+ */
+const nameKey = (p) => `${p.first ?? ""} ${p.last ?? ""}`.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, " ").trim();
+export function toldUs(people, answers) {
+  const out = new Set(answers.map((a) => a.email).filter(Boolean));
+  const names = new Set(answers.filter((a) => !a.email).map(nameKey).filter(Boolean));
+  for (const p of people) if (p.email && names.has(nameKey(p))) out.add(p.email);
+  return out;
 }
 
 /** Today's reminder, if today is one of the dates: to everyone still to answer who has not had today's already. */
@@ -279,7 +293,8 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
   if (problems.length) return { blocked: problems };
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
-  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email));
+  const told = toldUs(stored.people ?? [], (await getReplies(event.id))?.answers ?? []);
+  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email) && !told.has(p.email));
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {
@@ -311,6 +326,11 @@ export async function replyStatus(event) {
     round: stored.letterRounds?.reply ?? null,
     answered: answers.length,
     stillToAnswer: stillToAnswer(people, answers).length,
+    // Registered addresses the email and reminders will skip, because someone there already told us.
+    alreadyTold: [...toldUs(people, answers)].filter((e) => writeableTo(people).some((p) => p.email === e)).length,
+    // Who "Send" would email right now: registered, not had it, nobody there has told us yet.
+    toSend: (() => { const told = toldUs(people, answers); const had = new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
+      return writeableTo(people).filter((p) => !had.has(p.email) && !told.has(p.email)).length; })(),
     reminders: remindersOf(event.reply).map((d) => ({ date: d, round: stored.letterRounds?.[`reply-reminder:${d}`] ?? null })),
   };
 }

@@ -49,3 +49,7 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
   "Reminder: …", to registered addresses that had the email and where nobody has answered yet; once per address per
   date; never to someone first emailed in that same run; not after the reply-by date or while the form is closed.
 - Like the late-registrant catch-up, reminders only go while automatic emails to attendees are on; the card says so.
+- 26 Oct 2026 (Andrew): nobody who has already told us is emailed or reminded: anyone who answered the form, and
+  anyone on his sheet or added by hand (no email, so matched to a registration by first and last name). The send
+  button counts only who would actually get it, and says how many are skipped.
+- The answers summary is one compact line each (food; each social with its date), counts and download on the line.
