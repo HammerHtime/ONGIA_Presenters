@@ -28,6 +28,19 @@ export function wixConfigured() {
 }
 
 /**
+ * The Wix sites the desk reads. The first is ONGIA's own (WIX_API_KEY, WIX_SITE_ID). A second (Andrew 26 Oct 2026: the
+ * National Gang Summit's community partners register on a separate Wix site) is WIX_SITE_ID_2, with WIX_API_KEY_2
+ * when that site is on another Wix account (a key from the same account reaches every site on it), and
+ * WIX_SITE_2_NAME for how the desk names it.
+ */
+export function wixSites() {
+  const out = [{ n: "1", key: process.env.WIX_API_KEY, id: process.env.WIX_SITE_ID, name: "ONGIA's website" }];
+  if (process.env.WIX_SITE_ID_2) out.push({ n: "2", key: process.env.WIX_API_KEY_2 || process.env.WIX_API_KEY, id: process.env.WIX_SITE_ID_2.trim(), name: process.env.WIX_SITE_2_NAME || "the community partners' website" });
+  return out.filter((s) => s.key && s.id);
+}
+const siteOf = (n = "1") => wixSites().find((s) => s.n === String(n || "1"));
+
+/**
  * The WIX_* variable names this function can actually see. Names only, never
  * values — a secret must not be readable from a diagnostic. It catches the two
  * failures that look identical from outside: a typo in the name, and a Netlify
@@ -58,13 +71,15 @@ export function wixSiteIdLooksWrong() {
   return `WIX_SITE_ID is not a UUID (got ${id.length} characters). It should look like 8a3f91c2-4d7e-4b16-9f02-1e5c7a9d3b84.`;
 }
 
-async function wix(path, body) {
+async function wix(path, body, site = "1") {
   if (!wixConfigured()) throw new Error("Wix is not connected on this site — set WIX_API_KEY and WIX_SITE_ID.");
+  const s = siteOf(site);
+  if (!s) throw new Error("The desk is not connected to that Wix site — set WIX_SITE_ID_2 (and WIX_API_KEY_2 if it is on another Wix account).");
   const res = await fetch(`${API}${path}`, {
     method: "POST",
     headers: {
-      authorization: process.env.WIX_API_KEY,
-      "wix-site-id": process.env.WIX_SITE_ID,
+      authorization: s.key,
+      "wix-site-id": s.id,
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
@@ -107,7 +122,7 @@ function tidyEvent(e) {
  * The site's events, newest first. Drafts are left out — an event nobody can
  * register for is not one the desk should offer to link to.
  */
-export async function listWixEvents({ limit = 100 } = {}) {
+export async function listWixEvents({ limit = 100, site = "1" } = {}) {
   const out = await wix("/events/v3/events/query", {
     fields: ["URLS", "DASHBOARD"],
     query: {
@@ -116,8 +131,19 @@ export async function listWixEvents({ limit = 100 } = {}) {
       paging: { limit: Math.min(limit, 100), offset: 0 },
       sort: [{ fieldName: "dateAndTimeSettings.startDate", order: "DESC" }],
     },
-  });
-  return (out.events ?? []).map(tidyEvent);
+  }, site);
+  const name = siteOf(site)?.name ?? "";
+  return (out.events ?? []).map((e) => ({ ...tidyEvent(e), site: String(site), siteName: name }));
+}
+
+/** Every site's events together; one site that will not answer does not hide the others. */
+export async function listAllWixEvents() {
+  const out = [];
+  for (const s of wixSites()) {
+    try { out.push(...(await listWixEvents({ site: s.n }))); }
+    catch (e) { if (s.n === "1") throw e; }
+  }
+  return out;
 }
 
 /** The names of an RSVP's extra guests, from wherever Wix put them on the form; none is fine. */
@@ -188,7 +214,7 @@ function tidyGuest(g) {
  * identifiers and no names or emails at all, which looks like an empty result
  * rather than the refusal it is.
  */
-export async function listWixGuests({ eventId = null, type = "RSVP", since = null } = {}) {
+export async function listWixGuests({ eventId = null, type = "RSVP", since = null, site = "1" } = {}) {
   const filter = {};
   if (eventId) filter.eventId = eventId;
   if (type) filter.guestType = type;
@@ -201,7 +227,7 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
     const query = cursor
       ? { cursorPaging: { limit: PAGE, cursor } }
       : { filter, cursorPaging: { limit: PAGE } };
-    const out = await wix("/events/v2/guests/query", { fields: ["GUEST_DETAILS"], query });
+    const out = await wix("/events/v2/guests/query", { fields: ["GUEST_DETAILS"], query }, site);
     guests.push(...(out.guests ?? []).map(tidyGuest));
     cursor = out.pagingMetadata?.cursors?.next || null;
     if (!cursor || !(out.guests ?? []).length) break;
@@ -258,7 +284,9 @@ export function attendeesOf(guests) {
 /** The whole site's guests, grouped by the Wix event they belong to. */
 export async function wixGuestsByEvent(opts = {}) {
   const byEvent = new Map();
-  for (const g of await listWixGuests(opts)) {
+  const all = [];
+  for (const s of wixSites()) all.push(...(await listWixGuests({ ...opts, site: s.n })));
+  for (const g of all) {
     if (!g.eventId) continue;
     if (!byEvent.has(g.eventId)) byEvent.set(g.eventId, []);
     byEvent.get(g.eventId).push(g);

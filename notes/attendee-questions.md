@@ -37,3 +37,8 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
   employer / service. The housekeeping form fills it in from there.
 - "See the email" is now the editor too: words on one side, the email redrawn as you type (400 ms after the last
   key), checked the same way as a send (a misspelt blank shows). "Save these words" keeps them; closing does not.
+
+## 26 Oct 2026: the community partners' Wix event is on a separate Wix site
+- It is "National Gang Summit" (ngstoronto2026.ca), on the same Wix account as ongia.org. The desk reads a second
+  site from WIX_SITE_ID_2 (WIX_API_KEY_2 only if a site is on another account; the account's key reaches every site
+  it was given; WIX_SITE_2_NAME for how the desk names it). Each linked event remembers which site it is on.

@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
-import { wixConfigured, wixHealth, listWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf } from "./lib/wix.mjs";
+import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
 import { eventId as makeEventId } from "./lib/ids.mjs";
 import { deadlinesFor, offsetsOf } from "./lib/deadlines.mjs";
@@ -31,7 +31,7 @@ export default async (req) => {
   if (req.method === "GET") {
     if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80));
     if (url.searchParams.get("events")) return showWixEvents();
-    return json({ connected: wixConfigured(), ...(await wixHealth()) });
+    return json({ connected: wixConfigured(), sites: wixSites().map((x) => ({ n: x.n, name: x.name })), ...(await wixHealth()) });
   }
   if (req.method === "PUT") {
     const event = await getEvent(url.searchParams.get("event"));
@@ -87,7 +87,7 @@ async function countGuests(wixEventId) {
 /** Wix's events, each marked with the desk event it already belongs to. */
 async function showWixEvents() {
   if (!wixConfigured()) return fail("Wix is not connected on this site. Set WIX_API_KEY and WIX_SITE_ID.", 409);
-  const [wixEvents, deskEvents] = await Promise.all([listWixEvents(), listEvents()]);
+  const [wixEvents, deskEvents] = await Promise.all([listAllWixEvents(), listEvents()]);
   const linkedTo = new Map(deskEvents.flatMap((e) => linksOf(e).map((l) => [l.eventId, { id: e.id, title: e.title }])));
   return json({ events: wixEvents.map((e) => ({ ...e, linkedTo: linkedTo.get(e.id) ?? null })) });
 }
@@ -97,10 +97,10 @@ async function link(event, wixEventId) {
   if (!wixEventId) return fail("Which Wix event?");
   const taken = (await listEvents()).find((e) => e.id !== event.id && linksOf(e).some((l) => l.eventId === wixEventId));
   if (taken) return fail(`That Wix event is already linked to ${taken.title}.`, 409);
-  const match = (await listWixEvents()).find((e) => e.id === wixEventId);
+  const match = (await listAllWixEvents()).find((e) => e.id === wixEventId);
   if (!match) return fail("That event is not on the Wix site.", 404);
 
-  event.wix = { eventId: match.id, title: match.title, url: match.url, linkedAt: new Date().toISOString() };
+  event.wix = { eventId: match.id, title: match.title, url: match.url, site: match.site, linkedAt: new Date().toISOString() };
   await putEvent(event);
   // Linking is the moment to fetch, so the list is not empty until tomorrow.
   return syncOne(event);
@@ -116,9 +116,9 @@ async function linkAlso(event, wixEventId, group) {
   if (linksOf(event).some((l) => l.eventId === wixEventId)) return fail("That Wix event is already linked here.", 409);
   const taken = (await listEvents()).find((e) => e.id !== event.id && linksOf(e).some((l) => l.eventId === wixEventId));
   if (taken) return fail(`That Wix event is already linked to ${taken.title}.`, 409);
-  const match = (await listWixEvents()).find((e) => e.id === wixEventId);
+  const match = (await listAllWixEvents()).find((e) => e.id === wixEventId);
   if (!match) return fail("That event is not on the Wix site.", 404);
-  event.wixMore = [...(event.wixMore ?? []), { eventId: match.id, title: match.title, url: match.url, group, linkedAt: new Date().toISOString() }];
+  event.wixMore = [...(event.wixMore ?? []), { eventId: match.id, title: match.title, url: match.url, site: match.site, siteName: match.siteName, group, linkedAt: new Date().toISOString() }];
   await putEvent(event);
   return syncOne(event);
 }
@@ -141,7 +141,7 @@ async function syncOne(event) {
   const total = { read: 0, added: 0, changed: 0, withdrawn: 0 };
   let counts = null;
   for (const l of linksOf(event)) {
-    const out = await absorb(event.id, attendeesOf(await listWixGuests({ eventId: l.eventId, type: null })), event, l);
+    const out = await absorb(event.id, attendeesOf(await listWixGuests({ eventId: l.eventId, type: null, site: l.site })), event, l);
     for (const k of Object.keys(total)) total[k] += out[k];
     counts = out.counts;
   }
@@ -212,7 +212,7 @@ const sweep = async () => json(await sweepWix());
 async function importEvent(wixEventId) {
   if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
   if (!wixEventId) return fail("Which Wix event?");
-  const match = (await listWixEvents()).find((e) => e.id === wixEventId);
+  const match = (await listAllWixEvents()).find((e) => e.id === wixEventId);
   if (!match) return fail("That event is not on the Wix site.", 404);
   if (!match.dayOne) return fail(`"${match.title}" has no start date on Wix, so there is nothing to build an event from.`);
   const already = (await listEvents()).find((e) => linksOf(e).some((l) => l.eventId === wixEventId));
@@ -236,12 +236,12 @@ async function importEvent(wixEventId) {
     contact: { name: "", email: "", phone: "" },
     tasks: await starterTasks(match.title),
     attendeeMail: false,  // off until Andrew switches it on at the top of the event
-    wix: { eventId: match.id, title: match.title, url: match.url, linkedAt: new Date().toISOString() },
+    wix: { eventId: match.id, title: match.title, url: match.url, site: match.site, linkedAt: new Date().toISOString() },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
   await putEvent(event);
-  const guests = attendeesOf(await listWixGuests({ eventId: match.id, type: null }));
+  const guests = attendeesOf(await listWixGuests({ eventId: match.id, type: null, site: match.site }));
   const out = await absorb(event.id, guests);
   return json({ ok: true, event, ...out,
     next: "Open the event and pick a board member as the lead — nothing is sent until there is one." }, 201);
