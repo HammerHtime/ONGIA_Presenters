@@ -66,11 +66,24 @@ ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
 const trial = (await call("event=ngs&preview=1", { method: "POST", body: { subject: "Two quick questions", body: "Hello {first},\n\nShort and sweet." } })).body;
 ok("the preview shows words being edited, before they are saved", trial.subject === "Two quick questions" && /Short and sweet/.test(trial.text) && (await getEvent("ngs")).reply.subject !== "Two quick questions");
 ok("and checks them the same way: a typo in a blank is caught", /not a blank the desk knows/.test((await call("event=ngs&preview=1", { method: "POST", body: { body: "Hello {frist}" } })).body.problems.join(" ")));
-const test = (await call("event=ngs&test=1", { method: "POST", body: { to: "president@ongia.ca" } })).body;
+const asAndrew = { "x-admin-key": issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), "content-type": "application/json" };
+const test = (await call("event=ngs&test=1", { method: "POST", body: { to: "president@ongia.ca" }, headers: asAndrew })).body;
 ok("a test goes to one address, marked TEST", test.ok && sent.length === 1 && sent[0].to.includes("president@ongia.ca") && /^TEST: /.test(sent[0].subject));
 const testLink = sent[0].html.match(/\/q\/[A-Za-z0-9_-]+\/([a-f0-9]{16})/);
 const testYou = testLink ? (await call(`t=${tok}&p=${testLink[1]}`)).body.you : null;
-ok("the test email's button fills in the form as the person who sent it, with ONGIA", testYou && testYou.email === "president@ongia.ca" && testYou.organization === undefined && testYou.agency === "ONGIA", JSON.stringify(testYou));
+const multi = (await call("event=ngs&test=1", { method: "POST", body: { to: "a@example.ca, colleague@example.ca" } })).body;
+const toAnn = sent.find((m) => m.subject.startsWith("TEST") && String(m.to).includes("a@example.ca"));
+const annPid = toAnn?.html.match(/\/q\/[A-Za-z0-9_-]+\/([a-f0-9]{16})/)?.[1];
+const annYou = annPid ? (await call(`t=${tok}&p=${annPid}`)).body.you : null;
+const toCol = sent.find((m) => m.subject.startsWith("TEST") && String(m.to).includes("colleague@example.ca"));
+const colYou = (await call(`t=${tok}&p=${toCol?.html.match(/\/q\/[A-Za-z0-9_-]+\/([a-f0-9]{16})/)?.[1]}`)).body.you;
+ok("a test can go to several addresses at once", multi.ok && multi.to === "a@example.ca, colleague@example.ca", JSON.stringify(multi));
+ok("a test to someone registered fills in their real registration", annYou?.first === "Ann" && annYou?.email === "a@example.ca", JSON.stringify(annYou));
+ok("a test to anyone else fills in their address", colYou?.email === "colleague@example.ca" && !colYou.first, JSON.stringify(colYou));
+ok("test people are never counted as attendees", (await call("event=ngs")).body.status.reaches === 2);
+ok("more than five test addresses, or a bad one, is refused", (await call("event=ngs&test=1", { method: "POST", body: { to: "a@x.ca,b@x.ca,c@x.ca,d@x.ca,e@x.ca,f@x.ca" } })).status === 400 && (await call("event=ngs&test=1", { method: "POST", body: { to: "not-an-address" } })).status === 400);
+sent.length = 1;
+ok("the test email's button fills in the form as the person who sent it, with ONGIA", testYou && testYou.first === "Andrew" && testYou.last === "Hammond" && testYou.email === "president@ongia.ca" && testYou.agency === "ONGIA", JSON.stringify(testYou));
 sent.length = 0;
 
 /* sending */

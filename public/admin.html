@@ -4273,7 +4273,11 @@ function renderReplyCard(ev, R) {
     <div class="actions" style="margin-top:14px;flex-wrap:wrap">
       <button class="btn btn-gold" id="rp-save">Save</button>
       <button class="btn btn-ghost" id="rp-preview">See the email</button>
-      <button class="btn btn-ghost" id="rp-test">Send me a test</button></div>
+      </div>
+    <div class="row2" style="margin-top:12px;align-items:end"><div class="field" style="margin:0"><label for="rp-testto">Send a test to</label>
+        <input id="rp-testto" type="text" inputmode="email" value="${esc(WHO?.email ?? "")}" placeholder="you@ongia.ca, someone@ongia.ca">
+        <p class="hint" style="margin:6px 0 0">One or more addresses, separated by commas. Someone registered gets their own form filled in; anyone else gets their address filled in.</p></div>
+      <div><button class="btn btn-ghost" id="rp-test">Send a test</button></div></div>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || (sent && st.had >= st.reaches) ? " disabled" : ""}>${sent ? (st.had >= st.reaches ? "Everyone registered has had it" : `Send to the ${st.reaches - st.had} who haven't had it`) : `Send to ${st.reaches} registered`}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first.</span></div>
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
@@ -4351,7 +4355,7 @@ function renderReplyCard(ev, R) {
   };
   $("rp-test").onclick = async (e) => {
     const done = busy(e.target, "Sending…");
-    try { await save(); const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&test=1`, { method: "POST", body: "{}" }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); }
+    try { await save(); const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&test=1`, { method: "POST", body: JSON.stringify({ to: $("rp-testto").value }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); }
     done();
   };
   box.querySelectorAll("[data-rpsheet]").forEach((b) => { b.onclick = async () => {
