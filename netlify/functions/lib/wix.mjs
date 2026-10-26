@@ -130,6 +130,20 @@ function guestNamesOf(g) {
   return [...direct, ...fromForm].map((x) => String(x ?? "").trim()).filter((x) => x && !/^\d+$/.test(x));
 }
 
+/**
+ * The agency someone gave on the Wix registration form, when the form asks for one (Andrew 26 Oct 2026: so the
+ * housekeeping form can fill it in for them). Wix names each field on the form; any field whose name reads like
+ * agency, organization, company, employer or service counts. Empty when the form does not ask.
+ */
+export function organizationOf(g) {
+  const d = g.guestDetails ?? {};
+  const fields = [...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])];
+  const hit = fields.find((v) => /agenc|organi[sz]ation|company|employer|service|department|affiliation|^org$/i.test(`${v.inputName ?? ""} ${v.label ?? ""}`)
+    && !/guest|e-?mail|phone/i.test(v.inputName ?? ""));
+  const value = hit ? (hit.value ?? (Array.isArray(hit.values) ? hit.values[0] : "")) : "";
+  return String(value ?? "").trim().slice(0, 200);
+}
+
 /** One guest, reduced to a person the desk can write to. */
 function tidyGuest(g) {
   const d = g.guestDetails ?? {};
@@ -143,6 +157,7 @@ function tidyGuest(g) {
     last: (d.lastName ?? "").trim(),
     email: (d.email ?? "").trim().toLowerCase(),
     phone: (d.phone ?? "").trim(),
+    organization: organizationOf(g),
     // Wix carries the RSVP's own yes/no/waitlist as well as a rolled-up
     // attendance status. The rolled-up one is what the desk acts on.
     status: g.attendanceStatus ?? "",

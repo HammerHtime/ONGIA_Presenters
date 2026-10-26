@@ -50,7 +50,11 @@ export default async (req) => {
     const body = await req.json().catch(() => ({}));
     if (url.searchParams.get("add")) return addByHand(event, body);
     if (url.searchParams.get("wording")) { event.reply = { ...event.reply, ...suggestedWording(event, event.reply.socials ?? []) }; await putEvent(event); return show(event); }
-    if (url.searchParams.get("preview")) return json({ ...renderReply(event, { first: "Alex" }), problems: replyProblems(event) });
+    if (url.searchParams.get("preview")) {
+      // The words being edited in the preview window, not saved yet: shown as they would go, checked the same way.
+      const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel }, event.reply) };
+      return json({ ...renderReply(trial, { first: "Alex" }), problems: replyProblems(trial) });
+    }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 200), adminWho(req));
     if (url.searchParams.get("send")) return sendNow(event, adminWho(req));
   }

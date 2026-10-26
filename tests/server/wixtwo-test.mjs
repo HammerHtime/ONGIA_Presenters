@@ -7,7 +7,8 @@ const guests = {
   justice: [["j1", "Jay", "Justice", "jay@example.ca"], ["j2", "Kim", "Court", "kim@example.ca"]],
   community: [["c1", "Cam", "Community", "cam@example.ca"], ["c2", "Dee", "Both", "kim@example.ca"]],   // shares an address with a justice partner
 };
-const wixGuest = (ev, [id, first, last, email]) => ({ id, eventId: ev, guestType: "RSVP", attendanceStatus: "ATTENDING", totalGuests: 1, guestDetails: { firstName: first, lastName: last, email } });
+const wixGuest = (ev, [id, first, last, email]) => ({ id, eventId: ev, guestType: "RSVP", attendanceStatus: "ATTENDING", totalGuests: 1,
+  guestDetails: { firstName: first, lastName: last, email, formResponse: { inputValues: [{ inputName: "email", value: email }, { inputName: ev === "justice" ? "agency_name" : "Organization", value: `${last} Agency` }] } } });
 globalThis.fetch = async (url, init) => {
   const body = JSON.parse(init.body ?? "{}");
   if (String(url).endsWith("/events/v3/events/query")) return Response.json({ events: [
@@ -39,6 +40,7 @@ let people = (await getAttendees("ngs")).people;
 ok("everyone from both Wix events is on the one list", people.filter((p) => p.status === "ATTENDING").length === 4);
 ok("the community partners are labelled, the justice partners are not", people.filter((p) => p.group === "Community partners").map((p) => p.first).sort().join() === "Cam,Dee" && !people.find((p) => p.first === "Jay").group);
 ok("two people at one address (one from each Wix event) get one letter", writeableTo(people).length === 3);
+ok("the agency someone gave on the Wix form comes across, so the housekeeping form can fill it in", people.find((p) => p.first === "Jay").organization === "Justice Agency" && people.find((p) => p.first === "Cam").organization === "Community Agency");
 ok("a Wix event linked here cannot be linked to another desk event", await (async () => { await putEvent({ id: "other", title: "Other", city: "X", dayOne: "2026-12-01", board: [] }); return (await put("event=other&link=community")).status === 409; })());
 
 // Someone cancels on the community side only.

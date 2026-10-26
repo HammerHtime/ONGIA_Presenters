@@ -112,6 +112,11 @@
   .rpbox{border:1px solid var(--edge);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
   .rpsoc{border:1px solid var(--edge);border-radius:12px;padding:12px;margin:12px 0 0}
   .rpall summary{cursor:pointer;margin:4px 0 10px}
+  dialog.sheet.rpdlg{max-width:1100px;width:calc(100% - 24px)}
+  .rpedit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+  .rpedit textarea{min-height:420px}
+  .rpedit .lprev iframe{height:620px}
+  @media(max-width:820px){.rpedit{grid-template-columns:1fr}.rpedit textarea{min-height:240px}.rpedit .lprev iframe{height:520px}}
   .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
   dialog.sheet{border:1.5px solid var(--edge);border-radius:16px;background:var(--card);color:var(--ink);
                padding:0;width:min(520px,calc(100vw - 28px));box-shadow:0 24px 60px rgba(0,0,0,.28)}
@@ -4269,10 +4274,15 @@ function renderReplyCard(ev, R) {
       <button class="btn btn-ghost" id="rp-test">Send me a test</button></div>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || (sent && st.had >= st.reaches) ? " disabled" : ""}>${sent ? (st.had >= st.reaches ? "Everyone registered has had it" : `Send to the ${st.reaches - st.had} who haven't had it`) : `Send to ${st.reaches} registered`}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first.</span></div>
-    <dialog class="sheet" id="rpdlg" style="max-width:640px;width:calc(100% - 24px)"><form method="dialog">
-      <div class="sheet-head"><h2 id="rpdlg-h">The email</h2><p class="hint" id="rpdlg-sub" style="margin-top:6px"></p></div>
-      <div class="sheet-body"><div class="lprev"><iframe id="rp-frame" title="The email as attendees will see it" sandbox=""></iframe></div>
-        <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
+    <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
+      <div class="sheet-head"><h2>The email</h2><p class="hint" style="margin-top:6px">Change the words and the email follows as you type, as Alex, an attendee, would see it. Nothing is kept until you save.</p></div>
+      <div class="sheet-body"><div class="rpedit">
+        <div><div class="field" style="margin-top:0"><label for="rpd-subject">Subject</label><input id="rpd-subject" maxlength="200"></div>
+          <div class="field"><label for="rpd-body">The letter</label><textarea id="rpd-body" spellcheck="true"></textarea></div>
+          <div class="field"><label for="rpd-button">Button words</label><input id="rpd-button" maxlength="60"></div>
+          <div id="rpd-problem"></div></div>
+        <div class="lprev"><iframe id="rp-frame" title="The email as attendees will see it" sandbox=""></iframe></div></div>
+        <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="rpd-save" value="save">Save these words</button><button class="btn btn-ghost" value="close">Close without saving</button></div></div></form></dialog>`;
 
   const $ = (id) => document.getElementById(id);
   const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
@@ -4309,11 +4319,33 @@ function renderReplyCard(ev, R) {
   };
   $("rp-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderReplyCard(ev, await save()); toast("Saved."); } catch (x) { toast(x.message); done(); } };
   if ($("rp-addsoc")) $("rp-addsoc").onclick = () => { const r2 = { ...R, reply: { ...R.reply, ...body() } }; r2.reply.socials = [...r2.reply.socials, { date: "", label: "", labelFr: "" }]; renderReplyCard(ev, r2); };
+  // The preview window edits too (Andrew 26 Oct 2026): words on the left, the email redrawn as they type.
+  let previewTimer = null, previewSeq = 0;
+  const drawPreview = async () => {
+    const seq = ++previewSeq;
+    try {
+      const pv = await api(`/reply?event=${encodeURIComponent(ev.id)}&preview=1`, { method: "POST", body: JSON.stringify({ subject: $("rpd-subject").value, body: $("rpd-body").value, buttonLabel: $("rpd-button").value }) });
+      if (seq !== previewSeq) return;   // a later keystroke has its own preview coming
+      $("rp-frame").srcdoc = pv.html;
+      $("rpd-problem").innerHTML = pv.problems.length ? `<div class="bad" style="margin-top:10px">${esc(pv.problems[0])}</div>` : "";
+    } catch (x) { $("rpd-problem").innerHTML = `<div class="bad" style="margin-top:10px">${esc(x.message)}</div>`; }
+  };
+  ["rpd-subject", "rpd-body", "rpd-button"].forEach((id) => { $(id).oninput = () => { clearTimeout(previewTimer); previewTimer = setTimeout(drawPreview, 400); }; });
   $("rp-preview").onclick = async (e) => {
     const done = busy(e.target, "Opening…");
-    try { await save(); const pv = await api(`/reply?event=${encodeURIComponent(ev.id)}&preview=1`, { method: "POST", body: "{}" }); $("rpdlg-h").textContent = pv.subject; $("rpdlg-sub").textContent = "As Alex, an attendee, would see it."; $("rp-frame").srcdoc = pv.html; $("rpdlg").showModal(); }
-    catch (x) { toast(x.message); }
+    try {
+      await save();
+      $("rpd-subject").value = $("rp-subject").value; $("rpd-body").value = $("rp-body").value; $("rpd-button").value = $("rp-button").value;
+      await drawPreview();
+      $("rpdlg").showModal();
+    } catch (x) { toast(x.message); }
     done();
+  };
+  $("rpdlg").onclose = async () => {
+    clearTimeout(previewTimer);
+    if ($("rpdlg").returnValue !== "save") return;
+    $("rp-subject").value = $("rpd-subject").value; $("rp-body").value = $("rpd-body").value; $("rp-button").value = $("rpd-button").value;
+    try { renderReplyCard(ev, await save()); toast("Saved. That is the email that will go."); } catch (x) { toast(x.message); }
   };
   $("rp-test").onclick = async (e) => {
     const done = busy(e.target, "Sending…");

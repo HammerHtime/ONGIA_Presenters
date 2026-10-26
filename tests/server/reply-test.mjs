@@ -63,6 +63,9 @@ ok("the email speaks to the community partners on the 10th and 11th too", /full 
 ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking social, followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Social at the hotel, with a live band/.test(pv.text), pv.text);
 ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Answer the questions/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
+const trial = (await call("event=ngs&preview=1", { method: "POST", body: { subject: "Two quick questions", body: "Hello {first},\n\nShort and sweet." } })).body;
+ok("the preview shows words being edited, before they are saved", trial.subject === "Two quick questions" && /Short and sweet/.test(trial.text) && (await getEvent("ngs")).reply.subject !== "Two quick questions");
+ok("and checks them the same way: a typo in a blank is caught", /not a blank the desk knows/.test((await call("event=ngs&preview=1", { method: "POST", body: { body: "Hello {frist}" } })).body.problems.join(" ")));
 const test = (await call("event=ngs&test=1", { method: "POST", body: { to: "president@ongia.ca" } })).body;
 ok("a test goes to one address, marked TEST", test.ok && sent.length === 1 && sent[0].to.includes("president@ongia.ca") && /^TEST: /.test(sent[0].subject));
 sent.length = 0;
