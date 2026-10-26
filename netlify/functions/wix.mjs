@@ -87,9 +87,10 @@ async function countGuests(wixEventId) {
 /** Wix's events, each marked with the desk event it already belongs to. */
 async function showWixEvents() {
   if (!wixConfigured()) return fail("Wix is not connected on this site. Set WIX_API_KEY and WIX_SITE_ID.", 409);
-  const [wixEvents, deskEvents] = await Promise.all([listAllWixEvents(), listEvents()]);
+  const problems = [];
+  const [wixEvents, deskEvents] = await Promise.all([listAllWixEvents({ problems }), listEvents()]);
   const linkedTo = new Map(deskEvents.flatMap((e) => linksOf(e).map((l) => [l.eventId, { id: e.id, title: e.title }])));
-  return json({ events: wixEvents.map((e) => ({ ...e, linkedTo: linkedTo.get(e.id) ?? null })) });
+  return json({ events: wixEvents.map((e) => ({ ...e, linkedTo: linkedTo.get(e.id) ?? null })), problems, sites: wixSites().map((x) => x.name) });
 }
 
 async function link(event, wixEventId) {

@@ -136,12 +136,23 @@ export async function listWixEvents({ limit = 100, site = "1" } = {}) {
   return (out.events ?? []).map((e) => ({ ...tidyEvent(e), site: String(site), siteName: name }));
 }
 
-/** Every site's events together; one site that will not answer does not hide the others. */
-export async function listAllWixEvents() {
+/**
+ * Every site's events together. A second site that will not answer does not hide the first site's events, but it is
+ * said, not swallowed (Andrew 26 Oct 2026: "can't see the second wix site", with nothing to say why).
+ */
+export async function listAllWixEvents({ problems = [] } = {}) {
   const out = [];
   for (const s of wixSites()) {
-    try { out.push(...(await listWixEvents({ site: s.n }))); }
-    catch (e) { if (s.n === "1") throw e; }
+    try {
+      const got = await listWixEvents({ site: s.n });
+      if (s.n !== "1" && !got.length) problems.push(`Wix answered for ${s.name} but listed no events. An event still in draft on that site is not listed; publish it in Wix first.`);
+      out.push(...got);
+    } catch (e) {
+      if (s.n === "1") throw e;
+      problems.push(e.status === 401 || e.status === 403
+        ? `Wix refused the key for ${s.name}. In Wix: Account Settings, API Keys, open the key the desk uses, tick that site (with Read Events and Read Guest List), save, then try again.`
+        : `Could not read ${s.name}: ${e.message}`);
+    }
   }
   return out;
 }
