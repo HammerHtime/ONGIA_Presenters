@@ -313,8 +313,18 @@ export async function wixHealth() {
   if (shape) return { ok: false, reason: shape };
   try {
     const events = await listWixEvents({ limit: 1 });
-    return { ok: true, events: events.length, sample: events[0]?.title ?? "" };
+    return { ok: true, events: events.length, sample: events[0]?.title ?? "", sites: await secondSites() };
   } catch (e) {
     return { ok: false, reason: e.message, status: e.status ?? null };
   }
+}
+
+/** Whether each extra Wix site (WIX_SITE_ID_2) answers with the key it uses: a refusal usually means the key was made for ongia.org only. */
+async function secondSites() {
+  const out = [];
+  for (const s of wixSites().filter((x) => x.n !== "1")) {
+    try { const ev = await listWixEvents({ limit: 1, site: s.n }); out.push({ name: s.name, ok: true, sample: ev[0]?.title ?? "" }); }
+    catch (e) { out.push({ name: s.name, ok: false, reason: e.status === 401 || e.status === 403 ? `Wix refused the key for ${s.name}. In Wix: Account Settings, API Keys, open the key the desk uses, tick that site, save.` : e.message }); }
+  }
+  return out;
 }
