@@ -18,3 +18,16 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
   and the page calls again until everyone is sent. After that, the nightly run sends it to anyone who registers
   later, up to the reply-by date, while automatic attendee emails are on.
 - Each answer is its own record (reply:<eventId>:<id>), so two people answering at once never overwrite each other.
+
+## 26 Oct 2026, second round (Andrew)
+- Food allergies on every event; the socials only on the National Gang Summit (title match). An event with no socials
+  sends a one-question email and has no socials list.
+- The form opens with "Do you have a food allergy, intolerance or dietary need?" Yes / No (required). Yes shows the box.
+- Each person's email carries their own link (/q/<token>/<id>, id = sha256(token:attendee key)), which fills in their
+  name, email and agency (when the desk has it; Wix does not send agency) and anything they already answered.
+- People who told Andrew before the form: "Add someone by hand", or "Add from your spreadsheet" (his hotel-layout
+  .xlsx). They go on the dietary list only. Someone on both is listed once, with the latest answer and the sheet's table.
+- The Summit email speaks to community partners (Nov 10–11) as well as full-Summit attendees.
+- Community partners register on a separate Wix event. Decision: link it to the same desk event ("Also pull a second
+  Wix event"), labelled "Community partners", rather than a one-off CSV, so later registrations arrive nightly. Each
+  pull only withdraws people from its own Wix event.

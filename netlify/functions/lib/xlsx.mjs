@@ -1,4 +1,4 @@
-import { makeZip } from "./zip.mjs";
+import { makeZip, readZip } from "./zip.mjs";
 
 /**
  * A small Excel (.xlsx) writer for the lists Andrew prints or sends on: one sheet, a title, a line under it, a grey
@@ -72,4 +72,36 @@ export function xlsx({ title, subtitle = "", columns, rows, footer = [], landsca
     { name: "xl/worksheets/sheet1.xml", data: sheetXml },
   ];
   return makeZip(files.map((f) => ({ name: f.name, data: Buffer.from(f.data, "utf8") })));
+}
+
+/**
+ * The first sheet of an .xlsx someone uploads, as rows of plain values (text or numbers; empty cells are ""). Enough
+ * for a list like the dietary sheet; formulas come back as their saved result.
+ */
+export function readXlsx(bytes) {
+  const files = new Map(readZip(Buffer.from(bytes)).map((f) => [f.name, f.data.toString("utf8")]));
+  const un = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&amp;/g, "&");
+  const texts = (xml) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => un(m[1])).join("");
+  const shared = [...(files.get("xl/sharedStrings.xml") ?? "").matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => texts(m[1]));
+  const rels = files.get("xl/_rels/workbook.xml.rels") ?? "";
+  const firstId = (files.get("xl/workbook.xml") ?? "").match(/<sheet\b[^>]*r:id="([^"]+)"/)?.[1];
+  const target = firstId ? rels.match(new RegExp(`Id="${firstId}"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Id="${firstId}"`)) : null;
+  const sheetPath = target ? `xl/${(target[1] ?? target[2]).replace(/^\/?xl\//, "")}` : "xl/worksheets/sheet1.xml";
+  const sheet = files.get(sheetPath) ?? files.get("xl/worksheets/sheet1.xml");
+  if (!sheet) throw new Error("That file has no sheet in it.");
+  const colOf = (ref) => [...ref.replace(/\d+$/, "")].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+  const rows = [];
+  for (const [, attrs, body] of sheet.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+    const r = Number(attrs.match(/\br="(\d+)"/)?.[1] ?? rows.length + 1) - 1;
+    const row = [];
+    for (const [, cattrs, inner] of body.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const ref = cattrs.match(/\br="([A-Z]+\d+)"/)?.[1];
+      const type = cattrs.match(/\bt="([^"]+)"/)?.[1];
+      const v = inner?.match(/<v>([\s\S]*?)<\/v>/)?.[1];
+      const value = type === "s" ? shared[Number(v)] ?? "" : type === "inlineStr" ? texts(inner ?? "") : v === undefined ? "" : type === "str" || type === "b" ? un(v) : Number.isFinite(Number(v)) ? Number(v) : un(v);
+      row[ref ? colOf(ref) : row.length] = value;
+    }
+    rows[r] = Array.from(row, (x) => x ?? "");
+  }
+  return Array.from(rows, (x) => x ?? []);
 }

@@ -1,6 +1,7 @@
 import { formatDate } from "./deadlines.mjs";
 import { layout, coordinatorOf } from "./mail.mjs";
 import { fitsTitle } from "./titles.mjs";
+import { createHash } from "node:crypto";
 import { siteUrl } from "./site.mjs";
 
 /**
@@ -32,7 +33,8 @@ export const BLANKS = {
   rate:       { means: "the room rate", from: (e) => e.hotel?.rate },
   surveyLink: { means: "the survey link for this event", from: (e) => e.surveyLink, link: true },
   // The housekeeping questions (Andrew 26 Oct 2026): the form's address, its reply-by date, and the socials it asks about.
-  replyLink:  { means: "the link to this event's housekeeping questions (food allergies, socials)", from: (e) => (e.reply?.token && siteUrl() ? `${siteUrl()}/q/${e.reply.token}` : ""), link: true },
+  // Each person's own link opens the form with their name and email already filled in.
+  replyLink:  { means: "the link to this event's housekeeping questions (food allergies, socials)", from: (e, p) => (e.reply?.token && siteUrl() ? `${siteUrl()}/q/${e.reply.token}${p && (p.key || p.email) ? `/${personalId(e.reply.token, p)}` : ""}` : ""), link: true },
   replyBy:    { means: "the date to answer the housekeeping questions by, e.g. Friday, October 30", from: (e) => longDate(e.reply?.replyBy) },
   social1:    { means: "the first social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 0) },
   social2:    { means: "the second social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 1) },
@@ -40,6 +42,12 @@ export const BLANKS = {
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * The part of a person's own form link that says who they are: not guessable from the form's address alone, and the
+ * same every time, so the link in their email keeps working.
+ */
+export const personalId = (token, person) => createHash("sha256").update(`${token}:${person.key || person.email}`).digest("hex").slice(0, 16);
 
 /** "2026-10-30" → "Friday, October 30". */
 function longDate(iso) {
