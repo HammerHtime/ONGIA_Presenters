@@ -86,6 +86,26 @@ sent.length = 1;
 ok("the test email's button fills in the form as the person who sent it, with ONGIA", testYou && testYou.first === "Andrew" && testYou.last === "Hammond" && testYou.email === "president@ongia.ca" && testYou.agency === "ONGIA", JSON.stringify(testYou));
 sent.length = 0;
 
+/* nobody who has already told us is emailed: an answer, or Andrew's sheet matched by name (26 Oct 2026) */
+{
+  await putEvent({ id: "ngs2", title: "National Gang Summit", city: "Toronto, ON", venue: "Sample Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true, contact: { name: "Andrew Hammond", email: "president@ongia.ca" } });
+  await putAttendees("ngs2", { people: [person("x1@example.ca", "Xena", "Asked"), person("x2@example.ca", "Ryan", "Sheet"), person("x3@example.ca", "Ola", "Formed"), person("x4@example.ca", "Ned", "New")] });
+  const set2 = (await call("event=ngs2", { method: "PUT", body: { replyBy: "2026-10-30" } })).body;
+  const tok2 = set2.link.split("/q/")[1];
+  await call("event=ngs2&add=1", { method: "POST", body: { first: "Ryan", last: "Sheet", dietary: "Allergic to shrimp" } });          // on Andrew's sheet, no email
+  await call(`t=${tok2}`, { method: "POST", body: { first: "Ola", last: "Formed", agency: "OPP", email: "x3@example.ca", allergy: "no", socials: { s1: "yes", s2: "yes" } } });   // answered already
+  const st2 = (await call("event=ngs2")).body.status;
+  ok("the send count leaves out people who already told us (2 of 4)", st2.toSend === 2 && st2.alreadyTold === 2, JSON.stringify(st2));
+  const before2 = sent.length;
+  await call("event=ngs2&send=1", { method: "POST", body: {} });
+  const to2 = sent.slice(before2).map((m) => String(m.to)).sort();
+  ok("the email skips someone on Andrew's sheet (matched by name) and someone who already answered", to2.join() === "x1@example.ca,x4@example.ca", to2.join());
+  const b3 = sent.length;
+  await runLetterRounds([await getEvent("ngs2")], { today: "2026-10-28", pace: async () => {} });
+  ok("and so do the reminders", sent.slice(b3).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to)).sort().join() === "x1@example.ca,x4@example.ca");
+  sent.length = before2;
+}
+
 /* sending */
 const s1 = (await call("event=ngs&send=1", { method: "POST", body: {} })).body;
 ok("it goes once to each registered address that is coming (2: Ann, and Ben's registration with his guest)", s1.sent === 2 && sent.map((m) => m.to).flat().sort().join() === "a@example.ca,b@example.ca", JSON.stringify(s1));
