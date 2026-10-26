@@ -4278,6 +4278,12 @@ function renderReplyCard(ev, R) {
         <input id="rp-testto" type="text" inputmode="email" value="${esc(WHO?.email ?? "")}" placeholder="you@ongia.ca, someone@ongia.ca">
         <p class="hint" style="margin:6px 0 0">One or more addresses, separated by commas. Someone registered gets their own form filled in; anyone else gets their address filled in.</p></div>
       <div><button class="btn btn-ghost" id="rp-test">Send a test</button></div></div>
+    <h3 class="wsh">Reminders</h3>
+    <p class="hint" style="margin:0 0 8px">At about 10 AM Eastern on each date, the same email goes again, marked as a reminder, to everyone who had it and hasn't answered yet. Leave a date empty to skip it.</p>
+    <div class="row2">${[0, 1].map((i) => { const d = (st.reminders ?? [])[i]; return `<div class="field" style="margin:0"><label for="rp-rem${i}">Reminder ${i + 1}</label><input type="date" id="rp-rem${i}" value="${esc(d?.date ?? "")}">${d?.round ? `<p class="hint" style="margin:6px 0 0">Sent to ${d.round.sent}${d.round.failed ? `, ${d.round.failed} could not be sent` : ""}.</p>` : ""}</div>`; }).join("")}</div>
+    ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
+    ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications.</div>` : ""}
+    <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || (sent && st.had >= st.reaches) ? " disabled" : ""}>${sent ? (st.had >= st.reaches ? "Everyone registered has had it" : `Send to the ${st.reaches - st.had} who haven't had it`) : `Send to ${st.reaches} registered`}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first.</span></div>
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
@@ -4292,7 +4298,8 @@ function renderReplyCard(ev, R) {
 
   const $ = (id) => document.getElementById(id);
   const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
-  const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value });
+  const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value,
+    reminders: [$("rp-rem0").value, $("rp-rem1").value].filter(Boolean) });
   const save = async () => { const out = await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body()) }); return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
   $("rp-addone").onclick = () => { $("rp-addform").hidden = false; $("rpa-first").focus(); };
@@ -4326,19 +4333,21 @@ function renderReplyCard(ev, R) {
   $("rp-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderReplyCard(ev, await save()); toast("Saved."); } catch (x) { toast(x.message); done(); } };
   if ($("rp-addsoc")) $("rp-addsoc").onclick = () => { const r2 = { ...R, reply: { ...R.reply, ...body() } }; r2.reply.socials = [...r2.reply.socials, { date: "", label: "", labelFr: "" }]; renderReplyCard(ev, r2); };
   // The preview window edits too (Andrew 26 Oct 2026): words on the left, the email redrawn as they type.
-  let previewTimer = null, previewSeq = 0;
+  let previewTimer = null, previewSeq = 0, previewReminder = false;
   const drawPreview = async () => {
     const seq = ++previewSeq;
     try {
-      const pv = await api(`/reply?event=${encodeURIComponent(ev.id)}&preview=1`, { method: "POST", body: JSON.stringify({ subject: $("rpd-subject").value, body: $("rpd-body").value, buttonLabel: $("rpd-button").value }) });
+      const pv = await api(`/reply?event=${encodeURIComponent(ev.id)}&preview=1${previewReminder ? "&reminder=1" : ""}`, { method: "POST", body: JSON.stringify({ subject: $("rpd-subject").value, body: $("rpd-body").value, buttonLabel: $("rpd-button").value }) });
       if (seq !== previewSeq) return;   // a later keystroke has its own preview coming
       $("rp-frame").srcdoc = pv.html;
-      $("rpd-problem").innerHTML = pv.problems.length ? `<div class="bad" style="margin-top:10px">${esc(pv.problems[0])}</div>` : "";
+      $("rpd-problem").innerHTML = (pv.problems.length ? `<div class="bad" style="margin-top:10px">${esc(pv.problems[0])}</div>` : "")
+        + (previewReminder ? `<div class="note" style="margin-top:10px">This is the reminder: the email with one line added at the top. Change the email's words here and the reminder follows them.</div>` : "");
     } catch (x) { $("rpd-problem").innerHTML = `<div class="bad" style="margin-top:10px">${esc(x.message)}</div>`; }
   };
   ["rpd-subject", "rpd-body", "rpd-button"].forEach((id) => { $(id).oninput = () => { clearTimeout(previewTimer); previewTimer = setTimeout(drawPreview, 400); }; });
   $("rp-preview").onclick = async (e) => {
     const done = busy(e.target, "Opening…");
+    previewReminder = false;
     try {
       await save();
       $("rpd-subject").value = $("rp-subject").value; $("rpd-body").value = $("rp-body").value; $("rpd-button").value = $("rp-button").value;
@@ -4352,6 +4361,17 @@ function renderReplyCard(ev, R) {
     if ($("rpdlg").returnValue !== "save") return;
     $("rp-subject").value = $("rpd-subject").value; $("rp-body").value = $("rpd-body").value; $("rp-button").value = $("rpd-button").value;
     try { renderReplyCard(ev, await save()); toast("Saved. That is the email that will go."); } catch (x) { toast(x.message); }
+  };
+  $("rp-seerem").onclick = async (e) => {
+    const done = busy(e.target, "Opening…");
+    previewReminder = true;
+    try {
+      await save();
+      $("rpd-subject").value = $("rp-subject").value; $("rpd-body").value = $("rp-body").value; $("rpd-button").value = $("rp-button").value;
+      await drawPreview();
+      $("rpdlg").showModal();
+    } catch (x) { toast(x.message); }
+    done();
   };
   $("rp-test").onclick = async (e) => {
     const done = busy(e.target, "Sending…");

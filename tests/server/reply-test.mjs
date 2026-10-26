@@ -97,10 +97,44 @@ ok("the card shows it reached everyone", st.had === 2 && st.reaches === 2, JSON.
 // Someone registers later: the next night catches them, up to the reply-by date.
 const people = (await getAttendees("ngs")).people; people.push(person("d@example.ca", "Dee", "Late")); await putAttendees("ngs", { ...(await getAttendees("ngs")), people });
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
-ok("someone who registers later gets it the next night", sent.length === 3 && String(sent[2].to).includes("d@example.ca"));
+const mains = () => sent.filter((m) => !/^Reminder:/.test(m.subject));
+ok("someone who registers later gets it the next night", mains().length === 3 && String(mains()[2].to).includes("d@example.ca"));
 people.push(person("e@example.ca", "Eve", "TooLate")); await putAttendees("ngs", { ...(await getAttendees("ngs")), people });
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-31", pace: async () => {} });
-ok("but not after the reply-by date", sent.length === 3);
+ok("but not after the reply-by date", mains().length === 3);
+
+/* reminders on Wednesday and Friday, to those who have not answered (Andrew 26 Oct 2026) */
+ok("reminders start on the Wednesday and the Friday (two days before the reply-by date, and the day itself)", JSON.stringify((await call("event=ngs")).body.status.reminders.map((r) => r.date)) === JSON.stringify(["2026-10-28", "2026-10-30"]));
+const remPv = (await call("event=ngs&preview=1&reminder=1", { method: "POST", body: {} })).body;
+ok("the reminder is the same email, marked as a reminder", /^Reminder: National Gang Summit/.test(remPv.subject) && /A quick reminder: we haven't had your answers yet/.test(remPv.text) && remPv.text.indexOf("A quick reminder") > remPv.text.indexOf("Hello Alex") && /Friday, October 30/.test(remPv.text), remPv.text.slice(0, 400));
+// Ann answers before Wednesday; Ben (and his guest) and Dee have not.
+await call(`t=${tok}`, { method: "POST", body: { first: "Ann", last: "One", agency: "TPS", email: "a@example.ca", allergy: "no", socials: { s1: "yes", s2: "no" } } });
+const n0 = sent.length;
+await runLetterRounds([await getEvent("ngs")], { today: "2026-10-27", pace: async () => {} });
+ok("no reminder on a day that isn't a reminder date (Eve, who registered late, gets the email itself that day)", !sent.slice(n0).some((m) => /^Reminder:/.test(m.subject)) && sent.slice(n0).some((m) => String(m.to).includes("e@example.ca")));
+await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
+const wed = sent.slice(n0).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to)).sort();
+ok("Wednesday's reminder goes to those who haven't answered, once per address, and not to Ann who has", wed.join() === "b@example.ca,d@example.ca,e@example.ca", wed.join());
+const n1 = sent.length;
+await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
+ok("running again the same day sends nobody a second reminder", sent.slice(n1).filter((m) => /^Reminder:/.test(m.subject)).length === 0);
+await call(`t=${tok}`, { method: "POST", body: { first: "Guest", last: "OfBen", agency: "OPP", email: "b@example.ca", allergy: "no", socials: { s1: "no", s2: "no" } } });
+const n2 = sent.length;
+await runLetterRounds([await getEvent("ngs")], { today: "2026-10-30", pace: async () => {} });
+const fri = sent.slice(n2).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to));
+ok("Friday's reminder skips an address where someone has now answered", fri.sort().join() === "d@example.ca,e@example.ca", fri.join());
+await call("event=ngs", { method: "PUT", body: { reminders: ["2026-10-29"] } });
+ok("the reminder dates can be changed on the event page", JSON.stringify((await call("event=ngs")).body.reply.reminders) === JSON.stringify(["2026-10-29"]));
+ok("and the page says how many still haven't answered", (await call("event=ngs")).body.status.stillToAnswer === 2);
+// Someone emailed for the first time in a run is not reminded in that same run.
+const fx = await getAttendees("ngs"); fx.people.push({ email: "f@example.ca", first: "Fay", last: "Fresh", status: "ATTENDING", source: "wix" }); await putAttendees("ngs", fx);
+await call("event=ngs", { method: "PUT", body: { reminders: ["2026-10-29"] } });
+const n3 = sent.length;
+await runLetterRounds([await getEvent("ngs")], { today: "2026-10-29", pace: async () => {} });
+const thu = sent.slice(n3);
+ok("someone registered late gets the email, and is not reminded straight after it in the same run", thu.some((m) => String(m.to).includes("f@example.ca") && !/^Reminder:/.test(m.subject)) && !thu.some((m) => String(m.to).includes("f@example.ca") && /^Reminder:/.test(m.subject)), thu.map((m) => m.to + " " + m.subject.slice(0, 9)).join(" | "));
+// The answers given here are cleared so the rest of the test starts as before.
+for (const a of (await call("event=ngs")).body.answers) await call(`event=ngs&answer=${a.id}`, { method: "DELETE" });
 
 /* the form */
 const form = (await call(`t=${tok}`)).body;

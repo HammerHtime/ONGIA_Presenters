@@ -5,7 +5,7 @@ import { checklistOf } from "./checklist.mjs";
 import { letterProblems, eventProblems, renderLetter, attachmentsFor } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
-import { sendReplyRound } from "./reply.mjs";
+import { sendReplyRound, sendReminderRound } from "./reply.mjs";
 
 /**
  * Sending the welcome letter and the survey.
@@ -134,8 +134,12 @@ export async function runLetterRounds(events, opts = {}) {
     // The housekeeping questions, once sent from the event page: anyone who registers afterwards gets them the next
     // night, up to the reply-by date. Only while automatic emails to attendees are on.
     if (event.reply?.sentAt && event.attendeeMail === true) {
-      try { out.push({ event: event.id, title: event.title, kind: "reply", ...(await sendReplyRound(event, opts)) }); }
+      let justSent = [];
+      try { const r = await sendReplyRound(event, opts); justSent = r.sentTo ?? []; out.push({ event: event.id, title: event.title, kind: "reply", ...r }); }
       catch (e) { out.push({ event: event.id, title: event.title, kind: "reply", error: e.message }); }
+      // Then today's reminder, if today is one of its dates, to those who have not answered (not to anyone just emailed).
+      try { out.push({ event: event.id, title: event.title, kind: "reply-reminder", ...(await sendReminderRound(event, { ...opts, justSent })) }); }
+      catch (e) { out.push({ event: event.id, title: event.title, kind: "reply-reminder", error: e.message }); }
     }
   }
   return out;
