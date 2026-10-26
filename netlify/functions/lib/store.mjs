@@ -322,6 +322,18 @@ export const putMeta = (key, value) => write(`meta:${key}`, value);
  * record is read on every screen in the desk.
  */
 export const getAttendees = (eventId) => read(`attendees:${eventId}`);
+/**
+ * Answers to an event's housekeeping questions (food allergies, socials), one record each under
+ * reply:<eventId>:<id>, so two people answering at the same moment never write over each other.
+ */
+export async function getReplies(eventId) {
+  const { blobs } = await store().list({ prefix: `reply:${eventId}:` });
+  const answers = (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean);
+  return { answers: answers.sort((a, b) => (a.at ?? "").localeCompare(b.at ?? "")) };
+}
+export const getReply = (eventId, id) => read(`reply:${eventId}:${id}`);
+export const putReply = (eventId, answer) => write(`reply:${eventId}:${answer.id}`, answer);
+export const deleteReply = (eventId, id) => store().delete(`reply:${eventId}:${id}`);
 export const putAttendees = (eventId, value) => write(`attendees:${eventId}`, value);
 
 /** Letters Andrew writes once and points events at — welcome, survey. */

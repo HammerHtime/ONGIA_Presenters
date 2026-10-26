@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA: a few quick questions</title>
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/favicon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#596176;
+    --navy:#1a2f5e; --navy-deep:#0e1a35;
+    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --border:#ddd7c8; --edge:#bfb49a; --hair:rgba(18,22,31,.10);
+    --done:#2f6b4f; --done-bg:#e2efe7;
+    --bad:#a33328; --bad-bg:#f7e3e0;
+    --fd:"DM Serif Display",Georgia,serif;
+    --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --fu:"Oswald","Arial Narrow",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .bar{background:var(--navy-deep);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;
+       border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .bar .logo{height:26px;width:auto;display:block;flex:none}
+  @media (max-width:430px){.bar .logo{height:22px}.bar{padding:12px 14px}}
+  .bar .langbtn{margin-left:auto;background:transparent;color:var(--gold-light);border:1px solid rgba(217,174,75,.6);
+    border-radius:999px;padding:5px 12px;font:600 12px var(--fu);letter-spacing:.06em;cursor:pointer;min-height:36px}
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:var(--card);border:1.5px solid var(--edge);border-radius:18px;padding:20px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,26,53,.07)}
+  h1{font-family:var(--fd);font-weight:400;font-size:clamp(23px,6vw,30px);line-height:1.15;margin:0 0 8px}
+  h2{font-family:var(--fd);font-weight:400;font-size:21px;margin:0 0 6px}
+  .lede{color:var(--ink-mid);margin:0}
+  .hint{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+  .due{display:inline-block;margin-top:12px;background:var(--gold-pale);border:1.5px solid var(--gold);border-radius:999px;padding:6px 14px;font-weight:500;font-size:14.5px}
+  .field{margin-top:14px}
+  .field label{display:block;font-family:var(--fu);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  input[type=text],input[type=email],textarea{width:100%;font:inherit;font-size:16px;background:var(--sunk);color:var(--ink);
+        border:1.5px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
+  textarea{min-height:88px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:430px){.row2{grid-template-columns:1fr}}
+  .tick{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--border);border-radius:14px;padding:14px;background:var(--sunk);cursor:pointer;margin-top:12px}
+  .tick.on{border-color:var(--navy);background:var(--card)}
+  .tick input{width:26px;height:26px;flex:none;margin:0;accent-color:var(--navy)}
+  .tick span{font-weight:500}
+  .q{padding:14px 0;border-top:1px solid var(--hair)}
+  .q:first-of-type{border-top:0;padding-top:6px}
+  .q .when{font-weight:700;color:var(--navy);display:block}
+  .q p{margin:0 0 10px}
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1 1 0;min-height:50px;border-radius:999px;border:1.5px solid var(--border);background:var(--sunk);color:var(--ink-mid);font:inherit;font-weight:500;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .missing{border-color:var(--bad)!important;background:var(--bad-bg)!important}
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;padding:14px 26px;font:inherit;font-weight:700;border:1.5px solid transparent;cursor:pointer;width:100%}
+  .btn-gold{background:var(--gold);color:#1c1608}
+  .btn[disabled]{opacity:.55}
+  .problems{background:var(--bad-bg);border:1.5px solid var(--bad);border-radius:14px;padding:13px 15px;margin-bottom:14px}
+  .okmark{width:50px;height:50px;border-radius:999px;background:var(--done);color:#fff;display:grid;place-items:center;font-size:26px;margin:0 auto 12px}
+  .done{text-align:center}
+  .small{font-size:13.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="bar">
+  <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA">
+  <button type="button" class="langbtn" id="lang" aria-label="Switch language / Changer de langue">Français</button>
+</div>
+<div id="root"><div class="wrap"><div class="card"><p class="lede">Loading…</p></div></div></div>
+
+<script type="module">
+// The housekeeping questions for an event's attendees: food allergies, and yes or no to each social (Andrew 26 Oct 2026).
+const ROOT = document.getElementById("root");
+const LANGBTN = document.getElementById("lang");
+const TOKEN = location.pathname.startsWith("/q/") ? location.pathname.slice(3).split("/")[0] : new URLSearchParams(location.search).get("t");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
+const T = {
+en: {
+  other: "Français", loading: "Loading…",
+  intro: (city) => `A few quick questions before we see you${city ? ` in ${city}` : ""}. It takes about a minute.`,
+  due: (d) => `Please answer by end of day ${d}`, late: "The date to answer has passed. Send your answers anyway and we'll do our best.",
+  you: "About you", first: "First name", last: "Last name", agency: "Agency or organization", email: "Email",
+  emailHint: "The address your registration came from, so we can match your answers to it.",
+  food: "Food allergies and intolerances",
+  foodLede: "Only if you have one. If you don't, leave this unticked.",
+  foodTick: "I have a food allergy, intolerance or dietary need",
+  foodWhat: "What is it?", foodPh: "e.g. allergic to shellfish; vegan; no pork; gluten-free",
+  foodHint: "This goes to the hotel kitchen with your name, so they can plan your meals.",
+  socials: "The socials", socialsLede: "Will you be there? Yes or no for each.",
+  yes: "Yes, I'll be there", no: "No",
+  send: "Send my answers", sending: "Sending…",
+  fix: "Please fill in what's marked:", missing: { first: "First name", last: "Last name", agency: "Agency or organization", email: "Email (a full address)", dietary: "What your allergy or intolerance is" },
+  socialMissing: "Yes or no for each social",
+  thanks: (f) => `Thank you, ${f}`, gotIt: "We have your answers.", again: "Your new answers replace the ones you sent before.",
+  change: "If something changes, open this link again and send new answers.",
+  another: "Answer for someone else on your registration",
+  closed: "This form is closed", closedLede: (c) => `If your plans have changed, reply to the email this came in${c ? ` or write to ${c}` : ""}.`,
+  broken: "This link is not working", brokenLede: "Reply to the email it came in and we'll sort it out.",
+  network: "We couldn't send that. Check your connection and try again.",
+},
+fr: {
+  other: "English", loading: "Chargement…",
+  intro: (city) => `Quelques questions rapides avant de vous accueillir${city ? ` à ${city}` : ""}. Cela prend environ une minute.`,
+  due: (d) => `Merci de répondre d'ici la fin de la journée du ${d}`, late: "La date pour répondre est passée. Envoyez quand même vos réponses : nous ferons de notre mieux.",
+  you: "À propos de vous", first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel",
+  emailHint: "L'adresse de votre inscription, pour que nous puissions y associer vos réponses.",
+  food: "Allergies et intolérances alimentaires",
+  foodLede: "Seulement si c'est votre cas. Sinon, ne cochez rien.",
+  foodTick: "J'ai une allergie, une intolérance ou un besoin alimentaire",
+  foodWhat: "De quoi s'agit-il?", foodPh: "p. ex. allergie aux fruits de mer; végétalien; pas de porc; sans gluten",
+  foodHint: "Ce renseignement est transmis à la cuisine de l'hôtel avec votre nom, pour qu'elle planifie vos repas.",
+  socials: "Les activités sociales", socialsLede: "Serez-vous là? Oui ou non pour chacune.",
+  yes: "Oui, j'y serai", no: "Non",
+  send: "Envoyer mes réponses", sending: "Envoi…",
+  fix: "Veuillez remplir ce qui est indiqué :", missing: { first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel (adresse complète)", dietary: "Votre allergie ou intolérance" },
+  socialMissing: "Oui ou non pour chaque activité",
+  thanks: (f) => `Merci, ${f}`, gotIt: "Nous avons bien reçu vos réponses.", again: "Vos nouvelles réponses remplacent les précédentes.",
+  change: "Si quelque chose change, rouvrez ce lien et envoyez de nouvelles réponses.",
+  another: "Répondre pour une autre personne de votre inscription",
+  closed: "Ce formulaire est fermé", closedLede: (c) => `Si vos plans ont changé, répondez au courriel qui contenait ce lien${c ? ` ou écrivez à ${c}` : ""}.`,
+  broken: "Ce lien ne fonctionne pas", brokenLede: "Répondez au courriel qui le contenait et nous réglerons la situation.",
+  network: "L'envoi n'a pas fonctionné. Vérifiez votre connexion et réessayez.",
+},
+};
+const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
+
+let DATA = null, DONE = null, sending = false, problems = [];
+const S = { first: "", last: "", agency: "", email: "", allergy: false, dietary: "", socials: {} };
+try { Object.assign(S, JSON.parse(sessionStorage.getItem(`ongia-reply-${TOKEN}`) ?? "{}")); } catch {}
+const keep = () => { try { sessionStorage.setItem(`ongia-reply-${TOKEN}`, JSON.stringify(S)); } catch {} };
+
+function render() {
+  document.documentElement.lang = LANG;
+  LANGBTN.textContent = t("other");
+  if (!DATA) return;
+  if (DATA.broken) { ROOT.innerHTML = `<div class="wrap"><div class="card"><h1>${t("broken")}</h1><p class="lede">${t("brokenLede")}</p></div></div>`; return; }
+  if (!DATA.open) { ROOT.innerHTML = `<div class="wrap"><div class="card"><h1>${t("closed")}</h1><p class="lede">${esc(t("closedLede", DATA.contact))}</p></div></div>`; return; }
+  if (DONE) {
+    ROOT.innerHTML = `<div class="wrap"><div class="card done"><div class="okmark" aria-hidden="true">✓</div>
+      <h1>${esc(t("thanks", DONE.first))}</h1><p class="lede">${t("gotIt")}${DONE.again ? ` ${t("again")}` : ""}</p>
+      <p class="small" style="margin-top:14px">${t("change")}</p>
+      <button type="button" class="btn" id="another" style="margin-top:10px;border-color:var(--border);background:var(--sunk);color:var(--ink-mid)">${t("another")}</button></div></div>`;
+    document.getElementById("another").onclick = () => { DONE = null; Object.assign(S, { first: "", last: "", allergy: false, dietary: "", socials: {} }); keep(); render(); window.scrollTo(0, 0); };
+    return;
+  }
+  const late = DATA.replyBy && new Date().toISOString().slice(0, 10) > DATA.replyBy;
+  const miss = new Set(problems);
+  const f = (k, type = "text", hint = "") => `<div class="field"><label for="f-${k}">${t(k)}</label>
+    <input id="f-${k}" type="${type}" data-k="${k}" value="${esc(S[k])}" autocomplete="${{ first: "given-name", last: "family-name", agency: "organization", email: "email" }[k]}"${miss.has(k) ? ` class="missing"` : ""}>${hint ? `<p class="hint">${hint}</p>` : ""}</div>`;
+  ROOT.innerHTML = `<div class="wrap">
+    <div class="card"><h1>${esc(DATA.title)}</h1><p class="lede">${esc(LANG === "fr" ? DATA.datesFr : DATA.dates)}</p>
+      <p class="lede" style="margin-top:10px">${esc(t("intro", (DATA.city || "").split(",")[0]))}</p>
+      ${DATA.replyBy ? (late ? `<p class="hint" style="margin-top:10px">${t("late")}</p>` : `<span class="due">${esc(t("due", LANG === "fr" ? DATA.replyByLongFr : DATA.replyByLong))}</span>`) : ""}</div>
+    ${problems.length ? `<div class="problems"><b>${t("fix")}</b><br>${problems.map((p) => esc(T[LANG].missing[p] ?? t("socialMissing"))).filter((v, i, a) => a.indexOf(v) === i).join(" · ")}</div>` : ""}
+    <div class="card"><h2>${t("you")}</h2>
+      <div class="row2">${f("first")}${f("last")}</div>${f("agency")}${f("email", "email", t("emailHint"))}</div>
+    <div class="card"><h2>${t("food")}</h2><p class="lede">${t("foodLede")}</p>
+      <label class="tick${S.allergy ? " on" : ""}"><input type="checkbox" id="f-allergy"${S.allergy ? " checked" : ""}><span>${t("foodTick")}</span></label>
+      ${S.allergy ? `<div class="field"><label for="f-dietary">${t("foodWhat")}</label>
+        <textarea id="f-dietary" data-k="dietary" maxlength="600" placeholder="${esc(t("foodPh"))}"${miss.has("dietary") ? ` class="missing"` : ""}>${esc(S.dietary)}</textarea>
+        <p class="hint">${t("foodHint")}</p></div>` : ""}</div>
+    <div class="card"><h2>${t("socials")}</h2><p class="lede" style="margin-bottom:6px">${t("socialsLede")}</p>
+      ${DATA.socials.map((s) => {
+        const line = LANG === "fr" ? s.fr : s.en, at = line.indexOf(LANG === "fr" ? " : " : ": ");
+        return `<div class="q" id="q-${esc(s.id)}"><p>${at > 0 ? `<span class="when">${esc(line.slice(0, at))}</span>${esc(line.slice(at + (LANG === "fr" ? 3 : 2)))}` : esc(line)}</p>
+          <div class="seg${miss.has(s.id) ? " missing" : ""}" style="${miss.has(s.id) ? "border-radius:999px;padding:4px" : ""}" role="group" aria-label="${esc(line)}">
+            <button type="button" data-s="${esc(s.id)}" data-v="yes" aria-pressed="${S.socials[s.id] === "yes"}">${t("yes")}</button>
+            <button type="button" data-s="${esc(s.id)}" data-v="no" aria-pressed="${S.socials[s.id] === "no"}">${t("no")}</button></div></div>`;
+      }).join("")}</div>
+    <button type="button" class="btn btn-gold" id="send"${sending ? " disabled" : ""}>${sending ? t("sending") : t("send")}</button>
+  </div>`;
+  // A box marked as missing stops being marked as soon as it is filled in.
+  ROOT.querySelectorAll("[data-k]").forEach((el) => { el.oninput = () => {
+    S[el.dataset.k] = el.value; keep();
+    if (el.value.trim() && problems.includes(el.dataset.k)) { problems = problems.filter((p) => p !== el.dataset.k); el.classList.remove("missing"); if (!problems.length) ROOT.querySelector(".problems")?.remove(); }
+  }; });
+  document.getElementById("f-allergy").onchange = (e) => { S.allergy = e.target.checked; if (!S.allergy) problems = problems.filter((p) => p !== "dietary"); keep(); render(); if (S.allergy) document.getElementById("f-dietary")?.focus(); };
+  ROOT.querySelectorAll("[data-s]").forEach((b) => { b.onclick = () => { S.socials[b.dataset.s] = b.dataset.v; problems = problems.filter((p) => p !== b.dataset.s); keep(); render(); }; });
+  document.getElementById("send").onclick = send;
+}
+
+async function send() {
+  if (sending) return;
+  sending = true; render();
+  try {
+    const res = await fetch(`/api/reply?t=${encodeURIComponent(TOKEN)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...S, lang: LANG }) });
+    const out = await res.json().catch(() => ({}));
+    sending = false;
+    if (res.status === 400 && out.problems) { problems = out.problems; render(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    if (res.status === 409) { DATA.open = false; render(); return; }
+    if (!res.ok) throw new Error(out.error);
+    problems = []; DONE = { first: S.first, again: out.again };
+    try { sessionStorage.removeItem(`ongia-reply-${TOKEN}`); } catch {}
+    render(); window.scrollTo(0, 0);
+  } catch { sending = false; render(); alert(t("network")); }
+}
+
+LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };
+(async () => {
+  try {
+    const res = await fetch(`/api/reply?t=${encodeURIComponent(TOKEN ?? "")}`);
+    DATA = res.ok ? await res.json() : { broken: true };
+  } catch { DATA = { broken: true }; }
+  render();
+})();
+</script>
+</body>
+</html>

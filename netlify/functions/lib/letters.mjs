@@ -1,6 +1,7 @@
 import { formatDate } from "./deadlines.mjs";
 import { layout, coordinatorOf } from "./mail.mjs";
 import { fitsTitle } from "./titles.mjs";
+import { siteUrl } from "./site.mjs";
 
 /**
  * Letters Andrew writes once and reuses: the welcome letter and the survey.
@@ -30,10 +31,28 @@ export const BLANKS = {
   cutoff:     { means: "the room block cut-off date", from: (e) => (e.hotel?.cutoff ? formatDate(e.hotel.cutoff) : "") },
   rate:       { means: "the room rate", from: (e) => e.hotel?.rate },
   surveyLink: { means: "the survey link for this event", from: (e) => e.surveyLink, link: true },
+  // The housekeeping questions (Andrew 26 Oct 2026): the form's address, its reply-by date, and the socials it asks about.
+  replyLink:  { means: "the link to this event's housekeeping questions (food allergies, socials)", from: (e) => (e.reply?.token && siteUrl() ? `${siteUrl()}/q/${e.reply.token}` : ""), link: true },
+  replyBy:    { means: "the date to answer the housekeeping questions by, e.g. Friday, October 30", from: (e) => longDate(e.reply?.replyBy) },
+  social1:    { means: "the first social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 0) },
+  social2:    { means: "the second social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 1) },
 };
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "2026-10-30" → "Friday, October 30". */
+function longDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return `${WEEKDAY[dt.getUTCDay()]}, ${MONTH[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
+}
+/** "Tuesday, November 10: the networking social, …" for the nth social the housekeeping form asks about. */
+function socialOf(e, i) {
+  const s = e?.reply?.socials?.[i];
+  return s ? [longDate(s.date), s.label].filter(Boolean).join(": ") : "";
+}
 
 /** Day n of the event, written the way a schedule reads: "Monday, September 28". */
 export function dayOfEvent(e, n) {
