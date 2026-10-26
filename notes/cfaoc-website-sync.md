@@ -37,3 +37,7 @@ Spec: HammerHtime/general, branch claude/chief-of-staff-advisor-fyhzd1, chief-of
 
 - 23 Oct 2026 (Andrew): no headshots on the CFAOC website, whatever a presenter agreed to. The desk sends none, and
   takes down any under static/assets/speakers/<page>/. The summary names anyone whose photo comes off.
+- 26 Oct 2026 (Andrew, for Luc Seguin): a presenter who has not signed can be shown before they sign, name, job
+  title and organization only, by ticking "Show on the website before they sign" (president/VP only). No bio or
+  talk. Once they sign, their own answers decide (a no to public use takes them off despite the tick). Someone sent
+  back for changes is treated as not shown, and the switch is offered only for "has not signed yet".

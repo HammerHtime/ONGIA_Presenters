@@ -74,10 +74,16 @@ export function cleanPresenterWeb(given, had = {}) {
     title: pick("title", 160), titleFr: pick("titleFr", 160), orgFr: pick("orgFr", 200),
     talkFr: pick("talkFr", 300), bioFr: pick("bioFr", 6000), outlineFr: pick("outlineFr", 6000),
     frReviewed: given?.frReviewed === undefined ? had.frReviewed === true : given.frReviewed === true,
+    // Shown before they sign, name and organization only, because the president or VP says they are coming
+    // (Andrew 26 Oct 2026, for Luc Seguin). Once they sign, their own answers decide.
+    early: given?.early === undefined ? had.early === true : given.early === true,
     frDraftedAt: had.frDraftedAt ?? null,
   };
   return out;
 }
+
+/** Not signed yet, and the president or VP chose to show their name and organization anyway. */
+export const earlyShown = (p) => !publicConsent(p).signed && cleanPresenterWeb({}, p.web ?? {}).early;
 
 const paras = (s) => String(s ?? "").split(/\n\s*\n|\r\n\s*\r\n/).map((t) => t.replace(/\s+/g, " ").trim()).filter(Boolean);
 
@@ -95,10 +101,17 @@ export async function buildDeskFile(event, presenters) {
   const people = [], photos = [], frSpeakers = [], report = [];
   for (const p of byLastName(presenters)) {
     const c = publicConsent(p);
-    if (!c.in) continue;
-    const s = p.submission ?? {};
     const web = cleanPresenterWeb({}, p.web ?? {});
     const name = `${p.first} ${p.last}`.trim();
+    if (!c.in) {
+      if (!earlyShown(p)) continue;
+      const sp = { name, ...(web.title ? { title: web.title } : {}), ...(p.organization ? { org: p.organization } : {}) };
+      people.push(sp);
+      frSpeakers.push({ ...sp, ...(web.titleFr ? { title: web.titleFr } : {}), ...(web.orgFr ? { org: web.orgFr } : {}) });
+      report.push({ id: p.id, name, bioConsent: "unsigned", talk: "", outline: "", frMissing: false, frReviewed: true, early: true });
+      continue;
+    }
+    const s = p.submission ?? {};
     const bio = c.bio === "no" ? [] : paras(s.bio);
     const sp = { name, ...(web.title ? { title: web.title } : {}), ...(p.organization ? { org: p.organization } : {}), ...(bio.length ? { bio } : {}) };
     people.push(sp);
@@ -231,6 +244,8 @@ export function summarize({ before, after, beforeFr, afterFr, people, photoChang
   if (frTodo.length) notes.push(`No French yet for ${list(frTodo)}: the French page shows their English until there is.`);
   if (frUnread.length) notes.push(`French not marked as reviewed for ${list(frUnread)}.`);
   if (noFrLines) notes.push(`${plural(noFrLines, "program line")} with no French: the French page shows the English.`);
+  const early = people.filter((p) => p.early).map((p) => p.name);
+  if (early.length) notes.push(`${list(early)}: not signed yet, shown with name and organization only, because you chose to. Their bio and talk go up once they sign.`);
   if (legacy.length) notes.push(`${list(legacy)} signed before the biography question; their yes to a public summary covers the bio, as before.`);
   return { lines, notes };
 }

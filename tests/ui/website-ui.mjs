@@ -57,7 +57,7 @@ try {
     await settings(page, W.id);
     ok(`${tag}: the CFAOC event has the Website card`, (await page.locator("#websync").count()) === 1);
     const card = () => page.locator("#websync").innerText();
-    ok(`${tag}: it lists who goes on the website and who does not, and why`, /Jenny Sample/.test(await card()) && /Pat Private \(said no to public use\)/.test(await card()) && /Nora Notyet \(has not signed yet\)/.test(await card()), (await card()).slice(0, 600));
+    ok(`${tag}: it lists who goes on the website and who does not, and why`, /Jenny Sample/.test(await card()) && /Pat Private \(said no to public use\)/.test(await card()) && (tag === "phone" ? /Nora Notyet \(has not signed yet\)/ : /Nora Notyet[\s\S]*not signed: name only/i).test(await card()), (await card()).slice(0, 600));
     ok(`${tag}: fits the screen`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     if (tag === "phone") {
       await page.fill("#ws-page", "victoria"); await page.click("#ws-save"); await page.waitForTimeout(700);
@@ -86,6 +86,14 @@ try {
       ok(`${tag}: pressing again: nothing has changed, and no Publish button`, /Nothing has changed/.test(await page.locator("#wsdlg").innerText()) && await page.locator("#wsdlg-go").isHidden());
       await page.locator("#wsdlg button[value=cancel]").click();
       ok(`${tag}: and no second commit`, (await (await fetch(GH + "/__state")).json()).head === st.head);
+      // Shown before signing, name and organization only (Andrew 26 Oct 2026).
+      await page.locator('[data-wsearly]').first().click(); await page.waitForTimeout(1500);
+      ok(`${tag}: "Show before they sign" puts Nora in the list, marked name only`, /Nora Notyet[\s\S]*not signed: name only/i.test(await card()) && (await page.locator('[data-wsearly]').count()) === 0, (await card()).slice(0, 900));
+      await page.locator('[data-wsp] summary', { hasText: "Nora Notyet" }).click(); await page.waitForTimeout(300);
+      await page.locator('[data-wsp]', { hasText: "Nora Notyet" }).screenshot({ path: D + "website-early-phone.png" });
+      await page.click("#ws-go"); await page.waitForTimeout(1500);
+      ok(`${tag}: the summary says she is new and shown with name and organization only`, /1 new presenter: Nora Notyet/.test(await page.locator("#wsdlg").innerText()) && /not signed yet, shown with name and organization only/.test(await page.locator("#wsdlg").innerText()), await page.locator("#wsdlg").innerText());
+      await page.locator("#wsdlg button[value=cancel]").click();
     } else await page.locator("#webfold").screenshot({ path: D + "website-card-wide.png" });
     ok(`${tag}: no page errors`, errs.length === 0, errs.join(" | "));
     await page.close();
