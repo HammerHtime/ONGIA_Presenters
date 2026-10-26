@@ -2049,9 +2049,11 @@ function eventFormScreen(existing = null) {
     const list = $("wx-list");
     list.hidden = false; list.innerHTML = `<p class="hint">Asking your website…</p>`;
     try {
-      const { events } = await api("/wix?events=1");
-      if (!events.length) { list.innerHTML = `<p class="hint">Your website has no events on it yet.</p>`; return; }
-      list.innerHTML = `<div class="wixev">${events.map((w) => `
+      const { events, problems = [] } = await api("/wix?events=1");
+      // Anything a second Wix site said instead of its events (a refused key, nothing published) is shown, not hidden.
+      const said = problems.map((p) => `<div class="bad" style="margin:0 0 10px">${esc(p)}</div>`).join("");
+      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      list.innerHTML = said + `<div class="wixev">${events.map((w) => `
         <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
           <b>${esc(w.title)}</b>
           <span class="ws">${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.lastDay && w.lastDay !== w.dayOne ? " – " + esc(fmtDate(w.lastDay)) : ""}${w.city ? " · " + esc(w.city) : ""}${w.venue ? " · " + esc(w.venue) : ""}${w.linkedTo ? ` · already on the desk as ${esc(w.linkedTo.title)}` : ""}</span>
@@ -5915,9 +5917,11 @@ function wireAttendees(ev) {
     list.innerHTML = `<p class="hint">Asking your website…</p>`;
     dlg.showModal();
     try {
-      const { events } = await api("/wix?events=1");
-      if (!events.length) { list.innerHTML = `<p class="hint">Your website has no events on it yet.</p>`; return; }
-      list.innerHTML = `<div class="wixev">${events.map((w) => `
+      const { events, problems = [] } = await api("/wix?events=1");
+      // Anything a second Wix site said instead of its events (a refused key, nothing published) is shown, not hidden.
+      const said = problems.map((p) => `<div class="bad" style="margin:0 0 10px">${esc(p)}</div>`).join("");
+      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      list.innerHTML = said + `<div class="wixev">${events.map((w) => `
         <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
           <b>${esc(w.title)}</b>
           <span class="ws">${w.site && w.site !== "1" ? `<b>${esc(w.siteName)}</b> · ` : ""}${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.city ? " · " + esc(w.city) : ""}${w.registered !== null ? ` · ${w.registered} registered` : ""}

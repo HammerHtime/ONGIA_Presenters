@@ -40,6 +40,12 @@ await putEvent({ id: "ngs", title: "National Gang Summit", city: "Toronto, ON", 
 const listed = await (await wix(new Request("http://localhost/api/wix?events=1", { headers: H }))).json();
 const health = await (await wix(new Request("http://localhost/api/wix", { headers: H }))).json();
 ok("the Wix check reports the second site answering", health.ok && health.sites.length === 1 && health.sites[0].ok && health.sites[0].name === "the community partners' website", JSON.stringify(health));
+// The second site refusing the key is said in the list, not swallowed.
+const refuse = globalThis.fetch;
+globalThis.fetch = async (url, init) => (init.headers["wix-site-id"] === "22222222-2222-4222-8222-222222222222" ? new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }) : refuse(url, init));
+const refused = await (await wix(new Request("http://localhost/api/wix?events=1", { headers: H }))).json();
+globalThis.fetch = refuse;
+ok("when Wix refuses the key for the second site, the list says so and how to fix it, and still shows the first site's events", refused.events.length === 1 && /refused the key for the community partners' website/.test(refused.problems.join(" ")), JSON.stringify(refused));
 ok("the link list shows events from both Wix sites, naming the second", listed.events.length === 2 && listed.events.find((e) => e.id === "community").siteName === "the community partners' website" && listed.events.find((e) => e.id === "justice").site === "1");
 ok("the second Wix event needs the first one linked", (await put("event=ngs&link=community&also=1")).status === 409);
 await put("event=ngs&link=justice");
