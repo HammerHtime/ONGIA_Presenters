@@ -42,3 +42,10 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
 - It is "National Gang Summit" (ngstoronto2026.ca), on the same Wix account as ongia.org. The desk reads a second
   site from WIX_SITE_ID_2 (WIX_API_KEY_2 only if a site is on another account; the account's key reaches every site
   it was given; WIX_SITE_2_NAME for how the desk names it). Each linked event remembers which site it is on.
+
+## 26 Oct 2026: reminders (Andrew: "Wednesday and Friday, if they haven't completed the form")
+- Dates per event, default two days before the reply-by date and the day itself (Summit: Wed 28 and Fri 30 Oct).
+- The morning run (10 AM Eastern) sends the same email with one reminder line after the greeting, subject
+  "Reminder: …", to registered addresses that had the email and where nobody has answered yet; once per address per
+  date; never to someone first emailed in that same run; not after the reply-by date or while the form is closed.
+- Like the late-registrant catch-up, reminders only go while automatic emails to attendees are on; the card says so.

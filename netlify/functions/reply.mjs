@@ -5,6 +5,7 @@ import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
+import { renderReminder } from "./lib/reply.mjs";
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -19,7 +20,7 @@ import { slugOf } from "./lib/public.mjs";
  * The event page (signed in):
  *   GET  /api/reply?event=…              settings, where the email stands, every answer
  *   PUT  /api/reply?event=…              set it up the first time, or change the questions and the email
- *   POST /api/reply?event=…&preview=1    the email as it would go out
+ *   POST /api/reply?event=…&preview=1    the email as it would go out (&reminder=1: the reminder)
  *   POST /api/reply?event=…&test=1       send that email to one address, marked TEST
  *   POST /api/reply?event=…&send=1       send it to everyone registered who has not had it (a run; call again while some are left)
  *   GET  /api/reply?event=…&sheet=dietary|socials   the spreadsheet
@@ -53,7 +54,7 @@ export default async (req) => {
     if (url.searchParams.get("preview")) {
       // The words being edited in the preview window, not saved yet: shown as they would go, checked the same way.
       const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel }, event.reply) };
-      return json({ ...renderReply(trial, { first: "Alex" }), problems: replyProblems(trial) });
+      return json({ ...(url.searchParams.get("reminder") ? renderReminder : renderReply)(trial, { first: "Alex" }), problems: replyProblems(trial) });
     }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
     if (url.searchParams.get("send")) return sendNow(event, adminWho(req));

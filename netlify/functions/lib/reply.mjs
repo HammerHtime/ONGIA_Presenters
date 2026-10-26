@@ -86,6 +86,8 @@ export function cleanReply(given, had) {
   if (given?.subject !== undefined) out.subject = text(given.subject, 200);
   if (given?.body !== undefined) out.body = text(given.body, 6000);
   if (given?.buttonLabel !== undefined) out.buttonLabel = text(given.buttonLabel, 60) || "Answer the questions";
+  // Reminder dates: up to four, in order, none after the reply-by date matters (the nightly run stops there).
+  if (Array.isArray(given?.reminders)) out.reminders = [...new Set(given.reminders.filter(isDate))].sort().slice(0, 4);
   if (Array.isArray(given?.socials)) {
     out.socials = given.socials.slice(0, 4).map((s, i) => ({ id: `s${i + 1}`, date: isDate(s?.date) ? s.date : "", label: text(s?.label, 200), labelFr: text(s?.labelFr, 200) }))
       .filter((s) => s.label);
@@ -208,6 +210,65 @@ export const replyProblems = (event) => {
 export const renderReply = (event, person) => renderLetter(replyLetter(event.reply), event, person);
 
 /**
+ * Reminders (Andrew 26 Oct 2026: "a reminder for people to complete the form on Wednesday and Friday if they haven't").
+ * The dates are the event's own; until someone sets them they are two days before the reply-by date and the day itself
+ * (for the National Gang Summit, Wednesday 28 and Friday 30 October). The morning run (10 AM Eastern) sends each one.
+ */
+export function remindersOf(reply) {
+  if (Array.isArray(reply?.reminders)) return reply.reminders;
+  if (!isDate(reply?.replyBy)) return [];
+  const two = new Date(at(reply.replyBy).getTime() - 2 * 86400000).toISOString().slice(0, 10);
+  return [two, reply.replyBy];
+}
+
+/** The reminder: the same email, marked as a reminder at the top, so the words Andrew chose are the ones that go again. */
+export function renderReminder(event, person) {
+  const letter = replyLetter(event.reply);
+  const paras = String(letter.body ?? "").split(/\n\s*\n/);
+  // After the greeting ("Hello {first},"), one line saying why this has come again.
+  const at1 = /^\s*(hello|hi|dear|bonjour)\b/i.test(paras[0] ?? "") ? 1 : 0;
+  paras.splice(at1, 0, "A quick reminder: we haven't had your answers yet. If you've already sent them, thank you, and please ignore this.");
+  return renderLetter({ ...letter, subject: `Reminder: ${letter.subject}`, body: paras.join("\n\n") }, event, person);
+}
+
+/** Who a reminder goes to: registered, had the email, and nobody at their address has answered yet. */
+export function stillToAnswer(people, answers) {
+  const answered = new Set(answers.filter((a) => a.source !== "desk").map((a) => a.email));
+  return writeableTo(people).filter((p) => (p.sent ?? []).includes("reply") && !answered.has(p.email));
+}
+
+/** Today's reminder, if today is one of the dates: to everyone still to answer who has not had today's already. */
+export async function sendReminderRound(event, { deadline = null, pace = pacer(), today = todayIso(), justSent = [] } = {}) {
+  if (!event.reply?.sentAt) return { skipped: "the email has not been sent yet" };
+  if (!remindersOf(event.reply).includes(today)) return { skipped: "no reminder today" };
+  if (event.reply.replyBy && today > event.reply.replyBy) return { skipped: "past the reply-by date" };
+  if (!event.reply.open) return { skipped: "the form is closed" };
+  const problems = replyProblems(event);
+  if (problems.length) return { blocked: problems };
+  const mark = `reply-reminder:${today}`;
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const answers = (await getReplies(event.id))?.answers ?? [];
+  // Someone whose first email went in this same run (they registered yesterday) is not reminded straight after it.
+  const fresh = new Set(justSent);
+  const owed = stillToAnswer(stored.people ?? [], answers).filter((p) => !(p.sent ?? []).includes(mark) && !fresh.has(p.email));
+  let sent = 0, failed = 0, left = 0;
+  const trouble = [];
+  for (const person of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
+    try {
+      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...renderReminder(event, person) });
+      if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
+      for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) same.sent = [...new Set([...(same.sent ?? []), mark])];
+      sent++;
+      await putAttendees(event.id, stored);
+    } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
+  }
+  await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), [mark]: { at: new Date().toISOString(), sent, failed, left, trouble: trouble.slice(0, 10) } } });
+  return { sent, failed, left, trouble: trouble.slice(0, 10) };
+}
+
+/**
  * Send the email to everyone registered who has not had it. Each address is marked the moment its email goes, so a
  * run stopped part-way never sends anyone a second copy; whoever is left goes on the next run.
  */
@@ -236,7 +297,7 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
     } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), reply: { at: new Date().toISOString(), sent, failed, left, trouble: trouble.slice(0, 10) } } });
-  return { sent, failed, left, trouble: trouble.slice(0, 10) };
+  return { sent, failed, left, trouble: trouble.slice(0, 10), sentTo: owed.slice(0, sent + failed).map((p) => p.email) };
 }
 
 /** Where the email stands: how many it reaches, how many had it, the last round. */
@@ -249,5 +310,7 @@ export async function replyStatus(event) {
     had: new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email)).size,
     round: stored.letterRounds?.reply ?? null,
     answered: answers.length,
+    stillToAnswer: stillToAnswer(people, answers).length,
+    reminders: remindersOf(event.reply).map((d) => ({ date: d, round: stored.letterRounds?.[`reply-reminder:${d}`] ?? null })),
   };
 }
