@@ -137,6 +137,21 @@ ok("reverting the last update puts the website file back as it was", read("desk/
 const pv4 = (await call("event=ev-west&preview=1")).body;
 ok("after a revert, the desk sees the difference and would publish it again", pv4.unchanged === false && /taken off the website: Ada Sample/.test(pv4.lines.join(" ")));
 
+/* shown before signing, on the president's say-so (Andrew 26 Oct 2026) */
+ok("someone who has not signed is not shown by default", !JSON.parse(read("desk/victoria.json")).event.speakers.some((s) => s.name === "Dee Notyet"));
+await call("event=ev-west&presenter=d4", { method: "PUT", body: { early: true, title: "Inspector" } });
+const pvE = (await call("event=ev-west&preview=1")).body;
+ok("shown before signing: the summary names them as new and says it is name and organization only", /new presenter: Dee Notyet/.test(pvE.lines.join(" ")) && pvE.notes.some((n) => /Dee Notyet: not signed yet, shown with name and organization only/.test(n)), JSON.stringify(pvE));
+await call("event=ev-west&publish=1");
+const dee = JSON.parse(read("desk/victoria.json")).event.speakers.find((s) => s.name === "Dee Notyet");
+ok("and only their name, job title and organization go up: no bio, no talk", dee && dee.org === "Sample Police Service" && dee.title === "Inspector" && !dee.bio && !read("desk/victoria.json").toString().includes("Dee's"), JSON.stringify(dee));
+ok("someone sent back for changes cannot be shown early by accident", (await call("event=ev-west", { method: "GET" })).body.presenters.find((p) => p.id === "e5").shown === false);
+await putPresenter({ ...(await getPresenter("ev-west", "d4")), status: "submitted", submission: { ...people[3].submission, media: media("no", "no", "no") } });
+ok("once they sign, their own answer wins: a no takes them off despite the switch", /taken off the website: Dee Notyet/.test((await call("event=ev-west&preview=1")).body.lines.join(" ")));
+await putPresenter({ ...(await getPresenter("ev-west", "d4")), submission: { ...people[3].submission, media: media("yes", "no", "yes") } });
+const pvS = (await call("event=ev-west&preview=1")).body;
+ok("and a yes brings in their bio", /bio updated: Dee Notyet/.test(pvS.lines.join(" ")) && !pvS.notes.join(" ").includes("Dee Notyet: not signed"), JSON.stringify(pvS));
+
 /* a second event is its own page */
 const east = { id: "ev-east", title: "Canadian Forum Against Organized Crime Eastern Symposium", city: "Moncton, NB", venue: "Delta Beauséjour", dayOne: "2027-03-30", board: [], website: { page: "atlantic-canada", startTime: "08:30", endTime: "16:00", registerUrl: "https://www.ongia.org/event-details/east" } };
 await putEvent(east);

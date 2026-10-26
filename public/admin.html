@@ -4061,16 +4061,16 @@ function renderWebsite(ev, W) {
         ${r.abstract || r.abstractFr ? `<textarea data-k="abstract" maxlength="2000" aria-label="Description" placeholder="Description">${esc(r.abstract)}</textarea><textarea data-k="abstractFr" maxlength="2000" aria-label="Description in French" placeholder="Description en français">${esc(r.abstractFr)}</textarea>` : ""}
       </details></div>`;
   const person = (p) => {
-    const fr = p.web, frState = !fr.bioFr && p.bio ? `<span class="pill late">no French yet</span>` : fr.frReviewed ? `<span class="pill done">French reviewed</span>` : `<span class="pill">French not reviewed</span>`;
+    const fr = p.web, frState = p.early ? "" : !fr.bioFr && p.bio ? `<span class="pill late">no French yet</span>` : fr.frReviewed ? `<span class="pill done">French reviewed</span>` : `<span class="pill">French not reviewed</span>`;
     return `<details class="wsp" data-wsp="${esc(p.id)}"><summary><b>${esc(p.name)}</b><span class="porg">${esc(p.organization)}</span>
-        <span class="wsp-tags">${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
+        <span class="wsp-tags">${p.early ? `<span class="pill late">not signed: name only</span>` : ""}${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
       <div class="row2">${f(`t-${p.id}`, "Job title", fr.title, { ph: "Supervisory Criminal Intelligence Analyst", max: 160 })}${f(`tf-${p.id}`, "Job title in French", fr.titleFr, { ph: "Analyste principal du renseignement criminel", max: 160 })}</div>
       ${f(`gf-${p.id}`, "Organization in French", fr.orgFr, { ph: p.organization ? `Leave empty to show ${p.organization}` : "", max: 200 })}
       ${p.talk ? `<div class="field"><label>Talk</label><p class="said" style="margin:0">${esc(p.talk)}</p></div>${f(`kf-${p.id}`, "Talk title in French", fr.talkFr, { max: 300 })}` : ""}
       ${p.bio ? `<div class="field"><label for="ws-bf-${esc(p.id)}">Bio in French <span class="porg" style="text-transform:none;letter-spacing:0">· the English is from their agreement</span></label><textarea id="ws-bf-${esc(p.id)}" maxlength="6000" style="min-height:110px">${esc(fr.bioFr)}</textarea></div>` : ""}
       ${p.outline ? `<div class="field"><label for="ws-of-${esc(p.id)}">Talk description in French</label><textarea id="ws-of-${esc(p.id)}" maxlength="6000" style="min-height:80px">${esc(fr.outlineFr)}</textarea></div>` : ""}
-      <label class="attest"><input type="checkbox" id="ws-rv-${esc(p.id)}"${fr.frReviewed ? " checked" : ""}><span>Someone who reads French has checked this</span></label>
-      <div class="actions" style="margin-top:10px;flex-wrap:wrap"><button type="button" class="mini gold" data-wssave="${esc(p.id)}">Save</button><button type="button" class="mini" data-wsdraft="${esc(p.id)}">${fr.bioFr || fr.outlineFr ? "Draft the French again" : "Draft the French"}</button></div>
+      ${p.early ? `<label class="attest"><input type="checkbox" id="ws-early-${esc(p.id)}" checked><span>Show on the website before they sign: name and organization only. Untick and save to take them off.</span></label>` : `<label class="attest"><input type="checkbox" id="ws-rv-${esc(p.id)}"${fr.frReviewed ? " checked" : ""}><span>Someone who reads French has checked this</span></label>`}
+      <div class="actions" style="margin-top:10px;flex-wrap:wrap"><button type="button" class="mini gold" data-wssave="${esc(p.id)}">Save</button>${p.early ? "" : `<button type="button" class="mini" data-wsdraft="${esc(p.id)}">${fr.bioFr || fr.outlineFr ? "Draft the French again" : "Draft the French"}</button>`}</div>
     </details>`;
   };
   box.innerHTML = `
@@ -4097,6 +4097,7 @@ function renderWebsite(ev, W) {
     ${shown.length ? shown.map(person).join("") : `<p class="said">Nobody yet.</p>`}
     ${shown.some((p) => !p.web.bioFr && p.bio) ? `<button type="button" class="mini" id="ws-draftall" style="margin-top:8px">Draft the missing French for everyone</button>` : ""}
     ${hidden.length ? `<p class="porg" style="margin-top:12px"><b>Not on the website:</b> ${hidden.map((p) => `${esc(p.name)} (${why(p)})`).join(", ")}.</p>` : ""}
+    ${hidden.filter((p) => why(p) === "has not signed yet").map((p) => `<button type="button" class="mini" data-wsearly="${esc(p.id)}" style="margin:6px 6px 0 0">Show ${esc(p.name)} before they sign</button>`).join("")}
     <div class="wsgo"><button type="button" class="btn btn-gold" id="ws-go"${W.connected ? "" : " disabled"}>Update website</button>
       <span class="hint">Shows what would change first. Nothing is sent until you confirm.</span></div>
     <dialog class="sheet" id="wsdlg" style="max-width:560px;width:calc(100% - 24px)"><form method="dialog">
@@ -4128,11 +4129,19 @@ function renderWebsite(ev, W) {
       loadWebsite(ev);
     } catch (x) { toast(x.message); done(); }
   };
-  const presenterBody = (id) => ({ title: val(`t-${id}`), titleFr: val(`tf-${id}`), orgFr: val(`gf-${id}`), talkFr: val(`kf-${id}`), bioFr: val(`bf-${id}`), outlineFr: val(`of-${id}`), frReviewed: !!document.getElementById(`ws-rv-${id}`)?.checked });
+  // Only the boxes on screen: a field that is not shown (no bio, not signed yet) keeps what it had.
+  const shownVal = (k) => document.getElementById(`ws-${k}`)?.value;
+  const presenterBody = (id) => ({ title: shownVal(`t-${id}`), titleFr: shownVal(`tf-${id}`), orgFr: shownVal(`gf-${id}`), talkFr: shownVal(`kf-${id}`), bioFr: shownVal(`bf-${id}`), outlineFr: shownVal(`of-${id}`),
+    frReviewed: document.getElementById(`ws-rv-${id}`)?.checked, early: document.getElementById(`ws-early-${id}`)?.checked });
   box.querySelectorAll("[data-wssave]").forEach((b) => { b.onclick = async () => {
     const id = b.dataset.wssave, done = busy(b, "Saving…");
     try { const out = await api(`/website?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(presenterBody(id)) });
       W.presenters.find((p) => p.id === id).web = out.web; toast("Saved."); renderWebsite(ev, W); document.querySelector(`[data-wsp="${CSS.escape(id)}"]`).open = true; } catch (x) { toast(x.message); done(); }
+  }; });
+  box.querySelectorAll("[data-wsearly]").forEach((b) => { b.onclick = async () => {
+    const id = b.dataset.wsearly, done = busy(b, "Saving…");
+    try { await api(`/website?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ early: true }) });
+      toast("They'll show with name and organization only until they sign. Nothing goes to the website until you press Update website."); loadWebsite(ev); } catch (x) { toast(x.message); done(); }
   }; });
   const draft = async (id) => {
     const out = await api(`/website?event=${encodeURIComponent(ev.id)}&french=${encodeURIComponent(id)}`, { method: "POST" });

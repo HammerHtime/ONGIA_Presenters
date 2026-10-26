@@ -3,7 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, putEvent, listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
 import { publicConsent, byLastName } from "./lib/public.mjs";
 import { isWebsiteEvent, cleanWebsite, cleanPresenterWeb, buildDeskFile, github, githubToken, readSite, planChanges, commitChanges,
-  draftFrench, GitHubError, REPO, BRANCH, pageKey } from "./lib/website.mjs";
+  draftFrench, GitHubError, REPO, BRANCH, pageKey, earlyShown } from "./lib/website.mjs";
 
 /**
  * An event's page on the CFAOC symposium website, kept from the desk (Andrew 22 Oct 2026).
@@ -59,8 +59,8 @@ async function show(event) {
     presenters: presenters.map((p) => {
       const c = publicConsent(p);
       return { id: p.id, name: `${p.first} ${p.last}`.trim(), organization: p.organization || "", status: p.status,
-        shown: c.in, bioConsent: c.bio ?? null,
-        talk: p.submission?.talk || "", bio: c.bio === "no" ? "" : p.submission?.bio || "", outline: p.submission?.outline || "",
+        shown: c.in || earlyShown(p), early: earlyShown(p), bioConsent: c.bio ?? null,
+        talk: c.in ? p.submission?.talk || "" : "", bio: !c.in || c.bio === "no" ? "" : p.submission?.bio || "", outline: c.in ? p.submission?.outline || "" : "",
         web: cleanPresenterWeb({}, p.web ?? {}) };
     }),
   });
