@@ -5793,7 +5793,7 @@ function attendeesCard(ev, guests) {
     ? `<div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
         <button class="mini" id="g-sync">Pull from Wix now</button>
         <button class="mini ghost" id="g-unlink">Unlink</button></div>
-      ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b> · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
+      ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b>${l.site && l.site !== "1" ? ` from ${esc(l.siteName || "the second Wix site")}` : ""} · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
         <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
       <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
         <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div>`
@@ -5920,7 +5920,7 @@ function wireAttendees(ev) {
       list.innerHTML = `<div class="wixev">${events.map((w) => `
         <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
           <b>${esc(w.title)}</b>
-          <span class="ws">${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.city ? " · " + esc(w.city) : ""}${w.registered !== null ? ` · ${w.registered} registered` : ""}
+          <span class="ws">${w.site && w.site !== "1" ? `<b>${esc(w.siteName)}</b> · ` : ""}${esc(w.dayOne ? fmtDate(w.dayOne) : "no date")}${w.city ? " · " + esc(w.city) : ""}${w.registered !== null ? ` · ${w.registered} registered` : ""}
             ${w.linkedTo ? ` · already linked to ${esc(w.linkedTo.title)}` : ""}</span>
         </button>`).join("")}</div>`;
       list.querySelectorAll("[data-wix]").forEach((b) => {
