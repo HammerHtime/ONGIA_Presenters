@@ -79,7 +79,14 @@ async function save(event, body) {
 async function testSend(event, to, who) {
   const address = to || who?.email;
   if (!address) return fail("Which address should the test go to?");
-  const mail = renderReply(event, { first: (who?.name || "").split(" ")[0] || "there" });
+  // The test carries a personal link too, filled in as whoever sent it (Andrew 26 Oct 2026: "my name, email and
+  // organization didn't prefill" on the test), so the test shows what an attendee sees. Kept on the event, not on the
+  // attendee list, so it is never counted or emailed as an attendee.
+  const [first, ...rest] = String(who?.name || "").trim().split(/\s+/);
+  const tester = { key: `test:${String(address).toLowerCase()}`, first: first || "", last: rest.join(" "), email: String(address).toLowerCase(), organization: "ONGIA" };
+  event.reply = { ...event.reply, testers: [tester, ...(event.reply.testers ?? []).filter((t) => t.key !== tester.key)].slice(0, 5) };
+  await putEvent(event);
+  const mail = renderReply(event, tester);
   const out = await sendMail({ to: address, subject: `TEST: ${mail.subject}`, html: mail.html, text: mail.text });
   if (out.skipped) return fail(`The test did not send: ${out.reason}`, 502);
   return json({ ok: true, to: address });
@@ -172,7 +179,7 @@ async function eventByToken(tok) {
 /** Whose own link this is: their row on the attendee list, found by the id in their link. */
 async function personFor(event, pid) {
   if (!/^[a-f0-9]{16}$/.test(pid ?? "")) return null;
-  const people = (await getAttendees(event.id))?.people ?? [];
+  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? [])];
   return people.find((p) => (p.key || p.email) && personalId(event.reply.token, p) === pid) ?? null;
 }
 

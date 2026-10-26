@@ -68,6 +68,9 @@ ok("the preview shows words being edited, before they are saved", trial.subject 
 ok("and checks them the same way: a typo in a blank is caught", /not a blank the desk knows/.test((await call("event=ngs&preview=1", { method: "POST", body: { body: "Hello {frist}" } })).body.problems.join(" ")));
 const test = (await call("event=ngs&test=1", { method: "POST", body: { to: "president@ongia.ca" } })).body;
 ok("a test goes to one address, marked TEST", test.ok && sent.length === 1 && sent[0].to.includes("president@ongia.ca") && /^TEST: /.test(sent[0].subject));
+const testLink = sent[0].html.match(/\/q\/[A-Za-z0-9_-]+\/([a-f0-9]{16})/);
+const testYou = testLink ? (await call(`t=${tok}&p=${testLink[1]}`)).body.you : null;
+ok("the test email's button fills in the form as the person who sent it, with ONGIA", testYou && testYou.email === "president@ongia.ca" && testYou.organization === undefined && testYou.agency === "ONGIA", JSON.stringify(testYou));
 sent.length = 0;
 
 /* sending */
