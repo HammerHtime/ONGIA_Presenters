@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, adminWho, text, editGuard } from "./lib/http.mjs";
+import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { createHash } from "node:crypto";
 import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees } from "./lib/store.mjs";
 import { personalId } from "./lib/letters.mjs";
@@ -55,7 +55,7 @@ export default async (req) => {
       const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel }, event.reply) };
       return json({ ...renderReply(trial, { first: "Alex" }), problems: replyProblems(trial) });
     }
-    if (url.searchParams.get("test")) return testSend(event, text(body.to, 200), adminWho(req));
+    if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
     if (url.searchParams.get("send")) return sendNow(event, adminWho(req));
   }
   return fail("Method not allowed.", 405);
@@ -76,13 +76,35 @@ async function save(event, body) {
   return show(event);
 }
 
+/**
+ * A test to one or more addresses (up to five, separated by commas). Each carries a personal link that fills the form
+ * in as well as the desk can (Andrew 26 Oct 2026): someone registered gets exactly what their real email will give;
+ * the sender gets their own name and ONGIA; anyone else gets their address. The test people are kept on the event's
+ * settings, never on the attendee list, so they are not counted or emailed as attendees.
+ */
 async function testSend(event, to, who) {
-  const address = to || who?.email;
-  if (!address) return fail("Which address should the test go to?");
-  const mail = renderReply(event, { first: (who?.name || "").split(" ")[0] || "there" });
-  const out = await sendMail({ to: address, subject: `TEST: ${mail.subject}`, html: mail.html, text: mail.text });
-  if (out.skipped) return fail(`The test did not send: ${out.reason}`, 502);
-  return json({ ok: true, to: address });
+  const addresses = [...new Set(String(to || who?.email || "").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
+  if (!addresses.length) return fail("Which address should the test go to?");
+  if (addresses.length > 5) return fail("Up to five test addresses at a time.");
+  const bad = addresses.find((a) => !isEmail(a));
+  if (bad) return fail(`${bad} is not an email address.`);
+  const registered = (await getAttendees(event.id))?.people ?? [];
+  const [first, ...rest] = String(who?.name || "").trim().split(/\s+/);
+  const people = addresses.map((email) => registered.find((p) => p.email === email && p.status === "ATTENDING")
+    ?? (email === String(who?.email ?? "").toLowerCase()
+      ? { key: `test:${email}`, first: first || "", last: rest.join(" "), email, organization: "ONGIA" }
+      : { key: `test:${email}`, first: "", last: "", email, organization: "" }));
+  const testers = people.filter((p) => p.key?.startsWith("test:"));
+  event.reply = { ...event.reply, testers: [...testers, ...(event.reply.testers ?? []).filter((t) => !testers.some((n) => n.key === t.key))].slice(0, 10) };
+  await putEvent(event);
+  const sentTo = [];
+  for (const person of people) {
+    const mail = renderReply(event, person);
+    const out = await sendMail({ to: person.email, subject: `TEST: ${mail.subject}`, html: mail.html, text: mail.text });
+    if (out.skipped) return fail(`The test did not send${sentTo.length ? ` to ${person.email} (it went to ${sentTo.join(", ")})` : ""}: ${out.reason}`, 502);
+    sentTo.push(person.email);
+  }
+  return json({ ok: true, to: sentTo.join(", ") });
 }
 
 async function sendNow(event, who) {
@@ -172,7 +194,7 @@ async function eventByToken(tok) {
 /** Whose own link this is: their row on the attendee list, found by the id in their link. */
 async function personFor(event, pid) {
   if (!/^[a-f0-9]{16}$/.test(pid ?? "")) return null;
-  const people = (await getAttendees(event.id))?.people ?? [];
+  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? [])];
   return people.find((p) => (p.key || p.email) && personalId(event.reply.token, p) === pid) ?? null;
 }
 
