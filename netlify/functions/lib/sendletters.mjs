@@ -5,6 +5,7 @@ import { checklistOf } from "./checklist.mjs";
 import { letterProblems, eventProblems, renderLetter, attachmentsFor } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
+import { sendReplyRound } from "./reply.mjs";
 
 /**
  * Sending the welcome letter and the survey.
@@ -129,6 +130,12 @@ export async function runLetterRounds(events, opts = {}) {
       if (!event.letters?.[kind]) continue;
       try { out.push(await sendLetterRound(event, kind, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind, error: e.message }); }
+    }
+    // The housekeeping questions, once sent from the event page: anyone who registers afterwards gets them the next
+    // night, up to the reply-by date. Only while automatic emails to attendees are on.
+    if (event.reply?.sentAt && event.attendeeMail === true) {
+      try { out.push({ event: event.id, title: event.title, kind: "reply", ...(await sendReplyRound(event, opts)) }); }
+      catch (e) { out.push({ event: event.id, title: event.title, kind: "reply", error: e.message }); }
     }
   }
   return out;

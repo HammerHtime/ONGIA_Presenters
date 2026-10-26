@@ -107,6 +107,11 @@
   .wsp-tags{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
   .wsgo{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--edge)}
   .wslist{margin:12px 0 0;padding-left:20px}.wslist li{margin:0 0 6px}
+  /* the housekeeping questions card */
+  .rpgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 12px}
+  .rpbox{border:1px solid var(--edge);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .rpsoc{border:1px solid var(--edge);border-radius:12px;padding:12px;margin:12px 0 0}
+  .rpall summary{cursor:pointer;margin:4px 0 10px}
   .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
   dialog.sheet{border:1.5px solid var(--edge);border-radius:16px;background:var(--card);color:var(--ink);
                padding:0;width:min(520px,calc(100vw - 28px));box-shadow:0 24px 60px rgba(0,0,0,.28)}
@@ -3201,7 +3206,7 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -3286,6 +3291,7 @@ function eventScreen(data) {
   wireAgenda(ev, agenda);
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
+  if (document.getElementById("replybox")) loadReply(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
   if (sheetShown) wireSheet(ev, sheetcheck);
@@ -4181,6 +4187,129 @@ function renderWebsite(ev, W) {
       toast(out.unchanged ? "Nothing had changed, so nothing was sent." : "Sent. The website will show it in about two minutes.");
       loadWebsite(ev);
     } catch (x) { toast(x.message); done(); }
+  };
+}
+/* ---------- housekeeping questions for attendees (Andrew 26 Oct 2026) ----------
+   One email to everyone registered, with a button to a short form: food allergies (only if they have one) and yes or
+   no to each social. The answers come out as two spreadsheets: the dietary list for the hotel, and who is coming to
+   the socials. */
+function replyCard() {
+  return secFold("reply", "Food allergies and socials", "Ask everyone registered, then download the two lists", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
+}
+async function loadReply(ev) {
+  const box = document.getElementById("replybox");
+  try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`)); }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+}
+const longDayEn = (iso) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) return ""; const [y, m, d] = iso.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }); };
+function renderReplyCard(ev, R) {
+  const box = document.getElementById("replybox");
+  if (!box) return;
+  if (!R.reply) {
+    box.innerHTML = `<p style="margin:0 0 12px">Send everyone registered one email with a button to a short form: any food allergy or intolerance, and yes or no to each social. You get two spreadsheets back: the dietary list for the hotel, and who is coming to the socials.</p>
+      <button class="btn btn-gold" id="rp-start">Set it up</button>`;
+    document.getElementById("rp-start").onclick = async (e) => { e.target.disabled = true; try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: "{}" })); } catch (x) { toast(x.message); e.target.disabled = false; } };
+    return;
+  }
+  const r = R.reply, st = R.status, A = R.answers ?? [];
+  const food = A.filter((a) => a.allergy);
+  const sent = !!r.sentAt;
+  const socialRow = (s, i) => `<div class="rpsoc" data-rpsoc="${i}">
+      <div class="row2"><div class="field" style="margin:0"><label>Social ${i + 1}: date</label><input type="date" data-k="date" value="${esc(s.date)}"></div><div></div></div>
+      <div class="field"><label>What it is</label><input data-k="label" maxlength="200" value="${esc(s.label)}"></div>
+      <div class="field"><label>What it is, in French</label><input data-k="labelFr" maxlength="200" value="${esc(s.labelFr)}"></div></div>`;
+  const counts = (r.socials ?? []).map((s) => ({ s, yes: A.filter((a) => a.socials?.[s.id] === "yes").length, no: A.filter((a) => a.socials?.[s.id] === "no").length }));
+  box.innerHTML = `
+    <div class="rpstate">${sent
+      ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left ? `. ${st.round.left} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
+      : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
+
+    <h3 class="wsh">Answers <span class="porg">· ${A.length}</span></h3>
+    <div class="rpgrid">
+      <div class="rpbox"><b>Food allergies and intolerances</b><span class="porg">${food.length} ${food.length === 1 ? "person" : "people"}</span>
+        <button class="mini gold" data-rpsheet="dietary"${food.length ? "" : " disabled"}>Download the dietary list</button></div>
+      ${counts.map((c) => `<div class="rpbox"><b>${esc(c.s.label)}</b><span class="porg">${esc(longDayEn(c.s.date))}</span><span><b>${c.yes}</b> coming · ${c.no} not</span></div>`).join("")}
+      <div class="rpbox"><b>The socials list</b><span class="porg">Everyone who answered, yes or no to each</span>
+        <button class="mini gold" data-rpsheet="socials"${A.length ? "" : " disabled"}>Download the socials list</button></div>
+    </div>
+    ${A.length ? `<details class="rpall"><summary>See every answer</summary><div class="ptwrap"><table class="ptable"><thead><tr><th>Name</th><th>Agency</th><th>Food</th>${(r.socials ?? []).map((s, i) => `<th>Social ${i + 1}</th>`).join("")}<th></th></tr></thead><tbody>
+      ${A.map((a) => `<tr><td><b>${esc(a.first)} ${esc(a.last)}</b><br><span class="porg">${esc(a.email)}</span></td><td>${esc(a.agency)}</td><td>${a.allergy ? esc(a.dietary) : `<span class="porg">none</span>`}</td>${(r.socials ?? []).map((s) => `<td>${a.socials?.[s.id] === "yes" ? "Yes" : a.socials?.[s.id] === "no" ? "No" : ""}</td>`).join("")}<td><button class="mini" data-rpdel="${esc(a.id)}" aria-label="Remove ${esc(a.first)} ${esc(a.last)}'s answer">✕</button></td></tr>`).join("")}
+    </tbody></table></div></details>` : ""}
+
+    <h3 class="wsh">The form</h3>
+    <div class="row2"><div class="field" style="margin:0"><label for="rp-by">Answer by (end of day)</label><input type="date" id="rp-by" value="${esc(r.replyBy)}"></div>
+      <div class="field" style="margin:0"><label>Link</label><div class="stack"><a href="${esc(R.link)}" target="_blank" rel="noopener" style="word-break:break-all">${esc(R.link)}</a></div></div></div>
+    <label class="attest" style="margin-top:12px"><input type="checkbox" id="rp-open"${r.open ? " checked" : ""}><span>The form is open for answers</span></label>
+    <div id="rpsocs">${(r.socials ?? []).map(socialRow).join("")}</div>
+    ${(r.socials ?? []).length < 4 ? `<button class="mini" id="rp-addsoc">Add a social</button>` : ""}
+
+    <h3 class="wsh">The email</h3>
+    <div class="field" style="margin-top:0"><label for="rp-subject">Subject</label><input id="rp-subject" maxlength="200" value="${esc(r.subject)}"></div>
+    <div class="field"><label for="rp-body">The letter</label><textarea id="rp-body" style="min-height:260px" spellcheck="true">${esc(r.body)}</textarea>
+      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}, {social1} and {social2} fill themselves in. The button to the form goes underneath.</p></div>
+    <div class="field"><label for="rp-button">Button words</label><input id="rp-button" maxlength="60" value="${esc(r.buttonLabel)}"></div>
+    ${R.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(R.problems[0])}</div>` : ""}
+    <div class="actions" style="margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-gold" id="rp-save">Save</button>
+      <button class="btn btn-ghost" id="rp-preview">See the email</button>
+      <button class="btn btn-ghost" id="rp-test">Send me a test</button></div>
+    <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || (sent && st.had >= st.reaches) ? " disabled" : ""}>${sent ? (st.had >= st.reaches ? "Everyone registered has had it" : `Send to the ${st.reaches - st.had} who haven't had it`) : `Send to ${st.reaches} registered`}</button>
+      <span class="hint">Each address gets it once. Asks you to confirm first.</span></div>
+    <dialog class="sheet" id="rpdlg" style="max-width:640px;width:calc(100% - 24px)"><form method="dialog">
+      <div class="sheet-head"><h2 id="rpdlg-h">The email</h2><p class="hint" id="rpdlg-sub" style="margin-top:6px"></p></div>
+      <div class="sheet-body"><div class="lprev"><iframe id="rp-frame" title="The email as attendees will see it" sandbox=""></iframe></div>
+        <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
+
+  const $ = (id) => document.getElementById(id);
+  const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
+  const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value });
+  const save = async () => { const out = await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body()) }); return out; };
+  const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
+  $("rp-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderReplyCard(ev, await save()); toast("Saved."); } catch (x) { toast(x.message); done(); } };
+  if ($("rp-addsoc")) $("rp-addsoc").onclick = () => { const r2 = { ...R, reply: { ...R.reply, ...body() } }; r2.reply.socials = [...r2.reply.socials, { date: "", label: "", labelFr: "" }]; renderReplyCard(ev, r2); };
+  $("rp-preview").onclick = async (e) => {
+    const done = busy(e.target, "Opening…");
+    try { await save(); const pv = await api(`/reply?event=${encodeURIComponent(ev.id)}&preview=1`, { method: "POST", body: "{}" }); $("rpdlg-h").textContent = pv.subject; $("rpdlg-sub").textContent = "As Alex, an attendee, would see it."; $("rp-frame").srcdoc = pv.html; $("rpdlg").showModal(); }
+    catch (x) { toast(x.message); }
+    done();
+  };
+  $("rp-test").onclick = async (e) => {
+    const done = busy(e.target, "Sending…");
+    try { await save(); const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&test=1`, { method: "POST", body: "{}" }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); }
+    done();
+  };
+  box.querySelectorAll("[data-rpsheet]").forEach((b) => { b.onclick = async () => {
+    const done = busy(b, "Making it…");
+    try {
+      const res = await apiFetch(`/api/reply?event=${encodeURIComponent(ev.id)}&sheet=${b.dataset.rpsheet}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(await res.blob());
+      a.download = (res.headers.get("content-disposition") ?? "").match(/filename="([^"]+)"/)?.[1] ?? "list.xlsx";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (x) { toast(x.message); }
+    done();
+  }; });
+  box.querySelectorAll("[data-rpdel]").forEach((b) => { b.onclick = async () => {
+    if (!confirm("Remove this answer? It comes off both lists.")) return;
+    try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&answer=${encodeURIComponent(b.dataset.rpdel)}`, { method: "DELETE" })); } catch (x) { toast(x.message); }
+  }; });
+  $("rp-send").onclick = async (e) => {
+    const n = sent ? st.reaches - st.had : st.reaches;
+    if (!confirm(`Send "${$("rp-subject").value}" to ${n} registered ${n === 1 ? "address" : "addresses"} now?\n\nEach address gets it once.`)) return;
+    const done = busy(e.target, "Sending…");
+    try {
+      await save();
+      let out, total = 0;
+      do {
+        out = await api(`/reply?event=${encodeURIComponent(ev.id)}&send=1`, { method: "POST", body: "{}" });
+        if (out.blocked) throw new Error(out.blocked[0]);
+        total += out.sent ?? 0;
+        e.target.textContent = `Sending… ${total} sent${out.left ? `, ${out.left} to go` : ""}`;
+      } while (out.left);
+      toast(`Sent to ${total}.${out.failed ? ` ${out.failed} could not be sent.` : ""}`);
+      loadReply(ev);
+    } catch (x) { toast(x.message); done(); loadReply(ev); }
   };
 }
 function rbhOfferCard(ev, guess) {

@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mj
 import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
-  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts } from "./lib/store.mjs";
+  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies } from "./lib/store.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -332,6 +332,8 @@ async function deleteEvent(id, canCost = true) {
   for (const v of volunteers) {
     await Promise.all([deleteKey(`volunteer:${id}:${v.id}`), v.token ? deleteKey(`vtoken:${v.token}`) : null, deleteKey(`pdf:vol:${id}:${v.id}`)]);
   }
+  // Attendees' answers to the housekeeping questions (food allergies, socials) go with the event.
+  for (const a of (await getReplies(id)).answers) await deleteKey(`reply:${id}:${a.id}`);
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
     deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
   await deleteKey(`event:${id}`);
