@@ -31,3 +31,9 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
 - Community partners register on a separate Wix event. Decision: link it to the same desk event ("Also pull a second
   Wix event"), labelled "Community partners", rather than a one-off CSV, so later registrations arrive nightly. Each
   pull only withdraws people from its own Wix event.
+
+## 26 Oct 2026, third round (Andrew)
+- Agency comes across from the Wix registration form: any form field named like agency / organization / company /
+  employer / service. The housekeeping form fills it in from there.
+- "See the email" is now the editor too: words on one side, the email redrawn as you type (400 ms after the last
+  key), checked the same way as a send (a misspelt blank shows). "Save these words" keeps them; closing does not.

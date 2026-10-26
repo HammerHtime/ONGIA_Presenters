@@ -158,7 +158,7 @@ async function absorb(eventId, guests, event = null, l = null) {
   // Every registration is a row, keyed by its Wix guest (and place in an RSVP), even one with no email of its own.
   const incoming = guests.map((g) => ({
     key: g.key ?? `wix:${g.id}`, first: g.first, last: g.last, email: g.email, phone: g.phone,
-    organization: "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id, ...(g.guestOf ? { guestOf: g.guestOf } : {}),
+    organization: g.organization || "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id, ...(g.guestOf ? { guestOf: g.guestOf } : {}),
     ...(l ? { wixEventId: l.eventId, group: l.group || "" } : {}),
   }));
   // Each pull only withdraws people from its own Wix event, so a second one (or one unlinked since) is never mistaken
