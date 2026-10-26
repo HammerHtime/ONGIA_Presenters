@@ -4194,7 +4194,7 @@ function renderWebsite(ev, W) {
    no to each social. The answers come out as two spreadsheets: the dietary list for the hotel, and who is coming to
    the socials. */
 function replyCard() {
-  return secFold("reply", "Food allergies and socials", "Ask everyone registered, then download the two lists", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
+  return secFold("reply", "Food allergies and dietary needs", "Ask everyone registered, then download the list for the hotel", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
 }
 async function loadReply(ev) {
   const box = document.getElementById("replybox");
@@ -4206,13 +4206,15 @@ function renderReplyCard(ev, R) {
   const box = document.getElementById("replybox");
   if (!box) return;
   if (!R.reply) {
-    box.innerHTML = `<p style="margin:0 0 12px">Send everyone registered one email with a button to a short form: any food allergy or intolerance, and yes or no to each social. You get two spreadsheets back: the dietary list for the hotel, and who is coming to the socials.</p>
+    box.innerHTML = `<p style="margin:0 0 12px">Send everyone registered one email with a button to a short form asking about any food allergy, intolerance or dietary need${/national gang summit/i.test(ev.title) ? ", and yes or no to each social" : ""}. The answers come back as the dietary list for the hotel${/national gang summit/i.test(ev.title) ? ", and a separate list of who is coming to the socials" : ""}. You can also add people who already told you.</p>
       <button class="btn btn-gold" id="rp-start">Set it up</button>`;
     document.getElementById("rp-start").onclick = async (e) => { e.target.disabled = true; try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: "{}" })); } catch (x) { toast(x.message); e.target.disabled = false; } };
     return;
   }
   const r = R.reply, st = R.status, A = R.answers ?? [];
   const food = A.filter((a) => a.allergy);
+  const hasSoc = (r.socials ?? []).length > 0;
+  const fromForm = A.filter((a) => a.source !== "desk");
   const sent = !!r.sentAt;
   const socialRow = (s, i) => `<div class="rpsoc" data-rpsoc="${i}">
       <div class="row2"><div class="field" style="margin:0"><label>Social ${i + 1}: date</label><input type="date" data-k="date" value="${esc(s.date)}"></div><div></div></div>
@@ -4229,25 +4231,37 @@ function renderReplyCard(ev, R) {
       <div class="rpbox"><b>Food allergies and intolerances</b><span class="porg">${food.length} ${food.length === 1 ? "person" : "people"}</span>
         <button class="mini gold" data-rpsheet="dietary"${food.length ? "" : " disabled"}>Download the dietary list</button></div>
       ${counts.map((c) => `<div class="rpbox"><b>${esc(c.s.label)}</b><span class="porg">${esc(longDayEn(c.s.date))}</span><span><b>${c.yes}</b> coming · ${c.no} not</span></div>`).join("")}
-      <div class="rpbox"><b>The socials list</b><span class="porg">Everyone who answered, yes or no to each</span>
-        <button class="mini gold" data-rpsheet="socials"${A.length ? "" : " disabled"}>Download the socials list</button></div>
+      ${hasSoc ? `<div class="rpbox"><b>The socials list</b><span class="porg">Everyone who answered the form, yes or no to each</span>
+        <button class="mini gold" data-rpsheet="socials"${fromForm.length ? "" : " disabled"}>Download the socials list</button></div>` : ""}
     </div>
-    ${A.length ? `<details class="rpall"><summary>See every answer</summary><div class="ptwrap"><table class="ptable"><thead><tr><th>Name</th><th>Agency</th><th>Food</th>${(r.socials ?? []).map((s, i) => `<th>Social ${i + 1}</th>`).join("")}<th></th></tr></thead><tbody>
-      ${A.map((a) => `<tr><td><b>${esc(a.first)} ${esc(a.last)}</b><br><span class="porg">${esc(a.email)}</span></td><td>${esc(a.agency)}</td><td>${a.allergy ? esc(a.dietary) : `<span class="porg">none</span>`}</td>${(r.socials ?? []).map((s) => `<td>${a.socials?.[s.id] === "yes" ? "Yes" : a.socials?.[s.id] === "no" ? "No" : ""}</td>`).join("")}<td><button class="mini" data-rpdel="${esc(a.id)}" aria-label="Remove ${esc(a.first)} ${esc(a.last)}'s answer">✕</button></td></tr>`).join("")}
+    <div class="actions" style="margin:0 0 6px;flex-wrap:wrap"><button class="mini" id="rp-addone">Add someone by hand</button>
+      <button class="mini" id="rp-upload">Add from your spreadsheet</button><input type="file" id="rp-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></div>
+    <div id="rp-addform" hidden class="rpsoc">
+      <div class="row2"><div class="field" style="margin:0"><label for="rpa-first">First name</label><input id="rpa-first" maxlength="80"></div>
+        <div class="field" style="margin:0"><label for="rpa-last">Last name</label><input id="rpa-last" maxlength="80"></div></div>
+      <div class="field"><label for="rpa-diet">Allergy / dietary</label><input id="rpa-diet" maxlength="600" placeholder="e.g. allergic to shrimp"></div>
+      <div class="row2"><div class="field" style="margin:0"><label for="rpa-agency">Agency (optional)</label><input id="rpa-agency" maxlength="200"></div>
+        <div class="field" style="margin:0"><label for="rpa-table">Table number (optional)</label><input id="rpa-table" maxlength="20"></div></div>
+      <div class="actions" style="margin-top:10px"><button class="mini gold" id="rpa-save">Add to the dietary list</button><button class="mini" id="rpa-cancel">Cancel</button></div></div>
+    <p class="hint" style="margin:0 0 10px">The spreadsheet can be the hotel layout (First Name, Last Name, Allergy / Dietary, Table Number). Everyone on it goes on the dietary list.</p>
+    ${A.length ? `<details class="rpall"${A.length <= 12 ? " open" : ""}><summary>See every answer</summary><div class="ptwrap"><table class="ptable"><thead><tr><th>Name</th><th>Agency</th><th>Food</th>${(r.socials ?? []).map((s, i) => `<th>Social ${i + 1}</th>`).join("")}<th></th></tr></thead><tbody>
+      ${A.map((a) => `<tr><td><b>${esc(a.first)} ${esc(a.last)}</b><br><span class="porg">${esc(a.email)}</span></td><td>${esc(a.agency)}</td><td>${a.allergy ? esc(a.dietary) : `<span class="porg">none</span>`}${a.source === "desk" ? `<br><span class="porg">added on the desk</span>` : ""}</td>${(r.socials ?? []).map((s) => `<td>${a.source === "desk" ? "" : a.socials?.[s.id] === "yes" ? "Yes" : a.socials?.[s.id] === "no" ? "No" : ""}</td>`).join("")}<td><button class="mini" data-rpdel="${esc(a.id)}" aria-label="Remove ${esc(a.first)} ${esc(a.last)}'s answer">✕</button></td></tr>`).join("")}
     </tbody></table></div></details>` : ""}
 
     <h3 class="wsh">The form</h3>
     <div class="row2"><div class="field" style="margin:0"><label for="rp-by">Answer by (end of day)</label><input type="date" id="rp-by" value="${esc(r.replyBy)}"></div>
       <div class="field" style="margin:0"><label>Link</label><div class="stack"><a href="${esc(R.link)}" target="_blank" rel="noopener" style="word-break:break-all">${esc(R.link)}</a></div></div></div>
     <label class="attest" style="margin-top:12px"><input type="checkbox" id="rp-open"${r.open ? " checked" : ""}><span>The form is open for answers</span></label>
+    ${hasSoc ? `<h3 class="wsh">Socials</h3>` : ""}
     <div id="rpsocs">${(r.socials ?? []).map(socialRow).join("")}</div>
-    ${(r.socials ?? []).length < 4 ? `<button class="mini" id="rp-addsoc">Add a social</button>` : ""}
+    ${(r.socials ?? []).length < 4 ? `<button class="mini" id="rp-addsoc">${hasSoc ? "Add a social" : "Also ask about a social"}</button>` : ""}
 
     <h3 class="wsh">The email</h3>
     <div class="field" style="margin-top:0"><label for="rp-subject">Subject</label><input id="rp-subject" maxlength="200" value="${esc(r.subject)}"></div>
     <div class="field"><label for="rp-body">The letter</label><textarea id="rp-body" style="min-height:260px" spellcheck="true">${esc(r.body)}</textarea>
-      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}, {social1} and {social2} fill themselves in. The button to the form goes underneath.</p></div>
+      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}${hasSoc ? ", {social1} and {social2}" : ""} fill themselves in. The button goes underneath, and opens the form with each person's name and email already filled in.</p></div>
     <div class="field"><label for="rp-button">Button words</label><input id="rp-button" maxlength="60" value="${esc(r.buttonLabel)}"></div>
+    ${!sent ? `<button class="mini" id="rp-wording" style="margin-top:8px">Use the suggested wording</button>` : ""}
     ${R.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(R.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap">
       <button class="btn btn-gold" id="rp-save">Save</button>
@@ -4265,6 +4279,34 @@ function renderReplyCard(ev, R) {
   const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value });
   const save = async () => { const out = await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body()) }); return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
+  $("rp-addone").onclick = () => { $("rp-addform").hidden = false; $("rpa-first").focus(); };
+  $("rpa-cancel").onclick = () => { $("rp-addform").hidden = true; };
+  $("rpa-save").onclick = async (e) => {
+    const done = busy(e.target, "Adding…");
+    try {
+      renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&add=1`, { method: "POST", body: JSON.stringify({ first: $("rpa-first").value, last: $("rpa-last").value, dietary: $("rpa-diet").value, agency: $("rpa-agency").value, table: $("rpa-table").value }) }));
+      toast("Added to the dietary list.");
+    } catch (x) { toast(x.message); done(); }
+  };
+  $("rp-upload").onclick = () => $("rp-file").click();
+  $("rp-file").onchange = async () => {
+    const file = $("rp-file").files[0];
+    if (!file) return;
+    const done = busy($("rp-upload"), "Reading it…");
+    try {
+      const res = await apiFetch(`/api/reply?event=${encodeURIComponent(ev.id)}&upload=1`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/octet-stream" }, body: await file.arrayBuffer() });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error ?? `Upload failed (${res.status})`);
+      const u = out.uploaded;
+      toast(`${u.added} added${u.updated ? `, ${u.updated} already there and updated` : ""}${u.skipped.length ? `. Skipped ${u.skipped.length}: ${u.skipped[0]}` : ""}.`);
+      renderReplyCard(ev, out);
+    } catch (x) { toast(x.message); done(); }
+  };
+  if ($("rp-wording")) $("rp-wording").onclick = async (e) => {
+    if (!confirm("Replace the email's subject, wording and button with the suggested ones?")) return;
+    const done = busy(e.target, "…");
+    try { await save(); renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&wording=1`, { method: "POST", body: "{}" })); toast("The suggested wording is back. Save if you change it."); } catch (x) { toast(x.message); done(); }
+  };
   $("rp-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderReplyCard(ev, await save()); toast("Saved."); } catch (x) { toast(x.message); done(); } };
   if ($("rp-addsoc")) $("rp-addsoc").onclick = () => { const r2 = { ...R, reply: { ...R.reply, ...body() } }; r2.reply.socials = [...r2.reply.socials, { date: "", label: "", labelFr: "" }]; renderReplyCard(ev, r2); };
   $("rp-preview").onclick = async (e) => {
@@ -5696,7 +5738,7 @@ function attendeesCard(ev, guests) {
     return `<div class="card"><div class="card-head"><div><h2>Who is coming</h2></div></div>
       <div class="card-body"><div class="bad"><b>The attendee list could not be loaded.</b> Reload the page.</div></div></div>`;
   }
-  const { people, counts, syncedAt, wix } = guests;
+  const { people, counts, syncedAt, wix, wixMore = [] } = guests;
   const chip = (n, cls, word) => (n ? `<span class="chipstat${cls}"><b>${n}</b>${word}</span>` : "");
 
   // A table like the presenters' (Andrew 20 Oct 2026): everyone, with a find box and the coming / waitlist / withdrew cuts.
@@ -5707,7 +5749,7 @@ function attendeesCard(ev, guests) {
     const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
     return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""}`.toLowerCase())}">
       <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span></td>
-      <td class="go">${esc(p.organization || "")}</td>
+      <td class="go">${esc(p.organization || "")}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
       <td class="gs" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</td></tr>`;
   }).join("");
@@ -5718,7 +5760,11 @@ function attendeesCard(ev, guests) {
   const bar = wix?.eventId
     ? `<div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
         <button class="mini" id="g-sync">Pull from Wix now</button>
-        <button class="mini ghost" id="g-unlink">Unlink</button></div>`
+        <button class="mini ghost" id="g-unlink">Unlink</button></div>
+      ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b> · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
+        <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
+      <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
+        <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div>`
     : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
         <button class="mini" id="g-link">Link to a Wix event</button></div>`;
 
@@ -5771,7 +5817,8 @@ function lettersStrip(L) {
 
 const wixDialog = () => `<dialog class="sheet" id="wixdlg">
   <form method="dialog">
-    <div class="sheet-head"><h2>Link to a Wix event</h2>
+    <div class="sheet-head"><h2 id="wixdlg-h">Link to a Wix event</h2>
+      <div class="field" id="wixgroup" hidden style="margin-top:10px"><label for="wix-group">Label these registrations as</label><input id="wix-group" value="Community partners" maxlength="60"></div>
       <p class="hint" style="margin-top:6px">Registrations for the event you pick will arrive here, tonight and every
         night. Nothing is written back to your website.</p></div>
     <div class="sheet-body">
@@ -5820,9 +5867,18 @@ function wireAttendees(ev) {
     run(`/wix?event=${encodeURIComponent(ev.id)}&unlink=1`, { method: "PUT" }, () => "Unlinked.");
   };
 
-  const link = document.getElementById("g-link");
+  ROOT.querySelectorAll("[data-unlinkalso]").forEach((b) => { b.onclick = () => {
+    if (!confirm("Stop pulling that second Wix event? The people already on the list are kept.")) return;
+    run(`/wix?event=${encodeURIComponent(ev.id)}&unlinkAlso=${encodeURIComponent(b.dataset.unlinkalso)}`, { method: "PUT" }, () => "Unlinked.");
+  }; });
+  const link = document.getElementById("g-link"), linkAlso = document.getElementById("g-linkalso");
   const dlg = document.getElementById("wixdlg");
-  if (link && dlg) link.onclick = async () => {
+  let also = false;
+  if (linkAlso && dlg) linkAlso.onclick = () => { also = true; openPicker(); };
+  if (link && dlg) link.onclick = () => { also = false; openPicker(); };
+  const openPicker = async () => {
+    document.getElementById("wixdlg-h").textContent = also ? "Also pull a second Wix event" : "Link to a Wix event";
+    document.getElementById("wixgroup").hidden = !also;
     const list = document.getElementById("wixlist");
     list.innerHTML = `<p class="hint">Asking your website…</p>`;
     dlg.showModal();
@@ -5838,7 +5894,8 @@ function wireAttendees(ev) {
       list.querySelectorAll("[data-wix]").forEach((b) => {
         b.onclick = async () => {
           dlg.close();
-          run(`/wix?event=${encodeURIComponent(ev.id)}&link=${encodeURIComponent(b.dataset.wix)}`, { method: "PUT" },
+          const group = document.getElementById("wix-group").value.trim() || "Community partners";
+          run(`/wix?event=${encodeURIComponent(ev.id)}&link=${encodeURIComponent(b.dataset.wix)}${also ? `&also=1&group=${encodeURIComponent(group)}` : ""}`, { method: "PUT" },
             (o) => `Linked. Pulled ${o.read} registration${o.read === 1 ? "" : "s"} straight away.`);
         };
       });

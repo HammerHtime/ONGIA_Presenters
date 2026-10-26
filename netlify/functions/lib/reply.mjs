@@ -33,33 +33,47 @@ export const longDayFr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "") ? `${JO
 /** Day n of an event as a date, "2026-11-10". */
 const dayN = (event, n) => (event?.dayOne ? new Date(at(event.dayOne).getTime() + (n - 1) * 86400000).toISOString().slice(0, 10) : "");
 
-/** What a new event's questions start as: the National Gang Summit's two nights, which Andrew can reword. */
+/**
+ * The National Gang Summit's two nights (Andrew 26 Oct 2026). Socials are asked about at the Summit only; every
+ * event asks about food.
+ */
+const isSummit = (event) => /national gang summit/i.test(event?.title ?? "");
+function summitSocials(event) {
+  return [
+    { id: "s1", date: dayN(event, 2), label: "Networking social, followed by a screening of the documentary WATTS",
+      labelFr: "Activité de réseautage, suivie de la projection du documentaire WATTS" },
+    { id: "s2", date: dayN(event, 3), label: "Social at the hotel, with a live band",
+      labelFr: "Soirée à l'hôtel, avec un groupe de musique" },
+  ];
+}
+
+/** The email as the desk suggests it, for these socials. Andrew can change every word on the event page. */
+export function suggestedWording(event, socials = []) {
+  const summit = isSummit(event);
+  const n = socials.length;
+  return {
+    subject: n ? "{event}: a few quick questions" : "{event}: any food allergies?",
+    body: [
+      "Hello {first},",
+      "We're putting the final touches on the {event}, and we're looking forward to hosting you and to hearing from a great lineup of speakers.",
+      // The Summit's community partners come for the two community days only (Andrew 26 Oct 2026).
+      ...(summit ? ["This is for everyone coming, whether you're with us for the full Summit, November 9 to 12, or joining us as a community partner on November 10 and 11."] : []),
+      `${n ? "A few housekeeping questions before then. First" : "One question before then"}: do you have a food allergy, intolerance or dietary need? We'll pass it to the hotel so they can plan your meals.`,
+      ...(n ? [`We'd also like to know whether you'll come to ${n === 1 ? "the social" : "each of the socials"}:`, socials.map((_, i) => `* {social${i + 1}}`).join("\n")] : []),
+      `Please answer by end of day {replyBy}, so the hotel has time to plan. It takes ${n ? "about a minute" : "a few seconds"}.`,
+      "See you soon.",
+    ].join("\n\n"),
+    buttonLabel: n ? "Answer the questions" : "Tell us",
+  };
+}
+
+/** What an event's questions start as. */
 export function startingReply(event, now = new Date()) {
   // The Friday of this week, or today if that has passed: Andrew's "end of this week".
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   d.setUTCDate(d.getUTCDate() + ((5 - d.getUTCDay() + 7) % 7));
-  return {
-    token: newToken(16),
-    open: true,
-    replyBy: d.toISOString().slice(0, 10),
-    socials: [
-      { id: "s1", date: dayN(event, 2), label: "Networking social, followed by a screening of the documentary WATTS",
-        labelFr: "Activité de réseautage, suivie de la projection du documentaire WATTS" },
-      { id: "s2", date: dayN(event, 3), label: "Social at the hotel, with a live band",
-        labelFr: "Soirée à l'hôtel, avec un groupe de musique" },
-    ],
-    subject: "{event}: a few quick questions",
-    body: [
-      "Hello {first},",
-      "We're putting the final touches on the {event}, and we're looking forward to hosting you and to hearing from a great lineup of speakers.",
-      "A few housekeeping questions before then. We'd like to know about any food allergy or intolerance, so the hotel can plan your meals. If you have none, you can skip that part.",
-      "We'd also like to know whether you'll come to each of the socials:",
-      "* {social1}\n* {social2}",
-      "Please answer by end of day {replyBy}, so the hotel has time to plan. It takes about a minute.",
-      "See you soon.",
-    ].join("\n\n"),
-    buttonLabel: "Answer the questions",
-  };
+  const socials = isSummit(event) ? summitSocials(event) : [];
+  return { token: newToken(16), open: true, replyBy: d.toISOString().slice(0, 10), socials, ...suggestedWording(event, socials) };
 }
 
 const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ""));
@@ -91,7 +105,10 @@ export function cleanAnswer(body, reply) {
   if (!last) problems.push("last");
   if (!agency) problems.push("agency");
   if (!isEmail(email)) problems.push("email");
-  const allergy = body?.allergy === true;
+  // "Do you have a food allergy or intolerance?" is answered yes or no, so a skipped question is not a "no".
+  const said = body?.allergy === true || body?.allergy === "yes" ? "yes" : body?.allergy === false || body?.allergy === "no" ? "no" : null;
+  if (!said) problems.push("allergy");
+  const allergy = said === "yes";
   const dietary = allergy ? text(body?.dietary, 600) : "";
   if (allergy && !dietary) problems.push("dietary");
   const socials = {};
@@ -127,7 +144,13 @@ function subtitleOf(event) {
 
 /** The dietary list for the hotel: only the people who told us about an allergy or intolerance. */
 export function dietarySheet(event, answers) {
-  const rows = byName(answers.filter((a) => a.allergy)).map((a) => [a.first, a.last, a.dietary, ""]);
+  // Someone Andrew added by hand who then answered the form too is listed once, with the latest of the two.
+  const one = new Map();
+  for (const a of [...answers].sort((x, y) => (x.at ?? "").localeCompare(y.at ?? ""))) {
+    const k = `${a.first} ${a.last}`.toLowerCase().replace(/\s+/g, " ").trim();
+    one.set(k, { ...a, table: a.table || one.get(k)?.table || "" });
+  }
+  const rows = byName([...one.values()].filter((a) => a.allergy)).map((a) => [a.first, a.last, a.dietary, a.table ?? ""]);
   return xlsx({
     title: "Allergy / Dietary List", subtitle: subtitleOf(event), sheet: "Dietary",
     columns: [{ head: "First Name", width: 16 }, { head: "Last Name", width: 16 }, { head: "Allergy / Dietary", width: 48 }, { head: "Table Number\n(If Applicable)", width: 16 }],
@@ -138,7 +161,7 @@ export function dietarySheet(event, answers) {
 /** Who is coming to each social: yes or no, with the totals underneath. */
 export function socialsSheet(event, answers, reply) {
   const socials = reply.socials ?? [];
-  const list = byName(answers);
+  const list = byName(answers.filter((a) => a.source !== "desk"));   // added by hand on the desk: food only
   const rows = list.map((a) => [a.first, a.last, a.agency, ...socials.map((s) => (a.socials?.[s.id] === "yes" ? "Yes" : a.socials?.[s.id] === "no" ? "No" : ""))]);
   const yes = socials.map((s) => list.filter((a) => a.socials?.[s.id] === "yes").length);
   return xlsx({
@@ -149,6 +172,29 @@ export function socialsSheet(event, answers, reply) {
   });
 }
 
+/**
+ * Someone's allergy added on the desk rather than through the form: a person who had already told Andrew (his
+ * National Gang Summit sheet), or a phone call. Name and what it is; agency, email and table if known.
+ */
+export function cleanDeskEntry(body) {
+  const first = text(body?.first, 80), last = text(body?.last, 80), dietary = text(body?.dietary, 600);
+  if (!first && !last) return { problem: "Give at least a name." };
+  if (!dietary) return { problem: `Say what ${first || last}'s allergy or dietary need is.` };
+  const email = text(body?.email, 200).toLowerCase();
+  return { entry: { first, last, agency: text(body?.agency, 200), email: isEmail(email) ? email : "", allergy: true, dietary, table: text(body?.table, 20), socials: {}, source: "desk" } };
+}
+
+/** The rows of a dietary sheet laid out like Andrew's: everything under the "First Name" header that has a name. */
+export function dietaryRowsOf(rows) {
+  const at = rows.findIndex((r) => /^\s*first\s*name\s*$/i.test(String(r[0] ?? "")));
+  if (at < 0) return { problem: "That sheet has no \"First Name\" column heading. Use the same layout as the dietary list." };
+  const head = rows[at].map((h) => String(h ?? "").toLowerCase());
+  const col = (re, fallback) => { const i = head.findIndex((h) => re.test(h)); return i >= 0 ? i : fallback; };
+  const [f, l, d, t, g, e] = [col(/first/, 0), col(/last/, 1), col(/allerg|diet/, 2), col(/table/, 3), col(/agency|organi/, -1), col(/e-?mail/, -1)];
+  return { rows: rows.slice(at + 1).map((r) => ({ first: r[f], last: r[l], dietary: r[d], table: r[t], agency: g >= 0 ? r[g] : "", email: e >= 0 ? r[e] : "" }))
+    .filter((r) => String(r.first ?? "").trim() || String(r.last ?? "").trim()) };
+}
+
 /** The email, as a letter: it uses the same layout and checks as the welcome letter. */
 export function replyLetter(reply) {
   return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: "{replyLink}" };
@@ -157,7 +203,6 @@ export const replyProblems = (event) => {
   const letter = replyLetter(event.reply);
   const out = [...letterProblems(letter), ...eventProblems(letter, event)];
   if (!event.reply.open) out.push("The form is closed. Open it before sending, or nobody can answer.");
-  if (!(event.reply.socials ?? []).length) out.push("There are no socials to ask about. Add at least one.");
   return [...new Set(out)];
 };
 export const renderReply = (event, person) => renderLetter(replyLetter(event.reply), event, person);

@@ -50,6 +50,7 @@ async function show(event) {
     syncedAt: stored.syncedAt ?? null,
     lastImport: stored.lastImport ?? null,
     wix: event.wix ?? null,
+    wixMore: event.wixMore ?? [],
     letters: await letterStatus(event, stored),
   };
 }

@@ -115,7 +115,7 @@ export function readCsv(raw) {
  * not take them away — so only Wix-sourced people are retired when Wix stops
  * mentioning them, and only on a sweep of that whole event.
  */
-export function merge(existing, incoming, { source, authoritative = false, at = new Date().toISOString() } = {}) {
+export function merge(existing, incoming, { source, authoritative = false, within = null, at = new Date().toISOString() } = {}) {
   const byKey = new Map((existing ?? []).map((p) => [keyOf(p), { ...p }]));
   const seen = new Set(), fresh = new Set();
   let added = 0, changed = 0;
@@ -144,7 +144,8 @@ export function merge(existing, incoming, { source, authoritative = false, at = 
   let withdrawn = 0;
   if (authoritative) {
     for (const [k, person] of byKey) {
-      if (person.source === source && !seen.has(k) && person.status !== "WITHDRAWN") {
+      // `within`: when an event pulls from more than one Wix event, each pull only speaks for its own registrations.
+      if (person.source === source && (!within || within(person)) && !seen.has(k) && person.status !== "WITHDRAWN") {
         // A row saved before rows had their own keys (one per address) hands over to this pull's rows at its address:
         // the letters it had and when it was added go with it, so nobody is written to twice or counted as new.
         const heirs = !person.key ? [...byKey.entries()].filter(([kk, p]) => kk !== k && seen.has(kk) && p.email && p.email === person.email) : [];

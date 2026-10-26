@@ -77,6 +77,8 @@
 const ROOT = document.getElementById("root");
 const LANGBTN = document.getElementById("lang");
 const TOKEN = location.pathname.startsWith("/q/") ? location.pathname.slice(3).split("/")[0] : new URLSearchParams(location.search).get("t");
+// Their own link from the email carries who they are, so the form starts with their name and email filled in.
+const PERSON = location.pathname.startsWith("/q/") ? location.pathname.slice(3).split("/")[1] ?? "" : new URLSearchParams(location.search).get("p") ?? "";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
@@ -88,14 +90,13 @@ en: {
   you: "About you", first: "First name", last: "Last name", agency: "Agency or organization", email: "Email",
   emailHint: "The address your registration came from, so we can match your answers to it.",
   food: "Food allergies and intolerances",
-  foodLede: "Only if you have one. If you don't, leave this unticked.",
-  foodTick: "I have a food allergy, intolerance or dietary need",
+  foodQ: "Do you have a food allergy, intolerance or dietary need?",
   foodWhat: "What is it?", foodPh: "e.g. allergic to shellfish; vegan; no pork; gluten-free",
   foodHint: "This goes to the hotel kitchen with your name, so they can plan your meals.",
   socials: "The socials", socialsLede: "Will you be there? Yes or no for each.",
-  yes: "Yes, I'll be there", no: "No",
+  yes: "Yes, I'll be there", no: "No", yesPlain: "Yes", noPlain: "No",
   send: "Send my answers", sending: "Sending…",
-  fix: "Please fill in what's marked:", missing: { first: "First name", last: "Last name", agency: "Agency or organization", email: "Email (a full address)", dietary: "What your allergy or intolerance is" },
+  fix: "Please fill in what's marked:", missing: { first: "First name", last: "Last name", agency: "Agency or organization", email: "Email (a full address)", allergy: "Yes or no to a food allergy", dietary: "What your allergy or intolerance is" },
   socialMissing: "Yes or no for each social",
   thanks: (f) => `Thank you, ${f}`, gotIt: "We have your answers.", again: "Your new answers replace the ones you sent before.",
   change: "If something changes, open this link again and send new answers.",
@@ -111,14 +112,13 @@ fr: {
   you: "À propos de vous", first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel",
   emailHint: "L'adresse de votre inscription, pour que nous puissions y associer vos réponses.",
   food: "Allergies et intolérances alimentaires",
-  foodLede: "Seulement si c'est votre cas. Sinon, ne cochez rien.",
-  foodTick: "J'ai une allergie, une intolérance ou un besoin alimentaire",
+  foodQ: "Avez-vous une allergie, une intolérance ou un besoin alimentaire?",
   foodWhat: "De quoi s'agit-il?", foodPh: "p. ex. allergie aux fruits de mer; végétalien; pas de porc; sans gluten",
   foodHint: "Ce renseignement est transmis à la cuisine de l'hôtel avec votre nom, pour qu'elle planifie vos repas.",
   socials: "Les activités sociales", socialsLede: "Serez-vous là? Oui ou non pour chacune.",
-  yes: "Oui, j'y serai", no: "Non",
+  yes: "Oui, j'y serai", no: "Non", yesPlain: "Oui", noPlain: "Non",
   send: "Envoyer mes réponses", sending: "Envoi…",
-  fix: "Veuillez remplir ce qui est indiqué :", missing: { first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel (adresse complète)", dietary: "Votre allergie ou intolérance" },
+  fix: "Veuillez remplir ce qui est indiqué :", missing: { first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel (adresse complète)", allergy: "Oui ou non à une allergie alimentaire", dietary: "Votre allergie ou intolérance" },
   socialMissing: "Oui ou non pour chaque activité",
   thanks: (f) => `Merci, ${f}`, gotIt: "Nous avons bien reçu vos réponses.", again: "Vos nouvelles réponses remplacent les précédentes.",
   change: "Si quelque chose change, rouvrez ce lien et envoyez de nouvelles réponses.",
@@ -131,7 +131,7 @@ fr: {
 const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
 
 let DATA = null, DONE = null, sending = false, problems = [];
-const S = { first: "", last: "", agency: "", email: "", allergy: false, dietary: "", socials: {} };
+const S = { first: "", last: "", agency: "", email: "", allergy: null, dietary: "", socials: {} };
 try { Object.assign(S, JSON.parse(sessionStorage.getItem(`ongia-reply-${TOKEN}`) ?? "{}")); } catch {}
 const keep = () => { try { sessionStorage.setItem(`ongia-reply-${TOKEN}`, JSON.stringify(S)); } catch {} };
 
@@ -146,7 +146,7 @@ function render() {
       <h1>${esc(t("thanks", DONE.first))}</h1><p class="lede">${t("gotIt")}${DONE.again ? ` ${t("again")}` : ""}</p>
       <p class="small" style="margin-top:14px">${t("change")}</p>
       <button type="button" class="btn" id="another" style="margin-top:10px;border-color:var(--border);background:var(--sunk);color:var(--ink-mid)">${t("another")}</button></div></div>`;
-    document.getElementById("another").onclick = () => { DONE = null; Object.assign(S, { first: "", last: "", allergy: false, dietary: "", socials: {} }); keep(); render(); window.scrollTo(0, 0); };
+    document.getElementById("another").onclick = () => { DONE = null; Object.assign(S, { first: "", last: "", allergy: null, dietary: "", socials: {} }); keep(); render(); window.scrollTo(0, 0); };
     return;
   }
   const late = DATA.replyBy && new Date().toISOString().slice(0, 10) > DATA.replyBy;
@@ -160,9 +160,11 @@ function render() {
     ${problems.length ? `<div class="problems"><b>${t("fix")}</b><br>${problems.map((p) => esc(T[LANG].missing[p] ?? t("socialMissing"))).filter((v, i, a) => a.indexOf(v) === i).join(" · ")}</div>` : ""}
     <div class="card"><h2>${t("you")}</h2>
       <div class="row2">${f("first")}${f("last")}</div>${f("agency")}${f("email", "email", t("emailHint"))}</div>
-    <div class="card"><h2>${t("food")}</h2><p class="lede">${t("foodLede")}</p>
-      <label class="tick${S.allergy ? " on" : ""}"><input type="checkbox" id="f-allergy"${S.allergy ? " checked" : ""}><span>${t("foodTick")}</span></label>
-      ${S.allergy ? `<div class="field"><label for="f-dietary">${t("foodWhat")}</label>
+    <div class="card"><h2>${t("food")}</h2><p class="lede" style="margin-bottom:10px">${t("foodQ")}</p>
+      <div class="seg${miss.has("allergy") ? " missing" : ""}" style="${miss.has("allergy") ? "border-radius:999px;padding:4px" : ""}" role="group" aria-label="${esc(t("foodQ"))}">
+        <button type="button" data-allergy="yes" aria-pressed="${S.allergy === "yes"}">${t("yesPlain")}</button>
+        <button type="button" data-allergy="no" aria-pressed="${S.allergy === "no"}">${t("noPlain")}</button></div>
+      ${S.allergy === "yes" ? `<div class="field"><label for="f-dietary">${t("foodWhat")}</label>
         <textarea id="f-dietary" data-k="dietary" maxlength="600" placeholder="${esc(t("foodPh"))}"${miss.has("dietary") ? ` class="missing"` : ""}>${esc(S.dietary)}</textarea>
         <p class="hint">${t("foodHint")}</p></div>` : ""}</div>
     <div class="card"><h2>${t("socials")}</h2><p class="lede" style="margin-bottom:6px">${t("socialsLede")}</p>
@@ -180,7 +182,10 @@ function render() {
     S[el.dataset.k] = el.value; keep();
     if (el.value.trim() && problems.includes(el.dataset.k)) { problems = problems.filter((p) => p !== el.dataset.k); el.classList.remove("missing"); if (!problems.length) ROOT.querySelector(".problems")?.remove(); }
   }; });
-  document.getElementById("f-allergy").onchange = (e) => { S.allergy = e.target.checked; if (!S.allergy) problems = problems.filter((p) => p !== "dietary"); keep(); render(); if (S.allergy) document.getElementById("f-dietary")?.focus(); };
+  ROOT.querySelectorAll("[data-allergy]").forEach((b) => { b.onclick = () => {
+    S.allergy = b.dataset.allergy; problems = problems.filter((p) => p !== "allergy" && (S.allergy === "yes" || p !== "dietary")); keep(); render();
+    if (S.allergy === "yes") document.getElementById("f-dietary")?.focus();
+  }; });
   ROOT.querySelectorAll("[data-s]").forEach((b) => { b.onclick = () => { S.socials[b.dataset.s] = b.dataset.v; problems = problems.filter((p) => p !== b.dataset.s); keep(); render(); }; });
   document.getElementById("send").onclick = send;
 }
@@ -204,8 +209,10 @@ async function send() {
 LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };
 (async () => {
   try {
-    const res = await fetch(`/api/reply?t=${encodeURIComponent(TOKEN ?? "")}`);
+    const res = await fetch(`/api/reply?t=${encodeURIComponent(TOKEN ?? "")}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}`);
     DATA = res.ok ? await res.json() : { broken: true };
+    // Their own link: start from the registration (and anything they sent before), unless they have already typed here.
+    if (DATA.you && !S.first && !S.email) Object.assign(S, Object.fromEntries(Object.entries(DATA.you).filter(([, v]) => v !== "" && v !== null && v !== undefined)));
   } catch { DATA = { broken: true }; }
   render();
 })();

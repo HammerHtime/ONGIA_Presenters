@@ -21,6 +21,8 @@ const F = REPO + "netlify/functions/";
 const reply = (await import(F + "reply.mjs")).default;
 const { putEvent, getEvent, putAttendees, getAttendees } = await import(F + "lib/store.mjs");
 const { startingReply } = await import(F + "lib/reply.mjs");
+const { personalId } = await import(F + "lib/letters.mjs");
+const { xlsx } = await import(F + "lib/xlsx.mjs");
 const { runLetterRounds } = await import(F + "lib/sendletters.mjs");
 const { issueSession } = await import(F + "lib/auth.mjs");
 let pass = 0, fail = 0;
@@ -57,6 +59,7 @@ const tok = set.link.split("/q/")[1];
 
 /* the email */
 const pv = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
+ok("the email speaks to the community partners on the 10th and 11th too", /full Summit, November 9 to 12, or joining us as a community partner on November 10 and 11/.test(pv.text), pv.text);
 ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking social, followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Social at the hotel, with a live band/.test(pv.text), pv.text);
 ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Answer the questions/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
@@ -84,14 +87,15 @@ ok("but not after the reply-by date", sent.length === 3);
 const form = (await call(`t=${tok}`)).body;
 ok("the form shows the event, the date to answer by, and the two socials in both languages", form.title === "National Gang Summit" && form.dates === "November 9–12, 2026" && form.datesFr === "du 9 au 12 novembre 2026" && form.replyByLong === "Friday, October 30" && form.replyByLongFr === "vendredi 30 octobre" && form.socials.length === 2 && /^mardi 10 novembre : /.test(form.socials[0].fr), JSON.stringify(form));
 ok("the form does not show who answered or any email address", !JSON.stringify(form).includes("@example.ca"));
-const answer = (o) => call(`t=${tok}`, { method: "POST", body: { first: "Ann", last: "One", agency: "Toronto Police Service", email: "A@example.ca", allergy: false, socials: { s1: "yes", s2: "no" }, ...o } });
-const bad = (await answer({ agency: "", allergy: true, dietary: "", socials: { s1: "yes" } })).body;
+const answer = (o) => call(`t=${tok}`, { method: "POST", body: { first: "Ann", last: "One", agency: "Toronto Police Service", email: "A@example.ca", allergy: "no", socials: { s1: "yes", s2: "no" }, ...o } });
+const bad = (await answer({ agency: "", allergy: "yes", dietary: "", socials: { s1: "yes" } })).body;
 ok("a half-filled form says what is missing", bad.error === "missing" && ["agency", "dietary", "s2"].every((k) => bad.problems.includes(k)), JSON.stringify(bad));
+ok("the food question is yes or no: skipping it is not a no", (await answer({ allergy: undefined })).body.problems?.includes("allergy"));
 ok("no allergy: nothing to fill in about food", (await answer({})).body.ok === true);
-const again = (await answer({ allergy: true, dietary: "Allergic to shrimp", socials: { s1: "yes", s2: "yes" } })).body;
+const again = (await answer({ allergy: "yes", dietary: "Allergic to shrimp", socials: { s1: "yes", s2: "yes" } })).body;
 ok("the same person answering again replaces their first answer", again.ok && again.again === true);
-await call(`t=${tok}`, { method: "POST", body: { first: "Guest", last: "OfBen", agency: "OPP", email: "b@example.ca", allergy: true, dietary: "Vegan", socials: { s1: "no", s2: "yes" } } });
-await call(`t=${tok}`, { method: "POST", body: { first: "Ben", last: "Two", agency: "OPP", email: "b@example.ca", allergy: false, dietary: "should be dropped", socials: { s1: "yes", s2: "no" } } });
+await call(`t=${tok}`, { method: "POST", body: { first: "Guest", last: "OfBen", agency: "OPP", email: "b@example.ca", allergy: "yes", dietary: "Vegan", socials: { s1: "no", s2: "yes" } } });
+await call(`t=${tok}`, { method: "POST", body: { first: "Ben", last: "Two", agency: "OPP", email: "b@example.ca", allergy: "no", dietary: "should be dropped", socials: { s1: "yes", s2: "no" } } });
 const all = (await call("event=ngs")).body.answers;
 ok("three people answered: Ben and his guest at the same address are two rows", all.length === 3, JSON.stringify(all.map((a) => a.first)));
 ok("a ticked-off allergy keeps no text", all.find((a) => a.first === "Ben").dietary === "");
@@ -108,9 +112,44 @@ ok("the socials list is separate: name, agency, yes or no to each", soc.rows[3].
 ok("with no food details in it", !JSON.stringify(soc.rows).includes("shrimp") && !JSON.stringify(soc.rows).includes("Vegan"));
 ok("and totals underneath: 2 coming Tuesday, 2 Wednesday", JSON.stringify(soc.rows.at(-1)) === JSON.stringify(["Total coming", null, "3 answered", 2, 2]), JSON.stringify(soc.rows.at(-1)));
 
+/* each person's own link fills in the form */
+const ngsNow = await getEvent("ngs");
+const annRow = (await getAttendees("ngs")).people.find((p) => p.email === "a@example.ca");
+const pid = personalId(ngsNow.reply.token, annRow);
+const sentToAnn = sent.find((m) => String(m.to).includes("a@example.ca"));
+ok("the email to each person carries their own link", sentToAnn.html.includes(`/q/${tok}/${pid}`) && !sent.find((m) => String(m.to).includes("b@example.ca")).html.includes(`/q/${tok}/${pid}`));
+const mine = (await call(`t=${tok}&p=${pid}`)).body.you;
+ok("their link fills in their name and email, and what they already answered", mine.first === "Ann" && mine.last === "One" && mine.email === "a@example.ca" && mine.agency === "Toronto Police Service" && mine.allergy === "yes" && mine.dietary === "Allergic to shrimp" && mine.socials.s2 === "yes", JSON.stringify(mine));
+ok("a made-up person id fills in nothing", (await call(`t=${tok}&p=0123456789abcdef`)).body.you === null);
+
+/* people who had already told Andrew: by hand, and from his sheet */
+const byHand = (await call("event=ngs&add=1", { method: "POST", body: { first: "Pat", last: "Hand", dietary: "Gluten-free", table: "7" } })).body;
+ok("someone can be added to the dietary list by hand", byHand.answers.some((a) => a.first === "Pat" && a.source === "desk" && a.table === "7"));
+ok("adding by hand needs what the allergy is", (await call("event=ngs&add=1", { method: "POST", body: { first: "No", last: "Detail" } })).status === 400);
+const sheet = xlsx({ title: "Allergy / Dietary List", subtitle: "ONGIA – National Gang Summit, November 9–12, 2026", columns: [{ head: "First Name" }, { head: "Last Name" }, { head: "Allergy / Dietary" }, { head: "Table Number\n(If Applicable)" }],
+  rows: [["Sam", "Sheet", "No pork", ""], ["Ann", "One", "Allergic to shrimp and crab", 3], ["", "", "", ""]] });
+const up = await reply(new Request("http://localhost/api/reply?event=ngs&upload=1", { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "application/octet-stream" }, body: sheet }));
+const upOut = await up.json();
+ok("Andrew's sheet uploads: everyone on it goes on the dietary list", up.status === 200 && upOut.uploaded.added === 2 && upOut.uploaded.skipped.length === 0, JSON.stringify(upOut.uploaded));
+const D2 = readXlsx((await call("event=ngs&sheet=dietary")).body);
+const names2 = D2.rows.slice(4).map((r) => `${r[0]} ${r[1]}`);
+ok("someone on the sheet who also answered the form is listed once, with the latest (and the sheet's table number)", names2.filter((n) => n === "Ann One").length === 1 && D2.rows.find((r) => r[0] === "Ann")[2] === "Allergic to shrimp and crab" && String(D2.rows.find((r) => r[0] === "Ann")[3]) === "3", JSON.stringify(D2.rows.slice(4)));
+ok("hand and sheet entries are on the dietary list, not the socials list", names2.includes("Pat Hand") && names2.includes("Sam Sheet") && !JSON.stringify(readXlsx((await call("event=ngs&sheet=socials")).body).rows).includes("Pat"));
+const notXlsx = await reply(new Request("http://localhost/api/reply?event=ngs&upload=1", { method: "POST", headers: { "x-admin-key": "testkey" }, body: "first,last\nA,B" }));
+ok("a file that isn't .xlsx is refused with a reason", notXlsx.status === 400);
+
+/* every event asks about food; only the Summit asks about socials */
+await putEvent({ id: "itp", title: "RBH ITP Training", city: "Halifax, NS", dayOne: "2026-12-01", lastDay: "2026-12-02", board: [], contact: { name: "Andrew Hammond", email: "president@ongia.ca" } });
+const itp = (await call("event=itp", { method: "PUT", body: {} })).body;
+ok("another event asks only about food", itp.reply.socials.length === 0 && itp.problems.length === 0, JSON.stringify(itp.problems));
+const itpMail = (await call("event=itp&preview=1", { method: "POST", body: {} })).body;
+ok("its email asks one question and mentions no socials or community days", /food allergy/.test(itpMail.text) && !/social|community/i.test(itpMail.text), itpMail.text);
+ok("and there is no socials list to download", (await call("event=itp&sheet=socials")).status === 400);
+
 /* removing an answer, closing the form */
 const ann = all.find((a) => a.first === "Ann");
-ok("an answer can be removed", (await call(`event=ngs&answer=${ann.id}`, { method: "DELETE" })).body.answers.length === 2);
+const before = (await call("event=ngs")).body.answers.length;
+ok("an answer can be removed", (await call(`event=ngs&answer=${ann.id}`, { method: "DELETE" })).body.answers.length === before - 1);
 await call("event=ngs", { method: "PUT", body: { open: false } });
 ok("a closed form takes no answers", (await answer({})).status === 409 && (await call(`t=${tok}`)).body.open === false);
 ok("and the email will not send while it is closed", /closed/.test((await call("event=ngs")).body.problems.join(" ")));
