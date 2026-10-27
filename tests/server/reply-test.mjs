@@ -65,6 +65,20 @@ ok("its button goes to the form", pv.html.includes(`https://events.example.org/q
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
 // Signed by the board with the Summit's inbox, not by the lead (Andrew 27 Oct 2026).
 ok("the Summit email is signed ONGIA Board, with ngs@ongia.ca, and no 'lead for' line", /ONGIA Board/.test(pv.html) && /mailto:ngs@ongia\.ca/.test(pv.html) && !/lead for/.test(pv.html) && /Replies to this email go straight to ONGIA Board/.test(pv.html) && /acheminées directement à ONGIA Board/.test(pv.html), pv.html.slice(-1500));
+// Andrew 27 Oct 2026: his Summit email was set up before he wrote his own wording, and his test still went out in the
+// old words. Untouched, it now takes his wording on its own; anything he typed himself is left alone.
+{ const e = await getEvent("ngs"); const keep = structuredClone(e.reply);
+  const oldSocials = keep.socials.map((s, i) => ({ ...s, label: ["Networking social, followed by a screening of the documentary WATTS", "Social at the hotel, with a live band"][i] }));
+  const oldBody = ["Hello {first},", "We're putting the final touches on the {event}, and we're looking forward to hosting you and to hearing from a great lineup of speakers.",
+    "This is for everyone coming, whether you're with us for the full Summit, November 9 to 12, or joining us as a community partner on November 10 and 11.",
+    "A few housekeeping questions before then. First: do you have a food allergy, intolerance or dietary need? We'll pass it to the hotel so they can plan your meals.",
+    "We'd also like to know whether you'll come to each of the socials:", "* {social1}\n* {social2}", "Please answer by end of day {replyBy}, so the hotel has time to plan. It takes about a minute.", "See you soon."].join("\n\n");
+  e.reply = { ...keep, socials: oldSocials, subject: "{event}: a few quick questions", body: oldBody, buttonLabel: "Answer the questions" }; delete e.reply.buttonLabelFr; delete e.reply.signName; delete e.reply.signEmail; await putEvent(e);
+  const got = (await call("event=ngs")).body.reply;
+  ok("an untouched old Summit email takes Andrew's wording, French half, and the socials' new names when the card opens", /FRANÇAIS/.test(got.body) && /A Few Quick Questions/.test(got.subject) && /District 6/.test(got.socials[1].label) && got.replyBy === keep.replyBy && got.token === keep.token, JSON.stringify(got).slice(0, 300));
+  e.reply = { ...keep, socials: oldSocials, subject: "{event}: a few quick questions", body: oldBody + "\n\nAndrew's own line." }; await putEvent(e);
+  ok("but an email he has changed himself is left as he wrote it", /Andrew's own line/.test((await call("event=ngs")).body.reply.body));
+  e.reply = keep; await putEvent(e); }
 // Andrew's own Summit email was saved before the signature fields existed: it is still signed by the board.
 { const e = await getEvent("ngs"); const keep = { ...e.reply }; delete e.reply.signName; delete e.reply.signEmail; await putEvent(e);
   const old = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
