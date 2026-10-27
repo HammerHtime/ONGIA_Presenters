@@ -59,7 +59,7 @@ const tok = set.link.split("/q/")[1];
 
 /* the email */
 const pv = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
-ok("the email speaks to the community partners on the 10th and 11th too", /attending the full Summit \(November 9-12\) or joining us as a community partner on November 10 and 11/.test(pv.text), pv.text);
+ok("the email speaks to the community partners on the 10th and 11th too", /attending the full Summit November 9-12 or joining us as a community partner on November 10 and 11/.test(pv.text), pv.text);
 ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking Reception followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Evening Social at the hotel featuring a live performance by District 6/.test(pv.text), pv.text);
 ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Complete the survey/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
