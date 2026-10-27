@@ -1,8 +1,8 @@
 import { todayIso } from "./deadlines.mjs";
-import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda } from "./store.mjs";
+import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda, getWelcomeFile } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { checklistOf } from "./checklist.mjs";
-import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo } from "./letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, ATTACH_LIMIT } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
@@ -106,7 +106,10 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   // The agenda each letter carries: fetched once per letter for the whole round.
   for (const b of batches) {
     if (!b.people.length) continue;
-    b.attachments = await attachmentsFor(b.letter, event, getAgenda);
+    try { b.attachments = await attachmentsFor(b.letter, event, getAgenda, getWelcomeFile); }
+    catch (e) { return { event: event.id, title: event.title, kind, blocked: [`${b.letter.name}: ${e.message}`] }; }
+    const bytes = b.attachments.reduce((n, a) => n + a.content.length, 0);
+    if (bytes > ATTACH_LIMIT) return { event: event.id, title: event.title, kind, blocked: [`${b.letter.name} carries ${(bytes / 1048576).toFixed(1)} MB of attachments, and an email takes up to 3 MB. Untick or replace one.`] };
     if (b.letter.attachAgenda && !b.attachments.length) {
       return { event: event.id, title: event.title, kind, blocked: [`${b.letter.name} attaches an agenda, and the agenda file could not be found. Upload it again.`] };
     }

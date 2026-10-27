@@ -280,6 +280,17 @@ export async function getAgenda(eventId, which = "") {
   return { bytes: got.data, name: got.metadata?.name ?? "agenda.pdf", size: got.metadata?.size ?? got.data.byteLength, uploadedAt: got.metadata?.uploadedAt ?? null };
 }
 
+/**
+ * PDFs Andrew attaches to an event's welcome letter (Andrew 27 Oct 2026: "upload attachments to the welcome email …
+ * check boxes, attached to community partner and attached to justice partners"). The bytes are kept here; the list,
+ * with which version each goes with, is on the event (event.welcomeFiles).
+ */
+export const putWelcomeFile = (eventId, id, bytes, meta) => store().set(`wfile:${eventId}:${id}`, bytes, { metadata: meta });
+export async function getWelcomeFile(eventId, id) {
+  const got = await store().getWithMetadata(`wfile:${eventId}:${id}`, { type: "arrayBuffer" });
+  return got ? { bytes: got.data, name: got.metadata?.name ?? "attachment.pdf" } : null;
+}
+export const deleteWelcomeFile = (eventId, id) => store().delete(`wfile:${eventId}:${id}`);
 export const getAgendaRead = (eventId) => read(`agendaread:${eventId}`);
 // What the night's email read filed against an event (or `_unfiled`): short notes and links only.
 export const getInbox = (eventId) => read(`inbox:${eventId}`);

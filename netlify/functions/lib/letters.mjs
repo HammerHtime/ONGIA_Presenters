@@ -302,12 +302,31 @@ function bodyTextOf(body, event, person) {
  * to attach it and the event has one. `getAgenda` is passed in so this file
  * stays free of storage; a sender fetches the file once for a whole round.
  */
-export async function attachmentsFor(letter, event, getAgenda) {
+export async function attachmentsFor(letter, event, getAgenda, getFile = null) {
+  const out = [];
   const { which, file } = agendaOf(letter, event);
-  if (!letter?.attachAgenda || !file) return [];
-  const doc = await getAgenda(event.id, which);
-  if (!doc) return [];
-  return [{ filename: doc.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" }];
+  if (letter?.attachAgenda && file) {
+    const doc = await getAgenda(event.id, which);
+    if (doc) out.push({ filename: doc.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" });
+  }
+  // The event's own welcome letter also carries the PDFs ticked for its version (event.welcomeFiles).
+  if (getFile && /^event-welcome/.test(letter?.id ?? "")) {
+    for (const f of filesFor(event, letter.audience === "group" ? "group" : "main")) {
+      const doc = await getFile(event.id, f.id);
+      if (!doc) throw new Error(`The attachment ${f.name} could not be found. Upload it again.`);
+      out.push({ filename: f.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" });
+    }
+  }
+  return out;
+}
+
+/** The PDFs ticked for a version of the welcome letter ("main" or "group"). */
+export const filesFor = (event, key) => (event?.welcomeFiles ?? []).filter((f) => f[key]);
+/** What a version's email carries in all, in bytes: its agenda and its ticked PDFs. Email takes up to 3 MB. */
+export const ATTACH_LIMIT = 3 * 1024 * 1024;
+export function attachedBytes(event, key) {
+  const agenda = key === "group" ? event?.agendaGroupFile : event?.agendaFile;
+  return (agenda?.size ?? 0) + filesFor(event, key).reduce((n, f) => n + (f.size ?? 0), 0);
 }
 
 /**

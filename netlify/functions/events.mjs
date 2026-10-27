@@ -336,6 +336,7 @@ async function deleteEvent(id, canCost = true) {
   for (const a of (await getReplies(id)).answers) await deleteKey(`reply:${id}:${a.id}`);
   // So do the survey's answers and the would-be presenters' names (the summary PDF and spreadsheets are made from them).
   await deleteSurveyData(id);
+  for (const f of event.welcomeFiles ?? []) await deleteKey(`wfile:${id}:${f.id}`);
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
     deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
   await deleteKey(`event:${id}`);
