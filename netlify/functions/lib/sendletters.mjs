@@ -6,6 +6,10 @@ import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeRe
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
+import { welcomeLetters, splitByGroup } from "./welcome.mjs";
+
+/** An event whose welcome letter is written on the event itself (the event page's Welcome letter card). */
+const ownWelcome = (event, kind) => kind === "welcome" && !!event.welcome?.main?.body;
 
 /**
  * Sending the welcome letter and the survey.
@@ -37,7 +41,8 @@ export const MAIL_OFF = "emails to attendees are off for this event";
 
 export function letterDue(event, kind, today = todayIso()) {
   if (event.attendeeMail !== true) return { due: false, why: MAIL_OFF };
-  const letterId = event.letters?.[kind];
+  // The event's own welcome letter, written on its page, comes first; otherwise the saved letter it picked.
+  const letterId = ownWelcome(event, kind) ? "event-welcome" : event.letters?.[kind];
   if (!letterId) return { due: false, why: "no letter chosen for this event" };
   const job = jobFor(event, kind, today);
   if (!job) return { due: false, why: "the checklist has no job for it" };
@@ -62,7 +67,8 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   const due = letterDue(event, kind, today);
   if (!due.due) return { event: event.id, title: event.title, kind, skipped: due.why };
 
-  const letter = await getLetter(due.letterId);
+  const own = ownWelcome(event, kind) ? welcomeLetters(event) : null;
+  const letter = own ? own.main : await getLetter(due.letterId);
   if (!letter) return { event: event.id, title: event.title, kind, error: "the chosen letter no longer exists" };
   const problems = [...letterProblems(letter), ...eventProblems(letter, event)];
   // A letter with something wrong in it never goes — not to anybody. The
@@ -77,8 +83,13 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   // with a two-day agenda, and get a different letter from the justice partners there all four days). An address
   // whose every registration came from the second Wix event gets it; anyone also on the first gets the main one.
   const batches = [{ letter, people: owed }];
-  const groupId = kind === "welcome" ? event.letters?.welcomeGroup : null;
-  if (groupId && groupId !== letter.id) {
+  const groupId = own ? null : kind === "welcome" ? event.letters?.welcomeGroup : null;
+  if (own?.group) {
+    const wrong = [...letterProblems(own.group), ...eventProblems(own.group, event)];
+    if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${own.group.name}: ${w}`) };
+    const split = splitByGroup(stored.people ?? [], owed);
+    batches.splice(0, 1, { letter, people: split.main }, { letter: own.group, people: split.group });
+  } else if (groupId && groupId !== letter.id) {
     const other = await getLetter(groupId);
     if (!other) return { event: event.id, title: event.title, kind, error: "the second group's welcome letter no longer exists" };
     const wrong = [...letterProblems(other), ...eventProblems(other, event)];
@@ -147,7 +158,7 @@ export async function runLetterRounds(events, opts = {}) {
   const out = [];
   for (const event of events) {
     for (const kind of ["welcome", "survey"]) {
-      if (!event.letters?.[kind]) continue;
+      if (!event.letters?.[kind] && !ownWelcome(event, kind)) continue;
       try { out.push(await sendLetterRound(event, kind, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind, error: e.message }); }
     }
