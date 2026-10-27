@@ -9,7 +9,7 @@ import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage } from "./lib/survey.mjs";
 import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./lib/surveysend.mjs";
-import { getSurveyContacts } from "./lib/store.mjs";
+import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
 import { analyseSurvey } from "./lib/surveyanalysis.mjs";
 import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx } from "./lib/surveyreport.mjs";
@@ -57,6 +57,18 @@ export default async (req) => {
   if (req.method === "POST" && url.searchParams.get("pdf")) return pngToPdf(req, url);
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
+  // Clear every answer (Andrew 27 Oct 2026: the board tries the survey with made-up answers to see the results and the
+  // infographic, then "clear all the data. So we have a fresh set for real feedback"). The questions, sessions and
+  // settings stay; the answers, who has answered, the would-be presenters and Claude's read go.
+  if (req.method === "POST" && url.searchParams.get("clear")) {
+    if (!event.survey) return fail("Set up the survey first.", 409);
+    if (body.confirm !== "CLEAR") return fail("Type CLEAR to confirm.");
+    const removed = await deleteSurveyData(event.id);
+    const { analysis, ...rest } = event.survey;
+    event.survey = rest;
+    await putEvent(event);
+    return json({ ok: true, removed });
+  }
   if (req.method === "POST" && url.searchParams.get("analyse")) {
     if (!event.survey) return fail("Set up the survey first.", 409);
     try {

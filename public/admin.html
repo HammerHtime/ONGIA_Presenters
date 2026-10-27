@@ -4541,7 +4541,10 @@ function renderSurveyCard(ev, S) {
       <a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
       <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
-    <p class="hint">${S.responses} answer${S.responses === 1 ? "" : "s"} so far. Answers are anonymous: names and emails are never kept with them. Results, charts and the infographic come next.</p>`;
+    <div class="field" style="margin-top:14px"><label for="sv-share">The survey's link, to share by hand</label>
+      <div style="display:flex;gap:8px"><input id="sv-share" readonly value="${esc(S.link)}"><button class="mini" id="sv-copy">Copy</button></div>
+      <p class="hint" style="margin:6px 0 0">Anyone with it can answer, and their answers are kept (unlike <b>Try the survey</b>). Good for a trial run with the board; clear the answers afterwards, below the results.</p></div>
+    <p class="hint">${S.responses} answer${S.responses === 1 ? "" : "s"} so far. Answers are anonymous: names and emails are never kept with them.</p>`;
   const $ = (id) => document.getElementById(id);
   const rows = () => [...box.querySelectorAll("[data-sv]")].map((el) => ({ id: s.sessions[Number(el.dataset.sv)]?.id, ...Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])) }));
   const body = () => ({ mode: s.mode, sessions: rows(), ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
@@ -4551,6 +4554,7 @@ function renderSurveyCard(ev, S) {
   box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
   $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: "", day: "", title: "", titleFr: "", presenters: [] }] } });
   $("sv-refresh").onclick = async (e) => { const done = busy(e.target, "…"); try { await save(); renderSurveyCard(ev, await api(`${q}&refresh=1`, { method: "POST", body: "{}" })); toast("Presenters brought in."); } catch (x) { toast(x.message); done(); } };
+  $("sv-copy").onclick = async () => { const i = $("sv-share"); try { await navigator.clipboard.writeText(i.value); toast("Link copied."); } catch { i.select(); toast("Selected: press Ctrl+C (or Cmd+C) to copy."); } };
   $("sv-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderSurveyCard(ev, await save()); toast("Survey saved."); } catch (x) { toast(x.message); done(); } };
   $("sv-open").onclick = async () => { try { await save(); } catch {} };
   $("sv-test").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), part: $("sv-part")?.value || "end" }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
@@ -4599,6 +4603,9 @@ function renderResults(ev, D) {
     <div class="pseg" role="tablist" style="margin:6px 0 10px"><button type="button" data-rslang="en" class="${RS_LANG === "en" ? "on" : ""}">English</button><button type="button" data-rslang="fr" class="${RS_LANG === "fr" ? "on" : ""}">Français</button></div>
     <div class="actions" style="flex-wrap:wrap"><button class="btn btn-gold" id="rs-info"${R.responses ? "" : " disabled"}>Show the infographic</button><button class="btn btn-ghost" id="rs-social"${R.responses ? "" : " disabled"}>Make social media images</button></div>
     <p class="hint">${A ? "" : "Ask Claude to read the results first, so the infographic has its comments. "}The social media images are square, one per section, in the language picked, all in one .zip.</p>
+    <h3 class="wsh" style="margin-top:18px">Start fresh</h3>
+    <p class="hint" style="margin:0 0 8px">After a trial run, clear every answer so the results start from the real ones.</p>
+    <button class="btn btn-ghost" id="rs-clear"${R.responses ? "" : " disabled"}>Clear all answers</button>
     <dialog class="sheet rpdlg" id="rsdlg"><form method="dialog">
       <div class="sheet-head"><h2>The infographic</h2><p class="hint" style="margin-top:6px">Click any words on it to change them, then download. Changes here are only for this download.</p></div>
       <div class="sheet-body"><iframe id="rs-frame" title="The infographic" sandbox="allow-same-origin" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
@@ -4616,6 +4623,12 @@ function renderResults(ev, D) {
     done();
   });
   box.querySelectorAll("[data-rslang]").forEach((b) => b.onclick = () => { RS_LANG = b.dataset.rslang; renderResults(ev, D); });
+  $("rs-clear").onclick = async () => {
+    const typed = prompt(`This deletes all ${R.responses} answer${R.responses === 1 ? "" : "s"}, the would-be presenters' details and Claude's read for this event. The questions and sessions stay. It cannot be undone.\n\nType CLEAR to go ahead.`);
+    if (typed === null) return;
+    try { await api(`${q}&clear=1`, { method: "POST", body: JSON.stringify({ confirm: typed.trim().toUpperCase() }) }); toast("All answers cleared."); loadResults(ev); }
+    catch (x) { toast(x.message); }
+  };
   $("rs-analyse").onclick = async (e) => {
     const done = busy(e.target, "Claude is reading… (up to a minute)");
     try { const out = await api(`${q}&analyse=1`, { method: "POST", body: "{}" }); renderResults(ev, { ...D, analysis: out.analysis }); toast("Claude has read the results."); }

@@ -88,6 +88,13 @@ await p.locator('#rsdlg button[value="close"]').click(); await p.waitForTimeout(
 const zip = await bytesOf(p, () => p.locator("#rs-social").click());
 const names = [...zip.buf.toString("latin1").matchAll(/PK\x03\x04[\s\S]{26}([0-9a-z-]+\.png)/g)].map((m) => m[1]);
 ok("social media: one square per section, in a .zip, in the language picked", names.length === 7 && names.every((n) => /-fr\.png$/.test(n)), names.join(" "));
+// The link to share by hand, and clearing a trial run's answers (Andrew 27 Oct 2026).
+ok("the survey's own link is there to share, without the preview flag", /\/f\/[a-z0-9]+$/i.test(await p.locator("#sv-share").inputValue()), await p.locator("#sv-share").inputValue());
+await p.evaluate(() => { window.prompt = () => "clear"; });
+await p.locator("#rs-clear").click(); await p.waitForTimeout(1500);
+const cleared = (await api(`${q}&results=1`)).results;
+ok("Clear all answers empties the results, and keeps the sessions", cleared.responses === 0 && (await api(q)).survey.sessions.length === 2 && !(await api(`${q}&results=1`)).analysis, JSON.stringify(cleared).slice(0, 100));
+ok("and the card says there are none", /0 answers/.test(await p.locator("#rsbox").innerText()));
 ok("no page errors", p.errs.length === 0, p.errs.join(" | "));
 await p.close();
 
