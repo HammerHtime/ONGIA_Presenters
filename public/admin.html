@@ -4835,8 +4835,8 @@ function renderReplyCard(ev, R) {
     ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
     ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications.</div>` : ""}
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
-    <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend ? " disabled" : ""}>${st.toSend ? `Send to ${st.toSend} registered${sent ? " who haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
-      <span class="hint">Each address gets it once. Asks you to confirm first.${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
+    <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend ? " disabled" : ""}>${st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
+      <span class="hint">Each address gets it once. Asks you to confirm first.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
       <div class="sheet-head"><h2>The email</h2><p class="hint" style="margin-top:6px">Change the words and the email follows as you type, as Alex, an attendee, would see it. Nothing is kept until you save.</p></div>
       <div class="sheet-body"><div class="rpedit">
@@ -5951,11 +5951,19 @@ const toBox = (t) => {
  * The agenda, and the times that go into letters. Claude's reading is a
  * suggestion shown beside the boxes; only what Andrew saves is used.
  */
+/** Why one email per address is fewer than the registrations: shared addresses, and registrations with none. */
+function regLine(st) {
+  const shared = (st.registrations ?? 0) - (st.noEmail ?? 0) - (st.reaches ?? 0);
+  if (!st.registrations || st.registrations === st.reaches) return "";
+  const parts = [shared > 0 ? `${shared} share an email address with someone else on the list (one email reaches them all, and the form lets them answer for each person)` : "",
+    st.noEmail ? `${st.noEmail} ${st.noEmail === 1 ? "has" : "have"} no email address` : ""].filter(Boolean);
+  return ` ${st.registrations} registrations go to ${st.reaches} email ${st.reaches === 1 ? "address" : "addresses"}: ${parts.join(", and ")}.`;
+}
 /* ---------- attendee emails: the switch at the top of an event ---------- */
 function mailSwitch(ev, guests) {
   const on = ev.attendeeMail === true;
   const n = guests?.letters?.welcome?.reaches ?? null;
-  const who = n === null ? "this event's attendees" : `${n} attendee${n === 1 ? "" : "s"}`;
+  const who = n === null ? "this event's attendees" : `${n} email address${n === 1 ? "" : "es"}`;
   return `<div class="mailsw ${on ? "on" : "off"}">
     <label class="sw"><input type="checkbox" role="switch" id="amail"${on ? " checked" : ""} data-reach="${n ?? ""}" aria-label="Automatic emails to attendees"><span class="track"><span class="knob"></span></span></label>
     <div><b>Automatic emails to attendees: ${on ? "On" : "Off"}</b>

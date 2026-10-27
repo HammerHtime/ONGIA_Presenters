@@ -274,5 +274,14 @@ ok("a made-up link finds nothing", (await call("t=notarealtoken123")).status ===
   ok("a member who has left the roster falls back to the board", L.attendeeSignOf({ ...mtl, signature: { member: "gone@ongia.ca" } }).email === "info@ongia.ca");
   L.useRoster([]); }
 
+// Why the send count is lower than the registrations (Andrew 27 Oct 2026: "367 registered … 403"): shared addresses get
+// one email between them, and a registration with no address gets none.
+{ const { replyStatus } = await import(F + "lib/reply.mjs");
+  await putAttendees("cnt", { people: [
+    { email: "boss@example.ca", first: "Ann", status: "ATTENDING" }, { email: "boss@example.ca", first: "Ben", status: "ATTENDING" }, { email: "boss@example.ca", first: "Cy", status: "ATTENDING" },
+    { email: "solo@example.ca", first: "Di", status: "ATTENDING" }, { email: "", first: "Ed", status: "ATTENDING" }, { email: "gone@example.ca", first: "Flo", status: "WITHDRAWN" }] });
+  const c = await replyStatus({ id: "cnt", reply: {} });
+  ok("five registrations, two addresses: three share one, one has none, the withdrawn one isn't counted", c.registrations === 5 && c.reaches === 2 && c.noEmail === 1, JSON.stringify(c)); }
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
