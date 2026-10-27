@@ -4225,9 +4225,18 @@ function welcomeCard() {
 }
 async function loadWelcome(ev) {
   const box = document.getElementById("wlbox");
-  try { renderWelcomeCard(ev, await api(`/welcome?event=${encodeURIComponent(ev.id)}`)); }
+  const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
+  try {
+    const [W, L] = await Promise.all([api(q), api(`${q}&library=1`).catch(() => ({ letters: [] }))]);
+    renderWelcomeCard(ev, { ...W, library: L.letters ?? [] });
+  }
   catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
 }
+/** The letters to start from, grouped: saved letters, then other events' own. */
+const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) => {
+  const mine = list.filter((l) => l.from === g);
+  return mine.length ? `<optgroup label="${esc(g)}">${mine.map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("")}</optgroup>` : "";
+}).join("");
 function renderWelcomeCard(ev, W) {
   const box = document.getElementById("wlbox");
   if (!box) return;
@@ -4236,6 +4245,8 @@ function renderWelcomeCard(ev, W) {
   const version = (v) => `<div class="wlver" data-wl="${v.key}" style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
       <div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline"><h3 style="margin:0;font-size:17px">${esc(v.label)}</h3>
         <span class="porg">${esc(v.dates)} · ${esc(reach(v))}</span></div>
+      <div class="field"><label for="wl-${v.key}-from">Start from a letter used before <span class="porg">(optional)</span></label>
+        <select id="wl-${v.key}-from" data-wlfrom="${v.key}"><option value="">Pick one to copy its words in…</option>${libraryOptions(W.library)}</select></div>
       <div class="field"><label for="wl-${v.key}-subject">Subject</label><input id="wl-${v.key}-subject" maxlength="200" value="${esc(v.subject)}"></div>
       <div class="field"><label for="wl-${v.key}-body">The letter</label><textarea id="wl-${v.key}-body" style="min-height:240px" spellcheck="true">${esc(v.body)}</textarea></div>
       <div class="agfile" style="margin-top:10px"><div><b>Agenda attached:</b> ${v.agenda ? esc(v.agenda.name) : `<span class="late">none yet</span>`}
@@ -4264,7 +4275,17 @@ function renderWelcomeCard(ev, W) {
   const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
-  $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, await save()); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
+  $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, { ...(await save()), library: W.library }); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
+  // Copy an earlier letter's words in; nothing is kept until Save.
+  box.querySelectorAll("[data-wlfrom]").forEach((sel) => sel.onchange = () => {
+    const pick = (W.library ?? []).find((l) => l.id === sel.value);
+    if (!pick) return;
+    const key = sel.dataset.wlfrom;
+    if (!confirm(`Replace this letter's words with "${pick.name}"? Nothing is saved until you press Save.`)) { sel.value = ""; return; }
+    $(`wl-${key}-subject`).value = pick.subject ?? ""; $(`wl-${key}-body`).value = pick.body ?? "";
+    sel.value = "";
+    toast("Copied in. Change what you need, then Save the welcome letter.");
+  });
   box.querySelectorAll("[data-wlsee]").forEach((b) => b.onclick = async () => {
     const done = busy(b, "Opening…");
     try {

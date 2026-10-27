@@ -16,7 +16,7 @@ globalThis.fetch = async (url, init) => {
   throw new Error("unexpected fetch " + url);
 };
 const F = REPO + "netlify/functions/";
-const { putEvent, getEvent, putAttendees } = await import(F + "lib/store.mjs");
+const { putEvent, getEvent, putAttendees, putLetter } = await import(F + "lib/store.mjs");
 const { runLetterRounds } = await import(F + "lib/sendletters.mjs");
 const welcome = (await import(F + "welcome.mjs")).default;
 const agenda = (await import(F + "agenda.mjs")).default;
@@ -77,6 +77,16 @@ ok("someone on both gets the justice partners' letter", /Welcome to the National
 await runLetterRounds([await getEvent("ngs")], { today: "2026-11-04", pace: async () => {} });
 ok("nobody gets it twice", sent.length === 3);
 ok("the card shows who has had it", (await call("")).body.versions.every((v) => v.had === v.reaches));
+
+// Letters used before, to start another event's from (Andrew 27 Oct 2026).
+await putLetter({ id: "w1", kind: "welcome", name: "Welcome letter", subject: "Welcome to {event}", body: "Hello {first}," });
+await putLetter({ id: "s1", kind: "survey", name: "Survey", subject: "How was it?", body: "Hello" });
+await putEvent({ id: "gad", title: "Gang Awareness Day", city: "Victoria, BC", dayOne: "2026-12-01", board: [] });
+const lib = await (await welcome(new Request("http://x/api/welcome?event=gad&library=1", { headers: H }))).json();
+ok("another event can start from the saved welcome letter or the Summit's two, not the survey", lib.letters.some((l) => l.from === "Saved letters" && l.name === "Welcome letter") && !lib.letters.some((l) => l.name === "Survey")
+  && lib.letters.some((l) => /National Gang Summit.*Justice partners/.test(l.name) && /Richmond Street/.test(l.body)) && lib.letters.some((l) => /Community partners/.test(l.name)), JSON.stringify(lib.letters.map((l) => l.name)));
+const gad = await (await welcome(new Request("http://x/api/welcome?event=gad", { headers: H }))).json();
+ok("an ordinary event has one welcome letter, no groups", gad.versions.length === 1 && gad.versions[0].label === "Everyone");
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
