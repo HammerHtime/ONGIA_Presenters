@@ -1,3 +1,4 @@
+import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { createHash } from "node:crypto";
 import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees } from "./lib/store.mjs";
@@ -31,6 +32,7 @@ import { slugOf } from "./lib/public.mjs";
  */
 export default async (req) => {
   const url = new URL(req.url);
+  await primeRoster();
   const t = url.searchParams.get("t");
   if (t) return attendeeSide(req, text(t, 40), text(url.searchParams.get("p"), 40));
 

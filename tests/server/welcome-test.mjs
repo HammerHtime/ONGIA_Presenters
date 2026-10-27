@@ -16,7 +16,7 @@ globalThis.fetch = async (url, init) => {
   throw new Error("unexpected fetch " + url);
 };
 const F = REPO + "netlify/functions/";
-const { putEvent, getEvent, putAttendees, putLetter } = await import(F + "lib/store.mjs");
+const { putEvent, getEvent, putAttendees, putLetter, putRoster } = await import(F + "lib/store.mjs");
 const { runLetterRounds } = await import(F + "lib/sendletters.mjs");
 const welcome = (await import(F + "welcome.mjs")).default;
 const agenda = (await import(F + "agenda.mjs")).default;
@@ -87,6 +87,18 @@ ok("another event can start from the saved welcome letter or the Summit's two, n
   && lib.letters.some((l) => /National Gang Summit.*Justice partners/.test(l.name) && /Richmond Street/.test(l.body)) && lib.letters.some((l) => /Community partners/.test(l.name)), JSON.stringify(lib.letters.map((l) => l.name)));
 const gad = await (await welcome(new Request("http://x/api/welcome?event=gad", { headers: H }))).json();
 ok("an ordinary event has one welcome letter, no groups", gad.versions.length === 1 && gad.versions[0].label === "Everyone");
+
+// Who signs: the board with info@ongia.ca by default; a board member picked from the roster for an event (Andrew 27 Oct 2026).
+await putRoster([{ name: "Marie Tremblay", email: "east@ongia.ca", phone: "514-555-0100" }]);
+const plainSign = await (await welcome(new Request("http://x/api/welcome?event=gad", { headers: H }))).json();
+ok("an ordinary event's welcome letter is signed ONGIA Board, info@ongia.ca, by default", plainSign.signer.name === "ONGIA Board" && plainSign.signer.email === "info@ongia.ca" && plainSign.signature === "");
+const picked = await (await welcome(new Request("http://x/api/welcome?event=gad", { method: "PUT", headers: H, body: JSON.stringify({ signature: "member:east@ongia.ca" }) }))).json();
+const pvSigned = await (await welcome(new Request("http://x/api/welcome?event=gad&preview=main", { method: "POST", headers: H, body: "{}" }))).json();
+ok("picking the Eastern director signs it with her name, email and phone from the roster", picked.signer.name === "Marie Tremblay" && /Marie Tremblay/.test(pvSigned.html) && /514-555-0100/.test(pvSigned.html), JSON.stringify(picked.signer));
+ok("someone not on the roster cannot be picked", (await welcome(new Request("http://x/api/welcome?event=gad", { method: "PUT", headers: H, body: JSON.stringify({ signature: "member:stranger@example.ca" }) }))).status === 400);
+const back = await (await welcome(new Request("http://x/api/welcome?event=gad", { method: "PUT", headers: H, body: JSON.stringify({ signature: "" }) }))).json();
+ok("and it can go back to the board", back.signer.email === "info@ongia.ca");
+ok("the Summit keeps its own inbox unless changed", (await call("")).body.signer.email === "ngs@ongia.ca");
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

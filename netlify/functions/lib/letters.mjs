@@ -1,5 +1,5 @@
 import { formatDate } from "./deadlines.mjs";
-import { layout, coordinatorOf } from "./mail.mjs";
+import { layout } from "./mail.mjs";
 import { fitsTitle } from "./titles.mjs";
 import { createHash } from "node:crypto";
 import { siteUrl } from "./site.mjs";
@@ -306,7 +306,27 @@ export async function attachmentsFor(letter, event, getAgenda) {
  * signed by the board, with the Summit's own inbox, and answers go there (Andrew 27 Oct 2026: "change the footer in
  * the welcome letter from Raj … ONGIA Board and email ngs@ongia.ca"). Null means the lead signs, as for every other event.
  */
-export const attendeeSignOf = (event) => (/national gang summit/i.test(event?.title ?? "") ? { name: "ONGIA Board", email: "ngs@ongia.ca" } : null);
+export const GENERIC_SIGN = { name: "ONGIA Board", email: "info@ongia.ca" };
+// The board roster, for a letter signed by a member: their name, email and phone come from it, never from the event
+// (the roster is the one place a board member's details are kept). Loaded by whoever sends or shows letters.
+let ROSTER = [];
+export const useRoster = (members) => { ROSTER = Array.isArray(members) ? members : []; };
+/**
+ * Who signs an event's letters to attendees (Andrew 27 Oct 2026: "all the welcome emails will have a signature of
+ * ONGIA Board and info@ongia.ca. Keep it generic, but allow me to change it for each event … pick an ONGIA member, or
+ * a generic info@ONGIA"). The event's choice: a board member, by their address on the roster, or the board with an
+ * address; without one, the National Gang Summit's own inbox (his choice for it), and every other event the generic.
+ */
+export function attendeeSignOf(event) {
+  const s = event?.signature;
+  if (s?.member) {
+    const m = ROSTER.find((r) => String(r.email ?? "").toLowerCase() === s.member);
+    if (m) return { name: m.name || m.email, email: m.email, phone: m.phone || "", member: true };
+  }
+  if (s?.email) return { name: "ONGIA Board", email: s.email };
+  if (/national gang summit/i.test(event?.title ?? "")) return { name: "ONGIA Board", email: "ngs@ongia.ca" };
+  return GENERIC_SIGN;
+}
 /** Where an attendee's answer to a letter goes. */
 export const attendeeReplyTo = (event) => attendeeSignOf(event)?.email || event?.contact?.email || undefined;
 
@@ -343,8 +363,9 @@ export function renderLetter(letter, event, person) {
   const href = letter.buttonLink ? fill(letter.buttonLink, event, person, { html: false }).trim() : "";
   const buttons = href && /^https?:\/\//i.test(href) ? [{ href, label: letter.buttonLabel || "Open" }] : [];
   // A letter can be signed by someone other than the event's lead (the Summit's questions: "ONGIA Board").
-  const board = attendeeSignOf(event);
-  const contact = letter.contact ?? (board ? { ...board, phone: "", role: "" } : coordinatorOf(event));
+  const sign = attendeeSignOf(event);
+  // The board has no "lead for" line; a member keeps it.
+  const contact = letter.contact ?? { name: sign.name, email: sign.email, phone: sign.phone || "", ...(sign.member ? {} : { role: "" }) };
   // An email with a French half says where replies go in French too.
   const lang = /\{replyButtonFr\}/.test(letter.body ?? "") ? "both" : "en";
   const html = layout({ heading: subject, bodyHtml: bodyHtmlOf(letter.body, event, person), buttons, contact, event, lang });

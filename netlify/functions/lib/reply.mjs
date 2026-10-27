@@ -298,7 +298,7 @@ export function replyLetter(reply, event = null) {
   // An email that places its own buttons ({replyButton}, {replyButtonFr}) has none added at the bottom.
   const placed = /\{replyButton(Fr)?\}/.test(reply.body ?? "");
   return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: placed ? "" : "{replyLink}",
-    ...(sign ? { contact: { ...sign, phone: "", role: "" } } : {}) };
+    ...(sign ? { contact: { name: sign.name, email: sign.email, phone: sign.phone || "", ...(sign.member ? {} : { role: "" }) } } : {}) };
 }
 export const replyProblems = (event) => {
   const letter = replyLetter(event.reply, event);

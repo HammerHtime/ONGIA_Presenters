@@ -7,6 +7,7 @@ import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
 import { welcomeLetters, splitByGroup } from "./welcome.mjs";
+import { primeRoster } from "./signature.mjs";
 
 /** An event whose welcome letter is written on the event itself (the event page's Welcome letter card). */
 const ownWelcome = (event, kind) => kind === "welcome" && !!event.welcome?.main?.body;
@@ -156,6 +157,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
 /** Every event, both letters. Called by the nightly job. */
 export async function runLetterRounds(events, opts = {}) {
   const out = [];
+  await primeRoster();
   for (const event of events) {
     for (const kind of ["welcome", "survey"]) {
       if (!event.letters?.[kind] && !ownWelcome(event, kind)) continue;

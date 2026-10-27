@@ -264,7 +264,15 @@ ok("a made-up link finds nothing", (await call("t=notarealtoken123")).status ===
   ok("the Summit's welcome letter is signed ONGIA Board with ngs@ongia.ca, not Raj", /ONGIA Board/.test(w.html) && /mailto:ngs@ongia\.ca/.test(w.html) && !/Raj Jaswal/.test(w.html) && !/604-537-5344/.test(w.html) && !/lead for/.test(w.html), w.html.slice(-900));
   ok("and answers to it go to ngs@ongia.ca", L.attendeeReplyTo(summit) === "ngs@ongia.ca");
   const other = { ...summit, id: "x", title: "Gang Awareness Day" };
-  ok("another event's welcome letter is still signed by its lead", /Raj Jaswal/.test(L.renderLetter(welcome, other, { first: "Ann" }).html) && L.attendeeReplyTo(other) === "treasurer@ongia.ca"); }
+  // Andrew 27 Oct 2026: every event's welcome letters are signed ONGIA Board, info@ongia.ca, unless he picks otherwise.
+  const plain = L.renderLetter(welcome, other, { first: "Ann" }).html;
+  ok("another event's welcome letter is signed ONGIA Board with info@ongia.ca", /ONGIA Board/.test(plain) && /mailto:info@ongia\.ca/.test(plain) && !/Raj Jaswal/.test(plain) && L.attendeeReplyTo(other) === "info@ongia.ca");
+  L.useRoster([{ name: "Marie Tremblay", email: "east@ongia.ca", phone: "514-555-0100" }]);
+  const mtl = { ...other, title: "Montreal training", signature: { member: "east@ongia.ca" } };
+  const signed = L.renderLetter(welcome, mtl, { first: "Ann" }).html;
+  ok("an event can pick a board member: their name, email and phone come from the roster", /Marie Tremblay/.test(signed) && /east@ongia\.ca/.test(signed) && /514-555-0100/.test(signed) && L.attendeeReplyTo(mtl) === "east@ongia.ca");
+  ok("a member who has left the roster falls back to the board", L.attendeeSignOf({ ...mtl, signature: { member: "gone@ongia.ca" } }).email === "info@ongia.ca");
+  L.useRoster([]); }
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
