@@ -59,7 +59,6 @@ function summitWording(socials) {
   return {
     subject: "National Gang Summit: A Few Quick Questions / Quelques questions rapides",
     body: [
-      "National Gang Summit: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future",
       "Hello {first},",
       "As we finalize arrangements for the National Gang Summit, we'd appreciate a few details to help us prepare for your visit.",
       "This survey is for all registered participants, whether you'll be attending the full Summit November 9-12 or joining us as a community partner on November 10 and 11.",
@@ -77,7 +76,6 @@ function summitWording(socials) {
       // The French half (Andrew 27 Oct 2026: "two sections, the top English with the link and the bottom French with
       // the link; the French link takes them to the French questions"). Translated from his English.
       "FRANÇAIS",
-      "Sommet national sur les gangs : Crime organisé, gangs et jeunes : bâtir des solutions pour un avenir plus sûr",
       "Bonjour {first},",
       "Alors que nous finalisons les préparatifs du Sommet national sur les gangs, nous aimerions obtenir quelques renseignements pour bien préparer votre visite.",
       "Ce sondage s'adresse à tous les participants inscrits, que vous assistiez à l'ensemble du Sommet, du 9 au 12 novembre, ou que vous vous joigniez à nous à titre de partenaire communautaire les 10 et 11 novembre.",
