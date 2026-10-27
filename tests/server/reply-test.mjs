@@ -49,7 +49,7 @@ await putAttendees("ngs", { people: [person("a@example.ca", "Ann", "One"), perso
 /* setting it up */
 const defaults = startingReply(ngs, new Date("2026-10-26T15:00:00Z"));
 ok("the reply-by date starts as the Friday of this week (Friday 30 October)", defaults.replyBy === "2026-10-30", defaults.replyBy);
-ok("the two socials start on the Tuesday and the Wednesday of the Summit", defaults.socials[0].date === "2026-11-10" && /WATTS/.test(defaults.socials[0].label) && defaults.socials[1].date === "2026-11-11" && /band/.test(defaults.socials[1].label));
+ok("the two socials start on the Tuesday and the Wednesday of the Summit", defaults.socials[0].date === "2026-11-10" && /WATTS/.test(defaults.socials[0].label) && defaults.socials[1].date === "2026-11-11" && /District 6/.test(defaults.socials[1].label));
 const board = { "x-admin-key": issueSession({ email: "secretary@ongia.ca", name: "Lee" }), "content-type": "application/json" };
 ok("a board member who is not on this event cannot set it up", (await call("event=ngs", { method: "PUT", body: {}, headers: board })).status === 403);
 const set = (await call("event=ngs", { method: "PUT", body: { replyBy: "2026-10-30" } })).body;
@@ -59,9 +59,9 @@ const tok = set.link.split("/q/")[1];
 
 /* the email */
 const pv = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
-ok("the email speaks to the community partners on the 10th and 11th too", /full Summit, November 9 to 12, or joining us as a community partner on November 10 and 11/.test(pv.text), pv.text);
-ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking social, followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Social at the hotel, with a live band/.test(pv.text), pv.text);
-ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Answer the questions/.test(pv.html));
+ok("the email speaks to the community partners on the 10th and 11th too", /attending the full Summit \(November 9-12\) or joining us as a community partner on November 10 and 11/.test(pv.text), pv.text);
+ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking Reception followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Evening Social at the hotel featuring a live performance by District 6/.test(pv.text), pv.text);
+ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Complete the survey/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
 const trial = (await call("event=ngs&preview=1", { method: "POST", body: { subject: "Two quick questions", body: "Hello {first},\n\nShort and sweet." } })).body;
 ok("the preview shows words being edited, before they are saved", trial.subject === "Two quick questions" && /Short and sweet/.test(trial.text) && (await getEvent("ngs")).reply.subject !== "Two quick questions");

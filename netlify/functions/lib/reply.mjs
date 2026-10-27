@@ -40,17 +40,49 @@ const dayN = (event, n) => (event?.dayOne ? new Date(at(event.dayOne).getTime() 
 const isSummit = (event) => /national gang summit/i.test(event?.title ?? "");
 function summitSocials(event) {
   return [
-    { id: "s1", date: dayN(event, 2), label: "Networking social, followed by a screening of the documentary WATTS",
-      labelFr: "Activité de réseautage, suivie de la projection du documentaire WATTS" },
-    { id: "s2", date: dayN(event, 3), label: "Social at the hotel, with a live band",
-      labelFr: "Soirée à l'hôtel, avec un groupe de musique" },
+    // Andrew's wording, 27 Oct 2026.
+    { id: "s1", date: dayN(event, 2), label: "Networking Reception followed by a screening of the documentary WATTS",
+      labelFr: "Réception de réseautage suivie de la projection du documentaire WATTS" },
+    { id: "s2", date: dayN(event, 3), label: "Evening Social at the hotel featuring a live performance by District 6",
+      labelFr: "Soirée à l'hôtel avec une prestation en direct de District 6" },
   ];
+}
+
+/** The Summit's socials as Andrew last worded them, by id, keeping whatever dates the event has. */
+export const summitSocialLabels = (event, socials = []) => {
+  const fresh = new Map(summitSocials(event).map((s) => [s.id, s]));
+  return socials.map((s) => (fresh.has(s.id) ? { ...s, label: fresh.get(s.id).label, labelFr: fresh.get(s.id).labelFr } : s));
+};
+
+/** The National Gang Summit's email, in Andrew's words (27 Oct 2026). Only the blanks are the desk's. */
+function summitWording(socials) {
+  return {
+    subject: "National Gang Summit: A Few Quick Questions",
+    body: [
+      "National Gang Summit: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future",
+      "Hello {first},",
+      "As we finalize arrangements for the National Gang Summit, we'd appreciate a few details to help us prepare for your visit.",
+      "This survey is for all registered participants, whether you'll be attending the full Summit (November 9-12) or joining us as a community partner on November 10 and 11.",
+      "DIETARY REQUIREMENTS",
+      "Please let us know if you have any food allergies, intolerances, or dietary requirements. We will share this information with the hotel to help ensure suitable meal options are available.",
+      "SOCIAL EVENTS",
+      "Please indicate whether you plan to attend the following events:",
+      socials.map((_, i) => `* {social${i + 1}}`).join("\n"),
+      "HOW TO RESPOND",
+      "Simply click the button below to complete the survey.",
+      "Please submit your responses by {replyBy}, to allow sufficient time to finalize arrangements with the hotel. The survey should take less than one minute to complete.",
+      "Thank you for your time. We look forward to welcoming you to the Summit.",
+      "National Gang Summit Planning Committee",
+    ].join("\n\n"),
+    buttonLabel: "Complete the survey",
+  };
 }
 
 /** The email as the desk suggests it, for these socials. Andrew can change every word on the event page. */
 export function suggestedWording(event, socials = []) {
   const summit = isSummit(event);
   const n = socials.length;
+  if (summit && n) return summitWording(socials);
   return {
     subject: n ? "{event}: a few quick questions" : "{event}: any food allergies?",
     body: [
@@ -226,7 +258,8 @@ export function renderReminder(event, person) {
   const letter = replyLetter(event.reply);
   const paras = String(letter.body ?? "").split(/\n\s*\n/);
   // After the greeting ("Hello {first},"), one line saying why this has come again.
-  const at1 = /^\s*(hello|hi|dear|bonjour)\b/i.test(paras[0] ?? "") ? 1 : 0;
+  const greet = paras.slice(0, 3).findIndex((p) => /^\s*(hello|hi|dear|bonjour)\b/i.test(p));
+  const at1 = greet >= 0 ? greet + 1 : 0;
   paras.splice(at1, 0, "A quick reminder: we haven't had your answers yet. If you've already sent them, thank you, and please ignore this.");
   return renderLetter({ ...letter, subject: `Reminder: ${letter.subject}`, body: paras.join("\n\n") }, event, person);
 }

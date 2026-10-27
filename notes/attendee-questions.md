@@ -53,3 +53,5 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
   anyone on his sheet or added by hand (no email, so matched to a registration by first and last name). The send
   button counts only who would actually get it, and says how many are skipped.
 - The answers summary is one compact line each (food; each social with its date), counts and download on the line.
+
+- 27 Oct 2026: Andrew supplied the Summit email wording himself ("A Few Quick Questions"). It is now the Summit's suggested wording, with headings Dietary Requirements / Social Events / How to Respond, button "Complete the survey", and the socials renamed "Networking Reception followed by a screening of the documentary WATTS" and "Evening Social at the hotel featuring a live performance by District 6". Pressing "Use the suggested wording" also refreshes the two social names (dates kept). Kept his text as written.
