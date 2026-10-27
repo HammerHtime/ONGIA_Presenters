@@ -13,6 +13,24 @@ Andrew, 27 Oct 2026. Surveys are built into the desk, replacing SurveyMonkey.
 - **National Gang Summit.** Community partners (Nov 10–11) only see, and are only sent, their own days' sessions.
 - **Results.** Download as PDF, a summary with charts, and individual responses (Excel). Claude's analysis of what attendees liked and didn't, backed by numbers and quotes. A one-page infographic button that matches Andrew's past ONGIA infographics (he is uploading examples).
 
+## The infographic (Andrew 27 Oct 2026, from the Crime at the Crossroads and Calgary 2025 examples)
+
+- **Style.** ONGIA navy and gold. A clean white (or navy) background with the palette, not a photo. The header carries a simple line drawing that signifies the city: the CN Tower for Toronto, the Esplanade Riel bridge for Winnipeg, the Calgary Tower, and so on, or the event's own graphic if one is uploaded. Plain if there's neither.
+- **Blocks, all from the survey and the event:**
+  - title and dates;
+  - attendees: how many answered, and the agencies they're from;
+  - province breakdown, grouped by real province, never cities;
+  - years of experience;
+  - overall quality, as a percentage rating 4 or 5 plus the average out of 5;
+  - topics, from the presenters' talk titles, each with an icon;
+  - key takeaways: relevance, pace, confidence, variety, practical strategies;
+  - 4 or 5 of the best comments, picked by Claude and shown anonymously.
+- **Survey questions this needs.** Province and agency are asked **in the survey** (Andrew: "for sure"), along with: overall quality; relevance to role; pace (too slow, about right, too fast); confidence applying; variety and depth; practical strategies (each 1–5 unless noted); years of experience (0–5, 6–10, 11–15, 16–20, 20+); each presenter rated 1–5 with an optional comment; and an open "anything else". Andrew's past surveys may add to this list.
+- **Outputs, always in English and French:**
+  - one tall PDF and the same as a PNG;
+  - a "Make social media images" button that splits it into about seven square images, one per block: the event, agencies, provinces, experience, overall rating, topics, takeaways, and quotes;
+  - every output shown on screen first, so wording can be fixed before download.
+
 ## Deliverables, in order
 
 1. [ ] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab.
