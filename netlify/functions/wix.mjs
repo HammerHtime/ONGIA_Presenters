@@ -119,7 +119,9 @@ async function linkAlso(event, wixEventId, group) {
   if (taken) return fail(`That Wix event is already linked to ${taken.title}.`, 409);
   const match = (await listAllWixEvents()).find((e) => e.id === wixEventId);
   if (!match) return fail("That event is not on the Wix site.", 404);
-  event.wixMore = [...(event.wixMore ?? []), { eventId: match.id, title: match.title, url: match.url, site: match.site, siteName: match.siteName, group, linkedAt: new Date().toISOString() }];
+  event.wixMore = [...(event.wixMore ?? []), { eventId: match.id, title: match.title, url: match.url, site: match.site, siteName: match.siteName, group,
+    // Their own dates: a letter written for this group gives these, not the whole event's.
+    dayOne: match.dayOne ?? null, lastDay: match.lastDay ?? null, linkedAt: new Date().toISOString() }];
   await putEvent(event);
   return syncOne(event);
 }

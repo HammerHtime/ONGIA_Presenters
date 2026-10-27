@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents, getAgenda } from "./lib/store.mjs";
-import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo } from "./lib/letters.mjs";
+import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, agendaOf } from "./lib/letters.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -78,6 +78,9 @@ function clean(body) {
     onlyFor: text(body.onlyFor, 80),
     // The welcome letter can carry the event's agenda (uploaded on the event page).
     attachAgenda: body.attachAgenda === true,
+    // A welcome letter written for the event's second group only (the Summit's community partners): it carries their
+    // agenda, and an event chooses it as that group's welcome letter.
+    audience: body.audience === "group" ? "group" : "",
   };
 }
 
@@ -105,8 +108,10 @@ async function remove(id) {
 }
 
 /** Who a preview is addressed to: a real attendee if there is one, else a stand-in. */
-async function sampleFor(event) {
-  const people = writeableTo(((await getAttendees(event.id)) ?? {}).people ?? []);
+async function sampleFor(event, letter = null) {
+  const all = writeableTo(((await getAttendees(event.id)) ?? {}).people ?? []);
+  // A letter for the second group is shown addressed to someone in it; any other to someone who is not.
+  const people = all.filter((p) => (letter?.audience === "group") === !!p.group);
   return { person: people[0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca" }, count: people.length, real: people.length > 0 };
 }
 
@@ -117,7 +122,7 @@ async function preview(body) {
     // Without an event, show the blanks as themselves so the shape can be judged.
     return json({ problems: letterProblems(letter), html: null, note: "Pick an event to see it filled in." });
   }
-  const { person, count, real } = await sampleFor(event);
+  const { person, count, real } = await sampleFor(event, letter);
   const kind = letter.kind;
   const due = letterDue({ ...event, letters: { ...(event.letters ?? {}), [kind]: event.letters?.[kind] || "preview" } }, kind);
   const mail = renderLetter(letter, event, person);
@@ -126,7 +131,7 @@ async function preview(body) {
     subject: mail.subject, html: mail.html, text: mail.text,
     to: { count, sample: real ? `${person.first || ""} ${person.last || ""}`.trim() || "the first attendee" : "a sample person" },
     when: due.on ?? null, whenNote: due.due ? "due now" : due.why,
-    attached: letter.attachAgenda && event.agendaFile ? [{ name: event.agendaFile.name, size: event.agendaFile.size }] : [],
+    attached: letter.attachAgenda && agendaOf(letter, event).file ? [{ name: agendaOf(letter, event).file.name, size: agendaOf(letter, event).file.size }] : [],
     off: event.attendeeMail !== true,
   });
 }
@@ -140,7 +145,7 @@ async function testSend(body) {
   if (!event) return fail("Pick an event to fill the letter in from.");
   const problems = [...letterProblems(letter), ...eventProblems(letter, event)];
   if (problems.length) return fail(`Not sending a test with problems in it: ${problems[0]}`, 422);
-  const { person } = await sampleFor(event);
+  const { person } = await sampleFor(event, letter);
   const mail = renderLetter(letter, event, person);
   const attachments = await attachmentsFor(letter, event, getAgenda);
   const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...mail, subject: `[TEST] ${mail.subject}`, attachments });

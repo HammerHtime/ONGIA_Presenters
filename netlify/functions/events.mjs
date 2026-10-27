@@ -552,7 +552,9 @@ function hideCostsFromEdit(hotel, event, canCost) {
 function cleanLetters(given, had) {
   if (given === undefined) return had ?? {};
   const id = (v) => (/^[a-z0-9]{4,40}$/i.test(String(v ?? "")) ? String(v) : null);
-  return { welcome: id(given?.welcome), survey: id(given?.survey) };
+  // welcomeGroup: the welcome letter for the people from the event's second Wix event (the Summit's community partners);
+  // empty, they get the same one as everyone.
+  return { welcome: id(given?.welcome), survey: id(given?.survey), welcomeGroup: id(given?.welcomeGroup) };
 }
 
 /**
