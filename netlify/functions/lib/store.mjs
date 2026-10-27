@@ -349,6 +349,9 @@ export async function listLetters() {
 }
 
 export const getRoster = () => read("roster:board");
+/** The standard names of agencies, and the spellings people use for them (agencies.mjs). Shared by every event. */
+export const getAgencyList = () => read("agencies:directory");
+export const putAgencyList = (list) => write("agencies:directory", list);
 export const putRoster = (members) => write("roster:board", members);
 
 /**
