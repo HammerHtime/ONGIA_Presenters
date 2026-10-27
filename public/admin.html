@@ -1777,12 +1777,12 @@ function eventFormScreen(existing = null) {
         <p class="hint" style="margin-top:10px">Pick which saved letter this event sends. The day each one goes is the
           date on the event's checklist — move the job there and the letter moves with it. "None" means it does not go.</p>
         <div class="row2" style="margin-top:12px">
-          <div class="field" style="margin:0"><label for="e-lwelcome">Welcome letter${(ev?.wixMore ?? []).length ? ` (everyone except ${esc(ev.wixMore[0].group || "the second group")})` : ""}</label>
-            <select id="e-lwelcome">${letterOptions("welcome", ev?.title, ev?.letters?.welcome)}</select></div>
+          ${ev?.welcome?.main ? `<div class="field" style="margin:0"><label>Welcome letter</label><input type="hidden" id="e-lwelcome" value="${esc(ev?.letters?.welcome ?? "")}">
+            <p class="hint" style="margin:6px 0 0">Written on this event's <b>Communications</b> tab, with its agendas and the day it goes.</p></div>` : welcomeSelect(ev)}
           <div class="field" style="margin:0"><label for="e-lsurvey">Survey</label>
             <select id="e-lsurvey">${letterOptions("survey", ev?.title, ev?.letters?.survey)}</select></div>
         </div>
-        ${(ev?.wixMore ?? []).length ? `<div class="field" style="margin-top:12px"><label for="e-lwelcome2">Welcome letter for ${esc(ev.wixMore[0].group || "the second group")}</label>
+        ${(ev?.wixMore ?? []).length && !ev?.welcome?.main ? `<div class="field" style="margin-top:12px"><label for="e-lwelcome2">Welcome letter for ${esc(ev.wixMore[0].group || "the second group")}</label>
           <select id="e-lwelcome2">${letterOptions("welcome", ev?.title, ev?.letters?.welcomeGroup, true).replace("None — don't send one", "None — they get the main welcome letter")}</select>
           <p class="hint" style="margin:6px 0 0">${esc(ev.wixMore[0].group || "The second group")} get this one instead of the main welcome letter, with their own agenda and dates. Only letters ticked as the community partners' version are listed here. Anyone registered on both gets the main one.</p></div>` : ""}
         <div class="field"><label for="e-survey">Survey link</label>
@@ -3222,7 +3222,7 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -3308,6 +3308,7 @@ function eventScreen(data) {
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
   if (document.getElementById("replybox")) loadReply(ev);
+  if (document.getElementById("wlbox")) loadWelcome(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
   if (sheetShown) wireSheet(ev, sheetcheck);
@@ -3834,6 +3835,10 @@ const letterFits = (l, title) => {
  * title. One already chosen that no longer fits — the event was renamed — stays
  * in the list, marked, so a save never quietly swaps it for something else.
  */
+function welcomeSelect(ev) {
+  return `<div class="field" style="margin:0"><label for="e-lwelcome">Welcome letter${(ev?.wixMore ?? []).length ? ` (everyone except ${esc(ev.wixMore[0].group || "the second group")})` : ""}</label>
+            <select id="e-lwelcome">${letterOptions("welcome", ev?.title, ev?.letters?.welcome)}</select></div>`;
+}
 function letterOptions(kind, title, chosen, group = false) {
   // The main welcome letter list leaves out letters written for the community partners, and theirs shows only those.
   const mine = LETTER_CHOICES.filter((l) => (kind === "survey") === (l.kind === "survey") && (kind === "survey" || (l.audience === "group") === group || l.id === chosen));
@@ -4210,6 +4215,104 @@ function renderWebsite(ev, W) {
    One email to everyone registered, with a button to a short form: food allergies (only if they have one) and yes or
    no to each social. The answers come out as two spreadsheets: the dietary list for the hotel, and who is coming to
    the socials. */
+/**
+ * The welcome letter, all in one place (Andrew 27 Oct 2026: "I need the one place to write the letters. And then under
+ * the National Gang Summit event, I just need to click email attendees"). One version per group: the words, its agenda,
+ * See the email and Send a test. The day it goes sits at the top; the switch above turns attendee emails on.
+ */
+function welcomeCard() {
+  return secFold("welcome", "Welcome letter", "Write it here. Each attendee gets the right version, with the right agenda, on the day below.", "", `<div class="card-body" id="wlbox"><p class="porg">Loading…</p></div>`, { id: "welcomefold" });
+}
+async function loadWelcome(ev) {
+  const box = document.getElementById("wlbox");
+  try { renderWelcomeCard(ev, await api(`/welcome?event=${encodeURIComponent(ev.id)}`)); }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+}
+function renderWelcomeCard(ev, W) {
+  const box = document.getElementById("wlbox");
+  if (!box) return;
+  const two = W.versions.length > 1;
+  const reach = (v) => `${v.reaches} ${v.reaches === 1 ? "person" : "people"}${v.had ? ` · ${v.had} already sent` : ""}`;
+  const version = (v) => `<div class="wlver" data-wl="${v.key}" style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
+      <div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline"><h3 style="margin:0;font-size:17px">${esc(v.label)}</h3>
+        <span class="porg">${esc(v.dates)} · ${esc(reach(v))}</span></div>
+      <div class="field"><label for="wl-${v.key}-subject">Subject</label><input id="wl-${v.key}-subject" maxlength="200" value="${esc(v.subject)}"></div>
+      <div class="field"><label for="wl-${v.key}-body">The letter</label><textarea id="wl-${v.key}-body" style="min-height:240px" spellcheck="true">${esc(v.body)}</textarea></div>
+      <div class="agfile" style="margin-top:10px"><div><b>Agenda attached:</b> ${v.agenda ? esc(v.agenda.name) : `<span class="late">none yet</span>`}
+          <div class="hint" style="margin:2px 0 0">${v.agenda ? "Goes with this version only." : "Upload the PDF for this version. Without one, the letter goes with no agenda."}</div></div>
+        <div class="agbtns">${v.agenda ? `<button class="mini ghost" data-wlopen="${v.key}">Open</button>` : ""}<button class="mini${v.agenda ? " ghost" : " gold"}" data-wlup="${v.key}">${v.agenda ? "Replace" : "Upload the agenda"}</button>
+          <input type="file" data-wlfile="${v.key}" accept="application/pdf,.pdf" hidden></div></div>
+      ${v.problems.length ? `<div class="bad" style="margin-top:10px"><b>Held back:</b> ${esc(v.problems[0])}</div>` : ""}
+      <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button class="btn btn-ghost" data-wlsee="${v.key}">See the email</button><button class="btn btn-ghost" data-wltest="${v.key}">Send a test</button></div>
+    </div>`;
+  const job = W.sendOn ? `Goes on <input type="date" id="wl-on" value="${esc(W.sendOn)}" style="width:auto;display:inline-block;margin:0 6px">` : `Goes on <input type="date" id="wl-on" style="width:auto;display:inline-block;margin:0 6px">`;
+  box.innerHTML = `
+    <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
+    ${W.attendeeMail ? `<div class="note" style="margin-top:10px">Attendee emails are <b>on</b>: it will go on that day by itself.</div>`
+      : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
+    ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
+    ${W.versions.map(version).join("")}
+    <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
+    <div class="field" style="max-width:420px"><label for="wl-to">Tests go to</label><input id="wl-to" placeholder="${esc(WHO?.email || "")}"></div>
+    <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="wl-save">Save the welcome letter</button><span class="hint" id="wl-said" style="align-self:center"></span></div>
+    <dialog class="sheet rpdlg" id="wldlg"><form method="dialog">
+      <div class="sheet-head"><h2 id="wld-title">The email</h2><p class="hint" id="wld-note" style="margin-top:6px"></p></div>
+      <div class="sheet-body"><div class="lprev"><iframe id="wl-frame" title="The welcome letter as attendees will see it" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
+        <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
+  const $ = (id) => document.getElementById(id);
+  const words = () => Object.fromEntries(W.versions.map((v) => [v.key, { subject: $(`wl-${v.key}-subject`).value, body: $(`wl-${v.key}-body`).value }]));
+  const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
+  $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, await save()); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
+  box.querySelectorAll("[data-wlsee]").forEach((b) => b.onclick = async () => {
+    const done = busy(b, "Opening…");
+    try {
+      const v = W.versions.find((x) => x.key === b.dataset.wlsee);
+      const pv = await api(`${q}&preview=${v.key}`, { method: "POST", body: JSON.stringify(words()) });
+      $("wld-title").textContent = `${v.label}: the email`;
+      $("wld-note").textContent = `As ${pv.sample} will see it.${pv.attached.length ? ` Attached: ${pv.attached.join(", ")}.` : " No agenda attached."}${pv.problems.length ? ` Held back: ${pv.problems[0]}` : ""}`;
+      $("wl-frame").srcdoc = pv.html;
+      $("wldlg").showModal();
+    } catch (x) { toast(x.message); }
+    done();
+  });
+  box.querySelectorAll("[data-wltest]").forEach((b) => b.onclick = async () => {
+    const done = busy(b, "Sending…");
+    try {
+      await save();
+      const out = await api(`${q}&test=${b.dataset.wltest}`, { method: "POST", body: JSON.stringify({ to: $("wl-to").value.trim() }) });
+      toast(`Test sent to ${out.to}.`);
+    } catch (x) { toast(x.message); }
+    done();
+  });
+  const agendaQ = (key) => `/agenda?event=${encodeURIComponent(ev.id)}${key === "group" ? "&group=1" : ""}`;
+  box.querySelectorAll("[data-wlup]").forEach((b) => {
+    const file = box.querySelector(`[data-wlfile="${b.dataset.wlup}"]`);
+    b.onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files?.[0]; file.value = "";
+      if (!f) return;
+      const done = busy(b, "Uploading…");
+      try {
+        await save();
+        const res = await apiFetch(`/api${agendaQ(b.dataset.wlup)}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
+        toast("Agenda uploaded."); loadWelcome(ev);
+      } catch (x) { toast(x.message); done(); }
+    };
+  });
+  box.querySelectorAll("[data-wlopen]").forEach((b) => b.onclick = async () => {
+    try {
+      const res = await apiFetch(`/api${agendaQ(b.dataset.wlopen)}&file=1`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error("The agenda could not be opened.");
+      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+    } catch (x) { toast(x.message); }
+  });
+  if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
+}
+
 function replyCard() {
   return secFold("reply", "Food allergies and dietary needs", "Ask everyone registered, then download the list for the hotel", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
 }
