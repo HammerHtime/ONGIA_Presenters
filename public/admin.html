@@ -19,6 +19,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
 <style>
+  /* The desk keeps its own place after a redraw (render keeps scrollY); the browser's scroll anchoring would then move it again. */
+  html{overflow-anchor:none}
   :root{
     color-scheme:light;
     --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2; --sand:#e9e4d8;

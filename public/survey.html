@@ -17,7 +17,7 @@
     --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
     --border:#ddd7c8; --edge:#bfb49a; --hair:rgba(18,22,31,.10);
     --done:#2f6b4f; --done-bg:#e2efe7;
-    --bad:#a33328; --bad-bg:#f7e3e0;
+    --bad:#a33328; --bad-bg:#f7e3e0; --good:#2e7d4f;
     --fd:"DM Serif Display",Georgia,serif;
     --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     --fu:"Oswald","Arial Narrow",sans-serif;
@@ -26,8 +26,8 @@
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
   .bar{background:var(--navy-deep);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;
        border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;padding-top:calc(12px + env(safe-area-inset-top,0px))}
-  .bar .logo{height:26px;width:auto;display:block;flex:none}
-  @media (max-width:430px){.bar .logo{height:22px}.bar{padding:12px 14px}}
+  .bar .logo{height:36px;width:auto;display:block;flex:none}
+  @media (max-width:430px){.bar .logo{height:30px}.bar{padding:12px 14px}}
   .bar .langbtn{margin-left:auto;background:transparent;color:var(--gold-light);border:1px solid rgba(217,174,75,.6);
     border-radius:999px;padding:5px 12px;font:600 12px var(--fu);letter-spacing:.06em;cursor:pointer;min-height:36px}
   .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
@@ -98,6 +98,8 @@
   .combo .opt.other{border-style:dashed;color:var(--navy);font-weight:500}
   .combo .chosen{margin-top:6px;color:var(--done);font-weight:700;font-size:14.5px}
   .missing-q{background:var(--bad-bg);border-radius:12px;padding-left:8px;padding-right:8px;margin:0 -8px}
+  /* A required question, once answered: its red star turns into a green tick. */
+  .done-q .req{display:none} .done-q>p:first-child::after{content:"\2713";color:var(--good);font-weight:700;margin-left:8px}
 </style>
 </head>
 <body>
@@ -179,10 +181,16 @@ function question(key, q, value) {
   const body = q.kind === "stars" ? starsHtml(key, q, value) : q.kind === "choice" ? choiceHtml(key, q, value) : q.kind === "nps" ? npsHtml(key, value)
     : q.kind === "province" ? provinceHtml(key, q, value) : q.kind === "agency" ? agencyHtml(key, q, value)
     : `<textarea data-text="${key}">${esc(value ?? "")}</textarea>`;
-  return `<div class="stmt${MISSING.has(key) ? " missing-q" : ""}" id="q-${esc(key)}"><p>${label}</p>${body}</div>`;
+  const done = !q.optional && answered(value);
+  return `<div class="stmt${MISSING.has(key) ? " missing-q" : ""}${done ? " done-q" : ""}" id="q-${esc(key)}"${q.optional ? "" : " data-req"}><p>${label}</p>${body}</div>`;
 }
 const get = (key) => { const [a, b, c] = key.split("."); return a === "about" ? A.about[b] : a === "overall" ? A.overall[b] : (A.sessions[a] ?? {})[b]; };
-const put = (key, v) => { const [a, b] = key.split("."); if (a === "about") A.about[b] = v; else if (a === "overall") A.overall[b] = v; else (A.sessions[a] ??= {})[b] = v; MISSING.delete(key); };
+const answered = (v) => v !== undefined && v !== null && v !== "";
+const put = (key, v) => {
+  const [a, b] = key.split("."); if (a === "about") A.about[b] = v; else if (a === "overall") A.overall[b] = v; else (A.sessions[a] ??= {})[b] = v; MISSING.delete(key);
+  const el = document.getElementById(`q-${key}`);
+  if (el) { el.classList.remove("missing-q"); if (el.hasAttribute("data-req")) el.classList.toggle("done-q", answered(v)); }
+};
 
 function render() {
   document.documentElement.lang = LANG; LANGBTN.textContent = t("other");

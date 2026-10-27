@@ -45,7 +45,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   });
   await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   await p.locator('[data-tab="people"]').click(); await p.waitForTimeout(300);
-  const seg = await p.locator(".pseg").innerText();
+  const seg = await p.locator(`.etabp[data-panel="people"] .pseg[aria-label="Who"]`).innerText();
   ok(`${tag}: People switches between presenters, volunteers and who's coming`, /Presenters\s*8/.test(seg) && /Volunteers/.test(seg) && /Who's coming/.test(seg), seg);
   ok(`${tag}: a row for each presenter`, (await p.locator("tr.prow").count()) === 8);
   const revRow = p.locator("tr.prow", { hasText: "Rev Iewer" });

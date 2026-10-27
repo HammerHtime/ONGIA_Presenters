@@ -360,6 +360,12 @@ export async function getSurveyContacts(eventId) {
   return (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean);
 }
 export const putSurveyContact = (eventId, c) => write(`surveycontact:${eventId}:${c.id}`, c);
+/** Every survey record of an event (answers, who has answered, would-be presenters), for when the event is deleted. */
+export async function deleteSurveyData(eventId) {
+  const keys = (await Promise.all(["surveyresp", "surveydone", "surveycontact"].map((k) => store().list({ prefix: `${k}:${eventId}:` })))).flatMap((r) => r.blobs.map((b) => b.key));
+  for (const key of keys) await store().delete(key);
+  return keys.length;
+}
 export const putAttendees = (eventId, value) => write(`attendees:${eventId}`, value);
 
 /** Letters Andrew writes once and points events at — welcome, survey. */

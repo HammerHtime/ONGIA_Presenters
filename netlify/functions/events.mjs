@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
 import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
-import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster,
+import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster, deleteSurveyData,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies } from "./lib/store.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
@@ -334,6 +334,8 @@ async function deleteEvent(id, canCost = true) {
   }
   // Attendees' answers to the housekeeping questions (food allergies, socials) go with the event.
   for (const a of (await getReplies(id)).answers) await deleteKey(`reply:${id}:${a.id}`);
+  // So do the survey's answers and the would-be presenters' names (the summary PDF and spreadsheets are made from them).
+  await deleteSurveyData(id);
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
     deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
   await deleteKey(`event:${id}`);
