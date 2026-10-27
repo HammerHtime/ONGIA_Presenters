@@ -9,7 +9,7 @@ Andrew, 27 Oct 2026. Surveys are built into the desk, replacing SurveyMonkey.
 - **Questions.** Based on past ONGIA surveys (Andrew is uploading examples). There's a 1–5 rating block for each presenter, with the presenter's name and topic filled in from the event's presenter list.
 - **When it goes.** A switch on each event:
   - *After the event*: one survey covering every session, sent on a chosen day.
-  - *Daily*: at the end of each day (suggested 4:30 pm local), a survey on that day's presenters only.
+  - *Daily*: a survey on that day's presenters only, sent **15 minutes after the day's last session ends** (Andrew 27 Oct 2026). The end time is the one saved for that day under Agenda and daily times, in the event's local time zone. If a day has no end time saved, the survey card says so and holds that day back until one is set; it does not guess. Sending this often needs a short check every 15 minutes, separate from the once-a-day morning run.
 - **National Gang Summit.** Community partners (Nov 10–11) only see, and are only sent, their own days' sessions.
 - **Results.** Download as PDF, a summary with charts, and individual responses (Excel). Claude's analysis of what attendees liked and didn't, backed by numbers and quotes. A one-page infographic button that matches Andrew's past ONGIA infographics (he is uploading examples).
 
@@ -29,4 +29,3 @@ Andrew, 27 Oct 2026. Surveys are built into the desk, replacing SurveyMonkey.
 
 - Example surveys from past events.
 - Example infographics.
-- The daily send time (suggested 4:30 pm local).
