@@ -63,6 +63,11 @@ ok("the email speaks to the community partners on the 10th and 11th too", /atten
 ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking Reception followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Evening Social at the hotel featuring a live performance by District 6/.test(pv.text), pv.text);
 ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Complete the survey/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
+// Two halves (Andrew 27 Oct 2026): English with its button, then French with a button that opens the questions in French.
+ok("the email has an English half with its button, then a French half with its own", pv.text.indexOf("Complete the survey: https://events.example.org/q/" + tok + "?lang=en") > 0 && pv.text.indexOf("Complete the survey:") < pv.text.indexOf("FRANÇAIS") && pv.text.indexOf("FRANÇAIS") < pv.text.indexOf("Répondre au sondage: https://events.example.org/q/" + tok + "?lang=fr"), pv.text);
+ok("the French half has the date to answer by and both socials in French", /d'ici le vendredi 30 octobre/.test(pv.text) && /mardi 10 novembre : Réception de réseautage/.test(pv.text) && /mercredi 11 novembre : Soirée à l'hôtel/.test(pv.text), pv.text);
+ok("each button appears once, where it was put, and none is added at the bottom", (pv.html.match(/>Complete the survey</g) ?? []).length === 1 && (pv.html.match(/>Répondre au sondage</g) ?? []).length === 1 && pv.html.lastIndexOf("Répondre au sondage") > pv.html.lastIndexOf("Le comité organisateur"));
+ok("a person's own French link carries who they are and the language", (await import(REPO + "netlify/functions/lib/reply.mjs")).renderReply(await getEvent("ngs"), { first: "Ann", email: "ann@example.ca" }).text.match(/q\/[A-Za-z0-9_-]{16}\/[0-9a-f]{16}\?lang=fr/));
 const trial = (await call("event=ngs&preview=1", { method: "POST", body: { subject: "Two quick questions", body: "Hello {first},\n\nShort and sweet." } })).body;
 ok("the preview shows words being edited, before they are saved", trial.subject === "Two quick questions" && /Short and sweet/.test(trial.text) && (await getEvent("ngs")).reply.subject !== "Two quick questions");
 ok("and checks them the same way: a typo in a blank is caught", /not a blank the desk knows/.test((await call("event=ngs&preview=1", { method: "POST", body: { body: "Hello {frist}" } })).body.problems.join(" ")));
@@ -102,7 +107,7 @@ sent.length = 0;
   ok("the email skips someone on Andrew's sheet (matched by name) and someone who already answered", to2.join() === "x1@example.ca,x4@example.ca", to2.join());
   const b3 = sent.length;
   await runLetterRounds([await getEvent("ngs2")], { today: "2026-10-28", pace: async () => {} });
-  ok("and so do the reminders", sent.slice(b3).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to)).sort().join() === "x1@example.ca,x4@example.ca");
+  ok("and so do the reminders", sent.slice(b3).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).map((m) => String(m.to)).sort().join() === "x1@example.ca,x4@example.ca");
   sent.length = before2;
 }
 
@@ -117,7 +122,7 @@ ok("the card shows it reached everyone", st.had === 2 && st.reaches === 2, JSON.
 // Someone registers later: the next night catches them, up to the reply-by date.
 const people = (await getAttendees("ngs")).people; people.push(person("d@example.ca", "Dee", "Late")); await putAttendees("ngs", { ...(await getAttendees("ngs")), people });
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
-const mains = () => sent.filter((m) => !/^Reminder:/.test(m.subject));
+const mains = () => sent.filter((m) => !/^Reminder( \/ Rappel)?:/.test(m.subject));
 ok("someone who registers later gets it the next night", mains().length === 3 && String(mains()[2].to).includes("d@example.ca"));
 people.push(person("e@example.ca", "Eve", "TooLate")); await putAttendees("ngs", { ...(await getAttendees("ngs")), people });
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-31", pace: async () => {} });
@@ -126,22 +131,23 @@ ok("but not after the reply-by date", mains().length === 3);
 /* reminders on Wednesday and Friday, to those who have not answered (Andrew 26 Oct 2026) */
 ok("reminders start on the Wednesday and the Friday (two days before the reply-by date, and the day itself)", JSON.stringify((await call("event=ngs")).body.status.reminders.map((r) => r.date)) === JSON.stringify(["2026-10-28", "2026-10-30"]));
 const remPv = (await call("event=ngs&preview=1&reminder=1", { method: "POST", body: {} })).body;
-ok("the reminder is the same email, marked as a reminder", /^Reminder: National Gang Summit/.test(remPv.subject) && /A quick reminder: we haven't had your answers yet/.test(remPv.text) && remPv.text.indexOf("A quick reminder") > remPv.text.indexOf("Hello Alex") && /Friday, October 30/.test(remPv.text), remPv.text.slice(0, 400));
+ok("the reminder is the same email, marked as a reminder", /^Reminder \/ Rappel: National Gang Summit/.test(remPv.subject) && /A quick reminder: we haven't had your answers yet/.test(remPv.text) && remPv.text.indexOf("A quick reminder") > remPv.text.indexOf("Hello Alex") && /Friday, October 30/.test(remPv.text), remPv.text.slice(0, 400));
+ok("and the French half carries the reminder in French", remPv.text.indexOf("Petit rappel") > remPv.text.indexOf("Bonjour Alex"), remPv.text);
 // Ann answers before Wednesday; Ben (and his guest) and Dee have not.
 await call(`t=${tok}`, { method: "POST", body: { first: "Ann", last: "One", agency: "TPS", email: "a@example.ca", allergy: "no", socials: { s1: "yes", s2: "no" } } });
 const n0 = sent.length;
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-27", pace: async () => {} });
-ok("no reminder on a day that isn't a reminder date (Eve, who registered late, gets the email itself that day)", !sent.slice(n0).some((m) => /^Reminder:/.test(m.subject)) && sent.slice(n0).some((m) => String(m.to).includes("e@example.ca")));
+ok("no reminder on a day that isn't a reminder date (Eve, who registered late, gets the email itself that day)", !sent.slice(n0).some((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)) && sent.slice(n0).some((m) => String(m.to).includes("e@example.ca")));
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
-const wed = sent.slice(n0).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to)).sort();
+const wed = sent.slice(n0).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).map((m) => String(m.to)).sort();
 ok("Wednesday's reminder goes to those who haven't answered, once per address, and not to Ann who has", wed.join() === "b@example.ca,d@example.ca,e@example.ca", wed.join());
 const n1 = sent.length;
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
-ok("running again the same day sends nobody a second reminder", sent.slice(n1).filter((m) => /^Reminder:/.test(m.subject)).length === 0);
+ok("running again the same day sends nobody a second reminder", sent.slice(n1).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).length === 0);
 await call(`t=${tok}`, { method: "POST", body: { first: "Guest", last: "OfBen", agency: "OPP", email: "b@example.ca", allergy: "no", socials: { s1: "no", s2: "no" } } });
 const n2 = sent.length;
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-30", pace: async () => {} });
-const fri = sent.slice(n2).filter((m) => /^Reminder:/.test(m.subject)).map((m) => String(m.to));
+const fri = sent.slice(n2).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).map((m) => String(m.to));
 ok("Friday's reminder skips an address where someone has now answered", fri.sort().join() === "d@example.ca,e@example.ca", fri.join());
 await call("event=ngs", { method: "PUT", body: { reminders: ["2026-10-29"] } });
 ok("the reminder dates can be changed on the event page", JSON.stringify((await call("event=ngs")).body.reply.reminders) === JSON.stringify(["2026-10-29"]));
@@ -152,7 +158,7 @@ await call("event=ngs", { method: "PUT", body: { reminders: ["2026-10-29"] } });
 const n3 = sent.length;
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-29", pace: async () => {} });
 const thu = sent.slice(n3);
-ok("someone registered late gets the email, and is not reminded straight after it in the same run", thu.some((m) => String(m.to).includes("f@example.ca") && !/^Reminder:/.test(m.subject)) && !thu.some((m) => String(m.to).includes("f@example.ca") && /^Reminder:/.test(m.subject)), thu.map((m) => m.to + " " + m.subject.slice(0, 9)).join(" | "));
+ok("someone registered late gets the email, and is not reminded straight after it in the same run", thu.some((m) => String(m.to).includes("f@example.ca") && !/^Reminder( \/ Rappel)?:/.test(m.subject)) && !thu.some((m) => String(m.to).includes("f@example.ca") && /^Reminder( \/ Rappel)?:/.test(m.subject)), thu.map((m) => m.to + " " + m.subject.slice(0, 9)).join(" | "));
 // The answers given here are cleared so the rest of the test starts as before.
 for (const a of (await call("event=ngs")).body.answers) await call(`event=ngs&answer=${a.id}`, { method: "DELETE" });
 
