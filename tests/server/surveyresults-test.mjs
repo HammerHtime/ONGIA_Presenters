@@ -8,7 +8,7 @@ const REPO = new URL("../../", import.meta.url).pathname;
 process.env.APP_URL = "https://events.example.org";
 process.env.ADMIN_KEY = "testkey";
 const F = REPO + "netlify/functions/";
-const { putEvent, getEvent, putSurveyResponse, putSurveyContact } = await import(F + "lib/store.mjs");
+const { putEvent, getEvent, putSurveyResponse, putSurveyContact, putAttendees } = await import(F + "lib/store.mjs");
 const { surveyResults } = await import(F + "lib/surveyresults.mjs");
 const { analyseSurvey, verbatim } = await import(F + "lib/surveyanalysis.mjs");
 const { readXlsx } = await import(F + "lib/xlsx.mjs");
@@ -58,6 +58,13 @@ ok("a made-up quote is dropped; real ones (whole, or whole sentences of one) are
 ok("a reworded quote is dropped too", verbatim([{ text: "The financial session changed how my team works." }], R.comments).length === 0);
 const e = await getEvent("ngs"); e.survey.analysis = A; await putEvent(e);
 
+// The agencies trained come from the registrations, under one name each, by sector (Andrew 27 Oct 2026).
+await putAttendees("ngs", { people: [["TPS"], ["Toronto Police Service"], ["RCMP"], ["Royal Canadian Mounted Police"], ["Correctional Service Canada"], ["Kenora Youth Outreach"], ["Kenora Youth Outreach"], [""], ["TPS", "WITHDRAWN"]]
+  .map(([organization, status = "ATTENDING"], i) => ({ key: `a${i}`, first: "P", email: `p${i}@example.ca`, status, organization })) });
+const TR = (await (await get("&results=1")).json()).results.trained;
+ok("agencies trained: four agencies from seven registrations, spellings merged, withdrawn left out", TR?.count === 4 && TR.people === 7 && TR.agencies[0].count === 2, JSON.stringify(TR));
+ok("…by sector: police 2, corrections 1, community 1", JSON.stringify(TR.sectors) === JSON.stringify([{ key: "police", count: 2 }, { key: "community", count: 1 }, { key: "justice", count: 1 }]), JSON.stringify(TR.sectors));
+
 // The downloads.
 const dir = mkdtempSync(path.join(tmpdir(), "svr-"));
 const pdfRes = await get("&download=summary");
@@ -66,6 +73,7 @@ writeFileSync(path.join(dir, "s.pdf"), pdf);
 const txt = execFileSync("pdftotext", ["-layout", path.join(dir, "s.pdf"), "-"]).toString();
 const need = { status: pdfRes.status === 200, tiles: /overall quality/i.test(txt), avg: /4\.3\/5/.test(txt), read: /claude.s read/i.test(txt), s1: /Following the Money/.test(txt), s2: /Ghost Guns/.test(txt), prov: /Province or territory/.test(txt), rcmp: /Royal Canadian Mounted Police: 2/.test(txt), comment: /Too much on hardware/.test(txt) };
 ok("the summary PDF has the tiles, Claude's read, each session, the overall, who answered and the comments", Object.values(need).every(Boolean), JSON.stringify(need));
+ok("…and the agencies trained, with their sectors", /AGENCIES TRAINED/i.test(txt) && /7 registered attendees came from 4 different agencies/.test(txt) && /Police & law enforcement/.test(txt) && /Kenora Youth Outreach: 2/.test(txt));
 ok("and numbers its pages", /1 of \d/.test(txt));
 const ans = readXlsx(new Uint8Array(await (await get("&download=answers")).arrayBuffer()));
 const flat = JSON.stringify(ans);
@@ -75,9 +83,10 @@ ok("the would-be presenters, apart", /Pat Sample/.test(pres) && /Youth outreach/
 
 // The infographic.
 const en = await (await get("&infographic=1&lang=en")).text();
+ok("the infographic shows the agencies trained, and the topics without the presenters' names", /Agencies trained/.test(en) && /different agencies/.test(en) && /Corrections, courts &amp; justice/.test(en) && !/Jordan Avery|Riley Chen/.test(en));
 ok("the infographic: title, city landmark, the 75% banner, the 4.3, agencies, topics, takeaways, the real quotes", /National Gang Summit/.test(en) && /<ellipse cx="210" cy="96"/.test(en) && />75%</.test(en) && /4\.3/.test(en) && /Royal Canadian Mounted Police/.test(en) && /Ghost Guns/.test(en) && /Pace of training/.test(en) && /changed how my unit/.test(en) && !/amazing/.test(en));
 const fr = await (await get("&infographic=1&lang=fr")).text();
-ok("in French: French labels, the French session title and a French date", /9 au 12 novembre 2026/.test(fr) && /Qualité globale/.test(fr) && /Suivre l'argent/.test(fr) && /Points saillants/.test(fr) && /Ontario/.test(fr));
+ok("in French: French labels, the French session title and a French date", /9 au 12 novembre 2026/.test(fr) && /Qualité globale/.test(fr) && /Organismes formés/.test(fr) && /Police et application de la loi/.test(fr) && /Suivre l'argent/.test(fr) && /Points saillants/.test(fr) && /Ontario/.test(fr));
 const sq = await (await get("&infographic=1&lang=en&block=quotes")).text();
 ok("one section as a square for social media, with the event's name on it", /class="square"/.test(sq) && /class="fit"/.test(sq) && /What participants said/.test(sq) && /ONGIA\.CA/.test(sq) && !/Key takeaways/.test(sq));
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");

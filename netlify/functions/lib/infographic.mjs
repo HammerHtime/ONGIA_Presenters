@@ -28,13 +28,17 @@ const L = {
     quality: "Overall quality", averageOf: (n) => `average of <b>${n}</b> ratings`, provinces: "Province representation", agencies: "Agencies represented", more: (n) => `…and ${n} more.`,
     topics: "Topics trained", takeaways: "Key takeaways", said: "What participants said", foot: "Stronger together. Safer communities.", thanks: "Thank you to every participant and presenter.",
     rel: "Relevance to daily role", pace: "Pace of training", conf: "Confidence applying learnings", variety: "Variety & depth of topics", practical: "Practical strategies gained",
-    top2: "rated 4 or 5", aboutRight: "“About right”", words: ["Poor", "Fair", "Good", "Very good", "Excellent"] },
+    top2: "rated 4 or 5", aboutRight: "“About right”", words: ["Poor", "Fair", "Good", "Very good", "Excellent"],
+    trained: "Agencies trained", differentAgencies: "different agencies", trainedLine: (n) => `<b>${n}</b> registered attendees came from them`,
+    sectors: { police: "Police & law enforcement", justice: "Corrections, courts & justice", education: "Education", community: "Community & social services", government: "Government", other: "Other" } },
   fr: { rated: "ont donné à cette formation une note de 4 ou 5 sur 5", attendees: "Participants", from: (a, p) => `de <b>${a} organisme${a === 1 ? "" : "s"}</b>${p ? ` dans <b>${p} province${p === 1 ? "" : "s"}</b>` : ""}`,
     answered: "ont répondu au sondage", tagline: "Créer des liens. Partager le renseignement. Renforcer les collectivités.", experience: "L'expérience compte", yearsPlus: "16 ans et plus", years: "ans",
     quality: "Qualité globale", averageOf: (n) => `moyenne de <b>${n}</b> évaluations`, provinces: "Provinces représentées", agencies: "Organismes représentés", more: (n) => `…et ${n} autres.`,
     topics: "Sujets abordés", takeaways: "Points saillants", said: "Ce que les participants ont dit", foot: "Plus forts ensemble. Des collectivités plus sûres.", thanks: "Merci à tous les participants et présentateurs.",
     rel: "Pertinence pour le travail", pace: "Rythme de la formation", conf: "Confiance à appliquer les acquis", variety: "Variété et profondeur des sujets", practical: "Stratégies pratiques acquises",
-    top2: "note de 4 ou 5", aboutRight: "« Juste bien »", words: ["Faible", "Passable", "Bien", "Très bien", "Excellent"] },
+    top2: "note de 4 ou 5", aboutRight: "« Juste bien »", words: ["Faible", "Passable", "Bien", "Très bien", "Excellent"],
+    trained: "Organismes formés", differentAgencies: "organismes différents", trainedLine: (n) => `<b>${n}</b> participants inscrits en provenaient`,
+    sectors: { police: "Police et application de la loi", justice: "Services correctionnels, tribunaux et justice", education: "Éducation", community: "Organismes communautaires et sociaux", government: "Gouvernement", other: "Autres" } },
 };
 const PROV_FR = { ON: "Ontario", QC: "Québec", MB: "Manitoba", SK: "Saskatchewan", AB: "Alberta", BC: "Colombie-Britannique", NS: "Nouvelle-Écosse", NB: "Nouveau-Brunswick", NL: "Terre-Neuve-et-Labrador", PE: "Île-du-Prince-Édouard", YT: "Yukon", NT: "Territoires du Nord-Ouest", NU: "Nunavut" };
 
@@ -104,7 +108,7 @@ function stars(v) {
 }
 
 /** The sections, each a piece of HTML, so the page can draw all of them or one at a time. */
-function sections(event, R, analysis, lang) {
+function sections(event, R, analysis, lang, square = false) {
   const t = L[lang];
   const title = String(event.title ?? "").split(/\s*:\s*/)[0];
   const subtitle = String(event.title ?? "").includes(":") ? String(event.title).split(/\s*:\s*/).slice(1).join(": ") : "";
@@ -115,6 +119,7 @@ function sections(event, R, analysis, lang) {
   const plus16 = R.years.slice(3).reduce((a, y) => a + y.pct, 0);
   const prov = R.provinces.map((p, i) => ({ l: provName(p), v: p.pct, c: PALETTE[i % PALETTE.length] }));
   const shown = R.agencies.filter((a) => a.known || a.count > 1).slice(0, 16);
+  const T = R.trained, listed = T ? T.agencies.slice(0, square ? 8 : 16) : [];
   const take = [[t.rel, R.sessions.length ? avgTop2(R.sessions.map((s) => s.byQ.relevant)) : null, t.top2], [t.pace, R.overall.pace.n ? R.overall.pace.aboutRightPct : null, t.aboutRight],
     [t.conf, R.overall.confidence?.n ? R.overall.confidence.top2 : null, t.top2], [t.variety, R.overall.variety?.n ? R.overall.variety.top2 : null, t.top2], [t.practical, R.overall.practical?.n ? R.overall.practical.top2 : null, t.top2]].filter((x) => x[1] !== null);
   const topics = (event.survey?.sessions ?? []).filter((s) => s.title).slice(0, 8);
@@ -138,8 +143,13 @@ function sections(event, R, analysis, lang) {
           <div style="font-size:19px">${t.averageOf(h.n)}</div><div class="h" style="font-size:34px;font-weight:700;color:${NAVY};margin-top:14px">${h.avg ? t.words[Math.min(4, Math.max(0, Math.round(h.avg) - 1))] : ""}</div></div></div>`, "border-top:0"),
     provinces: prov.length ? sec("provinces", `<h2>${t.provinces}</h2><div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
         <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>${donut(prov, 330, 46)}</div>`) : "",
-    agencies: shown.length ? sec("agencies", `<h2>${t.agencies}</h2><ul class="ag${shown.length <= 10 ? " one" : ""}">${shown.map((a) => `<li>${esc(a.agency)}</li>`).join("")}</ul>${R.agencies.length > shown.length ? `<div class="muted" style="font-size:18px;margin-top:12px">${t.more(R.agencies.length - shown.length)}</div>` : ""}`) : "",
-    topics: topics.length ? sec("topics", `<h2>${t.topics}</h2><div class="topics">${topics.map((s) => `<div><svg viewBox="0 0 64 64">${iconFor(s.title)}</svg><h3>${esc((lang === "fr" && s.titleFr) || s.title)}</h3><p>${esc(s.presenters.join(" · "))}</p></div>`).join("")}</div>`, "padding-bottom:0") : "",
+    // The agencies trained, from who registered (Andrew 27 Oct 2026); without registrations, those who answered.
+    agencies: T ? sec("agencies", `<h2>${t.trained}</h2>
+        <div class="trained"><div><div class="big">${T.count}</div><div class="label">${t.differentAgencies}</div><div style="font-size:19px;margin-top:10px">${t.trainedLine(T.people)}</div></div>
+          <div>${T.sectors.map((x, i) => `<div class="sbar"><div class="sl"><span>${esc(t.sectors[x.key])}</span><b>${x.count}</b></div><div class="track"><i style="width:${Math.max(4, Math.round((100 * x.count) / T.sectors[0].count))}%;background:${[NAVY, GOLD, "#3f5a8f", GOLDL, "#8b93a5", "#c9cfdc"][i % 6]}"></i></div></div>`).join("")}</div></div>
+        <ul class="ag${listed.length <= 10 && !square ? " one" : ""}" style="margin-top:30px">${listed.map((a) => `<li>${esc(a.name)}</li>`).join("")}</ul>${T.count > listed.length ? `<div class="muted" style="font-size:18px;margin-top:12px">${t.more(T.count - listed.length)}</div>` : ""}`)
+      : shown.length ? sec("agencies", `<h2>${t.agencies}</h2><ul class="ag${shown.length <= 10 ? " one" : ""}">${shown.map((a) => `<li>${esc(a.agency)}</li>`).join("")}</ul>${R.agencies.length > shown.length ? `<div class="muted" style="font-size:18px;margin-top:12px">${t.more(R.agencies.length - shown.length)}</div>` : ""}`) : "",
+    topics: topics.length ? sec("topics", `<h2>${t.topics}</h2><div class="topics">${topics.map((s) => `<div><svg viewBox="0 0 64 64">${iconFor(s.title)}</svg><h3>${esc((lang === "fr" && s.titleFr) || s.title)}</h3></div>`).join("")}</div>`, "padding-bottom:0") : "",
     takeaways: take.length ? sec("takeaways", `<h2>${t.takeaways}</h2>${take.map(([a, v, s]) => `<div class="take"><div class="t">${esc(a)}</div><div class="v"><b>${v}%</b><span>${s}</span></div></div>`).join("")}`) : "",
     quotes: quotes.length ? sec("quotes", `<h2>${t.said}</h2>${quotes.map((q) => `<div class="q">“${esc(q.text)}”</div>`).join("")}`) : "",
     foot: `<div class="foot"><div><div class="h" style="font-size:28px;font-weight:600">${t.foot}</div><div style="color:${GOLDL};font-size:18px;margin-top:4px">${t.thanks}</div></div><div class="h" style="font-size:40px;font-weight:700;color:${GOLD}">ONGIA.CA</div></div>`,
@@ -165,9 +175,12 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:#fff} body,#art{f
 .take .t{font-family:Oswald,sans-serif;text-transform:uppercase;font-size:24px;color:${NAVY}} .take .v{text-align:right} .take .v b{font-family:Oswald,sans-serif;font-size:48px;color:${GOLD};display:block;line-height:1} .take .v span{font-size:15px;color:${MUTED}}
 .q{border-left:6px solid ${GOLD};background:${PALE};padding:20px 24px;margin:0 0 16px;font-size:22px;line-height:1.45}
 .ag{columns:2;column-gap:40px;font-size:20px;line-height:1.75;margin:0;padding:0;list-style:none} .ag li:before{content:"■";color:${GOLD};font-size:12px;margin-right:12px;vertical-align:3px}
+.trained{display:grid;grid-template-columns:300px 1fr;gap:44px;align-items:center}
+.sbar{margin:0 0 14px} .sl{display:flex;justify-content:space-between;gap:16px;font-size:20px} .sl b{font-family:Oswald,sans-serif;font-size:24px;color:${NAVY}}
+.track{height:14px;background:#ece6d6;border-radius:7px;overflow:hidden;margin-top:6px} .track i{display:block;height:100%;border-radius:7px}
 .foot{background:${DEEP};color:#fff;display:flex;justify-content:space-between;align-items:center;padding:30px 56px}
 .square{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;background:#fff;border-top:16px solid ${GOLD}}
-.square .fit{flex:1;display:flex;flex-direction:column;justify-content:center;margin:0 auto;width:1080px}
+.square .fit{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;margin:0 auto;width:1080px}
 .square .badge{flex:none} .square .in{width:1080px;margin:0 auto}
 .square .sec{border-top:0;padding:40px 64px}
 .square .sec h2{font-size:58px;margin-bottom:34px} .square .sec h2:after{height:3px}
@@ -183,6 +196,7 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:#fff} body,#art{f
 .square .topics svg{width:92px;height:92px} .square .topics h3{font-size:32px} .square .topics p{font-size:22px}
 .square .take{padding:22px 0} .square .take .t{font-size:38px} .square .take .v b{font-size:76px} .square .take .v span{font-size:20px}
 .square .q{font-size:32px;padding:26px 32px;margin-bottom:22px}
+.square .trained{grid-template-columns:260px 1fr;gap:40px} .square .sl{font-size:28px} .square .sl b{font-size:34px} .square .track{height:18px}
 .square .grid3 .legend div{font-size:24px!important;margin:6px 0!important} .square .grid3 .legend b{font-size:28px!important}
 .square .grid3>div:first-child>div:nth-child(3){font-size:28px!important} .square .grid3>div:first-child>div:nth-child(4){font-size:22px!important}
 .square .grid3 svg{width:280px;height:280px}`;
@@ -201,7 +215,7 @@ export function whenOf(first, last, lang = "en") {
 
 /** The whole page, or one section as a 1080 × 1080 square. */
 export function infographicHtml(event, R, analysis, { lang = "en", block = "" } = {}) {
-  const s = sections(event, R, analysis, lang === "fr" ? "fr" : "en");
+  const s = sections(event, R, analysis, lang === "fr" ? "fr" : "en", !!block);
   const head = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap"><style>${CSS}</style></head><body>`;
   if (block) {
     const one = block === "event" ? s.event : s[block];

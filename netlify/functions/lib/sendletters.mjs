@@ -42,8 +42,11 @@ export const MAIL_OFF = "emails to attendees are off for this event";
 
 export function letterDue(event, kind, today = todayIso()) {
   if (event.attendeeMail !== true) return { due: false, why: MAIL_OFF };
-  // The event's own welcome letter, written on its page, comes first; otherwise the saved letter it picked.
-  const letterId = ownWelcome(event, kind) ? "event-welcome" : event.letters?.[kind];
+  // The welcome letter goes only as written and saved on the event's Communications tab (Andrew 27 Oct 2026: "I need
+  // the one place to write the letters"). A saved letter picked on the event form the old way is where its words
+  // start from there, and never goes by itself.
+  if (kind === "welcome" && !ownWelcome(event, kind)) return { due: false, why: "the welcome letter isn't saved on the event's Communications tab yet" };
+  const letterId = kind === "welcome" ? "event-welcome" : event.letters?.[kind];
   if (!letterId) return { due: false, why: "no letter chosen for this event" };
   const job = jobFor(event, kind, today);
   if (!job) return { due: false, why: "the checklist has no job for it" };
@@ -84,20 +87,11 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   // with a two-day agenda, and get a different letter from the justice partners there all four days). An address
   // whose every registration came from the second Wix event gets it; anyone also on the first gets the main one.
   const batches = [{ letter, people: owed }];
-  const groupId = own ? null : kind === "welcome" ? event.letters?.welcomeGroup : null;
   if (own?.group) {
     const wrong = [...letterProblems(own.group), ...eventProblems(own.group, event)];
     if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${own.group.name}: ${w}`) };
     const split = splitByGroup(stored.people ?? [], owed);
     batches.splice(0, 1, { letter, people: split.main }, { letter: own.group, people: split.group });
-  } else if (groupId && groupId !== letter.id) {
-    const other = await getLetter(groupId);
-    if (!other) return { event: event.id, title: event.title, kind, error: "the second group's welcome letter no longer exists" };
-    const wrong = [...letterProblems(other), ...eventProblems(other, event)];
-    if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${other.name}: ${w}`) };
-    const rows = (stored.people ?? []).filter((p) => p.status !== "WITHDRAWN");
-    const groupOnly = (email) => rows.filter((p) => p.email === email).every((p) => p.group);
-    batches.splice(0, 1, { letter, people: owed.filter((p) => !groupOnly(p.email)) }, { letter: other, people: owed.filter((p) => groupOnly(p.email)) });
   }
   const names = batches.filter((b) => b.people.length).map((b) => b.letter.name).join(" + ") || letter.name;
   if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: names };

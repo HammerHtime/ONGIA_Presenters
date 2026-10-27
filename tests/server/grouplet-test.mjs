@@ -1,6 +1,7 @@
 // Two welcome letters for one event (Andrew 27 Oct 2026, National Gang Summit): the justice partners come all four days
 // and get the main letter with the four-day agenda; the community partners (pulled from a second Wix event) come
-// November 10 and 11 and get their own letter with their own two-day agenda.
+// November 10 and 11 and get their own letter with their own two-day agenda. Both are written and saved on the event's
+// Communications tab; a saved letter picked on the event form the old way never goes by itself.
 const REPO = new URL("../../", import.meta.url).pathname;
 process.env.RESEND_API_KEY = "test-key";
 process.env.APP_URL = "https://events.example.org";
@@ -40,10 +41,14 @@ await putAttendees("ngs", { people: [
   { key: "b2", first: "Bo", email: "bo@example.ca", status: "ATTENDING", group: "Community partners" },
 ] });
 
-// Only the main agenda so far: the community letter is held back, and nothing goes to anyone.
+// Letters picked on the event form the old way, but nothing saved on the Communications tab: nothing goes.
 await agenda(new Request("http://x/api/agenda?event=ngs", { method: "POST", headers: { ...H, "x-file-name": "summit-4-day.pdf" }, body: pdf("four days") }));
 const held = await sendLetterRound(await getEvent("ngs"), "welcome", { today: "2026-11-02", pace: async () => {} });
-ok("without the community partners' agenda, the round is held back and says why", held.blocked?.some((b) => /Community partners welcome: .*second group's agenda/.test(b)) && sent.length === 0, JSON.stringify(held));
+ok("until the letters are saved on the Communications tab, the old picked letter does not go, and it says why", /Communications tab/.test(held.skipped) && sent.length === 0, JSON.stringify(held));
+const saved = await getEvent("ngs");
+saved.welcome = { main: { subject: "Welcome to the Summit", body: "Hello {first},\n\nThe Summit runs {dates}." },
+  group: { subject: "Welcome, community partners", body: "Hello {first},\n\nYou are with us {dates}.\n\n{schedule}" } };
+await putEvent(saved);
 
 const up = await (await agenda(new Request("http://x/api/agenda?event=ngs&group=1", { method: "POST", headers: { ...H, "x-file-name": "community-2-day.pdf" }, body: pdf("two days") }))).json();
 ok("the second agenda uploads and is listed under the group's name", up.groupFile?.name === "community-2-day.pdf" && up.groupName === "Community partners" && up.file?.name === "summit-4-day.pdf", JSON.stringify(up));
@@ -62,12 +67,6 @@ ok("running again sends nobody a second copy", (await sendLetterRound(await getE
 const pv = await (await letters(new Request("http://x/api/letters?preview=1", { method: "POST", headers: { ...H, "content-type": "application/json" },
   body: JSON.stringify({ eventId: "ngs", letter: { kind: "welcome", name: "c", subject: "Welcome, community partners", body: "Hello {first},", attachAgenda: true, audience: "group" } }) }))).json();
 ok("the community letter's preview is addressed to a community partner and attaches their agenda", /Hello Cam/.test(pv.text) && pv.attached?.[0]?.name === "community-2-day.pdf", JSON.stringify(pv).slice(0, 300));
-
-// With no group letter chosen, everyone gets the main one.
-const e = await getEvent("ngs"); e.letters.welcomeGroup = null; await putEvent(e);
-await putAttendees("ngs", { people: [{ key: "c9", first: "Cy", email: "cy@example.ca", status: "ATTENDING", group: "Community partners" }] });
-await sendLetterRound(await getEvent("ngs"), "welcome", { today: "2026-11-02", pace: async () => {} });
-ok("with no letter chosen for the group, a community partner gets the main one", /Welcome to the Summit/.test(to("cy@").subject));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1779,21 +1779,15 @@ function eventFormScreen(existing = null) {
           <span>Email this event's attendees from the desk: the welcome letter, the survey and the hotel reminders</span></label>
         ${ev?.attendeeMail !== true ? `<p class="hint" style="margin:6px 0 0">Every event starts with these off. Tick this, or use the switch at the top
           of the event, when you are ready for them to go.</p>` : ""}
-        <p class="hint" style="margin-top:10px">Pick which saved letter this event sends. The day each one goes is the
-          date on the event's checklist — move the job there and the letter moves with it. "None" means it does not go.</p>
-        <div class="row2" style="margin-top:12px">
-          ${ev?.welcome?.main ? `<div class="field" style="margin:0"><label>Welcome letter</label><input type="hidden" id="e-lwelcome" value="${esc(ev?.letters?.welcome ?? "")}">
-            <p class="hint" style="margin:6px 0 0">Written on this event's <b>Communications</b> tab, with its agendas and the day it goes.</p></div>` : welcomeSelect(ev)}
-          <div class="field" style="margin:0"><label for="e-lsurvey">Survey</label>
+        <p class="hint" style="margin-top:10px">The welcome letter, with its agendas, attachments and the day it goes, is written on this event's
+          <b>Communications</b> tab. The survey is on its <b>Survey</b> tab.</p>
+        <input type="hidden" id="e-lwelcome" value="${esc(ev?.letters?.welcome ?? "")}">
+        ${ev?.letters?.survey || ev?.surveyLink ? `<div class="note" style="margin-top:12px">This event still has an older survey letter, which sends a link to an outside form.
+            Set it to None if the survey on the Survey tab is used instead, so nobody gets two.</div>
+          <div class="row2" style="margin-top:12px"><div class="field" style="margin:0"><label for="e-lsurvey">Older survey letter</label>
             <select id="e-lsurvey">${letterOptions("survey", ev?.title, ev?.letters?.survey)}</select></div>
-        </div>
-        ${(ev?.wixMore ?? []).length && !ev?.welcome?.main ? `<div class="field" style="margin-top:12px"><label for="e-lwelcome2">Welcome letter for ${esc(ev.wixMore[0].group || "the second group")}</label>
-          <select id="e-lwelcome2">${letterOptions("welcome", ev?.title, ev?.letters?.welcomeGroup, true).replace("None — don't send one", "None — they get the main welcome letter")}</select>
-          <p class="hint" style="margin:6px 0 0">${esc(ev.wixMore[0].group || "The second group")} get this one instead of the main welcome letter, with their own agenda and dates. Only letters ticked as the community partners' version are listed here. Anyone registered on both gets the main one.</p></div>` : ""}
-        <div class="field"><label for="e-survey">Survey link</label>
-          <input id="e-survey" type="url" value="${esc(ev?.surveyLink ?? "")}" placeholder="https://forms.office.com/…">
-          <p class="hint" style="margin:6px 0 0">The survey letter's button goes here. Without it the survey does not send.
-            Write and change the letters themselves on the <b>Letters</b> screen.</p></div>
+          <div class="field" style="margin:0"><label for="e-survey">Its survey link</label>
+            <input id="e-survey" type="url" value="${esc(ev?.surveyLink ?? "")}" placeholder="https://forms.office.com/…"></div></div>` : ""}
       </details>
       <details class="settings" style="margin-top:4px">
         <summary>Presentation slot</summary>
@@ -1849,8 +1843,8 @@ function eventFormScreen(existing = null) {
   // Letters written for one kind of training appear only once the title says
   // it is that kind. Whatever is picked stays picked while the title is typed.
   $("e-title").addEventListener("input", () => {
-    for (const [id, kind] of [["e-lwelcome", "welcome"], ["e-lsurvey", "survey"]]) {
-      const box = $(id);
+    for (const [id, kind] of [["e-lsurvey", "survey"]]) {
+      const box = document.getElementById(id);
       if (box) box.innerHTML = letterOptions(kind, $("e-title").value, box.value);
     }
   });
@@ -2100,8 +2094,8 @@ function eventFormScreen(existing = null) {
       sharePointFolder: val("e-folder"), materialsFolder: val("e-matfolder"), materialsUploadUrl: val("e-upload"),
       hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
-      letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey"), welcomeGroup: document.getElementById("e-lwelcome2") ? val("e-lwelcome2") : (ev?.letters?.welcomeGroup ?? "") },
-      surveyLink: val("e-survey"),
+      letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
+      surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
       attendeeMail: $("e-amail")?.checked === true,
       kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
       province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
@@ -3848,10 +3842,6 @@ const letterFits = (l, title) => {
  * title. One already chosen that no longer fits — the event was renamed — stays
  * in the list, marked, so a save never quietly swaps it for something else.
  */
-function welcomeSelect(ev) {
-  return `<div class="field" style="margin:0"><label for="e-lwelcome">Welcome letter${(ev?.wixMore ?? []).length ? ` (everyone except ${esc(ev.wixMore[0].group || "the second group")})` : ""}</label>
-            <select id="e-lwelcome">${letterOptions("welcome", ev?.title, ev?.letters?.welcome)}</select></div>`;
-}
 function letterOptions(kind, title, chosen, group = false) {
   // The main welcome letter list leaves out letters written for the community partners, and theirs shows only those.
   const mine = LETTER_CHOICES.filter((l) => (kind === "survey") === (l.kind === "survey") && (kind === "survey" || (l.audience === "group") === group || l.id === chosen));
