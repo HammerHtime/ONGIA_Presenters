@@ -65,6 +65,11 @@ ok("its button goes to the form", pv.html.includes(`https://events.example.org/q
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
 // Signed by the board with the Summit's inbox, not by the lead (Andrew 27 Oct 2026).
 ok("the Summit email is signed ONGIA Board, with ngs@ongia.ca, and no 'lead for' line", /ONGIA Board/.test(pv.html) && /mailto:ngs@ongia\.ca/.test(pv.html) && !/lead for/.test(pv.html) && /Replies to this email go straight to ONGIA Board/.test(pv.html) && /acheminées directement à ONGIA Board/.test(pv.html), pv.html.slice(-1500));
+// Andrew's own Summit email was saved before the signature fields existed: it is still signed by the board.
+{ const e = await getEvent("ngs"); const keep = { ...e.reply }; delete e.reply.signName; delete e.reply.signEmail; await putEvent(e);
+  const old = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
+  ok("an email saved before the signature fields existed is still signed ONGIA Board, not the lead", /ONGIA Board/.test(old.html) && /ngs@ongia\.ca/.test(old.html) && !/lead for/.test(old.html), old.html.slice(-800));
+  e.reply = keep; await putEvent(e); }
 // Two halves (Andrew 27 Oct 2026): English with its button, then French with a button that opens the questions in French.
 ok("the email has an English half with its button, then a French half with its own", pv.text.indexOf("Complete the survey: https://events.example.org/q/" + tok + "?lang=en") > 0 && pv.text.indexOf("Complete the survey:") < pv.text.indexOf("FRANÇAIS") && pv.text.indexOf("FRANÇAIS") < pv.text.indexOf("Répondre au sondage: https://events.example.org/q/" + tok + "?lang=fr"), pv.text);
 ok("the French half has the date to answer by and both socials in French", /d'ici le vendredi 30 octobre/.test(pv.text) && /mardi 10 novembre : Réception de réseautage/.test(pv.text) && /mercredi 11 novembre : Soirée à l'hôtel/.test(pv.text), pv.text);
