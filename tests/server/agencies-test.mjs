@@ -57,5 +57,19 @@ ok("and both Kawartha spellings are then one agency", (await call("all=1")).body
 const csv = await (await agencies(new Request("http://x/api/agencies?all=1&download=1", { headers: H }))).text();
 ok("the download lists each spelling of the last two years once with its count, and no names or emails", /"Kawartha Lakes PS",2/.test(csv) && /"TPS",1/.test(csv) && !/@|From 2021/.test(csv), csv);
 
+// When no question on the forms is recognised as the agency, the desk says what it read and lists the questions.
+const { organizationOf } = await import(F + "lib/wix.mjs");
+ok("'Where do you work?' is read as the agency question", organizationOf({ guestDetails: { formResponse: { inputValues: [{ inputName: "custom_1", label: "Where do you work?", value: "TPS" }] } } }) === "TPS");
+wixGuests.length = 0; wixGuests.push(["x"]);
+const savedFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => (String(url).endsWith("/events/v2/guests/query")
+  ? Response.json({ guests: [{ id: "q", eventId: "old", guestType: "RSVP", attendanceStatus: "ATTENDING", guestDetails: { email: "q@example.ca", formResponse: { inputValues: [{ inputName: "custom_9", label: "Your unit", value: "Gangs" }, { inputName: "email", label: "Email", value: "q@example.ca" }] } } }], pagingMetadata: {} })
+  : savedFetch(url, init));
+const diag = (await call("all=1")).body;
+ok("with no agency answers, it says how much it read and which questions the forms asked, never the answers", diag.read.registrations === 1 && diag.read.withAgency === 0 && diag.read.questions.some((q) => q.question === "Your unit") && !JSON.stringify(diag).includes("Gangs"), JSON.stringify(diag.read));
+const emptyCsv = await (await agencies(new Request("http://x/api/agencies?all=1&download=1", { headers: H }))).text();
+ok("and the download says the same instead of being empty", /No agency answers found\. Read 1 events and 1 registrations/.test(emptyCsv) && /Question: Your unit/.test(emptyCsv) && !/Gangs|q@example/.test(emptyCsv), emptyCsv);
+globalThis.fetch = savedFetch;
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
