@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, adminWho, editGuard } from "./lib/http.mjs";
-import { getEvent, putEvent, getAttendees, getLetter, getAgenda } from "./lib/store.mjs";
+import { getEvent, putEvent, getAttendees, getLetter, getAgenda, listEvents, listLetters } from "./lib/store.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
 import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, groupDaysOf } from "./lib/letters.mjs";
 import { formatDate } from "./lib/deadlines.mjs";
@@ -11,6 +11,7 @@ import { groupsOf, welcomeOf, welcomeLetters, cleanWelcome, splitByGroup, welcom
  * agendas, the day it goes. Turning attendee emails on is the switch above it.
  *
  *   GET  /api/welcome?event=…                    both versions, who each reaches, the day it goes, anything wrong
+ *   GET  /api/welcome?event=…&library=1          welcome letters to start from: the saved ones, and other events' own
  *   PUT  /api/welcome?event=…                    { main: {subject, body}, group: {subject, body}, sendOn } save
  *   POST /api/welcome?event=…&preview=main|group the email as it would go, from the words on screen (saved or not)
  *   POST /api/welcome?event=…&test=main|group    { to, main/group words } a real email marked TEST, up to five addresses
@@ -21,7 +22,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
-  if (req.method === "GET") return show(event);
+  if (req.method === "GET") return url.searchParams.get("library") ? library(event) : show(event);
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
 
@@ -58,6 +59,25 @@ export default async (req) => {
   }
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * Welcome letters to start from (Andrew 27 Oct 2026: "a list of emails that have been used in the past for other
+ * events … select this welcome letter for this event, make a few changes to it, and save it"): the saved ones from
+ * the Letters screen, then every other event's own, newest event first.
+ */
+async function library(event) {
+  const saved = (await listLetters()).filter((l) => l.kind !== "survey" && l.body)
+    .map((l) => ({ id: `letter:${l.id}`, name: l.name || "Saved letter", from: "Saved letters", subject: l.subject ?? "", body: l.body }));
+  const events = (await listEvents()).filter((e) => e.id !== event.id && e.welcome?.main?.body)
+    .sort((a, b) => String(b.dayOne ?? "").localeCompare(String(a.dayOne ?? "")))
+    .flatMap((e) => {
+      const names = groupsOf(e);
+      const when = e.dayOne ? ` (${formatDate(e.dayOne)})` : "";
+      return [{ id: `event:${e.id}:main`, name: `${e.title}${when}${names.group ? `: ${names.main}` : ""}`, from: "Other events", ...e.welcome.main },
+        ...(names.group && e.welcome.group?.body ? [{ id: `event:${e.id}:group`, name: `${e.title}${when}: ${names.group}`, from: "Other events", ...e.welcome.group }] : [])];
+    });
+  return json({ letters: [...saved, ...events] });
+}
 
 /** The saved letter the event picked before it had its own words: where its words start from. */
 const chosenLetter = async (event) => (event.letters?.welcome ? await getLetter(event.letters.welcome).catch(() => null) : null);
