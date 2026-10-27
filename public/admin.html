@@ -1709,7 +1709,10 @@ function eventFormScreen(existing = null) {
       <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
         <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
-        <p class="hint" style="margin:6px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
+        <div class="field" style="margin:14px 0 0"><label for="e-matfolder">Folder for presenters' slides <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
+          <input id="e-matfolder" value="${esc(ev?.materialsFolderUrl || ev?.materialsFolderPath || "")}" placeholder="Leave blank to use the event folder, or e.g. 2026/Toronto 2026/Presentations">
+          <p class="hint" style="margin:6px 0 0">Where the slides presenters upload are saved. Paste a SharePoint folder link, or type a path; it is made if it isn't there, and the presenters' upload link points to it. Agreements still go to the event folder.</p></div>
+        <p class="hint" style="margin:10px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
         <div id="adv" hidden>
           <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
             <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
@@ -1871,10 +1874,12 @@ function eventFormScreen(existing = null) {
     else where = "Paste the event's folder link, or leave this blank and the app creates the folder itself.";
     const up = link && ev && link === ev.materialsUploadUrl ? " Presenters already have an upload-only link for it."
       : link ? " Presenters upload to the link you pasted, once the app has checked it is upload-only."
-      : " Presenters get an upload-only link the app makes for that folder. Nothing to paste.";
+      : document.getElementById("e-matfolder")?.value.trim() ? " Presenters' slides go to the folder below." : " Presenters get an upload-only link the app makes for that folder, and their slides land in it. Nothing to paste.";
     folderhint.textContent = where + up;
   };
   city.oninput = showFolderHint; folder.oninput = showFolderHint; upload.oninput = showFolderHint;
+  const matFolder = document.getElementById("e-matfolder");
+  if (matFolder) matFolder.oninput = showFolderHint;
   const cphonehint = $("cphonehint");
   // The lead's name, address and number are their entry on the board list. There
   // is nothing to type here: it is shown so the coordinator can see what prints.
@@ -2092,7 +2097,7 @@ function eventFormScreen(existing = null) {
       dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
       offsets,
       board: readBoard(),
-      sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
+      sharePointFolder: val("e-folder"), materialsFolder: val("e-matfolder"), materialsUploadUrl: val("e-upload"),
       hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
       letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey"), welcomeGroup: document.getElementById("e-lwelcome2") ? val("e-lwelcome2") : (ev?.letters?.welcomeGroup ?? "") },
@@ -3230,6 +3235,7 @@ function eventScreen(data) {
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
+        <dt class="top">Slides to</dt><dd><div class="stack"><span>${esc(ev.materialsFolderPath || ev.sharePointFolder || "the event folder")}${ev.materialsFolderPath ? "" : ` <span class="porg">(the event folder)</span>`}</span>${ev.materialsFolderUrl ? `<a class="mini" href="${esc(ev.materialsFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : ""}</div></dd>
         <dt class="top">Uploads</dt><dd><div class="stack">${!ev.materialsUploadUrl
           ? `<span class="said">no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</span><button class="mini" id="mklink">Create upload link</button>`
           : `<div class="line">${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}<span class="said">${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}</span></div><button class="mini" id="rescan">Check uploads now</button>${scan?.unmatched?.length ? `<div class="porg"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</div></dd>

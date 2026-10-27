@@ -113,7 +113,7 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   const offsetTrouble = offsetsProblem(offsets);
   if (offsetTrouble) return offsetTrouble;
 
-  const before = { folder: event.sharePointFolder ?? "", link: event.materialsUploadUrl ?? "", appMade: !!event.materialsLinkCheck?.createdByApp };
+  const before = { folder: event.sharePointFolder ?? "", materials: event.materialsFolderPath ?? "", link: event.materialsUploadUrl ?? "", appMade: !!event.materialsLinkCheck?.createdByApp };
 
   Object.assign(event, {
     title,
@@ -209,12 +209,16 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     event.materialsLinkCheck = null;
   }
 
-  // Where Request-files uploads land, if not the event folder itself.
-  try {
-    const mf = await resolveFolderInput(text(body.materialsFolder, 800));
-    event.materialsFolderPath = mf.path || "";
-  } catch (e) {
-    return `Materials folder: ${e.message}`;
+  // Where presenters' slides land, if not the event folder itself (Andrew 27 Oct 2026: "create a different path to a
+  // different folder"). Left out of a save, it stays as it was.
+  if (body.materialsFolder !== undefined) {
+    try {
+      const mf = await resolveFolderInput(text(body.materialsFolder, 800));
+      event.materialsFolderPath = mf.path || "";
+      event.materialsFolderUrl = mf.url || "";
+    } catch (e) {
+      return `Folder for presenters' slides: ${e.message}`;
+    }
   }
 
   // The folder may arrive as a path, a folder URL, or a sharing link.
@@ -229,7 +233,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
 
   // An upload link the app made belongs to the folder it was made on. If the folder
   // moved, drop it so a fresh one is made for the new folder.
-  if (event.materialsLinkCheck?.createdByApp && event.sharePointFolder !== before.folder) {
+  const slidesTo = (e) => e.materials || e.folder;
+  if (event.materialsLinkCheck?.createdByApp && slidesTo({ materials: event.materialsFolderPath ?? "", folder: event.sharePointFolder }) !== slidesTo(before)) {
     event.materialsUploadUrl = "";
     event.materialsLinkCheck = null;
   }
@@ -410,13 +415,20 @@ async function removePresenter(id, presenterId, finalToo = false, reason = "") {
   return json({ ok: true });
 }
 
-/** Folder by convention (if missing) plus a Request-files link on it. */
+/** Folder by convention (if missing) plus a Request-files link on the folder slides go to: their own, else the event's. */
 async function provisionUpload(event) {
   const path = event.sharePointFolder || conventionalFolder(event.dayOne, event.city);
   const folder = await ensureEventFolder(path);
   event.sharePointFolder = folder.path;
   event.sharePointFolderUrl = folder.url;
-  const link = await createUploadLink(folder.path);
+  let target = folder.path;
+  if (event.materialsFolderPath) {
+    const slides = await ensureEventFolder(event.materialsFolderPath);
+    event.materialsFolderPath = slides.path;
+    event.materialsFolderUrl = slides.url;
+    target = slides.path;
+  }
+  const link = await createUploadLink(target);
   event.materialsUploadUrl = link.url;
   event.materialsLinkCheck = { verdict: "upload-only", type: "createOnly", reason: null, at: new Date().toISOString(), createdByApp: true };
   event.provisioningError = null;
