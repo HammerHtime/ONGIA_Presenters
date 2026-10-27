@@ -45,6 +45,14 @@ Fixed in the desk's version:
 - **About you is asked once,** on the person's first survey. Their own link remembers it was answered, without storing who they are, so on a four-day daily survey they aren't asked four times.
 - **An "Overall" section** (needed for the infographic and missing from Kingston): overall quality, pace (too slow, about right, too fast), confidence applying what was learned, variety and depth of topics, practical strategies, and anything else. In daily mode it goes on the last day's survey; after the event, on the one survey.
 
+## Agencies, one name each (Andrew 27 Oct 2026)
+
+- People type their agency many ways: TPS, Toronto Police and Toronto Police Service; OPP, Ontario Provincial Police and OPP - Gang Unit. The desk keeps one master list, shared by every event. Each agency has its standard name, province (blank for federal) and the spellings people use. Units after a dash, comma or bracket, or named as a unit, are ignored for matching.
+- Each event's People → Who's coming → Agencies box groups the registrations by standard name. Anything it can't place goes on a short review list, with a Claude suggestion, to be confirmed once. After that it's known for every event. What each person typed is kept as they typed it.
+- **Master list:** Andrew downloads the spellings of the last two years of Wix registrations from that box ("Every Wix event", "Download the spellings for Claude"; no names or emails) and uploads the file in chat. Claude compiles the master list from every variation and builds it into the desk as the starting list.
+- The survey's agency question is a pick-list of the standard agencies registered for the event, plus "Other".
+- **Required answers:** all six statements per presenter are required, each with N/A, plus a "Didn't attend this session" skip per presenter. Comments stay optional.
+
 ## Deliverables, in order
 
 1. [ ] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab.
