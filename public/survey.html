@@ -92,6 +92,11 @@
   .dayhead .skip[aria-pressed="true"]{color:#1c1608}
   .skipped{color:var(--muted);text-align:center}
   .req{color:var(--bad)}
+  .combo .opts{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .combo .opt{text-align:left;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:11px 13px;font:inherit;font-size:15px;color:var(--ink);cursor:pointer}
+  .combo .opt .small{margin-left:6px}
+  .combo .opt.other{border-style:dashed;color:var(--navy);font-weight:500}
+  .combo .chosen{margin-top:6px;color:var(--done);font-weight:700;font-size:14.5px}
   .missing-q{background:var(--bad-bg);border-radius:12px;padding-left:8px;padding-right:8px;margin:0 -8px}
 </style>
 </head>
@@ -112,14 +117,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const ASKED = QS.get("lang");
 let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
 const T = {
- en: { other: "Français", loading: "Loading…", anon: "Your answers are anonymous.", about: "About you", aboutHint: "Asked once.", pick: "Choose…", otherAgency: "Other (type it)", typeIt: "Your agency",
+ en: { other: "Français", loading: "Loading…", anon: "Your answers are anonymous.", about: "About you", aboutHint: "Asked once.", pick: "Choose…", typeAgency: "Start typing your agency…", useTyped: (s) => `Use “${s}” (not on the list)`,
   yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
   overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…",
   missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
   already: "You've already answered this part. Thank you!", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
   contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
- fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", otherAgency: "Autre (à préciser)", typeIt: "Votre organisme",
+ fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", typeAgency: "Commencez à taper votre organisme…", useTyped: (s) => `Utiliser « ${s} » (pas dans la liste)`,
   yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
   overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…",
   missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
@@ -145,11 +150,29 @@ function provinceHtml(key, q, value) {
   const names = q.provinces ?? {};
   return `<select data-select="${key}"><option value="">${t("pick")}</option>${Object.entries(names).map(([code, name]) => `<option value="${code}"${value === code ? " selected" : ""}>${esc(name)}</option>`).join("")}</select>`;
 }
+// The agency: type to search the whole list (names and short forms like "OPP"); the list shrinks as they type. If it
+// isn't there, what they typed is used as is (Andrew 27 Oct 2026).
+const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function agencyMatches(list, typed) {
+  const q = fold(typed).trim();
+  if (!q) return [];
+  const words = q.split(/\s+/);
+  const hit = (a) => { const hay = fold([a.name, ...(a.also ?? [])].join(" | ")); return words.every((w) => hay.includes(w)); };
+  // Best first: a short form typed exactly ("OPP"), then names whose words start with what was typed.
+  const score = (a) => ((a.also ?? []).some((x) => fold(x) === q) || fold(a.name) === q ? 100 : 0)
+    + words.filter((w) => fold(a.name).split(/[^a-z0-9]+/).some((nw) => nw.startsWith(w))).length * 2 + (fold(a.name).startsWith(q) ? 3 : 0);
+  return list.filter(hit).sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name)).slice(0, 8);
+}
+function agencyOptions(key, list, typed) {
+  const m = agencyMatches(list, typed);
+  const exact = m.some((a) => [a.name, ...(a.also ?? [])].some((x) => fold(x) === fold(typed).trim()));
+  return m.map((a) => `<button type="button" class="opt" data-agencypick="${key}" data-v="${esc(a.name)}">${esc(a.name)}${(a.also ?? []).length ? ` <span class="small">${esc(a.also.slice(0, 2).join(", "))}</span>` : ""}</button>`).join("")
+    + (typed.trim() && !exact ? `<button type="button" class="opt other" data-agencypick="${key}" data-v="${esc(typed.trim())}">${t("useTyped", typed.trim())}</button>` : "");
+}
 function agencyHtml(key, q, value) {
-  const list = q.agencies ?? [];
-  const known = list.includes(value);
-  return `<select data-agency="${key}"><option value="">${t("pick")}</option>${list.map((a) => `<option${a === value ? " selected" : ""}>${esc(a)}</option>`).join("")}<option value="__other"${value && !known ? " selected" : ""}>${t("otherAgency")}</option></select>
-    ${value !== undefined && (value === "" || !known) && A.agencyOther ? `<input type="text" style="margin-top:8px" data-text="${key}" placeholder="${t("typeIt")}" value="${esc(known ? "" : value)}">` : ""}`;
+  const typed = A.agencyTyped ?? value ?? "";
+  return `<div class="combo"><input type="text" autocomplete="off" data-agencyin="${key}" placeholder="${t("typeAgency")}" value="${esc(typed)}" aria-label="${esc(qText(q))}">
+    ${value ? `<div class="chosen">✓ ${esc(value)}</div>` : ""}<div class="opts" id="opts-${esc(key)}">${value && typed === value ? "" : agencyOptions(key, q.agencies ?? [], typed)}</div></div>`;
 }
 function question(key, q, value) {
   const label = `${esc(qText(q))}${q.optional ? ` <span class="small">(${t("optional")})</span>` : ` <span class="req">*</span>`}`;
@@ -198,12 +221,24 @@ function wire() {
   ROOT.querySelectorAll("[data-star]").forEach((b) => b.onclick = () => { const v = b.dataset.v === "na" ? "na" : Number(b.dataset.v); put(b.dataset.star, get(b.dataset.star) === v && v === "na" ? undefined : v); render(); });
   ROOT.querySelectorAll("[data-choice]").forEach((b) => b.onclick = () => { put(b.dataset.choice, Number(b.dataset.v)); render(); });
   ROOT.querySelectorAll("[data-select]").forEach((s) => s.onchange = () => { put(s.dataset.select, s.value || undefined); });
-  ROOT.querySelectorAll("[data-agency]").forEach((s) => s.onchange = () => { if (s.value === "__other") { A.agencyOther = true; put(s.dataset.agency, ""); render(); } else { A.agencyOther = false; put(s.dataset.agency, s.value || undefined); } });
+  ROOT.querySelectorAll("[data-agencyin]").forEach((x) => x.oninput = () => {
+    // Only the list under the box is redrawn while they type, so the box keeps the cursor.
+    const key = x.dataset.agencyin, q = D.about.find((qq) => `about.${qq.id}` === key);
+    A.agencyTyped = x.value; put(key, undefined);
+    const chosen = x.parentElement.querySelector(".chosen"); if (chosen) chosen.remove();
+    const box = document.getElementById(`opts-${key}`); box.innerHTML = agencyOptions(key, q.agencies ?? [], x.value);
+    wireAgencyPicks();
+  });
+  wireAgencyPicks();
   ROOT.querySelectorAll("[data-text]").forEach((x) => x.oninput = () => put(x.dataset.text, x.value));
   ROOT.querySelectorAll("[data-contact]").forEach((x) => x.oninput = () => { A.contact[x.dataset.contact] = x.value; });
   ROOT.querySelectorAll("[data-skipday]").forEach((b) => b.onclick = () => { const d = b.dataset.skipday; A.skipDays = A.skipDays.includes(d) ? A.skipDays.filter((x) => x !== d) : [...A.skipDays, d]; render(); });
   ROOT.querySelectorAll("[data-skipsession]").forEach((b) => b.onclick = () => { const id = b.dataset.skipsession; const s = (A.sessions[id] ??= {}); if (s.skipped) delete s.skipped; else s.skipped = true; render(); });
   document.getElementById("send").onclick = send;
+}
+
+function wireAgencyPicks() {
+  ROOT.querySelectorAll("[data-agencypick]").forEach((b) => b.onclick = () => { A.agencyTyped = b.dataset.v; put(b.dataset.agencypick, b.dataset.v); render(); });
 }
 
 async function send() {

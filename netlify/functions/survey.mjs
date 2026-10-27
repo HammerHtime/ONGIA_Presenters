@@ -5,7 +5,7 @@ import { token as newToken } from "./lib/ids.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { trainingDays } from "./lib/agenda.mjs";
-import { directory, agenciesOf } from "./lib/agencies.mjs";
+import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage } from "./lib/survey.mjs";
 import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./lib/surveysend.mjs";
@@ -115,7 +115,8 @@ async function attendeeSide(req, url, tok, pid) {
   if (req.method === "GET") {
     const part = whichPart(event, person, url.searchParams.get("part"), done);
     const asked = partFor(event, person, part, done);
-    const agencies = agenciesOf(((await getAttendees(event.id)) ?? {}).people ?? [], await directory()).agencies.map((a) => a.agency).sort();
+    // Every agency on the master list, with its short forms, so typing "OPP" finds the Ontario Provincial Police.
+    const agencies = (await directory()).map((a) => ({ name: a.name, also: (a.aliases ?? []).filter((x) => x.length <= 40).slice(0, 8) })).sort((a, b) => a.name.localeCompare(b.name, "fr"));
     return json({ ...surveyForPage(event, asked, agencies), open: s.open, answered: (done.parts ?? []).includes(part), daily: s.mode === "daily" });
   }
   if (req.method !== "POST") return fail("Method not allowed.", 405);
