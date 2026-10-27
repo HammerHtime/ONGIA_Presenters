@@ -4382,6 +4382,9 @@ function renderAgencies(ev, A) {
       <input list="ag-names" id="agpick-${i}" placeholder="Which agency is this?" aria-label="The agency for ${esc(u.raw)}">
       <button class="mini" data-agok="${i}">Confirm</button></div>`;
   box.innerHTML = `${agScope()}
+    ${AG_SCOPE === "all" && A.read ? `<div class="${A.read.withAgency ? "note" : "bad"}" style="margin-bottom:12px">Read <b>${A.read.events}</b> Wix events from the last two years and <b>${A.read.registrations}</b> registrations; <b>${A.read.withAgency}</b> gave an agency.
+      ${A.read.withAgency ? "" : `<div style="margin-top:6px">The desk did not recognise any question as the agency question. The questions those forms asked:</div>
+        <ul style="margin:6px 0 0 18px">${A.read.questions.map((q) => `<li>${esc(q.question)} <span class="porg">· ${q.count}</span></li>`).join("") || "<li>none: Wix sent no form answers</li>"}</ul>`}</div>` : ""}
     ${AG_SCOPE === "all" ? `<div class="note" style="margin-bottom:12px">Every registration of the last two years, both Wix sites. <button class="mini gold" id="ag-csv">Download the spellings for Claude</button>
       <div class="hint" style="margin:4px 0 0">Agency names and how often each was typed. No names or emails.</div></div>` : ""}
     <p style="margin:0 0 10px">${A.agencies.length} agenc${A.agencies.length === 1 ? "y" : "ies"} from ${total} registration${total === 1 ? "" : "s"}${A.unplaced.length ? `, and <b>${A.unplaced.length} spelling${A.unplaced.length === 1 ? "" : "s"} to place</b>` : ""}.</p>

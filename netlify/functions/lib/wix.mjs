@@ -175,7 +175,7 @@ function guestNamesOf(g) {
 export function organizationOf(g) {
   const d = g.guestDetails ?? {};
   const fields = [...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])];
-  const hit = fields.find((v) => /agenc|organi[sz]ation|company|employer|service|department|affiliation|^org$/i.test(`${v.inputName ?? ""} ${v.label ?? ""}`)
+  const hit = fields.find((v) => /agenc|organi[sz]ation|company|employer|employ|service|department|affiliation|^org$|work (for|at)|where do you work|workplace|place of work|police|ministry/i.test(`${v.inputName ?? ""} ${v.label ?? ""}`)
     && !/guest|e-?mail|phone/i.test(v.inputName ?? ""));
   const value = hit ? (hit.value ?? (Array.isArray(hit.values) ? hit.values[0] : "")) : "";
   return String(value ?? "").trim().slice(0, 200);
@@ -209,6 +209,9 @@ function tidyGuest(g) {
     totalGuests: g.totalGuests ?? 1,
     // The names an RSVP gave for the people they are bringing, when the form asked for them.
     guestNames: guestNamesOf(g),
+    // The questions this registration's form asked (their names only, never the answers), so the desk can say which
+    // question it read the agency from, or that it found none.
+    formFields: [...new Set([...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])].map((v) => String(v.label || v.inputName || "").trim()).filter(Boolean))].slice(0, 40),
     updatedAt: g.updatedDate ?? g.createdDate ?? null,
   };
 }

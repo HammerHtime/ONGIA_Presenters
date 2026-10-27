@@ -53,11 +53,20 @@ async function everyRegistration(now = Date.now()) {
   if (!wixConfigured()) throw new Error("Wix is not connected on this site.");
   const since = new Date(now - 730 * 86400000).toISOString().slice(0, 10);
   const out = [];
+  // What was read, so an empty result says why (Andrew 27 Oct 2026: "nothing was in the excel sheet").
+  const read = { events: 0, registrations: 0, withAgency: 0, questions: new Map() };
   for (const site of wixSites()) {
     const recent = new Set((await listWixEvents({ site: site.n })).filter((e) => !e.dayOne || e.dayOne >= since).map((e) => e.id));
-    const guests = await listWixGuests({ type: null, site: site.n });
-    out.push(...guests.filter((g) => recent.has(g.eventId)).map((g) => ({ organization: g.organization, status: "ATTENDING" })));
+    read.events += recent.size;
+    const guests = (await listWixGuests({ type: null, site: site.n })).filter((g) => recent.has(g.eventId));
+    read.registrations += guests.length;
+    for (const g of guests) {
+      if (g.organization) read.withAgency++;
+      for (const q of g.formFields ?? []) read.questions.set(q, (read.questions.get(q) ?? 0) + 1);
+    }
+    out.push(...guests.map((g) => ({ organization: g.organization, status: "ATTENDING" })));
   }
+  out.read = { ...read, questions: [...read.questions].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([q, n]) => ({ question: q, count: n })) };
   return out;
 }
 
@@ -67,11 +76,17 @@ function spellingsCsv(people) {
   for (const p of people) { const s = String(p.organization ?? "").trim(); if (s) counts.set(s, (counts.get(s) ?? 0) + 1); }
   const cell = (v) => `"${String(v).replace(/"/g, '""')}"`;
   const rows = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([s, n]) => `${cell(s)},${n}`);
+  // Nothing found: say what was read instead of an empty sheet.
+  if (!rows.length && people.read) {
+    const r = people.read;
+    rows.push(`${cell(`No agency answers found. Read ${r.events} events and ${r.registrations} registrations. The questions their forms asked are below.`)},`,
+      ...r.questions.map((q) => `${cell(`Question: ${q.question}`)},${q.count}`));
+  }
   return new Response(`\ufeffAgency as typed,Registrations\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
     "content-disposition": 'attachment; filename="ongia-agency-spellings-past-2-years.csv"', "cache-control": "no-store" } });
 }
 
 async function show(people) {
   const list = await directory();
-  return json({ ...agenciesOf(people, list), names: list.map((a) => a.name), provinces: PROVINCES });
+  return json({ ...agenciesOf(people, list), names: list.map((a) => a.name), provinces: PROVINCES, ...(people.read ? { read: people.read } : {}) });
 }
