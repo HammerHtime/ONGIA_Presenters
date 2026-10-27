@@ -256,21 +256,34 @@ export function dietaryRowsOf(rows) {
 
 /** The email, as a letter: it uses the same layout and checks as the welcome letter. */
 /** Where an answer to the email goes: the address it is signed with, or the event's lead. */
-export const replyToOf = (event) => (event.reply?.signName && event.reply?.signEmail) || event.contact?.email || undefined;
+export const replyToOf = (event) => signOf(event)?.email || event.contact?.email || undefined;
 
-export function replyLetter(reply) {
+/**
+ * Who signs the questions email: the name typed on the card; for the National Gang Summit, the board and its inbox
+ * unless something else is typed (Andrew 27 Oct 2026: "have it as ONGIA Board, email is ngs@ongia.ca"); otherwise
+ * nobody here, and the event's lead signs as usual.
+ */
+export function signOf(event) {
+  const r = event?.reply ?? {};
+  if (r.signName) return { name: r.signName, email: r.signEmail || "" };
+  if (isSummit(event)) return { name: "ONGIA Board", email: "ngs@ongia.ca" };
+  return null;
+}
+
+export function replyLetter(reply, event = null) {
+  const sign = signOf({ ...(event ?? {}), reply });
   // An email that places its own buttons ({replyButton}, {replyButtonFr}) has none added at the bottom.
   const placed = /\{replyButton(Fr)?\}/.test(reply.body ?? "");
   return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: placed ? "" : "{replyLink}",
-    ...(reply.signName ? { contact: { name: reply.signName, email: reply.signEmail || "", phone: "", role: "" } } : {}) };
+    ...(sign ? { contact: { ...sign, phone: "", role: "" } } : {}) };
 }
 export const replyProblems = (event) => {
-  const letter = replyLetter(event.reply);
+  const letter = replyLetter(event.reply, event);
   const out = [...letterProblems(letter), ...eventProblems(letter, event)];
   if (!event.reply.open) out.push("The form is closed. Open it before sending, or nobody can answer.");
   return [...new Set(out)];
 };
-export const renderReply = (event, person) => renderLetter(replyLetter(event.reply), event, person);
+export const renderReply = (event, person) => renderLetter(replyLetter(event.reply, event), event, person);
 
 /**
  * Reminders (Andrew 26 Oct 2026: "a reminder for people to complete the form on Wednesday and Friday if they haven't").
@@ -286,7 +299,7 @@ export function remindersOf(reply) {
 
 /** The reminder: the same email, marked as a reminder at the top, so the words Andrew chose are the ones that go again. */
 export function renderReminder(event, person) {
-  const letter = replyLetter(event.reply);
+  const letter = replyLetter(event.reply, event);
   const paras = String(letter.body ?? "").split(/\n\s*\n/);
   // After the greeting ("Hello {first},"), one line saying why this has come again.
   const greet = paras.slice(0, 3).findIndex((p) => /^\s*(hello|hi|dear|bonjour)\b/i.test(p));

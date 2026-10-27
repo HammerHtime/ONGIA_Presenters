@@ -5,7 +5,7 @@ import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
-import { renderReminder, summitSocialLabels, replyToOf } from "./lib/reply.mjs";
+import { renderReminder, summitSocialLabels, replyToOf, signOf } from "./lib/reply.mjs";
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -73,7 +73,7 @@ const link = (event) => `${siteUrl()}/q/${event.reply.token}`;
 async function show(event) {
   const answers = (await getReplies(event.id))?.answers ?? [];
   return json({ reply: event.reply ?? null, link: event.reply ? link(event) : "", status: event.reply ? await replyStatus(event) : null,
-    problems: event.reply ? replyProblems(event) : [], answers, attendeeMail: event.attendeeMail === true });
+    problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: event.attendeeMail === true });
 }
 
 async function save(event, body) {
