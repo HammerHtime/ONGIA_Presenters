@@ -2,6 +2,7 @@ import { requireAdmin } from "./lib/http.mjs";
 import { getEvent, putEvent } from "./lib/store.mjs";
 import { sendReplyRound } from "./lib/reply.mjs";
 import { primeRoster } from "./lib/signature.mjs";
+import { reportSends } from "./lib/sendreport.mjs";
 
 /**
  * The food-allergy email to everyone registered, sent on the server (Andrew 27 Oct 2026: "it's still spinning … it's
@@ -39,6 +40,8 @@ export default async (req) => {
     fresh.replyLastSend = { at: new Date().toISOString(), error: out.error ?? (out.blocked?.[0] ?? out.skipped ?? null), left: out.left ?? 0 };
   }
   await putEvent(fresh);
+  // Any address it could not reach is emailed to the officers (each run reports its own).
+  await reportSends("the food-allergy email", [{ ...out, title: event.title, what: "The food-allergy email" }]);
   console.log(`reply send ${event.id} run ${hop}: ${out.sent ?? 0} sent, ${out.failed ?? 0} failed, ${out.left ?? 0} left${continued ? ", follow-up started" : ""}${out.error ? `, error: ${out.error}` : ""}`);
   return new Response(null, { status: 202 });
 };

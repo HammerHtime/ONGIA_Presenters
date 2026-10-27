@@ -1,4 +1,4 @@
-import { todayIso } from "./deadlines.mjs";
+import { todayIso, formatDate } from "./deadlines.mjs";
 import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda, getWelcomeFile } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { checklistOf } from "./checklist.mjs";
@@ -45,7 +45,12 @@ export function letterDue(event, kind, today = todayIso()) {
   // The welcome letter goes only as written and saved on the event's Communications tab (Andrew 27 Oct 2026: "I need
   // the one place to write the letters"). A saved letter picked on the event form the old way is where its words
   // start from there, and never goes by itself.
-  if (kind === "welcome" && !ownWelcome(event, kind)) return { due: false, why: "the welcome letter isn't saved on the event's Communications tab yet" };
+  if (kind === "welcome" && !ownWelcome(event, kind)) {
+    // Its day come and the letter not saved: said out loud (the morning run emails the officers), not skipped quietly.
+    const job = jobFor(event, kind, today);
+    const dueNow = job && !job.na && job.due && today >= job.due && !(WINDOW.welcome(event, job.due) && today >= WINDOW.welcome(event, job.due));
+    return { due: false, why: "the welcome letter isn't saved on the event's Communications tab yet", ...(dueNow ? { warn: true, on: job.due } : {}) };
+  }
   const letterId = kind === "welcome" ? "event-welcome" : event.letters?.[kind];
   if (!letterId) return { due: false, why: "no letter chosen for this event" };
   const job = jobFor(event, kind, today);
@@ -69,7 +74,7 @@ export function letterDue(event, kind, today = todayIso()) {
  */
 export async function sendLetterRound(event, kind, { dry = false, today = todayIso(), deadline = null, pace = pacer() } = {}) {
   const due = letterDue(event, kind, today);
-  if (!due.due) return { event: event.id, title: event.title, kind, skipped: due.why };
+  if (!due.due) return { event: event.id, title: event.title, kind, skipped: due.why, ...(due.warn ? { warn: `it isn't saved on the event's Communications tab yet (it was due ${formatDate(due.on)})` } : {}) };
 
   const own = ownWelcome(event, kind) ? welcomeLetters(event) : null;
   const letter = own ? own.main : await getLetter(due.letterId);
@@ -157,7 +162,9 @@ export async function runLetterRounds(events, opts = {}) {
   await primeRoster();
   for (const event of events) {
     for (const kind of ["welcome", "survey"]) {
-      if (!event.letters?.[kind] && !ownWelcome(event, kind)) continue;
+      // An event emailing its attendees is checked for its welcome letter even with nothing saved, so a due day that
+      // comes with no letter is reported rather than passed over.
+      if (!event.letters?.[kind] && !ownWelcome(event, kind) && !(kind === "welcome" && event.attendeeMail === true)) continue;
       try { out.push(await sendLetterRound(event, kind, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind, error: e.message }); }
     }

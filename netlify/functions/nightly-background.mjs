@@ -1,5 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
 import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
+import { reportSends, KIND_NAMES } from "./lib/sendreport.mjs";
 
 /**
  * The morning run, in the background. The scheduled function (remind.mjs) has
@@ -24,5 +25,9 @@ export default async (req) => {
   }
   console.log(`nightly run ${hop}: ${out.left} left${continued ? ", follow-up started" : ""}`);
   await noteNight(out, { ran: "background", hop, continued });
+  // Anything to attendees that did not go, or was held back, is emailed to the officers rather than left in the log.
+  const rows = [...(out.detail?.letters ?? []).map((r) => ({ ...r, what: KIND_NAMES[r.kind] ?? "An email to attendees" })),
+    ...(out.detail?.hotel ?? []).map((r) => ({ ...r, what: r.days ? `The ${r.days}-day hotel reminder` : "A hotel reminder" }))];
+  await reportSends("the morning run", rows);
   return new Response(null, { status: 202 });
 };

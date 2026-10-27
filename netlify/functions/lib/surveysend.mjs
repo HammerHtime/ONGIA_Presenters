@@ -78,9 +78,7 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
   const wrong = [...problems, ...letterProblems(letter), ...eventProblems(letter, event)];
   if (wrong.length) return { event: event.id, title: event.title, kind: "survey", part, blocked: wrong };
   const stored = (await getAttendees(event.id)) ?? { people: [] };
-  const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes(sentKey(part))).map((p) => p.email));
-  // A daily part only goes to people whose days include it (the Summit's community partners: their two days).
-  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email) && (part === "end" || daysFor(event, p).includes(part)));
+  const owed = owedFor(event, part, stored.people ?? []);
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {
@@ -99,6 +97,25 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), [sentKey(part)]: { at: new Date().toISOString(), sent, failed, left } } });
   return { event: event.id, title: event.title, kind: "survey", part, sent, failed, left, trouble: trouble.slice(0, 10) };
+}
+
+/** Who a part still has to go to: everyone registered who hasn't had it, and for a daily part only those there that day. */
+function owedFor(event, part, people) {
+  const had = new Set(people.filter((p) => (p.sent ?? []).includes(sentKey(part))).map((p) => p.email));
+  // A daily part only goes to people whose days include it (the Summit's community partners: their two days).
+  return writeableTo(people).filter((p) => !had.has(p.email) && (part === "end" || daysFor(event, p).includes(part)));
+}
+
+/** Whether any survey part is due with someone still to get it: the 15-minute check starts the sending only then. */
+export async function surveyWorkDue(events, now = new Date()) {
+  for (const event of events) {
+    if (event.attendeeMail !== true || !event.survey?.open) continue;
+    const parts = partsDue(event, now);
+    if (!parts.length) continue;
+    const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
+    if (parts.some((part) => owedFor(event, part, people).length)) return true;
+  }
+  return false;
 }
 
 /** Every event's survey parts that are due. Called by the morning run and the 15-minute check. */
