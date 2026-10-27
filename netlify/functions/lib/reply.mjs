@@ -104,6 +104,13 @@ export function suggestedWording(event, socials = []) {
   const summit = isSummit(event);
   const n = socials.length;
   if (summit && n) return summitWording(socials);
+  return plainWording(event, socials);
+}
+
+/** The wording every other event starts with (and the Summit did, before Andrew wrote his own). */
+function plainWording(event, socials) {
+  const summit = isSummit(event);
+  const n = socials.length;
   return {
     subject: n ? "{event}: a few quick questions" : "{event}: any food allergies?",
     body: [
@@ -118,6 +125,22 @@ export function suggestedWording(event, socials = []) {
     ].join("\n\n"),
     buttonLabel: n ? "Answer the questions" : "Tell us",
   };
+}
+
+/**
+ * The Summit's email as it stood when it was set up, before Andrew wrote his own wording, untouched since: brought up
+ * to his wording (English and French, the board's signature, the socials' new names) the next time anyone opens or
+ * uses it. Andrew 27 Oct 2026: his test still went out in the old words. Anything he typed himself is left alone, and
+ * nothing changes once the email has gone out. Returns the new settings, or null when there is nothing to do.
+ */
+export function freshenedReply(event) {
+  const r = event?.reply;
+  if (!r || r.sentAt || !isSummit(event) || !(r.socials ?? []).length) return null;
+  const old = plainWording(event, r.socials);
+  const same = (a, b) => String(a ?? "").replace(/\s+/g, " ").trim() === String(b ?? "").replace(/\s+/g, " ").trim();
+  if (!same(r.body, old.body) || !same(r.subject, old.subject)) return null;
+  const socials = summitSocialLabels(event, r.socials);
+  return { ...r, socials, ...summitWording(socials) };
 }
 
 /** What an event's questions start as. */
