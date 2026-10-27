@@ -4750,6 +4750,7 @@ function zipStore(files) {
 function replyCard() {
   return secFold("reply", "Food allergies and dietary needs", "Ask everyone registered, then download the list for the hotel", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
 }
+let REPLY_POLL = null;
 async function loadReply(ev) {
   const box = document.getElementById("replybox");
   try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`)); }
@@ -4777,8 +4778,10 @@ function renderReplyCard(ev, R) {
       <div class="field"><label>What it is, in French</label><input data-k="labelFr" maxlength="200" value="${esc(s.labelFr)}"></div></div>`;
   const counts = (r.socials ?? []).map((s) => ({ s, yes: A.filter((a) => a.socials?.[s.id] === "yes").length, no: A.filter((a) => a.socials?.[s.id] === "no").length }));
   box.innerHTML = `
-    <div class="rpstate">${sent
-      ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left ? `. ${st.round.left} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
+    <div class="rpstate">${R.sending
+      ? `<div class="note" style="margin:0 0 14px"><b>Sending now, on the server:</b> ${st.had} of ${st.reaches} registered addresses have it so far, about ${Math.max(1, Math.ceil(((st.toSend ?? 0) * 2.1) / 60))} ${Math.ceil(((st.toSend ?? 0) * 2.1) / 60) > 1 ? "minutes" : "minute"} to go. You can close this page: it carries on. <b>${A.length} answered.</b></div>`
+      : sent
+      ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left && st.toSend ? `. ${st.toSend} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent${st.round.trouble?.[0] ? ` (${esc(st.round.trouble[0].why)})` : ""}.` : ""}${R.lastSend?.error ? ` The last run stopped: ${esc(R.lastSend.error)}.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
       : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
 
     <h3 class="wsh">Answers <span class="porg">· ${A.length}</span></h3>
@@ -4835,7 +4838,7 @@ function renderReplyCard(ev, R) {
     ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
     ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications.</div>` : ""}
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
-    <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend ? " disabled" : ""}>${st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
+    <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend || R.sending ? " disabled" : ""}>${R.sending ? `Sending… ${st.had} of ${st.reaches}` : st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
       <div class="sheet-head"><h2>The email</h2><p class="hint" style="margin-top:6px">Change the words and the email follows as you type, as Alex, an attendee, would see it. Nothing is kept until you save.</p></div>
@@ -4951,17 +4954,27 @@ function renderReplyCard(ev, R) {
     const done = busy(e.target, "Sending…");
     try {
       await save();
-      let out, total = 0;
-      do {
-        out = await api(`/reply?event=${encodeURIComponent(ev.id)}&send=1`, { method: "POST", body: "{}" });
+      let out = await api(`/reply?event=${encodeURIComponent(ev.id)}&send=1`, { method: "POST", body: "{}" });
+      // Usually the server takes the whole list from here, and the card follows it.
+      if (out.started) { toast(out.already ? "It's already sending on the server." : "Sending now, on the server. You can close this page: it carries on."); loadReply(ev); return; }
+      // If the server run could not start, batches go from this page, which has to stay open.
+      let total = 0;
+      for (;;) {
         if (out.blocked) throw new Error(out.blocked[0]);
         total += out.sent ?? 0;
         e.target.textContent = `Sending… ${total} sent${out.left ? `, ${out.left} to go` : ""}`;
-      } while (out.left);
+        if (!out.left) break;
+        out = await api(`/reply?event=${encodeURIComponent(ev.id)}&send=1`, { method: "POST", body: "{}" });
+      }
       toast(`Sent to ${total}.${out.failed ? ` ${out.failed} could not be sent.` : ""}`);
       loadReply(ev);
     } catch (x) { toast(x.message); done(); loadReply(ev); }
   };
+  // While it sends on the server, the card checks in every 10 seconds (only while it is on screen).
+  clearTimeout(REPLY_POLL);
+  const typing = () => { const a = document.activeElement; return !!a && !!document.getElementById("replybox")?.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
+  const poll = () => { if (!document.getElementById("replybox")?.isConnected) return; if (typing() || document.getElementById("rpdlg")?.open) REPLY_POLL = setTimeout(poll, 10000); else loadReply(ev); };
+  if (R.sending) REPLY_POLL = setTimeout(poll, 10000);
   // The card loads after the page is locked for a view-only board member, so it locks itself the same way.
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }

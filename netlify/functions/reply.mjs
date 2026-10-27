@@ -66,7 +66,7 @@ export default async (req) => {
       return json({ ...(url.searchParams.get("reminder") ? renderReminder : renderReply)(trial, { first: "Alex" }), problems: replyProblems(trial) });
     }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
-    if (url.searchParams.get("send")) return sendNow(event, adminWho(req));
+    if (url.searchParams.get("send")) return sendNow(event, adminWho(req), url.origin);
   }
   return fail("Method not allowed.", 405);
 };
@@ -76,6 +76,7 @@ const link = (event) => `${siteUrl()}/q/${event.reply.token}`;
 async function show(event) {
   const answers = (await getReplies(event.id))?.answers ?? [];
   return json({ reply: event.reply ?? null, link: event.reply ? link(event) : "", status: event.reply ? await replyStatus(event) : null,
+    sending: event.replySending && Date.now() - Date.parse(event.replySending.at) < 20 * 60 * 1000 ? event.replySending : null, lastSend: event.replyLastSend ?? null,
     problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: event.attendeeMail === true });
 }
 
@@ -117,11 +118,27 @@ async function testSend(event, to, who) {
   return json({ ok: true, to: sentTo.join(", ") });
 }
 
-async function sendNow(event, who) {
+async function sendNow(event, who, origin) {
   const problems = replyProblems(event);
   if (problems.length) return fail(`Not sent: ${problems[0]}`, 409);
   if (!event.reply.sentAt) {
     event.reply = { ...event.reply, sentAt: new Date().toISOString(), sentBy: who?.name || who?.email || "the desk key" };
+    await putEvent(event);
+  }
+  // The whole list goes on the server (reply-send-background), so closing the page does not stop it. One run at a time:
+  // a second press while it is going only says so. If the server run cannot be started, a batch goes from here as before
+  // and the page asks for the next.
+  const going = event.replySending && Date.now() - Date.parse(event.replySending.at) < 20 * 60 * 1000;
+  if (going) return json({ started: true, already: true, status: await replyStatus(event) });
+  try {
+    event.replySending = { at: new Date().toISOString(), by: who?.name || who?.email || "the desk key", hop: 0 };
+    await putEvent(event);
+    const r = await fetch(`${origin}/api/reply-send-background?event=${encodeURIComponent(event.id)}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+    if (r.status >= 400) throw new Error(`the server run answered ${r.status}`);
+    return json({ started: true, status: await replyStatus(event) });
+  } catch (e) {
+    console.log(`reply send: running a batch here instead (${e.message})`);
+    delete event.replySending;
     await putEvent(event);
   }
   // A run stops a little before Netlify's limit; the page calls again while anyone is left.
