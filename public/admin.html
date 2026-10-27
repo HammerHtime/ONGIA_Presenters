@@ -4271,8 +4271,9 @@ function renderReplyCard(ev, R) {
     <h3 class="wsh">The email</h3>
     <div class="field" style="margin-top:0"><label for="rp-subject">Subject</label><input id="rp-subject" maxlength="200" value="${esc(r.subject)}"></div>
     <div class="field"><label for="rp-body">The letter</label><textarea id="rp-body" style="min-height:260px" spellcheck="true">${esc(r.body)}</textarea>
-      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}${hasSoc ? ", {social1} and {social2}" : ""} fill themselves in. The button goes underneath, and opens the form with each person's name and email already filled in.</p></div>
-    <div class="field"><label for="rp-button">Button words</label><input id="rp-button" maxlength="60" value="${esc(r.buttonLabel)}"></div>
+      <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}${hasSoc ? ", {social1} and {social2}" : ""} fill themselves in. The button goes underneath, and opens the form with each person's name and email already filled in. For an English half and a French half, put {replyButton} on its own line after the English and {replyButtonFr} after the French: each becomes a button there, and the French one opens the questions in French. {replyByFr}${hasSoc ? ", {social1Fr} and {social2Fr}" : ""} fill in in French.</p></div>
+    <div class="row2"><div class="field"><label for="rp-button">Button words</label><input id="rp-button" maxlength="60" value="${esc(r.buttonLabel)}"></div>
+      <div class="field"><label for="rp-button-fr">Button words (French)</label><input id="rp-button-fr" maxlength="60" value="${esc(r.buttonLabelFr || "Répondre au sondage")}"></div></div>
     ${!sent ? `<button class="mini" id="rp-wording" style="margin-top:8px">Use the suggested wording</button>` : ""}
     ${R.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(R.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap">
@@ -4303,7 +4304,7 @@ function renderReplyCard(ev, R) {
 
   const $ = (id) => document.getElementById(id);
   const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
-  const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value,
+  const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value, buttonLabelFr: $("rp-button-fr").value,
     reminders: [$("rp-rem0").value, $("rp-rem1").value].filter(Boolean) });
   const save = async () => { const out = await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body()) }); return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };

@@ -57,7 +57,7 @@ export const summitSocialLabels = (event, socials = []) => {
 /** The National Gang Summit's email, in Andrew's words (27 Oct 2026). Only the blanks are the desk's. */
 function summitWording(socials) {
   return {
-    subject: "National Gang Summit: A Few Quick Questions",
+    subject: "National Gang Summit: A Few Quick Questions / Quelques questions rapides",
     body: [
       "National Gang Summit: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future",
       "Hello {first},",
@@ -73,8 +73,28 @@ function summitWording(socials) {
       "Please submit your responses by {replyBy}, to allow sufficient time to finalize arrangements with the hotel. The survey should take less than one minute to complete.",
       "Thank you for your time. We look forward to welcoming you to the Summit.",
       "National Gang Summit Planning Committee",
+      "{replyButton}",
+      // The French half (Andrew 27 Oct 2026: "two sections, the top English with the link and the bottom French with
+      // the link; the French link takes them to the French questions"). Translated from his English.
+      "FRANÇAIS",
+      "Sommet national sur les gangs : Crime organisé, gangs et jeunes : bâtir des solutions pour un avenir plus sûr",
+      "Bonjour {first},",
+      "Alors que nous finalisons les préparatifs du Sommet national sur les gangs, nous aimerions obtenir quelques renseignements pour bien préparer votre visite.",
+      "Ce sondage s'adresse à tous les participants inscrits, que vous assistiez à l'ensemble du Sommet, du 9 au 12 novembre, ou que vous vous joigniez à nous à titre de partenaire communautaire les 10 et 11 novembre.",
+      "RESTRICTIONS ALIMENTAIRES",
+      "Veuillez nous indiquer si vous avez des allergies, des intolérances ou des restrictions alimentaires. Nous transmettrons ces renseignements à l'hôtel afin que des repas adaptés soient offerts.",
+      "ACTIVITÉS SOCIALES",
+      "Veuillez indiquer si vous prévoyez assister aux activités suivantes :",
+      socials.map((_, i) => `* {social${i + 1}Fr}`).join("\n"),
+      "COMMENT RÉPONDRE",
+      "Il suffit de cliquer sur le bouton ci-dessous pour répondre à quelques questions.",
+      "Veuillez nous faire parvenir vos réponses d'ici le {replyByFr}, afin de nous laisser le temps de finaliser les arrangements avec l'hôtel. Le sondage prend moins d'une minute à remplir.",
+      "Merci de votre temps. Nous avons hâte de vous accueillir au Sommet.",
+      "Le comité organisateur du Sommet national sur les gangs",
+      "{replyButtonFr}",
     ].join("\n\n"),
     buttonLabel: "Complete the survey",
+    buttonLabelFr: "Répondre au sondage",
   };
 }
 
@@ -118,6 +138,7 @@ export function cleanReply(given, had) {
   if (given?.subject !== undefined) out.subject = text(given.subject, 200);
   if (given?.body !== undefined) out.body = text(given.body, 6000);
   if (given?.buttonLabel !== undefined) out.buttonLabel = text(given.buttonLabel, 60) || "Answer the questions";
+  if (given?.buttonLabelFr !== undefined) out.buttonLabelFr = text(given.buttonLabelFr, 60) || "Répondre au sondage";
   // Reminder dates: up to four, in order, none after the reply-by date matters (the nightly run stops there).
   if (Array.isArray(given?.reminders)) out.reminders = [...new Set(given.reminders.filter(isDate))].sort().slice(0, 4);
   if (Array.isArray(given?.socials)) {
@@ -231,7 +252,9 @@ export function dietaryRowsOf(rows) {
 
 /** The email, as a letter: it uses the same layout and checks as the welcome letter. */
 export function replyLetter(reply) {
-  return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: "{replyLink}" };
+  // An email that places its own buttons ({replyButton}, {replyButtonFr}) has none added at the bottom.
+  const placed = /\{replyButton(Fr)?\}/.test(reply.body ?? "");
+  return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: placed ? "" : "{replyLink}" };
 }
 export const replyProblems = (event) => {
   const letter = replyLetter(event.reply);
@@ -261,7 +284,10 @@ export function renderReminder(event, person) {
   const greet = paras.slice(0, 3).findIndex((p) => /^\s*(hello|hi|dear|bonjour)\b/i.test(p));
   const at1 = greet >= 0 ? greet + 1 : 0;
   paras.splice(at1, 0, "A quick reminder: we haven't had your answers yet. If you've already sent them, thank you, and please ignore this.");
-  return renderLetter({ ...letter, subject: `Reminder: ${letter.subject}`, body: paras.join("\n\n") }, event, person);
+  // And after the French half's greeting, the same in French.
+  const bonjour = paras.findIndex((p, i) => i > at1 && /^\s*bonjour\b/i.test(p));
+  if (bonjour > 0) paras.splice(bonjour + 1, 0, "Petit rappel : nous n'avons pas encore reçu vos réponses. Si vous les avez déjà envoyées, merci, et veuillez ne pas tenir compte de ce message.");
+  return renderLetter({ ...letter, subject: `${bonjour > 0 ? "Reminder / Rappel" : "Reminder"}: ${letter.subject}`, body: paras.join("\n\n") }, event, person);
 }
 
 /** Who a reminder goes to: registered, had the email, and nobody at their address has answered yet. */

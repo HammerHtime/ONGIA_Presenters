@@ -81,7 +81,10 @@ const TOKEN = location.pathname.startsWith("/q/") ? location.pathname.slice(3).s
 const PERSON = location.pathname.startsWith("/q/") ? location.pathname.slice(3).split("/")[1] ?? "" : new URLSearchParams(location.search).get("p") ?? "";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-let LANG = (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
+// The email's French button opens the form in French, its English one in English (Andrew 27 Oct 2026); otherwise the
+// language they last picked here, or their browser's.
+const ASKED = new URLSearchParams(location.search).get("lang");
+let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
 const T = {
 en: {
   other: "Français", loading: "Loading…",

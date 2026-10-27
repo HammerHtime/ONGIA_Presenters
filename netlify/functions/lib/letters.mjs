@@ -34,11 +34,35 @@ export const BLANKS = {
   surveyLink: { means: "the survey link for this event", from: (e) => e.surveyLink, link: true },
   // The housekeeping questions (Andrew 26 Oct 2026): the form's address, its reply-by date, and the socials it asks about.
   // Each person's own link opens the form with their name and email already filled in.
-  replyLink:  { means: "the link to this event's housekeeping questions (food allergies, socials)", from: (e, p) => (e.reply?.token && siteUrl() ? `${siteUrl()}/q/${e.reply.token}${p && (p.key || p.email) ? `/${personalId(e.reply.token, p)}` : ""}` : ""), link: true },
+  replyLink:  { means: "the link to this event's housekeeping questions (food allergies, socials)", from: (e, p) => replyUrl(e, p), link: true },
   replyBy:    { means: "the date to answer the housekeeping questions by, e.g. Friday, October 30", from: (e) => longDate(e.reply?.replyBy) },
   social1:    { means: "the first social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 0) },
   social2:    { means: "the second social the housekeeping questions ask about, with its day", from: (e) => socialOf(e, 1) },
+  // The same in French, for an email with an English half and a French half (Andrew 27 Oct 2026). The French link opens
+  // the questions in French. A button blank on a line of its own is drawn as a button there, in the middle of the email.
+  replyLinkFr:   { means: "the link to the housekeeping questions, opening in French", from: (e, p) => replyUrl(e, p, "fr"), link: true },
+  replyByFr:     { means: "the date to answer by, in French, e.g. vendredi 30 octobre", from: (e) => longDateFr(e.reply?.replyBy) },
+  social1Fr:     { means: "the first social, with its day, in French", from: (e) => socialOf(e, 0, "fr") },
+  social2Fr:     { means: "the second social, with its day, in French", from: (e) => socialOf(e, 1, "fr") },
+  replyButton:   { means: "a button to the questions in English, on a line of its own", from: (e, p) => replyUrl(e, p, "en"), link: true, button: (e) => e.reply?.buttonLabel || "Answer the questions" },
+  replyButtonFr: { means: "a button to the questions in French, on a line of its own", from: (e, p) => replyUrl(e, p, "fr"), link: true, button: (e) => e.reply?.buttonLabelFr || "Répondre au sondage" },
 };
+
+/** A person's own link to an event's housekeeping questions; `lang` opens the form in that language. */
+function replyUrl(e, p, lang = "") {
+  if (!e.reply?.token || !siteUrl()) return "";
+  return `${siteUrl()}/q/${e.reply.token}${p && (p.key || p.email) ? `/${personalId(e.reply.token, p)}` : ""}${lang ? `?lang=${lang}` : ""}`;
+}
+
+const JOUR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+/** "2026-10-30" → "vendredi 30 octobre". */
+function longDateFr(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return `${JOUR[dt.getUTCDay()]} ${dt.getUTCDate() === 1 ? "1er" : dt.getUTCDate()} ${MOIS[dt.getUTCMonth()]}`;
+}
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -57,9 +81,10 @@ function longDate(iso) {
   return `${WEEKDAY[dt.getUTCDay()]}, ${MONTH[dt.getUTCMonth()]} ${dt.getUTCDate()}`;
 }
 /** "Tuesday, November 10: the networking social, …" for the nth social the housekeeping form asks about. */
-function socialOf(e, i) {
+function socialOf(e, i, lang = "en") {
   const s = e?.reply?.socials?.[i];
-  return s ? [longDate(s.date), s.label].filter(Boolean).join(": ") : "";
+  if (!s) return "";
+  return lang === "fr" ? [longDateFr(s.date), s.labelFr || s.label].filter(Boolean).join(" : ") : [longDate(s.date), s.label].filter(Boolean).join(": ");
 }
 
 /** Day n of the event, written the way a schedule reads: "Monday, September 28". */
@@ -197,6 +222,7 @@ function htmlOf(text, event, person) {
 const BULLET = /^\s*[*\-•]\s+/;
 const SCHEDULE = /^\s*\{schedule\}\s*$/;
 const DAYLINE = /^\s*\{day[1-7]\}\s*$/;
+const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr)\}\s*$/;
 const isCaps = (line) => /[A-Z]{3}/.test(line) && !/[a-z]/.test(line.replace(BLANK, "")) && line.trim().length <= 60;
 
 function blocksOf(body) {
@@ -204,6 +230,7 @@ function blocksOf(body) {
     const lines = p.split("\n").map((l) => l.trimEnd());
     if (lines.length === 1 && isCaps(lines[0]) && !BULLET.test(lines[0])) return { type: "heading", text: lines[0].trim() };
     if (lines.length === 1 && SCHEDULE.test(lines[0])) return { type: "schedule" };
+    if (lines.length === 1 && BUTTONLINE.test(lines[0])) return { type: "button", name: lines[0].trim().slice(1, -1) };
     // Split the block into runs of bullets and runs of ordinary lines.
     const runs = [];
     for (const line of lines) {
@@ -227,6 +254,13 @@ const H = {
 function bodyHtmlOf(body, event, person) {
   return blocksOf(body).map((b) => {
     if (b.type === "heading") return `<h2 style="${H.heading}">${htmlOf(b.text, event, person)}</h2>`;
+    if (b.type === "button") {
+      const href = BLANKS[b.name].from(event, person);
+      if (!href) return "";
+      // The same gold button the bottom of an email carries, with the address under it for mail apps that drop buttons.
+      return `<p style="margin:22px 0 8px"><a href="${esc(href)}" style="background:#b8922a;color:#12161f;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block">${esc(BLANKS[b.name].button(event))}</a></p>` +
+        `<p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all;overflow-wrap:anywhere">${esc(href)}</p>`;
+    }
     if (b.type === "schedule") {
       return scheduleLines(event).map((x) => `<p style="${H.p}"><strong style="${H.day}">${esc(x.day)}</strong>${esc(x.what)}</p>`).join("");
     }
@@ -245,6 +279,7 @@ function bodyHtmlOf(body, event, person) {
 function bodyTextOf(body, event, person) {
   return blocksOf(body).map((b) => {
     if (b.type === "heading") return fill(b.text, event, person, { html: false }).toUpperCase();
+    if (b.type === "button") return `${BLANKS[b.name].button(event)}: ${BLANKS[b.name].from(event, person)}`;
     if (b.type === "schedule") return scheduleLines(event).map((x) => `${x.day}\n${x.what}`).join("\n\n");
     return b.runs.map((run) => run.lines.map((l) => (run.bullet ? "  • " : "") + fill(l, event, person, { html: false })).join("\n")).join("\n");
   }).join("\n\n");
