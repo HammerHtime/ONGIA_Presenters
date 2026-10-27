@@ -4222,6 +4222,7 @@ function renderReplyCard(ev, R) {
     box.innerHTML = `<p style="margin:0 0 12px">Send everyone registered one email with a button to a short form asking about any food allergy, intolerance or dietary need${/national gang summit/i.test(ev.title) ? ", and yes or no to each social" : ""}. The answers come back as the dietary list for the hotel${/national gang summit/i.test(ev.title) ? ", and a separate list of who is coming to the socials" : ""}. You can also add people who already told you.</p>
       <button class="btn btn-gold" id="rp-start">Set it up</button>`;
     document.getElementById("rp-start").onclick = async (e) => { e.target.disabled = true; try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: "{}" })); } catch (x) { toast(x.message); e.target.disabled = false; } };
+    if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
     return;
   }
   const r = R.reply, st = R.status, A = R.answers ?? [];
@@ -4417,6 +4418,8 @@ function renderReplyCard(ev, R) {
       loadReply(ev);
     } catch (x) { toast(x.message); done(); loadReply(ev); }
   };
+  // The card loads after the page is locked for a view-only board member, so it locks itself the same way.
+  if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }
 function rbhOfferCard(ev, guess) {
   return `<div class="card" id="rbhoffer"><div class="card-body" style="display:flex;gap:12px 18px;align-items:center;justify-content:space-between;flex-wrap:wrap">
