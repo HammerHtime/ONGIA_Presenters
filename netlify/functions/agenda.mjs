@@ -12,6 +12,8 @@ import { cleanSchedule, trainingDays } from "./lib/agenda.mjs";
  *   POST   /api/agenda?event=…&again=1    read the stored one again
  *   PUT    /api/agenda?event=…            save the times ({ schedule: [...], venue? })
  *   DELETE /api/agenda?event=…            take the file off (the saved times stay)
+ *   …&group=1 on GET file, POST and DELETE: the second agenda, for the people from the event's second Wix event (the
+ *   Summit's community partners, two days of four). It is attached to their welcome letter and is not read for times.
  *
  * The file goes out attached to a letter set to carry it, so it has to fit in
  * an email: Microsoft's mail service takes about 4 MB a message, and a PDF
@@ -29,10 +31,11 @@ export default async (req) => {
   const event = await getEvent(eventId);
   if (!event) return fail("No such event.", 404);
   if (req.method !== "GET") { const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly; }
+  const group = !!url.searchParams.get("group");
 
   if (req.method === "GET") {
     if (url.searchParams.get("file")) {
-      const doc = await getAgenda(eventId);
+      const doc = await getAgenda(eventId, group ? "group" : "");
       if (!doc) return fail("No agenda has been uploaded for this event.", 404);
       return new Response(doc.bytes, { headers: {
         "content-type": "application/pdf",
@@ -57,8 +60,14 @@ export default async (req) => {
     if (String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-") return fail("That is not a PDF. Save the agenda as a PDF and upload that.", 415);
     const name = fileName(req.headers.get("x-file-name"), "agenda.pdf");
     const meta = { name, size: bytes.length, uploadedAt: new Date().toISOString() };
-    await putAgenda(eventId, buffer, meta);
     // The event carries the fact of it, so a letter can tell whether there is one to attach.
+    if (group) {
+      await putAgenda(eventId, buffer, meta, "group");
+      event.agendaGroupFile = meta;
+      await putEvent(event);
+      return json(await status(event));
+    }
+    await putAgenda(eventId, buffer, meta);
     event.agendaFile = meta;
     await putEvent(event);
     return start(event, url.origin);
@@ -78,6 +87,12 @@ export default async (req) => {
     return json({ ok: true, ...(await status(event)) });
   }
 
+  if (req.method === "DELETE" && group) {
+    await deleteKey(`agenda:${eventId}:group`);
+    delete event.agendaGroupFile;
+    await putEvent(event);
+    return json({ ok: true, ...(await status(event)) });
+  }
   if (req.method === "DELETE") {
     await Promise.all([deleteKey(`agenda:${eventId}`), deleteKey(`agendaread:${eventId}`)]);
     delete event.agendaFile;
@@ -111,5 +126,5 @@ async function status(event) {
   if (read?.state === "reading" && Date.now() - Date.parse(read.startedAt) > STALE_MS) {
     read = { state: "failed", why: "Reading the agenda took too long and was stopped. Press Read it again.", name: read.name };
   }
-  return { file: event.agendaFile ?? null, read, schedule: event.schedule ?? [], days: trainingDays(event), venue: event.venue ?? "" };
+  return { file: event.agendaFile ?? null, groupFile: event.agendaGroupFile ?? null, groupName: (event.wixMore ?? [])[0]?.group || "", read, schedule: event.schedule ?? [], days: trainingDays(event), venue: event.venue ?? "" };
 }

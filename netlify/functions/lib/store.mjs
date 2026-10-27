@@ -267,12 +267,15 @@ export const putContractRead = (eventId, value) => write(`contractread:${eventId
  * letter and read again. Claude's reading of it is its own small record, the
  * same as a contract's.
  */
-export async function putAgenda(eventId, bytes, meta) {
-  await store().set(`agenda:${eventId}`, bytes, { metadata: meta });
+// `which` = "group": the second agenda, for the people from the event's second Wix event (the Summit's community
+// partners come for two of its four days, with their own agenda: Andrew 27 Oct 2026).
+const agendaKey = (eventId, which = "") => `agenda:${eventId}${which === "group" ? ":group" : ""}`;
+export async function putAgenda(eventId, bytes, meta, which = "") {
+  await store().set(agendaKey(eventId, which), bytes, { metadata: meta });
 }
 
-export async function getAgenda(eventId) {
-  const got = await store().getWithMetadata(`agenda:${eventId}`, { type: "arrayBuffer" });
+export async function getAgenda(eventId, which = "") {
+  const got = await store().getWithMetadata(agendaKey(eventId, which), { type: "arrayBuffer" });
   if (!got) return null;
   return { bytes: got.data, name: got.metadata?.name ?? "agenda.pdf", size: got.metadata?.size ?? got.data.byteLength, uploadedAt: got.metadata?.uploadedAt ?? null };
 }

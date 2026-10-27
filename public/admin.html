@@ -1782,6 +1782,9 @@ function eventFormScreen(existing = null) {
           <div class="field" style="margin:0"><label for="e-lsurvey">Survey</label>
             <select id="e-lsurvey">${letterOptions("survey", ev?.title, ev?.letters?.survey)}</select></div>
         </div>
+        ${(ev?.wixMore ?? []).length ? `<div class="field" style="margin-top:12px"><label for="e-lwelcome2">Welcome letter for ${esc(ev.wixMore[0].group || "the second group")}</label>
+          <select id="e-lwelcome2">${letterOptions("welcome", ev?.title, ev?.letters?.welcomeGroup).replace("None — don't send one", "The same one as everyone")}</select>
+          <p class="hint" style="margin:6px 0 0">The people from ${esc(ev.wixMore[0].title || "the second Wix event")} get this one instead, with their own agenda. Anyone also registered on the first gets the main one.</p></div>` : ""}
         <div class="field"><label for="e-survey">Survey link</label>
           <input id="e-survey" type="url" value="${esc(ev?.surveyLink ?? "")}" placeholder="https://forms.office.com/…">
           <p class="hint" style="margin:6px 0 0">The survey letter's button goes here. Without it the survey does not send.
@@ -2090,7 +2093,7 @@ function eventFormScreen(existing = null) {
       sharePointFolder: val("e-folder"), materialsUploadUrl: val("e-upload"),
       hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
                cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
-      letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey") },
+      letters: { welcome: val("e-lwelcome"), survey: val("e-lsurvey"), welcomeGroup: document.getElementById("e-lwelcome2") ? val("e-lwelcome2") : (ev?.letters?.welcomeGroup ?? "") },
       surveyLink: val("e-survey"),
       attendeeMail: $("e-amail")?.checked === true,
       kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
@@ -5715,6 +5718,10 @@ function agendaCard(ev, A) {
         <input type="file" id="ag-file" accept="application/pdf,.pdf" hidden></div></div>
     <div class="card-body">
       <div class="agfile">${fileLine}${f ? `<div class="agbtns"><button class="mini ghost" id="ag-open">Open</button><button class="mini ghost" id="ag-del">Remove</button></div>` : ""}</div>
+      ${A.groupName ? `<div class="agfile" style="margin-top:10px"><div><b>Agenda for ${esc(A.groupName)}:</b> ${A.groupFile ? esc(A.groupFile.name) : "none yet"}
+        <div class="hint" style="margin:2px 0 0">Goes with the welcome letter written for ${esc(A.groupName)}.</div></div>
+        <div class="agbtns">${A.groupFile ? `<button class="mini ghost" id="ag2-open">Open</button><button class="mini ghost" id="ag2-del">Remove</button>` : ""}
+          <button class="mini${A.groupFile ? " ghost" : " gold"}" id="ag2-up">${A.groupFile ? "Replace" : "Upload"}</button><input type="file" id="ag2-file" accept="application/pdf,.pdf" hidden></div></div>` : ""}
       ${reading}${venueOffer}
       ${A.days?.length ? `<div class="agrows">${rows}</div>
         <div class="actions" style="justify-content:flex-start;margin-top:12px">
@@ -5760,6 +5767,36 @@ function wireAgenda(ev, A) {
   if (del) del.onclick = async () => {
     if (!confirm("Take the agenda off this event? The saved times stay.")) return;
     try { await api(q, { method: "DELETE" }); render(); } catch (e) { toast(e.message); }
+  };
+  // The second group's agenda (the Summit's community partners): kept and attached, not read for times.
+  const up2 = document.getElementById("ag2-up"), file2 = document.getElementById("ag2-file");
+  if (up2 && file2) {
+    up2.onclick = () => file2.click();
+    file2.onchange = async () => {
+      const f = file2.files?.[0];
+      file2.value = "";
+      if (!f) return;
+      up2.disabled = true; up2.textContent = "Uploading…";
+      try {
+        const res = await apiFetch(`/api${q}&group=1`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(out.error || `Upload failed (${res.status}).`);
+        render();
+      } catch (e) { toast(e.message); up2.disabled = false; up2.textContent = A.groupFile ? "Replace" : "Upload"; }
+    };
+  }
+  const open2 = document.getElementById("ag2-open");
+  if (open2) open2.onclick = async () => {
+    try {
+      const res = await apiFetch(`/api${q}&file=1&group=1`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error("The agenda could not be opened.");
+      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+    } catch (err) { toast(err.message); }
+  };
+  const del2 = document.getElementById("ag2-del");
+  if (del2) del2.onclick = async () => {
+    if (!confirm(`Take the agenda for ${A.groupName} off this event?`)) return;
+    try { await api(`${q}&group=1`, { method: "DELETE" }); render(); } catch (e) { toast(e.message); }
   };
   const again = document.getElementById("ag-again");
   if (again) again.onclick = async () => { try { await api(`${q}&again=1`, { method: "POST" }); render(); } catch (e) { toast(e.message); } };
@@ -6052,6 +6089,8 @@ function lettersScreen(data, events, pickId = null) {
     </div>
     <label class="attest" style="margin-top:14px"><input type="checkbox" id="l-agenda"${l?.attachAgenda ? " checked" : ""}>
       <span>Attach the event's agenda. Upload it under Agenda on the event page; the letter will not go to an event without one.</span></label>
+    <label class="attest" style="margin-top:8px"><input type="checkbox" id="l-group"${l?.audience === "group" ? " checked" : ""}>
+      <span>This welcome letter is for an event's second group (the National Gang Summit's community partners). It carries their own agenda, and the event chooses it as their welcome letter on Edit.</span></label>
     <div class="actions">
       <button class="btn btn-gold" id="l-save">${l?.id ? "Save the letter" : "Save as a new letter"}</button>
       ${l?.id ? `<button class="btn btn-ghost" id="l-del">Delete</button>` : ""}
@@ -6089,6 +6128,7 @@ function lettersScreen(data, events, pickId = null) {
     buttonLink: document.getElementById("l-blink").value,
     onlyFor: document.getElementById("l-only").value,
     attachAgenda: document.getElementById("l-agenda").checked,
+    audience: document.getElementById("l-group").checked ? "group" : "",
   });
 
   let timer = null, seq = 0;

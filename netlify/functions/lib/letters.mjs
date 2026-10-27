@@ -155,14 +155,17 @@ export const fitsEvent = (letter, event) => fitsTitle(letter?.onlyFor, event?.ti
 
 /** What a particular event is missing for this letter to be filled in. */
 export function eventProblems(letter, event) {
+  event = asSeenBy(letter, event);
   const out = [];
   if (!fitsEvent(letter, event)) {
     // Nothing else matters: this letter is not for this event at all.
     return [`This letter is only for events with "${String(letter.onlyFor).trim()}" in the title, and ${event.title || "this event"} is not one.`];
   }
   const all = `${letter.subject ?? ""}\n${letter.body ?? ""}\n${letter.buttonLink ?? ""}`;
-  if (letter.attachAgenda && !event.agendaFile) {
-    out.push(`This letter attaches the agenda, and ${event.title || "this event"} has no agenda uploaded. Upload it under Agenda on the event page.`);
+  if (letter.attachAgenda && !agendaOf(letter, event).file) {
+    out.push(letter.audience === "group"
+      ? `This letter attaches the second group's agenda, and ${event.title || "this event"} has none uploaded. Upload it under Agenda on the event page, as the agenda for the second group.`
+      : `This letter attaches the agenda, and ${event.title || "this event"} has no agenda uploaded. Upload it under Agenda on the event page.`);
   }
   for (const [, name] of all.matchAll(BLANK)) {
     const b = BLANKS[name];
@@ -291,8 +294,9 @@ function bodyTextOf(body, event, person) {
  * stays free of storage; a sender fetches the file once for a whole round.
  */
 export async function attachmentsFor(letter, event, getAgenda) {
-  if (!letter?.attachAgenda || !event?.agendaFile) return [];
-  const doc = await getAgenda(event.id);
+  const { which, file } = agendaOf(letter, event);
+  if (!letter?.attachAgenda || !file) return [];
+  const doc = await getAgenda(event.id, which);
   if (!doc) return [];
   return [{ filename: doc.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" }];
 }
@@ -306,8 +310,35 @@ export const attendeeSignOf = (event) => (/national gang summit/i.test(event?.ti
 /** Where an attendee's answer to a letter goes. */
 export const attendeeReplyTo = (event) => attendeeSignOf(event)?.email || event?.contact?.email || undefined;
 
+/**
+ * The days an event's second group comes (Andrew 27 Oct 2026: "Justice partners Nov 9-12 and community partners
+ * Nov 10-11"): the dates of their own Wix event; for the National Gang Summit, linked before those were kept, its
+ * second and third days. Null when the event has no second group.
+ */
+export function groupDaysOf(event) {
+  const g = (event?.wixMore ?? [])[0];
+  if (!g) return null;
+  if (g.dayOne) return { dayOne: g.dayOne, lastDay: g.lastDay && g.lastDay >= g.dayOne ? g.lastDay : g.dayOne };
+  if (/national gang summit/i.test(event.title ?? "") && event.dayOne) {
+    const plus = (n) => new Date(Date.parse(event.dayOne) + n * 86400000).toISOString().slice(0, 10);
+    return { dayOne: plus(1), lastDay: plus(2) };
+  }
+  return null;
+}
+/** The event as a letter sees it: a letter for the second group fills {dates}, {schedule} and the days with theirs. */
+const asSeenBy = (letter, event) => (letter?.audience === "group" && groupDaysOf(event) ? { ...event, ...groupDaysOf(event) } : event);
+
+/**
+ * Which of the event's agendas a letter carries: a letter for the second group (the Summit's community partners) carries
+ * their agenda; every other letter the event's own.
+ */
+export const agendaOf = (letter, event) => (letter?.audience === "group"
+  ? { which: "group", file: event?.agendaGroupFile ?? null }
+  : { which: "", file: event?.agendaFile ?? null });
+
 /** The finished email for one person. */
 export function renderLetter(letter, event, person) {
+  event = asSeenBy(letter, event);
   const subject = fill(letter.subject, event, person, { html: false }).trim();
   const href = letter.buttonLink ? fill(letter.buttonLink, event, person, { html: false }).trim() : "";
   const buttons = href && /^https?:\/\//i.test(href) ? [{ href, label: letter.buttonLabel || "Open" }] : [];

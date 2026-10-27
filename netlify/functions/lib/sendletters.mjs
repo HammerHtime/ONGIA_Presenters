@@ -73,38 +73,58 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   // Once per address: an address that has had it (on any of its rows) is not written to again.
   const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes(kind)).map((p) => p.email));
   const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email));
-  if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: letter.name };
+  // The second group's own welcome letter (Andrew 27 Oct 2026: the Summit's community partners come November 10 and 11,
+  // with a two-day agenda, and get a different letter from the justice partners there all four days). An address
+  // whose every registration came from the second Wix event gets it; anyone also on the first gets the main one.
+  const batches = [{ letter, people: owed }];
+  const groupId = kind === "welcome" ? event.letters?.welcomeGroup : null;
+  if (groupId && groupId !== letter.id) {
+    const other = await getLetter(groupId);
+    if (!other) return { event: event.id, title: event.title, kind, error: "the second group's welcome letter no longer exists" };
+    const wrong = [...letterProblems(other), ...eventProblems(other, event)];
+    if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${other.name}: ${w}`) };
+    const rows = (stored.people ?? []).filter((p) => p.status !== "WITHDRAWN");
+    const groupOnly = (email) => rows.filter((p) => p.email === email).every((p) => p.group);
+    batches.splice(0, 1, { letter, people: owed.filter((p) => !groupOnly(p.email)) }, { letter: other, people: owed.filter((p) => groupOnly(p.email)) });
+  }
+  const names = batches.filter((b) => b.people.length).map((b) => b.letter.name).join(" + ") || letter.name;
+  if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: names };
   if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
 
-  // The agenda, if this letter carries it: fetched once for the whole round.
-  const attachments = await attachmentsFor(letter, event, getAgenda);
-  if (letter.attachAgenda && !attachments.length) {
-    return { event: event.id, title: event.title, kind, blocked: ["The letter attaches the agenda, and the agenda file could not be found. Upload it again."] };
+  // The agenda each letter carries: fetched once per letter for the whole round.
+  for (const b of batches) {
+    if (!b.people.length) continue;
+    b.attachments = await attachmentsFor(b.letter, event, getAgenda);
+    if (b.letter.attachAgenda && !b.attachments.length) {
+      return { event: event.id, title: event.title, kind, blocked: [`${b.letter.name} attaches an agenda, and the agenda file could not be found. Upload it again.`] };
+    }
   }
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
-  for (const person of owed) {
-    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
-    await pace();
-    const mail = renderLetter(letter, event, person);
-    try {
-      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, attachments });
-      if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
-      // Everyone at that address has had it: their guests on the same registration too.
-      for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
-        same.sent = [...new Set([...(same.sent ?? []), kind])];
-        same.sentAt = { ...(same.sentAt ?? {}), [kind]: new Date().toISOString() };
+  outer: for (const b of batches) {
+    for (const person of b.people) {
+      if (!timeLeft(deadline)) { left = owed.length - sent - failed; break outer; }
+      await pace();
+      const mail = renderLetter(b.letter, event, person);
+      try {
+        const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, attachments: b.attachments });
+        if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
+        // Everyone at that address has had it: their guests on the same registration too.
+        for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
+          same.sent = [...new Set([...(same.sent ?? []), kind])];
+          same.sentAt = { ...(same.sentAt ?? {}), [kind]: new Date().toISOString() };
+        }
+        sent++;
+        await putAttendees(event.id, stored);
+      } catch (e) {
+        trouble.push({ email: person.email, why: e.message });
+        failed++;
       }
-      sent++;
-      await putAttendees(event.id, stored);
-    } catch (e) {
-      trouble.push({ email: person.email, why: e.message });
-      failed++;
     }
   }
   await putAttendees(event.id, {
     ...stored,
-    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: letter.name } },
+    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: names } },
   });
 
   // The checklist job ticks itself once everyone owed has had it. A round with
@@ -119,7 +139,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       await putEvent(fresh);
     }
   }
-  return { event: event.id, title: event.title, kind, letter: letter.name, sent, failed, left, trouble: trouble.slice(0, 10) };
+  return { event: event.id, title: event.title, kind, letter: names, sent, failed, left, trouble: trouble.slice(0, 10) };
 }
 
 /** Every event, both letters. Called by the nightly job. */
