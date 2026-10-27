@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents, getAgenda } from "./lib/store.mjs";
-import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor } from "./lib/letters.mjs";
+import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo } from "./lib/letters.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -143,7 +143,7 @@ async function testSend(body) {
   const { person } = await sampleFor(event);
   const mail = renderLetter(letter, event, person);
   const attachments = await attachmentsFor(letter, event, getAgenda);
-  const out = await sendMail({ to, ...mail, subject: `[TEST] ${mail.subject}`, attachments });
+  const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...mail, subject: `[TEST] ${mail.subject}`, attachments });
   if (out.skipped) return fail(`The test could not be sent: ${out.reason}`, 503);
   return json({ ok: true, to, id: out.id ?? null });
 }

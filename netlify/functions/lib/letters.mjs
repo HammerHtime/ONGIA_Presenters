@@ -297,13 +297,23 @@ export async function attachmentsFor(letter, event, getAgenda) {
   return [{ filename: doc.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" }];
 }
 
+/**
+ * Who signs the letters an event's attendees get, when it is not the event's lead: the National Gang Summit's are
+ * signed by the board, with the Summit's own inbox, and answers go there (Andrew 27 Oct 2026: "change the footer in
+ * the welcome letter from Raj … ONGIA Board and email ngs@ongia.ca"). Null means the lead signs, as for every other event.
+ */
+export const attendeeSignOf = (event) => (/national gang summit/i.test(event?.title ?? "") ? { name: "ONGIA Board", email: "ngs@ongia.ca" } : null);
+/** Where an attendee's answer to a letter goes. */
+export const attendeeReplyTo = (event) => attendeeSignOf(event)?.email || event?.contact?.email || undefined;
+
 /** The finished email for one person. */
 export function renderLetter(letter, event, person) {
   const subject = fill(letter.subject, event, person, { html: false }).trim();
   const href = letter.buttonLink ? fill(letter.buttonLink, event, person, { html: false }).trim() : "";
   const buttons = href && /^https?:\/\//i.test(href) ? [{ href, label: letter.buttonLabel || "Open" }] : [];
   // A letter can be signed by someone other than the event's lead (the Summit's questions: "ONGIA Board").
-  const contact = letter.contact ?? coordinatorOf(event);
+  const board = attendeeSignOf(event);
+  const contact = letter.contact ?? (board ? { ...board, phone: "", role: "" } : coordinatorOf(event));
   // An email with a French half says where replies go in French too.
   const lang = /\{replyButtonFr\}/.test(letter.body ?? "") ? "both" : "en";
   const html = layout({ heading: subject, bodyHtml: bodyHtmlOf(letter.body, event, person), buttons, contact, event, lang });

@@ -61,3 +61,5 @@ Andrew, 26 Oct 2026, for the National Gang Summit (9–12 Nov 2026).
 - 27 Oct 2026: the Summit questions email is signed "ONGIA Board", ngs@ongia.ca, and replies go there, for this email only (not the event's lead, Raj). "Signed by" and "Its email" are fields on the card; empty means the lead as before. "Use the suggested wording" fills them for the Summit.
 
 - 27 Oct 2026: Andrew's test still went out in the original wording (he had not pressed "Use the suggested wording"). An untouched original Summit email is now brought up to his wording automatically the next time the card or the form is opened (freshenedReply). Edited emails and sent emails are left alone.
+
+- 27 Oct 2026: all the Summit's attendee letters (welcome, survey, food-allergy questions) are signed "ONGIA Board", ngs@ongia.ca, and replies go there (attendeeSignOf). Raj stays on the presenter and agreement emails, which do not use letters ("Raj was just in charge of the presenters and their agreements").
