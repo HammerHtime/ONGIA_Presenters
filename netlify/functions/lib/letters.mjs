@@ -46,7 +46,16 @@ export const BLANKS = {
   social2Fr:     { means: "the second social, with its day, in French", from: (e) => socialOf(e, 1, "fr") },
   replyButton:   { means: "a button to the questions in English, on a line of its own", from: (e, p) => replyUrl(e, p, "en"), link: true, button: (e) => e.reply?.buttonLabel || "Answer the questions" },
   replyButtonFr: { means: "a button to the questions in French, on a line of its own", from: (e, p) => replyUrl(e, p, "fr"), link: true, button: (e) => e.reply?.buttonLabelFr || "Répondre au sondage" },
+  // The event's own survey (survey.mjs): each person's link, opening in English or French.
+  surveyButton:   { means: "a button to the event's survey in English, on a line of its own", from: (e, p) => surveyUrl(e, p, "en"), link: true, button: (e) => e.survey?.buttonLabel || "Take the survey" },
+  surveyButtonFr: { means: "a button to the event's survey in French, on a line of its own", from: (e, p) => surveyUrl(e, p, "fr"), link: true, button: (e) => e.survey?.buttonLabelFr || "Répondre au sondage" },
 };
+
+/** A person's own link to an event's survey; it says who is answering only so nobody is asked twice. */
+export function surveyUrl(e, p, lang = "") {
+  if (!e.survey?.token || !siteUrl()) return "";
+  return `${siteUrl()}/f/${e.survey.token}${p && (p.key || p.email) ? `/${personalId(e.survey.token, p)}` : ""}${lang ? `?lang=${lang}` : ""}`;
+}
 
 /** A person's own link to an event's housekeeping questions; `lang` opens the form in that language. */
 function replyUrl(e, p, lang = "") {
@@ -225,7 +234,7 @@ function htmlOf(text, event, person) {
 const BULLET = /^\s*[*\-•]\s+/;
 const SCHEDULE = /^\s*\{schedule\}\s*$/;
 const DAYLINE = /^\s*\{day[1-7]\}\s*$/;
-const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr)\}\s*$/;
+const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr|surveyButton|surveyButtonFr)\}\s*$/;
 const isCaps = (line) => /[A-Z]{3}/.test(line) && !/[a-z]/.test(line.replace(BLANK, "")) && line.trim().length <= 60;
 
 function blocksOf(body) {

@@ -31,6 +31,12 @@
   to = "/reply.html"
   status = 200
 
+# An event's survey (feedback), each attendee's own link.
+[[redirects]]
+  from = "/f/*"
+  to = "/survey.html"
+  status = 200
+
 [[redirects]]
   from = "/s/*"
   to = "/sponsor.html"

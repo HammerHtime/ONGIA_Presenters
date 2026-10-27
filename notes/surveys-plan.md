@@ -53,9 +53,19 @@ Fixed in the desk's version:
 - The survey's agency question is a pick-list of the standard agencies registered for the event, plus "Other".
 - **Required answers:** all six statements per presenter are required, each with N/A, plus a "Didn't attend this session" skip per presenter. Comments stay optional.
 
+## The look and the extra questions (Andrew 27 Oct 2026)
+
+- **Stars ("Option A").** Each statement became a short question ("How relevant was this to your work?"), answered with 1–5 stars. A word appears as you tap: Poor, Fair, Good, Very good, Excellent (Faible, Passable, Bien, Très bien, Excellent). A small N/A sits under each. Stars count 1–5, so the averages and the infographic's stars are the same thing.
+- **By day, in both modes.** Daily sends each day's part. At the end, one survey has a heading per day and an "I wasn't there this day" button.
+- **Extra questions,** all accepted:
+  - per presenter: "Would you recommend this presenter for a future ONGIA event?" (Yes, Maybe, No);
+  - in the event overall: venue and location; see and hear clearly; registration and check-in; food; length (too short, about right, too long); "How likely are you to recommend ONGIA training to a colleague?" (0–10); future topics; where a future event should be held; interested in presenting (name and email kept apart from the answers).
+- **Session days.** The desk had no record of which day each presenter speaks. The survey box lists the sessions from the presenters' agreements, and Andrew picks each one's day. A survey with an undated session is held back.
+- **Built (deliverable 1):** lib/survey.mjs, lib/surveysend.mjs, survey.mjs, survey-tick.mjs (every 15 minutes), public/survey.html at /f/…, and the Survey box on the Communications tab. Results (deliverable 2) come next.
+
 ## Deliverables, in order
 
-1. [ ] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab.
+1. [x] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab (27 Oct 2026).
 2. [ ] Results: PDF, chart summary, individual responses, Claude's analysis, one-page infographic.
 3. [ ] **Text messages (Twilio). Deferred: remind Andrew once he's happy with the survey.**
    - Andrew makes the phone number required on each event's Wix registration form, and adds an "OK to text me about this event" consent checkbox (Canada's anti-spam law).

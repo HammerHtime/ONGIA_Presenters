@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA: survey</title>
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/assets/favicon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#596176;
+    --navy:#1a2f5e; --navy-deep:#0e1a35;
+    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --border:#ddd7c8; --edge:#bfb49a; --hair:rgba(18,22,31,.10);
+    --done:#2f6b4f; --done-bg:#e2efe7;
+    --bad:#a33328; --bad-bg:#f7e3e0;
+    --fd:"DM Serif Display",Georgia,serif;
+    --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --fu:"Oswald","Arial Narrow",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .bar{background:var(--navy-deep);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;
+       border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .bar .logo{height:26px;width:auto;display:block;flex:none}
+  @media (max-width:430px){.bar .logo{height:22px}.bar{padding:12px 14px}}
+  .bar .langbtn{margin-left:auto;background:transparent;color:var(--gold-light);border:1px solid rgba(217,174,75,.6);
+    border-radius:999px;padding:5px 12px;font:600 12px var(--fu);letter-spacing:.06em;cursor:pointer;min-height:36px}
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+  .card{background:var(--card);border:1.5px solid var(--edge);border-radius:18px;padding:20px 18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(14,26,53,.07)}
+  h1{font-family:var(--fd);font-weight:400;font-size:clamp(23px,6vw,30px);line-height:1.15;margin:0 0 8px}
+  h2{font-family:var(--fd);font-weight:400;font-size:21px;margin:0 0 6px}
+  .lede{color:var(--ink-mid);margin:0}
+  .hint{font-size:13.5px;color:var(--muted);margin:6px 0 0}
+  .due{display:inline-block;margin-top:12px;background:var(--gold-pale);border:1.5px solid var(--gold);border-radius:999px;padding:6px 14px;font-weight:500;font-size:14.5px}
+  .field{margin-top:14px}
+  .field label{display:block;font-family:var(--fu);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  input[type=text],input[type=email],textarea{width:100%;font:inherit;font-size:16px;background:var(--sunk);color:var(--ink);
+        border:1.5px solid var(--border);border-radius:12px;padding:12px 13px;-webkit-appearance:none}
+  textarea{min-height:88px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:430px){.row2{grid-template-columns:1fr}}
+  .tick{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--border);border-radius:14px;padding:14px;background:var(--sunk);cursor:pointer;margin-top:12px}
+  .tick.on{border-color:var(--navy);background:var(--card)}
+  .tick input{width:26px;height:26px;flex:none;margin:0;accent-color:var(--navy)}
+  .tick span{font-weight:500}
+  .q{padding:14px 0;border-top:1px solid var(--hair)}
+  .q:first-of-type{border-top:0;padding-top:6px}
+  .q .when{font-weight:700;color:var(--navy);display:block}
+  .q p{margin:0 0 10px}
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1 1 0;min-height:50px;border-radius:999px;border:1.5px solid var(--border);background:var(--sunk);color:var(--ink-mid);font:inherit;font-weight:500;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .missing{border-color:var(--bad)!important;background:var(--bad-bg)!important}
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:54px;border-radius:999px;padding:14px 26px;font:inherit;font-weight:700;border:1.5px solid transparent;cursor:pointer;width:100%}
+  .btn-gold{background:var(--gold);color:#1c1608}
+  .btn[disabled]{opacity:.55}
+  .problems{background:var(--bad-bg);border:1.5px solid var(--bad);border-radius:14px;padding:13px 15px;margin-bottom:14px}
+  .okmark{width:50px;height:50px;border-radius:999px;background:var(--done);color:#fff;display:grid;place-items:center;font-size:26px;margin:0 auto 12px}
+  .done{text-align:center}
+  .small{font-size:13.5px;color:var(--muted)}
+
+  .tag{display:inline-block;font:600 11px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  select{width:100%;font:inherit;font-size:16px;background:var(--sunk);color:var(--ink);border:1.5px solid var(--border);border-radius:12px;padding:12px 13px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chips button{min-height:44px;border-radius:999px;border:1.5px solid var(--border);background:var(--sunk);padding:0 15px;font:inherit;font-size:15px;color:var(--ink-mid);cursor:pointer}
+  .chips button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .talk{font-family:var(--fd);font-size:20px;line-height:1.2;margin:0}
+  .who{color:var(--gold);font-weight:700;font-size:14px;margin:4px 0 2px}
+  .stmt{padding:13px 0;border-top:1px solid var(--hair)}
+  .stmt>p{margin:0 0 6px;font-weight:500}
+  .stars{display:flex;align-items:center;gap:2px}
+  .stars button{background:none;border:0;padding:2px 3px;font-size:38px;line-height:1;color:#d9d4c6;cursor:pointer;min-width:44px;min-height:44px}
+  .stars button.on{color:var(--gold)}
+  .word{margin-left:auto;font:600 14px var(--fb);padding:4px 10px;border-radius:999px;background:var(--gold-pale);color:var(--navy);white-space:nowrap}
+  .word.low{background:#f3e0dc;color:#8c3b30}
+  .word:empty{display:none}
+  .na{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;padding:6px 0;cursor:pointer}
+  .na[aria-pressed="true"]{color:var(--navy);font-weight:700;text-decoration:none}
+  .nps{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;margin-top:6px}
+  .nps button{min-height:44px;border-radius:9px;border:1.5px solid var(--border);background:var(--sunk);font:inherit;font-weight:700;font-size:14px;color:var(--ink-mid);padding:0;cursor:pointer}
+  .nps button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  .npsends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+  .dayhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:12px 14px;margin:20px 0 10px;font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;font-size:15px}
+  .skip{background:none;border:1.5px dashed var(--edge);border-radius:999px;padding:8px 14px;font:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;margin-top:10px}
+  .skip[aria-pressed="true"]{background:var(--gold);border:1.5px solid var(--gold);color:#1c1608}
+  .dayhead .skip{margin:0;border-color:rgba(217,174,75,.7);color:var(--gold-light);text-transform:none;letter-spacing:0;font-family:var(--fb);font-size:12.5px;padding:6px 10px}
+  .dayhead .skip[aria-pressed="true"]{color:#1c1608}
+  .skipped{color:var(--muted);text-align:center}
+  .req{color:var(--bad)}
+  .missing-q{background:var(--bad-bg);border-radius:12px;padding-left:8px;padding-right:8px;margin:0 -8px}
+</style>
+</head>
+<body>
+<div class="bar">
+  <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA">
+  <button type="button" class="langbtn" id="lang" aria-label="Switch language / Changer de langue">Français</button>
+</div>
+<div class="wrap" id="root"><p class="small">Loading…</p></div>
+<script>
+// An event's survey (Andrew 27 Oct 2026): stars with a word, by day, in English or French, anonymous.
+const ROOT = document.getElementById("root");
+const LANGBTN = document.getElementById("lang");
+const seg = location.pathname.startsWith("/f/") ? location.pathname.slice(3).split("/") : [];
+const QS = new URLSearchParams(location.search);
+const TOKEN = seg[0] || QS.get("t"), PERSON = seg[1] || QS.get("p") || "", PREVIEW = QS.get("preview") === "1";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ASKED = QS.get("lang");
+let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
+const T = {
+ en: { other: "Français", loading: "Loading…", anon: "Your answers are anonymous.", about: "About you", aboutHint: "Asked once.", pick: "Choose…", otherAgency: "Other (type it)", typeIt: "Your agency",
+  yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
+  overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…",
+  missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
+  already: "You've already answered this part. Thank you!", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
+  contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
+  dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
+ fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", otherAgency: "Autre (à préciser)", typeIt: "Votre organisme",
+  yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
+  overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…",
+  missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
+  already: "Vous avez déjà répondu à cette partie. Merci!", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
+  contactAsk: "Laissez votre nom et votre courriel, et nous communiquerons avec vous. Ces renseignements sont conservés à part de vos réponses.", name: "Nom", email: "Courriel", topic: "Sur quel sujet présenteriez-vous? (facultatif)",
+  dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("fr-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Jour ${n}` } };
+const t = (k, ...a) => (typeof T[LANG][k] === "function" ? T[LANG][k](...a) : T[LANG][k]);
+let D = null, A = { about: {}, sessions: {}, overall: {}, skipDays: [], contact: {} }, MISSING = new Set(), STATE = "form";
+const words = () => D.stars[LANG];
+const qText = (q) => q[LANG] || q.en;
+
+function starsHtml(key, q, value) {
+  return `<div class="stars" role="radiogroup" aria-label="${esc(qText(q))}">${[1,2,3,4,5].map((n) => `<button type="button" role="radio" aria-checked="${value === n}" aria-label="${n} – ${esc(words()[n-1])}" class="${typeof value === "number" && n <= value ? "on" : ""}" data-star="${key}" data-v="${n}">★</button>`).join("")}<span class="word${value === 1 || value === 2 ? " low" : ""}">${typeof value === "number" ? esc(words()[value-1]) : ""}</span></div>
+    <button type="button" class="na" data-star="${key}" data-v="na" aria-pressed="${value === "na"}">${t("na")}</button>`;
+}
+function choiceHtml(key, q, value) {
+  return `<div class="chips">${q.options[LANG].map((o, i) => `<button type="button" aria-pressed="${value === i}" data-choice="${key}" data-v="${i}">${esc(o)}</button>`).join("")}</div>`;
+}
+function npsHtml(key, value) {
+  return `<div class="nps">${[0,1,2,3,4,5,6,7,8,9,10].map((n) => `<button type="button" aria-pressed="${value === n}" data-choice="${key}" data-v="${n}">${n}</button>`).join("")}</div><div class="npsends"><span>0 · ${t("npsL")}</span><span>${t("npsR")} · 10</span></div>`;
+}
+function provinceHtml(key, q, value) {
+  const names = q.provinces ?? {};
+  return `<select data-select="${key}"><option value="">${t("pick")}</option>${Object.entries(names).map(([code, name]) => `<option value="${code}"${value === code ? " selected" : ""}>${esc(name)}</option>`).join("")}</select>`;
+}
+function agencyHtml(key, q, value) {
+  const list = q.agencies ?? [];
+  const known = list.includes(value);
+  return `<select data-agency="${key}"><option value="">${t("pick")}</option>${list.map((a) => `<option${a === value ? " selected" : ""}>${esc(a)}</option>`).join("")}<option value="__other"${value && !known ? " selected" : ""}>${t("otherAgency")}</option></select>
+    ${value !== undefined && (value === "" || !known) && A.agencyOther ? `<input type="text" style="margin-top:8px" data-text="${key}" placeholder="${t("typeIt")}" value="${esc(known ? "" : value)}">` : ""}`;
+}
+function question(key, q, value) {
+  const label = `${esc(qText(q))}${q.optional ? ` <span class="small">(${t("optional")})</span>` : ` <span class="req">*</span>`}`;
+  const body = q.kind === "stars" ? starsHtml(key, q, value) : q.kind === "choice" ? choiceHtml(key, q, value) : q.kind === "nps" ? npsHtml(key, value)
+    : q.kind === "province" ? provinceHtml(key, q, value) : q.kind === "agency" ? agencyHtml(key, q, value)
+    : `<textarea data-text="${key}">${esc(value ?? "")}</textarea>`;
+  return `<div class="stmt${MISSING.has(key) ? " missing-q" : ""}" id="q-${esc(key)}"><p>${label}</p>${body}</div>`;
+}
+const get = (key) => { const [a, b, c] = key.split("."); return a === "about" ? A.about[b] : a === "overall" ? A.overall[b] : (A.sessions[a] ?? {})[b]; };
+const put = (key, v) => { const [a, b] = key.split("."); if (a === "about") A.about[b] = v; else if (a === "overall") A.overall[b] = v; else (A.sessions[a] ??= {})[b] = v; MISSING.delete(key); };
+
+function render() {
+  document.documentElement.lang = LANG; LANGBTN.textContent = t("other");
+  if (STATE === "broken") { ROOT.innerHTML = `<div class="card"><h1>${t("broken")}</h1></div>`; return; }
+  if (STATE === "closed") { ROOT.innerHTML = `<div class="card"><h1>${esc(D.title)}</h1><p class="lede">${t("closed")}</p></div>`; return; }
+  if (STATE === "done" || STATE === "already") { ROOT.innerHTML = `<div class="card done"><div class="okmark">✓</div><h1>${t("done")}</h1><p class="lede">${STATE === "done" ? t("doneText") : t("already")}</p></div>`; return; }
+  const day1 = D.allDays?.[0];
+  const dayLabel = (iso) => `${D.dayNumber?.[iso] ? `${t("dayN", D.dayNumber[iso])} · ` : ""}${t("dayName", iso)}`;
+  const daysHtml = D.days.map((d) => {
+    const off = A.skipDays.includes(d.day);
+    return `<div class="dayhead"><span>${esc(dayLabel(d.day))}</span><button type="button" class="skip" data-skipday="${d.day}" aria-pressed="${off}">${t("dayskip")}</button></div>
+      ${off ? `<div class="card skipped">${t("skipped")}</div>` : d.sessions.map((s) => {
+        const sk = !!(A.sessions[s.id] ?? {}).skipped;
+        return `<div class="card"><p class="talk">${esc(s[LANG] || s.en || s.presenters.join(", "))}</p><p class="who">${esc(s.presenters.join(" · "))}</p>
+          ${sk ? "" : D.session.map((q) => question(`${s.id}.${q.id}`, q, get(`${s.id}.${q.id}`))).join("")}
+          <button type="button" class="skip" data-skipsession="${s.id}" aria-pressed="${sk}">${t("skip")}</button></div>`;
+      }).join("")}`;
+  }).join("");
+  const wantsToPresent = A.overall.present === 0;
+  ROOT.innerHTML = `
+    ${PREVIEW ? `<div class="problems">${t("preview")}</div>` : ""}
+    <div class="card"><span class="tag">${esc(D.title)}</span><h1>${D.daily ? t("yourDay") : t("wholeEvent")}</h1><p class="lede">${t("anon")}</p></div>
+    ${D.about ? `<div class="card"><h2>${t("about")}</h2><p class="hint">${t("aboutHint")}</p>${D.about.map((q) => question(`about.${q.id}`, q, get(`about.${q.id}`))).join("")}</div>` : ""}
+    ${daysHtml}
+    ${D.overall ? `<div class="card"><h2>${t("overall")}</h2>${D.overall.map((q) => question(`overall.${q.id}`, q, get(`overall.${q.id}`))).join("")}
+      ${wantsToPresent ? `<div class="stmt"><p class="hint" style="margin:0 0 8px">${t("contactAsk")}</p>
+        <div class="row2"><div class="field" style="margin:0"><label>${t("name")}</label><input type="text" data-contact="name" value="${esc(A.contact.name ?? "")}"></div>
+        <div class="field" style="margin:0"><label>${t("email")}</label><input type="email" data-contact="email" value="${esc(A.contact.email ?? "")}"></div></div>
+        <div class="field"><label>${t("topic")}</label><input type="text" data-contact="topic" value="${esc(A.contact.topic ?? "")}"></div></div>` : ""}</div>` : ""}
+    <div id="problems"></div>
+    <button type="button" class="btn btn-gold" id="send">${t("send")}</button>`;
+  wire();
+}
+
+function wire() {
+  ROOT.querySelectorAll("[data-star]").forEach((b) => b.onclick = () => { const v = b.dataset.v === "na" ? "na" : Number(b.dataset.v); put(b.dataset.star, get(b.dataset.star) === v && v === "na" ? undefined : v); render(); });
+  ROOT.querySelectorAll("[data-choice]").forEach((b) => b.onclick = () => { put(b.dataset.choice, Number(b.dataset.v)); render(); });
+  ROOT.querySelectorAll("[data-select]").forEach((s) => s.onchange = () => { put(s.dataset.select, s.value || undefined); });
+  ROOT.querySelectorAll("[data-agency]").forEach((s) => s.onchange = () => { if (s.value === "__other") { A.agencyOther = true; put(s.dataset.agency, ""); render(); } else { A.agencyOther = false; put(s.dataset.agency, s.value || undefined); } });
+  ROOT.querySelectorAll("[data-text]").forEach((x) => x.oninput = () => put(x.dataset.text, x.value));
+  ROOT.querySelectorAll("[data-contact]").forEach((x) => x.oninput = () => { A.contact[x.dataset.contact] = x.value; });
+  ROOT.querySelectorAll("[data-skipday]").forEach((b) => b.onclick = () => { const d = b.dataset.skipday; A.skipDays = A.skipDays.includes(d) ? A.skipDays.filter((x) => x !== d) : [...A.skipDays, d]; render(); });
+  ROOT.querySelectorAll("[data-skipsession]").forEach((b) => b.onclick = () => { const id = b.dataset.skipsession; const s = (A.sessions[id] ??= {}); if (s.skipped) delete s.skipped; else s.skipped = true; render(); });
+  document.getElementById("send").onclick = send;
+}
+
+async function send() {
+  const btn = document.getElementById("send");
+  btn.disabled = true; btn.textContent = t("sending");
+  try {
+    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN)}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${PREVIEW ? "&preview=1" : ""}`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ part: D.part, lang: LANG, about: A.about, sessions: A.sessions, skipDays: A.skipDays, overall: A.overall, contact: A.contact }) });
+    const out = await res.json().catch(() => ({}));
+    if (res.status === 400 && out.missing) {
+      MISSING = new Set(out.missing); render();
+      document.getElementById("problems").innerHTML = `<div class="problems">${t("missing", out.missing.length)}</div>`;
+      document.getElementById(`q-${out.missing[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!res.ok) throw new Error(out.error || "");
+    STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
+  } catch { btn.disabled = false; btn.textContent = t("send"); }
+}
+
+LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };
+(async () => {
+  try {
+    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN ?? "")}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${QS.get("part") ? `&part=${encodeURIComponent(QS.get("part"))}` : ""}`);
+    if (!res.ok) { STATE = "broken"; return render(); }
+    D = await res.json();
+    STATE = !D.open ? "closed" : D.answered && !PREVIEW ? "already" : "form";
+    render();
+  } catch { STATE = "broken"; render(); }
+})();
+</script>
+</body>
+</html>
