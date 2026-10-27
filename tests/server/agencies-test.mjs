@@ -69,6 +69,18 @@ const diag = (await call("all=1")).body;
 ok("with no agency answers, it says how much it read and which questions the forms asked, never the answers", diag.read.registrations === 1 && diag.read.withAgency === 0 && diag.read.questions.some((q) => q.question === "Your unit") && !JSON.stringify(diag).includes("Gangs"), JSON.stringify(diag.read));
 const emptyCsv = await (await agencies(new Request("http://x/api/agencies?all=1&download=1", { headers: H }))).text();
 ok("and the download says the same instead of being empty", /No agency answers found\. Read 1 events and 1 registrations/.test(emptyCsv) && /Question: Your unit/.test(emptyCsv) && !/Gangs|q@example/.test(emptyCsv), emptyCsv);
+// Andrew's 2025 forms name every question "custom-…": the agency question is found from its answers.
+const unnamed = [["TPS", "Nut allergy"], ["Ontario Provincial Police", "None"], ["OPP - Gang Unit", "None"], ["RCMP", "Vegetarian"], ["Quinte West Youth Hub", "None"], ["Peel Regional Police", "Halal"]];
+globalThis.fetch = async (url, init) => (String(url).endsWith("/events/v2/guests/query")
+  ? Response.json({ guests: unnamed.map(([agency, diet], i) => ({ id: `u${i}`, eventId: "old", guestType: "RSVP", attendanceStatus: "ATTENDING", guestDetails: { email: `u${i}@example.ca`,
+      formResponse: { inputValues: [{ inputName: "custom-863b34b1c991bbf7", value: diet }, { inputName: "custom-0cdcb8d2ad9b2ec5", value: agency }, { inputName: "comment", value: "See you there at the Toronto Police Service HQ" }] } } })), pagingMetadata: {} })
+  : savedFetch(url, init));
+const found = (await call("all=1")).body;
+ok("with unnamed questions, the agency question is found from its answers, and every answer on it is read (even an agency not on the list)", found.read.withAgency === 6 && found.agencies.find((g) => g.agency === "Ontario Provincial Police")?.count === 2 && found.unplaced.some((u) => u.raw === "Quinte West Youth Hub"), JSON.stringify(found).slice(0, 500));
+ok("a dietary or comments question is never taken for it", !found.unplaced.some((u) => /allergy|Vegetarian|See you/.test(u.raw)));
+const { listWixGuests } = await import(F + "lib/wix.mjs");
+const stored = JSON.stringify((await listWixGuests({ type: null }))[0]);
+ok("the other answers are not kept with the attendee", !/allergy|Nut|custom-/.test(stored) && /TPS/.test(stored), stored);
 globalThis.fetch = savedFetch;
 
 console.log(`\n${pass} passed, ${fail} failed`);

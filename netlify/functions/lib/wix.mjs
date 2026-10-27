@@ -19,6 +19,8 @@
  *   https://dev.wix.com/docs/rest/business-solutions/events/events-v3/introduction
  *   https://dev.wix.com/docs/rest/business-solutions/events/event-guests/introduction
  */
+import { directory, standardOf } from "./agencies.mjs";
+
 const API = "https://www.wixapis.com";
 const PAGE = 100;          // guests per request; Wix allows up to 1000
 const MAX_PAGES = 50;      // a stop, so a bad cursor cannot loop for ever
@@ -172,6 +174,34 @@ function guestNamesOf(g) {
  * housekeeping form can fill it in for them). Wix names each field on the form; any field whose name reads like
  * agency, organization, company, employer or service counts. Empty when the form does not ask.
  */
+/**
+ * Where a form's agency question is not named, find it from the answers: for each event, the question whose answers
+ * are most often agencies the desk knows (TPS, OPP, RCMP …). Only a question where most answers, and at least three,
+ * are known agencies counts, so a comments box or a dietary question is never taken for it. Fills in the agency for
+ * registrations that had none; a named agency question always wins.
+ */
+export async function agenciesFromAnswers(guests) {
+  const missing = guests.filter((g) => !g.organization && g.answers && Object.keys(g.answers).length);
+  if (!missing.length) return guests;
+  const list = await directory().catch(() => []);
+  if (!list.length) return guests;
+  const byEvent = new Map();
+  for (const g of missing) { if (!byEvent.has(g.eventId)) byEvent.set(g.eventId, []); byEvent.get(g.eventId).push(g); }
+  for (const people of byEvent.values()) {
+    const score = new Map();
+    for (const g of people) for (const [q, v] of Object.entries(g.answers)) {
+      if (/^(email|phone|firstName|lastName)$/i.test(q) || v.length > 120) continue;
+      const s = score.get(q) ?? { known: 0, all: 0 };
+      s.all++; if (standardOf(v, list)) s.known++;
+      score.set(q, s);
+    }
+    const best = [...score].filter(([, s]) => s.known >= 3 && s.known / s.all >= 0.4).sort((a, b) => b[1].known - a[1].known)[0];
+    if (!best) continue;
+    for (const g of people) if (g.answers[best[0]]) g.organization = g.answers[best[0]].slice(0, 200);
+  }
+  return guests;
+}
+
 export function organizationOf(g) {
   const d = g.guestDetails ?? {};
   const fields = [...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])];
@@ -181,8 +211,25 @@ export function organizationOf(g) {
   return String(value ?? "").trim().slice(0, 200);
 }
 
+/**
+ * A registration's form answers by question, kept out of sight: not saved with the attendee (a spread or JSON leaves
+ * them behind), only looked at to find the agency question on forms that do not name it (Andrew's 2025 forms call
+ * every question "custom-…", so the agency answer cannot be found by the question's name).
+ */
+function withAnswers(guest, g) {
+  const d = g.guestDetails ?? {};
+  const values = [...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])];
+  const answers = Object.fromEntries(values.map((v) => [String(v.inputName || v.label || ""), String(v.value ?? (Array.isArray(v.values) ? v.values[0] : "") ?? "").trim()]).filter(([k, v]) => k && v));
+  Object.defineProperty(guest, "answers", { value: answers, enumerable: false });
+  Object.defineProperty(guest, "formFields", { value: [...new Set(values.map((v) => String(v.label || v.inputName || "").trim()).filter(Boolean))].slice(0, 40), enumerable: false });
+  return guest;
+}
+
 /** One guest, reduced to a person the desk can write to. */
 function tidyGuest(g) {
+  return withAnswers(tidyGuestFields(g), g);
+}
+function tidyGuestFields(g) {
   const d = g.guestDetails ?? {};
   return {
     id: g.id,
@@ -209,9 +256,6 @@ function tidyGuest(g) {
     totalGuests: g.totalGuests ?? 1,
     // The names an RSVP gave for the people they are bringing, when the form asked for them.
     guestNames: guestNamesOf(g),
-    // The questions this registration's form asked (their names only, never the answers), so the desk can say which
-    // question it read the agency from, or that it found none.
-    formFields: [...new Set([...(d.formResponse?.inputValues ?? []), ...(g.formResponse?.inputValues ?? [])].map((v) => String(v.label || v.inputName || "").trim()).filter(Boolean))].slice(0, 40),
     updatedAt: g.updatedDate ?? g.createdDate ?? null,
   };
 }
@@ -246,6 +290,7 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
     cursor = out.pagingMetadata?.cursors?.next || null;
     if (!cursor || !(out.guests ?? []).length) break;
   }
+  await agenciesFromAnswers(guests);
   return guests;
 }
 
