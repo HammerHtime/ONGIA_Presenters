@@ -31,10 +31,24 @@ Andrew, 27 Oct 2026. Surveys are built into the desk, replacing SurveyMonkey.
   - a "Make social media images" button that splits it into about seven square images, one per block: the event, agencies, provinces, experience, overall rating, topics, takeaways, and quotes;
   - every output shown on screen first, so wording can be fixed before download.
 
+## The questions (from Andrew's 2025 Kingston Day 1, 2 and 3 SurveyMonkey surveys)
+
+The Kingston surveys asked, every day: **About you** (agency; province; years of service: less than 3, 4–8, 9–15, 16–20, 21+; attended ONGIA before; considering attending again; how did you hear), then for each presenter, with the talk title and the presenter's name, six statements on a Strongly disagree – Strongly agree scale (some with N/A):
+relevant to my work; improved my knowledge; met my expectations; the presenter was knowledgeable; engaging and compelling; rate the delivery. Then "Any additional comments?"
+
+Fixed in the desk's version:
+
+- **One scale, one direction.** Kingston's scales flipped between Strongly agree first and Strongly disagree first, and had typos ("Diagree", "Disgree", "Agree" in place of "Disagree", "Strongly Disagree" at both ends). That invites wrong clicks and spoils the numbers. Here it is always 1 Strongly disagree → 5 Strongly agree, left to right, with N/A at the end.
+- **"Rate the delivery"** on an agree scale doesn't read. It becomes the statement "The presentation was well delivered."
+- **Years of service** had a gap (exactly 3 years fit nowhere). It becomes 0–3, 4–8, 9–15, 16–20, 21+.
+- **Province** is a list of provinces and territories, so cities can't end up in it.
+- **About you is asked once,** on the person's first survey. Their own link remembers it was answered, without storing who they are, so on a four-day daily survey they aren't asked four times.
+- **An "Overall" section** (needed for the infographic and missing from Kingston): overall quality, pace (too slow, about right, too fast), confidence applying what was learned, variety and depth of topics, practical strategies, and anything else. In daily mode it goes on the last day's survey; after the event, on the one survey.
+
 ## Deliverables, in order
 
 1. [ ] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab.
-2. [ ] Results: PDF, chart summary, individual responses, Claude's analysis, one-page infographic. Waits on Andrew's example surveys and infographics.
+2. [ ] Results: PDF, chart summary, individual responses, Claude's analysis, one-page infographic.
 3. [ ] **Text messages (Twilio). Deferred: remind Andrew once he's happy with the survey.**
    - Andrew makes the phone number required on each event's Wix registration form, and adds an "OK to text me about this event" consent checkbox (Canada's anti-spam law).
    - The desk pulls the phone number (and the consent) from Wix with the rest of the registration.
@@ -45,5 +59,4 @@ Andrew, 27 Oct 2026. Surveys are built into the desk, replacing SurveyMonkey.
 
 ## Waiting on Andrew
 
-- Example surveys from past events.
-- Example infographics.
+- Nothing; examples received 27 Oct 2026.
