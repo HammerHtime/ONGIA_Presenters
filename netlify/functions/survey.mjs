@@ -9,6 +9,13 @@ import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage } from "./lib/survey.mjs";
 import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./lib/surveysend.mjs";
+import { getSurveyContacts } from "./lib/store.mjs";
+import { surveyResults } from "./lib/surveyresults.mjs";
+import { analyseSurvey } from "./lib/surveyanalysis.mjs";
+import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx } from "./lib/surveyreport.mjs";
+import { infographicHtml, BLOCKS } from "./lib/infographic.mjs";
+import { slugOf } from "./lib/public.mjs";
+import PDFDocument from "pdfkit";
 
 /**
  * An event's survey (Andrew 27 Oct 2026; notes/surveys-plan.md).
@@ -23,6 +30,13 @@ import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./l
  *   POST /api/survey?event=…&refresh=1      bring the sessions up to the presenter list (days kept)
  *   POST /api/survey?event=…&test=1         { to, part } the email, marked TEST, to up to five addresses
  *   POST /api/survey?event=…&send=1         { part } send that part now to everyone owed it
+ *
+ * The results (Andrew 27 Oct 2026):
+ *   GET  /api/survey?event=…&results=1                 the numbers, and Claude's read if it has been asked for
+ *   GET  /api/survey?event=…&download=summary|answers|presenters   the summary PDF, every answer (.xlsx), who'd like to present (.xlsx)
+ *   POST /api/survey?event=…&analyse=1                 ask Claude to read the results (kept on the event)
+ *   GET  /api/survey?event=…&infographic=1&lang=en|fr[&block=…]   the infographic page, or one section as a square
+ *   POST /api/survey?event=…&pdf=1&w=…&h=…&name=…      a PNG of it (the body) as a one-page PDF of the same size
  */
 export default async (req) => {
   await primeRoster();
@@ -34,9 +48,24 @@ export default async (req) => {
   if (denied) return fail(denied, 401);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
-  if (req.method === "GET") return show(event);
+  if (req.method === "GET") {
+    if (url.searchParams.get("results")) return results(event);
+    if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"));
+    if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"));
+    return show(event);
+  }
+  if (req.method === "POST" && url.searchParams.get("pdf")) return pngToPdf(req, url);
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
+  if (req.method === "POST" && url.searchParams.get("analyse")) {
+    if (!event.survey) return fail("Set up the survey first.", 409);
+    try {
+      const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+      event.survey = { ...event.survey, analysis: await analyseSurvey(event, R) };
+      await putEvent(event);
+      return json({ analysis: event.survey.analysis });
+    } catch (e) { return fail(e.message, 503); }
+  }
   if (req.method === "PUT") {
     event.survey = event.survey ? cleanSurvey(body, event.survey, event) : cleanSurvey(body, startingSurvey(event, await listPresenters(event.id)), event);
     event.updatedAt = new Date().toISOString();
@@ -82,6 +111,46 @@ async function show(event) {
     sent: Object.fromEntries(Object.entries(people.reduce((m, p) => { for (const k of p.sent ?? []) if (k.startsWith("survey:")) (m[k] ??= new Set()).add(p.email); return m; }, {})).map(([k, v]) => [k.slice(7), v.size])),
     attendeeMail: event.attendeeMail === true,
   });
+}
+
+async function results(event) {
+  if (!event.survey) return json({ results: null });
+  const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+  return json({ results: R, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
+}
+
+async function download(event, which) {
+  if (!event.survey) return fail("Set up the survey first.", 409);
+  const responses = await getSurveyResponses(event.id);
+  const base = `${slugOf(event.title) || "event"}-survey`;
+  const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+  if (which === "summary") return send(await surveySummaryPdf(event, surveyResults(event, responses, await directory()), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
+  if (which === "answers") return send(surveyResponsesXlsx(event, responses), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-answers.xlsx`);
+  if (which === "presenters") return send(surveyContactsXlsx(event, await getSurveyContacts(event.id)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-interested-in-presenting.xlsx`);
+  return fail("Which download: summary, answers or presenters?");
+}
+
+async function infographic(event, lang, block) {
+  if (!event.survey) return fail("Set up the survey first.", 409);
+  const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+  const html = infographicHtml(event, R, event.survey.analysis ?? null, { lang: lang === "fr" ? "fr" : "en", block: block || "" });
+  if (!html) return fail("There is nothing for that section yet.", 404);
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+
+/** The infographic as a PDF: the PNG the page made, on one page of the same shape. */
+async function pngToPdf(req, url) {
+  const bytes = Buffer.from(await req.arrayBuffer());
+  if (bytes.length < 40 || bytes.length > 25 * 1024 * 1024 || bytes.toString("latin1", 1, 4) !== "PNG") return fail("That is not a PNG.");
+  const w = Math.min(4000, Number(url.searchParams.get("w")) || 1080), h = Math.min(20000, Number(url.searchParams.get("h")) || 1080);
+  const pw = 612, ph = Math.round((h / w) * pw);
+  const doc = new PDFDocument({ size: [pw, ph], margin: 0, displayTitle: true, info: { Title: text(url.searchParams.get("name"), 120) || "ONGIA infographic", Author: "ONGIA" } });
+  const chunks = [];
+  doc.on("data", (c) => chunks.push(c));
+  const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
+  doc.image(bytes, 0, 0, { width: pw, height: ph });
+  doc.end();
+  return new Response(await done, { headers: { "content-type": "application/pdf", "cache-control": "no-store" } });
 }
 
 async function eventByToken(tok) {
