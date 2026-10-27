@@ -4274,6 +4274,19 @@ function renderWelcomeCard(ev, W) {
       ${v.problems.length ? `<div class="bad" style="margin-top:10px"><b>Held back:</b> ${esc(v.problems[0])}</div>` : ""}
       <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button class="btn btn-ghost" data-wlsee="${v.key}">See the email</button><button class="btn btn-ghost" data-wltest="${v.key}">Send a test</button></div>
     </div>`;
+  // PDFs that go with the letter besides the agenda, each ticked for the versions it goes with (Andrew 27 Oct 2026).
+  const size = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  const fileRow = (f) => `<div data-wfrow="${esc(f.id)}" style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:10px 0;border-top:1px solid var(--line)">
+      <div style="flex:1 1 220px;min-width:0"><b style="word-break:break-word">${esc(f.name)}</b> <span class="porg">${size(f.size)}</span>
+        ${two && !f.main && !f.group ? `<div class="hint late" style="margin:2px 0 0">Not attached to either letter yet. Tick who gets it.</div>` : ""}</div>
+      ${two ? W.versions.map((v) => `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap;margin:0;font-weight:500"><input type="checkbox" style="width:auto;margin:0" data-wftick="${esc(f.id)}" data-wfkey="${v.key}"${f[v.key] ? " checked" : ""}> ${esc(v.label)}</label>`).join("") : ""}
+      <div style="display:flex;gap:6px"><button class="mini ghost" data-wfopen="${esc(f.id)}">Open</button><button class="mini ghost" data-wfdel="${esc(f.id)}">Remove</button></div></div>`;
+  const attachments = `<div style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
+      <h3 style="margin:0;font-size:17px">Other attachments</h3>
+      <p class="hint" style="margin:4px 0 8px">PDFs that go with the welcome letter besides the agenda${two ? ". Tick which letter each one goes with" : ""}. An email can carry up to 3 MB in all.</p>
+      ${(W.files ?? []).length ? (W.files ?? []).map(fileRow).join("") : `<p class="porg" style="margin:0 0 6px">None yet.</p>`}
+      <div class="actions" style="margin-top:10px;align-items:center;flex-wrap:wrap"><button class="mini gold" id="wl-addfile">Add PDFs</button><input type="file" id="wl-files" accept="application/pdf,.pdf" multiple hidden>
+        <span class="hint" style="margin:0">${W.versions.map((v) => `${esc(two ? v.label : "This letter")}: ${size(v.attachedBytes ?? 0)} of 3 MB attached`).join(" · ")}</span></div></div>`;
   const job = W.sendOn ? `Goes on <input type="date" id="wl-on" value="${esc(W.sendOn)}" style="width:auto;display:inline-block;margin:0 6px">` : `Goes on <input type="date" id="wl-on" style="width:auto;display:inline-block;margin:0 6px">`;
   box.innerHTML = `
     <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
@@ -4283,6 +4296,7 @@ function renderWelcomeCard(ev, W) {
       <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
     ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${W.versions.map(version).join("")}
+    ${attachments}
     <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
     <div class="field" style="max-width:420px"><label for="wl-to">Tests go to</label><input id="wl-to" placeholder="${esc(WHO?.email || "")}"></div>
     <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="wl-save">Save the welcome letter</button><span class="hint" id="wl-said" style="align-self:center"></span></div>
@@ -4348,6 +4362,43 @@ function renderWelcomeCard(ev, W) {
     try {
       const res = await apiFetch(`/api${agendaQ(b.dataset.wlopen)}&file=1`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The agenda could not be opened.");
+      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+    } catch (x) { toast(x.message); }
+  });
+  // The other attachments: words are saved first, as for the agenda, so nothing typed is lost when the card redraws.
+  const fileQ = (id) => `/api${q}&file=${encodeURIComponent(id)}`;
+  const redraw = (out) => renderWelcomeCard(ev, { ...out, library: W.library });
+  const filesIn = $("wl-files");
+  $("wl-addfile").onclick = () => filesIn.click();
+  filesIn.onchange = async () => {
+    const picked = [...(filesIn.files ?? [])]; filesIn.value = "";
+    if (!picked.length) return;
+    const done = busy($("wl-addfile"), "Uploading…");
+    let last = null, added = 0;
+    try {
+      await save();
+      for (const f of picked) {
+        const res = await apiFetch(fileQ("new"), { method: "POST", headers: { "x-admin-key": KEY, "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) }, body: f });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) { toast(`${f.name}: ${out.error || `upload failed (${res.status})`}`); continue; }
+        last = out; added++;
+      }
+      if (last) { redraw(last); toast(`${added} attachment${added === 1 ? "" : "s"} added.${two ? " Tick which letter each goes with." : ""}`); } else done();
+    } catch (x) { toast(x.message); done(); }
+  };
+  box.querySelectorAll("[data-wftick]").forEach((c) => c.onchange = async () => {
+    try { await save(); redraw(await api(`${q}&file=${encodeURIComponent(c.dataset.wftick)}`, { method: "PUT", body: JSON.stringify({ [c.dataset.wfkey]: c.checked }) })); }
+    catch (x) { c.checked = !c.checked; toast(x.message); }
+  });
+  box.querySelectorAll("[data-wfdel]").forEach((b) => b.onclick = async () => {
+    const f = (W.files ?? []).find((x) => x.id === b.dataset.wfdel);
+    if (!confirm(`Remove ${f?.name ?? "this attachment"} from the welcome letter?`)) return;
+    try { await save(); redraw(await api(`${q}&file=${encodeURIComponent(b.dataset.wfdel)}`, { method: "DELETE" })); toast("Attachment removed."); } catch (x) { toast(x.message); }
+  });
+  box.querySelectorAll("[data-wfopen]").forEach((b) => b.onclick = async () => {
+    try {
+      const res = await apiFetch(fileQ(b.dataset.wfopen), { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error("The attachment could not be opened.");
       window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
     } catch (x) { toast(x.message); }
   });
