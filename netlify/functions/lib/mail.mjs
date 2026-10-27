@@ -149,9 +149,11 @@ function signatureBlock(contact, event, lang = "en") {
     fr: `ONGIA${event?.title ? ` — responsable de ${esc(event.title)}` : ""}`,
   };
   const langs = lang === "both" ? ["en", "fr"] : [lang];
+  // A signature that is not a person (the board) has no "lead for" line.
+  if (contact.role === "") role.en = role.fr = "";
   return `<div style="margin:24px 0 0;padding-top:15px;border-top:1px solid #ddd7c8;font-size:13px;color:#4a5563;line-height:1.6">
     <div style="font-weight:700;color:#12161f;font-size:14px">${esc(contact.name)}</div>
-    <div>${role[langs[0]]}</div>
+    ${role[langs[0]] ? `<div>${role[langs[0]]}</div>` : ""}
     ${bits.length ? `<div>${bits.join(" &middot; ")}</div>` : ""}
     ${langs.map((l) => `<div style="margin-top:6px;color:#767f92">${replies[l]}</div>`).join("")}
   </div>`;

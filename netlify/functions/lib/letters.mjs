@@ -302,8 +302,11 @@ export function renderLetter(letter, event, person) {
   const subject = fill(letter.subject, event, person, { html: false }).trim();
   const href = letter.buttonLink ? fill(letter.buttonLink, event, person, { html: false }).trim() : "";
   const buttons = href && /^https?:\/\//i.test(href) ? [{ href, label: letter.buttonLabel || "Open" }] : [];
-  const contact = coordinatorOf(event);
-  const html = layout({ heading: subject, bodyHtml: bodyHtmlOf(letter.body, event, person), buttons, contact, event });
+  // A letter can be signed by someone other than the event's lead (the Summit's questions: "ONGIA Board").
+  const contact = letter.contact ?? coordinatorOf(event);
+  // An email with a French half says where replies go in French too.
+  const lang = /\{replyButtonFr\}/.test(letter.body ?? "") ? "both" : "en";
+  const html = layout({ heading: subject, bodyHtml: bodyHtmlOf(letter.body, event, person), buttons, contact, event, lang });
   const text = [
     subject, "",
     bodyTextOf(letter.body, event, person),
