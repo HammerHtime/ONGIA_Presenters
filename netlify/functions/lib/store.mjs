@@ -337,6 +337,29 @@ export async function getReplies(eventId) {
 export const getReply = (eventId, id) => read(`reply:${eventId}:${id}`);
 export const putReply = (eventId, answer) => write(`reply:${eventId}:${answer.id}`, answer);
 export const deleteReply = (eventId, id) => store().delete(`reply:${eventId}:${id}`);
+
+/**
+ * An event's survey answers (survey.mjs). Each submitted part is its own record with no name or address on it; who
+ * has answered which part is kept apart, by the anonymous id in their link, only so nobody is asked twice.
+ */
+export async function getSurveyResponses(eventId) {
+  const { blobs } = await store().list({ prefix: `surveyresp:${eventId}:` });
+  return (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean).sort((a, b) => (a.at ?? "").localeCompare(b.at ?? ""));
+}
+export const putSurveyResponse = (eventId, r) => write(`surveyresp:${eventId}:${r.id}`, r);
+export const deleteSurveyResponse = (eventId, id) => store().delete(`surveyresp:${eventId}:${id}`);
+export const getSurveyDone = (eventId, pid) => read(`surveydone:${eventId}:${pid}`);
+export const putSurveyDone = (eventId, pid, done) => write(`surveydone:${eventId}:${pid}`, done);
+export async function listSurveyDone(eventId) {
+  const { blobs } = await store().list({ prefix: `surveydone:${eventId}:` });
+  return (await Promise.all(blobs.map(async (b) => ({ pid: b.key.split(":").pop(), ...(await read(b.key)) })))).filter(Boolean);
+}
+/** People who said they would like to present: kept apart from the answers so the answers stay anonymous. */
+export async function getSurveyContacts(eventId) {
+  const { blobs } = await store().list({ prefix: `surveycontact:${eventId}:` });
+  return (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean);
+}
+export const putSurveyContact = (eventId, c) => write(`surveycontact:${eventId}:${c.id}`, c);
 export const putAttendees = (eventId, value) => write(`attendees:${eventId}`, value);
 
 /** Letters Andrew writes once and points events at — welcome, survey. */

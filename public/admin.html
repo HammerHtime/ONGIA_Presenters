@@ -3222,7 +3222,7 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + surveyCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -3309,6 +3309,7 @@ function eventScreen(data) {
   wireMailSwitch(ev);
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
+  if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("agbox")) loadAgencies(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
@@ -4436,6 +4437,74 @@ function renderAgencies(ev, A) {
   };
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }
+
+/**
+ * The event's survey (Andrew 27 Oct 2026; notes/surveys-plan.md): each day or once at the end, every session on its day,
+ * try it, send a test. Answers are anonymous; the results come in the next part of the build.
+ */
+function surveyCard() {
+  return secFold("survey", "Survey", "Stars for each session, in English and French, each day or once at the end", "", `<div class="card-body" id="svbox"><p class="porg">Loading…</p></div>`, { id: "surveyfold", open: false });
+}
+async function loadSurvey(ev) {
+  const box = document.getElementById("svbox");
+  try { renderSurveyCard(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}`)); }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+}
+function renderSurveyCard(ev, S) {
+  const box = document.getElementById("svbox");
+  if (!box) return;
+  const q = `/survey?event=${encodeURIComponent(ev.id)}`;
+  const dayLabel = (d) => { const i = S.days.indexOf(d); return `Day ${i + 1} · ${fmtDate(d)}`; };
+  if (!S.survey) {
+    box.innerHTML = `<p style="margin:0 0 12px">One survey for this event: every presenter rated with stars, in English and French, anonymous. Send it each day at the end of the day, or once after the event.</p>
+      <button class="btn btn-gold" id="sv-start">Set up the survey</button>`;
+    document.getElementById("sv-start").onclick = async (e) => { e.target.disabled = true; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: "{}" })); } catch (x) { toast(x.message); e.target.disabled = false; } };
+    if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
+    return;
+  }
+  const s = S.survey, daily = s.mode === "daily";
+  const timeLine = (t) => `<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--line)"><b style="min-width:150px">${esc(dayLabel(t.day))}</b>
+      ${t.at ? `<span>goes at <b>${esc(fmt12(t.at))}</b>${S.sent[t.day] ? ` · sent to ${S.sent[t.day]}` : ""}${S.byPart[t.day] ? ` · ${S.byPart[t.day]} answered` : ""}</span>` : `<span class="late">no end time saved for this day, so it won't go. Add it under Program → Agenda and daily times.</span>`}</div>`;
+  const row = (x, i) => `<div class="svrow" data-sv="${i}" style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px 10px;padding:10px 0;border-top:1px solid var(--line)">
+      <select data-k="day" aria-label="Day"><option value="">Pick the day…</option>${S.days.map((d) => `<option value="${d}"${d === x.day ? " selected" : ""}>${esc(dayLabel(d))}</option>`).join("")}</select>
+      <input data-k="title" value="${esc(x.title)}" placeholder="Session title" aria-label="Session title">
+      <span class="porg" style="align-self:center;font-size:13px">Presenters</span>
+      <input data-k="presenters" value="${esc(x.presenters.join(", "))}" placeholder="Names, separated by commas" aria-label="Presenters">
+      <span class="porg" style="align-self:center;font-size:13px">French title</span>
+      <input data-k="titleFr" value="${esc(x.titleFr || "")}" placeholder="Optional: shown in the French survey" aria-label="French title">
+      <span></span><button class="mini ghost" data-svdel="${i}" style="justify-self:start">Remove this session</button></div>`;
+  box.innerHTML = `
+    ${S.attendeeMail ? "" : `<div class="note" style="margin-bottom:10px">Attendee emails are <b>off</b>, so nothing goes on its own. Turn on the switch at the top of this tab when you're ready.</div>`}
+    <div class="field" style="margin-top:0"><label>When it goes</label>
+      <div class="pseg" role="tablist"><button type="button" data-svmode="daily" class="${daily ? "on" : ""}">Each day, 15 minutes after the last session</button><button type="button" data-svmode="end" class="${daily ? "" : "on"}">Once, after the event</button></div></div>
+    ${daily ? `<div style="margin-top:6px">${S.times.map(timeLine).join("")}<p class="hint">Times are local to ${esc(ev.city || "the event")}. Each day's survey only asks about that day; "About you" comes once and "The event overall" on each person's last day.${S.group ? ` ${esc(S.group.name)} only get their days (${esc(fmtDate(S.group.dayOne))} to ${esc(fmtDate(S.group.lastDay))}).` : ""}</p></div>`
+      : `<div class="field"><label for="sv-on">Goes on</label><input type="date" id="sv-on" value="${esc(s.sendOn || "")}" style="max-width:220px">
+        <p class="hint" style="margin:6px 0 0">From 9 am local time that day. One survey, broken up by day, ending with "The event overall".${S.group ? ` ${esc(S.group.name)} only see their days.` : ""}${S.sent.end ? ` Sent to ${S.sent.end}.` : ""}${S.byPart.end ? ` ${S.byPart.end} answered.` : ""}</p></div>`}
+    <h3 class="wsh" style="margin-top:18px">Sessions <span class="porg">(${s.sessions.length})</span></h3>
+    <p class="hint" style="margin-top:0">From the presenters' agreements. Pick the day each one is on; fix a title, add a panel, or remove one.</p>
+    <div id="sv-rows">${s.sessions.map(row).join("")}</div>
+    <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button></div>
+    ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
+    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button>
+      <a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a></div>
+    <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
+      <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
+    <p class="hint">${S.responses} answer${S.responses === 1 ? "" : "s"} so far. Answers are anonymous: names and emails are never kept with them. Results, charts and the infographic come next.</p>`;
+  const $ = (id) => document.getElementById(id);
+  const rows = () => [...box.querySelectorAll("[data-sv]")].map((el) => ({ id: s.sessions[Number(el.dataset.sv)]?.id, ...Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])) }));
+  const body = () => ({ mode: s.mode, sessions: rows(), ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
+  const save = async () => api(q, { method: "PUT", body: JSON.stringify(body()) });
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  box.querySelectorAll("[data-svmode]").forEach((b) => b.onclick = async () => { if (b.dataset.svmode === s.mode) return; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: JSON.stringify({ ...body(), mode: b.dataset.svmode }) })); } catch (x) { toast(x.message); } });
+  box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
+  $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: "", day: "", title: "", titleFr: "", presenters: [] }] } });
+  $("sv-refresh").onclick = async (e) => { const done = busy(e.target, "…"); try { await save(); renderSurveyCard(ev, await api(`${q}&refresh=1`, { method: "POST", body: "{}" })); toast("Presenters brought in."); } catch (x) { toast(x.message); done(); } };
+  $("sv-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderSurveyCard(ev, await save()); toast("Survey saved."); } catch (x) { toast(x.message); done(); } };
+  $("sv-open").onclick = async () => { try { await save(); } catch {} };
+  $("sv-test").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), part: $("sv-part")?.value || "end" }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
+  if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
+}
+const fmt12 = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
 
 function replyCard() {
   return secFold("reply", "Food allergies and dietary needs", "Ask everyone registered, then download the list for the hotel", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });
