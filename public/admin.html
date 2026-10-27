@@ -4227,11 +4227,22 @@ async function loadWelcome(ev) {
   const box = document.getElementById("wlbox");
   const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
   try {
-    const [W, L] = await Promise.all([api(q), api(`${q}&library=1`).catch(() => ({ letters: [] }))]);
+    const [W, L] = await Promise.all([api(q), api(`${q}&library=1`).catch(() => ({ letters: [] })), ROSTER.length ? null : loadRoster()]);
     renderWelcomeCard(ev, { ...W, library: L.letters ?? [] });
   }
   catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
 }
+/** Who can sign an event's letters to attendees: the board with its general inbox (the usual), the Summit's own inbox, or a member. */
+function signOptions(ev, W) {
+  const boards = [["", `ONGIA Board — ${/national gang summit/i.test(ev.title) ? "ngs@ongia.ca (this event's usual)" : "info@ongia.ca (the usual)"}`],
+    ...(/national gang summit/i.test(ev.title) ? [["board:info@ongia.ca", "ONGIA Board — info@ongia.ca"]] : [])];
+  const members = (ROSTER ?? []).filter((m) => m.email).map((m) => [`member:${String(m.email).toLowerCase()}`, `${m.name || m.email} — ${m.email}`]);
+  const pick = W.signature || "";
+  const known = [...boards, ...members].some(([v]) => v === pick);
+  return [...boards, ...(known || !pick ? [] : [[pick, pick.replace(/^\w+:/, "")]])].map(([v, l]) => `<option value="${esc(v)}"${v === pick ? " selected" : ""}>${esc(l)}</option>`).join("")
+    + (members.length ? `<optgroup label="A board member">${members.map(([v, l]) => `<option value="${esc(v)}"${v === pick ? " selected" : ""}>${esc(l)}</option>`).join("")}</optgroup>` : "");
+}
+
 /** The letters to start from, grouped: saved letters, then other events' own. */
 const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) => {
   const mine = list.filter((l) => l.from === g);
@@ -4261,6 +4272,8 @@ function renderWelcomeCard(ev, W) {
     <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
     ${W.attendeeMail ? `<div class="note" style="margin-top:10px">Attendee emails are <b>on</b>: it will go on that day by itself.</div>`
       : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
+    <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
+      <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
     ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${W.versions.map(version).join("")}
     <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
@@ -4274,7 +4287,7 @@ function renderWelcomeCard(ev, W) {
   const words = () => Object.fromEntries(W.versions.map((v) => [v.key, { subject: $(`wl-${v.key}-subject`).value, body: $(`wl-${v.key}-body`).value }]));
   const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
-  const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
+  const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), signature: $("wl-sign").value, ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
   $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, { ...(await save()), library: W.library }); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
   // Copy an earlier letter's words in; nothing is kept until Save.
   box.querySelectorAll("[data-wlfrom]").forEach((sel) => sel.onchange = () => {

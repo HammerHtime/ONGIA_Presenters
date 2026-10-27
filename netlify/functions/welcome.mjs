@@ -1,7 +1,8 @@
-import { json, fail, requireAdmin, adminWho, editGuard } from "./lib/http.mjs";
-import { getEvent, putEvent, getAttendees, getLetter, getAgenda, listEvents, listLetters } from "./lib/store.mjs";
+import { primeRoster } from "./lib/signature.mjs";
+import { json, fail, requireAdmin, adminWho, editGuard, isEmail } from "./lib/http.mjs";
+import { getEvent, putEvent, getAttendees, getLetter, getAgenda, listEvents, listLetters, getRoster } from "./lib/store.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
-import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, groupDaysOf } from "./lib/letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, groupDaysOf, attendeeSignOf } from "./lib/letters.mjs";
 import { formatDate } from "./lib/deadlines.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { groupsOf, welcomeOf, welcomeLetters, cleanWelcome, splitByGroup, welcomeReach, welcomeJob, setSendDay, testAddresses } from "./lib/welcome.mjs";
@@ -17,6 +18,7 @@ import { groupsOf, welcomeOf, welcomeLetters, cleanWelcome, splitByGroup, welcom
  *   POST /api/welcome?event=…&test=main|group    { to, main/group words } a real email marked TEST, up to five addresses
  */
 export default async (req) => {
+  await primeRoster();
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   const url = new URL(req.url);
@@ -28,6 +30,15 @@ export default async (req) => {
 
   if (req.method === "PUT") {
     if (body.sendOn !== undefined) { const problem = setSendDay(event, body.sendOn); if (problem) return fail(problem); }
+    // Who signs it: "member:<their roster address>", "board:<address>", or "" for the usual.
+    if (body.signature !== undefined) {
+      const [kind, address] = String(body.signature ?? "").split(/:(.*)/s);
+      const a = String(address ?? "").trim().toLowerCase();
+      if (!body.signature) delete event.signature;
+      else if (kind === "member" && ((await getRoster()) ?? []).some((m) => String(m.email ?? "").toLowerCase() === a)) event.signature = { member: a };
+      else if (kind === "board" && isEmail(a)) event.signature = { email: a };
+      else return fail("Pick who signs it from the list.");
+    }
     event.welcome = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)));
     event.updatedAt = new Date().toISOString();
     await putEvent(event);
@@ -106,6 +117,7 @@ async function show(event) {
   if (letters.group) versions.push({ key: "group", label: names.group, dates: g ? range(g.dayOne, g.lastDay) : "", ...words.group,
     agenda: event.agendaGroupFile ?? null, ...reach.group, problems: problemsOf(letters.group, event) });
   const job = welcomeJob(event);
-  return json({ versions, sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: event.attendeeMail === true, saved: !!event.welcome?.main,
+  const s = event.signature;
+  return json({ versions, signer: attendeeSignOf(event), signature: s?.member ? `member:${s.member}` : s?.email ? `board:${s.email}` : "", sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: event.attendeeMail === true, saved: !!event.welcome?.main,
     round: people.length ? (((await getAttendees(event.id)) ?? {}).letterRounds ?? {}).welcome ?? null : null });
 }

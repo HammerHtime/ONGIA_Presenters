@@ -1,3 +1,4 @@
+import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents, getAgenda } from "./lib/store.mjs";
 import { BLANKS, STARTER_LETTERS, letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, agendaOf } from "./lib/letters.mjs";
@@ -21,6 +22,7 @@ import { token } from "./lib/ids.mjs";
  * Andrew can see the real email before he commits to it.
  */
 export default async (req) => {
+  await primeRoster();
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   const url = new URL(req.url);
