@@ -3,7 +3,7 @@ import { todayIso } from "./deadlines.mjs";
 import { token as newToken } from "./ids.mjs";
 import { getAttendees, putAttendees, getReplies } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
-import { letterProblems, eventProblems, renderLetter } from "./letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attendeeSignOf } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { xlsx } from "./xlsx.mjs";
@@ -289,7 +289,7 @@ export const replyToOf = (event) => signOf(event)?.email || event.contact?.email
 export function signOf(event) {
   const r = event?.reply ?? {};
   if (r.signName) return { name: r.signName, email: r.signEmail || "" };
-  if (isSummit(event)) return { name: "ONGIA Board", email: "ngs@ongia.ca" };
+  if (attendeeSignOf(event)) return attendeeSignOf(event);
   return null;
 }
 

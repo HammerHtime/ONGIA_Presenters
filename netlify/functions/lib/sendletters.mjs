@@ -2,7 +2,7 @@ import { todayIso } from "./deadlines.mjs";
 import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { checklistOf } from "./checklist.mjs";
-import { letterProblems, eventProblems, renderLetter, attachmentsFor } from "./letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
@@ -88,7 +88,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
     await pace();
     const mail = renderLetter(letter, event, person);
     try {
-      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...mail, attachments });
+      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, attachments });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       // Everyone at that address has had it: their guests on the same registration too.
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {

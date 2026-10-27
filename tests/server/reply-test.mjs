@@ -256,5 +256,15 @@ ok("a closed form takes no answers", (await answer({})).status === 409 && (await
 ok("and the email will not send while it is closed", /closed/.test((await call("event=ngs")).body.problems.join(" ")));
 ok("a made-up link finds nothing", (await call("t=notarealtoken123")).status === 404);
 
+/* The Summit's attendee letters are signed by the board; Raj stays on the presenters' emails (Andrew 27 Oct 2026). */
+{ const L = await import(REPO + "netlify/functions/lib/letters.mjs");
+  const welcome = L.STARTER_LETTERS.find((l) => l.kind === "welcome");
+  const summit = { ...(await getEvent("ngs")), contact: { name: "Raj Jaswal", email: "treasurer@ongia.ca" }, reviewer: { name: "Raj Jaswal", email: "treasurer@ongia.ca", phone: "604-537-5344" } };
+  const w = L.renderLetter(welcome, summit, { first: "Ann", email: "a@example.ca" });
+  ok("the Summit's welcome letter is signed ONGIA Board with ngs@ongia.ca, not Raj", /ONGIA Board/.test(w.html) && /mailto:ngs@ongia\.ca/.test(w.html) && !/Raj Jaswal/.test(w.html) && !/604-537-5344/.test(w.html) && !/lead for/.test(w.html), w.html.slice(-900));
+  ok("and answers to it go to ngs@ongia.ca", L.attendeeReplyTo(summit) === "ngs@ongia.ca");
+  const other = { ...summit, id: "x", title: "Gang Awareness Day" };
+  ok("another event's welcome letter is still signed by its lead", /Raj Jaswal/.test(L.renderLetter(welcome, other, { first: "Ann" }).html) && L.attendeeReplyTo(other) === "treasurer@ongia.ca"); }
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
