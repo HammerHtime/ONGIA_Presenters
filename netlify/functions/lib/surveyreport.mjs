@@ -8,6 +8,8 @@ import { xlsx } from "./xlsx.mjs";
 import { ABOUT, SESSION, OVERALL, STARS } from "./survey.mjs";
 import { PROVINCES } from "./agencies.mjs";
 
+const SECTOR_NAMES = { police: "Police & law enforcement", justice: "Corrections, courts & justice", education: "Education", community: "Community & social services", government: "Government", other: "Other" };
+
 /**
  * The survey's downloads (Andrew 27 Oct 2026): the summary with charts, as a PDF; every answer, one row each, as a
  * spreadsheet; and the people who said they'd like to present, kept apart from the answers.
@@ -113,6 +115,16 @@ export async function surveySummaryPdf(event, R, analysis = null) {
   const nps = R.overall.nps;
   if (nps.n) para(`Recommend ONGIA to a colleague: ${nps.promoters} would (9–10), ${nps.passives} might (7–8), ${nps.detractors} would not (0–6). Score ${nps.score > 0 ? "+" : ""}${nps.score}, from -100 to +100.`, { size: 9.5 });
   if (R.overall.present) para(`${R.overall.present} ${R.overall.present === 1 ? "person would" : "people would"} like to present at a future event. Their details are in the separate download.`, { size: 9.5 });
+
+  // Who came, from the registrations: how many agencies, in which sectors, and which.
+  const T = R.trained;
+  if (T) {
+    heading("Agencies trained");
+    para(`${T.people} registered attendees came from ${T.count} different agencies.${T.unplaced ? ` ${T.unplaced} of those names are not yet matched to the agency list (People tab, Who's coming, Agencies), so a few may be the same agency spelled two ways.` : ""}`, { size: 9.5 });
+    for (const x of T.sectors) bar(SECTOR_NAMES[x.key], x.count, T.sectors[0].count, `${x.count}`);
+    para("Agencies, with how many registered", { bold: true, color: NAVY });
+    for (const a of T.agencies) para(`${a.name}: ${a.count}`, { size: 9.5, indent: 8 });
+  }
 
   heading("Who answered");
   if (R.provinces.length) { para("Province or territory", { bold: true, color: NAVY }); for (const p of R.provinces) bar(p.name, p.pct, 100, `${p.pct}% · ${p.count}`); }

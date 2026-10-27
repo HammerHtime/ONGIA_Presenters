@@ -238,7 +238,11 @@ const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr|surveyButton|surveyButtonFr
 const isCaps = (line) => /[A-Z]{3}/.test(line) && !/[a-z]/.test(line.replace(BLANK, "")) && line.trim().length <= 60;
 
 function blocksOf(body) {
-  return String(body ?? "").replace(/\r/g, "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
+  // A heading may sit on its own, or straight above its text with no blank line between (Andrew 27 Oct 2026: the
+  // Summit's welcome letters are written that way); either way it is a heading and the lines under it its text.
+  const paras = String(body ?? "").replace(/\r/g, "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+    .flatMap((p) => { const [top, ...rest] = p.split("\n"); return rest.length && isCaps(top) && !BULLET.test(top) ? [top, rest.join("\n")] : [p]; });
+  return paras.map((p) => {
     const lines = p.split("\n").map((l) => l.trimEnd());
     if (lines.length === 1 && isCaps(lines[0]) && !BULLET.test(lines[0])) return { type: "heading", text: lines[0].trim() };
     if (lines.length === 1 && SCHEDULE.test(lines[0])) return { type: "schedule" };

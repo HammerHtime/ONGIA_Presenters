@@ -60,7 +60,7 @@ export default async (req) => {
   if (req.method === "POST" && url.searchParams.get("analyse")) {
     if (!event.survey) return fail("Set up the survey first.", 409);
     try {
-      const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+      const R = await resultsOf(event);
       event.survey = { ...event.survey, analysis: await analyseSurvey(event, R) };
       await putEvent(event);
       return json({ analysis: event.survey.analysis });
@@ -115,7 +115,7 @@ async function show(event) {
 
 async function results(event) {
   if (!event.survey) return json({ results: null });
-  const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+  const R = await resultsOf(event);
   return json({ results: R, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
@@ -124,7 +124,7 @@ async function download(event, which) {
   const responses = await getSurveyResponses(event.id);
   const base = `${slugOf(event.title) || "event"}-survey`;
   const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
-  if (which === "summary") return send(await surveySummaryPdf(event, surveyResults(event, responses, await directory()), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
+  if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
   if (which === "answers") return send(surveyResponsesXlsx(event, responses), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-answers.xlsx`);
   if (which === "presenters") return send(surveyContactsXlsx(event, await getSurveyContacts(event.id)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-interested-in-presenting.xlsx`);
   return fail("Which download: summary, answers or presenters?");
@@ -132,7 +132,7 @@ async function download(event, which) {
 
 async function infographic(event, lang, block) {
   if (!event.survey) return fail("Set up the survey first.", 409);
-  const R = surveyResults(event, await getSurveyResponses(event.id), await directory());
+  const R = await resultsOf(event);
   const html = infographicHtml(event, R, event.survey.analysis ?? null, { lang: lang === "fr" ? "fr" : "en", block: block || "" });
   if (!html) return fail("There is nothing for that section yet.", 404);
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
@@ -224,3 +224,8 @@ async function testSend(event, to, part, who) {
   return json({ ok: true, to: addresses.join(", ") });
 }
 
+
+/** The survey's numbers, with the agencies the event's registrations came from. */
+async function resultsOf(event, responses = null) {
+  return surveyResults(event, responses ?? await getSurveyResponses(event.id), await directory(), ((await getAttendees(event.id)) ?? {}).people ?? []);
+}

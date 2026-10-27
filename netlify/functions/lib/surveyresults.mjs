@@ -1,4 +1,4 @@
-import { standardOf, PROVINCES } from "./agencies.mjs";
+import { standardOf, agenciesOf, PROVINCES } from "./agencies.mjs";
 import { ABOUT, SESSION, OVERALL } from "./survey.mjs";
 
 /**
@@ -26,8 +26,33 @@ function choiceStats(values, options) {
   return { n: v.length, counts: options.map((_, i) => v.filter((x) => x === i).length), pcts: options.map((_, i) => pct(v.filter((x) => x === i).length, v.length)) };
 }
 
-/** Everything the reports need, from the answers kept for an event. */
-export function surveyResults(event, responses, agencyList = []) {
+/**
+ * Where an agency sits, by the words in its name, for the infographic's spread of agencies trained (Andrew 27 Oct
+ * 2026: "the number of different agencies trained … something to show the spread of attendees"). First match wins.
+ */
+export const SECTORS = [
+  ["police", /police|rcmp|mounted|constabulary|s[uû]ret[eé]|spvm|\bopp\b|gendarmerie|sheriff|law enforcement|border services|criminal intelligence|investigation service|fintrac|peace officer/i],
+  ["justice", /correction|parole|probation|prison|jail|detention|crown|prosecut|court|justice|attorney|solicitor general|legal aid|public safety/i],
+  ["education", /school|coll[eè]ge|universit|education|cegep|c[eé]gep|academy|acad[eé]mie/i],
+  ["community", /youth|jeunes|community|communaut|society|soci[eé]t[eé]|association|cent(re|er)|foundation|fondation|outreach|housing|famil|health|sant[eé]|shelter|friendship|boys and girls|ymca|ywca|church|[eé]glise|services? sociaux|social services|victim/i],
+  ["government", /ministry|minist[eè]re|government|gouvernement|city of|ville de|municipal|department|d[eé]partement|province of|revenue|agency|agence/i],
+];
+export const sectorOf = (name) => (SECTORS.find(([, re]) => re.test(name)) ?? ["other"])[0];
+
+/** The agencies an event's registrations came from, under their standard names: how many, by sector, and who. */
+export function trainedFrom(people, agencyList = []) {
+  const { agencies, unplaced } = agenciesOf(people ?? [], agencyList);
+  const all = [...agencies.map((a) => ({ name: a.agency, count: a.count, province: a.province })), ...unplaced.map((u) => ({ name: u.raw, count: u.count, province: "" }))]
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  if (!all.length) return null;
+  const sectors = {};
+  for (const a of all) sectors[sectorOf(a.name)] = (sectors[sectorOf(a.name)] ?? 0) + 1;
+  return { count: all.length, people: all.reduce((n, a) => n + a.count, 0), unplaced: unplaced.length,
+    sectors: Object.entries(sectors).sort((a, b) => b[1] - a[1]).map(([key, count]) => ({ key, count })), agencies: all };
+}
+
+/** Everything the reports need, from the answers kept for an event (and its registrations, for the agencies trained). */
+export function surveyResults(event, responses, agencyList = [], people = []) {
   const sessions = event.survey?.sessions ?? [];
   const about = responses.filter((r) => r.about).map((r) => r.about);
   const overall = responses.filter((r) => r.overall).map((r) => r.overall);
@@ -94,6 +119,7 @@ export function surveyResults(event, responses, agencyList = []) {
       where: Object.entries(where).sort((a, b) => b[1] - a[1]).map(([code, count]) => ({ code, name: PROVINCES[code], count })),
       topics: q(overall, "topics").filter(Boolean), anything: q(overall, "anything").filter(Boolean), present: q(overall, "present").filter((x) => x === 0).length },
     headline: { avg: headline.avg, top2: headline.top2, n: headline.n },
+    trained: trainedFrom(people, agencyList),
     comments: [...perSession.flatMap((s) => s.comments.map((text) => ({ text, about: s.title }))), ...q(overall, "anything").filter(Boolean).map((text) => ({ text, about: "The event overall" }))],
   };
 }
