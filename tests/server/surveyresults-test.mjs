@@ -85,5 +85,13 @@ const asPdf = await survey(new Request("http://x/api/survey?event=ngs&pdf=1&w=10
 const pdfBytes = Buffer.from(await asPdf.arrayBuffer());
 ok("a PNG of it comes back as a one-page PDF of the same shape", asPdf.status === 200 && pdfBytes.slice(0, 5).toString() === "%PDF-" && /MediaBox \[0 0 612 2153\]/.test(pdfBytes.toString("latin1")));
 
+// Deleting the event takes its survey with it: the answers, who answered, and the would-be presenters' names.
+const st = await import(F + "lib/store.mjs");
+await putEvent({ id: "gone", title: "Gone", dayOne: "2026-11-09", lastDay: "2026-11-09", board: [], survey: { token: "tokgone1234", open: true, mode: "end", sessions } });
+await putSurveyResponse("gone", { id: "g1", part: "end", about: {}, sessions: {}, overall: {} }); await st.putSurveyDone("gone", "p1", { parts: ["end"] }); await putSurveyContact("gone", { id: "g1", name: "Pat Sample", email: "pat@example.ca" });
+const evs = (await import(F + "events.mjs")).default;
+const delRes = await evs(new Request("http://x/api/events?id=gone", { method: "DELETE", headers: H }));
+ok("deleting an event deletes its survey answers and the would-be presenters' names", delRes.status === 200 && (await st.getSurveyResponses("gone")).length === 0 && (await st.listSurveyDone("gone")).length === 0 && (await st.getSurveyContacts("gone")).length === 0 && (await st.getSurveyResponses("ngs")).length === 4, String(delRes.status));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
