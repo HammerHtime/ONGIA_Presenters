@@ -12,7 +12,7 @@ const sent = [];
 globalThis.fetch = async (url, init) => {
   if (String(url).startsWith("https://api.resend.com/")) {
     const p = JSON.parse(init.body);
-    sent.push({ to: p.to, subject: p.subject, html: p.html, text: p.text });
+    sent.push({ to: p.to, subject: p.subject, html: p.html, text: p.text, replyTo: p.reply_to });
     return new Response(JSON.stringify({ id: "m" + sent.length }), { status: 200, headers: { "content-type": "application/json" } });
   }
   throw new Error("unexpected fetch " + url);
@@ -63,6 +63,8 @@ ok("the email speaks to the community partners on the 10th and 11th too", /atten
 ok("the email names the event, the date to answer by, and both socials", /National Gang Summit/.test(pv.subject) && /Friday, October 30/.test(pv.text) && /Tuesday, November 10: Networking Reception followed by a screening of the documentary WATTS/.test(pv.text) && /Wednesday, November 11: Evening Social at the hotel featuring a live performance by District 6/.test(pv.text), pv.text);
 ok("its button goes to the form", pv.html.includes(`https://events.example.org/q/${tok}`) && /Complete the survey/.test(pv.html));
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
+// Signed by the board with the Summit's inbox, not by the lead (Andrew 27 Oct 2026).
+ok("the Summit email is signed ONGIA Board, with ngs@ongia.ca, and no 'lead for' line", /ONGIA Board/.test(pv.html) && /mailto:ngs@ongia\.ca/.test(pv.html) && !/lead for/.test(pv.html) && /Replies to this email go straight to ONGIA Board/.test(pv.html) && /acheminées directement à ONGIA Board/.test(pv.html), pv.html.slice(-1500));
 // Two halves (Andrew 27 Oct 2026): English with its button, then French with a button that opens the questions in French.
 ok("the email has an English half with its button, then a French half with its own", pv.text.indexOf("Complete the survey: https://events.example.org/q/" + tok + "?lang=en") > 0 && pv.text.indexOf("Complete the survey:") < pv.text.indexOf("FRANÇAIS") && pv.text.indexOf("FRANÇAIS") < pv.text.indexOf("Répondre au sondage: https://events.example.org/q/" + tok + "?lang=fr"), pv.text);
 ok("the French half has the date to answer by and both socials in French", /d'ici le vendredi 30 octobre/.test(pv.text) && /mardi 10 novembre : Réception de réseautage/.test(pv.text) && /mercredi 11 novembre : Soirée à l'hôtel/.test(pv.text), pv.text);
@@ -196,6 +198,7 @@ const ngsNow = await getEvent("ngs");
 const annRow = (await getAttendees("ngs")).people.find((p) => p.email === "a@example.ca");
 const pid = personalId(ngsNow.reply.token, annRow);
 const sentToAnn = sent.find((m) => String(m.to).includes("a@example.ca"));
+ok("answers to the email go to ngs@ongia.ca", sentToAnn?.replyTo === "ngs@ongia.ca", String(sentToAnn?.replyTo));
 ok("the email to each person carries their own link", sentToAnn.html.includes(`/q/${tok}/${pid}`) && !sent.find((m) => String(m.to).includes("b@example.ca")).html.includes(`/q/${tok}/${pid}`));
 const mine = (await call(`t=${tok}&p=${pid}`)).body.you;
 ok("their link fills in their name and email, and what they already answered", mine.first === "Ann" && mine.last === "One" && mine.email === "a@example.ca" && mine.agency === "Toronto Police Service" && mine.allergy === "yes" && mine.dietary === "Allergic to shrimp" && mine.socials.s2 === "yes", JSON.stringify(mine));

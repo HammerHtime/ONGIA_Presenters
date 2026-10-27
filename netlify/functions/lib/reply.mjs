@@ -93,6 +93,9 @@ function summitWording(socials) {
     ].join("\n\n"),
     buttonLabel: "Complete the survey",
     buttonLabelFr: "Répondre au sondage",
+    // Signed by the board, with the Summit's own inbox, not by the event's lead (Andrew 27 Oct 2026).
+    signName: "ONGIA Board",
+    signEmail: "ngs@ongia.ca",
   };
 }
 
@@ -136,6 +139,9 @@ export function cleanReply(given, had) {
   if (given?.subject !== undefined) out.subject = text(given.subject, 200);
   if (given?.body !== undefined) out.body = text(given.body, 6000);
   if (given?.buttonLabel !== undefined) out.buttonLabel = text(given.buttonLabel, 60) || "Answer the questions";
+  // Who the email is signed by and where replies go; left empty, the event's lead as usual.
+  if (given?.signName !== undefined) out.signName = text(given.signName, 80);
+  if (given?.signEmail !== undefined) out.signEmail = isEmail(given.signEmail) ? String(given.signEmail).trim().toLowerCase() : "";
   if (given?.buttonLabelFr !== undefined) out.buttonLabelFr = text(given.buttonLabelFr, 60) || "Répondre au sondage";
   // Reminder dates: up to four, in order, none after the reply-by date matters (the nightly run stops there).
   if (Array.isArray(given?.reminders)) out.reminders = [...new Set(given.reminders.filter(isDate))].sort().slice(0, 4);
@@ -249,10 +255,14 @@ export function dietaryRowsOf(rows) {
 }
 
 /** The email, as a letter: it uses the same layout and checks as the welcome letter. */
+/** Where an answer to the email goes: the address it is signed with, or the event's lead. */
+export const replyToOf = (event) => (event.reply?.signName && event.reply?.signEmail) || event.contact?.email || undefined;
+
 export function replyLetter(reply) {
   // An email that places its own buttons ({replyButton}, {replyButtonFr}) has none added at the bottom.
   const placed = /\{replyButton(Fr)?\}/.test(reply.body ?? "");
-  return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: placed ? "" : "{replyLink}" };
+  return { name: "Housekeeping questions", subject: reply.subject, body: reply.body, buttonLabel: reply.buttonLabel || "Answer the questions", buttonLink: placed ? "" : "{replyLink}",
+    ...(reply.signName ? { contact: { name: reply.signName, email: reply.signEmail || "", phone: "", role: "" } } : {}) };
 }
 export const replyProblems = (event) => {
   const letter = replyLetter(event.reply);
@@ -328,7 +338,7 @@ export async function sendReminderRound(event, { deadline = null, pace = pacer()
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...renderReminder(event, person) });
+      const out = await sendMail({ to: person.email, replyTo: replyToOf(event), ...renderReminder(event, person) });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) same.sent = [...new Set([...(same.sent ?? []), mark])];
       sent++;
@@ -358,7 +368,7 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: event.contact?.email || undefined, ...renderReply(event, person) });
+      const out = await sendMail({ to: person.email, replyTo: replyToOf(event), ...renderReply(event, person) });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
         same.sent = [...new Set([...(same.sent ?? []), "reply"])];

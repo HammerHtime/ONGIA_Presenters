@@ -5,7 +5,7 @@ import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
-import { renderReminder, summitSocialLabels } from "./lib/reply.mjs";
+import { renderReminder, summitSocialLabels, replyToOf } from "./lib/reply.mjs";
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -59,7 +59,7 @@ export default async (req) => {
     }
     if (url.searchParams.get("preview")) {
       // The words being edited in the preview window, not saved yet: shown as they would go, checked the same way.
-      const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel }, event.reply) };
+      const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel, signName: body.signName, signEmail: body.signEmail }, event.reply) };
       return json({ ...(url.searchParams.get("reminder") ? renderReminder : renderReply)(trial, { first: "Alex" }), problems: replyProblems(trial) });
     }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
@@ -107,7 +107,7 @@ async function testSend(event, to, who) {
   const sentTo = [];
   for (const person of people) {
     const mail = renderReply(event, person);
-    const out = await sendMail({ to: person.email, subject: `TEST: ${mail.subject}`, html: mail.html, text: mail.text });
+    const out = await sendMail({ to: person.email, subject: `TEST: ${mail.subject}`, html: mail.html, text: mail.text, replyTo: replyToOf(event) });
     if (out.skipped) return fail(`The test did not send${sentTo.length ? ` to ${person.email} (it went to ${sentTo.join(", ")})` : ""}: ${out.reason}`, 502);
     sentTo.push(person.email);
   }
