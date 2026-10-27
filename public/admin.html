@@ -3056,7 +3056,7 @@ function eventScreen(data) {
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
   const showMoney = !!(sow || receipts);
   const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
-    ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["settings", "Settings"]];
+    ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["survey", "Survey"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
@@ -3222,7 +3222,9 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + surveyCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
+    + panel("survey", surveyCard() + resultsCard())
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -3310,6 +3312,7 @@ function eventScreen(data) {
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
+  if (document.getElementById("rsbox")) loadResults(ev);
   if (document.getElementById("agbox")) loadAgencies(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
@@ -4443,7 +4446,7 @@ function renderAgencies(ev, A) {
  * try it, send a test. Answers are anonymous; the results come in the next part of the build.
  */
 function surveyCard() {
-  return secFold("survey", "Survey", "Stars for each session, in English and French, each day or once at the end", "", `<div class="card-body" id="svbox"><p class="porg">Loading…</p></div>`, { id: "surveyfold", open: false });
+  return secFold("survey", "Survey", "Stars for each session, in English and French, each day or once at the end", "", `<div class="card-body" id="svbox"><p class="porg">Loading…</p></div>`, { id: "surveyfold", open: true });
 }
 async function loadSurvey(ev) {
   const box = document.getElementById("svbox");
@@ -4481,7 +4484,7 @@ function renderSurveyCard(ev, S) {
       : `<div class="field"><label for="sv-on">Goes on</label><input type="date" id="sv-on" value="${esc(s.sendOn || "")}" style="max-width:220px">
         <p class="hint" style="margin:6px 0 0">From 9 am local time that day. One survey, broken up by day, ending with "The event overall".${S.group ? ` ${esc(S.group.name)} only see their days.` : ""}${S.sent.end ? ` Sent to ${S.sent.end}.` : ""}${S.byPart.end ? ` ${S.byPart.end} answered.` : ""}</p></div>`}
     <h3 class="wsh" style="margin-top:18px">Sessions <span class="porg">(${s.sessions.length})</span></h3>
-    <p class="hint" style="margin-top:0">From the presenters' agreements. Pick the day each one is on; fix a title, add a panel, or remove one.</p>
+    <p class="hint" style="margin-top:0">From the presenters' agreements. Pick the day each one is on. Change a title or a presenter's name here at any time, even after it has gone out (a last-minute swap): the survey shows the change at once, and answers already given stay with the session.</p>
     <div id="sv-rows">${s.sessions.map(row).join("")}</div>
     <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button></div>
     ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
@@ -4505,6 +4508,195 @@ function renderSurveyCard(ev, S) {
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }
 const fmt12 = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
+
+/**
+ * The survey's results (Andrew 27 Oct 2026): the downloads, Claude's read, the infographic (shown first, every word
+ * editable, then a PNG and a PDF) and the social media squares, in English and French.
+ */
+function resultsCard() {
+  return secFold("results", "Results", "Downloads, Claude's read, the infographic and social media images", "", `<div class="card-body" id="rsbox"><p class="porg">Loading…</p></div>`, { id: "resultsfold", open: true });
+}
+async function loadResults(ev) {
+  const box = document.getElementById("rsbox");
+  try { renderResults(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}&results=1`)); }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+}
+let RS_LANG = "en";
+function renderResults(ev, D) {
+  const box = document.getElementById("rsbox");
+  if (!box) return;
+  if (!D.results) { box.innerHTML = `<p class="porg" style="margin:0">Set up the survey above first.</p>`; return; }
+  const R = D.results, A = D.analysis;
+  const q = `/survey?event=${encodeURIComponent(ev.id)}`;
+  const list = (items, f) => items?.length ? `<ul style="margin:6px 0 12px;padding-left:20px">${items.map((x) => `<li style="margin:3px 0">${f(x)}</li>`).join("")}</ul>` : "";
+  box.innerHTML = `
+    <p style="margin:0 0 12px"><b>${R.responses}</b> answer${R.responses === 1 ? "" : "s"} from <b>${R.respondents}</b> ${R.respondents === 1 ? "person" : "people"}${R.headline.n ? ` · overall <b>${R.headline.avg}/5</b>, <b>${R.headline.top2}%</b> rated 4 or 5` : ""}${R.overall.nps.n ? ` · recommend score <b>${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}</b>` : ""}.</p>
+    ${R.responses ? "" : `<div class="note">No answers yet. Everything below works as soon as the first ones come in; try it with <b>Try the survey</b> above (those answers aren't kept).</div>`}
+    <h3 class="wsh">Download</h3>
+    <div class="actions" style="flex-wrap:wrap;margin-top:6px">
+      <button class="btn btn-ghost" data-rsdl="summary">Summary with charts (PDF)</button>
+      <button class="btn btn-ghost" data-rsdl="answers">Every answer (Excel)</button>
+      ${D.presenters ? `<button class="btn btn-ghost" data-rsdl="presenters">${D.presenters} interested in presenting (Excel)</button>` : ""}</div>
+    <h3 class="wsh" style="margin-top:18px">Claude's read</h3>
+    ${A ? `<div class="note" style="margin-top:6px"><p style="margin:0 0 8px">${esc(A.summary)}</p>
+        ${A.liked?.length ? `<b>What attendees valued</b>${list(A.liked, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}
+        ${A.improve?.length ? `<b>What to look at</b>${list(A.improve, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}
+        ${A.presenters?.length ? `<b>Sessions that stood out</b>${list(A.presenters, (l) => `<b>${esc(l.session)}</b>: ${esc(l.note)}`)}` : ""}
+        ${A.nextTime?.length ? `<b>For next time</b>${list(A.nextTime, (l) => esc(l))}` : ""}
+        ${A.quotes?.length ? `<b>Comments picked for the infographic</b>${list(A.quotes, (l) => `“${esc(l.text)}” <span class="porg">(${esc(l.about)})</span>`)}` : ""}
+        <p class="hint" style="margin:0">Read ${esc(fmtDate((A.at || "").slice(0, 10)))}. Quotes are attendees' own words; anything Claude reworded is left out.</p></div>` : ""}
+    <button class="btn ${A ? "btn-ghost" : "btn-gold"}" id="rs-analyse" style="margin-top:8px"${R.responses ? "" : " disabled"}>${A ? "Ask Claude to read them again" : "Ask Claude to read the results"}</button>
+    <h3 class="wsh" style="margin-top:18px">Infographic</h3>
+    <div class="pseg" role="tablist" style="margin:6px 0 10px"><button type="button" data-rslang="en" class="${RS_LANG === "en" ? "on" : ""}">English</button><button type="button" data-rslang="fr" class="${RS_LANG === "fr" ? "on" : ""}">Français</button></div>
+    <div class="actions" style="flex-wrap:wrap"><button class="btn btn-gold" id="rs-info"${R.responses ? "" : " disabled"}>Show the infographic</button><button class="btn btn-ghost" id="rs-social"${R.responses ? "" : " disabled"}>Make social media images</button></div>
+    <p class="hint">${A ? "" : "Ask Claude to read the results first, so the infographic has its comments. "}The social media images are square, one per section, in the language picked, all in one .zip.</p>
+    <dialog class="sheet rpdlg" id="rsdlg"><form method="dialog">
+      <div class="sheet-head"><h2>The infographic</h2><p class="hint" style="margin-top:6px">Click any words on it to change them, then download. Changes here are only for this download.</p></div>
+      <div class="sheet-body"><iframe id="rs-frame" title="The infographic" sandbox="allow-same-origin" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>
+        <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="rs-png">Download PNG</button><button type="button" class="btn btn-gold" id="rs-pdf">Download PDF</button><button class="btn btn-ghost" value="close">Close</button><span class="hint" id="rs-said" style="align-self:center"></span></div></div></form></dialog>`;
+  const $ = (id) => document.getElementById(id);
+  const name = `${(ev.title || "event").split(/\s*:\s*/)[0].replace(/[^\w]+/g, "-").replace(/^-|-$/g, "")}-${RS_LANG}`;
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  box.querySelectorAll("[data-rsdl]").forEach((b) => b.onclick = async () => {
+    const done = busy(b, "Preparing…");
+    try {
+      const res = await apiFetch(`/api${q}&download=${b.dataset.rsdl}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The download did not work.");
+      saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "survey");
+    } catch (x) { toast(x.message); }
+    done();
+  });
+  box.querySelectorAll("[data-rslang]").forEach((b) => b.onclick = () => { RS_LANG = b.dataset.rslang; renderResults(ev, D); });
+  $("rs-analyse").onclick = async (e) => {
+    const done = busy(e.target, "Claude is reading… (up to a minute)");
+    try { const out = await api(`${q}&analyse=1`, { method: "POST", body: "{}" }); renderResults(ev, { ...D, analysis: out.analysis }); toast("Claude has read the results."); }
+    catch (x) { toast(x.message); done(); }
+  };
+  const fetchHtml = async (block = "") => {
+    const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}`, { headers: { "x-admin-key": KEY } });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error("The infographic could not be made.");
+    return res.text();
+  };
+  $("rs-info").onclick = async (e) => {
+    const done = busy(e.target, "Making it…");
+    try {
+      const html = await fetchHtml();
+      const frame = $("rs-frame");
+      frame.onload = () => { try { frame.contentDocument.designMode = "on"; } catch {} };
+      frame.srcdoc = html;
+      $("rsdlg").showModal();
+    } catch (x) { toast(x.message); }
+    done();
+  };
+  $("rs-png").onclick = async (e) => {
+    const done = busy(e.target, "Drawing…");
+    try { const { blob } = await artToPng($("rs-frame").contentDocument); saveBlob(blob, `${name}-infographic.png`); $("rs-said").textContent = "PNG downloaded."; }
+    catch (x) { toast(x.message); }
+    done();
+  };
+  $("rs-pdf").onclick = async (e) => {
+    const done = busy(e.target, "Drawing…");
+    try {
+      const { blob, w, h } = await artToPng($("rs-frame").contentDocument);
+      const res = await apiFetch(`/api${q}&pdf=1&w=${w}&h=${h}&name=${encodeURIComponent(`${ev.title} infographic`)}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "image/png" }, body: blob });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The PDF could not be made.");
+      saveBlob(await res.blob(), `${name}-infographic.pdf`); $("rs-said").textContent = "PDF downloaded.";
+    } catch (x) { toast(x.message); }
+    done();
+  };
+  $("rs-social").onclick = async (e) => {
+    const done = busy(e.target, "Drawing the images…");
+    try {
+      const files = [];
+      for (const [i, [block]] of (D.blocks ?? []).entries()) {
+        const html = await fetchHtml(block);
+        if (!html) continue;
+        const doc = await loadHidden(html);
+        try { await doc.fonts?.ready; } catch {}
+        fitSquare(doc);
+        const { blob } = await artToPng(doc, 1080, 1080);
+        files.push({ name: `${String(i + 1).padStart(2, "0")}-${block}-${RS_LANG}.png`, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      document.getElementById("rs-hidden")?.remove();
+      saveBlob(zipStore(files), `${name}-social-media.zip`);
+      toast(`${files.length} images downloaded in one .zip.`);
+    } catch (x) { toast(x.message); }
+    done();
+  };
+}
+const saveBlob = (blob, filename) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+/** A page loaded out of sight, for drawing one social media square. */
+function loadHidden(html) {
+  return new Promise((resolve) => {
+    let f = document.getElementById("rs-hidden");
+    if (!f) { f = document.createElement("iframe"); f.id = "rs-hidden"; f.setAttribute("sandbox", "allow-same-origin"); f.style.cssText = "position:fixed;left:-20000px;top:0;width:1080px;height:1080px;border:0"; document.body.appendChild(f); }
+    f.onload = () => resolve(f.contentDocument);
+    f.srcdoc = html;
+  });
+}
+/** One section sized to fill its square between the gold rule and the footer: drawn at a width, then zoomed, as large as fits. */
+function fitSquare(doc) {
+  const fit = doc.querySelector(".fit"), inner = doc.querySelector(".fit .in");
+  if (!fit || !inner) return;
+  const room = fit.clientHeight - 40;
+  const spills = () => [...inner.querySelectorAll("*")].some((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== "visible") || inner.scrollWidth > inner.clientWidth + 1;
+  let z = 1.8;
+  for (; z > 0.6; z -= 0.05) { inner.style.width = `${1080 / z}px`; if (!spills() && inner.offsetHeight * z <= room) break; }
+  inner.style.zoom = String(Math.max(0.6, z));
+}
+let FONT_CSS = null;
+/** The infographic's fonts as data, so the drawing uses them (a picture made in the browser cannot fetch them). */
+async function embeddedFonts(doc) {
+  if (FONT_CSS !== null) return FONT_CSS;
+  try {
+    const href = doc.querySelector('link[rel="stylesheet"]')?.href;
+    let css = href ? await (await fetch(href)).text() : "";
+    for (const u of [...new Set([...css.matchAll(/url\((https:[^)]+)\)/g)].map((m) => m[1]))]) {
+      const b = await (await fetch(u)).blob();
+      const data = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+      css = css.split(u).join(data);
+    }
+    FONT_CSS = css;
+  } catch { FONT_CSS = ""; }
+  return FONT_CSS;
+}
+/** The infographic page (as edited) drawn into a PNG, twice the size for a sharp picture. */
+async function artToPng(doc, width = null, height = null) {
+  const art = doc.getElementById("art");
+  if (!art) throw new Error("There is nothing to draw.");
+  try { await doc.fonts?.ready; } catch {}
+  const w = width ?? art.scrollWidth, h = height ?? art.scrollHeight;
+  const style = [...doc.querySelectorAll("style")].map((s) => s.textContent).join("\n");
+  const body = new XMLSerializer().serializeToString(art);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px"><style>${(await embeddedFonts(doc)).replace(/<\/style/gi, "")}\n${style}</style>${body}</div></foreignObject></svg>`;
+  const img = new Image();
+  await new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error("The picture could not be drawn in this browser. Try Chrome or Edge.")); img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; });
+  const scale = 2, c = document.createElement("canvas");
+  c.width = w * scale; c.height = h * scale;
+  const g = c.getContext("2d"); g.scale(scale, scale); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+  if (!blob) throw new Error("The picture could not be made.");
+  return { blob, w: c.width, h: c.height };
+}
+/** A .zip of the given files, stored as they are (PNGs are already compressed). */
+function zipStore(files) {
+  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = crcTable[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  const u16 = (v) => [v & 255, (v >>> 8) & 255], u32 = (v) => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+  for (const f of files) {
+    const name = enc.encode(f.name), c = crc(f.bytes), n = f.bytes.length;
+    const local = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(c), ...u32(n), ...u32(n), ...u16(name.length), ...u16(0), ...name]);
+    parts.push(local, f.bytes);
+    central.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(c), ...u32(n), ...u32(n), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...name]));
+    offset += local.length + n;
+  }
+  const size = central.reduce((a, b) => a + b.length, 0);
+  const end = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(size), ...u32(offset), ...u16(0)]);
+  return new Blob([...parts, ...central, end], { type: "application/zip" });
+}
 
 function replyCard() {
   return secFold("reply", "Food allergies and dietary needs", "Ask everyone registered, then download the list for the hotel", "", `<div class="card-body" id="replybox"><p class="porg">Loading…</p></div>`, { id: "replyfold" });

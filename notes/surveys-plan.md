@@ -63,12 +63,16 @@ Fixed in the desk's version:
   - per presenter: "Would you recommend this presenter for a future ONGIA event?" (Yes, Maybe, No);
   - in the event overall: venue and location; see and hear clearly; registration and check-in; food; length (too short, about right, too long); "How likely are you to recommend ONGIA training to a colleague?" (0–10); future topics; where a future event should be held; interested in presenting (name and email kept apart from the answers).
 - **Session days.** The desk had no record of which day each presenter speaks. The survey box lists the sessions from the presenters' agreements, and Andrew picks each one's day. A survey with an undated session is held back.
-- **Built (deliverable 1):** lib/survey.mjs, lib/surveysend.mjs, survey.mjs, survey-tick.mjs (every 15 minutes), public/survey.html at /f/…, and the Survey box on the Communications tab. Results (deliverable 2) come next.
+- **Built (deliverable 1):** lib/survey.mjs, lib/surveysend.mjs, survey.mjs, survey-tick.mjs (every 15 minutes), public/survey.html at /f/…, and the Survey box (now on its own Survey tab on each event).
 
 ## Deliverables, in order
 
 1. [x] Survey: bilingual, anonymous, daily or after the event, sent by email from the event's Communications tab (27 Oct 2026).
-2. [ ] Results: PDF, chart summary, individual responses, Claude's analysis, one-page infographic.
+2. [x] Results (27 Oct 2026), on each event's Survey tab under the set-up: the summary PDF with charts, every answer
+   (.xlsx), the would-be presenters (.xlsx, apart), Claude's read (quotes kept only if word for word), the infographic in
+   English or French (click any words to change them, then PNG or one tall PDF), and seven 1080 × 1080 social media
+   squares in a .zip. lib/surveyresults.mjs, surveyanalysis.mjs, surveyreport.mjs, infographic.mjs. Session titles and
+   presenter names can be changed at any time; answers stay with the session.
 3. [ ] **Text messages (Twilio). Deferred: remind Andrew once he's happy with the survey.**
    - Andrew makes the phone number required on each event's Wix registration form, and adds an "OK to text me about this event" consent checkbox (Canada's anti-spam law).
    - The desk pulls the phone number (and the consent) from Wix with the rest of the registration.
