@@ -425,6 +425,11 @@ export async function replyStatus(event) {
   const answers = (await getReplies(event.id))?.answers ?? [];
   return {
     reaches: new Set(writeableTo(people).map((p) => p.email)).size,
+    // Why that is fewer than the registrations (Andrew 27 Oct 2026: "the button says 367 registered and the number at
+    // the top says 403"): one email goes to each address, so registrations sharing an address get one between them,
+    // and a registration with no email address gets none.
+    registrations: people.filter((p) => p.status === "ATTENDING").length,
+    noEmail: people.filter((p) => p.status === "ATTENDING" && !isEmail(p.email)).length,
     had: new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email)).size,
     round: stored.letterRounds?.reply ?? null,
     answered: answers.length,
