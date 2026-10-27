@@ -5,7 +5,7 @@ import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
-import { renderReminder } from "./lib/reply.mjs";
+import { renderReminder, summitSocialLabels } from "./lib/reply.mjs";
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -50,7 +50,13 @@ export default async (req) => {
     if (url.searchParams.get("upload")) return upload(event, Buffer.from(await req.arrayBuffer()));
     const body = await req.json().catch(() => ({}));
     if (url.searchParams.get("add")) return addByHand(event, body);
-    if (url.searchParams.get("wording")) { event.reply = { ...event.reply, ...suggestedWording(event, event.reply.socials ?? []) }; await putEvent(event); return show(event); }
+    if (url.searchParams.get("wording")) {
+      // At the Summit, the socials' names come back in Andrew's latest wording too; their dates stay as set.
+      const socials = /national gang summit/i.test(event.title) ? summitSocialLabels(event, event.reply.socials ?? []) : event.reply.socials ?? [];
+      event.reply = { ...event.reply, socials, ...suggestedWording(event, socials) };
+      await putEvent(event);
+      return show(event);
+    }
     if (url.searchParams.get("preview")) {
       // The words being edited in the preview window, not saved yet: shown as they would go, checked the same way.
       const trial = { ...event, reply: cleanReply({ subject: body.subject, body: body.body, buttonLabel: body.buttonLabel }, event.reply) };
