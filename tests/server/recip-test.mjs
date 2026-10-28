@@ -87,7 +87,9 @@ const evo = (await call(events, "/api/events", "POST", { title: "Overdue Event",
   board: [{ name: "Raj Jaswal", email: LEAD, lead: true }, { name: "John Healy", email: "j.healy@ongia.ca" }, { name: "Barb Konkle", email: "b.konkle@ongia.ca" }],
   presenters: [{ first: "Late", last: "Presenter", email: "late@example.ca", organization: "Test" }] })).event;
 // The board's overdue email goes on the 3rd, 10th, 17th… day after the agreement deadline: put this one exactly 3 days past.
-{ const e = await getEvent(evo.id); e.deadlines = { ...e.deadlines, agreement: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10) }; await putEvent(e); }
+// Counted from the desk's own today (Eastern), as the reminders are: a UTC date is a day ahead in the evening.
+{ const { todayIso } = await import(F + "lib/deadlines.mjs");
+  const e = await getEvent(evo.id); e.deadlines = { ...e.deadlines, agreement: new Date(Date.parse(todayIso()) - 3 * 86400000).toISOString().slice(0, 10) }; await putEvent(e); }
 const plan = (await runReminders({ dry: true, origin: "http://x", onlyEvent: evo.id })).results.filter((x) => x.kind === "board");
 ok("an overdue-agreements email is planned", plan.length === 1, JSON.stringify(plan));
 ok("it goes to the lead, the president and the VP, not the rest of the board on the event", plan[0] && set(plan[0].to.split(/,\s*/)) === set([LEAD, PRES, VP]), plan[0]?.to);
