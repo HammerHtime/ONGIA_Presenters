@@ -5162,7 +5162,7 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  */
 // Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
 // filters, the find box, opening a person's details, the way back) still works.
-const VIEW_LOOK = ".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
+const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
 const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");
