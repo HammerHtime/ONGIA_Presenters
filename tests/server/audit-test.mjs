@@ -123,4 +123,20 @@ ok("a field removed by a save stays removed", (await store.getEvent(ev3.id)).ven
 const copy = { ...(await store.getEvent(ev3.id)), venue: "From a copy" }; await store.putEvent(copy);
 ok("a copy made with a spread is saved as it is (the old behaviour)", (await store.getEvent(ev3.id)).venue === "From a copy");
 ok("nothing extra is saved with the record", !Object.keys(await store.getEvent(ev3.id)).some((k) => k.startsWith("__")) && !JSON.stringify(await store.getPresenter(ev3.id, p3.id)).includes("__asRead"));
+
+// Audit F05 (28 Oct 2026): where the desk key can't sign in (DESK_KEY_LOGIN=off, as live), it can't sign an approval either.
+console.log("— the desk key can't sign where key sign-in is off");
+const ev4 = await mk("Key Signing Event");
+const [k1] = await people(ev4);
+await call(agreement, `/api/agreement?t=${k1.token}`, "POST", answers(k1), { "content-type": "application/json" });
+process.env.DESK_KEY_LOGIN = "off";
+r = await call(review, `/api/review?event=${ev4.id}&presenter=${k1.id}&action=approve`, "POST", { approverName: "Typed Name", attest: true, covers: {} }, KEY);
+ok("the key is refused, and told to sign in", r.http === 403 && /Sign in with your Microsoft account/.test(r.error) && (await store.getPresenter(ev4.id, k1.id)).status === "submitted", JSON.stringify(r));
+await call(volunteers, `/api/volunteers?event=${ev4.id}`, "POST", { invite: false, volunteers: [{ first: "Kim", last: "Key", email: "kim@example.ca", organization: "Org" }] });
+const [kv] = await store.listVolunteers(ev4.id);
+await call(volunteer, `/api/volunteer?t=${kv.token}`, "POST", { first: "Kim", last: "Key", email: "kim@example.ca", phone: "4165550100", organization: "Org", accommodation: "yes", termsAccepted: true, standing: true, signature: "Kim Key", agreed: true, language: "en" }, { "content-type": "application/json" });
+ok("and for a volunteer too", (await store.getVolunteer(ev4.id, kv.id)).status === "submitted" && (await call(volunteers, `/api/volunteers?event=${ev4.id}&id=${kv.id}&action=approve`, "POST", { approverName: "Typed", hotel: { need: "no" } }, KEY)).http === 403);
+r = await call(review, `/api/review?event=${ev4.id}&presenter=${k1.id}&action=approve`, "POST", { attest: true, covers: {} }, LEAD);
+ok("the signed-in lead still approves, as themselves", r.http === 200 && (await store.getPresenter(ev4.id, k1.id)).review.approver.name === "Raj Jaswal", JSON.stringify(r).slice(0, 200));
+delete process.env.DESK_KEY_LOGIN;
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -157,10 +157,18 @@ export const mayEditEvent = (who, event) => who?.key === true || mayCost(who) ||
 export const VIEW_ONLY = "You can look at this event, but only its own board members, the president and the VP of operations can change it.";
 
 /**
+ * Where the desk key can no longer sign in (DESK_KEY_LOGIN=off, as on the live site), it can no longer sign an approval
+ * either (audit F05, 28 Oct 2026): an approval is always a named board member signed in with Microsoft.
+ */
+export const keySigningOff = () => process.env.DESK_KEY_LOGIN === "off";
+export const KEY_CANNOT_SIGN = "An approval is signed by the board member who is signed in. Sign in with your Microsoft account to approve.";
+
+/**
  * The person signing an approval: whoever is signed in with their Microsoft account, never a name typed in a box
  * (audit F01, 20 Oct 2026). Only the shared desk key, which no person uses any more, still names itself.
  */
 export function signerOf(who, typedName = "") {
+  if (who?.key === true && keySigningOff()) return null;
   if (who?.key === true) { const name = String(typedName ?? "").trim().slice(0, 120); return name ? { name, email: "", via: "desk key" } : null; }
   const name = String(who?.name || who?.email || "").trim().slice(0, 120);
   return name ? { name, email: String(who.email ?? "").toLowerCase(), via: "Microsoft sign-in" } : null;

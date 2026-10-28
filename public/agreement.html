@@ -868,6 +868,7 @@ function avMarkup() {
       <div class="field"><label for="f-avnotes">${t("avNotes")}</label>
         <textarea id="f-avnotes" data-bind="av.notes" rows="2">${esc(S.av.notes)}</textarea>
         <p class="hint">${t("avNotesHint")}</p></div>
+      ${avProblem && !sending ? `<div class="problems" role="alert">${esc(avProblem)}</div>` : ""}
       <div class="done-actions" style="margin-top:18px">
         <button type="button" class="btn btn-gold" id="av-send"${sending ? " disabled" : ""}>${sending ? t("avSending") : t("avSend")}</button>
         <a class="btn btn-ghost" href="/api/download?t=${encodeURIComponent(TOKEN)}">${t("avAgreementLink")}</a>
@@ -1156,23 +1157,26 @@ async function submit() {
   }
 }
 
+// What stopped the room-and-equipment answers going, shown above the button (not a pop-up), answers kept.
+let avProblem = "";
 async function sendAv() {
-  sending = true; renderApproved();
+  sending = true; avProblem = ""; renderApproved();
   try {
     const res = await fetch(`/api/agreement?t=${encodeURIComponent(TOKEN)}&av=1`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(S.av),
     });
     const out = await res.json();
     sending = false;
-    if (!res.ok) { alert(serverText(out.error)); renderApproved(); return; }
+    if (!res.ok) { avProblem = serverText(out.error); renderApproved(); document.getElementById("av-send")?.scrollIntoView({ block: "center" }); return; }
     DATA.presenter.av = out.av;
     DATA.presenter.avAt = out.avAt;
     AVVIEW = false;
     renderApproved();
   } catch {
     sending = false;
-    alert(t("netFail"));
+    avProblem = t("netFail");
     renderApproved();
+    document.getElementById("av-send")?.scrollIntoView({ block: "center" });
   }
 }
 

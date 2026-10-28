@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, adminWho, text, isEmail, editGuard } from "./lib/http.mjs";
-import { signerOf } from "./lib/auth.mjs";
+import { signerOf, keySigningOff, KEY_CANNOT_SIGN } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { getEvent, putEvent, listVolunteers, getVolunteer, putVolunteer, getPdf, deleteKey, getRoster } from "./lib/store.mjs";
 import { volunteerContact } from "./lib/mail.mjs";
@@ -155,6 +155,7 @@ async function approve(event, id, body, who) {
   if (!v) return fail("No such volunteer.", 404);
   if (v.status !== "submitted") return fail(v.status === "signed" ? "Already final. Use redeliver to resend or refile it." : "They haven't signed yet, so there is nothing to approve.", 409);
   // The signature is the signed-in person, not a name typed in a box.
+  if (who?.key === true && keySigningOff()) return fail(KEY_CANNOT_SIGN, 403);
   const signer = signerOf(who, body.approverName);
   if (!signer) return fail("The approving board member's name is required — it is the signature.");
   const approverName = signer.name;
