@@ -21,7 +21,7 @@ import { siteUrl } from "./site.mjs";
 
 /** Every blank a letter may use, what it means, and where its value comes from. */
 export const BLANKS = {
-  first:      { means: "the person's first name (\"there\" if Wix has none)", from: (e, p) => p?.first || "there", optional: true },
+  first:      { means: "the person's first name (left out, so \"Hello,\", if Wix has none or it isn't a name)", from: (e, p) => firstNameOf(p?.first), optional: true },
   event:      { means: "the event's title", from: (e) => e.title },
   dates:      { means: "the training dates, e.g. Tue 24 Nov 2026", from: (e) => datesOf(e) },
   venue:      { means: "the venue", from: (e) => e.venue },
@@ -198,9 +198,25 @@ export function eventProblems(letter, event) {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+/**
+ * A person's first name as a letter should greet them (Andrew 28 Oct 2026: "Open with Hello and their first name"), or ""
+ * when what they typed into Wix isn't a name: digits ("D22"), an email address, or only initials ("J." or "D.J."). A name
+ * typed all in small letters or all in capitals is given capitals the usual way ("mary-anne" becomes "Mary-Anne").
+ */
+export function firstNameOf(raw) {
+  const s = String(raw ?? "").trim().replace(/\s+/g, " ");
+  if (!s || /[\d@]/.test(s) || !/\p{L}/u.test(s)) return "";
+  const letters = s.replace(/[^\p{L}]/gu, "");
+  if (letters.length < 2 || /^(\p{L}\.\s*)+$/u.test(s)) return "";
+  if (s !== s.toLowerCase() && s !== s.toUpperCase()) return s;
+  return s.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, c) => sep + c.toUpperCase());
+}
+/** Without a first name, "Hello {first}," reads "Hello," (and "Bonjour {first}," reads "Bonjour,"), not "Hello ,". */
+const withoutMissingName = (text, person) => (firstNameOf(person?.first) ? String(text ?? "") : String(text ?? "").replace(/[ \t]*\{first\}/g, ""));
+
 /** Fill the blanks. `html` escapes everything and turns web addresses into links. */
 function fill(text, event, person, { html }) {
-  return String(text ?? "").replace(BLANK, (whole, name) => {
+  return withoutMissingName(text, person).replace(BLANK, (whole, name) => {
     const b = BLANKS[name];
     if (!b) return whole;
     const v = String(b.from(event, person) ?? "");
@@ -212,7 +228,7 @@ function fill(text, event, person, { html }) {
 /** Escape Andrew's own words, keep the links he typed clickable. */
 function htmlOf(text, event, person) {
   // Split on blanks first so their values are escaped once, by fill().
-  const parts = String(text).split(BLANK);
+  const parts = withoutMissingName(text, person).split(BLANK);
   let out = "";
   for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 1) { out += fill(`{${parts[i]}}`, event, person, { html: true }); continue; }

@@ -2,7 +2,7 @@ import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, editGuard, isEmail, fileName } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, getLetter, getAgenda, listEvents, listLetters, getRoster, putWelcomeFile, getWelcomeFile, deleteWelcomeFile } from "./lib/store.mjs";
 import { writeableTo } from "./lib/attendees.mjs";
-import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, groupDaysOf, attendeeSignOf, filesFor, attachedBytes, ATTACH_LIMIT } from "./lib/letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeReplyTo, groupDaysOf, attendeeSignOf, filesFor, attachedBytes, ATTACH_LIMIT, firstNameOf } from "./lib/letters.mjs";
 import { randomUUID } from "node:crypto";
 import { formatDate } from "./lib/deadlines.mjs";
 import { sendMail } from "./lib/mail.mjs";
@@ -130,7 +130,9 @@ async function show(event) {
     agenda: event.agendaGroupFile ?? null, attachedBytes: attachedBytes(event, "group"), ...reach.group, problems: problemsOf(letters.group, event) });
   const job = welcomeJob(event);
   const s = event.signature;
-  return json({ versions, files: event.welcomeFiles ?? [], attachLimit: ATTACH_LIMIT, signer: attendeeSignOf(event), signature: s?.member ? `member:${s.member}` : s?.email ? `board:${s.email}` : "", sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: event.attendeeMail === true, saved: !!event.welcome?.main,
+  // Who the letter can't greet by name (Andrew 28 Oct 2026: a registration's first name was "D22"): theirs opens "Hello,".
+  const noName = writeableTo(people).filter((p) => !firstNameOf(p.first)).map((p) => ({ name: [p.first, p.last].map((v) => String(v ?? "").trim()).filter(Boolean).join(" "), email: p.email }));
+  return json({ versions, noName, files: event.welcomeFiles ?? [], attachLimit: ATTACH_LIMIT, signer: attendeeSignOf(event), signature: s?.member ? `member:${s.member}` : s?.email ? `board:${s.email}` : "", sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: event.attendeeMail === true, saved: !!event.welcome?.main,
     round: people.length ? (((await getAttendees(event.id)) ?? {}).letterRounds ?? {}).welcome ?? null : null });
 }
 
