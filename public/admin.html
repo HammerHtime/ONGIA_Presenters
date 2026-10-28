@@ -765,6 +765,7 @@
   .etab:hover{color:var(--navy)}
   .etab.on{color:var(--navy);border-bottom-color:var(--gold)}
   .etab .n{background:var(--late-bg);color:var(--late);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
+  .etab .nnew{background:var(--gold);color:var(--navy-deep);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
   .etabp[hidden]{display:none}
   .crumbs{display:flex;gap:16px;margin:-6px 0 10px}
   /* The signed-in person, at the right of the bar on every screen. */
@@ -3068,6 +3069,23 @@ function eventScreen(data) {
   let mailTodo = 0;
   try { mailTodo = EMAIL_ON && inbox?.items ? ibGroups(inbox.items.map((x) => ({ x, ev }))).todo.filter(({ x }) => x.status === "open").length : 0; } catch { mailTodo = 0; }
   const tabBadge = { people: count("review") + count("failed") + count("uninvited") + sendFailed.length, communications: mailTodo };
+  // "New since you last looked" (Andrew 28 Oct 2026: "if I were to get 10 new survey replies, a small badge 10 shows beside
+  // the survey tab"), for each board member: registrations, slides in, hotel requests, food-allergy answers, survey answers.
+  const nowCounts = { people: guests?.counts?.attending ?? 0, program: draftGot + finalGot, logistics: (rooming?.rows ?? []).length,
+    communications: data.fresh?.reply ?? 0, survey: data.fresh?.survey ?? 0 };
+  let seenNow = data.seen ?? null;
+  const markSeen = (keys) => {
+    const counts = Object.fromEntries(keys.filter((k) => k in nowCounts).map((k) => [k, nowCounts[k]]));
+    if (!Object.keys(counts).length) return;
+    seenNow = { ...(seenNow ?? {}), ...counts };
+    api(`/events?id=${encodeURIComponent(ev.id)}&seen=1`, { method: "PUT", body: JSON.stringify({ counts }) }).catch(() => {});
+  };
+  // The first visit starts from what is there now, rather than calling everything new.
+  if (!seenNow) markSeen(Object.keys(nowCounts));
+  const newOf = (k) => (seenNow && Number.isFinite(seenNow[k]) ? Math.max(0, nowCounts[k] - seenNow[k]) : 0);
+  const newBadge = {};
+  for (const k of Object.keys(nowCounts)) if (k !== tab && newOf(k)) newBadge[k] = newOf(k);
+  markSeen([tab]);
   const signedN = count("final") + count("failed");
   const conf = (rooming?.rows ?? []).filter((r) => r.confirmed);
   const nightsN = conf.reduce((n, r) => n + r.nights, 0);
@@ -3197,7 +3215,7 @@ function eventScreen(data) {
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div></div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
     <div class="evtiles">${tiles}</div></section>
-    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
+    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
     <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
@@ -3334,6 +3352,9 @@ function eventScreen(data) {
     syncSide();
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+    // Opening a tab is seeing what is new on it.
+    ROOT.querySelector(`.etab[data-tab="${k}"] .nnew`)?.remove();
+    markSeen([k]);
     try { history.replaceState(null, "", location.pathname + location.search + viewHash(view)); } catch { /* no history in a sandboxed frame */ }
     const el = focus ? ROOT.querySelector(focus) : null;
     if (el) { if (el.tagName === "DETAILS") el.open = true; el.scrollIntoView({ block: "start", behavior: "smooth" }); }
