@@ -4415,6 +4415,9 @@ function renderWelcomeCard(ev, W) {
         ${two && !f.main && !f.group ? `<div class="hint late" style="margin:2px 0 0">Not attached to either letter yet. Tick who gets it.</div>` : ""}</div>
       ${two ? W.versions.map((v) => `<label style="display:flex;gap:6px;align-items:center;white-space:nowrap;margin:0;font-weight:500"><input type="checkbox" style="width:auto;margin:0" data-wftick="${esc(f.id)}" data-wfkey="${v.key}"${f[v.key] ? " checked" : ""}> ${esc(v.label)}</label>`).join("") : ""}
       <div style="display:flex;gap:6px"><button class="mini ghost" data-wfopen="${esc(f.id)}">Open</button><button class="mini ghost" data-wfdel="${esc(f.id)}">Remove</button></div></div>`;
+  // Registrations whose first name isn't a name ("D22", initials): their letter opens "Hello," until it's fixed in Wix.
+  const noName = (W.noName ?? []).length ? `<details class="note" style="margin-top:14px"><summary style="cursor:pointer"><b>${W.noName.length} ${W.noName.length === 1 ? "registration doesn't" : "registrations don't"} have a usable first name,</b> so ${W.noName.length === 1 ? "their letter opens" : "their letters open"} with just "Hello,". Fix the name in Wix and it comes across by itself.</summary>
+      <ul style="margin:8px 0 0;padding-left:20px">${W.noName.map((p) => `<li>${p.name ? `"${esc(p.name)}"` : "<i>no name</i>"} · ${esc(p.email)}</li>`).join("")}</ul></details>` : "";
   const attachments = `<div style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
       <h3 style="margin:0;font-size:17px">Other attachments</h3>
       <p class="hint" style="margin:4px 0 8px">PDFs that go with the welcome letter besides the agenda${two ? ". Tick which letter each one goes with" : ""}. An email can carry up to 3 MB in all.</p>
@@ -4429,6 +4432,7 @@ function renderWelcomeCard(ev, W) {
     <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
       <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
     ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
+    ${noName}
     ${W.versions.map(version).join("")}
     ${attachments}
     <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
