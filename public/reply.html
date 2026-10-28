@@ -106,7 +106,7 @@ en: {
   another: "Answer for someone else on your registration",
   closed: "This form is closed", closedLede: (c) => `If your plans have changed, reply to the email this came in${c ? ` or write to ${c}` : ""}.`,
   broken: "This link is not working", brokenLede: "Reply to the email it came in and we'll sort it out.",
-  network: "We couldn't send that. Check your connection and try again.",
+  network: "That didn't send.", networkMore: "Everything you filled in is still here. Check your connection, then press the button again.",
 },
 fr: {
   other: "English", loading: "Chargement…",
@@ -128,12 +128,12 @@ fr: {
   another: "Répondre pour une autre personne de votre inscription",
   closed: "Ce formulaire est fermé", closedLede: (c) => `Si vos plans ont changé, répondez au courriel qui contenait ce lien${c ? ` ou écrivez à ${c}` : ""}.`,
   broken: "Ce lien ne fonctionne pas", brokenLede: "Répondez au courriel qui le contenait et nous réglerons la situation.",
-  network: "L'envoi n'a pas fonctionné. Vérifiez votre connexion et réessayez.",
+  network: "L'envoi n'a pas fonctionné.", networkMore: "Tout ce que vous avez rempli est encore là. Vérifiez votre connexion, puis appuyez de nouveau sur le bouton.",
 },
 };
 const t = (k, ...a) => { const v = T[LANG][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
 
-let DATA = null, DONE = null, sending = false, problems = [];
+let DATA = null, DONE = null, sending = false, problems = [], netFail = false;
 const S = { first: "", last: "", agency: "", email: "", allergy: null, dietary: "", socials: {} };
 try { Object.assign(S, JSON.parse(sessionStorage.getItem(`ongia-reply-${TOKEN}`) ?? "{}")); } catch {}
 const keep = () => { try { sessionStorage.setItem(`ongia-reply-${TOKEN}`, JSON.stringify(S)); } catch {} };
@@ -178,6 +178,7 @@ function render() {
             <button type="button" data-s="${esc(s.id)}" data-v="yes" aria-pressed="${S.socials[s.id] === "yes"}">${t("yes")}</button>
             <button type="button" data-s="${esc(s.id)}" data-v="no" aria-pressed="${S.socials[s.id] === "no"}">${t("no")}</button></div></div>`;
       }).join("")}</div>
+    ${netFail && !sending ? `<div class="problems" role="alert"><b>${t("network")}</b><br>${t("networkMore")}</div>` : ""}
     <button type="button" class="btn btn-gold" id="send"${sending ? " disabled" : ""}>${sending ? t("sending") : t("send")}</button>
   </div>`;
   // A box marked as missing stops being marked as soon as it is filled in.
@@ -195,7 +196,7 @@ function render() {
 
 async function send() {
   if (sending) return;
-  sending = true; render();
+  sending = true; netFail = false; render();
   try {
     const res = await fetch(`/api/reply?t=${encodeURIComponent(TOKEN)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...S, lang: LANG }) });
     const out = await res.json().catch(() => ({}));
@@ -206,7 +207,7 @@ async function send() {
     problems = []; DONE = { first: S.first, again: out.again };
     try { sessionStorage.removeItem(`ongia-reply-${TOKEN}`); } catch {}
     render(); window.scrollTo(0, 0);
-  } catch { sending = false; render(); alert(t("network")); }
+  } catch { sending = false; netFail = true; render(); ROOT.querySelector("#send")?.scrollIntoView({ block: "center" }); }
 }
 
 LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };

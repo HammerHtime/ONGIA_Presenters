@@ -761,6 +761,19 @@
   .evhead .kp b{font-size:16px;color:var(--ink)}
   .etabs{display:flex;gap:2px;overflow-x:auto;padding:0 12px;border-top:1px solid var(--border);scrollbar-width:none}
   .etabs::-webkit-scrollbar{display:none}
+  .mstable{font-size:14px}
+  .msrow{display:grid;grid-template-columns:1.1fr 1.6fr 1.3fr 1.6fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge)}
+  .msrow.mshead{border-top:0;padding:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .msrow .pill{white-space:normal;text-align:left}
+  .mswho,.mswhen{color:var(--ink-mid)}
+  @media (max-width:700px){
+    .msrow{grid-template-columns:1fr auto;gap:4px 10px}
+    .msrow.mshead{display:none}
+    .mswhat{grid-column:1} .msgo{grid-column:2;grid-row:1 / span 3;align-self:center}
+    .mswho,.mswhen,.msstate{grid-column:1;font-size:13.5px}
+  }
+  .evnote{margin:0 20px 14px;display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
+  .evnote-t{flex:1;min-width:240px}
   .etab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px 10px;font:inherit;font-weight:700;font-size:14px;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
   .etab:hover{color:var(--navy)}
   .etab.on{color:var(--navy);border-bottom-color:var(--gold)}
@@ -1080,6 +1093,15 @@
   .rvgrid{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:18px;align-items:start}
   .rvgrid>.card{margin-top:0 !important;min-width:0}
   @media (max-width:1100px){.rvgrid{grid-template-columns:1fr} .rvgrid>.card:last-child{margin-top:16px !important}}
+  .rvbar{display:none}
+  @media (max-width:1100px){
+    .rvbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;gap:12px;align-items:center;background:var(--navy-deep);color:#fff;
+      padding:10px 16px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px rgba(0,0,0,.18);transition:transform .2s}
+    .rvbar.away{transform:translateY(110%)}
+    .rvbar-t{flex:1;min-width:0;font-size:13.5px;line-height:1.35;display:flex;flex-direction:column}
+    .rvbar-t span{opacity:.78}
+    .rvbar .btn{flex:none;padding:10px 18px}
+  }
   .cost .agency{font-size:12px;color:var(--muted)} .cost .agency b{color:var(--ink)}
   .board{display:grid;gap:6px;margin-top:4px}
   .bdrop{position:relative}
@@ -1258,6 +1280,10 @@ let apiFetch = (...args) => fetch(...args);
 let KEY = sessionStorage.getItem("ongia-admin-key") ?? "";
 let view = { name: "list", eventId: null };
 let busy = false;
+// A message for the top of an event (what a save on another screen couldn't do, until dismissed), and the parts of the
+// event that failed to load (audit, 28 Oct 2026: they say so, with Retry, instead of looking empty).
+let EV_NOTICE = null;   // { eventId, html, rows }: rows, if any, are put back in Add presenters
+let EV_FAILED = [];
 
 async function api(path, options = {}) {
   const res = await apiFetch(`/api${path}`, {
@@ -1265,7 +1291,7 @@ async function api(path, options = {}) {
     headers: { "content-type": "application/json", "x-admin-key": KEY, ...(options.headers ?? {}) },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error(body.error ?? `Request failed (${res.status})`), { status: res.status });
   return body;
 }
 
@@ -2123,15 +2149,22 @@ function eventFormScreen(existing = null) {
         : await api("/events", { method: "POST", body: JSON.stringify(body) });
       const sent = (out.added ?? []).filter((a) => a.invited).length;
       toast(ev ? "Saved." : out.added?.length ? `Event created with ${out.added.length} presenter${out.added.length === 1 ? "" : "s"}${sent ? `; ${sent} invitation${sent === 1 ? "" : "s"} emailed` : ""}.` : "Event created. Add presenters next.");
-      if (out.rejected?.length) alert("Not added:\n" + out.rejected.map((r) => `${JSON.stringify(r.row)} — ${r.why}`).join("\n"));
-      if (out.notSent?.length) alert("Added but not emailed:\n" + out.notSent.map((r) => `${r.name} — ${r.why}`).join("\n"));
+      // What the save couldn't do is said on the event itself, where it can be fixed (audit, 28 Oct 2026: not a pop-up).
+      const said = [], rows = [];
+      if (out.rejected?.length) {
+        const n = out.rejected.length, ok = out.added?.length ?? 0;
+        said.push(`<b>${n} presenter${n === 1 ? " wasn't" : "s weren't"} added.</b> ${out.rejected.map((r) => `${esc([r.row?.first, r.row?.last].filter(Boolean).join(" ") || "A row")}: ${esc(r.why)}`).join(" ")}${ok ? ` The other ${ok} ${ok === 1 ? "was" : "were"} added.` : ""}`);
+        rows.push(...out.rejected.map((r) => [r.row?.first, r.row?.last, r.row?.email, r.row?.organization].map((v) => String(v ?? "").trim()).join(", ")));
+      }
+      if (out.notSent?.length) said.push(`<b>Added, but not emailed:</b> ${out.notSent.map((r) => `${esc(r.name)}: ${esc(r.why)}`).join(" ")} Use <b>Email their link</b> under People once it's sorted.`);
       // From a Wix event: link it now, which pulls the registered guests straight away.
       if (!ev && wixPick) {
         try {
           const l = await api(`/wix?event=${encodeURIComponent(out.event.id)}&link=${encodeURIComponent(wixPick.id)}`, { method: "PUT" });
           toast(`Linked to Wix. Pulled ${l.read} registration${l.read === 1 ? "" : "s"}.`);
-        } catch (le) { alert(`The event was created, but linking it to Wix failed: ${le.message}\n\nYou can link it from "Who is coming" on the event.`); }
+        } catch (le) { said.push(`<b>The event was made, but linking it to Wix didn't work:</b> ${esc(le.message)} Use <b>Link to Wix</b> under Getting ready to try again.`); }
       }
+      EV_NOTICE = said.length ? { eventId: out.event.id, html: said.join("<br>"), rows } : null;
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
@@ -2732,6 +2765,16 @@ function loadShots(root, eventId, presenters) {
   });
 }
 const VIEW_WHY = "This event is view only for you. Its own board members, the president and the VP of operations can change it.";
+/** The lines at the top of an event: what a save couldn't do (until dismissed), and any part of the event that didn't load. */
+function evNotices(ev) {
+  if (EV_NOTICE && EV_NOTICE.eventId !== ev.id) EV_NOTICE = null;   // it belongs to the event just saved; it stays until dismissed
+  const n = EV_NOTICE;
+  const box = (k, body, buttons) => `<div class="bad evnote" data-evn="${k}" role="alert"><div class="evnote-t">${body}</div>${buttons}</div>`;
+  return (n ? box("notice", n.html, (n.rows?.length ? `<button type="button" class="mini gold" data-evn-add>Fix and add</button>` : "") + `<button type="button" class="mini" data-evn-x>Dismiss</button>`) : "")
+    + (EV_FAILED.length ? box("failed", `<b>Couldn't load ${listWords(EV_FAILED)}.</b> That's the connection, not missing data: until it loads, ${EV_FAILED.length === 1 ? "that part" : "those parts"} may look empty.`, `<button type="button" class="mini gold" data-evn-retry>Retry</button>`) : "");
+}
+const listWords = (a) => a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`;
+
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
@@ -2745,6 +2788,10 @@ function eventScreen(data) {
     document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
     document.getElementById("add").onclick = openAdd;
     document.getElementById("mailall").onclick = mailAll;
+    const fixRows = ROOT.querySelector("[data-evn-add]");
+    if (fixRows) fixRows.onclick = () => { const rows = EV_NOTICE?.rows ?? []; EV_NOTICE = null; ROOT.querySelector("[data-evn=notice]")?.remove(); openAdd(); document.getElementById("p-rows").value = rows.join("\n"); };
+    ROOT.querySelector("[data-evn-x]")?.addEventListener("click", () => { EV_NOTICE = null; ROOT.querySelector("[data-evn=notice]")?.remove(); });
+    ROOT.querySelector("[data-evn-retry]")?.addEventListener("click", () => render());
   };
   // Add presenters (audit, 21 Oct 2026): a pop-up over the event, the way Add volunteers works, not a separate screen.
   let addedAny = false;
@@ -3214,7 +3261,7 @@ function eventScreen(data) {
         <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div></div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
-    <div class="evtiles">${tiles}</div></section>
+    <div class="evtiles">${tiles}</div></section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
     <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
     + panel("overview", overviewHtml)
@@ -3241,7 +3288,7 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     + panel("survey", surveyCard() + resultsCard())
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
@@ -4240,6 +4287,75 @@ function renderWebsite(ev, W) {
    no to each social. The answers come out as two spreadsheets: the dietary list for the hotel, and who is coming to
    the socials. */
 /**
+ * Every email the event sends to attendees, at a glance (Andrew 28 Oct 2026, from the audit): what goes, to whom, when,
+ * and whether it will actually go. Drawn from what the welcome, food-allergy and survey cards load, so it costs nothing
+ * extra; each row's button takes you to that card.
+ */
+function mailSumCard() {
+  return `<div class="card mailsum"><div class="card-head"><div><h2>Emails to attendees</h2><div class="s" id="mailsum-s">What goes, to whom and when, and whether it will actually go.</div></div></div>
+    <div class="card-body" id="mailsum"><p class="porg">Loading…</p></div></div>`;
+}
+let MAILSUM = { ev: null };
+function noteMail(ev, kind, data) {
+  if (MAILSUM.ev !== ev.id) MAILSUM = { ev: ev.id };
+  MAILSUM[kind] = data;
+  drawMailSum(ev);
+}
+function drawMailSum(ev) {
+  const box = document.getElementById("mailsum");
+  if (!box) return;
+  const got = (k) => (MAILSUM[k]?.failed ? null : MAILSUM[k]);
+  const W = got("welcome"), R = got("reply"), S = got("survey");
+  const on = (W ?? R ?? S)?.attendeeMail === true;
+  const people = (n) => `${n} ${n === 1 ? "person" : "people"}`;
+  const rows = [];
+  if (W) {
+    const reach = W.versions.reduce((n, v) => n + (v.reaches ?? 0), 0);
+    const held = W.versions.some((v) => v.problems?.length);
+    rows.push({ at: W.sendOn ?? "", what: "Welcome letter", go: "welcomefold",
+      who: W.versions.length > 1 ? W.versions.map((v) => `${esc(v.label)} (${v.reaches ?? 0})`).join(", ") : `Everyone registered (${reach})`,
+      when: W.sendOn ? esc(fmtDate(W.sendOn)) : "No date set",
+      state: W.sendDone ? ["done", "Sent"] : !W.saved ? ["late", "Not saved: won't go"] : held ? ["late", "Held back: see below"] : !on ? ["wait", "Ready, but emails are off"] : ["done", "Ready: sends itself"] });
+  }
+  if (R) {
+    const st = R.status ?? {};
+    rows.push({ at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
+      who: `Everyone registered (${st.reaches ?? 0})`,
+      when: !R.reply ? "When you press Send" : R.reply.sentAt ? `Sent ${esc(fmtDate(R.reply.sentAt.slice(0, 10)))}` : `When you press Send${R.reply.replyBy ? `<br><span class="porg">answers by ${esc(fmtDate(R.reply.replyBy))}</span>` : ""}`,
+      state: !R.reply ? ["idle", "Not set up"] : R.sending ? ["wait", `Sending: ${st.had ?? 0} of ${st.reaches ?? 0}`]
+        : R.problems?.length ? ["late", "Held back: see below"]
+        : R.reply.sentAt ? [st.toSend ? "wait" : "done", `Sent to ${st.had ?? 0} · ${st.answered ?? 0} answered${st.toSend ? ` · ${st.toSend} not yet sent` : ""}`]
+        : ["wait", "Ready: you press Send"] });
+  }
+  if (S) {
+    const sv = S.survey, daily = sv?.mode === "daily";
+    const sent = Object.values(S.sent ?? {}).reduce((n, x) => n + (Number(x) || 0), 0);
+    const noTime = daily && (S.times ?? []).some((t) => !t.at);
+    rows.push({ at: daily ? S.days?.[0] ?? "" : sv?.sendOn ?? "", what: "Survey", go: "survey",
+      who: S.group ? `${esc(S.group.name)}` : "Attendees",
+      when: !sv ? "Not set" : daily ? `End of each day${S.days?.length ? `<br><span class="porg">${esc(fmtDate(S.days[0]))} to ${esc(fmtDate(S.days.at(-1)))}</span>` : ""}` : esc(fmtDate(sv.sendOn)),
+      state: !sv ? ["idle", "Not set up"] : !sv.open ? ["idle", "Closed"] : S.problems?.length ? ["late", "Held back: see its tab"] : noTime ? ["late", "A day has no end time: won't go"]
+        : sent ? ["done", `Sent to ${people(sent)}${S.responses ? ` · ${S.responses} answered` : ""}`] : !on ? ["wait", "Ready, but emails are off"] : ["done", "Ready: sends itself"] });
+  }
+  for (const [k, what, go] of [["welcome", "Welcome letter", "welcomefold"], ["reply", "Food allergies", "replyfold"], ["survey", "Survey", "survey"]])
+    if (MAILSUM[k]?.failed) rows.push({ at: "", what, go, who: "", when: "", state: ["late", "Couldn't load: reload the page"] });
+  rows.sort((a, b) => (a.at || "9999").localeCompare(b.at || "9999"));
+  const s = document.getElementById("mailsum-s");
+  if (s) s.textContent = on ? "What goes, to whom and when, and whether it will actually go." : "Automatic emails are off, so the welcome letter, the survey and the reminders won't go on their own until you switch them on above.";
+  box.innerHTML = `<div class="mstable" role="table" aria-label="Emails to attendees">
+    <div class="msrow mshead" role="row"><span role="columnheader">Email</span><span role="columnheader">Goes to</span><span role="columnheader">When</span><span role="columnheader">Status</span><span></span></div>
+    ${rows.map((r) => `<div class="msrow" role="row"><b role="cell" class="mswhat">${r.what}</b><span role="cell" class="mswho">${r.who}</span><span role="cell" class="mswhen">${r.when}</span>
+      <span role="cell" class="msstate"><span class="pill ${r.state[0]}">${esc(r.state[1])}</span></span><span role="cell" class="msgo"><button type="button" class="mini" data-msgo="${r.go}">Open</button></span></div>`).join("")}
+    ${rows.length < 3 ? `<p class="porg" style="margin:10px 0 0">Loading the rest…</p>` : ""}</div>`;
+  box.querySelectorAll("[data-msgo]").forEach((b) => { b.onclick = () => {
+    const k = b.dataset.msgo;
+    if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
+    const d = document.getElementById(k);
+    if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }; });
+}
+
+/**
  * The welcome letter, all in one place (Andrew 27 Oct 2026: "I need the one place to write the letters. And then under
  * the National Gang Summit event, I just need to click email attendees"). One version per group: the words, its agenda,
  * See the email and Send a test. The day it goes sits at the top; the switch above turns attendee emails on.
@@ -4254,7 +4370,7 @@ async function loadWelcome(ev) {
     const [W, L] = await Promise.all([api(q), api(`${q}&library=1`).catch(() => ({ letters: [] })), ROSTER.length ? null : loadRoster()]);
     renderWelcomeCard(ev, { ...W, library: L.letters ?? [] });
   }
-  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; noteMail(ev, "welcome", { failed: true }); }
 }
 /** Who can sign an event's letters to attendees: the board with its general inbox (the usual), the Summit's own inbox, or a member. */
 function signOptions(ev, W) {
@@ -4275,6 +4391,7 @@ const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) 
 function renderWelcomeCard(ev, W) {
   const box = document.getElementById("wlbox");
   if (!box) return;
+  noteMail(ev, "welcome", W);
   const two = W.versions.length > 1;
   const reach = (v) => `${v.reaches} ${v.reaches === 1 ? "person" : "people"}${v.had ? ` · ${v.had} already sent` : ""}`;
   const version = (v) => `<div class="wlver" data-wl="${v.key}" style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
@@ -4521,11 +4638,12 @@ function surveyCard() {
 async function loadSurvey(ev) {
   const box = document.getElementById("svbox");
   try { renderSurveyCard(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}`)); }
-  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; noteMail(ev, "survey", { failed: true }); }
 }
 function renderSurveyCard(ev, S) {
   const box = document.getElementById("svbox");
   if (!box) return;
+  noteMail(ev, "survey", S);
   const q = `/survey?event=${encodeURIComponent(ev.id)}`;
   const dayLabel = (d) => { const i = S.days.indexOf(d); return `Day ${i + 1} · ${fmtDate(d)}`; };
   if (!S.survey) {
@@ -4788,12 +4906,13 @@ let REPLY_POLL = null;
 async function loadReply(ev) {
   const box = document.getElementById("replybox");
   try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}`)); }
-  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
+  catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; noteMail(ev, "reply", { failed: true }); }
 }
 const longDayEn = (iso) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) return ""; const [y, m, d] = iso.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }); };
 function renderReplyCard(ev, R) {
   const box = document.getElementById("replybox");
   if (!box) return;
+  noteMail(ev, "reply", R);
   if (!R.reply) {
     box.innerHTML = `<p style="margin:0 0 12px">Send everyone registered one email with a button to a short form asking about any food allergy, intolerance or dietary need${/national gang summit/i.test(ev.title) ? ", and yes or no to each social" : ""}. The answers come back as the dietary list for the hotel${/national gang summit/i.test(ev.title) ? ", and a separate list of who is coming to the socials" : ""}. You can also add people who already told you.</p>
       <button class="btn btn-gold" id="rp-start">Set it up</button>`;
@@ -5043,7 +5162,7 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  */
 // Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
 // filters, the find box, opening a person's details, the way back) still works.
-const VIEW_LOOK = ".etab, [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
+const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
 const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");
@@ -7779,7 +7898,7 @@ function reviewScreen(data) {
         <button class="btn btn-ghost" id="redeliver-all">Resend everything</button></div>
       <p class="hint">Rebuild regenerates this agreement from the record and refiles it to SharePoint, so one approved before a change to the document picks it up. It does not email the presenter.</p>
     </div></div>`
-  : `<div class="card" style="margin-top:16px">
+  : `<div class="card" id="rvdecide" style="margin-top:16px">
     <div class="card-head"><div><h2>Board decision</h2>
       <div class="s">Tick what ONGIA will cover. Lines the agency isn't covering are pre-ticked; untick to decline.</div></div></div>
     <div class="card-body">
@@ -7817,6 +7936,16 @@ function reviewScreen(data) {
   ROOT.innerHTML = s.talk || approved ? `<div class="rvgrid">${submission}${decision}</div>` : submission;
   if (data.canEdit === false) queueMicrotask(() => makeViewOnly("This agreement is view only for you. It is approved and signed by the event's own board members, the president or the VP of operations."));
   if (!s.talk && !approved) return;
+  // On a phone or a narrow window the decision comes after the whole submission (Andrew 28 Oct 2026, from the audit):
+  // a bar at the bottom takes you to it, and gets out of the way once the decision is on screen.
+  const decideCard = document.getElementById("rvdecide");
+  if (decideCard && data.canEdit !== false) {
+    ROOT.insertAdjacentHTML("beforeend", `<div class="rvbar" id="rvbar"><div class="rvbar-t"><b>${esc(p.first)} ${esc(p.last)}</b><span>${p.status === "returned" ? "Sent back for changes" : `Submitted ${esc(fmtDate((p.submittedAt ?? "").slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}`}</span></div>
+      <button type="button" class="btn btn-gold" id="rvbar-go">Decide <span aria-hidden="true">↓</span></button></div>`);
+    const bar = document.getElementById("rvbar");
+    document.getElementById("rvbar-go").onclick = () => decideCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    if ("IntersectionObserver" in window) new IntersectionObserver(([e]) => { bar.classList.toggle("away", e.isIntersecting || e.boundingClientRect.top < 0); }).observe(decideCard);
+  }
 
   // An <img src> cannot carry the admin header, so fetch it and hand over a blob.
   const shotImg = document.getElementById("shot-img");
@@ -8067,20 +8196,24 @@ async function drawScreen() {
     }
     if (view.name === "add") return addScreen(view.eventId);
     if (view.name === "event") {
+      // A part refused to this board member stays hidden; a part that failed (the network, the server) is named at the top.
+      const failed = [];
+      const soft = (what, p) => p.catch((e) => { if (!(e.status >= 400 && e.status < 500)) failed.push(what); return null; });
       const [data, materials, checklist, guests, rooming, contract, agenda, inbox, list, volunteers, sheetcheck] = await Promise.all([
         api(`/events?id=${encodeURIComponent(view.eventId)}`),
-        api(`/materials?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        api(`/tasks?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        api(`/attendees?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        api(`/rooming?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        api(`/contract?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        api(`/agenda?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
-        EMAIL_ON ? api(`/inbox?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null,
+        soft("materials", api(`/materials?event=${encodeURIComponent(view.eventId)}`)),
+        soft("the to-do list", api(`/tasks?event=${encodeURIComponent(view.eventId)}`)),
+        soft("registrations", api(`/attendees?event=${encodeURIComponent(view.eventId)}`)),
+        soft("the hotel list", api(`/rooming?event=${encodeURIComponent(view.eventId)}`)),
+        soft("the hotel contract", api(`/contract?event=${encodeURIComponent(view.eventId)}`)),
+        soft("the agenda", api(`/agenda?event=${encodeURIComponent(view.eventId)}`)),
+        EMAIL_ON ? soft("email", api(`/inbox?event=${encodeURIComponent(view.eventId)}`)) : null,
         EMAIL_ON ? api("/events").catch(() => ({ events: [] })) : null,   // every event, only for filing email to another event
-        api(`/volunteers?event=${encodeURIComponent(view.eventId)}`).catch(() => null),
+        soft("volunteers", api(`/volunteers?event=${encodeURIComponent(view.eventId)}`)),
         api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null),   // the sheet check: refused (so hidden) for anyone but the president and the VP
         loadRoster(),   // the board, for the volunteer lead picker
       ]);
+      EV_FAILED = failed;
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
