@@ -2,7 +2,8 @@ import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mj
 import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster, deleteSurveyData,
-  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies } from "./lib/store.mjs";
+  getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies,
+  countSurveyResponses, getSeen, putSeen } from "./lib/store.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -39,6 +40,8 @@ export default async (req) => {
   const canCost = mayCost(who);
 
   if (req.method === "GET") return id ? showEvent(id, canCost, who) : showList(canCost, who);
+  // What this board member has now seen on a tab: anyone who can open the event, view-only too.
+  if (req.method === "PUT" && id && url.searchParams.get("seen")) return markSeen(id, who, await req.json().catch(() => null));
   // A change to an existing event is for its own board members, the president and the VP; everyone else may only look.
   if (id) { const target = await getEvent(id); if (target && !mayEditEvent(who, target)) return fail(VIEW_ONLY, 403); }
   if (req.method === "POST") {
@@ -503,7 +506,22 @@ async function showEvent(id, canCost = true, who = { key: true }) {
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
   return json({ event: canCost ? event : redactEvent(event), canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
-    attention: attentionOf(presenters), checklistCounts: checklistOf(event).counts });
+    attention: attentionOf(presenters), checklistCounts: checklistOf(event).counts,
+    // For the tabs' "new since you last looked" badges: answers that only load when their tab is opened, and what this
+    // board member had seen.
+    fresh: { survey: event.survey ? await countSurveyResponses(id) : 0, reply: event.reply ? ((await getReplies(id))?.answers ?? []).length : 0 },
+    seen: (await getSeen(who?.email, id)) ?? null });
+}
+
+/** A tab opened: remember its counts for this board member, so its badge starts again from here. */
+async function markSeen(id, who, body) {
+  const counts = body?.counts && typeof body.counts === "object" ? body.counts : null;
+  if (!counts) return fail("Expected { counts }.");
+  const had = (await getSeen(who?.email, id)) ?? {};
+  const clean = Object.fromEntries(Object.entries(counts).filter(([k, n]) => /^[a-z]{2,20}$/.test(k) && Number.isFinite(n) && n >= 0).map(([k, n]) => [k, Math.floor(n)]));
+  const next = { ...had, ...clean, at: new Date().toISOString() };
+  await putSeen(who?.email, id, next);
+  return json({ seen: next });
 }
 
 /** Who on an event needs someone: to review, never sent a link, not filed, an email that bounced, not signed yet. */

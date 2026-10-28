@@ -365,6 +365,18 @@ export async function listSurveyDone(eventId) {
   const { blobs } = await store().list({ prefix: `surveydone:${eventId}:` });
   return (await Promise.all(blobs.map(async (b) => ({ pid: b.key.split(":").pop(), ...(await read(b.key)) })))).filter(Boolean);
 }
+export async function countSurveyResponses(eventId) {
+  const { blobs } = await store().list({ prefix: `surveyresp:${eventId}:` });
+  return blobs.length;
+}
+/**
+ * What one board member has already seen on an event, tab by tab (Andrew 28 Oct 2026: "a badge number when there are
+ * new responses … if I were to get 10 new survey replies, a small badge 10 shows beside the survey tab"). Counts as they
+ * were when that tab was last opened; the badge is what has come in since.
+ */
+const seenKey = (who, eventId) => `seen:${String(who || "desk").toLowerCase()}:${eventId}`;
+export const getSeen = (who, eventId) => read(seenKey(who, eventId));
+export const putSeen = (who, eventId, value) => write(seenKey(who, eventId), value);
 /** People who said they would like to present: kept apart from the answers so the answers stay anonymous. */
 export async function getSurveyContacts(eventId) {
   const { blobs } = await store().list({ prefix: `surveycontact:${eventId}:` });
