@@ -322,6 +322,48 @@
     .mname{padding-top:0}
     .band{font-size:11px;padding:0 6px}
   }
+  /* ---------- RBH SOWs: every statement of work in one place (Andrew 29 Oct 2026; the mock-up he approved) ---------- */
+  .sowsscr{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+  .sowsscr>.card{margin:0}
+  .sowtools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border)} .sowtools .sp{flex:1}
+  table.sowlist{width:100%;border-collapse:collapse}
+  .sowlist th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;color:var(--muted);text-align:left;padding:10px 12px 6px;white-space:nowrap}
+  .sowlist th.n,.sowlist td.n{text-align:right}
+  .sowlist td{padding:11px 12px;border-top:1px solid var(--border);vertical-align:middle}
+  .sowlist tr.sowrow td:first-child{border-left:5px solid var(--rbh)} .sowlist tr.sowrow.open td{background:#fff}
+  .sowlist .t b{display:block;font-size:14.5px;line-height:1.3}.sowlist .t span{display:block;font-size:12.5px;color:var(--muted)} .sowlist .t .sm{display:none}
+  .sowlist td.n{font-variant-numeric:tabular-nums;white-space:nowrap} .sowlist .pr{color:var(--done);font-weight:700}
+  .sowlist td.act{white-space:nowrap;text-align:right} .sowlist td.act .mini{margin:2px 0 2px 4px}
+  .sowlist tr.sowedit>td{padding:0 12px 16px;border-top:0;border-left:5px solid var(--rbh);background:#fff}
+  .sowlist tr.sowedit #sowcard{margin:0;box-shadow:none}
+  .sowlist tfoot td{border-top:2px solid var(--edge);font-weight:700}
+  .pill.sw-draft{background:var(--sunk);color:var(--ink-mid)} .pill.sw-submitted{background:var(--wait-bg);color:var(--wait)} .pill.sw-approved{background:var(--done-bg);color:var(--done)}
+  .pill.sw-invoiced{background:#e6ecf7;color:var(--navy)} .pill.sw-paid{background:var(--done);color:#fff} .pill.sw-none{background:none;border:1px dashed var(--edge);color:var(--muted)} .pill.sw-none::before{display:none}
+  .sowside{position:sticky;top:16px}
+  .sowsum{background:#fff;border:1px solid var(--edge);border-radius:18px;padding:16px 18px}
+  .sowsum h2{font-family:var(--fd);font-size:21px} .sowsum .s{color:var(--muted);font-size:13px;margin:2px 0 10px}
+  .sowsum .k{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--sunk);font-size:14px} .sowsum .k b{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sowsum .k.big{font-size:16px;font-weight:700} .sowsum .k.pf{color:var(--done)} .sowsum .k.int{color:#5b3f8c} .sowsum .k.dn{color:var(--late)}
+  .sowsum .xnote{margin:4px 0 2px;font-size:12.5px} .sowsum .byev .fin{display:block;font-size:12px;color:var(--done)}
+  .sowsum .grp{margin-top:12px;font-family:var(--fu);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .sowsum .prof{margin-top:12px;background:var(--done-bg);border-radius:14px;padding:12px 14px} .sowsum .prof .v{font-family:var(--fd);font-size:30px;color:var(--done);line-height:1.15}
+  .sowsum .byev{width:100%;border-collapse:collapse;font-size:13px} .sowsum .byev td{padding:4px 0;border-top:1px solid var(--sunk)} .sowsum .byev td.n{text-align:right;font-variant-numeric:tabular-nums;padding-left:10px}
+  .chip.rbhchip{border-color:var(--rbh);background:var(--rbh);color:#fff}
+  @media (max-width:900px){
+    .sowsscr{grid-template-columns:1fr} .sowside{position:static;order:-1}
+    .sowlist thead,.sowlist td.dt{display:none} .sowlist,.sowlist tbody,.sowlist tfoot{display:block}
+    .sowlist tr.sowrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 14px;border-top:1px solid var(--border);border-left:5px solid var(--rbh)}
+    .sowlist tr.sowrow td{display:block;border:0;padding:0} .sowlist tr.sowrow td:first-child{border:0} .sowlist .t .sm{display:block}
+    .sowlist tr.sowrow td.n{text-align:left} .sowlist tr.sowrow td.n::before{content:attr(data-l) " ";color:var(--muted);font-weight:400;font-size:12.5px}
+    .sowlist tr.sowrow td.act{grid-column:1/-1;text-align:left;margin-top:6px} .sowlist td.act .mini{margin:2px 4px 2px 0}
+    .sowlist tr.sowedit{display:block} .sowlist tr.sowedit>td{display:block;padding:0 0 12px;border-left:0}
+    .sowlist tfoot tr{display:flex;flex-wrap:wrap;gap:4px 14px;padding:12px 14px} .sowlist tfoot td{border:0;padding:0} .sowlist tfoot td:empty{display:none}
+  }
+  @media print{
+    .sowtools,.sowlist td.act,.sowlist tr.sowedit{display:none!important}
+    .sowsscr{grid-template-columns:minmax(0,1fr) 260px} .sowside{position:static}
+  }
+
   @media print{
     .bar,.ynav,.ylegend,.needs{display:none!important}
     .card{box-shadow:none;break-inside:avoid}
@@ -1535,12 +1577,14 @@ async function signInScreen(message) {
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button><button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
+  const sows = document.getElementById("sowsnav");
+  if (sows) sows.onclick = () => { view = { name: "sows" }; render(); };
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: "board" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
@@ -5469,7 +5513,7 @@ function sowCard(ev, S) {
 }
 
 let SOW_DIRTY = () => false;
-function wireSow(ev, S) {
+function wireSow(ev, S, { onSums = null } = {}) {
   const q = `/sow?event=${encodeURIComponent(ev.id)}`;
   if (!S.sow) {
     const b = document.getElementById("sw-start");
@@ -5614,6 +5658,7 @@ function wireSow(ev, S) {
   };
   const sums = () => {
     drawProfit();
+    onSums?.(sow, { estimate: { ...sowSums(sow, "estimate"), ...profitOf("estimate") }, actual: { ...sowSums(sow, "actual"), ...profitOf("actual") } });
     const q = document.getElementById("rbhq");
     if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual"), dirty);
     const est = sowSums(sow, "estimate"), act = sowSums(sow, "actual"), showAct = afterApproval(sow);
@@ -5703,6 +5748,125 @@ function wireSow(ev, S) {
   // Saves as you go (Andrew 29 Oct 2026); the status, PDFs and filing still save first, then redraw, as before.
   const auto = autosave(body, () => $("sw-save"), () => save(true), { skip: "#sw-word, #sw-prov, #sw-status" });
   draw();
+}
+
+/* ---------- RBH SOWs: every statement of work in one place ---------- */
+/**
+ * Andrew 29 Oct 2026: "a tab ... I could see a list and access all of the RBH SOWs instead of going into every single event
+ * individually ... on the right side a summary ... the total amount of expenses planned, the total sum of profit planned
+ * ... any changes I make from that screen will change them in the SOW inside each event and vice versa". A row opens the
+ * event's own statement of work, in the same editor as on the event: there is one SOW per event, so a change in either
+ * place is the same change. The president and the VP only (the server refuses anyone else).
+ */
+let SOWS_SCOPE = (() => { try { return localStorage.getItem("ongia-sows-scope") || "upcoming"; } catch { return "upcoming"; } })();
+let SOWS_YEAR = "all";
+function sowsScreen({ events }) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="sowsprint">Print this list</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  document.getElementById("sowsprint").onclick = () => window.print();
+  const today = todayIso();
+  const past = (e) => (e.lastDay || e.dayOne) && (e.lastDay || e.dayOne) < today;
+  const years = [...new Set(events.map((e) => String(e.dayOne).slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))].sort();
+  if (SOWS_YEAR !== "all" && !years.includes(SOWS_YEAR)) SOWS_YEAR = "all";
+  const shown = events.filter((e) => (SOWS_SCOPE === "all" || (SOWS_SCOPE === "past" ? past(e) : !past(e))) && (SOWS_YEAR === "all" || String(e.dayOne).startsWith(SOWS_YEAR)));
+  const withSow = shown.filter((e) => e.sow);
+  const status = (e) => (!e.sow ? `<span class="pill sw-none">No SOW yet</span>` : `<span class="pill sw-${esc(e.status)}">${esc((SOW_STATUSES.find(([k]) => k === e.status) ?? [, e.status])[1])}</span>`);
+  const range = (e) => `${esc(fmtDate(e.dayOne).replace(/^\w+ /, ""))}${e.lastDay && e.lastDay !== e.dayOne ? ` – ${esc(fmtDate(e.lastDay).replace(/^\w+ /, ""))}` : ""}`;
+  const soFar = (e) => (e.sow && (e.invoiced || e.hasActuals) ? usd(e.actual.total) : "–");
+  const row = (e) => `<tr class="sowrow${view.open === e.id ? " open" : ""}" data-sowrow="${esc(e.id)}">
+      <td class="t"><b>${esc(e.title)}</b><span>${esc(e.city)}${e.number ? ` · ${esc(e.number)}` : ""}</span><span class="sm">${range(e)}</span></td>
+      <td class="dt">${range(e)}</td><td>${status(e)}</td>
+      <td class="n" data-l="SOW" data-k="total">${e.sow ? usd(e.estimate.total) : "–"}</td>
+      <td class="n" data-l="Invoice so far" data-k="sofar">${soFar(e)}</td>
+      <td class="n pr" data-l="Profit planned" data-k="profit">${e.sow ? usd(e.estimate.profit) : "–"}</td>
+      <td class="act">${e.sow ? `<button class="mini" data-sowopen="${esc(e.id)}">${view.open === e.id ? "Close ▴" : "Open ▾"}</button><button class="mini" data-sowpdf="${esc(e.id)}">PDF</button>`
+        : `<button class="mini gold" data-sowopen="${esc(e.id)}">${view.open === e.id ? "Close ▴" : "Start it"}</button>`}<button class="mini ghost" data-sowevent="${esc(e.id)}">Event →</button></td></tr>
+    ${view.open === e.id ? `<tr class="sowedit"><td colspan="7" id="sowedit"><p class="porg">Opening…</p></td></tr>` : ""}`;
+  const seg = (attr, cur, opts) => `<span class="qseg">${opts.map(([k, l]) => `<button ${attr}="${esc(k)}" class="${k === cur ? "on" : ""}">${esc(l)}</button>`).join("")}</span>`;
+  ROOT.innerHTML = `<div class="sowsscr">
+    <div class="card"><div class="card-head"><div><h2>RBH statements of work</h2>
+      <div class="s">Every RBH event's statement of work in one place. Open one to change it here: it's the same SOW as on the event, so a change in either place shows in both. Only you and the VP see this.</div></div></div>
+      <div class="sowtools">${seg("data-sowscope", SOWS_SCOPE, [["upcoming", "Upcoming"], ["past", "Past"], ["all", "All"]])}
+        ${years.length > 1 ? seg("data-sowyear", SOWS_YEAR, [["all", "Every year"], ...years.map((y) => [y, y])]) : ""}<span class="sp"></span>
+        ${withSow.length ? `<button class="btn btn-gold" id="sowsall">Print all SOWs (one PDF)</button>` : ""}</div>
+      ${shown.length ? `<table class="sowlist"><thead><tr><th>Event</th><th class="dt">Dates</th><th>Status</th><th class="n">SOW total</th><th class="n">Invoice so far</th><th class="n">Profit planned</th><th></th></tr></thead>
+        <tbody>${shown.map(row).join("")}</tbody>
+        <tfoot><tr><td colspan="3">${withSow.length} statement${withSow.length === 1 ? "" : "s"} of work${shown.length > withSow.length ? ` · ${shown.length - withSow.length} event${shown.length - withSow.length === 1 ? "" : "s"} with none yet` : ""}</td>
+          <td class="n" id="sowft-total"></td><td class="n" id="sowft-sofar"></td><td class="n pr" id="sowft-profit"></td><td></td></tr></tfoot></table>`
+        : `<p class="said" style="padding:16px 20px">No RBH events ${SOWS_SCOPE === "past" ? "in the past" : SOWS_SCOPE === "upcoming" ? "coming up" : "yet"}${SOWS_YEAR !== "all" ? ` in ${esc(SOWS_YEAR)}` : ""}.</p>`}
+    </div>
+    <aside class="sowside"><div class="sowsum" id="sowsum"></div></aside></div>`;
+
+  // The summary: everything in the list added up, the open one as it is being typed.
+  const live = new Map();
+  const fig = (e, which) => live.get(e.id)?.[which] ?? e[which];
+  const drawSummary = () => {
+    const add = (which, k) => r2(withSow.reduce((n, e) => n + (fig(e, which)?.[k] ?? 0), 0));
+    const E = Object.fromEntries(["atCost", "fixed", "fee", "subtotal", "deposit", "taxTotal", "total", "internal", "profit"].map((k) => [k, add("estimate", k)]));
+    const started = withSow.filter((e) => e.invoiced || e.hasActuals);
+    const soFar = r2(started.reduce((n, e) => n + fig(e, "actual").total, 0)), profitSoFar = r2(started.reduce((n, e) => n + fig(e, "actual").profit, 0));
+    const paid = r2(withSow.filter((e) => e.paid).reduce((n, e) => n + fig(e, "actual").total, 0));
+    // Where the year is heading (Andrew 29 Oct 2026: "two final amounts and three estimated amounts ... and as I close them
+    // out, that changes"): an event marked Invoiced or Paid counts at its final invoice, every other one at its SOW.
+    const finals = withSow.filter((e) => e.invoiced), fin = (e, k) => fig(e, e.invoiced ? "actual" : "estimate")[k] ?? 0;
+    const X = Object.fromEntries(["total", "internal", "profit"].map((k2) => [k2, r2(withSow.reduce((n, e) => n + fin(e, k2), 0))]));
+    const moved = r2(X.profit - E.profit), sign = (n) => (n > 0 ? `+${usd(n)}` : n < 0 ? `−${usd(-n)}` : usd(0));
+    const k = (l, v, cls = "") => `<div class="k ${cls}"><span>${l}</span><b>${v}</b></div>`;
+    document.getElementById("sowsum").innerHTML = `<h2>All of them together</h2>
+      <div class="s">${esc({ upcoming: "Upcoming", past: "Past", all: "Every RBH event" }[SOWS_SCOPE])}${SOWS_YEAR !== "all" ? `, ${esc(SOWS_YEAR)}` : ""} · ${withSow.length} statement${withSow.length === 1 ? "" : "s"} of work</div>
+      <div class="grp">What RBH is asked for (SOW estimates)</div>
+      ${k("Expenses at cost (hotel, AV, dinners, travel…)", usd(E.atCost))}${k("Fixed fees (on-site, pre/post)", usd(E.fixed))}${k("ONGIA service fee (20%)", usd(E.fee))}
+      ${k("Before tax", usd(r2(E.subtotal + E.fee)), "big")}${E.deposit ? k("Less deposits", `−${usd(E.deposit)}`) : ""}${k("Tax", usd(E.taxTotal))}${k("Total with tax", usd(E.total), "big")}
+      <div class="grp">ONGIA's own costs (never on an invoice)</div>
+      ${k("Stipends and other internal costs", `−${usd(E.internal)}`, "int")}
+      <div class="prof"><span>Profit planned</span><div class="v" id="sowsum-profit">${usd(E.profit)}</div>
+        <div class="hint">Fixed fees + 20% fee − internal costs. No tax in it; the at-cost lines pass through.</div></div>
+      <div class="grp">Expected for the year</div>
+      <div class="hint xnote">${finals.length ? `${finals.length} of ${withSow.length} on ${finals.length === 1 ? "its" : "their"} final invoice, the rest at ${withSow.length - finals.length === 1 ? "its" : "their"} SOW.` : "None invoiced yet, so this is the same as the SOWs. Each one marked Invoiced counts at its final invoice from then on."}</div>
+      ${k("Total with tax", usd(X.total), "big")}${k("Stipends and other internal costs", `−${usd(X.internal)}`, "int")}
+      ${k("Expected profit", usd(X.profit), "big pf")}${finals.length ? k("Against the SOWs", sign(moved), moved < 0 ? "dn" : "pf") : ""}
+      <div class="grp">So far</div>
+      ${k("Invoiced so far", usd(soFar))}${k("Profit so far", usd(profitSoFar), "pf")}${k("Paid by RBH", usd(paid))}
+      ${withSow.length ? `<div class="grp">Profit planned by event</div><table class="byev">${withSow.map((e) => `<tr><td>${esc(e.title)}${e.invoiced ? `<span class="fin">final ${usd(fig(e, "actual").profit)}</span>` : ""}</td><td class="n">${usd(fig(e, "estimate").profit)}</td></tr>`).join("")}</table>` : ""}`;
+    const ft = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    ft("sowft-total", usd(E.total)); ft("sowft-sofar", usd(soFar)); ft("sowft-profit", usd(E.profit));
+  };
+  drawSummary();
+
+  ROOT.querySelectorAll("[data-sowscope]").forEach((b) => { b.onclick = () => { SOWS_SCOPE = b.dataset.sowscope; try { localStorage.setItem("ongia-sows-scope", SOWS_SCOPE); } catch {} view = { name: "sows" }; render(); }; });
+  ROOT.querySelectorAll("[data-sowyear]").forEach((b) => { b.onclick = () => { SOWS_YEAR = b.dataset.sowyear; view = { name: "sows" }; render(); }; });
+  ROOT.querySelectorAll("[data-sowopen]").forEach((b) => { b.onclick = () => { view = { name: "sows", open: view.open === b.dataset.sowopen ? null : b.dataset.sowopen }; render(); }; });
+  ROOT.querySelectorAll("[data-sowevent]").forEach((b) => { b.onclick = () => { view = { name: "event", eventId: b.dataset.sowevent, tab: "money" }; render(); }; });
+  const openPdf = async (url) => {
+    const res = await apiFetch(`/api${url}`, { headers: { "x-admin-key": KEY } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
+    window.open(URL.createObjectURL(await res.blob()), "_blank");
+  };
+  ROOT.querySelectorAll("[data-sowpdf]").forEach((b) => { b.onclick = () => openPdf(`/sow?event=${encodeURIComponent(b.dataset.sowpdf)}&doc=sow`).catch((x) => toast(x.message)); });
+  const all = document.getElementById("sowsall");
+  if (all) all.onclick = async () => { const done = all.textContent; all.disabled = true; all.textContent = "Making the PDF…";
+    try { await openPdf(`/sow?all=1&doc=sow&ids=${withSow.map((e) => encodeURIComponent(e.id)).join(",")}`); } catch (x) { toast(x.message); }
+    all.disabled = false; all.textContent = done; };
+
+  // The open one: the event's own statement of work, in the event's own editor.
+  const open = shown.find((e) => e.id === view.open);
+  if (open) (async () => {
+    const cell = document.getElementById("sowedit");
+    try {
+      const [{ event: ev }, S] = await Promise.all([api(`/events?id=${encodeURIComponent(open.id)}`), api(`/sow?event=${encodeURIComponent(open.id)}`)]);
+      if (!cell.isConnected) return;
+      cell.innerHTML = sowCard(ev, S);
+      const card = cell.querySelector("#sowcard"); card.open = true;
+      card.querySelector("summary").onclick = (e) => e.preventDefault();   // the row's Close button folds it
+      wireSow(ev, S, { onSums: (sow, f) => {
+        const shape = (t) => ({ atCost: r2(t.subtotal - t.fixed), fixed: t.fixed, subtotal: t.subtotal, fee: t.fee, deposit: t.deposit, taxTotal: r2(t.total - t.newSubtotal), total: t.total, internal: t.internal, profit: t.profit });
+        live.set(open.id, { estimate: shape(f.estimate), actual: shape(f.actual) });
+        const tr = ROOT.querySelector(`[data-sowrow="${CSS.escape(open.id)}"]`);
+        if (tr) { tr.querySelector('[data-k="total"]').textContent = usd(f.estimate.total); tr.querySelector('[data-k="profit"]').textContent = usd(f.estimate.profit); }
+        drawSummary();
+      } });
+    } catch (x) { cell.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }
+  })();
 }
 
 /* ---------- receipts (RBH events) ---------- */
@@ -8579,6 +8743,7 @@ async function drawScreen() {
       const { events } = await api("/events");
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
     }
+    if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
     if (view.name === "letters") {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
       return lettersScreen(data, events, view.pick ?? null);
