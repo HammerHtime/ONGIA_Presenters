@@ -615,9 +615,13 @@
   .swwrap{container-type:inline-size}
   .swt td.nm{min-width:180px}
   @container (max-width:1040px){
-    .swt thead{display:none}
-    .swt,.swt tbody{display:block}
-    .swt tr{display:grid;grid-template-columns:minmax(0,1fr) 140px 190px auto;grid-template-areas:"name type est btn" "desc rc inv vs";gap:6px 10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border)}
+    /* One heading line over the rows for what's on the first line of each (Line, Type, SOW estimate), so every row's
+       boxes line up (Andrew 29 Oct 2026: "the boxes in the row for hotel seem off and not lining up"). */
+    .swt,.swt tbody,.swt thead{display:block}
+    .swt thead tr{display:grid;grid-template-columns:minmax(0,1fr) 140px 190px 116px;grid-template-areas:none;gap:6px 10px;padding:0;border-bottom:2px solid var(--navy)}
+    .swt thead th{border:0;padding:0 0 6px}
+    .swt thead th.rcv,.swt thead th.act{display:none}
+    .swt tr{display:grid;grid-template-columns:minmax(0,1fr) 140px 190px 116px;grid-template-areas:"name type est btn" "desc rc inv vs";gap:6px 10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border)}
     .swt.noact tr{grid-template-areas:"name type est btn" "desc rc . ."}
     .swt td{display:block;padding:0;border:0;width:auto !important;min-width:0}
     .swt td.nm{display:contents}
@@ -628,11 +632,11 @@
     .swt td.inv{grid-area:inv} .swt td.v{grid-area:vs;text-align:left;padding-top:0} .swt td.b{grid-area:btn;padding-top:0}
     .swt td[data-l]::before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
     .swt td.t::before,.swt td.est::before{display:none}
-    .swt tr:first-child td.t::before,.swt tr:first-child td.est::before{display:block}
   }
   @container (max-width:600px){
     .swt tr{grid-template-columns:1fr 1fr;grid-template-areas:"name name" "desc desc" "type est" "rc rc" "inv vs" "btn btn"}
     .swt.noact tr{grid-template-areas:"name name" "desc desc" "type est" "rc rc" "btn btn"}
+    .swt thead{display:none}
     .swt td.t::before,.swt td.est::before{display:block}
     .swt td.b{text-align:left}
   }
