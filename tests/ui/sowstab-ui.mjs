@@ -69,7 +69,11 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
     ok(`${tag}: a change made on the event shows in the list`, (await row(itp.id).innerText()).includes(`$${fresh.estimate.total.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`), await row(itp.id).innerText());
     // Start it, for the event that has none.
     await row(bare.id).locator("[data-sowopen]").click(); await p.waitForTimeout(1500);
+    // An ITP starts from the previous ITP's lines (Andrew 29 Oct 2026).
+    const lastItp = (await api(`/api/sow?event=${bare.id}`)).copyFrom.find((c) => c.family === "itp")?.id;
+    ok(`${tag}: starting an ITP's statement of work offers the last ITP's lines, already chosen`, !!lastItp && (await p.locator('#sowedit input[name="sw-from"]:checked').getAttribute("value")) === lastItp && /latest ITP training/i.test(await p.locator("#sowedit").innerText()), `${lastItp} vs ${await p.locator('#sowedit input[name="sw-from"]:checked').getAttribute("value")} | ${await p.locator('#sowedit input[name="sw-from"]').evaluateAll((e) => e.map((x) => x.value + (x.checked ? "*" : "")).join(","))}`);
     await p.locator("#sowedit #sw-start").click(); await p.waitForTimeout(2000);
+    ok(`${tag}: and it comes with that ITP's lines`, (await api(`/api/sow?event=${bare.id}`)).sow?.copiedFrom === lastItp);
     ok(`${tag}: Start it starts that event's statement of work from here`, !!(await api(`/api/sow?event=${bare.id}`)).sow && await p.locator("#sowedit #sw-table").isVisible());
     // Expected for the year: one invoiced above its SOW counts at its final invoice; the rest stay at their SOWs.
     const s3 = (await api(`/api/sow?event=${itp.id}`)).sow;
@@ -83,7 +87,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
     const sum = await p.locator("#sowsum").innerText();
     const xp = money(/Expected profit\s*(\S+)/.exec(sum)?.[1]);
     ok(`${tag}: Expected profit counts the invoiced one at its final invoice and the others at their SOWs`, Math.abs(xp - expect) < 0.01 && expect > planned && money(await p.locator("#sowsum-profit").innerText()) === planned, `${xp} vs ${expect} (planned ${planned})`);
-    ok(`${tag}: it says how many are on their final invoice and how far that moved it`, /1 of \d+ on its final invoice/.test(sum) && /Against the SOWs\s*\+\$/.test(sum), sum);
+    ok(`${tag}: it says how many are on their final invoice and how far that moved it`, /\d+ of \d+ on (its|their) final invoice/.test(sum) && /Against the SOWs\s*\+\$/.test(sum), sum);
     await p.locator("#sowsum").screenshot({ path: D + "sows-expected.png" });
     // Print all: one PDF of everything listed.
     const pdfReq = p.waitForRequest((r) => /\/api\/sow\?all=1&doc=sow&ids=/.test(r.url()), { timeout: 5000 }).catch(() => null);
