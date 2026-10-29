@@ -96,6 +96,9 @@
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
   /* the CFAOC website card */
   .wsh{font-size:15px;margin:20px 0 6px}
+  .wscopy{border:1px dashed var(--edge);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:var(--sunk)}
+  .wscopy label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .wscopy-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .wscopy-row select{flex:1 1 220px;margin:0} .wscopy-row .mini{white-space:nowrap}
   .wsag{border:1px solid var(--edge);border-radius:10px;padding:10px;margin:0 0 8px;display:grid;gap:6px}
   .wsag-top{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center}
   .wsag-pick{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
@@ -4314,6 +4317,10 @@ function renderWebsite(ev, W) {
       <div class="field"><label for="ws-blurbFr">Short description in French</label><textarea id="ws-blurbFr" maxlength="600" style="min-height:70px">${esc(w.blurbFr)}</textarea></div></div>
     <h3 class="wsh">Program</h3>
     <p class="hint" style="margin:0 0 10px">One line per session. Pick a presenter and the website uses their talk title and description from their agreement, only if they agreed to be public.</p>
+    ${(W.copyFrom ?? []).length ? `<div class="wscopy"><label for="ws-copyfrom">Start from another CFAOC event's agenda</label>
+      <div class="wscopy-row"><select id="ws-copyfrom">${W.copyFrom.map((c) => `<option value="${esc(c.id)}">${esc(c.city || c.title)}${c.dayOne ? ` · ${esc(fmtDate(c.dayOne))}` : ""} · ${c.rows.length} line${c.rows.length === 1 ? "" : "s"}</option>`).join("")}</select>
+        <button type="button" class="mini gold" id="ws-copy">Copy its times</button></div>
+      <p class="hint" style="margin:6px 0 0">Every line keeps its times. Registration, breaks, lunch and the other lines with no presenter come over as they are; the presenter lines come over empty, for you to pick the presenter and add their details.</p></div>` : ""}
     <div id="wsag">${w.agenda.map(agRow).join("")}</div>
     <button type="button" class="mini" id="ws-addrow">Add a line</button>
     <div class="actions" style="margin-top:16px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="ws-save">Save website details</button>
@@ -4339,6 +4346,16 @@ function renderWebsite(ev, W) {
   const saveEvent = async () => { const out = await api(`/website?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(fields()) }); W.website = out.website; return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
 
+  const copy = document.getElementById("ws-copy");
+  if (copy) copy.onclick = () => {
+    const from = W.copyFrom.find((c) => c.id === document.getElementById("ws-copyfrom").value);
+    if (!from) return;
+    const have = rows().length;
+    if (have && !confirm(`Replace the ${have} line${have === 1 ? "" : "s"} here with ${from.city || from.title}'s ${from.rows.length}?`)) return;
+    W.website = { ...W.website, ...fields(), agenda: from.rows.map((r) => ({ ...r })) };
+    renderWebsite(ev, W);
+    toast(`Copied ${from.rows.length} lines from ${from.city || from.title}. Pick each presenter, then save.`);
+  };
   document.getElementById("ws-addrow").onclick = () => { W.website = { ...W.website, ...fields() }; W.website.agenda.push({ time: "", end: "", presenter: "", title: "", detail: "", titleFr: "", detailFr: "", abstract: "", abstractFr: "" }); renderWebsite(ev, W); document.querySelector("#wsag [data-wsrow]:last-child input")?.focus(); };
   box.querySelectorAll("[data-wsdel]").forEach((b) => { b.onclick = () => { W.website = { ...W.website, ...fields() }; W.website.agenda.splice(+b.dataset.wsdel, 1); renderWebsite(ev, W); }; });
   document.getElementById("ws-save").onclick = async (e) => {
