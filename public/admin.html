@@ -164,6 +164,14 @@
   .pill.done{background:var(--done-bg);color:var(--done)}
   .pill.wait{background:var(--wait-bg);color:var(--wait)}
   .pill.late{background:var(--late-bg);color:var(--late)}
+  /* Hotel not signed yet: the dates are held, not locked (Andrew 29 Oct 2026). Amber, with an open padlock. */
+  .pill.hold{background:var(--wait-bg);color:var(--wait);border:1px dashed var(--wait)}
+  .pill.hold::before{content:"🔓";width:auto;height:auto;background:none;font-size:11px}
+  .tent{display:block;font-size:12px;color:var(--wait);font-weight:600;font-style:italic;white-space:nowrap}
+  .lockline{margin:10px 12px 0;padding:10px 14px;border-radius:12px;background:var(--wait-bg);color:var(--ink-mid);font-size:14px;line-height:1.5}
+  .lockline.ok{background:var(--done-bg);color:var(--done)}
+  .lockbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--wait-bg);border:1px dashed var(--wait);color:var(--ink-mid);font-size:14px}
+  .lockbar span{flex:1 1 260px}
   /* Navy means "waiting on ONGIA" — it survives greyscale and colour blindness. */
   .pill.you{background:var(--navy);color:#fff}
   .pill.idle{background:var(--sunk);color:var(--muted);box-shadow:inset 0 0 0 1px var(--border)}
@@ -1690,6 +1698,12 @@ function homeConsole(events, upcoming, inbox) {
       <div class="qlist">${tab === "needs" ? list(Q.needs, Q.todo) : list(Q.waiting, Q.them)}</div></div>`;
 }
 
+// Is the hotel locked in? (Andrew 29 Oct 2026: "none of these events can go forward, or we can start building out the ticket
+// sales and looking for presenters until we lock in the hotel contract".) The event checklist's "Contract signed" job says
+// so; marked not applicable, the event has no hotel to sign for. No such job on the list counts as not signed.
+const contractJob = (ev) => (ev.tasks ?? []).find((t) => /^contract signed/i.test(t.what ?? ""));
+const hotelLocked = (ev) => { const j = contractJob(ev); return !!j && (j.done || j.na); };
+
 /** The upcoming events, one row each: dates, how many have signed, final materials, and what is next. */
 function eventsTable(upcoming) {
   const today = todayIso();
@@ -1698,7 +1712,8 @@ function eventsTable(upcoming) {
     const c = ev.counts ?? {}, a = ev.attention ?? {};
     const total = c.total ?? 0, signed = c.approved ?? 0, mf = ev.materials?.final ?? 0;
     const pct = total ? Math.round((signed / total) * 100) : 0;
-    const pills = [];
+    const pills = [], open = !hotelLocked(ev);
+    if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
     if ((a.review ?? []).length) pills.push(`<span class="pill late">${a.review.length} to review</span>`);
     if ((a.uninvited ?? []).length) pills.push(`<span class="pill wait">${a.uninvited.length} never sent</span>`);
     if ((a.failed ?? []).length) pills.push(`<span class="pill late">${a.failed.length} not filed</span>`);
@@ -1706,7 +1721,7 @@ function eventsTable(upcoming) {
     const outN = (a.outstanding ?? []).length;
     if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
     if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
-    if (!pills.length) {
+    if (pills.length === (open ? 1 : 0)) {
       const nx = [["Agreements due", due], ["Final materials due", ev.noDeadlines ? null : ev.deadlines?.final], ["Training starts", ev.dayOne]].find(([, d]) => d && days(d) >= 0);
       if (nx) pills.push(`<span class="pill grey">${esc(nx[0])} ${esc(fmtDate(nx[1]).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}</span>`);
     }
@@ -1714,15 +1729,20 @@ function eventsTable(upcoming) {
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
     // The tile's left edge says whether the event needs you (red) or not (navy).
     const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
-    return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
+    return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
-      <td class="d">${dates}</td>
+      <td class="d">${dates}${open ? `<span class="tent">held, not locked</span>` : ""}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
       <td class="m">${mf} of ${total} <span class="lab">final materials</span></td>
       <td class="n">${pills.join(" ")}</td>
       <td class="o"><span class="mini">Open</span></td></tr>`;
   }).join("");
+  const notSigned = upcoming.filter((ev) => !hotelLocked(ev)).length;
+  const lockLine = !upcoming.length ? "" : notSigned
+    ? `<div class="lockline"><b>${notSigned} of ${upcoming.length}</b> upcoming event${upcoming.length === 1 ? "" : "s"} ${notSigned === 1 ? "has" : "have"} no signed hotel contract yet, so ${notSigned === 1 ? "its dates" : "their dates"} can still move. ${notSigned === 1 ? "It's" : "They're"} marked <span class="pill hold">Hotel not signed</span>. Hold off on ticket sales and presenters until the contract is signed.</div>`
+    : `<div class="lockline ok">Every upcoming event has a signed hotel contract.</div>`;
   return `<div class="card" id="upcoming"><div class="card-head"><div><h2>Upcoming events</h2><div class="s">Click a row to open it</div></div></div>
+    ${lockLine}
     <table class="evt"><thead><tr><th>Event</th><th>Dates</th><th>Agreements signed</th><th>Final materials</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
@@ -2934,6 +2954,17 @@ function eventScreen(data) {
   // Wired after the card renders (the buttons live on it, not in the top bar).
   const wireActions = () => {
     document.getElementById("edit").onclick = () => { view = { name: "edit", eventId: ev.id }; render(); };
+    // Ticks the checklist's "Contract signed" job, adding it first if this event's list hasn't got one.
+    const lock = document.getElementById("lock-hotel");
+    if (lock) lock.onclick = async () => {
+      lock.disabled = true;
+      try {
+        const q = `/tasks?event=${encodeURIComponent(ev.id)}`;
+        const job = contractJob(ev) ?? contractJob(await api(q, { method: "POST", body: JSON.stringify({ what: "Contract signed", daysBefore: null }) }));
+        await api(`${q}&id=${encodeURIComponent(job.id)}`, { method: "PUT", body: JSON.stringify({ done: true, na: false }) });
+        toast("Hotel contract marked signed. The dates are locked in."); render();
+      } catch (x) { toast(x.message); lock.disabled = false; }
+    };
     document.getElementById("add").onclick = openAdd;
     document.getElementById("mailall").onclick = mailAll;
     const fixRows = ROOT.querySelector("[data-evn-add]");
@@ -3407,7 +3438,8 @@ function eventScreen(data) {
     <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
-        ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div></div>
+        ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
+      ${hotelLocked(ev) ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
     <div class="evtiles">${tiles}</div></section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
