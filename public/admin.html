@@ -553,6 +553,24 @@
   .rck .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center}
   .rck .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
   .rck .rclinks .rcprob{color:#8a5a00}
+  .rctools{display:flex;gap:8px;margin:0 0 10px}
+  .rcsec{border:1px solid var(--border);border-radius:12px;margin:0 0 8px;background:#fff;overflow:hidden}
+  .rcsec summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--sand,#f5f0e8);min-height:44px}
+  .rcsec summary::-webkit-details-marker{display:none}
+  .rcsec-n{font-weight:700;font-size:15px}.rcbadge{background:var(--navy);color:#fff;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+  .rcsec-t{margin-left:auto;font-weight:700;font-size:14px;white-space:nowrap}.rcsec-t small{font-weight:400;color:var(--muted)}
+  .rccaret{color:var(--muted);transition:transform .15s}.rcsec:not([open]) .rccaret{transform:rotate(-90deg)}
+  .rcrow{display:grid;grid-template-columns:minmax(0,1fr) 92px 96px auto 36px;gap:10px;align-items:center;padding:6px 8px 6px 14px;border-top:1px solid var(--border);font-size:14px;min-height:40px}
+  .rcrow.more{background:#fbfaf6}
+  .rqv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rqd{color:var(--ink-mid);white-space:nowrap}.rqa{text-align:right;font-weight:600;white-space:nowrap}
+  .rcsp{color:var(--navy);font-size:13px;white-space:nowrap}.rcsp.rcprob{color:#8a5a00;text-decoration:none}
+  .rcmore{background:none;border:0;font-size:18px;line-height:1;color:var(--ink-mid);padding:6px;cursor:pointer;border-radius:8px;min-height:36px}.rcmore:hover,.rcmore[aria-expanded="true"]{background:var(--sunk)}
+  .rcmorebox{padding:4px 14px 10px;background:#fbfaf6;border-top:1px dashed var(--border)}
+  .rcmorebox .sub{font-size:13.5px;color:var(--ink-mid);margin-top:4px}
+  .rcmorebox .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:6px;font-size:14px;align-items:center}
+  .rcmorebox .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
+  .rcsec .rck{margin:8px}
+  @media (max-width:560px){.rcrow{grid-template-columns:minmax(0,1fr) auto 36px;grid-template-areas:"v a more" "d sp more";row-gap:2px}.rqv{grid-area:v}.rqa{grid-area:a}.rcmore{grid-area:more}.rqd{grid-area:d;font-size:12.5px}.rcsp{grid-area:sp;text-align:right}}
   .rcsum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:14px;color:var(--ink-mid)} .rcsum b{color:var(--ink);font-size:17px}
   .swt .rcl{font-size:12px;color:var(--ink-mid);margin-top:2px} .swt .rcl.over{color:#a02a1a;font-weight:600} .swt .rcl.under{color:#1f6b3a} .swt td.rcv,.swt th.rcv{width:150px;text-align:right;padding-top:10px} .rctot{margin-top:10px;font-size:14px} .swt tr.oth td{background:#faf7ee}
   @media (min-width:700px){.rcf{grid-template-columns:1fr 1fr}.rcd .pv img,.rcd .pv .pdf{width:120px;height:120px}}
@@ -5603,6 +5621,7 @@ function wireReceipts(ev, R0) {
   const body = document.getElementById("rc-body");
   if (!body) return;
   let R = R0, timer = null, editing = null;
+  const rcOpen = new Set(), rcMore = new Set();   // sections opened, receipts showing their ⋯, while the page is open
   const $ = (sel, root = body) => root.querySelector(sel);
   const lineName = (id) => id === RC_OTHER ? "Other" : (R.lines.find((l) => l.id === id)?.name ?? "a line that has since been removed");
   const urls = {};
@@ -5669,6 +5688,42 @@ function wireReceipts(ev, R0) {
         ${failed ? `<button class="btn btn-ghost" data-again="${esc(d.id)}">Read it again</button>` : ""}<button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
   };
 
+  /*
+   * The receipts in a section for each line of the SOW (Andrew 29 Oct 2026: "One tight line per receipt with a link to
+   * the actual receipt in SharePoint. Each receipt will be in the appropriate section ... each section should be
+   * collapsible ... a badge with the number of items"; then "hide empty sections, start closed, ⋯ is fine"). A line's
+   * section shows only when it has receipts; sections start closed and stay as they were left while the page is open.
+   * The rest of what a receipt carries (who paid, the tax, opening the photo, Change, Remove) is under ⋯.
+   */
+  const rowHtml = (r) => {
+    if (editing === r.id) return itemHtml(r);
+    const sp = r.filed ? `<a class="rcsp" href="${esc(r.filed.url)}" target="_blank" rel="noopener" title="Open it in SharePoint">SharePoint ↗</a>`
+      : `<span class="rcsp rcprob" title="${esc(r.filedProblem ?? "not filed")}">Not in SharePoint</span>`;
+    const open = rcMore.has(r.id);
+    return `<div class="rcrow${open ? " more" : ""}" data-k="${esc(r.id)}"><span class="rqv">${esc(r.vendor)}</span><span class="rqd">${esc(fmtDate(r.date).replace(/ \d{4}$/, ""))}</span><span class="rqa">${usd(r.amount)}</span>
+      ${sp}<button type="button" class="rcmore" data-more="${esc(r.id)}" aria-expanded="${open}" aria-label="More about ${esc(r.vendor)}">⋯</button></div>
+      ${open ? `<div class="rcmorebox" data-k="${esc(r.id)}">
+        <div class="sub">${esc(fmtDate(r.date))}${r.lineId === RC_OTHER ? ` · ${esc(r.otherNote)}` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
+        <div class="sub">paid by <b>${esc(r.paidBy?.name ?? "—")}</b> · added by ${esc(r.addedBy?.name || r.addedBy?.email || "")}${r.readBy === "hand" ? " · typed in by hand" : ""}</div>
+        <div class="rclinks"><button class="lnk" data-open="${esc(r.id)}">Open the ${r.type === "application/pdf" ? "PDF" : "photo"}</button>
+          ${r.filed ? "" : `<span class="rcprob">Not in SharePoint: ${esc(r.filedProblem ?? "not filed")}</span> <button class="lnk" data-refile="${esc(r.id)}">Try again</button>`}
+          ${r.mine && !R.closed || R.canCost ? `<button class="lnk" data-edit="${esc(r.id)}">Change</button><button class="lnk" data-del="${esc(r.id)}">Remove</button>` : ""}</div></div>` : ""}`;
+  };
+  const groupsHtml = () => {
+    const ids = [...R.lines.map((l) => l.id), RC_OTHER];
+    const orphans = R.items.filter((r) => r.lineId !== RC_OTHER && !R.lines.some((l) => l.id === r.lineId));
+    const groups = ids.map((id) => ({ id, name: lineName(id), estimate: R.lines.find((l) => l.id === id)?.estimate, items: R.items.filter((r) => r.lineId === id) }))
+      .concat(orphans.length ? [{ id: "_gone", name: "A line that has since been removed", items: orphans }] : [])
+      .filter((g) => g.items.length);
+    const tools = groups.length > 1 ? `<div class="rctools"><button type="button" class="mini" data-rcall="open">Open all</button><button type="button" class="mini" data-rcall="close">Close all</button></div>` : "";
+    return tools + groups.map((g) => {
+      const tot = g.items.reduce((n, r) => n + r.amount, 0);
+      const open = rcOpen.has(g.id) || g.items.some((r) => r.id === editing);
+      return `<details class="rcsec" data-sec="${esc(g.id)}"${open ? " open" : ""}><summary><span class="rcsec-n">${esc(g.name)}</span><span class="rcbadge" aria-label="${g.items.length} receipt${g.items.length === 1 ? "" : "s"}">${g.items.length}</span>
+        <span class="rcsec-t">${usd(tot)}${g.estimate ? `<small> of ${usd(g.estimate)}</small>` : ""}</span><span class="rccaret" aria-hidden="true">▾</span></summary>
+        ${g.items.map(rowHtml).join("")}</details>`;
+    }).join("");
+  };
   const itemHtml = (r) => {
     if (editing === r.id) return `<div class="rck" data-k="${esc(r.id)}"><b>Change this receipt</b>${fields(r, { lines: R.lines })}
       <div class="acts" style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-gold" data-save="${esc(r.id)}">Save</button><button class="btn btn-ghost" data-cancel="1">Cancel</button></div></div>`;
@@ -5708,7 +5763,7 @@ function wireReceipts(ev, R0) {
       <div id="rc-drafts"></div>
       ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>
       ${R.canCost && R.byPayer?.length ? `<div class="rcsum rcpay"><span><b>Paid by</b> (total paid, tax included, for checking claims):</span>${R.byPayer.map((x) => `<span>${esc(x.name)} <b>${usd(x.paid)}</b> <small>${x.count} receipt${x.count === 1 ? "" : "s"}</small></span>`).join("")}</div>` : ""}` : ""}
-      <div id="rc-items">${R.items.map(itemHtml).join("") || `<p class="hint">No receipts yet.</p>`}</div>`;
+      <div id="rc-items">${R.items.length ? groupsHtml() : `<p class="hint">No receipts yet.</p>`}</div>`;
     const slot = $("#rc-drafts");
     while (dh.firstChild) slot.appendChild(dh.firstChild);
     wire();
@@ -5754,11 +5809,15 @@ function wireReceipts(ev, R0) {
           catch (e) { if (/already on this event/.test(e.message) && !force && confirm(`${e.message}\n\nAdd it anyway?`)) { force = true; continue; } throw e; }
         }
         toast(R.items.find((r) => r.id === id)?.filed ? "Counted, and filed in SharePoint." : "Counted. It isn't in SharePoint yet; see the receipt.");
+        const landed = R.items.find((r) => r.id === id); if (landed) rcOpen.add(landed.lineId);   // open its section, so it can be seen landing
         draw(); refreshSow();
       });
     });
     body.querySelectorAll("[data-refile]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&refile=${b.dataset.refile}`, { method: "POST" }); draw(); }); });
     body.querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { editing = b.dataset.edit; draw(); }; });
+    body.querySelectorAll("details.rcsec").forEach((d) => { d.ontoggle = () => { if (d.open) rcOpen.add(d.dataset.sec); else rcOpen.delete(d.dataset.sec); }; });
+    body.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { const id = b.dataset.more; if (rcMore.has(id)) rcMore.delete(id); else rcMore.add(id); draw(); }; });
+    body.querySelectorAll("[data-rcall]").forEach((b) => { b.onclick = () => { const open = b.dataset.rcall === "open"; body.querySelectorAll("details.rcsec").forEach((d) => { d.open = open; if (open) rcOpen.add(d.dataset.sec); else rcOpen.delete(d.dataset.sec); }); }; });
     body.querySelectorAll("[data-cancel]").forEach((b) => { b.onclick = () => { editing = null; draw(); }; });
     body.querySelectorAll("[data-save]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&item=${b.dataset.save}`, { method: "PUT", body: JSON.stringify(collect(b.closest(".rck"))) }); editing = null; draw(); refreshSow(); }); });
     body.querySelectorAll("[data-del]").forEach((b) => { b.onclick = act(async () => { if (!confirm("Remove this receipt from the invoice?")) return; R = await api(`${q}&item=${b.dataset.del}`, { method: "DELETE" }); if (R.note) toast(R.note); draw(); refreshSow(); }); });
