@@ -71,6 +71,20 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
     await row(bare.id).locator("[data-sowopen]").click(); await p.waitForTimeout(1500);
     await p.locator("#sowedit #sw-start").click(); await p.waitForTimeout(2000);
     ok(`${tag}: Start it starts that event's statement of work from here`, !!(await api(`/api/sow?event=${bare.id}`)).sow && await p.locator("#sowedit #sw-table").isVisible());
+    // Expected for the year: one invoiced above its SOW counts at its final invoice; the rest stay at their SOWs.
+    const s3 = (await api(`/api/sow?event=${itp.id}`)).sow;
+    for (const st of ["submitted", "approved"]) await api(`/api/sow?event=${itp.id}&status=${st}`, { method: "PUT", body: "{}" });
+    await api(`/api/sow?event=${itp.id}`, { method: "PUT", body: JSON.stringify({ lines: s3.lines.map((l) => ({ ...l, actual: l.type === "fixed" ? l.estimate + 1000 : l.estimate })), taxes: s3.taxes, internal: s3.internal }) });
+    await api(`/api/sow?event=${itp.id}&status=invoiced`, { method: "PUT", body: "{}" });
+    await p.locator("#back").click(); await p.waitForTimeout(800); await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
+    const now = (await api("/api/sow?all=1")).events.filter((e) => e.sow && (e.lastDay || e.dayOne) >= new Date().toISOString().slice(0, 10));
+    const expect = Math.round(now.reduce((n, e) => n + (e.invoiced ? e.actual.profit : e.estimate.profit), 0) * 100) / 100;
+    const planned = Math.round(now.reduce((n, e) => n + e.estimate.profit, 0) * 100) / 100;
+    const sum = await p.locator("#sowsum").innerText();
+    const xp = money(/Expected profit\s*(\S+)/.exec(sum)?.[1]);
+    ok(`${tag}: Expected profit counts the invoiced one at its final invoice and the others at their SOWs`, Math.abs(xp - expect) < 0.01 && expect > planned && money(await p.locator("#sowsum-profit").innerText()) === planned, `${xp} vs ${expect} (planned ${planned})`);
+    ok(`${tag}: it says how many are on their final invoice and how far that moved it`, /1 of \d+ on its final invoice/.test(sum) && /Against the SOWs\s*\+\$/.test(sum), sum);
+    await p.locator("#sowsum").screenshot({ path: D + "sows-expected.png" });
     // Print all: one PDF of everything listed.
     const pdfReq = p.waitForRequest((r) => /\/api\/sow\?all=1&doc=sow&ids=/.test(r.url()), { timeout: 5000 }).catch(() => null);
     await p.locator("#sowsall").click();

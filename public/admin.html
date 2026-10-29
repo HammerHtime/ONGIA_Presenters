@@ -343,7 +343,8 @@
   .sowsum{background:#fff;border:1px solid var(--edge);border-radius:18px;padding:16px 18px}
   .sowsum h2{font-family:var(--fd);font-size:21px} .sowsum .s{color:var(--muted);font-size:13px;margin:2px 0 10px}
   .sowsum .k{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--sunk);font-size:14px} .sowsum .k b{font-variant-numeric:tabular-nums;white-space:nowrap}
-  .sowsum .k.big{font-size:16px;font-weight:700} .sowsum .k.pf{color:var(--done)} .sowsum .k.int{color:#5b3f8c}
+  .sowsum .k.big{font-size:16px;font-weight:700} .sowsum .k.pf{color:var(--done)} .sowsum .k.int{color:#5b3f8c} .sowsum .k.dn{color:var(--late)}
+  .sowsum .xnote{margin:4px 0 2px;font-size:12.5px} .sowsum .byev .fin{display:block;font-size:12px;color:var(--done)}
   .sowsum .grp{margin-top:12px;font-family:var(--fu);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
   .sowsum .prof{margin-top:12px;background:var(--done-bg);border-radius:14px;padding:12px 14px} .sowsum .prof .v{font-family:var(--fd);font-size:30px;color:var(--done);line-height:1.15}
   .sowsum .byev{width:100%;border-collapse:collapse;font-size:13px} .sowsum .byev td{padding:4px 0;border-top:1px solid var(--sunk)} .sowsum .byev td.n{text-align:right;font-variant-numeric:tabular-nums;padding-left:10px}
@@ -5805,6 +5806,11 @@ function sowsScreen({ events }) {
     const started = withSow.filter((e) => e.invoiced || e.hasActuals);
     const soFar = r2(started.reduce((n, e) => n + fig(e, "actual").total, 0)), profitSoFar = r2(started.reduce((n, e) => n + fig(e, "actual").profit, 0));
     const paid = r2(withSow.filter((e) => e.paid).reduce((n, e) => n + fig(e, "actual").total, 0));
+    // Where the year is heading (Andrew 29 Oct 2026: "two final amounts and three estimated amounts ... and as I close them
+    // out, that changes"): an event marked Invoiced or Paid counts at its final invoice, every other one at its SOW.
+    const finals = withSow.filter((e) => e.invoiced), fin = (e, k) => fig(e, e.invoiced ? "actual" : "estimate")[k] ?? 0;
+    const X = Object.fromEntries(["total", "internal", "profit"].map((k2) => [k2, r2(withSow.reduce((n, e) => n + fin(e, k2), 0))]));
+    const moved = r2(X.profit - E.profit), sign = (n) => (n > 0 ? `+${usd(n)}` : n < 0 ? `−${usd(-n)}` : usd(0));
     const k = (l, v, cls = "") => `<div class="k ${cls}"><span>${l}</span><b>${v}</b></div>`;
     document.getElementById("sowsum").innerHTML = `<h2>All of them together</h2>
       <div class="s">${esc({ upcoming: "Upcoming", past: "Past", all: "Every RBH event" }[SOWS_SCOPE])}${SOWS_YEAR !== "all" ? `, ${esc(SOWS_YEAR)}` : ""} · ${withSow.length} statement${withSow.length === 1 ? "" : "s"} of work</div>
@@ -5815,9 +5821,13 @@ function sowsScreen({ events }) {
       ${k("Stipends and other internal costs", `−${usd(E.internal)}`, "int")}
       <div class="prof"><span>Profit planned</span><div class="v" id="sowsum-profit">${usd(E.profit)}</div>
         <div class="hint">Fixed fees + 20% fee − internal costs. No tax in it; the at-cost lines pass through.</div></div>
+      <div class="grp">Expected for the year</div>
+      <div class="hint xnote">${finals.length ? `${finals.length} of ${withSow.length} on ${finals.length === 1 ? "its" : "their"} final invoice, the rest at ${withSow.length - finals.length === 1 ? "its" : "their"} SOW.` : "None invoiced yet, so this is the same as the SOWs. Each one marked Invoiced counts at its final invoice from then on."}</div>
+      ${k("Total with tax", usd(X.total), "big")}${k("Stipends and other internal costs", `−${usd(X.internal)}`, "int")}
+      ${k("Expected profit", usd(X.profit), "big pf")}${finals.length ? k("Against the SOWs", sign(moved), moved < 0 ? "dn" : "pf") : ""}
       <div class="grp">So far</div>
       ${k("Invoiced so far", usd(soFar))}${k("Profit so far", usd(profitSoFar), "pf")}${k("Paid by RBH", usd(paid))}
-      ${withSow.length ? `<div class="grp">Profit planned by event</div><table class="byev">${withSow.map((e) => `<tr><td>${esc(e.title)}</td><td class="n">${usd(fig(e, "estimate").profit)}</td></tr>`).join("")}</table>` : ""}`;
+      ${withSow.length ? `<div class="grp">Profit planned by event</div><table class="byev">${withSow.map((e) => `<tr><td>${esc(e.title)}${e.invoiced ? `<span class="fin">final ${usd(fig(e, "actual").profit)}</span>` : ""}</td><td class="n">${usd(fig(e, "estimate").profit)}</td></tr>`).join("")}</table>` : ""}`;
     const ft = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     ft("sowft-total", usd(E.total)); ft("sowft-sofar", usd(soFar)); ft("sowft-profit", usd(E.profit));
   };
