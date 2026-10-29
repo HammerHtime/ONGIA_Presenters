@@ -65,7 +65,7 @@ export function guestWindow(event) {
  */
 const listedAs = (event, id) => event.roomingTypes?.[id] ?? "Presenter";
 
-export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = [], volunteers = []) {
+export function roomingRows(event, presenters, guests = event.roomingGuests ?? [], board = [], volunteers = [], bonvoy = {}) {
   const rows = [], waiting = [];
   for (const p of presenters) {
     const name = `${p.first ?? ""} ${p.last ?? ""}`.trim() || p.email;
@@ -102,6 +102,7 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
   // A board member's room starts as ONGIA's to pay for, but what was chosen stands (Andrew, 21 Oct 2026: a board
   // member may pay their own room to earn the hotel's points). This only marks who is on the board.
   for (const r of rows) if (onBoard(r.name, board)) r.board = true;
+  for (const r of rows) if (bonvoy[sameName(r.name)]) r.bonvoy = bonvoy[sameName(r.name)];
   rows.sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.name.localeCompare(b.name));
   return { rows, waiting };
 }
@@ -166,9 +167,9 @@ const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/
 
 /** The spreadsheet a hotel can open or import: one row per room. */
 export function roomingCsv(event, rows) {
-  const head = ["Master block", "Guest name", "Check-in", "Check-out", "Nights", "Billing", "Group"];
+  const head = ["Master block", "Guest name", "Check-in", "Check-out", "Nights", "Billing", "Group", "Marriott Bonvoy #"];
   const ordered = [...rows.filter(onMaster), ...rows.filter((r) => !onMaster(r))];
-  const lines = ordered.map((r) => [onMaster(r) ? "Yes" : "No", r.name, r.checkIn, r.checkOut, r.nights, billingWords(r.billing, r), `ONGIA - ${event.title}`]);
+  const lines = ordered.map((r) => [onMaster(r) ? "Yes" : "No", r.name, r.checkIn, r.checkOut, r.nights, billingWords(r.billing, r), `ONGIA - ${event.title}`, r.bonvoy ?? ""]);
   return [head, ...lines].map((l) => l.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
@@ -187,7 +188,7 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
   const tableOf = (list, note) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0 14px;border-top:2px solid #1a2f5e">
     ${list.map((r) => `<tr><td style="padding:11px 4px 10px;border-bottom:1px solid #e9e4d8;font-size:15px;line-height:1.4">
       <b style="font-size:16px">${esc(r.name)}</b><br>
-      <span style="color:#12161f">${esc(short(r.checkIn))} &rarr; ${esc(short(r.checkOut))}</span> <span style="color:#767f92">&middot; ${r.nights} night${r.nights === 1 ? "" : "s"}</span>${note ? `<br><span style="font-size:13px;color:#767f92">${note(r)}</span>` : ""}</td></tr>`).join("")}
+      <span style="color:#12161f">${esc(short(r.checkIn))} &rarr; ${esc(short(r.checkOut))}</span> <span style="color:#767f92">&middot; ${r.nights} night${r.nights === 1 ? "" : "s"}</span>${r.bonvoy ? `<br><span style="font-size:13px;color:#4a5368">Marriott Bonvoy ${esc(r.bonvoy)}</span>` : ""}${note ? `<br><span style="font-size:13px;color:#767f92">${note(r)}</span>` : ""}</td></tr>`).join("")}
   </table>`;
   const groupHead = (text, sub) => `<p style="margin:16px 0 2px;font-size:14px;line-height:1.4;color:#1a2f5e"><b style="text-transform:uppercase;letter-spacing:.05em">${text}</b></p>
     <p style="margin:0 0 4px;font-size:13px;line-height:1.45;color:#4a5368">${sub}</p>`;
@@ -213,8 +214,8 @@ export function roomingMail({ event, rows, changes = null, sentBefore = null }) 
     hello.replace(/&amp;/g, "&"), "",
     intro.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&") + ` That is ${rows.length} room${rows.length === 1 ? "" : "s"} and ${roomNights} room night${roomNights === 1 ? "" : "s"} in all. The same list is attached as a spreadsheet.`, "",
     ...(changes?.length ? ["What changed:", ...changes.map((c) => `- ${c.text}`), ""] : []),
-    ...(master.length ? [`MASTER BLOCK, ONGIA PAYS (${master.length}) - bill to ONGIA's master account:`, ...master.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})`), ""] : []),
-    ...(own.length ? [`NOT ON THE MASTER BLOCK (${own.length}) - each guest pays their own room; do not bill ONGIA:`, ...own.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"}), ${r.name} pays`), ""] : []),
+    ...(master.length ? [`MASTER BLOCK, ONGIA PAYS (${master.length}) - bill to ONGIA's master account:`, ...master.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"})${r.bonvoy ? `, Marriott Bonvoy ${r.bonvoy}` : ""}`), ""] : []),
+    ...(own.length ? [`NOT ON THE MASTER BLOCK (${own.length}) - each guest pays their own room; do not bill ONGIA:`, ...own.map((r) => `${r.name}: ${formatDate(r.checkIn)} to ${formatDate(r.checkOut)} (${r.nights} night${r.nights === 1 ? "" : "s"}), ${r.name} pays${r.bonvoy ? `, Marriott Bonvoy ${r.bonvoy}` : ""}`), ""] : []),
     "", "Please reply to confirm, or let us know if anything is missing.",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : "",
   ].join("\n");

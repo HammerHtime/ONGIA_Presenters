@@ -41,7 +41,7 @@ export default async (req) => {
     if (!members) { members = SEED; await putRoster(members); }
     // Rows stored before phones existed have none; answer with the field present.
     const who = adminWho(req);
-    return json({ members: members.map((m) => ({ phone: "", sponsorLead: false, desk: false, ...m })),
+    return json({ members: members.map((m) => ({ phone: "", bonvoy: "", sponsorLead: false, desk: false, ...m })),
       owners: deskOwners(), canGrant: who.key === true || isOwner(who.email) });
   }
   if (req.method === "PUT") {
@@ -57,7 +57,8 @@ export default async (req) => {
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
       // `was` is the address they had before this save, when it is being changed.
       const was = before.get(String(text(row.was, 200) || email).toLowerCase()) ?? before.get(email.toLowerCase());
-      members.push({ name, email, phone: formatPhone(text(row.phone, 60)), sponsorLead: row.sponsorLead === true,
+      // The Marriott Bonvoy number goes on the rooming list beside their name (Andrew 29 Oct 2026).
+      members.push({ name, email, phone: formatPhone(text(row.phone, 60)), bonvoy: text(row.bonvoy, 40).replace(/[^0-9A-Za-z]/g, "").slice(0, 20), sponsorLead: row.sponsorLead === true,
         desk: canGrant ? row.desk === true : was?.desk === true,
         ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}) });
     }

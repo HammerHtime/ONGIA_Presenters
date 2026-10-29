@@ -1340,8 +1340,10 @@
   /* Add volunteers / Email all outstanding: side by side on a desk, one full-width button each on a phone. */
   @media (max-width:560px){.vbar .btn{flex:1 1 100%}}
   .member:has(.rphone){grid-template-columns:auto 1fr auto auto}
+  .member .rnums{display:flex;flex-direction:column;gap:5px}
+  .member .rnums label{display:flex;align-items:center;gap:8px;margin:0}.member .rnums label span{width:62px;font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
   .member .rphone{width:150px;padding:6px 9px;font-size:12.5px;border:1px solid var(--border);border-radius:9px;background:var(--sunk);font-family:inherit}
-  @media (max-width:560px){.member:has(.rphone){grid-template-columns:auto 1fr auto}.member .rphone{grid-column:2/-1;grid-row:2;width:100%}
+  @media (max-width:560px){.member:has(.rphone){grid-template-columns:auto 1fr auto}.member .rnums{grid-column:2/-1;grid-row:2}.member .rphone{width:100%}.member .rnums label span{text-align:left}
     .member:has(.rphone) [data-del]{grid-column:3;grid-row:1;align-self:start}}
   [hidden]{display:none!important}
   @media (max-width:560px){.addrow,.addrow:has(#rb-phone){grid-template-columns:1fr}}
@@ -8063,20 +8065,23 @@ function rosterScreen(members) {
       : `<span>${m.desk ? "Can sign in to the desk" : "No desk access"}</span>${seen(m) ? `<span>${seen(m)}</span>` : ""}`;
   const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span>
     <div>${esc(m.name)}<div class="em" data-em="${i}">${esc(m.email)} <button type="button" class="mini ghost chg" data-chg="${i}" aria-label="Change ${esc(m.name)}'s email">Change email</button></div><div class="deskline">${deskLine(m, i)}</div></div>
-    <input class="rphone" type="tel" data-phone="${i}" value="${esc(formatPhone(m.phone ?? ""))}" placeholder="phone (optional)" aria-label="Phone number for ${esc(m.name)}">
+    <div class="rnums"><label><span>Phone</span><input class="rphone" type="tel" data-phone="${i}" value="${esc(formatPhone(m.phone ?? ""))}" placeholder="optional" aria-label="Phone number for ${esc(m.name)}"></label>
+      <label><span>Bonvoy #</span><input class="rphone rbonvoy" inputmode="numeric" data-bonvoy="${i}" value="${esc(m.bonvoy ?? "")}" placeholder="optional" aria-label="Marriott Bonvoy number for ${esc(m.name)}"></label></div>
     <button class="mini ghost" data-del="${i}" title="Remove">✕</button></div>`).join("");
   ROOT.innerHTML = `<div class="card" style="max-width:700px"><div class="card-head"><div><h2>Board members</h2>
-    <div class="s">The list the event form picks from. A number stored here fills in by itself when that person is the lead on an event. Removing someone doesn't change events already created.</div>
+    <div class="s">The list the event form picks from. A number stored here fills in by itself when that person is the lead on an event. A Marriott Bonvoy number goes on the hotel's rooming list beside their name. Removing someone doesn't change events already created.</div>
     <div class="s" style="margin-top:6px">${ROSTER_META.canGrant ? "Tick <b>Can sign in to the desk</b> for each person who should get in with their ONGIA Microsoft account. Only you can change these." : "Only ONGIA's president can change who can sign in to the desk."}</div></div></div>
     <div class="card-body"><div class="board">${rows || `<div class="empty">Nobody yet.</div>`}</div>
       <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><input id="rb-phone" type="tel" placeholder="Phone (optional)"><button class="mini" id="rb-add">Add to list</button></div>
       <div class="actions" style="margin-top:16px"><button class="btn btn-gold" id="ph-save">Save numbers</button></div>
     </div></div>`;
   ROOT.insertAdjacentHTML("afterbegin", adminTabsHtml("board")); wireAdminTabs();
+  // The phone and Bonvoy boxes as typed, so any save carries them.
+  const typed = (m, j) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${j}"]`)?.value.trim() ?? m.phone ?? "", bonvoy: ROOT.querySelector(`[data-bonvoy="${j}"]`)?.value.trim() ?? m.bonvoy ?? "" });
   const save = async (next) => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; rosterScreen(ROSTER); } catch (e) { toast(e.message); } };
   // Numbers are saved in place — no re-render, so the cursor stays where you put it.
   const savePhones = async () => {
-    const next = members.map((m, i) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${i}"]`)?.value.trim() ?? m.phone ?? "" }));
+    const next = members.map(typed);
     try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; members.splice(0, members.length, ...ROSTER); toast("Numbers saved."); }
     catch (e) { toast(e.message); }
   };
@@ -8090,8 +8095,7 @@ function rosterScreen(members) {
       const done = async () => {
         const email = input.value.trim();
         if (email.toLowerCase() === String(m.email).toLowerCase() && email === m.email) return rosterScreen(members);
-        const next = members.map((x, j) => ({ ...x, phone: ROOT.querySelector(`[data-phone="${j}"]`)?.value.trim() ?? x.phone ?? "",
-          ...(j === i ? { email, was: m.email } : {}) }));
+        const next = members.map((x, j) => ({ ...typed(x, j), ...(j === i ? { email, was: m.email } : {}) }));
         try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; toast(`${m.name}'s email is now ${email}.`); rosterScreen(ROSTER); }
         catch (e) { toast(e.message); }
       };
@@ -8101,9 +8105,9 @@ function rosterScreen(members) {
     };
   });
   ROOT.querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => { const m = members[+b.dataset.del]; if (confirm(`Remove ${m.name} from the list?`)) save(members.filter((_, i) => i !== +b.dataset.del)); }; });
-  const boxes = [...ROOT.querySelectorAll("[data-phone]")];
+  const boxes = [...ROOT.querySelectorAll("[data-phone], [data-bonvoy]")];
   boxes.forEach((el, i) => {
-    el.oninput = () => formatPhoneInput(el);
+    if (el.dataset.phone !== undefined) el.oninput = () => formatPhoneInput(el);
     // Enter (or Tab) drops to the next name, so a list can be filled in one pass.
     el.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); (boxes[i + 1] ?? el).focus(); if (!boxes[i + 1]) savePhones(); } };
   });
@@ -8111,8 +8115,7 @@ function rosterScreen(members) {
   // Desk access saves the moment it is ticked; typed-but-unsaved numbers go along with it.
   ROOT.querySelectorAll("[data-desk]").forEach((box) => {
     box.onchange = async () => {
-      const next = members.map((m, i) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${i}"]`)?.value.trim() ?? m.phone ?? "",
-        desk: i === +box.dataset.desk ? box.checked : m.desk === true }));
+      const next = members.map((m, i) => ({ ...typed(m, i), desk: i === +box.dataset.desk ? box.checked : m.desk === true }));
       try {
         const r = await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) });
         ROSTER = r.members; members.splice(0, members.length, ...ROSTER);
