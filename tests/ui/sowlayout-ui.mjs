@@ -38,6 +38,12 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
   await p.waitForTimeout(500);
   const card = await fold.boundingBox(), table = await p.locator("#sw-table").boundingBox();
   ok(`${tag}: the lines fit inside the card, nothing runs off the side`, table.x + table.width <= card.x + card.width + 1 && (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)), JSON.stringify({ card, table }));
+  // Every row's first boxes on one line, the first row too (Andrew 29 Oct 2026: "the boxes in the row for hotel seem off").
+  const tops = await p.evaluate(() => [...document.querySelectorAll("#sw-table tbody tr[data-i]")].map((tr) => ["ln-name", "ln-type", "ln-est"].map((c) => Math.round(tr.querySelector("." + c).getBoundingClientRect().top))));
+  if (tag === "laptop") ok(`${tag}: in every row, the first row too, name, type and estimate line up`, tops.every(([a, b2, c]) => a === b2 && b2 === c), JSON.stringify(tops.slice(0, 2)));
+  const lefts = await p.evaluate(() => { const th = [...document.querySelectorAll("#sw-table thead th")].filter((e) => e.offsetParent).map((e) => Math.round(e.getBoundingClientRect().left)); const tr = document.querySelector("#sw-table tbody tr[data-i]"); return { th, box: ["ln-name", "ln-type", "ln-est"].map((c) => Math.round(tr.querySelector("." + c).getBoundingClientRect().left)) }; });
+  if (tag === "laptop") ok(`${tag}: each heading sits over its boxes`, lefts.box.every((x, i) => Math.abs(x - lefts.th[i]) <= 10), JSON.stringify(lefts));
+  if (tag === "laptop") ok(`${tag}: one heading line above them says Line, Type, SOW estimate`, /Line\s+Type\s+SOW estimate/i.test(await p.locator("#sw-table thead").innerText()), await p.locator("#sw-table thead").innerText());
   const name = await p.locator('#sw-table .ln-name').first().boundingBox();
   ok(`${tag}: a line's name has room to be read`, name.width >= 240, `${name.width}px`);
   const inv = p.locator('#sw-table tr:has(.ln-name[value="Travel"]) td.inv');
