@@ -40,6 +40,16 @@ const hhmm = (v) => {
 const link = (v) => { const s = text(v, 800); return /^https:\/\//i.test(s) ? s : ""; };
 const pageName = (v) => slugOf(v).slice(0, 40);
 
+/**
+ * Another CFAOC event's program, ready to start this one from (Andrew 29 Oct 2026: "pull agenda from previous CFAOC
+ * event in the app. The times will typically stay the same so I just need to add presenter and info"). Every line keeps
+ * its times; a line with no presenter (registration, a break, lunch) comes over whole; a presenter's line comes over
+ * empty apart from its times, since the presenters, their talks and their write-ups are that event's own.
+ */
+export const agendaToCopy = (agenda = []) => (agenda ?? []).map((r) => (r.presenter
+  ? { time: r.time ?? "", end: r.end ?? "", presenter: "", title: "", titleFr: "", detail: "", detailFr: "", abstract: "", abstractFr: "" }
+  : { time: r.time ?? "", end: r.end ?? "", presenter: "", title: r.title ?? "", titleFr: r.titleFr ?? "", detail: r.detail ?? "", detailFr: r.detailFr ?? "", abstract: r.abstract ?? "", abstractFr: r.abstractFr ?? "" }));
+
 /** The website fields an event keeps, as typed on the Settings tab. Anything not given stays as it was. */
 export function cleanWebsite(given, had = {}) {
   const pick = (k, clean) => (given?.[k] === undefined ? had[k] ?? clean(undefined) : clean(given[k]));

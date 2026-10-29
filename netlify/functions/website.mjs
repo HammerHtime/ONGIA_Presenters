@@ -1,8 +1,8 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
-import { getEvent, putEvent, listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
+import { getEvent, putEvent, listEvents, listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
 import { publicConsent, byLastName } from "./lib/public.mjs";
-import { isWebsiteEvent, cleanWebsite, cleanPresenterWeb, buildDeskFile, github, githubToken, readSite, planChanges, commitChanges,
+import { isWebsiteEvent, agendaToCopy, cleanWebsite, cleanPresenterWeb, buildDeskFile, github, githubToken, readSite, planChanges, commitChanges,
   draftFrench, GitHubError, REPO, BRANCH, pageKey, earlyShown } from "./lib/website.mjs";
 
 /**
@@ -56,6 +56,10 @@ async function show(event) {
     connected: !!githubToken(),
     repo: REPO(), branch: BRANCH(),
     wixUrl: event.wix?.url ?? "",
+    // The other CFAOC events with a program, newest first, to start this one's from.
+    copyFrom: (await listEvents()).filter((e) => e.id !== event.id && isWebsiteEvent(e) && (e.website?.agenda ?? []).length)
+      .sort((a, b) => String(b.dayOne ?? "").localeCompare(String(a.dayOne ?? "")))
+      .map((e) => ({ id: e.id, title: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "", rows: agendaToCopy(e.website.agenda) })),
     presenters: presenters.map((p) => {
       const c = publicConsent(p);
       return { id: p.id, name: `${p.first} ${p.last}`.trim(), organization: p.organization || "", status: p.status,
