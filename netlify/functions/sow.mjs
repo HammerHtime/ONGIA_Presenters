@@ -18,6 +18,7 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  *   GET  /api/sow?event=…&doc=sow|invoice      the PDF
  *   POST /api/sow?event=…&file=sow|invoice     put a copy in the event's "SOW and Invoice" folder on SharePoint
  *   PUT  /api/sow?event=…&province=QC          the tax lines for another province
+ *   PUT  /api/sow?event=…&refill=<event id>    a draft's lines replaced by that event's (names, types, amounts)
  *   GET  /api/sow?all=1                        every RBH event and its statement of work's figures, for the RBH SOWs screen
  *   GET  /api/sow?all=1&doc=sow|invoice&ids=…  those statements of work (or invoices) in one PDF, in that order
  */
@@ -36,6 +37,9 @@ const view = async (event, raw) => {
   locked: sow ? isLocked(sow) : false,
   changedSinceSent: sow ? changesSinceSent(sow) : [],
   copyFrom: sow ? [] : await copyChoices(event),
+  // A draft of an ITP or a CFAOC with no fixed fees yet can be filled in from the latest one of its kind (Andrew 29 Oct
+  // 2026: the May and June ITPs were started nearly empty, so their profit read -$9,400 and $1,600).
+  refill: sow && sow.status === "draft" && sowFamily(event) !== "other" && profit(sow, "estimate").fixed === 0 ? (await copyChoices(event)).find((c) => c.family === sowFamily(event)) ?? null : null,
   templates: sow ? [] : Object.entries(TEMPLATES).map(([key, t]) => ({ key, title: t.title, blurb: t.blurb, total: t.lines.reduce((n, l) => n + l.estimate, 0) })),
   };
 };
@@ -51,7 +55,8 @@ async function copyChoices(event) {
     const k = sowFamily(e), had = latest.get(k);
     if (had && String(had.dayOne ?? "") >= String(e.dayOne ?? "")) continue;
     const s = await getSow(e.id);
-    if (s) latest.set(k, { id: e.id, family: k, title: e.title, dayOne: e.dayOne, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
+    // One that has been filled in: a nearly empty one (no fixed fees yet) is no model for the next.
+    if (s && profit(s, "estimate").fixed > 0) latest.set(k, { id: e.id, family: k, title: e.title, dayOne: e.dayOne, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
   }
   return ["cfaoc", "itp", "other"].filter((k) => latest.has(k)).map((k) => { const { dayOne, ...c } = latest.get(k); return c; });
 }
@@ -176,6 +181,23 @@ export default async (req) => {
     return json(await view(event, next));
   }
 
+  if (req.method === "PUT" && q("refill")) {
+    // Only a draft: once RBH has it, its lines are what was sent.
+    if (sow.status !== "draft") return fail("Only a draft can be filled in again. This one has gone to RBH.", 409);
+    const other = await getSow(text(q("refill"), 80));
+    if (!other) return fail("That event has no statement of work to copy.", 404);
+    // A line with the same name keeps its id (and so its receipts) and anything typed in its invoice column;
+    // a line of this one's with receipts against it stays, so the receipts still count somewhere.
+    const mine = new Map(sow.lines.map((l) => [l.name.trim().toLowerCase(), l]));
+    const lines = other.lines.map((l) => { const had = mine.get(String(l.name).trim().toLowerCase());
+      return { id: had?.id ?? "", name: l.name, description: l.description ?? "", type: l.type, estimate: l.estimate, actual: had?.actual ?? null }; });
+    for (const l of sow.lines) if (!lines.some((x) => x.id === l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id)) lines.push(l);
+    const next = { ...sow, lines: cleanLines(lines, sow.lines), copiedFrom: text(q("refill"), 80) };
+    note(next, name, "Filled in again from another event's statement of work");
+    await putSow(id, next);
+    return json(await view(event, next));
+  }
+
   if (req.method === "PUT" && q("province")) {
     const code = text(q("province"), 2).toUpperCase();
     if (!PROVINCES[code]) return fail("That isn't a province or territory.");
@@ -194,10 +216,14 @@ export default async (req) => {
     const stranded = sow.lines.filter((l) => !kept.has(l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id));
     if (stranded.length) return fail(`There are receipts against ${stranded.map((l) => `"${l.name}"`).join(", ")}. Move or remove them on the Receipts screen before deleting the line.`, 409);
     if (isLocked(sow)) {
-      // After approval the estimates are what RBH agreed to: names, types, amounts and the list of lines stay,
-      // and only descriptions and the actuals (the invoice) change until it is unlocked.
-      const same = lines.length === sow.lines.length && lines.every((l, i) => l.id === sow.lines[i].id && l.name === sow.lines[i].name && l.type === sow.lines[i].type && l.estimate === sow.lines[i].estimate);
+      // After approval the estimates are what RBH agreed to: those lines' names, types and amounts stay, and only
+      // descriptions and the actuals (the invoice) change until it is unlocked. A new line can still be added (Andrew
+      // 29 Oct 2026): it has no agreed amount, so its estimate is nil and it shows only on the invoice.
+      const agreed = sow.lines.filter((l) => !l.added), agreedIds = new Set(agreed.map((l) => l.id));
+      const kept = lines.filter((l) => agreedIds.has(l.id));
+      const same = kept.length === agreed.length && kept.every((l, i) => l.id === agreed[i].id && l.name === agreed[i].name && l.type === agreed[i].type && l.estimate === agreed[i].estimate);
       if (!same) return fail("This was sent to RBH, so the amounts are locked. Click Edit amounts and type EDIT if RBH has agreed to a change.", 409);
+      for (const l of lines) if (!agreedIds.has(l.id)) { l.added = true; l.estimate = 0; }
     }
     const next = {
       ...sow,

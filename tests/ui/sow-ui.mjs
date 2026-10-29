@@ -57,7 +57,8 @@ await f3.locator("#sw-status").selectOption("submitted"); await page.waitForTime
 ok("sent to RBH: the amounts lock straight away, and it says so", /Amounts locked: sent to RBH/.test(await page.locator("#sowcard").innerText()) && await page.locator("#sowcard .ln-est").first().isDisabled());
 await page.locator("#sowcard #sw-status").selectOption("approved"); await page.waitForTimeout(1500);
 const f4 = page.locator("#sowcard"); if (!(await f4.evaluate((d) => d.open))) await f4.locator("summary").first().click();
-ok("approved: still locked", /Amounts locked/.test(await f4.innerText()) && await f4.locator(".ln-est").first().isDisabled() && await f4.locator(".ln-name").first().isDisabled() && await f4.locator("#sw-add").isDisabled());
+// The agreed lines stay locked; a new line can still be added, with no agreed amount (Andrew 29 Oct 2026).
+ok("approved: still locked, but a line not in the agreed SOW can be added", /Amounts locked/.test(await f4.innerText()) && await f4.locator(".ln-est").first().isDisabled() && await f4.locator(".ln-name").first().isDisabled() && /not in the agreed SOW/.test(await f4.locator("#sw-add").innerText()));
 ok("descriptions and the invoice amounts stay editable", await f4.locator(".ln-desc").first().isEnabled() && await f4.locator(".ln-act").first().isEnabled());
 ok("the invoice column and the invoice totals appear", await f4.locator("#sw-table td.inv").first().isVisible() && await f4.locator("#sw-sums th.act").isVisible());
 const rowOf = (name) => f4.locator("#sw-table tbody tr", { has: page.locator(`.ln-name[value="${name}"]`) });
