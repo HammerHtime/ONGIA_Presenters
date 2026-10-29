@@ -43,6 +43,12 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
   if (tag === "laptop") ok(`${tag}: in every row, the first row too, name, type and estimate line up`, tops.every(([a, b2, c]) => a === b2 && b2 === c), JSON.stringify(tops.slice(0, 2)));
   const lefts = await p.evaluate(() => { const th = [...document.querySelectorAll("#sw-table thead th")].filter((e) => e.offsetParent).map((e) => Math.round(e.getBoundingClientRect().left)); const tr = document.querySelector("#sw-table tbody tr[data-i]"); return { th, box: ["ln-name", "ln-type", "ln-est"].map((c) => Math.round(tr.querySelector("." + c).getBoundingClientRect().left)) }; });
   if (tag === "laptop") ok(`${tag}: each heading sits over its boxes`, lefts.box.every((x, i) => Math.abs(x - lefts.th[i]) <= 10), JSON.stringify(lefts));
+  // Approved: what RBH agreed to looks fixed; the invoice amounts stand out (Andrew 29 Oct 2026).
+  const look = await p.evaluate(() => { const tr = document.querySelector("#sw-table tbody tr[data-i]"), cs = (c) => getComputedStyle(tr.querySelector("." + c));
+    return { locked: document.getElementById("sw-table").classList.contains("locked"), estDisabled: tr.querySelector(".ln-est").disabled, estBorder: cs("ln-est").borderTopStyle, estBg: cs("ln-est").backgroundColor, actBg: cs("ln-act").backgroundColor, actDisabled: tr.querySelector(".ln-act").disabled }; });
+  ok(`${tag}: approved, the agreed name, type and estimate look fixed (dashed, no fill) and can't be typed in; the invoice amount is white and can`,
+    look.locked && look.estDisabled && look.estBorder === "dashed" && look.estBg === "rgba(0, 0, 0, 0)" && look.actBg === "rgb(255, 255, 255)" && !look.actDisabled, JSON.stringify(look));
+  if (tag === "laptop") ok(`${tag}: the heading says the estimates are agreed with RBH`, /agreed with RBH/.test(await p.locator("#sw-table thead").innerText()));
   if (tag === "laptop") ok(`${tag}: one heading line above them says Line, Type, SOW estimate`, /Line\s+Type\s+SOW estimate/i.test(await p.locator("#sw-table thead").innerText()), await p.locator("#sw-table thead").innerText());
   const name = await p.locator('#sw-table .ln-name').first().boundingBox();
   ok(`${tag}: a line's name has room to be read`, name.width >= 240, `${name.width}px`);
