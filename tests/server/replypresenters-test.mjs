@@ -74,5 +74,20 @@ const here = await call("event=ngs&presenters=1", "POST", {});
 ok("if the server run can't start, it sends from here instead", here.status === 200 && toPresenters(mails).some((m) => m.to === "lee@example.ca") && !(await getEvent("ngs")).replyPresentersSending, JSON.stringify(here.body));
 ok("the answers still go to everyone registered as before: the attendee count is unchanged", (await call("event=ngs")).body.status.reaches === 2);
 
+// Their answers pool with everyone else's (Andrew 29 Oct 2026: "the answers from the presenters needs to be pooled into
+// the overall Excel sheet numbers"): same form, same list, same spreadsheets.
+const { readXlsx } = await import(F + "lib/xlsx.mjs");
+const link = j.text.match(/https:\/\/events\.example\.org\/q\/([a-z0-9]+)\/?([a-z0-9]*)/i);
+const form = async (body) => { const r = await reply(new Request(`http://x/api/reply?t=${link[1]}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })); if (r.status >= 300) console.log("   form said", r.status, await r.text()); return r.status; };
+const opened = await (await reply(new Request(`http://x/api/reply?t=${link[1]}&p=${link[2]}`))).json();
+ok("Jordan's own link opens the form with their name and email filled in, as an attendee's does", opened.you?.first === "Jordan" && opened.you?.email === "jordan@example.ca", JSON.stringify(opened.you));
+ok("Jordan answers from the link in the email", await form({ first: "Jordan", last: "Avery", agency: "Sample Police", email: "jordan@example.ca", allergy: "yes", dietary: "Peanuts (anaphylaxis)", socials: { s1: "yes", s2: "no" } }) < 300);
+ok("an attendee answers the same form", await form({ first: "Ann", last: "Attendee", agency: "TPS", email: "ann@example.ca", allergy: "yes", dietary: "Gluten free", socials: { s1: "no", s2: "yes" } }) < 300);
+const sheet = async (which) => readXlsx(Buffer.from(await (await reply(new Request(`http://x/api/reply?event=ngs&sheet=${which}`, { headers: H }))).arrayBuffer())).map((r) => r.join(" | ")).join("\n");
+const diet = await sheet("dietary");
+ok("the dietary list for the hotel has the presenter and the attendee together", /Jordan \| Avery \| Peanuts \(anaphylaxis\)/.test(diet) && /Ann \| Attendee \| Gluten free/.test(diet), diet);
+card = (await call("event=ngs")).body;
+ok("and the card's count of answers includes them both (with Tara's from before)", card.status.answered === 3 && card.answers.some((a) => a.first === "Jordan"), JSON.stringify(card.status));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

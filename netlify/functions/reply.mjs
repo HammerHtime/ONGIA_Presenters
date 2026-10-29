@@ -1,7 +1,7 @@
 import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { createHash } from "node:crypto";
-import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees } from "./lib/store.mjs";
+import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees, listPresenters } from "./lib/store.mjs";
 import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
@@ -262,10 +262,12 @@ async function eventByToken(tok) {
   return (await listEvents()).find((e) => e.reply?.token === tok) ?? null;
 }
 
-/** Whose own link this is: their row on the attendee list, found by the id in their link. */
+/** Whose own link this is: their row on the attendee list (or a presenter, sent it from the event), found by the id in their link. */
 async function personFor(event, pid) {
   if (!/^[a-f0-9]{16}$/.test(pid ?? "")) return null;
-  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? [])];
+  // A presenter's link is made from their address in small letters (sendReplyToPresenters), so they are matched the same way.
+  const presenters = (await listPresenters(event.id)).filter((p) => p.email).map((p) => ({ first: p.first, last: p.last, email: String(p.email).trim().toLowerCase(), organization: p.organization }));
+  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? []), ...presenters];
   return people.find((p) => (p.key || p.email) && personalId(event.reply.token, p) === pid) ?? null;
 }
 
