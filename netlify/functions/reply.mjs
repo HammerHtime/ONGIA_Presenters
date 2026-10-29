@@ -7,7 +7,7 @@ import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { renderReminder, summitSocialLabels, replyToOf, signOf, freshenedReply } from "./lib/reply.mjs";
-import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
+import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, addressesSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
 
@@ -25,6 +25,7 @@ import { slugOf } from "./lib/public.mjs";
  *   POST /api/reply?event=…&test=1       send that email to one address, marked TEST
  *   POST /api/reply?event=…&send=1       send it to everyone registered who has not had it (a run; call again while some are left)
  *   GET  /api/reply?event=…&sheet=dietary|socials   the spreadsheet
+ *   GET  /api/reply?event=…&sheet=addresses   the registrations that share an email address, and those with none
  *   POST /api/reply?event=…&add=1        add someone's allergy by hand (they told us another way)
  *   POST /api/reply?event=…&upload=1     add everyone on a dietary sheet laid out like the hotel's (.xlsx)
  *   POST /api/reply?event=…&wording=1    put the suggested email back
@@ -147,6 +148,11 @@ async function sendNow(event, who, origin) {
 }
 
 async function download(event, which) {
+  if (which === "addresses") {
+    const { bytes } = addressesSheet(event, ((await getAttendees(event.id)) ?? {}).people ?? []);
+    return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slugOf(event.title) || "event"}-shared-addresses.xlsx"`, "cache-control": "no-store" } });
+  }
   if (!event.reply) return fail("Set up the questions first.", 409);
   const answers = (await getReplies(event.id))?.answers ?? [];
   const bytes = which === "dietary" ? dietarySheet(event, answers) : which === "socials" && (event.reply.socials ?? []).length ? socialsSheet(event, answers, event.reply) : null;

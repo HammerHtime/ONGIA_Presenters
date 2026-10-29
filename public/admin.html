@@ -4997,6 +4997,7 @@ function renderReplyCard(ev, R) {
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend || R.sending ? " disabled" : ""}>${R.sending ? `Sending… ${st.had} of ${st.reaches}` : st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first. It sends on the server, so you can close the page, and if any can't be sent the president and VP get an email saying which.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
+      ${regLine(st) ? `<div style="margin-top:8px"><button class="mini" data-rpsheet="addresses">Who shares an address (Excel)</button></div>` : ""}
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
       <div class="sheet-head"><h2>The email</h2><p class="hint" style="margin-top:6px">Change the words and the email follows as you type, as Alex, an attendee, would see it. Nothing is kept until you save.</p></div>
       <div class="sheet-body"><div class="rpedit">

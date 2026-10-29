@@ -240,6 +240,37 @@ export function dietarySheet(event, answers) {
   });
 }
 
+/**
+ * Who is behind the gap between registrations and emails sent (Andrew 29 Oct 2026: "It says 380 emails sent out, but I
+ * know we have a lot more registered... tell me how many emails are duplicated"): every registration that shares its
+ * email address with another, grouped by address, then every registration with no usable address. Only those coming.
+ */
+export function addressesSheet(event, people) {
+  const coming = people.filter((p) => p.status === "ATTENDING");
+  const byAddress = new Map();
+  for (const p of coming.filter((x) => isEmail(x.email))) {
+    const k = String(p.email);   // the same key the sending uses (writeableTo), so the numbers match what went
+    byAddress.set(k, [...(byAddress.get(k) ?? []), p]);
+  }
+  const shared = [...byAddress.entries()].filter(([, list]) => list.length > 1).sort(([a], [b]) => a.localeCompare(b));
+  const none = byName(coming.filter((p) => !isEmail(p.email)));
+  const sent = (p) => ((p.sent ?? []).includes("reply") ? "Yes" : "No");
+  const rows = [
+    ...shared.flatMap(([email, list]) => byName(list).map((p, i) => [i ? "" : email, i ? "" : list.length, p.first ?? "", p.last ?? "", p.organization ?? "", i ? "" : (list.some((x) => (x.sent ?? []).includes("reply")) ? "Yes" : "No")])),
+    ...none.map((p) => [p.email ? `Not an email address: ${p.email}` : "No email address", "", p.first ?? "", p.last ?? "", p.organization ?? "", "No"]),
+  ];
+  const extra = shared.reduce((n, [, list]) => n + list.length - 1, 0);
+  return { counts: { registrations: coming.length, addresses: byAddress.size, sharedAddresses: shared.length, sharing: shared.reduce((n, [, l]) => n + l.length, 0), extra, noEmail: none.length },
+    bytes: xlsx({
+      title: "Shared email addresses and registrations with no email", subtitle: subtitleOf(event), sheet: "Addresses", landscape: true,
+      columns: [{ head: "Email address", width: 34 }, { head: "Registrations\nat this address", width: 14 }, { head: "First Name", width: 16 }, { head: "Last Name", width: 18 }, { head: "Agency", width: 30 }, { head: "Food-allergy\nemail sent", width: 13 }],
+      rows,
+      footer: [[`${coming.length} ${coming.length === 1 ? "registration coming goes" : "registrations coming go"} to ${byAddress.size} email ${byAddress.size === 1 ? "address" : "addresses"}.`, "", "", "", "", ""],
+        [`${shared.length} ${shared.length === 1 ? "address is" : "addresses are"} shared by ${shared.reduce((n, [, l]) => n + l.length, 0)} registrations, so ${extra} ${extra === 1 ? "registration doesn't" : "registrations don't"} get an email of ${extra === 1 ? "its" : "their"} own.`, "", "", "", "", ""],
+        [`${none.length} ${none.length === 1 ? "registration has" : "registrations have"} no usable email address.`, "", "", "", "", ""]],
+    }) };
+}
+
 /** Who is coming to each social: yes or no, with the totals underneath. */
 export function socialsSheet(event, answers, reply) {
   const socials = reply.socials ?? [];
