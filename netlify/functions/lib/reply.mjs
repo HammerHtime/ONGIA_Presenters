@@ -1,7 +1,7 @@
 import { text, isEmail } from "./http.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { token as newToken } from "./ids.mjs";
-import { getAttendees, putAttendees, getReplies } from "./store.mjs";
+import { getAttendees, putAttendees, getReplies, listPresenters } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeSignOf } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
@@ -454,6 +454,59 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), reply: { at: new Date().toISOString(), sent, failed, left, trouble: trouble.slice(0, 10) } } });
   return { sent, failed, left, trouble: trouble.slice(0, 10), sentTo: owed.slice(0, sent + failed).map((p) => p.email) };
+}
+
+/**
+ * The food-allergy email to the event's presenters too (Andrew 29 Oct 2026: "Add a button send presenters as well").
+ * Presenters are on the event, not on the Wix guest list, so the email to everyone registered never reached them. Each
+ * presenter with an email address gets it once; not one who has withdrawn, not one who is also registered (they had it,
+ * or will, with everyone else), and not one who has already told us. Their answers land on the same dietary list.
+ */
+export function presentersOwed(presenters, people, answers, sentTo = {}) {
+  const registered = new Set(writeableTo(people).map((p) => String(p.email).toLowerCase()));
+  const told = new Set([...toldUs(people, answers)].map((e) => String(e).toLowerCase()));
+  const answeredNames = new Set(answers.map(nameKey).filter(Boolean));
+  const seen = new Set();
+  return presenters.filter((p) => {
+    const email = String(p.email ?? "").trim().toLowerCase();
+    if (p.status === "withdrawn" || !isEmail(email) || seen.has(email)) return false;
+    seen.add(email);
+    return !registered.has(email) && !told.has(email) && !answeredNames.has(nameKey(p)) && !sentTo[email];
+  });
+}
+export async function presenterReplyStatus(event) {
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const presenters = await listPresenters(event.id);
+  const answers = (await getReplies(event.id))?.answers ?? [];
+  const sentTo = stored.replyPresenters ?? {};
+  return { presenters: presenters.filter((p) => p.status !== "withdrawn").length, had: Object.keys(sentTo).length,
+    toSend: presentersOwed(presenters, stored.people ?? [], answers, sentTo).length, round: stored.letterRounds?.["reply-presenters"] ?? null };
+}
+export async function sendReplyToPresenters(event, { deadline = null, pace = pacer() } = {}) {
+  const problems = replyProblems(event);
+  if (problems.length) return { blocked: problems };
+  const presenters = await listPresenters(event.id);
+  const answers = (await getReplies(event.id))?.answers ?? [];
+  let stored = (await getAttendees(event.id)) ?? { people: [] };
+  const owed = presentersOwed(presenters, stored.people ?? [], answers, stored.replyPresenters ?? {});
+  let sent = 0, failed = 0, left = 0;
+  const trouble = [];
+  for (const p of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
+    const person = { first: p.first, last: p.last, email: String(p.email).trim().toLowerCase() };
+    try {
+      const out = await sendMail({ to: person.email, replyTo: replyToOf(event), ...renderReply(event, person) });
+      if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
+      sent++;
+      stored = (await getAttendees(event.id)) ?? stored;   // the guest list may have been refreshed from Wix meanwhile
+      stored.replyPresenters = { ...(stored.replyPresenters ?? {}), [person.email]: new Date().toISOString() };
+      await putAttendees(event.id, stored);
+    } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
+  }
+  stored = (await getAttendees(event.id)) ?? stored;
+  await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), "reply-presenters": { at: new Date().toISOString(), sent, failed, left, trouble: trouble.slice(0, 10) } } });
+  return { sent, failed, left, trouble: trouble.slice(0, 10) };
 }
 
 /** Where the email stands: how many it reaches, how many had it, the last round. */
