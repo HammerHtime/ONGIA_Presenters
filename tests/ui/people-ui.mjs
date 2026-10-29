@@ -22,7 +22,7 @@ const rev = P.find((p) => p.first === "Rev");
 await fetch(`${S}/api/agreement?t=${rev.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: "Rev", last: "Iewer", email: rev.email, phone: "4165550100", organization: "Iewer Agency", talk: "Street gangs and social media", bio: "word ".repeat(40), outline: "O", travel: "no", hotel: "no", expenses: { transport: "no", meals: "no", other: "no", otherText: "" }, copyright: true, noInvestigation: true, termsAccepted: true, media: { photo: { internal: "yes", public: "yes" }, materials: { internal: "yes", public: "no" }, summary: { internal: "yes", public: "yes" }, bio: { internal: "yes", public: "yes" } }, sensitive: "no", signature: "Rev Iewer", agreed: true, language: "en" }) });
 
 // Who's coming: ten made-up people from a spreadsheet, two of them on the waitlist and one not coming.
-const csv = "First,Last,Email,Organization,Status\n" + Array.from({ length: 10 }, (_, i) => `Guest${i},Sample${i},guest${i}.${T}@example.ca,Agency ${i},${i < 2 ? "waitlist" : i === 2 ? "not attending" : "yes"}`).join("\n");
+const csv = "First,Last,Email,Organization,Status\n" + Array.from({ length: 10 }, (_, i) => `Guest${i},Sample${i},guest${i}.${T}@example.ca,Agency ${["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet"][i]},${i < 2 ? "waitlist" : i === 2 ? "not attending" : "yes"}`).join("\n");
 await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "text/csv" }, body: csv });
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -112,7 +112,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: with cuts for coming, waitlist, not coming and all, with counts`, /Coming\s*7/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))) && /Waitlist\s*2/.test(await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|"))), await p.locator("[data-gcutbtn]").allInnerTexts().then((x) => x.join("|")));
   await p.locator('[data-gcutbtn="waitlist"]').click(); await p.waitForTimeout(150);
   ok(`${tag}: Waitlist shows the two`, (await gshown()) === 2 && /waitlist/i.test(await p.locator("tr.grow:not([hidden])").first().innerText()));
-  await p.locator('[data-gcutbtn="all"]').click(); await p.fill("#gfind", "agency 5");
+  await p.locator('[data-gcutbtn="all"]').click(); await p.fill("#gfind", "agency foxtrot");   // a word, not a digit: every address carries a timestamp that may hold a "5"
   // Wait for the filter to apply rather than a fixed pause: under a loaded machine 150 ms was not always enough.
   await p.waitForFunction(() => document.querySelectorAll("tr.grow:not([hidden])").length === 1, null, { timeout: 3000 }).catch(() => {});
   ok(`${tag}: the find box finds by organization`, (await gshown()) === 1 && /Guest5 Sample5/.test(await p.locator("tr.grow:not([hidden])").innerText()), `${await gshown()} shown: ${(await p.locator("tr.grow:not([hidden])").allInnerTexts()).join(" / ").slice(0, 300)}`);

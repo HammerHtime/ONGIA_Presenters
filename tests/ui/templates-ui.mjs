@@ -27,11 +27,15 @@ const vic = await mk("Canadian Forum Against Organized Crime", "Victoria", "BC")
   const cal = await mk("CFAOC Calgary", "Calgary", "AB");
   const ord = await mk("ITP Training", "Montreal", "QC"); await api(`/api/events?id=${ord.id}&rbh=1`, { method: "PUT", body: JSON.stringify({ kind: "rbh", province: "QC", invoicePrefix: "ITP" }) });
   let p = await open(vic, { width: w, height: h });
-  ok(`${tag}: in Victoria the Victoria forum template is offered and already picked`, (await p.locator('input[name="sw-from"][value="cfaoc-victoria"]').isChecked()) && /rebranding/i.test(await p.locator("#sowcard").textContent()));
+  // The latest filled-in CFAOC (or ITP) is picked when there is one (Andrew 29 Oct 2026); with none, the template.
+  const latest = async (ev, fam) => (await api(`/api/sow?event=${ev.id}`)).copyFrom?.find((c) => c.family === fam)?.id;
+  const vicPick = (await latest(vic, "cfaoc")) ?? "cfaoc-victoria";
+  ok(`${tag}: in Victoria the Victoria forum template is offered, and the latest CFAOC is picked (the template when there is none)`, (await p.locator('input[name="sw-from"][value="cfaoc-victoria"]').count()) === 1 && (await p.locator(`input[name="sw-from"][value="${vicPick}"]`).isChecked()) && /rebranding/i.test(await p.locator("#sowcard").textContent()), vicPick);
   ok(`${tag}: the generic forum template and the standard lines are offered too`, (await p.locator('input[name="sw-from"][value="cfaoc"]').count()) === 1 && (await p.locator('input[name="sw-from"][value="standard"]').count()) === 1);
   await p.screenshot({ path: D + `tpl-start-${tag}.png` });
   ok(`${tag}: the notice says British Columbia's tax`, /British Columbia/.test(await p.locator("#sowcard").innerText()));
   if (tag === "wide") {
+    await p.locator('input[name="sw-from"][value="cfaoc-victoria"]').check();
     await p.click("#sw-start"); await p.waitForTimeout(2000);
     const f = p.locator('details[data-fold="sec-sow"]'); if (!(await f.evaluate((d) => d.open))) await f.locator("summary").first().click(); await p.waitForTimeout(300);
     const names = await p.locator("#sw-table .ln-name").evaluateAll((els) => els.map((e) => e.value));
@@ -45,10 +49,12 @@ const vic = await mk("Canadian Forum Against Organized Crime", "Victoria", "BC")
   ok(`${tag}: no page errors`, p.errs.length === 0, p.errs.join("|"));
   await p.close();
   p = await open(cal, { width: w, height: h });
-  ok(`${tag}: a forum in another city is offered the generic forum template and not the Victoria one`, (await p.locator('input[name="sw-from"][value="cfaoc"]').isChecked()) && (await p.locator('input[name="sw-from"][value="cfaoc-victoria"]').count()) === 0);
+  const calPick = (await latest(cal, "cfaoc")) ?? "cfaoc";
+  ok(`${tag}: a forum in another city is offered the generic forum template and not the Victoria one`, (await p.locator('input[name="sw-from"][value="cfaoc"]').count()) === 1 && (await p.locator(`input[name="sw-from"][value="${calPick}"]`).isChecked()) && (await p.locator('input[name="sw-from"][value="cfaoc-victoria"]').count()) === 0);
   await p.close();
   p = await open(ord, { width: w, height: h });
-  ok(`${tag}: an ITP event still starts from the standard lines`, await p.locator('input[name="sw-from"][value="standard"]').isChecked());
+  const itpPick = (await latest(ord, "itp")) ?? "standard";
+  ok(`${tag}: an ITP event starts from the latest filled-in ITP, or the standard lines when there is none`, await p.locator(`input[name="sw-from"][value="${itpPick}"]`).isChecked(), itpPick);
   await p.close();
 }
 await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
