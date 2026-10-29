@@ -359,6 +359,82 @@
     .mname{padding-top:0}
     .band{font-size:11px;padding:0 6px}
   }
+
+  /* ---------- Sandbox: the event budget tried on the Summit's numbers (Andrew 29 Oct 2026) ---------- */
+  .chip.sbxchip{border-style:dashed}
+  .sbx{display:grid;gap:16px}
+  .sbx .card{margin:0}
+  .sbxhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px}
+  .sbxhead h1{font-family:var(--fd);font-size:30px;line-height:1.15}
+  .sbxtag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--wait)!important;background:var(--wait-bg);border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:4px}
+  .sbxacts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .saved{border-radius:999px;padding:4px 12px;background:var(--done-bg);color:var(--done);font-weight:600;font-size:13px}
+  .saved[data-saved="busy"]{background:var(--sunk);color:var(--muted)} .saved[data-saved="bad"]{background:var(--late-bg);color:var(--late)}
+  .sbtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .sbt{background:#fff;border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
+  .sbt .k{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sbt .v{font-family:var(--fd);font-size:27px;line-height:1.1}.sbt .v small{font-size:15px;color:var(--muted)}
+  .sbt .sm{font-size:12.5px;color:var(--muted);line-height:1.4}.sbt .sm b{color:var(--ink)}
+  .sbt.black{background:var(--done-bg);border-color:#bcd9c7}.sbt.black .v{color:var(--done)}
+  .sbt.red{background:var(--late-bg);border-color:#e6b9b3}.sbt.red .v{color:var(--late)}
+  .sbt .days{display:flex;flex-wrap:wrap;gap:2px 12px;font-family:var(--fb);font-size:18px;font-weight:700}.sbt .days small{font-family:var(--fu);font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase}
+  .okp,.warnp{display:inline-block;font-family:var(--fu);font-size:11px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:1px 8px}.okp{background:var(--done-bg);color:var(--done)}.warnp{background:var(--wait-bg);color:var(--wait)}
+  .sbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .sbgrid .blk{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;min-width:0}
+  .sbgrid .blk.wide{grid-column:1/-1;order:-1} .sbreg .sbin{width:100%!important;max-width:110px}
+  .sbgrid .blk h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:16px;font-weight:700;font-family:var(--fb)}
+  .sbgrid .blk h3 .n{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12.5px;display:inline-flex;align-items:center;justify-content:center}
+  .sbgrid .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--sunk);font-size:14px}
+  .sbgrid .row small{display:block;font-size:12px;color:var(--muted)} .sbgrid .row.tot{border-top:1.5px solid var(--edge)}
+  .sbin{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;font-size:14px;background:#fff;text-align:right;min-height:0;margin:0}
+  .sbl .sbin:not(.n){text-align:left}
+  .src{display:inline-block;font-family:var(--fu);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+  .src.s-ct{background:var(--gold-pale);color:#7a5b10}.src.s-type{background:var(--sunk);color:var(--muted)}
+  .sbreg{width:100%;border-collapse:collapse;font-size:14px}.sbreg th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px 4px}
+  .sbreg td{padding:4px;border-top:1px solid var(--sunk);white-space:nowrap}.sbreg td small{color:var(--muted)}
+  /* Push buttons: the chosen one fills with colour. */
+  .pbseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff;flex:none}
+  .pbseg button{border:0;background:none;padding:6px 14px;font:600 13px var(--fb);color:var(--muted);cursor:pointer;white-space:nowrap}
+  .pbseg button.on{background:var(--rbh);color:#fff}.pbseg button.on.reimbursed{background:var(--gold);color:#1c1608}.pbseg button.on.agency{background:var(--ink-mid);color:#fff}
+  .pbseg.sm button{padding:4px 9px;font-size:12px}
+  .sbx .scroll{overflow-x:auto}
+  .sbx .ng{border-collapse:separate;border-spacing:4px 5px;font-size:14px}
+  .sbx .ng th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:0 2px}
+  .sbx .ng th .d{display:block;font-family:var(--fb);font-size:13px;letter-spacing:0;color:var(--ink);font-weight:700}.sbx .ng th.ev,.sbx .ng th.ev .d{color:var(--navy)}
+  .sbx .ng td.nm{white-space:nowrap;padding-right:8px}.sbx .ng td.nm span{display:block;font-size:12px;color:var(--muted)}
+  .sbx .ng .pname{border:0;background:none;font:600 14px var(--fb);padding:2px 0;min-height:0;width:170px}
+  .sbx .ng .c{display:block;height:32px;width:46px;border-radius:9px;border:1.5px solid var(--border);background:#fff;cursor:pointer;padding:0}
+  .sbx .ng .c.pre{background:repeating-linear-gradient(135deg,#fff,#fff 6px,var(--sunk) 6px,var(--sunk) 12px)}
+  .sbx .ng .c.on{background:var(--rbh);border-color:var(--rbh)}
+  .sbx .ng td.n{text-align:right;color:var(--muted);padding:0 6px}
+  .sbx .ng tr.grp td{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 0 2px;border-bottom:1px solid var(--edge)}
+  .sbx .ng tr.tot td{font-weight:700;text-align:center;font-size:13px}
+  .sbx .plus{width:30px;height:30px;border-radius:50%;border:1.5px dashed var(--navy);background:#fff;color:var(--navy);font-size:18px;font-weight:700;line-height:24px;cursor:pointer;padding:0}
+  .sbx .sumrow{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13.5px;margin-top:10px;padding:10px 14px;background:var(--sand);border-radius:12px}
+  .sbx .mp{border-collapse:separate;border-spacing:5px 6px;font-size:13.5px}
+  .sbx .mp th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .sbx .mp td{position:relative}.sbx .mp td.d{font-weight:700;white-space:nowrap}.sbx .mp td.d span{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+  .sbx .mp td.t{text-align:right;font-weight:700;white-space:nowrap}
+  .sbx .m{display:block;width:104px;min-height:54px;border-radius:10px;padding:5px 6px;text-align:center;line-height:1.25;cursor:pointer;font:600 13px var(--fb)}
+  .sbx .m b{display:block;font-size:11.5px;font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase}
+  .sbx .m.team{background:var(--purple-bg,#efe9f8);color:#5b3f8c;border:1.5px solid #cbb8ea}.sbx .m.all{background:var(--rbh-bg);color:var(--rbh);border:1.5px solid #a9d3cd}
+  .sbx .m.off{background:#fff;color:var(--muted);border:1.5px dashed var(--border)}.sbx .m.flat{background:var(--gold-pale);color:#7a5b10;border:1.5px solid #e6cf9e;cursor:default}
+  .sbx .m.flat input{width:84px;border:1px solid #e6cf9e;border-radius:6px;padding:2px 6px;font:600 13px var(--fb);text-align:right;min-height:0;margin:2px 0 0}
+  .sbx .m.flat .x{position:absolute;top:2px;right:4px;border:0;background:none;color:#7a5b10;cursor:pointer;font-size:11px}
+  .sbx .setamt{position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:#fff;font:700 11px var(--fb);color:var(--muted);cursor:pointer;padding:0}
+  .sbx tr.pre td.d{color:var(--muted)}
+  .sbx .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:8px}.sbx .legend .m{display:inline-block;width:auto;min-height:0;padding:1px 9px;cursor:default}
+  .sbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:6px}.sbl td{padding:3px 2px;border-top:1px solid var(--sunk)}
+  .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
+  .sbxq{max-width:640px;width:calc(100% - 24px)}
+  .sbxq .qrow{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--sunk)}
+  .sbxq .qrow>b{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+  .sbxq .qrow small{display:block;color:var(--muted);font-size:12.5px}
+  .sbxq .qbox{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--sand);border-radius:12px;padding:10px 12px;font-size:14px}
+  .sbxq .qin{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;text-align:right;min-height:0;margin:0}
+  .sbxq .qdays{display:inline-flex;gap:4px;flex-wrap:wrap}.sbxq .qdays button{border:1px solid var(--border);border-radius:8px;padding:4px 10px;background:#fff;font:600 13px var(--fb);cursor:pointer}
+  .sbxq .qdays button.on{background:var(--rbh);color:#fff;border-color:var(--rbh)}
+  @media (max-width:900px){.sbtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sbgrid,.sbgrid.two{grid-template-columns:1fr}.sbxhead h1{font-size:23px}.sbt .v{font-size:22px}}
   /* ---------- RBH SOWs: every statement of work in one place (Andrew 29 Oct 2026; the mock-up he approved) ---------- */
   .sowsscr{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
   .sowsscr>.card{margin:0}
@@ -1623,7 +1699,7 @@ async function signInScreen(message) {
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button><button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
@@ -1631,6 +1707,8 @@ function wireBarChips() {
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   const sows = document.getElementById("sowsnav");
   if (sows) sows.onclick = () => { view = { name: "sows" }; render(); };
+  const sbx = document.getElementById("sandboxnav");
+  if (sbx) sbx.onclick = () => { view = { name: "sandbox" }; render(); };
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: "board" }; render(); };
   if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
@@ -8158,6 +8236,328 @@ function rosterScreen(members) {
   };
 }
 
+/* ---------- Sandbox: the event budget, tried on the 2026 Summit's numbers ---------- */
+/**
+ * Andrew 29 Oct 2026: "a tab ... where you could upload one event, let's say the budget for the National Gang Summit ...
+ * and we could play around in that tab, in that environment that doesn't affect anything". Built from the mock-ups he
+ * approved: the registration questions, the summary tiles, the numbers you set, the hotel nights grid, food and beverage.
+ * One budget, saved on its own (/api/sandbox): nothing here reads or writes a real event, Wix, the hotel or anyone's email.
+ * Push buttons go green when on (Andrew: "I'm big on the push button feel. Box goes green. Box does not go green").
+ */
+const SBX_PEOPLE = [{"name":"Andrew Hammond","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p1"},{"name":"Jacqulyn Taylor","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p2"},{"name":"Steve Hammond","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p3"},{"name":"Tyler Zrymiak","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p4"},{"name":"Inis Artinian","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p5"},{"name":"John Healy","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p6"},{"name":"Sebastien Pitre","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p7"},{"name":"Barb Konkle","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p8"},{"name":"Raj Jaswal","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p9"},{"name":"Derek Sullivan","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p10"},{"name":"Ryan Ferry","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p11"},{"name":"Kulvir Guram","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p12"},{"name":"Andy Bain","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p13"},{"name":"Jessy Johal","group":"board","pays":"reimbursed","nights":["2026-11-07","2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p14"},{"name":"Volunteer 1","group":"volunteer","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p15"},{"name":"Volunteer 2","group":"volunteer","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p16"},{"name":"Volunteer 3","group":"volunteer","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p17"},{"name":"Volunteer 4","group":"volunteer","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p18"},{"name":"Volunteer 5","group":"volunteer","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p19"},{"name":"Presenter 1","org":"Safer Schools","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10"],"id":"p20"},{"name":"Presenter 2","org":"Saskatoon Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p21"},{"name":"Presenter 3","org":"Saskatoon Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p22"},{"name":"Presenter 4","org":"WATTS","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10"],"id":"p23"},{"name":"Presenter 5","org":"WATTS","group":"presenter","pays":"ongia","nights":["2026-11-09","2026-11-10"],"id":"p24"},{"name":"Presenter 6","org":"WATTS","group":"presenter","pays":"ongia","nights":["2026-11-09","2026-11-10"],"id":"p25"},{"name":"Presenter 7","org":"WATTS","group":"presenter","pays":"ongia","nights":["2026-11-09","2026-11-10"],"id":"p26"},{"name":"Presenter 8","org":"WATTS","group":"presenter","pays":"ongia","nights":["2026-11-09","2026-11-10"],"id":"p27"},{"name":"Presenter 9","org":"","group":"presenter","pays":"ongia","nights":["2026-11-09","2026-11-10"],"id":"p28"},{"name":"Presenter 10","org":"Ottawa Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10"],"id":"p29"},{"name":"Presenter 11","org":"Ottawa Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p30"},{"name":"Presenter 12","org":"University of Saskatchewan","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p31"},{"name":"Presenter 13","org":"Str8 Up (Gang exit)","group":"presenter","pays":"ongia","nights":["2026-11-10","2026-11-11"],"id":"p32"},{"name":"Presenter 14","org":"RCMP/FPNS","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p33"},{"name":"Presenter 15","org":"Peel Regional Police","group":"presenter","pays":"ongia","nights":["2026-11-10"],"id":"p34"},{"name":"Presenter 16","org":"Peel Regional Police","group":"presenter","pays":"ongia","nights":["2026-11-10"],"id":"p35"},{"name":"Presenter 17","org":"Montreal Police","group":"presenter","pays":"ongia","nights":["2026-11-11"],"id":"p36"},{"name":"Presenter 18","org":"Montreal Police","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p37"},{"name":"Presenter 19","org":"Winnipeg Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p38"},{"name":"Presenter 20","org":"Winnipeg Police Service","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11","2026-11-12"],"id":"p39"},{"name":"Presenter 21","org":"Edmunston Police","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p40"},{"name":"Presenter 22","org":"Edmunston Police","group":"presenter","pays":"ongia","nights":["2026-11-08","2026-11-09","2026-11-10","2026-11-11"],"id":"p41"}];
+// The 2026 Summit, from Andrew's budget sheet and the signed Delta Hotels Toronto Airport contract. Presenters are listed
+// by agency, never by name; the sheet's duplicate rows (the same person twice) are taken out.
+function sbxSeed() {
+  const cells = {};
+  const put = (iso, slot, v) => { cells[`${iso}|${slot}`] = v; };
+  // Before the event: amounts, not counts (Andrew: Saturday team dinner $1,800, Sunday breakfast about $800).
+  put("2026-11-07", "dinner", 1800);
+  put("2026-11-08", "breakfast", 800); put("2026-11-08", "lunch", 1000); put("2026-11-08", "dinner", 1500);
+  for (const d of ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"]) { put(d, "breakfast", "team"); put(d, "am", "all"); put(d, "lunch", "all"); put(d, "pm", "all"); put(d, "dinner", "off"); }
+  put("2026-11-12", "pm", "off"); put("2026-11-12", "dinner", 2000);
+  put("2026-11-13", "breakfast", 500);
+  return {
+    v: 1,
+    event: { title: "2026 National Gang Summit", city: "Toronto, ON", hotel: "Delta Hotels Toronto Airport", dayOne: "2026-11-09", lastDay: "2026-11-12" },
+    asked: false,
+    reg: {
+      inPerson: { on: true, price: 599, expected: 300, sold: 306 },
+      earlyBird: { on: true, price: 475, expected: 50, sold: 49, ends: "2026-08-31" },
+      community: { on: true, price: 349, expected: 60, sold: 71, days: ["2026-11-10", "2026-11-11"] },
+      virtual: { on: true, price: 199, priceNon: 249, expected: 100, expectedNon: 20, sold: 75 },
+      memberships: { on: false, price: 40, expected: 0, sold: 0 },
+    },
+    pricesIncludeHst: true, hst: 13, target: 35000,
+    hotel: { rate: 205, mat: 8.5, commitment: 619, minPct: 80, pickup: null, rebate: 10, before: 2, after: 2 },
+    people: SBX_PEOPLE.map((p) => ({ ...p, nights: [...p.nights] })),
+    others: 25,
+    meals: { breakfast: 47, break: 16, lunch: 33, dinner: 50, noShow: 15, service: 13.6, admin: 4.4, fbMin: 10000, cells, boardExtra: {} },
+    other: [
+      ["Venue & AV", "AV for the virtual component", 42000], ["Venue & AV", "Hospitality", 5000], ["Venue & AV", "Music for socials", 2000], ["Venue & AV", "Conference insurance", 500], ["Venue & AV", "Furniture", 3000],
+      ["Travel", "Volunteer travel", 500], ["Travel", "Presenters' travel (km)", 1200], ["Travel", "Board travel (km)", 1000], ["Travel", "Regional directors' transportation", 2500], ["Travel", "Flights for two guests", 1600],
+      ["Speakers", "Keynote presenter fee", 7000], ["Speakers", "WATTS presentation", 6000], ["Speakers", "Presenter gifts ($100 each)", 3000],
+      ["Supplies & merchandise", "Tote bag items", 10000], ["Supplies & merchandise", "Challenge coins", 3500], ["Supplies & merchandise", "Board shirts and clothing", 1500], ["Supplies & merchandise", "Prizes after breaks", 500], ["Supplies & merchandise", "ID card printer items", 2000],
+    ].map(([group, name, planned], i) => ({ id: `o${i}`, group, name, planned, spent: null })),
+    stipends: [{ id: "s0", name: "Stipends", planned: 0, paid: null }],
+    sponsors: [["Joy Smith Foundation", 7500, true], ["416 Tactical", 4000, false], ["Gray Fox Strategic", 4000, true], ["Axon", 4000, true], ["Guelph-Humber", 2000, true], ["Rampart", 2000, true],
+      ["Canadian Jewellers Association", 2000, true], ["Ottawa Police Association", 1500, true], ["Toronto Police Association", 750, true]].map(([name, amount, received], i) => ({ id: `sp${i}`, name, amount, received })),
+    deposits: [["Deposit 1, at signing", "2025-10-21", 10000, true], ["Deposit 2 · ref 46275", "2026-09-10", 10000, true], ["Deposit 3 · ref 46285", "2026-09-20", 10000, true]]
+      .map(([what, due, amount, paid], i) => ({ id: `d${i}`, what, due, amount, paid })),
+    dates: [["2026-10-09", "Master account names to the hotel (30 days before)"], ["2026-10-19", "Room block cut-off"], ["2026-11-02", "Balance due (7 days before arrival)"], ["2026-11-06", "Final meal numbers (72 hours before)"]]
+      .map(([iso, what], i) => ({ id: `t${i}`, iso, what })),
+  };
+}
+
+let SBX = null, SBX_SAVE = null, SBX_SAID = "";
+const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
+const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const sbxShort = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
+const sbxMoney = (n) => usd(Math.round(Number(n) || 0)).replace(/\.00$/, "");
+
+/** Everything the page shows, worked out from the budget. */
+function sbxCalc(B) {
+  const days = []; for (let d = B.event.dayOne; d <= B.event.lastDay; d = sbxDay(d, 1)) days.push(d);
+  const first = sbxDay(B.event.dayOne, -(B.hotel.before ?? 2)), last = sbxDay(B.event.lastDay, B.hotel.after ?? 2);
+  const nights = []; for (let d = first; d <= last; d = sbxDay(d, 1)) nights.push(d);
+  const R = B.reg, on = (k) => R[k]?.on;
+  const inPerson = (R.inPerson.expected || 0) + (on("earlyBird") ? R.earlyBird.expected || 0 : 0);
+  const community = on("community") ? R.community.expected || 0 : 0;
+  // The team that day: everyone with a room that night or the night before, and the others (security, sponsors, VIPs).
+  const team = (iso) => B.people.filter((p) => p.nights.includes(iso) || p.nights.includes(sbxDay(iso, -1))).length + (Number(B.others) || 0);
+  const regs = (iso) => (days.includes(iso) ? inPerson + (on("community") && R.community.days.includes(iso) ? community : 0) : 0);
+  const everyone = (iso) => team(iso) + regs(iso);
+  const M = B.meals, keep = 1 - (Number(M.noShow) || 0) / 100;
+  const price = { breakfast: M.breakfast, break: M.break, lunch: M.lunch, dinner: M.dinner };
+  const cell = (iso, slot) => M.cells[`${iso}|${slot}`] ?? "off";
+  const meal = (iso, [slot, , kind]) => {
+    const v = cell(iso, slot);
+    if (typeof v === "number") return { v, count: null, cost: v };
+    if (v === "team") { const c = team(iso); return { v, count: c, cost: c * (price[kind] || 0) }; }
+    if (v === "all") { const c = Math.ceil(everyone(iso) * keep); return { v, count: c, cost: c * (price[kind] || 0) }; }
+    return { v: "off", count: 0, cost: 0 };
+  };
+  const mealDays = nights.map((iso) => { const m = SBX_SLOTS.map((s) => meal(iso, s)); const extra = Number(M.boardExtra[iso]) || 0;
+    return { iso, m, extra, total: m.reduce((n, x) => n + x.cost, 0) + extra }; });
+  const meals = mealDays.reduce((n, d) => n + d.total, 0);
+  // Rooms: every green night is on the block; the ones ONGIA pays for or reimburses are in the budget.
+  const nightCost = B.hotel.rate * (1 + B.hotel.mat / 100) * (1 + B.hst / 100);
+  const blockNights = B.people.reduce((n, p) => n + p.nights.filter((d) => nights.includes(d)).length, 0);
+  const paidNights = B.people.filter((p) => p.pays !== "agency").reduce((n, p) => n + p.nights.filter((d) => nights.includes(d)).length, 0);
+  const rooms = paidNights * nightCost;
+  const reimburse = B.people.filter((p) => p.pays === "reimbursed").map((p) => ({ name: p.name, nights: p.nights.length, amount: p.nights.length * nightCost })).filter((x) => x.nights);
+  // Registration, before HST when the prices include it.
+  const lines = [];
+  if (on("inPerson")) lines.push(["In person", R.inPerson.price * R.inPerson.expected]);
+  if (on("earlyBird")) lines.push(["Early bird", R.earlyBird.price * R.earlyBird.expected]);
+  if (on("community")) lines.push(["Community", R.community.price * R.community.expected]);
+  if (on("virtual")) lines.push(["Virtual", R.virtual.price * R.virtual.expected + R.virtual.priceNon * R.virtual.expectedNon]);
+  if (on("memberships")) lines.push(["Memberships", R.memberships.price * R.memberships.expected]);
+  const gross = lines.reduce((n, [, v]) => n + v, 0), hstF = 1 + B.hst / 100;
+  const tickets = B.pricesIncludeHst ? gross / hstF : gross;
+  const virtualNet = on("virtual") ? (R.virtual.price * R.virtual.expected + R.virtual.priceNon * R.virtual.expectedNon) / (B.pricesIncludeHst ? hstF : 1) : 0;
+  const pledged = B.sponsors.reduce((n, s) => n + (Number(s.amount) || 0), 0), received = B.sponsors.filter((s) => s.received).reduce((n, s) => n + (Number(s.amount) || 0), 0);
+  const pickup = Number(B.hotel.pickup) || 0;
+  const rebate = (Number(B.hotel.rebate) || 0) * (blockNights + pickup);
+  const revenue = tickets + pledged + rebate;
+  const other = B.other.reduce((n, o) => n + (Number(o.planned) || 0), 0), spent = B.other.reduce((n, o) => n + (Number(o.spent) || 0), 0);
+  const stipends = B.stipends.reduce((n, s) => n + (Number(s.paid ?? s.planned) || 0), 0);
+  const expenses = meals + rooms + other + stipends;
+  const profit = revenue - expenses;
+  // One more in-person registration brings its price (before HST) and costs the meals everyone gets, less no-shows.
+  const perHead = days.reduce((n, iso) => n + SBX_SLOTS.reduce((m, s) => m + (cell(iso, s[0]) === "all" ? (price[s[2]] || 0) * keep : 0), 0), 0);
+  const margin = (on("inPerson") ? R.inPerson.price : 0) / (B.pricesIncludeHst ? hstF : 1) - perHead;
+  const breakEven = margin > 0 ? Math.ceil(inPerson - profit / margin) : null;
+  const toTarget = margin > 0 && B.target ? Math.max(0, Math.ceil((B.target - profit) / margin)) : null;
+  const sold = (on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0) + (on("community") ? R.community.sold || 0 : 0) + (on("virtual") ? R.virtual.sold || 0 : 0) + (on("memberships") ? R.memberships.sold || 0 : 0);
+  const expected = inPerson + community + (on("virtual") ? (R.virtual.expected || 0) + (R.virtual.expectedNon || 0) : 0) + (on("memberships") ? R.memberships.expected || 0 : 0);
+  const minNights = Math.ceil(B.hotel.commitment * B.hotel.minPct / 100);
+  const fbBase = meals / ((1 + ((Number(M.service) || 0) + (Number(M.admin) || 0)) / 100) * hstF);
+  const paid = B.deposits.filter((d) => d.paid).reduce((n, d) => n + (Number(d.amount) || 0), 0);
+  return { days, nights, team, regs, everyone, mealDays, meals, rooms, nightCost, blockNights, paidNights, reimburse, pickup, rebate, gross, tickets, virtualNet, pledged, received,
+    revenue, other, spent, stipends, expenses, profit, margin, breakEven, toTarget, inPerson, community, sold, expected, minNights, fbBase, paid, perHead };
+}
+
+function sbxPersist() {
+  clearTimeout(SBX_SAVE);
+  const chip = document.getElementById("sbx-said");
+  if (chip) { chip.textContent = "Saving…"; chip.dataset.saved = "busy"; }
+  SBX_SAVE = setTimeout(async () => {
+    try { await api("/sandbox", { method: "PUT", body: JSON.stringify({ budget: SBX }) }); SBX_SAID = "Saved ✓"; }
+    catch (e) { SBX_SAID = `Couldn't save: ${e.message}`; }
+    const c = document.getElementById("sbx-said"); if (c) { c.textContent = SBX_SAID; c.dataset.saved = /Couldn/.test(SBX_SAID) ? "bad" : "ok"; }
+  }, 700);
+}
+
+async function sandboxScreen() {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const got = await api("/sandbox");
+  SBX = got.budget ?? sbxSeed();
+  sbxDraw();
+  if (!SBX.asked) sbxQuestions();
+}
+
+/** The registration questions (mock-up 5): yes or no to each kind, and its price when yes. */
+function sbxQuestions() {
+  const R = SBX.reg, B = SBX;
+  const dlg = document.createElement("dialog"); dlg.className = "sheet sbxq"; document.body.append(dlg);
+  const yn = (k) => `<span class="pbseg"><button type="button" data-yn="${k}" data-v="1" class="${R[k].on ? "on" : ""}">Yes</button><button type="button" data-yn="${k}" data-v="0" class="${R[k].on ? "" : "on"}">No</button></span>`;
+  const box = (k, inner) => `<div class="qbox" data-box="${k}"${R[k].on ? "" : " hidden"}>${inner}</div>`;
+  const num = (path, v, w = 90) => `<input class="qin" data-q="${path}" inputmode="decimal" value="${v ?? ""}" style="width:${w}px">`;
+  const days = sbxCalc(B).days;
+  dlg.innerHTML = `<div class="sheet-head"><div class="porg" style="text-transform:uppercase;letter-spacing:.08em;font-size:11.5px">Setting up the budget</div><h2>How do people register for this event?</h2>
+      <p class="hint" style="margin-top:6px">Answer yes or no. Only what you say yes to shows up in the budget and the tiles. Change these any time with <b>Registration questions</b>.</p></div>
+    <div class="sheet-body">
+      <div class="qrow"><b>1</b><span>In-person registration <small>always on</small></span><span class="pbseg"><button type="button" class="on" disabled>Yes</button></span></div>
+      <div class="qbox">Price ${num("inPerson.price", R.inPerson.price)} Expected ${num("inPerson.expected", R.inPerson.expected, 70)}</div>
+      <div class="qrow"><b>2</b><span>An early-bird price?</span>${yn("earlyBird")}</div>
+      ${box("earlyBird", `Price ${num("earlyBird.price", R.earlyBird.price)} Expected ${num("earlyBird.expected", R.earlyBird.expected, 70)}`)}
+      <div class="qrow"><b>3</b><span>Community or partner registration? <small>a cheaper ticket, often for some days only</small></span>${yn("community")}</div>
+      ${box("community", `<span class="qdays">${days.map((d) => `<button type="button" data-cday="${d}" class="${R.community.days.includes(d) ? "on" : ""}">${esc(sbxShort(d))}</button>`).join("")}</span> Price ${num("community.price", R.community.price)} Expected ${num("community.expected", R.community.expected, 70)}`)}
+      <div class="qrow"><b>4</b><span>Virtual attendance?</span>${yn("virtual")}</div>
+      ${box("virtual", `Member ${num("virtual.price", R.virtual.price)} Non-member ${num("virtual.priceNon", R.virtual.priceNon)} Expected ${num("virtual.expected", R.virtual.expected, 70)} + ${num("virtual.expectedNon", R.virtual.expectedNon, 60)}`)}
+      <div class="qrow"><b>5</b><span>Memberships sold with registration?</span>${yn("memberships")}</div>
+      ${box("memberships", `Price ${num("memberships.price", R.memberships.price)} Expected ${num("memberships.expected", R.memberships.expected, 70)}`)}
+      <div class="actions"><button class="btn btn-gold" id="q-done">Save</button><span class="hint" style="align-self:center">Expected is your plan; sold so far is on the page.</span></div>
+    </div>`;
+  dlg.querySelectorAll("[data-yn]").forEach((b) => { b.onclick = () => { const k = b.dataset.yn, v = b.dataset.v === "1"; R[k].on = v;
+    dlg.querySelectorAll(`[data-yn="${k}"]`).forEach((x) => x.classList.toggle("on", (x.dataset.v === "1") === v)); dlg.querySelector(`[data-box="${k}"]`).hidden = !v; }; });
+  dlg.querySelectorAll("[data-cday]").forEach((b) => { b.onclick = () => { const d = b.dataset.cday, list = R.community.days;
+    if (list.includes(d)) list.splice(list.indexOf(d), 1); else list.push(d); b.classList.toggle("on", list.includes(d)); }; });
+  dlg.querySelector("#q-done").onclick = () => {
+    dlg.querySelectorAll("[data-q]").forEach((i) => { const [k, f] = i.dataset.q.split("."); const n = Number(String(i.value).replace(/[$,\s]/g, "")); R[k][f] = Number.isFinite(n) ? n : 0; });
+    B.asked = true; dlg.close(); dlg.remove(); sbxPersist(); sbxDraw();
+  };
+  dlg.addEventListener("cancel", () => { B.asked = true; dlg.remove(); sbxPersist(); });
+  dlg.showModal();
+}
+
+function sbxDraw() {
+  const B = SBX, C = sbxCalc(B), R = B.reg, on = (k) => R[k]?.on;
+  const money = sbxMoney;
+  const today = todayIso();
+  const tile = (k, v, sm, cls = "") => `<div class="sbt ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sm">${sm}</div></div>`;
+  const split = [on("inPerson") || on("earlyBird") ? `In person <b>${(on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0)}</b>` : "",
+    on("community") ? `Community <b>${R.community.sold || 0}</b>` : "", on("virtual") ? `Virtual <b>${R.virtual.sold || 0}</b>` : "", on("memberships") ? `Members <b>${R.memberships.sold || 0}</b>` : ""].filter(Boolean).join(" · ");
+  const pick = C.blockNights + C.pickup, metMin = pick >= C.minNights;
+  const coming = B.dates.filter((d) => d.iso >= today).sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, 3);
+  const above = C.breakEven === null ? null : C.inPerson - C.breakEven;
+  const tiles = [
+    tile(`Profit · ${C.profit >= 0 ? "in the black" : "in the red"}`, money(C.profit), `as planned${B.pricesIncludeHst ? ", after HST" : ""}<br>revenue − expenses`, C.profit >= 0 ? "black" : "red"),
+    tile("Revenue", money(C.revenue), `tickets ${money(C.tickets)}${B.pricesIncludeHst ? " after HST" : ""}<br>sponsors ${money(C.pledged)}${C.rebate ? ` · hotel rebate ${money(C.rebate)}` : ""}`),
+    tile("Expenses", money(C.expenses), `meals ${money(C.meals)} · rooms ${money(C.rooms)}<br>everything else ${money(C.other + C.stipends)}`),
+    tile("Break-even", above === null ? "–" : `${above >= 0 ? "+" : "−"}${Math.abs(above)}`, above === null ? "set an in-person price" : `registrations ${above >= 0 ? "above" : "short of"} break-even (${C.breakEven} needed)${C.toTarget !== null ? `<br><b>${C.toTarget}</b> more to reach ${money(B.target)}` : ""}`),
+    tile("Registrations", `${C.sold} <small>of ${C.expected}</small>`, split || "nothing offered yet"),
+    tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`),
+    tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
+    tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, "registrations, presenters, volunteers, board"),
+    tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
+    tile("Sponsors", `${money(C.received)} <small>of ${money(C.pledged)}</small>`, `${B.sponsors.filter((s) => s.received).length} paid${B.sponsors.some((s) => !s.received) ? ` · ${esc(B.sponsors.filter((s) => !s.received).map((s) => s.name).join(", "))} owing` : ""}`),
+    tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`),
+    tile("Coming up with the hotel", "", coming.length ? coming.map((d) => `<b>${esc(sbxShort(d.iso))}</b> ${esc(d.what)}`).join("<br>") : "Nothing still to come"),
+  ].join("");
+
+  // 1. The numbers you set.
+  const inp = (k, v, w = 96, ph = "") => `<input class="sbin" data-k="${k}" value="${v ?? ""}" placeholder="${ph}" inputmode="decimal" style="width:${w}px">`;
+  const regRow = (k, label, extra = "") => (on(k) ? `<tr><td>${label}</td><td>${inp(`reg.${k}.price`, R[k].price, 80)}${extra}</td><td>${inp(`reg.${k}.expected`, R[k].expected, 70)}${k === "virtual" ? ` + ${inp("reg.virtual.expectedNon", R.virtual.expectedNon, 56)}` : ""}</td><td>${inp(`reg.${k}.sold`, R[k].sold, 70)}</td></tr>` : "");
+  const numbers = `<div class="sbgrid">
+    <div class="blk"><h3><span class="n">2</span>Hotel rooms</h3>
+      <div class="row"><span>Nightly rate <span class="src s-ct">contract</span></span>${inp("hotel.rate", B.hotel.rate)}</div>
+      <div class="row"><span>Tax: HST % and MAT %</span><span>${inp("hst", B.hst, 56)} ${inp("hotel.mat", B.hotel.mat, 56)}</span></div>
+      <div class="row"><span>Room block <span class="src s-ct">contract</span></span><span>${inp("hotel.commitment", B.hotel.commitment, 70)} nights, ${inp("hotel.minPct", B.hotel.minPct, 50)}% minimum</span></div>
+      <div class="row"><span>Attendees' nights so far <small>from the hotel's pick-up report</small></span>${inp("hotel.pickup", B.hotel.pickup, 80, "type it")}</div>
+      <div class="row"><span>Rebate per paid night <span class="src s-ct">contract</span></span>${inp("hotel.rebate", B.hotel.rebate, 56)}</div>
+      <div class="row tot"><span>Rooms ONGIA pays or reimburses</span><b>${C.paidNights} nights · ${money(C.rooms)}</b></div></div>
+    <div class="blk wide"><h3><span class="n">1</span>Registration <button class="mini" id="sbx-q" style="margin-left:auto">Registration questions</button></h3>
+      <table class="sbreg"><thead><tr><th></th><th>Price</th><th>Expected</th><th>Sold so far</th></tr></thead><tbody>
+        ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", ` / ${inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}`)}${regRow("memberships", "Memberships")}</tbody></table>
+      <div class="row"><span>Ticket prices include HST</span><span class="pbseg"><button type="button" data-flag="pricesIncludeHst" data-v="1" class="${B.pricesIncludeHst ? "on" : ""}">Yes</button><button type="button" data-flag="pricesIncludeHst" data-v="0" class="${B.pricesIncludeHst ? "" : "on"}">No</button></span></div>
+      <div class="row tot"><span>Registration comes to</span><b>${money(C.gross)}${B.pricesIncludeHst ? ` <small>· ${money(C.tickets)} after HST</small>` : ""}</b></div></div>
+    <div class="blk"><h3><span class="n">3</span>Meals &amp; breaks</h3>
+      <div class="row"><span>Per person, all fees in: breakfast · break · lunch · dinner</span><span>${inp("meals.breakfast", B.meals.breakfast, 52)} ${inp("meals.break", B.meals.break, 52)} ${inp("meals.lunch", B.meals.lunch, 52)} ${inp("meals.dinner", B.meals.dinner, 52)}</span></div>
+      <div class="row"><span>Order fewer for no-shows %</span>${inp("meals.noShow", B.meals.noShow, 56)}</div>
+      <div class="row"><span>Hotel's service % and admin % on food <span class="src s-ct">contract</span></span><span>${inp("meals.service", B.meals.service, 56)} ${inp("meals.admin", B.meals.admin, 56)}</span></div>
+      <div class="row"><span>Food &amp; beverage minimum <span class="src s-ct">contract</span></span>${inp("meals.fbMin", B.meals.fbMin)}</div>
+      <div class="row tot"><span>Meals come to</span><b>${money(C.meals)}</b></div></div>
+    <div class="blk"><h3><span class="n">4</span>Everyone else, and the goal</h3>
+      <div class="row"><span>Board <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "board").length}</b></div>
+      <div class="row"><span>Presenters · volunteers <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "presenter").length} · ${B.people.filter((p) => p.group === "volunteer").length}</b></div>
+      <div class="row"><span>Security, sponsors, VIPs each day</span>${inp("others", B.others, 60)}</div>
+      <div class="row"><span>Profit target</span>${inp("target", B.target)}</div>
+      <div class="row tot"><span>Other costs (listed below)</span><b>${money(C.other)}</b></div></div></div>`;
+
+  // 2. Hotel nights: tap a night, it goes green; who pays on the right.
+  const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
+  const pays = [["ongia", "ONGIA's bill"], ["reimbursed", "They pay, we reimburse"], ["agency", "Their agency pays"]];
+  const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
+  const head = `<tr><th></th><th><button class="plus" data-more="before" title="Add a night before">+</button></th>${C.nights.map((d) => `<th class="${evDay(d) ? "ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span></th>`).join("")}<th><button class="plus" data-more="after" title="Add a night after">+</button></th><th>Nights</th><th>Who pays for the room</th><th></th></tr>`;
+  const prow = (p) => `<tr><td class="nm"><input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">${p.org ? `<span>${esc(p.org)}</span>` : ""}</td><td></td>
+      ${C.nights.map((d) => `<td><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}" aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td></td>
+      <td class="n">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
+      <td><span class="pbseg sm">${pays.map(([k, l]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}">${l}</button>`).join("")}</span></td>
+      <td><button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button></td></tr>`;
+  const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
+  const grid = `<div class="scroll"><table class="ng"><thead>${head}</thead><tbody>
+    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    <tr class="tot"><td class="nm">Rooms that night</td><td></td>${counts.map((n) => `<td>${n}</td>`).join("")}<td></td><td class="n">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
+    <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${C.blockNights} nights</b></span><span>ONGIA's bill <b>${B.people.filter((p) => p.pays === "ongia").reduce((n, p) => n + p.nights.length, 0)} nights</b></span>
+      <span>Reimbursed <b>${B.people.filter((p) => p.pays === "reimbursed").reduce((n, p) => n + p.nights.length, 0)} nights · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${B.people.filter((p) => p.pays === "agency").reduce((n, p) => n + p.nights.length, 0)} nights</b> (not in the budget)</span></div>`;
+
+  // 3. Food & beverage: tap a meal to cycle Not served → Team → Everyone; type an amount and it's a set amount.
+  const mealCell = (iso, x, slot) => {
+    if (x.v === "off") return `<button class="m off" data-meal="${iso}|${slot}">—</button>`;
+    if (typeof x.v === "number") return `<div class="m flat"><b>Set amount</b><input data-flat="${iso}|${slot}" value="${x.v}" inputmode="decimal"><button class="x" data-meal="${iso}|${slot}" title="Not served">✕</button></div>`;
+    return `<button class="m ${x.v === "team" ? "team" : "all"}" data-meal="${iso}|${slot}"><b>${x.v === "team" ? "Team" : "Everyone"}</b>${x.count}<br>${money(x.cost)}</button>`;
+  };
+  const food = `<div class="scroll"><table class="mp"><thead><tr><th></th>${SBX_SLOTS.map(([, l]) => `<th>${l}</th>`).join("")}<th>Board extra</th><th style="text-align:right">Day</th></tr></thead><tbody>
+    ${C.mealDays.map((d) => `<tr class="${evDay(d.iso) ? "" : "pre"}"><td class="d">${esc(sbxShort(d.iso))}<span>${evDay(d.iso) ? `${C.everyone(d.iso)} in the room` : "before or after: set amounts"}</span></td>
+      ${d.m.map((x, i) => `<td>${mealCell(d.iso, x, SBX_SLOTS[i][0])}${typeof x.v !== "number" ? `<button class="setamt" data-setamt="${d.iso}|${SBX_SLOTS[i][0]}" title="Type an amount instead">$</button>` : ""}</td>`).join("")}
+      <td>${evDay(d.iso) ? inp(`extra.${d.iso}`, B.meals.boardExtra[d.iso] ?? "", 70, "$0") : ""}</td><td class="t">${money(d.total)}</td></tr>`).join("")}
+    <tr><td class="d">Total</td><td colspan="6"></td><td class="t">${money(C.meals)}</td></tr></tbody></table></div>
+    <div class="legend"><span>Tap a meal:</span><span class="m off">Not served</span>→<span class="m team">Team</span>→<span class="m all">Everyone</span><span>· <b>$</b> types an amount instead</span></div>`;
+
+  // 4. Everything else, the internal rows, sponsors and deposits.
+  const listRows = (key, cols) => B[key].map((r) => `<tr>${cols.map(([f, kind, w]) => `<td>${kind === "toggle" ? `<span class="pbseg sm"><button type="button" data-tog="${key}|${r.id}|${f}" class="${r[f] ? "on" : ""}">${f === "received" ? "Received" : "Paid"}</button></span>`
+      : `<input class="sbin${kind === "money" ? " n" : ""}" data-k="${key}.${r.id}.${f}" value="${esc(r[f] ?? "")}" ${kind === "money" ? `inputmode="decimal"` : kind === "date" ? `type="date"` : ""} style="width:${w}px">`}</td>`).join("")}<td><button class="mini ghost" data-rdel="${key}|${r.id}">✕</button></td></tr>`).join("");
+  const others = `<div class="sbgrid two">
+    <div class="blk"><h3>Everything else</h3><table class="sbl"><thead><tr><th>Group</th><th>Line</th><th>Planned</th><th>Spent</th><th></th></tr></thead><tbody>${listRows("other", [["group", "text", 130], ["name", "text", 220], ["planned", "money", 90], ["spent", "money", 90]])}</tbody></table>
+      <button class="mini" data-radd="other">Add a line</button><div class="row tot"><span>Planned · spent</span><b>${money(C.other)} · ${money(C.spent)}</b></div>
+      <div class="intbox"><h3><span class="lock">Internal only</span> Stipends</h3><table class="sbl"><tbody>${listRows("stipends", [["name", "text", 200], ["planned", "money", 90], ["paid", "money", 90]])}</tbody></table><button class="mini" data-radd="stipends">Add a row</button></div></div>
+    <div class="blk"><h3>Sponsors</h3><table class="sbl"><tbody>${listRows("sponsors", [["name", "text", 200], ["amount", "money", 90], ["received", "toggle"]])}</tbody></table><button class="mini" data-radd="sponsors">Add a sponsor</button>
+      <h3 style="margin-top:16px">Deposits &amp; payments</h3><table class="sbl"><tbody>${listRows("deposits", [["what", "text", 190], ["due", "date", 140], ["amount", "money", 90], ["paid", "toggle"]])}</tbody></table><button class="mini" data-radd="deposits">Add a payment</button>
+      <h3 style="margin-top:16px">Dates with the hotel</h3><table class="sbl"><tbody>${listRows("dates", [["iso", "date", 140], ["what", "text", 280]])}</tbody></table><button class="mini" data-radd="dates">Add a date</button></div></div>`;
+
+  ROOT.innerHTML = `<div class="sbx">
+    <div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
+      <div class="sbxacts"><span class="saved" id="sbx-said" data-saved="${/Couldn/.test(SBX_SAID) ? "bad" : "ok"}">${esc(SBX_SAID || "Saved ✓")}</span><button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>
+    <div class="sbtiles">${tiles}</div>
+    <div class="card"><div class="card-head"><div><h2>The numbers you set</h2><div class="s">Type a number and press Tab: everything above and below works itself out.</div></div></div><div class="card-body">${numbers}</div></div>
+    <div class="card"><div class="card-head"><div><h2>Hotel nights</h2><div class="s">Tap a night to book it, tap again to take it off. + adds a night before or after. Everyone here is on the block; who pays decides what's in the budget.</div></div></div><div class="card-body">${grid}</div></div>
+    <div class="card"><div class="card-head"><div><h2>Food &amp; beverage</h2><div class="s">The team (board, presenters, volunteers, others) always eats; attendees get the breaks, and lunch when you say so. Days before and after the event take set amounts.</div></div></div><div class="card-body">${food}</div></div>
+    <div class="card"><div class="card-body">${others}</div></div></div>`;
+  sbxWire();
+}
+
+function sbxWire() {
+  const B = SBX, redraw = () => { sbxPersist(); const k = document.activeElement?.dataset?.k, y = scrollY; sbxDraw(); scrollTo(0, y); if (k) ROOT.querySelector(`[data-k="${CSS.escape(k)}"]`)?.focus(); };
+  const numOf = (v) => { const s = String(v).replace(/[$,\s]/g, ""); if (s === "") return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
+  ROOT.querySelectorAll("[data-k]").forEach((el) => { el.onchange = () => setTimeout(() => {
+    const k = el.dataset.k, parts = k.split("."), v = el.value;
+    if (parts[0] === "extra") B.meals.boardExtra[parts.slice(1).join(".")] = numOf(v);
+    else if (["other", "stipends", "sponsors", "deposits", "dates"].includes(parts[0])) {
+      const row = B[parts[0]].find((r) => r.id === parts[1]); const f = parts[2];
+      row[f] = ["planned", "spent", "paid", "amount"].includes(f) ? numOf(v) : v;
+    } else {
+      let o = B; for (const p of parts.slice(0, -1)) o = o[p];
+      o[parts.at(-1)] = numOf(v) ?? (parts.at(-1) === "pickup" ? null : 0);
+    }
+    redraw();
+  }, 0); });
+  ROOT.querySelectorAll("[data-pname]").forEach((el) => { el.onchange = () => { B.people.find((p) => p.id === el.dataset.pname).name = el.value.trim(); sbxPersist(); }; });
+  ROOT.querySelectorAll("[data-night]").forEach((b) => { b.onclick = () => { const [id, d] = b.dataset.night.split("|"), p = B.people.find((x) => x.id === id);
+    if (p.nights.includes(d)) p.nights.splice(p.nights.indexOf(d), 1); else p.nights.push(d); p.nights.sort(); redraw(); }; });
+  ROOT.querySelectorAll("[data-pays]").forEach((b) => { b.onclick = () => { const [id, k] = b.dataset.pays.split("|"); B.people.find((x) => x.id === id).pays = k; redraw(); }; });
+  ROOT.querySelectorAll("[data-pdel]").forEach((b) => { b.onclick = () => { B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
+  ROOT.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
+    B.people.push({ id: `p${Date.now().toString(36)}`, name: `${{ board: "Board member", presenter: "Presenter", volunteer: "Volunteer", other: "Guest" }[g]} ${n}`, group: g, pays: g === "board" ? "reimbursed" : "ongia", nights: [] }); redraw(); }; });
+  ROOT.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
+  ROOT.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { const k = b.dataset.meal, v = B.meals.cells[k] ?? "off";
+    B.meals.cells[k] = typeof v === "number" ? "off" : ({ off: "team", team: "all", all: "off" })[v] ?? "off"; redraw(); }; });
+  ROOT.querySelectorAll("[data-setamt]").forEach((b) => { b.onclick = () => { B.meals.cells[b.dataset.setamt] = 0; redraw(); ROOT.querySelector(`[data-flat="${CSS.escape(b.dataset.setamt)}"]`)?.select(); }; });
+  ROOT.querySelectorAll("[data-flat]").forEach((el) => { el.onchange = () => setTimeout(() => { B.meals.cells[el.dataset.flat] = numOf(el.value) ?? 0; redraw(); }, 0); });
+  ROOT.querySelectorAll("[data-flag]").forEach((b) => { b.onclick = () => { B[b.dataset.flag] = b.dataset.v === "1"; redraw(); }; });
+  ROOT.querySelectorAll("[data-tog]").forEach((b) => { b.onclick = () => { const [key, id, f] = b.dataset.tog.split("|"), r = B[key].find((x) => x.id === id); r[f] = !r[f]; redraw(); }; });
+  ROOT.querySelectorAll("[data-rdel]").forEach((b) => { b.onclick = () => { const [key, id] = b.dataset.rdel.split("|"); B[key] = B[key].filter((r) => r.id !== id); redraw(); }; });
+  ROOT.querySelectorAll("[data-radd]").forEach((b) => { b.onclick = () => { const key = b.dataset.radd, id = `${key[0]}${Date.now().toString(36)}`;
+    B[key].push(({ other: { id, group: "Other", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
+      deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
+  document.getElementById("sbx-q").onclick = () => sbxQuestions();
+  document.getElementById("sbx-reset").onclick = async () => {
+    if (!confirm("Start over? Everything you've changed in the Sandbox goes, and it's back to the Summit spreadsheet's numbers.")) return;
+    await api("/sandbox", { method: "DELETE" }); SBX = sbxSeed(); SBX_SAID = ""; sbxDraw(); sbxQuestions();
+  };
+}
+
 /* ---------- shared helpers ---------- */
 let toastTimer;
 // 4165550100 → 416-555-0100 as it is typed; an extension survives as " x123".
@@ -8863,6 +9263,7 @@ async function drawScreen() {
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
+    if (view.name === "sandbox") return sandboxScreen();
     if (view.name === "letters") {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
       return lettersScreen(data, events, view.pick ?? null);
