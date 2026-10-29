@@ -38,7 +38,9 @@ ok("registrations with no address, or one that isn't an address, are listed afte
 ok("it says whether that address got the food-allergy email", /training@agency\.example\.ca \| 3 \| [^\n]*\| Yes/.test(flat) && /kim@example\.ca \| 2 \| [^\n]*\| No/.test(flat), flat);
 ok("the totals underneath: 8 coming go to 3 addresses", /8 registrations coming go to 3 email addresses\./.test(flat));
 ok("2 addresses shared by 5 registrations, so 3 don't get an email of their own", /2 addresses are shared by 5 registrations, so 3 registrations don't get an email of their own\./.test(flat), flat);
-ok("2 with no usable email", /2 registrations have no usable email address\./.test(flat));
+ok("2 with no usable email", /2 registrations have no usable email address, so they can't be emailed at all\./.test(flat), flat);
+ok("the biggest group first, the address on every row, in two sections", flat.indexOf("training@agency") < flat.indexOf("kim@example") && (flat.match(/training@agency\.example\.ca \| 3/g) ?? []).length === 3
+  && /Shared email addresses \(2\)/.test(flat) && /Registrations with no usable email address \(2\)/.test(flat), flat);
 const st = await replyStatus(ev);
 ok("and the numbers agree with the card: 8 registrations, 3 addresses, 2 with none, so 3 sharing", st.registrations === 8 && st.reaches === 3 && st.noEmail === 2 && st.registrations - st.noEmail - st.reaches === 3, JSON.stringify(st));
 console.log(`\n${pass} passed, ${fail} failed`);

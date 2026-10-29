@@ -252,22 +252,29 @@ export function addressesSheet(event, people) {
     const k = String(p.email);   // the same key the sending uses (writeableTo), so the numbers match what went
     byAddress.set(k, [...(byAddress.get(k) ?? []), p]);
   }
-  const shared = [...byAddress.entries()].filter(([, list]) => list.length > 1).sort(([a], [b]) => a.localeCompare(b));
+  // The biggest groups first: an agency's training office that registered a dozen people is the first thing to see.
+  const shared = [...byAddress.entries()].filter(([, list]) => list.length > 1).sort(([a, x], [b, y]) => y.length - x.length || a.localeCompare(b));
   const none = byName(coming.filter((p) => !isEmail(p.email)));
-  const sent = (p) => ((p.sent ?? []).includes("reply") ? "Yes" : "No");
+  const sharing = shared.reduce((n, [, l]) => n + l.length, 0), extra = sharing - shared.length;
+  const got = (list) => (list.some((x) => (x.sent ?? []).includes("reply")) ? "Yes" : "No");
   const rows = [
-    ...shared.flatMap(([email, list]) => byName(list).map((p, i) => [i ? "" : email, i ? "" : list.length, p.first ?? "", p.last ?? "", p.organization ?? "", i ? "" : (list.some((x) => (x.sent ?? []).includes("reply")) ? "Yes" : "No")])),
-    ...none.map((p) => [p.email ? `Not an email address: ${p.email}` : "No email address", "", p.first ?? "", p.last ?? "", p.organization ?? "", "No"]),
+    { section: shared.length ? `Shared email addresses (${shared.length})` : "Shared email addresses: none" },
+    // One shaded group, one plain, so where an address's people end is plain to see; the address is on each of its rows,
+    // so the list still makes sense sorted or filtered in Excel.
+    ...shared.flatMap(([email, list], g) => byName(list).map((p) => ({ shade: g % 2 === 1, cells: [email, list.length, p.first ?? "", p.last ?? "", p.organization ?? "", got(list)] }))),
+    { section: none.length ? `Registrations with no usable email address (${none.length})` : "Registrations with no usable email address: none" },
+    ...none.map((p, i) => ({ shade: i % 2 === 1, cells: [p.email ? `Not an email address: ${p.email}` : "No email address", "", p.first ?? "", p.last ?? "", p.organization ?? "", "No"] })),
   ];
-  const extra = shared.reduce((n, [, list]) => n + list.length - 1, 0);
-  return { counts: { registrations: coming.length, addresses: byAddress.size, sharedAddresses: shared.length, sharing: shared.reduce((n, [, l]) => n + l.length, 0), extra, noEmail: none.length },
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  return { counts: { registrations: coming.length, addresses: byAddress.size, sharedAddresses: shared.length, sharing, extra, noEmail: none.length },
     bytes: xlsx({
       title: "Shared email addresses and registrations with no email", subtitle: subtitleOf(event), sheet: "Addresses", landscape: true,
-      columns: [{ head: "Email address", width: 34 }, { head: "Registrations\nat this address", width: 14 }, { head: "First Name", width: 16 }, { head: "Last Name", width: 18 }, { head: "Agency", width: 30 }, { head: "Food-allergy\nemail sent", width: 13 }],
+      summary: [`${plural(coming.length, "registration coming goes", "registrations coming go")} to ${plural(byAddress.size, "email address", "email addresses")}.`,
+        `${plural(shared.length, "address is", "addresses are")} shared by ${plural(sharing, "registration", "registrations")}, so ${plural(extra, "registration doesn't", "registrations don't")} get an email of ${extra === 1 ? "its" : "their"} own.`,
+        "The food-allergy email lets whoever gets it answer for each person registered at their address.",
+        `${plural(none.length, "registration has", "registrations have")} no usable email address, so ${none.length === 1 ? "it can't" : "they can't"} be emailed at all.`],
+      columns: [{ head: "Email address", width: 36 }, { head: "Registered at this address", width: 14, center: true }, { head: "First Name", width: 16 }, { head: "Last Name", width: 18 }, { head: "Agency", width: 32 }, { head: "Food-allergy email sent", width: 13, center: true }],
       rows,
-      footer: [[`${coming.length} ${coming.length === 1 ? "registration coming goes" : "registrations coming go"} to ${byAddress.size} email ${byAddress.size === 1 ? "address" : "addresses"}.`, "", "", "", "", ""],
-        [`${shared.length} ${shared.length === 1 ? "address is" : "addresses are"} shared by ${shared.reduce((n, [, l]) => n + l.length, 0)} registrations, so ${extra} ${extra === 1 ? "registration doesn't" : "registrations don't"} get an email of ${extra === 1 ? "its" : "their"} own.`, "", "", "", "", ""],
-        [`${none.length} ${none.length === 1 ? "registration has" : "registrations have"} no usable email address.`, "", "", "", "", ""]],
     }) };
 }
 
