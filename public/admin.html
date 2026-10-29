@@ -627,6 +627,30 @@
   .swsums table td:first-child{white-space:normal}
   .swsums thead tr{background:var(--sand,#f5f0e8)} .swsums thead th{background:none;padding-top:9px;padding-bottom:9px}
   .swsums .tot td{padding-top:10px;padding-bottom:10px}
+  /* ONGIA's own costs and profit (Andrew 29 Oct 2026): purple, so nothing internal is mistaken for what RBH is billed. */
+  .intbox{margin-top:16px;border:1.5px solid #8a63b8;border-radius:12px;background:#f6f1fb;padding:12px 14px}
+  .intbox h3{margin:0;font-size:15px;color:#4b2a73;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .intbox .lock,.profit .lock{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#4b2a73;color:#fff;border-radius:999px;padding:2px 8px}
+  .intbox .intnote{font-size:13px;color:#5d4a73;margin:4px 0 10px}
+  .introw{display:grid;grid-template-columns:minmax(0,1fr) 140px 140px 36px;gap:8px;align-items:center;margin-top:6px}
+  .introw.head{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b5a80;margin-top:0}
+  .introw input{background:#fff;border-color:#cdb9e3}
+  .profit{margin-top:14px;border:1.5px solid #8a63b8;border-radius:12px;overflow:hidden;background:#fff}
+  .profit:empty{display:none}
+  .profit .ph{background:#4b2a73;color:#fff;padding:8px 12px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .profit .ph small{font-weight:400;opacity:.85}
+  .profit table{width:100%;border-collapse:collapse;font-size:14px}.profit td,.profit th{padding:7px 12px;text-align:right;white-space:nowrap;vertical-align:middle}
+  .profit td:first-child{text-align:left;white-space:normal;color:var(--ink-mid)} .profit .pn{color:var(--muted);font-size:12.5px}
+  .profit thead th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b5a80;background:#f6f1fb}
+  .profit .neg td:not(:first-child){color:#7a2b2b} .profit .tot td{font-weight:700;color:#4b2a73;border-top:1.5px solid #8a63b8;font-size:15px}
+  .profit .pct td{color:var(--muted);font-size:12px;padding-top:0;white-space:normal}
+  .profit .pnote{margin:0;padding:6px 12px 10px;font-size:12px;color:var(--muted)}
+  .profit .sm{display:none}
+  .swbottom>*{min-width:0}
+  @container (max-width:600px){.profit .lg,.profit .pn{display:none}.profit .sm{display:inline}.profit td,.profit th{padding:6px 8px;font-size:13px}.profit .tot td{font-size:14px}.profit .pct td{text-align:right}}
+  @container (max-width:600px){.introw{grid-template-columns:1fr 1fr 36px;margin-top:10px}.introw>input:first-child{grid-column:1/-1}.introw.head{grid-template-columns:1fr 1fr 36px}.introw.head span:first-child{display:none}}
+  .qprofit{margin-top:10px;padding:8px 10px;border-radius:10px;background:#f6f1fb;border:1px solid #cdb9e3;display:grid;grid-template-columns:1fr auto;gap:2px 10px;color:#4b2a73}
+  .qprofit b{text-align:right}.qprofit small{grid-column:1/-1;color:#6b5a80;font-size:11.5px}
   .swprov{display:flex;gap:8px;align-items:center} .swprov .mini{white-space:nowrap;flex:none}
   .swtaxhead{display:grid;grid-template-columns:1fr 110px 36px;gap:8px;margin-top:12px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   .swtax .row{grid-template-columns:1fr 110px 36px;align-items:center}
@@ -3221,7 +3245,7 @@ function eventScreen(data) {
   // The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
   // so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
   // typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
-  const quickInvoice = (s, A) => {
+  const quickInvoice = (s, A, P) => {
     if (!s || !A) return "";
     const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
     const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
@@ -3230,7 +3254,8 @@ function eventScreen(data) {
       <span>Receipts, at cost</span><b>${usd(atCost)}</b>
       ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
       <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
-      <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>`;
+      <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>
+      ${P ? `<div class="qprofit"><span>ONGIA profit so far</span><b>${usd(P.profit)}</b><small>Internal only: fixed fees + admin fee − stipends and other internal costs. Not on anything sent to RBH.</small></div>` : ""}`;
   };
   // The RBH money at a glance: the president's and the VP's only (anyone else is refused the SOW, so this never shows).
   const sowNow = sow?.sow ?? null;
@@ -3238,7 +3263,7 @@ function eventScreen(data) {
     ${sowNow ? `<div class="smoney"><span>Statement of work</span><b>${esc((SOW_STATUSES.find(([k]) => k === sowNow.status) ?? [, sowNow.status])[1])}</b>
       <span>Estimate, with fee and tax</span><b>${usd(sow.estimate?.total ?? 0)}</b>
       <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>
-      ${quickInvoice(sowNow, sow.actual)}`
+      ${quickInvoice(sowNow, sow.actual, sow.profit?.actual)}`
     : `<div class="porg">No statement of work yet.</div>`}
     <div style="margin-top:10px"><button class="mini" data-gotab="money">Open Money</button></div></div></div>` : "";
   // Getting ready (redesign step 4): what a new event still needs, each with the button that does it. It stays on the
@@ -5383,6 +5408,14 @@ function wireSow(ev, S) {
       ${anyRc ? `<div class="rctot">Receipts so far, before tax: <b>${usd(rcAll)}</b>${rcBudget ? ` · the at-cost lines are estimated at <b>${usd(rcBudget)}</b>` : ""}</div>` : ""}
       <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
         <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts (add them under <b>Receipts</b>). Type an invoice amount to overwrite either.</span></div>
+      <div class="intbox" id="sw-internal"><h3><span class="lock">Internal only</span> Costs to ONGIA</h3>
+        <div class="intnote">Will not be included on the statement of work or the final invoice sent to RBH. Amounts as paid, no tax added.</div>
+        <div class="introw head"><span>What</span><span>Planned</span><span>Paid</span><span></span></div>
+        ${(sow.internal ?? []).map((r, i) => `<div class="introw" data-int="${i}"><input class="in-name" value="${esc(r.name)}" aria-label="What it is" placeholder="What it is">
+          <input class="in-plan money" type="text" inputmode="decimal" autocomplete="off" value="${r.planned !== null && r.planned !== undefined ? usd(r.planned) : ""}" placeholder="Planned" aria-label="Planned, in dollars">
+          <input class="in-paid money" type="text" inputmode="decimal" autocomplete="off" value="${r.paid !== null && r.paid !== undefined ? usd(r.paid) : ""}" placeholder="Paid" aria-label="Paid, in dollars">
+          <button class="mini ghost" data-inrm="${i}" title="Remove">✕</button></div>`).join("")}
+        <div style="margin-top:8px"><button class="mini" id="sw-addint">Add an internal row</button></div></div>
       <div class="swbottom">
         <div class="swtax"><h3 style="margin:0 0 4px;font-size:15px">Tax, deposit and fee</h3>
           <p class="hint" style="margin:0 0 8px">ONGIA's service fee is 20% of the subtotal, always.</p>
@@ -5394,7 +5427,7 @@ function wireSow(ev, S) {
           <button class="mini" id="sw-addtax" style="margin-top:8px">Add a tax line</button>
           <div class="field" style="margin-top:12px"><label for="sw-base">Tax is worked out on</label><select id="sw-base"><option value="subtotal+fee"${sow.taxBase !== "subtotal" ? " selected" : ""}>The subtotal plus ONGIA's fee</option><option value="subtotal"${sow.taxBase === "subtotal" ? " selected" : ""}>The subtotal only</option></select></div>
           <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.deposit ? usd(sow.deposit) : ""}" placeholder="$0.00"></div></div>
-        <div><div class="swsums${act ? "" : " noact"}" id="sw-sums"></div></div>
+        <div><div class="swsums${act ? "" : " noact"}" id="sw-sums"></div><div class="profit" id="sw-profit"></div></div>
       </div>
       <div class="swwhy" id="sw-why" hidden><b id="sw-whyhead"></b>
         <textarea id="sw-reason" maxlength="1500" placeholder="Why the final cost is higher than the estimate"></textarea></div>
@@ -5420,6 +5453,8 @@ function wireSow(ev, S) {
       l.estimate = moneyNum(tr.querySelector(".ln-est").value) ?? 0; l.actual = moneyNum(tr.querySelector(".ln-act").value);
     });
     body.querySelectorAll("#sw-taxes .row").forEach((r) => { const t = sow.taxes[+r.dataset.t]; t.name = r.querySelector(".tx-name").value; t.rate = Number(r.querySelector(".tx-rate").value) || 0; });
+    sow.internal = [...body.querySelectorAll("#sw-internal .introw[data-int]")].map((r) => ({ id: (sow.internal ?? [])[+r.dataset.int]?.id, name: r.querySelector(".in-name").value,
+      planned: moneyNum(r.querySelector(".in-plan").value), paid: moneyNum(r.querySelector(".in-paid").value) }));
     sow.taxBase = $("sw-base").value; sow.deposit = moneyNum($("sw-dep").value) ?? 0;
     sow.increaseReason = $("sw-reason").value;
     if ($("sw-oth")) sow.otherActual = moneyNum($("sw-oth").value);
@@ -5431,7 +5466,33 @@ function wireSow(ev, S) {
     return { pct, over: afterApproval(sow) && e > 0 && pct >= 20 };
   };
 
+  // ONGIA's profit, internal (Andrew 29 Oct 2026), worked out as the server does (lib/sow.mjs profit()).
+  const profitOf = (which) => {
+    const t = sowSums(sow, which), amount = (l) => t.lines.find((x) => x.id === l.id)?.amount ?? 0;
+    const fixed = r2(sow.lines.filter((l) => l.type === "fixed").reduce((n, l) => n + amount(l), 0));
+    const margin = which === "actual" ? r2(sow.lines.filter((l) => l.type !== "fixed").reduce((n, l) => n + amount(l) - (numOrNull(l.receiptsTotal) ?? 0), 0) + t.other - (numOrNull(sow.receiptsOther) ?? 0)) : 0;
+    const internal = r2((sow.internal ?? []).reduce((n, r) => n + (which === "estimate" ? (r.planned ?? 0) : (r.paid ?? r.planned ?? 0)), 0));
+    const billed = r2(t.subtotal + t.fee), kept = r2(fixed + t.fee + margin - internal);
+    return { fixed, fee: t.fee, margin, internal, billed, profit: kept, pct: billed > 0 ? Math.round((kept / billed) * 1000) / 10 : null };
+  };
+  const drawProfit = () => {
+    const box = $("sw-profit"); if (!box) return;
+    const E = profitOf("estimate"), A = profitOf("actual"), two = afterApproval(sow);
+    const names = sow.lines.filter((l) => l.type === "fixed").map((l) => l.name).filter(Boolean);
+    const neg = (n) => (n ? `−${usd(n)}` : usd(0));
+    const r = (label, e, a, cls = "") => `<tr class="${cls}"><td>${label}</td><td>${e}</td>${two ? `<td>${a}</td>` : ""}</tr>`;
+    box.innerHTML = `<div class="ph"><span>ONGIA profit</span><small>internal only · president &amp; VP</small></div>
+      <table><thead><tr><th></th><th><span class="lg">Statement of work</span><span class="sm">SOW</span></th>${two ? `<th><span class="lg">Invoice so far</span><span class="sm">Invoice</span></th>` : ""}</tr></thead><tbody>
+      ${r(`Fixed fees${names.length ? ` <span class="pn">(${esc(names.join(", "))})</span>` : ""}`, usd(E.fixed), usd(A.fixed))}
+      ${r("ONGIA admin fee (20%)", usd(E.fee), usd(A.fee))}
+      ${two && Math.abs(A.margin) >= 0.005 ? r("At-cost lines billed above or below their receipts", "–", usd(A.margin)) : ""}
+      ${r("Internal costs", neg(E.internal), neg(A.internal), "neg")}
+      ${r("Profit", usd(E.profit), usd(A.profit), "tot")}
+      ${r("", E.pct === null ? "" : `${E.pct}%<span class="lg"> of ${usd(E.billed)} billed before tax</span>`, A.pct === null ? "" : `${A.pct}%<span class="lg"> of ${usd(A.billed)} billed before tax</span>`, "pct")}</tbody></table>
+      <p class="pnote">The at-cost lines are billed as receipted, so they pass through. Tax goes to the government, so it isn't counted.</p>`;
+  };
   const sums = () => {
+    drawProfit();
     const est = sowSums(sow, "estimate"), act = sowSums(sow, "actual"), showAct = afterApproval(sow);
     const row = (label, e, a, cls = "") => `<tr class="${cls}"><td>${label}</td><td>${e}</td><td class="act">${a}</td></tr>`;
     $("sw-sums").innerHTML = `<table><thead><tr><th></th><th>Statement of work</th><th class="act">Invoice</th></tr></thead><tbody>
@@ -5460,7 +5521,7 @@ function wireSow(ev, S) {
 
   const save = async (quiet) => {
     read();
-    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null }) });
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) });
     Object.assign(sow, out.sow); locked = out.locked; changes = out.changedSinceSent ?? changes; dirty = false;
     if (!quiet) { toast("Saved."); render(); }
     return out;
@@ -5491,6 +5552,8 @@ function wireSow(ev, S) {
     $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null }); draw(); dirty = true; body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
     body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; }; });
     $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; };
+    body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; }; });
+    $("sw-addint").onclick = () => { read(); (sow.internal ??= []).push({ name: "", planned: null, paid: null }); draw(); dirty = true; body.querySelectorAll(".in-name")[sow.internal.length - 1]?.focus(); };
     $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
     $("sw-status").onchange = guard(async () => { if (dirty) await save(true); await api(`${q}&status=${$("sw-status").value}`, { method: "PUT" }); toast("Status changed."); render(); });
     // Changing what RBH was sent takes a click and the word EDIT (Andrew 21 Oct 2026); it is noted in the history.
