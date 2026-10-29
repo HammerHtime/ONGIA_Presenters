@@ -4406,7 +4406,6 @@ function renderWelcomeCard(ev, W) {
         <div class="agbtns">${v.agenda ? `<button class="mini ghost" data-wlopen="${v.key}">Open</button>` : ""}<button class="mini${v.agenda ? " ghost" : " gold"}" data-wlup="${v.key}">${v.agenda ? "Replace" : "Upload the agenda"}</button>
           <input type="file" data-wlfile="${v.key}" accept="application/pdf,.pdf" hidden></div></div>
       ${v.problems.length ? `<div class="bad" style="margin-top:10px"><b>Held back:</b> ${esc(v.problems[0])}</div>` : ""}
-      <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button class="btn btn-ghost" data-wlsee="${v.key}">See the email</button><button class="btn btn-ghost" data-wltest="${v.key}">Send a test</button></div>
     </div>`;
   // PDFs that go with the letter besides the agenda, each ticked for the versions it goes with (Andrew 27 Oct 2026).
   const size = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -4424,6 +4423,16 @@ function renderWelcomeCard(ev, W) {
       ${(W.files ?? []).length ? (W.files ?? []).map(fileRow).join("") : `<p class="porg" style="margin:0 0 6px">None yet.</p>`}
       <div class="actions" style="margin-top:10px;align-items:center;flex-wrap:wrap"><button class="mini gold" id="wl-addfile">Add PDFs</button><input type="file" id="wl-files" accept="application/pdf,.pdf" multiple hidden>
         <span class="hint" style="margin:0">${W.versions.map((v) => `${esc(two ? v.label : "This letter")}: ${size(v.attachedBytes ?? 0)} of 3 MB attached`).join(" · ")}</span></div></div>`;
+  // Look at it and send yourself a test, with the agendas and PDFs above attached, before saving (Andrew 29 Oct 2026: "the
+  // email addresses for the test email is far from the test email button"): the address sits with the buttons that use it.
+  const checks = `<div class="wlcheck" style="border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px">
+      <h3 style="margin:0;font-size:17px">Check it</h3>
+      <p class="hint" style="margin:4px 0 0">See each email as it will arrive, attachments and all, or send yourself a test. A test saves the letter first.</p>
+      <div class="field" style="max-width:520px"><label for="wl-to">Tests go to</label><input id="wl-to" placeholder="${esc(WHO?.email || "")}" value="${esc((() => { try { return localStorage.getItem("ongia-wl-to") ?? ""; } catch { return ""; } })())}">
+        <p class="hint" style="margin:6px 0 0">One address, or several separated by commas (up to five).</p></div>
+      ${W.versions.map((v) => `<div class="wlcheckrow" style="display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:12px">
+        ${two ? `<b style="flex:1 1 180px">${esc(v.label)}</b>` : ""}<button class="btn btn-ghost" data-wlsee="${v.key}">See the email</button><button class="btn btn-ghost" data-wltest="${v.key}">Send a test</button></div>`).join("")}
+    </div>`;
   const job = W.sendOn ? `Goes on <input type="date" id="wl-on" value="${esc(W.sendOn)}" style="width:auto;display:inline-block;margin:0 6px">` : `Goes on <input type="date" id="wl-on" style="width:auto;display:inline-block;margin:0 6px">`;
   box.innerHTML = `
     <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
@@ -4433,10 +4442,10 @@ function renderWelcomeCard(ev, W) {
       <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
     ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${noName}
+    <p class="hint" style="margin-top:14px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
     ${W.versions.map(version).join("")}
     ${attachments}
-    <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
-    <div class="field" style="max-width:420px"><label for="wl-to">Tests go to</label><input id="wl-to" placeholder="${esc(WHO?.email || "")}"></div>
+    ${checks}
     <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="wl-save">Save the welcome letter</button><span class="hint" id="wl-said" style="align-self:center"></span></div>
     <dialog class="sheet rpdlg" id="wldlg"><form method="dialog">
       <div class="sheet-head"><h2 id="wld-title">The email</h2><p class="hint" id="wld-note" style="margin-top:6px"></p></div>
@@ -4470,6 +4479,8 @@ function renderWelcomeCard(ev, W) {
     } catch (x) { toast(x.message); }
     done();
   });
+  // The test addresses are kept on this computer, so saving (which redraws the card) doesn't empty the box.
+  $("wl-to").oninput = (e) => { try { localStorage.setItem("ongia-wl-to", e.target.value); } catch {} };
   box.querySelectorAll("[data-wltest]").forEach((b) => b.onclick = async () => {
     const done = busy(b, "Sending…");
     try {
