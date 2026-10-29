@@ -38,10 +38,6 @@ export function pdfTitle(event, sow) {
 /** `kind` is "sow" or "invoice". Resolves to a Buffer. */
 export async function buildSowPdf({ event, sow, kind = "sow" }) {
   const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
-  const which = kind === "invoice" ? "actual" : "estimate";
-  const t = totals(sow, which);
-  const amount = new Map(t.lines.map((l) => [l.id, l.amount]));
-
   // The title a PDF viewer shows in its tab and offers when saving: "ONGIA" and the invoice number, or the event's name
   // (shortened) if there is no number yet (Andrew 21 Oct 2026). displayTitle makes viewers show it instead of "unknown".
   const doc = new PDFDocument({ size: "LETTER", margin: 0, displayTitle: true, info: {
@@ -51,6 +47,28 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
   const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
+  drawSow(doc, { event, sow, kind, logo });
+  doc.end();
+  return done;
+}
+
+/** Several in one PDF, each starting on its own page (Andrew 29 Oct 2026: "easier for printing them off"). */
+export async function buildSowsPdf(items, { title = "ONGIA statements of work" } = {}) {
+  const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
+  const doc = new PDFDocument({ size: "LETTER", margin: 0, displayTitle: true, info: { Title: title, Author: "ONGIA", Subject: title } });
+  const chunks = [];
+  doc.on("data", (c) => chunks.push(c));
+  const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
+  items.forEach(({ event, sow, kind = "sow" }, i) => { if (i) doc.addPage(); drawSow(doc, { event, sow, kind, logo }); });
+  doc.end();
+  return done;
+}
+
+/** One statement of work or invoice, from the top of the current page. */
+function drawSow(doc, { event, sow, kind, logo }) {
+  const which = kind === "invoice" ? "actual" : "estimate";
+  const t = totals(sow, which);
+  const amount = new Map(t.lines.map((l) => [l.id, l.amount]));
   const page = () => doc.rect(0, 0, W, H).fill(CREAM);
 
   const title = sow.program?.title || event.title;
@@ -145,8 +163,6 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
     y += h + 6;
   }
   doc.font("Times-Italic").fontSize(8.5).fillColor(GREY).text("* All pricing is in Canadian dollars (CAD)  |  Thank you for your business.", M, y + 12, { width: BODY, align: "center" });
-  doc.end();
-  return done;
 }
 
 function titleSize(doc, title) {

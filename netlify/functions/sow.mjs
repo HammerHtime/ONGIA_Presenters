@@ -3,7 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
 import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit } from "./lib/sow.mjs";
-import { buildSowPdf } from "./lib/sowpdf.mjs";
+import { buildSowPdf, buildSowsPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
 /**
@@ -18,6 +18,8 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  *   GET  /api/sow?event=…&doc=sow|invoice      the PDF
  *   POST /api/sow?event=…&file=sow|invoice     put a copy in the event's "SOW and Invoice" folder on SharePoint
  *   PUT  /api/sow?event=…&province=QC          the tax lines for another province
+ *   GET  /api/sow?all=1                        every RBH event and its statement of work's figures, for the RBH SOWs screen
+ *   GET  /api/sow?all=1&doc=sow|invoice&ids=…  those statements of work (or invoices) in one PDF, in that order
  */
 const view = async (event, raw) => {
   // The receipts are their own record; fold them in for showing, never into what is saved.
@@ -63,6 +65,27 @@ async function nextInvoiceNumber(event) {
   return { prefix, year, seq, number: invoiceNumber(prefix, year, seq) };
 }
 
+/**
+ * Every RBH event with what its statement of work comes to (Andrew 29 Oct 2026: "a tab ... I could see a list and access
+ * all of the RBH SOWs ... the total amount of expenses planned, the total sum of profit planned"). An event with no SOW yet
+ * is listed too, with nothing in it, so it can be started from there.
+ */
+async function everyOne() {
+  const events = ((await listEvents()) ?? []).filter((e) => e.kind === "rbh");
+  const rows = await Promise.all(events.map(async (e) => {
+    const raw = await getSow(e.id);
+    const base = { id: e.id, title: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "", lastDay: e.lastDay ?? "" };
+    if (!raw) return { ...base, sow: false };
+    const sow = { ...withReceipts(raw, (await getReceipts(e.id)).items), internal: internalOf(raw) };
+    const figures = (which) => { const t = totals(sow, which), p = profit(sow, which);
+      return { atCost: money(t.subtotal - p.fixed), fixed: p.fixed, subtotal: t.subtotal, fee: t.fee, deposit: t.deposit, taxTotal: t.taxTotal, total: t.total, internal: p.internal, profit: p.profit }; };
+    return { ...base, sow: true, number: sow.invoice?.number ?? "", status: sow.status, statusAt: sow.statusAt ?? {},
+      invoiced: ["invoiced", "paid"].includes(sow.status), paid: sow.status === "paid", hasActuals: (sow.lines ?? []).some((l) => (l.actual ?? null) !== null || (l.receiptsTotal ?? 0) > 0) || (sow.receiptsOther ?? 0) > 0,
+      estimate: figures("estimate"), actual: figures("actual") };
+  }));
+  return rows.sort((a, b) => String(a.dayOne).localeCompare(String(b.dayOne)) || a.title.localeCompare(b.title));
+}
+
 const note = (sow, who, what) => { (sow.history ??= []).push({ at: new Date().toISOString(), who, what }); };
 
 export default async (req) => {
@@ -73,6 +96,18 @@ export default async (req) => {
   const name = who.name || who.email || "";
 
   const url = new URL(req.url);
+  if (req.method === "GET" && url.searchParams.get("all")) {
+    if (!url.searchParams.get("doc")) return json({ events: await everyOne() });
+    const kind = url.searchParams.get("doc") === "invoice" ? "invoice" : "sow";
+    const items = [];
+    for (const one of String(url.searchParams.get("ids") ?? "").split(",").filter(Boolean).slice(0, 60)) {
+      const [e, raw] = await Promise.all([getEvent(one), getSow(one)]);
+      if (e?.kind === "rbh" && raw) items.push({ event: e, sow: withReceipts(raw, (await getReceipts(one)).items), kind });
+    }
+    if (!items.length) return fail("None of those events has a statement of work.", 404);
+    const pdf = await buildSowsPdf(items, { title: `ONGIA ${kind === "invoice" ? "invoices" : "statements of work"}` });
+    return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="ONGIA ${kind === "invoice" ? "Invoices" : "Statements of Work"}.pdf"` } });
+  }
   const id = url.searchParams.get("event");
   const event = id && (await getEvent(id));
   if (!event) return fail("No such event.", 404);
