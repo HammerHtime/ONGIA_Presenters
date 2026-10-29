@@ -906,6 +906,13 @@
   .etab .lock{font-size:11px;font-weight:600;color:var(--muted);margin-left:4px}
   .evbody{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
   .evmain{min-width:0} .evside{min-width:0}
+  /* The RBH quick view stays in sight on the right while the page scrolls (Andrew 29 Oct 2026: "can the RBH Quick view
+     float on the right hand side so when I scroll down the page those boxes stay in view"): the side column runs the
+     length of the page, and the quick view, last in it, sticks below the top bar. */
+  @media (min-width:901px){
+    .evside{align-self:stretch;display:flex;flex-direction:column} .evside #sidepanels{flex:1 0 auto}
+    #rbhcard{position:sticky;top:84px;z-index:2}
+  }
   .evside .card{margin-bottom:14px}
   .evside .card-head{padding:12px 16px 10px;flex-wrap:nowrap} .evside .card-head>div:first-child{flex:1 1 0;min-width:0} .evside .card-head .cardacts{flex:none;width:auto;margin:0 0 0 auto} .evside .card-head h2{font-size:18px} .evside .card-body{padding:10px 16px 14px;font-size:13.5px}
   .evside .who{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -917,6 +924,7 @@
   .leadacts{display:flex;gap:6px;margin-top:6px}
   .smoney{display:grid;grid-template-columns:1fr auto;gap:5px 10px} .smoney b{text-align:right}
   .smoney.qinv{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)} .smoney .qhead{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .qunsaved{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a5a00;background:var(--gold-pale);border-radius:999px;padding:1px 7px}
   .smoney.qinv{column-gap:0} .smoney.qinv b{padding-left:10px} .smoney .qsub{border-top:1px solid var(--border);padding-top:6px;margin-top:2px} .smoney .qtot{font-weight:700;color:var(--ink)}
   .sready{list-style:none;margin:0;padding:0}
   .sready li{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--hair)} .sready li:first-child{border-top:0}
@@ -2864,6 +2872,24 @@ function evNotices(ev) {
 }
 const listWords = (a) => a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`;
 
+// The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
+// so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
+// typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
+// The statement of work redraws it as amounts are typed (Andrew 29 Oct 2026: "when I change the amounts I look over at
+// the ONGIA profit so far and those numbers should change"), saying so until they're saved.
+const quickInvoice = (s, A, P, unsaved = false) => {
+  if (!s || !A) return "";
+  const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
+  const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
+  const fixed = (s.lines ?? []).filter((l) => l.type === "fixed");
+  return `<div class="smoney qinv"><span class="qhead">Invoice so far</span><b>${unsaved ? `<span class="qunsaved">not saved yet</span>` : ""}</b>
+    <span>Receipts, at cost</span><b>${usd(atCost)}</b>
+    ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
+    <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
+    <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>
+    ${P ? `<div class="qprofit"><span>ONGIA profit so far</span><b>${usd(P.profit)}</b><small>Internal only: fixed fees + admin fee − stipends and other internal costs. Not on anything sent to RBH.</small></div>` : ""}`;
+};
+
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
@@ -3260,28 +3286,13 @@ function eventScreen(data) {
       <dt>Folder</dt><dd>${ev.sharePointFolder ? `${ev.sharePointFolderUrl ? `<a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">…/${esc(folderTail)}</a>` : `…/${esc(folderTail)}`}` : `<span class="said bad-t">not set</span>`}</dd>
       <dt>Upload link</dt><dd>${ev.materialsUploadUrl ? (ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="ok-t">upload-only ✓</span>` : `<span class="bad-t">not checked</span>`) : `<span class="bad-t">not made yet</span>`}</dd></dl>
     <p class="porg" style="margin:8px 0 0;font-size:12.5px">The lead, the board on this event, the president and the VP of operations can change this event. The rest of the board sees it as view only.</p></div></div>`;
-  // The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
-  // so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
-  // typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
-  const quickInvoice = (s, A, P) => {
-    if (!s || !A) return "";
-    const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
-    const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
-    const fixed = (s.lines ?? []).filter((l) => l.type === "fixed");
-    return `<div class="smoney qinv"><span class="qhead">Invoice so far</span><b></b>
-      <span>Receipts, at cost</span><b>${usd(atCost)}</b>
-      ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
-      <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
-      <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>
-      ${P ? `<div class="qprofit"><span>ONGIA profit so far</span><b>${usd(P.profit)}</b><small>Internal only: fixed fees + admin fee − stipends and other internal costs. Not on anything sent to RBH.</small></div>` : ""}`;
-  };
   // The RBH money at a glance: the president's and the VP's only (anyone else is refused the SOW, so this never shows).
   const sowNow = sow?.sow ?? null;
   const rbhCard = sow ? `<div class="card" id="rbhcard"><div class="card-head"><div><h2>RBH quick view</h2></div><span class="who">President &amp; VP</span></div><div class="card-body">
     ${sowNow ? `<div class="smoney"><span>Statement of work</span><b>${esc((SOW_STATUSES.find(([k]) => k === sowNow.status) ?? [, sowNow.status])[1])}</b>
       <span>Estimate, with fee and tax</span><b>${usd(sow.estimate?.total ?? 0)}</b>
       <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>
-      ${quickInvoice(sowNow, sow.actual, sow.profit?.actual)}`
+      <div id="rbhq">${quickInvoice(sowNow, sow.actual, sow.profit?.actual)}</div>`
     : `<div class="porg">No statement of work yet.</div>`}
     <div style="margin-top:10px"><button class="mini" data-gotab="money">Open Money</button></div></div></div>` : "";
   // Getting ready (redesign step 4): what a new event still needs, each with the button that does it. It stays on the
@@ -3412,7 +3423,7 @@ function eventScreen(data) {
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" }))
-    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${rbhCard}${comingCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${comingCard}${rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="padd">
@@ -5511,6 +5522,8 @@ function wireSow(ev, S) {
   };
   const sums = () => {
     drawProfit();
+    const q = document.getElementById("rbhq");
+    if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual"), dirty);
     const est = sowSums(sow, "estimate"), act = sowSums(sow, "actual"), showAct = afterApproval(sow);
     const row = (label, e, a, cls = "") => `<tr class="${cls}"><td>${label}</td><td>${e}</td><td class="act">${a}</td></tr>`;
     $("sw-sums").innerHTML = `<table><thead><tr><th></th><th>Statement of work</th><th class="act">Invoice</th></tr></thead><tbody>
@@ -5541,6 +5554,7 @@ function wireSow(ev, S) {
     read();
     const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) });
     Object.assign(sow, out.sow); locked = out.locked; changes = out.changedSinceSent ?? changes; dirty = false;
+    { const q = document.getElementById("rbhq"); if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual")); }   // saved: no longer "not saved yet"
     if (!quiet) { toast("Saved."); render(); }
     return out;
   };

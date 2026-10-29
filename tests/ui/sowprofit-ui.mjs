@@ -32,7 +32,7 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
   await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true }]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
-  await p.addStyleTag({ content: ".bar{position:static !important}" });
+  if (tag === "phone") await p.addStyleTag({ content: ".bar{position:static !important}" });
   if (tag === "phone") {
     // The quick view: saved stipends from the laptop round are in the profit.
     const q = await p.locator("#rbhcard").innerText();
@@ -52,12 +52,26 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
     const pr = await p.locator("#sw-profit").innerText();
     ok(`${tag}: typing the stipends changes the profit straight away: $13,200 + $2,715.57 − $4,500 = $11,415.57`, /Profit\s+\$10,420\.00\s+\$11,415\.57/.test(pr) && /Internal costs\s+−\$4,500\.00\s+−\$4,500\.00/.test(pr), pr);
     ok(`${tag}: no tax in it, and the at-cost lines pass through`, /70\.1% of \$16,293\.43 billed before tax/.test(pr) && /Tax goes to the government/.test(pr), pr);
+    // The quick view follows what's typed, before saving (Andrew 29 Oct 2026: "when I change the amounts I look over at
+    // the ONGIA profit so far and those numbers should change").
+    const onsite = p.locator('#sw-table tr:has(.ln-name[value="On Site Management"]) .ln-act');
+    await onsite.fill("10000"); await p.waitForTimeout(300);
+    let q = await p.locator("#rbhcard").innerText();
+    ok(`${tag}: typing On Site Management's invoice amount changes the quick view at once, marked not saved`, /On Site Management\s*\$10,000\.00/.test(q) && /ONGIA profit so far\s*\$12,615\.57/.test(q) && /not saved yet/i.test(q), q);
+    await onsite.fill("9000"); await p.waitForTimeout(300);
+    q = await p.locator("#rbhcard").innerText();
+    ok(`${tag}: and back`, /ONGIA profit so far\s*\$11,415\.57/.test(q), q);
     await p.locator("#sw-addint").click(); await p.waitForTimeout(200);
     ok(`${tag}: another internal row can be added`, (await box.locator(".introw[data-int]").count()) === 2);
     await box.locator('.introw[data-int="1"] [data-inrm]').click(); await p.waitForTimeout(200);
     await p.locator("#sw-save").click(); await p.waitForTimeout(1500);
     const saved = (await api(`/api/sow?event=${ev.id}`)).sow.internal;
     ok(`${tag}: saved: one Stipends row, $4,500 planned`, saved.length === 1 && saved[0].name === "Stipends" && saved[0].planned === 4500, JSON.stringify(saved));
+    // It stays in sight while the page scrolls (Andrew 29 Oct 2026).
+    await p.locator("#sw-save").scrollIntoViewIfNeeded(); await p.evaluate(() => scrollBy(0, 400)); await p.waitForTimeout(300);
+    const qv = await p.locator("#rbhcard").evaluate((e) => { const r = e.getBoundingClientRect(), bar = document.querySelector(".bar")?.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, sy: scrollY, barBottom: getComputedStyle(document.querySelector(".bar")).position === "sticky" ? bar.bottom : 0 }; });
+    ok(`${tag}: scrolled well down the Money tab, the quick view is still in view on the right, below the top bar`, qv.sy > 1500 && qv.top >= qv.barBottom - 1 && qv.bottom <= qv.h + 1, JSON.stringify(qv));
+    ok(`${tag}: once saved, the quick view no longer says not saved`, !/not saved yet/i.test(await p.locator("#rbhcard").innerText()));
   }
   const card = await fold.boundingBox(), pbox = await p.locator("#sw-profit").boundingBox(), ibox = await box.boundingBox();
   const fits = (b) => b.x >= card.x - 1 && b.x + b.width <= card.x + card.width + 1;
