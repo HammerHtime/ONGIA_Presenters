@@ -141,7 +141,8 @@ ok("filing with no Microsoft connection says so plainly", r.status === 409 && /M
 r = await call(sowFn, `/api/sow?event=${ev2.id}&create=1`, "POST", { from: ev.id });
 ok("copying: an event that already has one can't be copied over", r.status === 409);
 const ev4 = await mk({ kind: "rbh", province: "QC", invoicePrefix: "ITP", dayOne: "2027-02-01", lastDay: "2027-02-05", title: "ITP Feb", city: "Quebec City" });
-ok("the copy menu lists the other RBH events that have a SOW", (await get(ev4.id)).copyFrom.length >= 3);
+{ const c = (await get(ev4.id)).copyFrom;   // one choice per kind, the latest of each (Andrew 29 Oct 2026: "Not a running list")
+  ok("the copy menu offers one choice per kind of RBH event (CFAOC, ITP, other), never one per event", c.length >= 1 && c.length <= 3 && new Set(c.map((x) => x.family)).size === c.length, JSON.stringify(c)); }
 r = await call(sowFn, `/api/sow?event=${ev4.id}&create=1`, "POST", { from: ev.id });
 ok("copied: the same lines and estimates, no typed actuals, a new number", r.status === 201 && r.sow.lines.length === 8 && r.sow.lines.find((l) => l.name === "Hotel").estimate === 15000 && r.sow.lines.every((l) => l.actual === null) && r.sow.invoice.number === "ITP-2027-002" && r.sow.copiedFrom === ev.id, JSON.stringify(r.sow.invoice));
 

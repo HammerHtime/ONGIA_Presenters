@@ -34,6 +34,7 @@
     --done:#2f6b4f; --done-bg:#e2efe7;
     --wait:#9a6a12; --wait-bg:#f8ecd5;
     --late:#a33328; --late-bg:#f7e3e0;
+    --rbh:#1f6f6a; --rbh-bg:#e3f1ef;
     --shadow:0 10px 30px rgba(14,26,53,.09),0 2px 6px rgba(14,26,53,.05);
     --fd:"DM Serif Display",Georgia,serif;
     --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -96,6 +97,9 @@
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
   /* the CFAOC website card */
   .wsh{font-size:15px;margin:20px 0 6px}
+  .wscopy{border:1px dashed var(--edge);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:var(--sunk)}
+  .wscopy label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .wscopy-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .wscopy-row select{flex:1 1 220px;margin:0} .wscopy-row .mini{white-space:nowrap}
   .wsag{border:1px solid var(--edge);border-radius:10px;padding:10px;margin:0 0 8px;display:grid;gap:6px}
   .wsag-top{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center}
   .wsag-pick{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
@@ -139,6 +143,11 @@
   .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink-mid)}
   .btn[disabled]{opacity:.55;cursor:progress}
   .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  /* A Save button on a card that saves as you go says where things stand instead of asking to be pressed. */
+  .autosv:not([data-saved="new"]){background:transparent;border-color:var(--border);color:var(--muted);font-weight:600}
+  .autosv[data-saved="ok"]{color:var(--done);border-color:var(--done-bg);background:var(--done-bg)}
+  .autosv[data-saved="bad"]{color:var(--late);border-color:var(--late);background:var(--late-bg);white-space:normal;text-align:left}
+  .svnote{font-size:13px;color:var(--muted);align-self:center}
 
   .presenter{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
     background:var(--sunk);border:1.5px solid var(--edge);border-radius:16px;padding:13px 15px;margin-bottom:10px}
@@ -1115,6 +1124,10 @@
   .evt td{padding:12px 14px;vertical-align:middle;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
   .evt td:first-child{border-left:5px solid var(--navy);border-radius:14px 0 0 14px}
   .evt tr.attn td:first-child{border-left-color:var(--late)}
+  /* RBH events in one colour, so they stand out in the list (Andrew 29 Oct 2026). A red edge still means it needs you. */
+  .evt tr.rbh td{background:var(--rbh-bg)} .evt tr.rbh td:first-child{border-left-color:var(--rbh)} .evt tr.rbh.attn td:first-child{border-left-color:var(--late)}
+  .evt tr.rbh .shchip.info,.pastrow.rbh .shchip.info{background:var(--rbh);color:#fff}
+  .pastrow.rbh{background:var(--rbh-bg);border-left:5px solid var(--rbh);border-radius:10px;padding-left:12px;margin-top:4px}
   #upcoming{background:#ebe6da}
   .evt tr.evrow{filter:drop-shadow(0 2px 5px rgba(14,26,53,.10))}
   .evt td:last-child{border-right:1px solid var(--border);border-radius:0 14px 14px 0}
@@ -1142,6 +1155,7 @@
     .evt thead{display:none} .evt,.evt tbody{display:block} .evt{width:auto;margin:10px}
     .evt tr{display:block;padding:12px 14px;margin:0 0 10px;background:#fff;border:1px solid var(--border);border-left:5px solid var(--navy);border-radius:14px;box-shadow:0 2px 8px rgba(14,26,53,.10);filter:none}
     .evt tr.attn{border-left-color:var(--late)}
+    .evt tr.rbh{background:var(--rbh-bg);border-left-color:var(--rbh)} .evt tr.rbh.attn{border-left-color:var(--late)}
     .evt tr.evrow:hover{background:var(--gold-pale)}
     .evt td,.evt td:first-child,.evt td:last-child{display:block;border:0;padding:2px 0;background:none;border-radius:0} .evt td.o{display:none} .evt .lab{display:inline}
   }
@@ -1700,7 +1714,7 @@ function eventsTable(upcoming) {
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
     // The tile's left edge says whether the event needs you (red) or not (navy).
     const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
-    return `<tr class="evcard evrow${attn ? " attn" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
+    return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
@@ -1767,7 +1781,7 @@ function pastEventsCard(past) {
   if (!past.length) return "";
   const rows = past.map((ev) => {
     const c = ev.counts ?? {};
-    return `<div class="pastrow" data-open="${esc(ev.id)}" role="link" tabindex="0"><div><b>${esc(ev.title)}</b>${ev.kind === "rbh" ? ` <span class="shchip info" style="font-family:inherit">RBH</span>` : ""}
+    return `<div class="pastrow${ev.kind === "rbh" ? " rbh" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0"><div><b>${esc(ev.title)}</b>${ev.kind === "rbh" ? ` <span class="shchip info" style="font-family:inherit">RBH</span>` : ""}
       <div class="s">${esc(ev.city)} · ${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</div></div>
       <span class="porg">${c.total ?? 0} presenter${c.total === 1 ? "" : "s"}</span></div>`;
   }).join("");
@@ -2218,32 +2232,36 @@ function eventFormScreen(existing = null) {
     } catch (e) { list.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
   };
 
+  const val = (id) => $(id).value.trim();
+  const bodyOf = () => ({
+    title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
+    dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
+    offsets,
+    board: readBoard(),
+    sharePointFolder: val("e-folder"), materialsFolder: val("e-matfolder"), materialsUploadUrl: val("e-upload"),
+    hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
+             cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
+    letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
+    surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
+    attendeeMail: $("e-amail")?.checked === true,
+    kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
+    province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
+    talkOnFile: $("e-talkfile")?.checked === true,
+    noDeadlines: $("e-nodates")?.checked === true,
+    inviteNote: $("e-invnote")?.value ?? undefined,
+    inviteNoteFr: $("e-invnotefr")?.value ?? undefined,
+    // No tick on the form means "we are not saying", not "no" — otherwise
+    // every save would clear the flag on an event that had it set.
+    sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
+    contractDraft: draftId ?? undefined,
+  });
+  // An event that exists saves as you go (Andrew 29 Oct 2026); a new one is made only when Create event is pressed.
+  if (ev) autosave($("create").closest(".card") ?? ROOT, $("create"), () => api(`/events?id=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(bodyOf()) }),
+    { skip: "#e-people, [type=file], dialog", ready: () => (readBoard().some((m) => m.lead) ? true : "pick a lead among the board members.") });
   $("create").onclick = async (e) => {
     if (busy) return;
     busy = true; e.target.disabled = true;
-    const val = (id) => $(id).value.trim();
-    const body = {
-      title: val("e-title"), city: val("e-city"), venue: val("e-venue"), sessionMinutes: Number(val("e-mins")) || 70,
-      dayOne: val("e-day1"), lastDay: val("e-last") || val("e-day1"),
-      offsets,
-      board: readBoard(),
-      sharePointFolder: val("e-folder"), materialsFolder: val("e-matfolder"), materialsUploadUrl: val("e-upload"),
-      hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
-               cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
-      letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
-      surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
-      attendeeMail: $("e-amail")?.checked === true,
-      kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
-      province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
-      talkOnFile: $("e-talkfile")?.checked === true,
-      noDeadlines: $("e-nodates")?.checked === true,
-      inviteNote: $("e-invnote")?.value ?? undefined,
-      inviteNoteFr: $("e-invnotefr")?.value ?? undefined,
-      // No tick on the form means "we are not saying", not "no" — otherwise
-      // every save would clear the flag on an event that had it set.
-      sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
-      contractDraft: draftId ?? undefined,
-    };
+    const body = bodyOf();
     if (!ev) { body.presenters = parsePeople(val("e-people")); body.invite = $("e-invite").checked; }
     const leadRow = body.board.find((m) => m.lead);
     if (!leadRow) {
@@ -2493,14 +2511,14 @@ function wireTemplate() {
 
   // Order matters: the list runs in the order the jobs get done, and events keep it.
   const wireRow = (row) => {
-    row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; };
+    row.querySelector("[data-tdel]").onclick = () => { row.remove(); said.textContent = ""; auto.kick(true); };
     row.querySelector("[data-tup]").onclick = () => {
       const prev = row.previousElementSibling;
-      if (prev?.matches("[data-trow]")) { host.insertBefore(row, prev); said.textContent = ""; row.querySelector("[data-tup]").focus(); }
+      if (prev?.matches("[data-trow]")) { host.insertBefore(row, prev); said.textContent = ""; row.querySelector("[data-tup]").focus(); auto.kick(true); }
     };
     row.querySelector("[data-tdown]").onclick = () => {
       const next = row.nextElementSibling;
-      if (next?.matches("[data-trow]")) { host.insertBefore(next, row); said.textContent = ""; row.querySelector("[data-tdown]").focus(); }
+      if (next?.matches("[data-trow]")) { host.insertBefore(next, row); said.textContent = ""; row.querySelector("[data-tdown]").focus(); auto.kick(true); }
     };
   };
   const addRow = (t) => {
@@ -2531,22 +2549,25 @@ function wireTemplate() {
     addRow().querySelector("[data-twhat]").focus();
   };
 
+  const collect = () => [...host.querySelectorAll("[data-trow]")].map((row) => {
+    const raw = row.querySelector("[data-tdays]").value.trim();
+    const n = raw === "" ? null : Math.abs(Number(raw));
+    const from = row.querySelector("[data-twhen]").value;
+    return {
+      what: row.querySelector("[data-twhat]").value.trim(),
+      daysBefore: n === null ? null : from === "after" ? -n : n,
+      from: from === "cutoff" ? "cutoff" : undefined,
+      auto: row.dataset.auto || undefined,
+      onlyFor: row.dataset.only || undefined,
+    };
+  });
+  const bad = (tasks) => tasks.filter((t) => !t.what || (t.daysBefore !== null && !Number.isFinite(t.daysBefore))).length;
+  const put = () => api("/tasks?template=1", { method: "PUT", body: JSON.stringify({ tasks: collect() }) });
+  // Saves as you go once the list is loaded; a row still without wording waits for it.
+  const auto = autosave(host, document.getElementById("tmpl-save"), put, { ready: () => (!loaded || bad(collect()) ? "every row needs wording. Leave the days empty if there is no date yet." : true) });
   document.getElementById("tmpl-save").onclick = async (e) => {
-    const btn = e.currentTarget;
-    const tasks = [...host.querySelectorAll("[data-trow]")].map((row) => {
-      const raw = row.querySelector("[data-tdays]").value.trim();
-      const n = raw === "" ? null : Math.abs(Number(raw));
-      const from = row.querySelector("[data-twhen]").value;
-      return {
-        what: row.querySelector("[data-twhat]").value.trim(),
-        daysBefore: n === null ? null : from === "after" ? -n : n,
-        from: from === "cutoff" ? "cutoff" : undefined,
-        auto: row.dataset.auto || undefined,
-        onlyFor: row.dataset.only || undefined,
-      };
-    });
-    const bad = tasks.filter((t) => !t.what || (t.daysBefore !== null && !Number.isFinite(t.daysBefore)));
-    if (bad.length) { said.textContent = "Every row needs wording. Leave the days empty if there is no date yet."; said.style.color = "var(--late)"; return; }
+    const btn = e.currentTarget, tasks = collect();
+    if (bad(tasks)) { said.textContent = "Every row needs wording. Leave the days empty if there is no date yet."; said.style.color = "var(--late)"; return; }
     btn.disabled = true; said.style.color = ""; said.textContent = "Saving…";
     try {
       const out = await api("/tasks?template=1", { method: "PUT", body: JSON.stringify({ tasks }) });
@@ -4314,9 +4335,13 @@ function renderWebsite(ev, W) {
       <div class="field"><label for="ws-blurbFr">Short description in French</label><textarea id="ws-blurbFr" maxlength="600" style="min-height:70px">${esc(w.blurbFr)}</textarea></div></div>
     <h3 class="wsh">Program</h3>
     <p class="hint" style="margin:0 0 10px">One line per session. Pick a presenter and the website uses their talk title and description from their agreement, only if they agreed to be public.</p>
+    ${(W.copyFrom ?? []).length ? `<div class="wscopy"><label for="ws-copyfrom">Start from another CFAOC event's agenda</label>
+      <div class="wscopy-row"><select id="ws-copyfrom">${W.copyFrom.map((c) => `<option value="${esc(c.id)}">${esc(c.city || c.title)}${c.dayOne ? ` · ${esc(fmtDate(c.dayOne))}` : ""} · ${c.rows.length} line${c.rows.length === 1 ? "" : "s"}</option>`).join("")}</select>
+        <button type="button" class="mini gold" id="ws-copy">Copy its times</button></div>
+      <p class="hint" style="margin:6px 0 0">Every line keeps its times. Registration, breaks, lunch and the other lines with no presenter come over as they are; the presenter lines come over empty, for you to pick the presenter and add their details.</p></div>` : ""}
     <div id="wsag">${w.agenda.map(agRow).join("")}</div>
     <button type="button" class="mini" id="ws-addrow">Add a line</button>
-    <div class="actions" style="margin-top:16px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="ws-save">Save website details</button>
+    <div class="actions" style="margin-top:16px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="ws-save">Save website details</button><span class="svnote">Changes save as you type. The website changes only when you press Update website.</span>
       ${!last ? `<button type="button" class="btn btn-ghost" id="ws-fill">Bring over what the website shows today</button>` : ""}</div>
     <h3 class="wsh">Presenters on the website <span class="porg">· ${shown.length} of ${W.presenters.length}</span></h3>
     <p class="hint" style="margin:0 0 10px">Only presenters who signed and said yes to their summary on public platforms. No headshots and never contact details.</p>
@@ -4339,12 +4364,32 @@ function renderWebsite(ev, W) {
   const saveEvent = async () => { const out = await api(`/website?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(fields()) }); W.website = out.website; return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
 
+  const copy = document.getElementById("ws-copy");
+  if (copy) copy.onclick = () => {
+    const from = W.copyFrom.find((c) => c.id === document.getElementById("ws-copyfrom").value);
+    if (!from) return;
+    const have = rows().length;
+    if (have && !confirm(`Replace the ${have} line${have === 1 ? "" : "s"} here with ${from.city || from.title}'s ${from.rows.length}?`)) return;
+    W.website = { ...W.website, ...fields(), agenda: from.rows.map((r) => ({ ...r })) };
+    renderWebsite(ev, W); box._auto?.kick(true);
+    toast(`Copied ${from.rows.length} lines from ${from.city || from.title}. Pick each presenter and add their details; it saves as you go.`);
+  };
   document.getElementById("ws-addrow").onclick = () => { W.website = { ...W.website, ...fields() }; W.website.agenda.push({ time: "", end: "", presenter: "", title: "", detail: "", titleFr: "", detailFr: "", abstract: "", abstractFr: "" }); renderWebsite(ev, W); document.querySelector("#wsag [data-wsrow]:last-child input")?.focus(); };
-  box.querySelectorAll("[data-wsdel]").forEach((b) => { b.onclick = () => { W.website = { ...W.website, ...fields() }; W.website.agenda.splice(+b.dataset.wsdel, 1); renderWebsite(ev, W); }; });
+  box.querySelectorAll("[data-wsdel]").forEach((b) => { b.onclick = () => { W.website = { ...W.website, ...fields() }; W.website.agenda.splice(+b.dataset.wsdel, 1); renderWebsite(ev, W); box._auto?.kick(true); }; });
   document.getElementById("ws-save").onclick = async (e) => {
     const done = busy(e.target, "Saving…");
     try { await saveEvent(); toast("Saved. Nothing goes to the website until you press Update website."); renderWebsite(ev, W); } catch (x) { toast(x.message); done(); }
   };
+  // Saves as you type; the website itself changes only on Update website. A presenter's French saves the same way.
+  autosave(box, document.getElementById("ws-save"), saveEvent, { skip: "[data-wsp], #ws-copyfrom, #wsdlg",
+    ready: () => (val("page").trim() ? true : "add the website page this event fills (at the top) first.") });
+  box.querySelectorAll("[data-wsp]").forEach((d) => {
+    const id = d.dataset.wsp;
+    autosave(d, d.querySelector(`[data-wssave="${CSS.escape(id)}"]`), async () => {
+      const out = await api(`/website?event=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(presenterBody(id)) });
+      W.presenters.find((p) => p.id === id).web = out.web;
+    });
+  });
   const fill = document.getElementById("ws-fill");
   if (fill) fill.onclick = async () => {
     const done = busy(fill, "Reading the website…");
@@ -4567,13 +4612,13 @@ function renderWelcomeCard(ev, W) {
       : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
     <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
       <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
-    ${W.saved ? "" : `<div class="bad" style="margin-top:10px"><b>Not saved yet.</b> Read both versions, then press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
+    ${W.saved ? "" : `<div class="bad" data-unsaved style="margin-top:10px"><b>Not saved yet.</b> Read ${two ? "both versions" : "it"}, then change what you need (it saves as you type) or press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${noName}
     <p class="hint" style="margin-top:14px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
     ${W.versions.map(version).join("")}
     ${attachments}
     ${checks}
-    <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="wl-save">Save the welcome letter</button><span class="hint" id="wl-said" style="align-self:center"></span></div>
+    <div class="actions" style="margin-top:12px"><button class="btn btn-gold" id="wl-save">Save the welcome letter</button><span class="svnote">Changes save as you type${W.sendOn ? `, and what is saved is what goes on ${esc(longDayEn(W.sendOn))}` : ""}.</span><span class="hint" id="wl-said" style="align-self:center"></span></div>
     <dialog class="sheet rpdlg" id="wldlg"><form method="dialog">
       <div class="sheet-head"><h2 id="wld-title">The email</h2><p class="hint" id="wld-note" style="margin-top:6px"></p></div>
       <div class="sheet-body"><div class="lprev"><iframe id="wl-frame" title="The welcome letter as attendees will see it" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
@@ -4584,15 +4629,16 @@ function renderWelcomeCard(ev, W) {
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), signature: $("wl-sign").value, ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
   $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, { ...(await save()), library: W.library }); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
+  const auto = autosave(box, $("wl-save"), save, { skip: "#wl-to, [data-wlfrom], [type=file], [data-wftick]", fresh: !W.saved });
   // Copy an earlier letter's words in; nothing is kept until Save.
   box.querySelectorAll("[data-wlfrom]").forEach((sel) => sel.onchange = () => {
     const pick = (W.library ?? []).find((l) => l.id === sel.value);
     if (!pick) return;
     const key = sel.dataset.wlfrom;
-    if (!confirm(`Replace this letter's words with "${pick.name}"? Nothing is saved until you press Save.`)) { sel.value = ""; return; }
+    if (!confirm(`Replace this letter's words with "${pick.name}"? It saves straight away.`)) { sel.value = ""; return; }
     $(`wl-${key}-subject`).value = pick.subject ?? ""; $(`wl-${key}-body`).value = pick.body ?? "";
-    sel.value = "";
-    toast("Copied in. Change what you need, then Save the welcome letter.");
+    sel.value = ""; auto.kick();
+    toast("Copied in and saved. Change what you need; it saves as you type.");
   });
   box.querySelectorAll("[data-wlsee]").forEach((b) => b.onclick = async () => {
     const done = busy(b, "Opening…");
@@ -4818,7 +4864,7 @@ function renderSurveyCard(ev, S) {
     <div id="sv-rows">${s.sessions.map(row).join("")}</div>
     <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button></div>
     ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
-    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button>
+    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button><span class="svnote">Changes save as you type.</span>
       <a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
       <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
@@ -4833,10 +4879,11 @@ function renderSurveyCard(ev, S) {
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   box.querySelectorAll("[data-svmode]").forEach((b) => b.onclick = async () => { if (b.dataset.svmode === s.mode) return; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: JSON.stringify({ ...body(), mode: b.dataset.svmode }) })); } catch (x) { toast(x.message); } });
   box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
-  $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: "", day: "", title: "", titleFr: "", presenters: [] }] } });
+  $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: `n${Date.now().toString(36)}`, day: "", title: "", titleFr: "", presenters: [] }] } });   // its own id, so saving as you go keeps it the same session
   $("sv-refresh").onclick = async (e) => { const done = busy(e.target, "…"); try { await save(); renderSurveyCard(ev, await api(`${q}&refresh=1`, { method: "POST", body: "{}" })); toast("Presenters brought in."); } catch (x) { toast(x.message); done(); } };
   $("sv-copy").onclick = async () => { const i = $("sv-share"); try { await navigator.clipboard.writeText(i.value); toast("Link copied."); } catch { i.select(); toast("Selected: press Ctrl+C (or Cmd+C) to copy."); } };
   $("sv-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderSurveyCard(ev, await save()); toast("Survey saved."); } catch (x) { toast(x.message); done(); } };
+  autosave(box, $("sv-save"), save, { skip: "#sv-to, #sv-share, #sv-part" });
   $("sv-open").onclick = async () => { try { await save(); } catch {} };
   $("sv-test").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), part: $("sv-part")?.value || "end" }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
@@ -5120,7 +5167,7 @@ function renderReplyCard(ev, R) {
     ${!sent ? `<button class="mini" id="rp-wording" style="margin-top:8px">Use the suggested wording</button>` : ""}
     ${R.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(R.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap">
-      <button class="btn btn-gold" id="rp-save">Save</button>
+      <button class="btn btn-gold" id="rp-save">Save</button><span class="svnote">Changes save as you type.</span>
       <button class="btn btn-ghost" id="rp-preview">See the email</button>
       </div>
     <div class="row2" style="margin-top:12px;align-items:end"><div class="field" style="margin:0"><label for="rp-testto">Send a test to</label>
@@ -5179,9 +5226,10 @@ function renderReplyCard(ev, R) {
   if ($("rp-wording")) $("rp-wording").onclick = async (e) => {
     if (!confirm("Replace the email's subject, wording and button with the suggested ones?")) return;
     const done = busy(e.target, "…");
-    try { await save(); renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&wording=1`, { method: "POST", body: "{}" })); toast("The suggested wording is back. Save if you change it."); } catch (x) { toast(x.message); done(); }
+    try { await save(); renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&wording=1`, { method: "POST", body: "{}" })); toast("The suggested wording is back, and saved."); } catch (x) { toast(x.message); done(); }
   };
   $("rp-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderReplyCard(ev, await save()); toast("Saved."); } catch (x) { toast(x.message); done(); } };
+  autosave(box, $("rp-save"), save, { skip: "#rp-addform, [type=file], #rp-testto, #rpdlg" });
   if ($("rp-addsoc")) $("rp-addsoc").onclick = () => { const r2 = { ...R, reply: { ...R.reply, ...body() } }; r2.reply.socials = [...r2.reply.socials, { date: "", label: "", labelFr: "" }]; renderReplyCard(ev, r2); };
   // The preview window edits too (Andrew 26 Oct 2026): words on the left, the email redrawn as they type.
   let previewTimer = null, previewSeq = 0, previewReminder = false;
@@ -5381,7 +5429,7 @@ function sowCard(ev, S) {
       <div class="field"><label>Start from</label>
         ${(S.templates ?? []).filter((t) => t.key !== "cfaoc-victoria" || /victoria/i.test(ev.city ?? "")).map((t) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(t.key)}"${t.key === pre ? " checked" : ""}> <span><b>${esc(t.title)}</b>${t.total ? ` (${usd(t.total)} before fee and tax)` : ""}. ${esc(t.blurb)}</span></label>`).join("")}
         <label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="standard"${pre ? "" : " checked"}> The standard lines (hotel, dinners, transportation, Via Rail, on-site and pre/post event management…)</label>
-        ${S.copyFrom.map((c) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(c.id)}"> A copy of <b>${esc(c.title)}</b>, ${esc(c.year)} (${usd(c.total)} before fee and tax)</label>`).join("")}</div>
+        ${S.copyFrom.map((c) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(c.id)}"> A copy of the latest ${{ cfaoc: "CFAOC event", itp: "ITP training", other: "other RBH event" }[c.family] ?? "RBH event"}: <b>${esc(c.title)}</b>, ${esc(c.year)} (${usd(c.total)} before fee and tax)</label>`).join("")}</div>
       <p class="hint">${S.province ? `Tax will be ${esc(PROVINCE_NAMES[S.province])}'s.` : `<b>No province is set on this event.</b> Choose one under Edit event so the right tax goes on.`}</p>
       <div class="actions"><button class="btn btn-gold" id="sw-start">Start the statement of work</button></div></div>`
     : `<div class="card-body sow" id="sw-body"></div>`;
@@ -5563,10 +5611,19 @@ function wireSow(ev, S) {
   };
 
   const save = async (quiet) => {
-    read();
-    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) });
-    Object.assign(sow, out.sow); locked = out.locked; changes = out.changedSinceSent ?? changes; dirty = false;
-    { const q = document.getElementById("rbhq"); if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual")); }   // saved: no longer "not saved yet"
+    read(); dirty = false;   // anything typed while this save is on its way marks it not saved again
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) }).catch((x) => { dirty = true; throw x; });
+    if (quiet) {
+      // Saved as you go: what is on the screen stays as typed (a line still being named isn't kept by the server yet);
+      // each named line and row takes the id the server gave it, so the next save is the same line, not a new one.
+      const ids = (mine, theirs) => { const named = (mine ?? []).filter((l) => String(l.name ?? "").trim()); (theirs ?? []).forEach((l, i) => { if (named[i]) named[i].id = l.id; }); };
+      ids(sow.lines, out.sow.lines); ids(sow.internal, out.sow.internal);
+      const { lines, taxes, internal, program, ...rest } = out.sow;
+      Object.assign(sow, rest, { lines: sow.lines.map((l) => ({ ...(lines ?? []).find((x) => x.id === l.id), ...l })) });
+      if (document.getElementById("sw-table")) read();   // what was typed while it saved stays as typed
+    } else Object.assign(sow, out.sow);
+    locked = out.locked; changes = out.changedSinceSent ?? changes;
+    { const q = document.getElementById("rbhq"); if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual"), dirty); }   // saved: no longer "not saved yet", unless typed since
     if (!quiet) { toast("Saved."); render(); }
     return out;
   };
@@ -5589,15 +5646,14 @@ function wireSow(ev, S) {
     wireMoney(body);
     body.oninput = () => { dirty = true; read(); sums(); };
     body.onchange = () => { dirty = true; read(); sums(); };
-    const rebuild = () => { read(); draw(); dirty = true; };
-    body.querySelectorAll("[data-up]").forEach((b) => { b.onclick = () => { const i = +b.dataset.up; if (i) { read(); [sow.lines[i - 1], sow.lines[i]] = [sow.lines[i], sow.lines[i - 1]]; draw(); dirty = true; } }; });
-    body.querySelectorAll("[data-down]").forEach((b) => { b.onclick = () => { const i = +b.dataset.down; if (i < sow.lines.length - 1) { read(); [sow.lines[i + 1], sow.lines[i]] = [sow.lines[i], sow.lines[i + 1]]; draw(); dirty = true; } }; });
-    body.querySelectorAll("[data-rm]").forEach((b) => { b.onclick = () => { read(); sow.lines.splice(+b.dataset.rm, 1); draw(); dirty = true; }; });
-    $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null }); draw(); dirty = true; body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
-    body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; }; });
-    $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; };
-    body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; }; });
-    $("sw-addint").onclick = () => { read(); (sow.internal ??= []).push({ name: "", planned: null, paid: null }); draw(); dirty = true; body.querySelectorAll(".in-name")[sow.internal.length - 1]?.focus(); };
+    body.querySelectorAll("[data-up]").forEach((b) => { b.onclick = () => { const i = +b.dataset.up; if (i) { read(); [sow.lines[i - 1], sow.lines[i]] = [sow.lines[i], sow.lines[i - 1]]; draw(); dirty = true; auto.kick(true); } }; });
+    body.querySelectorAll("[data-down]").forEach((b) => { b.onclick = () => { const i = +b.dataset.down; if (i < sow.lines.length - 1) { read(); [sow.lines[i + 1], sow.lines[i]] = [sow.lines[i], sow.lines[i + 1]]; draw(); dirty = true; auto.kick(true); } }; });
+    body.querySelectorAll("[data-rm]").forEach((b) => { b.onclick = () => { read(); sow.lines.splice(+b.dataset.rm, 1); draw(); dirty = true; auto.kick(true); }; });
+    $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
+    body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; auto.kick(true); }; });
+    $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; auto.kick(true); };
+    body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; auto.kick(true); }; });
+    $("sw-addint").onclick = () => { read(); (sow.internal ??= []).push({ name: "", planned: null, paid: null }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".in-name")[sow.internal.length - 1]?.focus(); };
     $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
     $("sw-status").onchange = guard(async () => { if (dirty) await save(true); await api(`${q}&status=${$("sw-status").value}`, { method: "PUT" }); toast("Status changed."); render(); });
     // Changing what RBH was sent takes a click and the word EDIT (Andrew 21 Oct 2026); it is noted in the history.
@@ -5608,9 +5664,12 @@ function wireSow(ev, S) {
     $("sw-unlockgo")?.addEventListener("click", guard(async () => { await api(`${q}&unlock=1`, { method: "PUT", body: JSON.stringify({ word: $("sw-word").value }) }); toast("Amounts unlocked. RBH has the copy you sent; changes show against it."); render(); }));
     $("sw-relock")?.addEventListener("click", guard(async () => { await api(`${q}&unlock=0`, { method: "PUT" }); render(); }));
     $("sw-save").onclick = guard(() => save(false));
+    auto.show();
     $("sw-pdf-sow").onclick = pdf("sow"); $("sw-pdf-inv").onclick = pdf("invoice");
     $("sw-file-sow").onclick = file("sow"); $("sw-file-inv").onclick = file("invoice");
   }
+  // Saves as you go (Andrew 29 Oct 2026); the status, PDFs and filing still save first, then redraw, as before.
+  const auto = autosave(body, () => $("sw-save"), () => save(true), { skip: "#sw-word, #sw-prov, #sw-status" });
   draw();
 }
 
@@ -6789,17 +6848,18 @@ function wireAgenda(ev, A) {
     catch (e) { toast(e.message); }
   };
   const save = document.getElementById("ag-save");
+  const schedule = () => [...document.querySelectorAll("[data-agday]")].map((row) => ({
+    date: row.dataset.agday,
+    start: row.querySelector('[data-ag="start"]').value,
+    end: row.querySelector('[data-ag="end"]').value,
+    where: row.querySelector('[data-ag="where"]').value,
+  }));
   if (save) save.onclick = async () => {
-    const schedule = [...document.querySelectorAll("[data-agday]")].map((row) => ({
-      date: row.dataset.agday,
-      start: row.querySelector('[data-ag="start"]').value,
-      end: row.querySelector('[data-ag="end"]').value,
-      where: row.querySelector('[data-ag="where"]').value,
-    }));
     save.disabled = true; said("Saving…");
-    try { await api(q, { method: "PUT", body: JSON.stringify({ schedule }) }); toast("Times saved."); render(); }
+    try { await api(q, { method: "PUT", body: JSON.stringify({ schedule: schedule() }) }); toast("Times saved."); render(); }
     catch (e) { said(e.message, true); save.disabled = false; }
   };
+  if (save) autosave(save.closest(".card-body"), save, () => api(q, { method: "PUT", body: JSON.stringify({ schedule: schedule() }) }), { skip: "[type=file]" });
 }
 
 /** Who is coming to this event, however they got on the list. */
@@ -7165,6 +7225,14 @@ function lettersScreen(data, events, pickId = null) {
         render();
       } catch (err) { said.textContent = err.message; btn.disabled = false; }
     };
+
+    // A letter already kept saves as you type; a new one is kept when Save as a new letter is pressed.
+    if (current?.id) autosave(document.getElementById("l-save").closest(".lgrid > div"), document.getElementById("l-save"), async () => {
+      const out = await api(`/letters?id=${encodeURIComponent(current.id)}`, { method: "PUT", body: JSON.stringify(fields()) });
+      const i = letters.findIndex((l) => l.id === out.letter.id);
+      if (i >= 0) letters[i] = out.letter;
+      current = out.letter; dirty = false;
+    }, { skip: "#l-event, #l-to" });
 
     // A copy to start the next version from (Andrew 27 Oct 2026: the Summit's community partners' welcome letter is the
     // justice partners' one with a few changes). Nothing is saved until Save.
@@ -7812,6 +7880,54 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 3200);
 }
 
+// Save as you go (Andrew 29 Oct 2026: "I would like the entire app to save as I go ... I don't want to always remember to
+// click save at bottom (except when creating a new event)"). Typing saves a moment after it stops; a box left or a choice
+// made saves straight away. Nothing is redrawn while typing. The card's Save button stays where it was and says where things
+// stand (Saving…, Saved ✓, or why it couldn't, pressed to try again); pressed, it saves at once as before.
+// skip: boxes that aren't part of what is saved. ready(): true, or the words for why it can't be saved yet.
+const SAVES = new Set();
+// button may be a function, for a card that redraws its own button (show() puts the state back on the new one).
+function autosave(root, button, save, { delay = 1200, skip = "", ready = () => true, fresh = false } = {}) {
+  const btn = () => (typeof button === "function" ? button() : button);
+  if (!root || (typeof button !== "function" && !button)) return { kick() {}, run() {}, show() {} };
+  root._auto?.stop();   // a card drawn again into the same box: the one drawn before stops listening
+  const off = new AbortController();
+  let timer = null, running = null, again = false, dirty = false, said = fresh ? null : ["Saved ✓", "ok"];
+  const show = () => { const b = btn(); if (!b) return; b.classList.add("autosv"); if (said) { b.textContent = said[0]; b.dataset.saved = said[1]; } else b.dataset.saved = "new"; };
+  const say = (t, sv) => { said = [t, sv]; show(); };
+  show();
+  const entry = { owed: () => dirty || !!running, flush: () => run() };
+  SAVES.add(entry);
+  const run = () => {
+    clearTimeout(timer); timer = null;
+    if (!root.isConnected) { SAVES.delete(entry); return running; }
+    if (!dirty) return running;
+    if (running) { again = true; return running; }
+    const why = ready();
+    if (why !== true) { say(`Not saved yet: ${why}`, "bad"); return null; }
+    dirty = false; say("Saving…", "busy");
+    running = (async () => {
+      try { await save(); if (!dirty) say("Saved ✓", "ok"); root.querySelectorAll("[data-unsaved]").forEach((e) => e.remove()); }
+      catch (x) { dirty = true; say(`Couldn't save: ${x.message} Press to try again.`, "bad"); }
+      finally { running = null; }
+      if (again) { again = false; return run(); }
+    })();
+    return running;
+  };
+  const kick = (now = false) => { dirty = true; say("Saving…", "busy"); clearTimeout(timer); timer = setTimeout(run, now ? 0 : delay); };
+  const mine = (e) => e.target.matches?.("input, textarea, select") && !(skip && e.target.closest(skip));
+  const on = { signal: off.signal };
+  root.addEventListener("input", (e) => { if (mine(e)) kick(); }, on);
+  root.addEventListener("change", (e) => { if (mine(e)) kick(e.target.matches("select, [type=checkbox], [type=radio], [type=date]")); }, on);
+  root.addEventListener("focusout", (e) => { if (mine(e) && timer) run(); }, on);
+  const stop = () => { off.abort(); clearTimeout(timer); SAVES.delete(entry); };
+  return (root._auto = { kick, run, show, stop });
+}
+// Before a screen is redrawn or left, what is owed is saved.
+const flushSaves = () => Promise.all([...SAVES].map((s) => s.flush())).catch(() => {});
+window.addEventListener("pagehide", () => { flushSaves(); });
+window.addEventListener("beforeunload", (e) => { if ([...SAVES].some((s) => s.owed())) { flushSaves(); e.preventDefault(); e.returnValue = ""; } });
+
 async function invite(eventId, presenterIds, remind) {
   try {
     const out = await api(`/invite?id=${encodeURIComponent(eventId)}`, {
@@ -8404,6 +8520,7 @@ async function render() {
   // A different screen starts at the top; redrawing the same one (after a save or a send) keeps your place.
   const screenKey = `${view.name}|${view.eventId ?? ""}|${view.presenterId ?? ""}`;
   const keepY = screenKey === SCREEN_AT ? window.scrollY : null;   // a redraw after adding or saving stays where you were
+  await flushSaves();
   if (screenKey !== SCREEN_AT) { SCREEN_AT = screenKey; try { window.scrollTo(0, 0); } catch { /* no window */ } }
   try { return await drawScreen(); }
   finally { if (keepY !== null) requestAnimationFrame(() => { try { window.scrollTo(0, keepY); } catch { /* no window */ } }); }
