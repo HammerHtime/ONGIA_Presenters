@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
-import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent } from "./lib/sow.mjs";
+import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit } from "./lib/sow.mjs";
 import { buildSowPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -21,7 +21,7 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  */
 const view = async (event, raw) => {
   // The receipts are their own record; fold them in for showing, never into what is saved.
-  const sow = raw ? withReceipts(raw, (await getReceipts(event.id)).items) : null;
+  const sow = raw ? { ...withReceipts(raw, (await getReceipts(event.id)).items), internal: internalOf(raw) } : null;
   return {
   allowed: true,
   province: event.province || guessProvince(event.city),
@@ -29,6 +29,7 @@ const view = async (event, raw) => {
   sow,
   estimate: sow ? totals(sow, "estimate") : null,
   actual: sow ? totals(sow, "actual") : null,
+  profit: sow ? { estimate: profit(sow, "estimate"), actual: profit(sow, "actual") } : null,
   increase: sow ? increase(sow) : null,
   locked: sow ? isLocked(sow) : false,
   changedSinceSent: sow ? changesSinceSent(sow) : [],
@@ -102,7 +103,7 @@ export default async (req) => {
     const next = {
       invoice: await nextInvoiceNumber(event),
       program: { title: event.title, place: event.city ?? "", note: progNote },
-      lines: cleanLines(lines), taxes: provinceTaxes(province), taxBase: "subtotal+fee", deposit: 0,
+      lines: cleanLines(lines), internal: cleanInternal(STANDARD_INTERNAL), taxes: provinceTaxes(province), taxBase: "subtotal+fee", deposit: 0,
       status: "draft", statusAt: { draft: new Date().toISOString() }, copiedFrom: from, unlocked: false, history: [],
     };
     note(next, name, from ? "Started from another event's statement of work" : TEMPLATES[body.from] ? `Started from the template "${TEMPLATES[body.from].title}"` : "Started from the standard lines");
@@ -161,6 +162,8 @@ export default async (req) => {
       ...sow,
       program: { title: text(body.program?.title, 120) || sow.program.title, place: text(body.program?.place, 120), note: text(body.program?.note, 200) },
       lines,
+      // The internal costs are ONGIA's own, not what RBH agreed to: they change whether or not the amounts are locked.
+      internal: body.internal === undefined ? internalOf(sow) : cleanInternal(body.internal, internalOf(sow)),
       taxes: body.taxes === undefined ? sow.taxes : cleanTaxes(body.taxes),
       taxBase: body.taxBase === "subtotal" ? "subtotal" : "subtotal+fee",
       deposit: money(Math.max(0, Number(body.deposit) || 0)),

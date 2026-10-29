@@ -181,6 +181,42 @@ export function cleanLines(lines, had = []) {
   }).filter((l) => l.name);
 }
 
+/**
+ * ONGIA's own costs for the event (Andrew 29 Oct 2026: "a couple of rows that do not show up on the invoice or SOW that
+ * gets sent to RBH. This is for my own internal calculations only"): the stipends paid to the board members who run it,
+ * and anything else he adds. Planned and paid, as paid: no tax. They are kept apart from the lines, so nothing that
+ * makes the SOW, the invoice or their PDFs can pick them up; only the profit reads them.
+ */
+export const STANDARD_INTERNAL = [{ name: "Stipends" }];
+export function cleanInternal(rows, had = []) {
+  const known = new Set(had.map((r) => r.id));
+  const amt = (v) => (num(v) === null ? null : money(Math.max(0, num(v))));
+  return (Array.isArray(rows) ? rows : []).slice(0, 20).map((r) => ({
+    id: clip(r.id, 40) && known.has(r.id) ? r.id : newId(),
+    name: clip(r.name, 120), planned: amt(r.planned), paid: amt(r.paid),
+  })).filter((r) => r.name);
+}
+export const internalOf = (sow) => (Array.isArray(sow?.internal) ? sow.internal : cleanInternal(STANDARD_INTERNAL));
+
+/**
+ * What ONGIA keeps (Andrew 29 Oct 2026): the fixed fees and the 20% fee are ONGIA's; the at-cost lines are billed as
+ * receipted, so they pass through (only an invoice amount typed above or below the receipts makes or loses money); the
+ * internal costs come off. Tax is the government's, so none of it counts. The SOW side uses what is planned; the invoice
+ * side uses what was paid, or what is planned where nothing is paid yet, so the profit isn't overstated.
+ */
+export function profit(sow, which = "estimate") {
+  const t = totals(sow, which);
+  const amount = (l) => t.lines.find((x) => x.id === l.id)?.amount ?? 0;
+  const fixed = money((sow.lines ?? []).filter((l) => l.type === "fixed").reduce((n, l) => n + amount(l), 0));
+  const margin = which === "actual"
+    ? money((sow.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amount(l) - (num(l.receiptsTotal) ?? 0), 0) + t.other - (num(sow.receiptsOther) ?? 0))
+    : 0;
+  const internal = money(internalOf(sow).reduce((n, r) => n + (which === "estimate" ? (r.planned ?? 0) : (r.paid ?? r.planned ?? 0)), 0));
+  const billed = money(t.subtotal + t.fee);
+  const kept = money(fixed + t.fee + margin - internal);
+  return { fixed, fee: t.fee, margin, internal, billed, profit: kept, pct: billed > 0 ? Math.round((kept / billed) * 1000) / 10 : null };
+}
+
 export function cleanTaxes(taxes) {
   return (Array.isArray(taxes) ? taxes : []).slice(0, 6)
     .map((t) => ({ name: clip(t.name, 20), rate: Math.min(100, Math.max(0, Number(t.rate) || 0)) })).filter((t) => t.name);
