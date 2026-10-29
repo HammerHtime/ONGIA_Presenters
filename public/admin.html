@@ -649,6 +649,14 @@
   .swsums table td:first-child{white-space:normal}
   .swsums thead tr{background:var(--sand,#f5f0e8)} .swsums thead th{background:none;padding-top:9px;padding-bottom:9px}
   .swsums .tot td{padding-top:10px;padding-bottom:10px}
+  /* Once sent to RBH, what RBH agreed to (each line's name, type and estimate) looks fixed, and the invoice amounts,
+     still Andrew's to fill in, stand out (Andrew 29 Oct 2026: "lightly grey the initial quote ... show it differently
+     and can't be edited"). */
+  .swt.locked .ln-name:disabled,.swt.locked .ln-type:disabled,.swt.locked .ln-est:disabled{background:transparent;border:1px dashed var(--border);color:var(--muted);-webkit-text-fill-color:var(--muted);opacity:1;cursor:not-allowed}
+  .swt.locked .ln-type:disabled{background-image:none}
+  .swt.locked .ln-act,.swt.locked #sw-oth{background:#fff;border-color:var(--gold)}
+  .swt.locked td.b .mini:disabled{opacity:.35;cursor:not-allowed}
+  .swlock{font-size:10.5px;letter-spacing:.04em;text-transform:none;font-weight:600;color:var(--ink-mid);white-space:nowrap}
   /* ONGIA's own costs and profit (Andrew 29 Oct 2026): purple, so nothing internal is mistaken for what RBH is billed. */
   .intbox{margin-top:16px;border:1.5px solid #8a63b8;border-radius:12px;background:#f6f1fb;padding:12px 14px}
   .intbox h3{margin:0;font-size:15px;color:#4b2a73;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -5425,7 +5433,7 @@ function wireSow(ev, S) {
       <div class="row2"><div class="field"><label for="sw-note">Note on the page (shows in red; optional)</label><input id="sw-note" value="${esc(sow.program.note)}" placeholder="Expecting a large class this training (10-12 ppl)"></div>
         <div class="row2" style="margin:0"><div class="field"><label for="sw-idate">Invoice date</label><input id="sw-idate" type="date" value="${esc(sow.invoiceDate ?? "")}"></div>
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
-      <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
+      <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}${locked ? " locked" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate${locked ? ` <span class="swlock" title="Agreed with RBH. Click Edit amounts and type EDIT if RBH agrees to a change.">🔒 agreed with RBH</span>` : ""}</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
         ${sow.lines.map((l, i) => `<tr data-i="${i}"><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
             <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
           <td class="t" data-l="Type"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
