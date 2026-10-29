@@ -18,6 +18,7 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  *   GET  /api/sow?event=…&doc=sow|invoice      the PDF
  *   POST /api/sow?event=…&file=sow|invoice     put a copy in the event's "SOW and Invoice" folder on SharePoint
  *   PUT  /api/sow?event=…&province=QC          the tax lines for another province
+ *   PUT  /api/sow?event=…&refill=<event id>    a draft's lines replaced by that event's (names, types, amounts)
  *   GET  /api/sow?all=1                        every RBH event and its statement of work's figures, for the RBH SOWs screen
  *   GET  /api/sow?all=1&doc=sow|invoice&ids=…  those statements of work (or invoices) in one PDF, in that order
  */
@@ -36,6 +37,9 @@ const view = async (event, raw) => {
   locked: sow ? isLocked(sow) : false,
   changedSinceSent: sow ? changesSinceSent(sow) : [],
   copyFrom: sow ? [] : await copyChoices(event),
+  // A draft of an ITP or a CFAOC with no fixed fees yet can be filled in from the latest one of its kind (Andrew 29 Oct
+  // 2026: the May and June ITPs were started nearly empty, so their profit read -$9,400 and $1,600).
+  refill: sow && sow.status === "draft" && sowFamily(event) !== "other" && profit(sow, "estimate").fixed === 0 ? (await copyChoices(event)).find((c) => c.family === sowFamily(event)) ?? null : null,
   templates: sow ? [] : Object.entries(TEMPLATES).map(([key, t]) => ({ key, title: t.title, blurb: t.blurb, total: t.lines.reduce((n, l) => n + l.estimate, 0) })),
   };
 };
@@ -51,7 +55,8 @@ async function copyChoices(event) {
     const k = sowFamily(e), had = latest.get(k);
     if (had && String(had.dayOne ?? "") >= String(e.dayOne ?? "")) continue;
     const s = await getSow(e.id);
-    if (s) latest.set(k, { id: e.id, family: k, title: e.title, dayOne: e.dayOne, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
+    // One that has been filled in: a nearly empty one (no fixed fees yet) is no model for the next.
+    if (s && profit(s, "estimate").fixed > 0) latest.set(k, { id: e.id, family: k, title: e.title, dayOne: e.dayOne, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
   }
   return ["cfaoc", "itp", "other"].filter((k) => latest.has(k)).map((k) => { const { dayOne, ...c } = latest.get(k); return c; });
 }
@@ -172,6 +177,23 @@ export default async (req) => {
     if (q("unlock") === "1" && String((await req.json().catch(() => null))?.word ?? "").trim().toUpperCase() !== "EDIT") return fail("Type EDIT to change the amounts.", 400);
     const next = { ...sow, unlocked: q("unlock") === "1" };
     note(next, name, next.unlocked ? "Unlocked the amounts after it was sent to RBH" : "Locked the amounts again");
+    await putSow(id, next);
+    return json(await view(event, next));
+  }
+
+  if (req.method === "PUT" && q("refill")) {
+    // Only a draft: once RBH has it, its lines are what was sent.
+    if (sow.status !== "draft") return fail("Only a draft can be filled in again. This one has gone to RBH.", 409);
+    const other = await getSow(text(q("refill"), 80));
+    if (!other) return fail("That event has no statement of work to copy.", 404);
+    // A line with the same name keeps its id (and so its receipts) and anything typed in its invoice column;
+    // a line of this one's with receipts against it stays, so the receipts still count somewhere.
+    const mine = new Map(sow.lines.map((l) => [l.name.trim().toLowerCase(), l]));
+    const lines = other.lines.map((l) => { const had = mine.get(String(l.name).trim().toLowerCase());
+      return { id: had?.id ?? "", name: l.name, description: l.description ?? "", type: l.type, estimate: l.estimate, actual: had?.actual ?? null }; });
+    for (const l of sow.lines) if (!lines.some((x) => x.id === l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id)) lines.push(l);
+    const next = { ...sow, lines: cleanLines(lines, sow.lines), copiedFrom: text(q("refill"), 80) };
+    note(next, name, "Filled in again from another event's statement of work");
     await putSow(id, next);
     return json(await view(event, next));
   }

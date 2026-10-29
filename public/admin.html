@@ -369,7 +369,9 @@
   .sowlist td{padding:11px 12px;border-top:1px solid var(--border);vertical-align:middle}
   .sowlist tr.sowrow td:first-child{border-left:5px solid var(--rbh)} .sowlist tr.sowrow.open td{background:#fff}
   .sowlist .t b{display:block;font-size:14.5px;line-height:1.3}.sowlist .t span{display:block;font-size:12.5px;color:var(--muted)} .sowlist .t .sm{display:none}
-  .sowlist td.n{font-variant-numeric:tabular-nums;white-space:nowrap} .sowlist .pr{color:var(--done);font-weight:700}
+  .sowlist td.n{font-variant-numeric:tabular-nums;white-space:nowrap} .sowlist .pr{color:var(--done);font-weight:700} .sowlist .pr.neg{color:var(--late)}
+  .sowlist .t .unfilled{color:var(--wait);font-weight:600}
+  .swrefill{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;background:var(--wait-bg);border:1px dashed var(--wait);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13.5px}
   .sowlist tr.sowrow td{padding:9px 12px 2px;border-top:1px solid var(--border)} .sowlist .dt{white-space:nowrap}
   .sowlist tr.sowbtns td{padding:0 12px 8px;border-top:0} .sowlist tr.sowbtns .act{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
   .sowlist tr.sowbtns td:first-child{border-left:5px solid var(--rbh)} .sowlist tr.sowbtns.open td{background:#fff}
@@ -5584,7 +5586,8 @@ function wireMoney(root) {
     el.onblur = () => { const n = moneyNum(el.value); el.value = n === null ? "" : usd(n); };
   });
 }
-const usd = (n) => `$${Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// A loss reads "−$9,400.00", never "$-9,400.00" (Andrew 29 Oct 2026).
+const usd = (n) => `${Number(n) < 0 ? "−" : ""}$${Math.abs(Number(n)).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const afterApproval = (sow) => ["approved", "invoiced", "paid"].includes(sow.status);
 const sentOrLater = (sow) => ["submitted", "approved", "invoiced", "paid"].includes(sow.status);
 
@@ -5642,6 +5645,8 @@ function wireSow(ev, S, { onSums = null } = {}) {
     const rcAll = r2(sow.lines.reduce((n, l) => n + (l.receiptsTotal || 0), 0) + (sow.receiptsOther || 0));
     const rcBudget = r2(sow.lines.filter((l) => l.type === "cost").reduce((n, l) => n + (l.estimate || 0), 0));
     body.innerHTML = `
+      ${S.refill && sow.status === "draft" ? `<div class="swrefill"><span>Started nearly empty? Fill it in from <b>${esc(S.refill.title)}</b>, the latest ${S.refill.family === "itp" ? "ITP" : "CFAOC event"}: its lines and amounts replace these. The invoice number and the internal rows stay.</span>
+        <button class="mini gold" id="sw-refill">Fill in from ${esc(S.refill.title)}</button></div>` : ""}
       <div class="swtop">
         <div><div class="cap">Invoice number</div><div class="invno">${esc(sow.invoice.number)}</div></div>
         <div><div class="cap">Status</div><select id="sw-status" style="width:auto;margin:0">${SOW_STATUSES.map(([k, w]) => `<option value="${k}"${sow.status === k ? " selected" : ""}>${w}</option>`).join("")}</select>
@@ -5834,6 +5839,10 @@ function wireSow(ev, S, { onSums = null } = {}) {
     body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; auto.kick(true); }; });
     $("sw-addint").onclick = () => { read(); (sow.internal ??= []).push({ name: "", planned: null, paid: null }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".in-name")[sow.internal.length - 1]?.focus(); };
     $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
+    if ($("sw-refill")) $("sw-refill").onclick = guard(async () => {
+      if (!confirm(`Replace this statement of work's lines with ${S.refill.title}'s? Their names, types and amounts come over; a line with the same name keeps anything typed in its invoice column.`)) return;
+      await api(`${q}&refill=${encodeURIComponent(S.refill.id)}`, { method: "PUT" }); toast(`Filled in from ${S.refill.title}.`); render();
+    });
     $("sw-status").onchange = guard(async () => { if (dirty) await save(true); await api(`${q}&status=${$("sw-status").value}`, { method: "PUT" }); toast("Status changed."); render(); });
     // Changing what RBH was sent takes a click and the word EDIT (Andrew 21 Oct 2026); it is noted in the history.
     $("sw-unlock")?.addEventListener("click", () => { $("sw-unlock").hidden = true; $("sw-unlockbox").hidden = false; $("sw-word").focus(); });
@@ -5883,11 +5892,11 @@ function sowsScreen({ events }) {
   const soFar = (e) => (e.sow && (e.invoiced || e.hasActuals) ? usd(e.actual.total) : "–");
   // Each event a block of its own: the figures on one line, its buttons along the bottom right.
   const row = (e) => `<tbody class="sowev" data-sowrow="${esc(e.id)}"><tr class="sowrow${view.open === e.id ? " open" : ""}">
-      <td class="t"><b>${esc(e.title)}</b><span>${esc(e.city)}${e.number ? ` · ${esc(e.number)}` : ""}</span><span class="sm">${range(e)}</span></td>
+      <td class="t"><b>${esc(e.title)}</b><span>${esc(e.city)}${e.number ? ` · ${esc(e.number)}` : ""}</span><span class="sm">${range(e)}</span>${e.sow && !e.estimate.fixed ? `<span class="unfilled">Not filled in yet: no fixed fees</span>` : ""}</td>
       <td class="dt">${range(e)}</td><td>${status(e)}</td>
       <td class="n" data-l="SOW" data-k="total">${e.sow ? usd(e.estimate.total) : "–"}</td>
       <td class="n" data-l="Invoice so far" data-k="sofar">${soFar(e)}</td>
-      <td class="n pr" data-l="Profit planned" data-k="profit">${e.sow ? usd(e.estimate.profit) : "–"}</td>
+      <td class="n pr${e.sow && e.estimate.profit < 0 ? " neg" : ""}" data-l="Profit planned" data-k="profit">${e.sow ? usd(e.estimate.profit) : "–"}</td>
       </tr><tr class="sowbtns${view.open === e.id ? " open" : ""}"><td colspan="6"><div class="act">${e.sow ? `<button class="mini" data-sowopen="${esc(e.id)}">${view.open === e.id ? "Close ▴" : "Open ▾"}</button><button class="mini" data-sowpdf="${esc(e.id)}">PDF</button>`
         : `<button class="mini gold" data-sowopen="${esc(e.id)}">${view.open === e.id ? "Close ▴" : "Start it"}</button>`}<button class="mini ghost" data-sowevent="${esc(e.id)}">Event →</button></div></td></tr>
     ${view.open === e.id ? `<tr class="sowedit"><td colspan="6" id="sowedit"><p class="porg">Opening…</p></td></tr>` : ""}</tbody>`;
