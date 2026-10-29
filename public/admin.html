@@ -591,6 +591,51 @@
   .swsums.noact .act{display:none}
   .swtax .row{display:grid;grid-template-columns:1fr 90px 36px;gap:8px;margin-top:6px}
   .swtax input{margin:0}
+  /* The lines, wherever there's room for them (Andrew 29 Oct 2026: once approved, the invoice columns squeezed the
+     table on a laptop, beside the Getting ready column, and ran it off a phone). The table as it is when the card is
+     wide; each line as a two-row block when it's narrower; stacked, with each box labelled, on a phone. */
+  .swwrap{container-type:inline-size}
+  .swt td.nm{min-width:180px}
+  @container (max-width:1040px){
+    .swt thead{display:none}
+    .swt,.swt tbody{display:block}
+    .swt tr{display:grid;grid-template-columns:minmax(0,1fr) 140px 190px auto;grid-template-areas:"name type est btn" "desc rc inv vs";gap:6px 10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border)}
+    .swt.noact tr{grid-template-areas:"name type est btn" "desc rc . ."}
+    .swt td{display:block;padding:0;border:0;width:auto !important;min-width:0}
+    .swt td.nm{display:contents}
+    .swt td.nm .ln-name{grid-area:name} .swt td.nm .ln-desc{grid-area:desc;margin-top:0}
+    .swt tr.oth td.nm{display:block;grid-area:name}
+    .swt tr.oth{background:#faf7ee;padding-left:8px;padding-right:8px;border-radius:10px} .swt tr.oth td{background:none}
+    .swt td.t{grid-area:type} .swt td.est{grid-area:est} .swt td.rcv{grid-area:rc;text-align:left;padding-top:0}
+    .swt td.inv{grid-area:inv} .swt td.v{grid-area:vs;text-align:left;padding-top:0} .swt td.b{grid-area:btn;padding-top:0}
+    .swt td[data-l]::before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
+    .swt td.t::before,.swt td.est::before{display:none}
+    .swt tr:first-child td.t::before,.swt tr:first-child td.est::before{display:block}
+  }
+  @container (max-width:600px){
+    .swt tr{grid-template-columns:1fr 1fr;grid-template-areas:"name name" "desc desc" "type est" "rc rc" "inv vs" "btn btn"}
+    .swt.noact tr{grid-template-areas:"name name" "desc desc" "type est" "rc rc" "btn btn"}
+    .swt td.t::before,.swt td.est::before{display:block}
+    .swt td.b{text-align:left}
+  }
+  @media (max-width:760px){ .swbottom{grid-template-columns:1fr} }
+  /* The totals and the tax settings (Andrew 29 Oct 2026: "some layout issues with the total and also the tax info
+     layout seems off and sloppy"): side by side only where both have room, the figures on one line and lined up. */
+  .sow{container-type:inline-size}
+  @container (max-width:900px){ .swbottom{grid-template-columns:1fr} }
+  .swsums table td,.swsums table th{vertical-align:middle;white-space:nowrap}
+  .swsums table td:first-child{white-space:normal}
+  .swsums thead tr{background:var(--sand,#f5f0e8)} .swsums thead th{background:none;padding-top:9px;padding-bottom:9px}
+  .swsums .tot td{padding-top:10px;padding-bottom:10px}
+  .swprov{display:flex;gap:8px;align-items:center} .swprov .mini{white-space:nowrap;flex:none}
+  .swtaxhead{display:grid;grid-template-columns:1fr 110px 36px;gap:8px;margin-top:12px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .swtax .row{grid-template-columns:1fr 110px 36px;align-items:center}
+  .swrate{position:relative;display:block} .swrate input{padding-right:26px;text-align:right} .swrate span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+  /* An empty date box on an iPhone shrinks to a sliver when nothing sets its height, and the statement of work's
+     compact boxes set none (Andrew 29 Oct 2026: "the date boxes at the top are really small"). Here they keep the
+     height of the boxes beside them. */
+  input[type="date"]{min-height:47px}
+  .sow input[type="date"]{min-height:calc(1.3em + 12px);text-align:left}
   .shc{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0;background:var(--card)}
   .shc.differs{border-left:4px solid var(--late)} .shc.check{border-left:4px solid var(--gold)}
   .shc .nm{font-weight:700;font-size:15px} .shc .ag{color:var(--muted);font-size:13px}
@@ -829,6 +874,8 @@
   #leadbox select{width:100%;margin:0;padding:6px 10px;font-size:13.5px;min-height:0}
   .leadacts{display:flex;gap:6px;margin-top:6px}
   .smoney{display:grid;grid-template-columns:1fr auto;gap:5px 10px} .smoney b{text-align:right}
+  .smoney.qinv{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)} .smoney .qhead{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .smoney.qinv{column-gap:0} .smoney.qinv b{padding-left:10px} .smoney .qsub{border-top:1px solid var(--border);padding-top:6px;margin-top:2px} .smoney .qtot{font-weight:700;color:var(--ink)}
   .sready{list-style:none;margin:0;padding:0}
   .sready li{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--hair)} .sready li:first-child{border-top:0}
   .sready .rw{flex:1;min-width:0} .sready li.done .rw{color:var(--muted)}
@@ -3171,13 +3218,27 @@ function eventScreen(data) {
       <dt>Folder</dt><dd>${ev.sharePointFolder ? `${ev.sharePointFolderUrl ? `<a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">…/${esc(folderTail)}</a>` : `…/${esc(folderTail)}`}` : `<span class="said bad-t">not set</span>`}</dd>
       <dt>Upload link</dt><dd>${ev.materialsUploadUrl ? (ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="ok-t">upload-only ✓</span>` : `<span class="bad-t">not checked</span>`) : `<span class="bad-t">not made yet</span>`}</dd></dl>
     <p class="porg" style="margin:8px 0 0;font-size:12.5px">The lead, the board on this event, the president and the VP of operations can change this event. The rest of the board sees it as view only.</p></div></div>`;
+  // The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
+  // so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
+  // typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
+  const quickInvoice = (s, A) => {
+    if (!s || !A) return "";
+    const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
+    const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
+    const fixed = (s.lines ?? []).filter((l) => l.type === "fixed");
+    return `<div class="smoney qinv"><span class="qhead">Invoice so far</span><b></b>
+      <span>Receipts, at cost</span><b>${usd(atCost)}</b>
+      ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
+      <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
+      <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>`;
+  };
   // The RBH money at a glance: the president's and the VP's only (anyone else is refused the SOW, so this never shows).
   const sowNow = sow?.sow ?? null;
   const rbhCard = sow ? `<div class="card" id="rbhcard"><div class="card-head"><div><h2>RBH quick view</h2></div><span class="who">President &amp; VP</span></div><div class="card-body">
     ${sowNow ? `<div class="smoney"><span>Statement of work</span><b>${esc((SOW_STATUSES.find(([k]) => k === sowNow.status) ?? [, sowNow.status])[1])}</b>
       <span>Estimate, with fee and tax</span><b>${usd(sow.estimate?.total ?? 0)}</b>
-      ${receipts ? `<span>Receipts so far</span><b>${usd(receipts.total ?? 0)}</b>` : ""}
-      <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>`
+      <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>
+      ${quickInvoice(sowNow, sow.actual)}`
     : `<div class="porg">No statement of work yet.</div>`}
     <div style="margin-top:10px"><button class="mini" data-gotab="money">Open Money</button></div></div></div>` : "";
   // Getting ready (redesign step 4): what a new event still needs, each with the button that does it. It stays on the
@@ -5281,10 +5342,10 @@ function wireSow(ev, S) {
     const anyRc = sow.lines.some((l) => l.receiptCount) || sow.otherCount > 0;
     const rcCell = (l) => {
       if (!anyRc) return "";
-      if (!l.receiptCount) return `<td class="rcv"><span class="hint">–</span></td>`;
+      if (!l.receiptCount) return `<td class="rcv" data-l="Receipts so far"><span class="hint">–</span></td>`;
       const left = l.type === "cost" && l.estimate > 0 ? (l.estimate - l.receiptsTotal >= 0 ? `<div class="rcl under">${usd(l.estimate - l.receiptsTotal)} left</div>` : `<div class="rcl over">${usd(l.receiptsTotal - l.estimate)} over</div>`)
         : l.type === "fixed" ? `<div class="rcl">fixed fee: the invoice uses the estimate</div>` : "";
-      return `<td class="rcv"><b>${usd(l.receiptsTotal)}</b><div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"}</div>${left}</td>`;
+      return `<td class="rcv" data-l="Receipts so far"><b>${usd(l.receiptsTotal)}</b><div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"}</div>${left}</td>`;
     };
     const rcAll = r2(sow.lines.reduce((n, l) => n + (l.receiptsTotal || 0), 0) + (sow.receiptsOther || 0));
     const rcBudget = r2(sow.lines.filter((l) => l.type === "cost").reduce((n, l) => n + (l.estimate || 0), 0));
@@ -5306,29 +5367,30 @@ function wireSow(ev, S) {
       <div class="row2"><div class="field"><label for="sw-note">Note on the page (shows in red; optional)</label><input id="sw-note" value="${esc(sow.program.note)}" placeholder="Expecting a large class this training (10-12 ppl)"></div>
         <div class="row2" style="margin:0"><div class="field"><label for="sw-idate">Invoice date</label><input id="sw-idate" type="date" value="${esc(sow.invoiceDate ?? "")}"></div>
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
-      <table class="swt${act ? "" : " noact"}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
-        ${sow.lines.map((l, i) => `<tr data-i="${i}"><td><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
+      <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
+        ${sow.lines.map((l, i) => `<tr data-i="${i}"><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
             <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
-          <td class="t"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
-          <td class="n"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="$0.00" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
+          <td class="t" data-l="Type"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
+          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="$0.00" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
           ${rcCell(l)}
-          <td class="n act"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
-          <td class="v act"></td>
+          <td class="n act inv" data-l="Invoice amount"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
+          <td class="v act" data-l="vs estimate"></td>
           <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="${l.receiptCount ? "There are receipts against this line" : "Remove the line"}"${locked || l.receiptCount ? " disabled" : ""}>✕</button></td></tr>`).join("")}
-        ${act || sow.receiptsOther ? `<tr class="oth"><td><b>Other</b> <span class="hint">receipts that fit no line</span>${sow.otherNotes?.length ? `<div class="rcl">${esc(sow.otherNotes.join("; "))}</div>` : ""}</td>
-          <td class="t"><span class="hint">At cost</span></td>
-          <td class="n"><span class="hint">–</span></td>${anyRc ? `<td class="rcv">${sow.otherCount ? `<b>${usd(sow.receiptsOther)}</b><div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"}</div>` : `<span class="hint">–</span>`}</td>` : ""}<td class="n act"><input id="sw-oth" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.otherActual !== null && sow.otherActual !== undefined ? usd(sow.otherActual) : ""}" aria-label="Other, in dollars"></td><td class="v act"></td><td class="b"></td></tr>` : ""}
-      </tbody></table>
+        ${act || sow.receiptsOther ? `<tr class="oth"><td class="nm"><b>Other</b> <span class="hint">receipts that fit no line</span>${sow.otherNotes?.length ? `<div class="rcl">${esc(sow.otherNotes.join("; "))}</div>` : ""}</td>
+          <td class="t" data-l="Type"><span class="hint">At cost</span></td>
+          <td class="n est" data-l="SOW estimate"><span class="hint">–</span></td>${anyRc ? `<td class="rcv" data-l="Receipts so far">${sow.otherCount ? `<b>${usd(sow.receiptsOther)}</b><div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"}</div>` : `<span class="hint">–</span>`}</td>` : ""}<td class="n act inv" data-l="Invoice amount"><input id="sw-oth" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.otherActual !== null && sow.otherActual !== undefined ? usd(sow.otherActual) : ""}" aria-label="Other, in dollars"></td><td class="v act" data-l="vs estimate"></td><td class="b"></td></tr>` : ""}
+      </tbody></table></div>
       ${anyRc ? `<div class="rctot">Receipts so far, before tax: <b>${usd(rcAll)}</b>${rcBudget ? ` · the at-cost lines are estimated at <b>${usd(rcBudget)}</b>` : ""}</div>` : ""}
       <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
         <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts (add them under <b>Receipts</b>). Type an invoice amount to overwrite either.</span></div>
       <div class="swbottom">
         <div class="swtax"><h3 style="margin:0 0 4px;font-size:15px">Tax, deposit and fee</h3>
           <p class="hint" style="margin:0 0 8px">ONGIA's service fee is 20% of the subtotal, always.</p>
-          <label class="hint" for="sw-prov">Tax for</label>
-          <div style="display:flex;gap:8px;align-items:center"><select id="sw-prov" style="margin:0">${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${(ev.province || S.province) === k ? " selected" : ""}>${n}</option>`).join("")}</select>
-            <button class="mini" id="sw-useprov">Use its tax lines</button></div>
-          <div id="sw-taxes">${sow.taxes.map((t, i) => `<div class="row" data-t="${i}"><input class="tx-name" value="${esc(t.name)}" aria-label="Tax name"><input class="tx-rate" type="number" min="0" max="100" step="0.001" value="${t.rate}" aria-label="Tax rate"><button class="mini ghost" data-txrm="${i}" title="Remove">✕</button></div>`).join("")}</div>
+          <div class="field" style="margin-top:4px"><label for="sw-prov">Tax for</label>
+          <div class="swprov"><select id="sw-prov" style="margin:0">${Object.entries(PROVINCE_NAMES).map(([k, n]) => `<option value="${k}"${(ev.province || S.province) === k ? " selected" : ""}>${n}</option>`).join("")}</select>
+            <button class="mini" id="sw-useprov">Use its tax lines</button></div></div>
+          <div class="swtaxhead"><span>Tax</span><span>Rate</span><span></span></div>
+          <div id="sw-taxes">${sow.taxes.map((t, i) => `<div class="row" data-t="${i}"><input class="tx-name" value="${esc(t.name)}" aria-label="Tax name"><span class="swrate"><input class="tx-rate" type="text" inputmode="decimal" autocomplete="off" value="${t.rate}" aria-label="Tax rate, per cent"><span>%</span></span><button class="mini ghost" data-txrm="${i}" title="Remove">✕</button></div>`).join("")}</div>
           <button class="mini" id="sw-addtax" style="margin-top:8px">Add a tax line</button>
           <div class="field" style="margin-top:12px"><label for="sw-base">Tax is worked out on</label><select id="sw-base"><option value="subtotal+fee"${sow.taxBase !== "subtotal" ? " selected" : ""}>The subtotal plus ONGIA's fee</option><option value="subtotal"${sow.taxBase === "subtotal" ? " selected" : ""}>The subtotal only</option></select></div>
           <div class="field"><label for="sw-dep">Deposit paid</label><input id="sw-dep" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.deposit ? usd(sow.deposit) : ""}" placeholder="$0.00"></div></div>
