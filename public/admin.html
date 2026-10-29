@@ -4997,6 +4997,8 @@ function renderReplyCard(ev, R) {
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend || R.sending ? " disabled" : ""}>${R.sending ? `Sending… ${st.had} of ${st.reaches}` : st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first. It sends on the server, so you can close the page, and if any can't be sent the president and VP get an email saying which.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
+      ${regLine(st) ? `<div style="margin-top:8px"><button class="mini" data-rpsheet="addresses">Who shares an address (Excel)</button></div>` : ""}
+      ${presenterLine(R)}
     <dialog class="sheet rpdlg" id="rpdlg"><form method="dialog">
       <div class="sheet-head"><h2>The email</h2><p class="hint" style="margin-top:6px">Change the words and the email follows as you type, as Alex, an attendee, would see it. Nothing is kept until you save.</p></div>
       <div class="sheet-body"><div class="rpedit">
@@ -5105,6 +5107,18 @@ function renderReplyCard(ev, R) {
     if (!confirm("Remove this answer? It comes off both lists.")) return;
     try { renderReplyCard(ev, await api(`/reply?event=${encodeURIComponent(ev.id)}&answer=${encodeURIComponent(b.dataset.rpdel)}`, { method: "DELETE" })); } catch (x) { toast(x.message); }
   }; });
+  // The presenters (Andrew 29 Oct 2026): they aren't on the Wix guest list, so they get the same email from here.
+  const rpPres = $("rp-presenters");
+  if (rpPres) rpPres.onclick = async (e) => {
+    const n = R.presenters.toSend;
+    if (!confirm(`Send "${$("rp-subject").value}" to ${n} ${n === 1 ? "presenter" : "presenters"} now?\n\nEach gets it once, at the address on their agreement. Their answers go on the same dietary list.`)) return;
+    const done = busy(e.target, "Sending…");
+    try {
+      const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&presenters=1`, { method: "POST" });
+      toast(out.started ? (out.already ? "It's already sending to the presenters." : "Sending to the presenters, on the server. You can close this page.") : `Sent to ${out.sent} ${out.sent === 1 ? "presenter" : "presenters"}${out.failed ? `; ${out.failed} could not be sent` : ""}.`);
+      loadReply(ev);
+    } catch (x) { toast(x.message); done(); }
+  };
   $("rp-send").onclick = async (e) => {
     const n = st.toSend;
     if (!confirm(`Send "${$("rp-subject").value}" to ${n} registered ${n === 1 ? "address" : "addresses"} now?\n\nEach address gets it once.`)) return;
@@ -5131,7 +5145,7 @@ function renderReplyCard(ev, R) {
   clearTimeout(REPLY_POLL);
   const typing = () => { const a = document.activeElement; return !!a && !!document.getElementById("replybox")?.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
   const poll = () => { if (!document.getElementById("replybox")?.isConnected) return; if (typing() || document.getElementById("rpdlg")?.open) REPLY_POLL = setTimeout(poll, 10000); else loadReply(ev); };
-  if (R.sending) REPLY_POLL = setTimeout(poll, 10000);
+  if (R.sending || R.presenters?.sending) REPLY_POLL = setTimeout(poll, 10000);
   // The card loads after the page is locked for a view-only board member, so it locks itself the same way.
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }
@@ -6122,6 +6136,18 @@ const toBox = (t) => {
  * suggestion shown beside the boxes; only what Andrew saves is used.
  */
 /** Why one email per address is fewer than the registrations: shared addresses, and registrations with none. */
+/** The presenters' line on the food-allergy card: how many have had it, and a button for the rest. */
+function presenterLine(R) {
+  const P = R.presenters;
+  if (!P || !P.presenters) return "";
+  const r = P.round, failed = r?.failed ? ` ${r.failed} could not be sent; the president and VP were emailed which.` : "";
+  const said = P.sending ? `Sending to the presenters now, on the server.`
+    : P.toSend ? `${P.had ? `${P.had} ${P.had === 1 ? "presenter has" : "presenters have"} had it. ` : ""}${P.toSend} ${P.toSend === 1 ? "presenter hasn't" : "presenters haven't"} had it yet.${failed}`
+    : `Every presenter has had it, is registered on Wix, or has already told you.${failed}`;
+  return `<div class="rppres" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><b>Presenters</b>
+    <p class="hint" style="margin:4px 0 8px">They aren't on the Wix guest list, so the email above doesn't reach them. ${said}</p>
+    ${P.toSend && !P.sending ? `<button class="btn btn-gold" id="rp-presenters"${R.problems.length ? " disabled" : ""}>Send to ${P.toSend} ${P.toSend === 1 ? "presenter" : "presenters"}</button>` : ""}</div>`;
+}
 function regLine(st) {
   const shared = (st.registrations ?? 0) - (st.noEmail ?? 0) - (st.reaches ?? 0);
   if (!st.registrations || st.registrations === st.reaches) return "";

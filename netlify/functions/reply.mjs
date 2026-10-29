@@ -1,15 +1,16 @@
 import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { createHash } from "node:crypto";
-import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees } from "./lib/store.mjs";
+import { getEvent, putEvent, listEvents, getReplies, getReply, putReply, deleteReply, getAttendees, listPresenters } from "./lib/store.mjs";
 import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { renderReminder, summitSocialLabels, replyToOf, signOf, freshenedReply } from "./lib/reply.mjs";
-import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, replyProblems, renderReply, replyStatus, sendReplyRound,
+import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, addressesSheet, presenterReplyStatus, sendReplyToPresenters, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
+import { reportSends } from "./lib/sendreport.mjs";
 
 /**
  * An event's housekeeping questions for attendees: food allergies and the socials (Andrew 26 Oct 2026).
@@ -24,7 +25,9 @@ import { slugOf } from "./lib/public.mjs";
  *   POST /api/reply?event=…&preview=1    the email as it would go out (&reminder=1: the reminder)
  *   POST /api/reply?event=…&test=1       send that email to one address, marked TEST
  *   POST /api/reply?event=…&send=1       send it to everyone registered who has not had it (a run; call again while some are left)
+ *   POST /api/reply?event=…&presenters=1 send it to the event's presenters who have not had it (on the server)
  *   GET  /api/reply?event=…&sheet=dietary|socials   the spreadsheet
+ *   GET  /api/reply?event=…&sheet=addresses   the registrations that share an email address, and those with none
  *   POST /api/reply?event=…&add=1        add someone's allergy by hand (they told us another way)
  *   POST /api/reply?event=…&upload=1     add everyone on a dietary sheet laid out like the hotel's (.xlsx)
  *   POST /api/reply?event=…&wording=1    put the suggested email back
@@ -67,6 +70,7 @@ export default async (req) => {
     }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
     if (url.searchParams.get("send")) return sendNow(event, adminWho(req), url.origin);
+    if (url.searchParams.get("presenters")) return sendToPresenters(event, adminWho(req), url.origin);
   }
   return fail("Method not allowed.", 405);
 };
@@ -77,7 +81,34 @@ async function show(event) {
   const answers = (await getReplies(event.id))?.answers ?? [];
   return json({ reply: event.reply ?? null, link: event.reply ? link(event) : "", status: event.reply ? await replyStatus(event) : null,
     sending: event.replySending && Date.now() - Date.parse(event.replySending.at) < 20 * 60 * 1000 ? event.replySending : null, lastSend: event.replyLastSend ?? null,
-    problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: event.attendeeMail === true });
+    problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: event.attendeeMail === true,
+    presenters: event.reply ? { ...(await presenterReplyStatus(event)), sending: presentersSending(event) } : null });
+}
+const presentersSending = (event) => !!event.replyPresentersSending && Date.now() - Date.parse(event.replyPresentersSending.at) < 20 * 60 * 1000;
+
+/**
+ * The food-allergy email to the presenters (Andrew 29 Oct 2026), sent on the server like the one to everyone registered:
+ * at the mailbox's pace a couple of dozen presenters take longer than a page request may run. If the server run can't be
+ * started, a batch goes from here and the page asks for the next.
+ */
+async function sendToPresenters(event, who, origin) {
+  const problems = replyProblems(event);
+  if (problems.length) return fail(`Not sent: ${problems[0]}`, 409);
+  if (presentersSending(event)) return json({ started: true, already: true, presenters: await presenterReplyStatus(event) });
+  try {
+    event.replyPresentersSending = { at: new Date().toISOString(), by: who?.name || who?.email || "the desk key" };
+    await putEvent(event);
+    const r = await fetch(`${origin}/api/reply-send-background?event=${encodeURIComponent(event.id)}&who=presenters`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+    if (r.status >= 400) throw new Error(`the server run answered ${r.status}`);
+    return json({ started: true, presenters: await presenterReplyStatus(event) });
+  } catch (e) {
+    console.log(`reply to presenters: running a batch here instead (${e.message})`);
+    delete event.replyPresentersSending;
+    await putEvent(event);
+  }
+  const round = await sendReplyToPresenters(event, { deadline: Date.now() + 8000 });
+  await reportSends("the food-allergy email to presenters", [{ ...round, title: event.title, what: "The food-allergy email to presenters" }]);
+  return json({ ...round, presenters: await presenterReplyStatus(event) });
 }
 
 async function save(event, body) {
@@ -147,6 +178,11 @@ async function sendNow(event, who, origin) {
 }
 
 async function download(event, which) {
+  if (which === "addresses") {
+    const { bytes } = addressesSheet(event, ((await getAttendees(event.id)) ?? {}).people ?? []);
+    return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slugOf(event.title) || "event"}-shared-addresses.xlsx"`, "cache-control": "no-store" } });
+  }
   if (!event.reply) return fail("Set up the questions first.", 409);
   const answers = (await getReplies(event.id))?.answers ?? [];
   const bytes = which === "dietary" ? dietarySheet(event, answers) : which === "socials" && (event.reply.socials ?? []).length ? socialsSheet(event, answers, event.reply) : null;
@@ -226,10 +262,12 @@ async function eventByToken(tok) {
   return (await listEvents()).find((e) => e.reply?.token === tok) ?? null;
 }
 
-/** Whose own link this is: their row on the attendee list, found by the id in their link. */
+/** Whose own link this is: their row on the attendee list (or a presenter, sent it from the event), found by the id in their link. */
 async function personFor(event, pid) {
   if (!/^[a-f0-9]{16}$/.test(pid ?? "")) return null;
-  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? [])];
+  // A presenter's link is made from their address in small letters (sendReplyToPresenters), so they are matched the same way.
+  const presenters = (await listPresenters(event.id)).filter((p) => p.email).map((p) => ({ first: p.first, last: p.last, email: String(p.email).trim().toLowerCase(), organization: p.organization }));
+  const people = [...((await getAttendees(event.id))?.people ?? []), ...(event.reply.testers ?? []), ...presenters];
   return people.find((p) => (p.key || p.email) && personalId(event.reply.token, p) === pid) ?? null;
 }
 

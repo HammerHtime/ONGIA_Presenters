@@ -1,6 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
 import { getEvent, putEvent } from "./lib/store.mjs";
-import { sendReplyRound } from "./lib/reply.mjs";
+import { sendReplyRound, sendReplyToPresenters } from "./lib/reply.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 
@@ -11,6 +11,7 @@ import { reportSends } from "./lib/sendreport.mjs";
  * starts a follow-up for whatever is left, and keeps going whether or not anyone is watching.
  *
  *   POST /api/reply-send-background?event=…[&hop=n]     (with the desk's own key; started by POST /api/reply?send=1)
+ *   POST /api/reply-send-background?event=…&who=presenters   the event's presenters (Andrew 29 Oct 2026; one run is plenty)
  */
 const BUDGET_MS = 13 * 60 * 1000;    // stop starting sends with two minutes to spare
 const MAX_HOPS = 5;                  // 6 runs × ~370 emails: far more than any guest list
@@ -22,6 +23,7 @@ export default async (req) => {
   const event = await getEvent(url.searchParams.get("event"));
   if (!event?.reply) return new Response(null, { status: 202 });
   await primeRoster();
+  if (url.searchParams.get("who") === "presenters") return presenters(event);
   let out;
   try { out = await sendReplyRound(event, { deadline: Date.now() + BUDGET_MS }); }
   catch (e) { out = { error: e.message }; }
@@ -45,3 +47,15 @@ export default async (req) => {
   console.log(`reply send ${event.id} run ${hop}: ${out.sent ?? 0} sent, ${out.failed ?? 0} failed, ${out.left ?? 0} left${continued ? ", follow-up started" : ""}${out.error ? `, error: ${out.error}` : ""}`);
   return new Response(null, { status: 202 });
 };
+
+async function presenters(event) {
+  let out;
+  try { out = await sendReplyToPresenters(event, { deadline: Date.now() + BUDGET_MS }); }
+  catch (e) { out = { error: e.message }; }
+  const fresh = (await getEvent(event.id)) ?? event;
+  delete fresh.replyPresentersSending;
+  await putEvent(fresh);
+  await reportSends("the food-allergy email to presenters", [{ ...out, title: event.title, what: "The food-allergy email to presenters" }]);
+  console.log(`reply send ${event.id} presenters: ${out.sent ?? 0} sent, ${out.failed ?? 0} failed, ${out.left ?? 0} left${out.error ? `, error: ${out.error}` : ""}`);
+  return new Response(null, { status: 202 });
+}
