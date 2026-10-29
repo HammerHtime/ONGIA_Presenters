@@ -69,7 +69,11 @@ ok("the line list shows names and Other, no amounts", await phone.locator(".rcd 
 ok("the photo shows", await phone.locator(".rcd img").evaluate((i) => i.complete && i.naturalWidth > 0));
 ok("no sideways scrolling and the confirm button is thumb-sized", await noOverflow(phone) && (await phone.locator("[data-confirm]").boundingBox()).height >= 44);
 await phone.locator(".rcd").scrollIntoViewIfNeeded(); await phone.screenshot({ path: D + "rc-phone-form.png" });
-await phone.click("[data-confirm]"); await phone.waitForSelector(".rck", { timeout: 8000 });
+await phone.click("[data-confirm]"); await phone.waitForSelector(".rcrow", { timeout: 8000 });
+// One tight line per receipt, in its line's section (Andrew 29 Oct 2026); who paid and the tax are under ⋯.
+ok("the receipt is one line in the Dinners section, which opened so it could be seen landing, with a count of 1", await phone.locator('details.rcsec[open]', { hasText: "Dinners" }).count() === 1
+  && (await phone.locator('details.rcsec', { hasText: "Dinners" }).locator(".rcbadge").innerText()).trim() === "1" && (await phone.locator(".rcrow").count()) === 1);
+await phone.locator(".rcrow", { hasText: "La Belle Province" }).locator("[data-more]").click(); await phone.waitForTimeout(200);
 let txt = await phone.locator("#rc-body").innerText();
 ok("the receipt says who paid", /paid by Raj Jaswal/.test(txt));
 ok("confirming counts it: the receipt is listed with its line and the amount before tax", /La Belle Province/.test(txt) && /\$200\.00/.test(txt) && /Dinners/.test(txt) && /tax \$29\.95 not counted/.test(txt), txt);
@@ -96,8 +100,9 @@ await phone.fill(".rcd .f-oth", "Taxi to the studio"); await phone.fill(".rcd .f
 await phone.fill(".rcd .f-amount", "41.50"); await phone.fill(".rcd .f-tax", "6.21");
 await phone.locator(".rcd .f-tax").blur();
 ok("the total fills in from the amount and the tax", (await v(".f-total")) === "47.71", await v(".f-total"));
-await phone.click("[data-confirm]"); await phone.waitForFunction(() => document.querySelectorAll(".rck").length === 2, null, { timeout: 8000 });
-{ const tt = await phone.locator("#rc-body").innerText(); ok("typed by hand is noted on the receipt, and the colleague is named as having paid", /typed in by hand/.test(tt) && /paid by John Healy/.test(tt), tt.slice(0, 700)); }
+await phone.click("[data-confirm]"); await phone.waitForFunction(() => document.querySelectorAll(".rcrow").length === 2, null, { timeout: 8000 });
+{ await phone.locator(".rcrow", { hasText: "Taxi Coop" }).locator("[data-more]").click(); await phone.waitForTimeout(200);
+  const tt = await phone.locator("#rc-body").innerText(); ok("typed by hand is noted on the receipt, and the colleague is named as having paid", /typed in by hand/.test(tt) && /paid by John Healy/.test(tt), tt.slice(0, 700)); }
 
 console.log("— the same receipt twice");
 await mock({ isReceipt: true, vendor: "la belle province", date: "2026-09-29", subtotal: 200, tax: 29.95, total: 229.95, currency: "CAD", confidence: "low", suggestedLine: "Dinners", notes: "Slightly cut off at the bottom." }, 0);
@@ -107,19 +112,23 @@ txt = await phone.locator(".rcd").innerText();
 ok("a low-confidence reading tells them to check each figure, and shows Claude's note", /wasn't sure/.test(txt) && /cut off at the bottom/.test(txt));
 let asked = "";
 phone.removeAllListeners("dialog"); phone.on("dialog", (d) => { asked = d.message(); d.accept(); });
-await phone.click("[data-confirm]"); await phone.waitForFunction(() => document.querySelectorAll(".rck").length === 3, null, { timeout: 8000 });
+await phone.click("[data-confirm]"); await phone.waitForFunction(() => document.querySelectorAll(".rcrow").length === 3, null, { timeout: 8000 });
 ok("they were asked, and when they said yes it was kept", /already on this event/.test(asked) && /Add it anyway/.test(asked));
 await phone.screenshot({ path: D + "rc-phone-list2.png", fullPage: true });
+await phone.addStyleTag({ content: ".bar{position:static !important}" });
+await phone.locator("#rc-items").screenshot({ path: D + "rc-groups-phone.png" });
 ok("no sideways scrolling on the phone", await noOverflow(phone));
 ok("no page errors on the phone", phone.errs.length === 0, phone.errs.join("|"));
 
 console.log("— changing and removing");
 phone.removeAllListeners("dialog"); phone.on("dialog", (d) => d.accept());
-await phone.locator(".rck", { hasText: "Taxi Coop" }).locator("[data-edit]").click();
+if (!(await phone.locator(".rcmorebox", { hasText: "Taxi Coop" }).count()) && !(await phone.locator('.rcrow.more', { hasText: "Taxi Coop" }).count())) await phone.locator(".rcrow", { hasText: "Taxi Coop" }).locator("[data-more]").click();
+await phone.locator('.rcrow.more', { hasText: "Taxi Coop" }).locator("xpath=following-sibling::div[1]").locator("[data-edit]").click();
 ok("Change opens the same boxes on the receipt", await phone.locator(".rck .f-vendor").inputValue() === "Taxi Coop");
 await phone.fill(".rck .f-amount", "44.00"); await phone.click("[data-save]"); await phone.waitForTimeout(800);
 ok("the change is kept", /\$44\.00/.test(await phone.locator("#rc-body").innerText()));
-await phone.locator(".rck", { hasText: "Taxi Coop" }).locator("[data-del]").click(); await phone.waitForFunction(() => document.querySelectorAll(".rck").length === 2, null, { timeout: 5000 });
+if (!(await phone.locator('.rcrow.more', { hasText: "Taxi Coop" }).count())) await phone.locator(".rcrow", { hasText: "Taxi Coop" }).locator("[data-more]").click();
+await phone.locator('.rcrow.more', { hasText: "Taxi Coop" }).locator("xpath=following-sibling::div[1]").locator("[data-del]").click(); await phone.waitForFunction(() => document.querySelectorAll(".rcrow").length === 2, null, { timeout: 5000 });
 ok("Remove takes it off", !/Taxi Coop/.test(await phone.locator("#rc-body").innerText()));
 await phone.close();
 
@@ -132,8 +141,16 @@ const pres = await as("president@ongia.ca", "Andrew Hammond", { width: 1440, hei
 ok("the president is not on this event's board, but is in the list and picked as the default", await (async () => { await openFold(pres, "receipts"); return true; })());
 ok("both the costing and the receipts are there", (await pres.locator("#sowcard").count()) === 1 && (await pres.locator("#receiptscard").count()) === 1);
 await openFold(pres, "receipts");
+ok("sections start closed, each with its count", (await pres.locator("details.rcsec[open]").count()) === 0 && (await pres.locator("details.rcsec").count()) >= 1);
+await pres.locator('[data-rcall="open"]').click().catch(() => pres.locator("details.rcsec summary").first().click());
+await pres.waitForTimeout(200);
 txt = await pres.locator("#rc-body").innerText();
-ok("the president sees every receipt and can change any", /La Belle Province/.test(txt) && (await pres.locator("[data-edit]").count()) === 2);
+ok("the president sees every receipt", /La Belle Province/.test(txt) && (await pres.locator(".rcrow").count()) === 2, txt.slice(0, 400));
+await pres.locator(".rcrow").first().locator("[data-more]").click(); await pres.waitForTimeout(200);
+ok("and under ⋯ can change or remove any", (await pres.locator(".rcmorebox [data-edit]").count()) === 1 && (await pres.locator(".rcmorebox [data-del]").count()) === 1);
+await pres.addStyleTag({ content: ".bar{position:static !important}" });
+await pres.locator("#rc-items").screenshot({ path: D + "rc-groups-wide.png" });
+txt = await pres.locator("#rc-body").innerText();
 ok("the president sees what each person has paid, to check claims against", /Paid by/.test(txt) && /Raj Jaswal \$\d/.test(txt), txt.slice(0, 600));
 await openFold(pres, "sow");
 txt = await pres.locator("#sw-table").innerText();
@@ -153,7 +170,7 @@ ok("Claude's Other is picked for the president too", await pres.locator(".rcd .f
 ok("for the president the default is the president, who is not on the event", await pres.locator(".rcd .f-paid").inputValue() === "president@ongia.ca");
 await pres.selectOption(".rcd .f-paid", "treasurer@ongia.ca");
 await pres.fill(".rcd .f-oth", "Taxi to the studio");
-await pres.click("[data-confirm]"); await pres.waitForFunction(() => document.querySelectorAll(".rck").length === 3, null, { timeout: 8000 });
+await pres.click("[data-confirm]"); await pres.waitForFunction(() => document.querySelectorAll(".rcrow").length === 3, null, { timeout: 8000 });
 await pres.waitForTimeout(1000);
 txt = await pres.locator("tr.oth").innerText();
 ok("the SOW card updated itself without a reload: Other now has the receipt and its note", /1 receipt/.test(txt) && /\$41\.50/.test(txt) && /Taxi to the studio/.test(txt), txt);

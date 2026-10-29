@@ -553,6 +553,24 @@
   .rck .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center}
   .rck .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
   .rck .rclinks .rcprob{color:#8a5a00}
+  .rctools{display:flex;gap:8px;margin:0 0 10px}
+  .rcsec{border:1px solid var(--border);border-radius:12px;margin:0 0 8px;background:#fff;overflow:hidden}
+  .rcsec summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--sand,#f5f0e8);min-height:44px}
+  .rcsec summary::-webkit-details-marker{display:none}
+  .rcsec-n{font-weight:700;font-size:15px}.rcbadge{background:var(--navy);color:#fff;border-radius:999px;font-size:12px;font-weight:700;padding:1px 8px}
+  .rcsec-t{margin-left:auto;font-weight:700;font-size:14px;white-space:nowrap}.rcsec-t small{font-weight:400;color:var(--muted)}
+  .rccaret{color:var(--muted);transition:transform .15s}.rcsec:not([open]) .rccaret{transform:rotate(-90deg)}
+  .rcrow{display:grid;grid-template-columns:minmax(0,1fr) 92px 96px auto 36px;gap:10px;align-items:center;padding:6px 8px 6px 14px;border-top:1px solid var(--border);font-size:14px;min-height:40px}
+  .rcrow.more{background:#fbfaf6}
+  .rqv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rqd{color:var(--ink-mid);white-space:nowrap}.rqa{text-align:right;font-weight:600;white-space:nowrap}
+  .rcsp{color:var(--navy);font-size:13px;white-space:nowrap}.rcsp.rcprob{color:#8a5a00;text-decoration:none}
+  .rcmore{background:none;border:0;font-size:18px;line-height:1;color:var(--ink-mid);padding:6px;cursor:pointer;border-radius:8px;min-height:36px}.rcmore:hover,.rcmore[aria-expanded="true"]{background:var(--sunk)}
+  .rcmorebox{padding:4px 14px 10px;background:#fbfaf6;border-top:1px dashed var(--border)}
+  .rcmorebox .sub{font-size:13.5px;color:var(--ink-mid);margin-top:4px}
+  .rcmorebox .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:6px;font-size:14px;align-items:center}
+  .rcmorebox .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
+  .rcsec .rck{margin:8px}
+  @media (max-width:560px){.rcrow{grid-template-columns:minmax(0,1fr) auto 36px;grid-template-areas:"v a more" "d sp more";row-gap:2px}.rqv{grid-area:v}.rqa{grid-area:a}.rcmore{grid-area:more}.rqd{grid-area:d;font-size:12.5px}.rcsp{grid-area:sp;text-align:right}}
   .rcsum{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 12px;font-size:14px;color:var(--ink-mid)} .rcsum b{color:var(--ink);font-size:17px}
   .swt .rcl{font-size:12px;color:var(--ink-mid);margin-top:2px} .swt .rcl.over{color:#a02a1a;font-weight:600} .swt .rcl.under{color:#1f6b3a} .swt td.rcv,.swt th.rcv{width:150px;text-align:right;padding-top:10px} .rctot{margin-top:10px;font-size:14px} .swt tr.oth td{background:#faf7ee}
   @media (min-width:700px){.rcf{grid-template-columns:1fr 1fr}.rcd .pv img,.rcd .pv .pdf{width:120px;height:120px}}
@@ -888,6 +906,13 @@
   .etab .lock{font-size:11px;font-weight:600;color:var(--muted);margin-left:4px}
   .evbody{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
   .evmain{min-width:0} .evside{min-width:0}
+  /* The RBH quick view stays in sight on the right while the page scrolls (Andrew 29 Oct 2026: "can the RBH Quick view
+     float on the right hand side so when I scroll down the page those boxes stay in view"): the side column runs the
+     length of the page, and the quick view, last in it, sticks below the top bar. */
+  @media (min-width:901px){
+    .evside{align-self:stretch;display:flex;flex-direction:column} .evside #sidepanels{flex:1 0 auto}
+    #rbhcard{position:sticky;top:84px;z-index:2}
+  }
   .evside .card{margin-bottom:14px}
   .evside .card-head{padding:12px 16px 10px;flex-wrap:nowrap} .evside .card-head>div:first-child{flex:1 1 0;min-width:0} .evside .card-head .cardacts{flex:none;width:auto;margin:0 0 0 auto} .evside .card-head h2{font-size:18px} .evside .card-body{padding:10px 16px 14px;font-size:13.5px}
   .evside .who{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -899,6 +924,7 @@
   .leadacts{display:flex;gap:6px;margin-top:6px}
   .smoney{display:grid;grid-template-columns:1fr auto;gap:5px 10px} .smoney b{text-align:right}
   .smoney.qinv{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)} .smoney .qhead{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .qunsaved{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a5a00;background:var(--gold-pale);border-radius:999px;padding:1px 7px}
   .smoney.qinv{column-gap:0} .smoney.qinv b{padding-left:10px} .smoney .qsub{border-top:1px solid var(--border);padding-top:6px;margin-top:2px} .smoney .qtot{font-weight:700;color:var(--ink)}
   .sready{list-style:none;margin:0;padding:0}
   .sready li{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--hair)} .sready li:first-child{border-top:0}
@@ -2846,6 +2872,24 @@ function evNotices(ev) {
 }
 const listWords = (a) => a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`;
 
+// The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
+// so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
+// typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
+// The statement of work redraws it as amounts are typed (Andrew 29 Oct 2026: "when I change the amounts I look over at
+// the ONGIA profit so far and those numbers should change"), saying so until they're saved.
+const quickInvoice = (s, A, P, unsaved = false) => {
+  if (!s || !A) return "";
+  const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
+  const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
+  const fixed = (s.lines ?? []).filter((l) => l.type === "fixed");
+  return `<div class="smoney qinv"><span class="qhead">Invoice so far</span><b>${unsaved ? `<span class="qunsaved">not saved yet</span>` : ""}</b>
+    <span>Receipts, at cost</span><b>${usd(atCost)}</b>
+    ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
+    <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
+    <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>
+    ${P ? `<div class="qprofit"><span>ONGIA profit so far</span><b>${usd(P.profit)}</b><small>Internal only: fixed fees + admin fee − stipends and other internal costs. Not on anything sent to RBH.</small></div>` : ""}`;
+};
+
 function eventScreen(data) {
   const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
@@ -3242,28 +3286,13 @@ function eventScreen(data) {
       <dt>Folder</dt><dd>${ev.sharePointFolder ? `${ev.sharePointFolderUrl ? `<a href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener">…/${esc(folderTail)}</a>` : `…/${esc(folderTail)}`}` : `<span class="said bad-t">not set</span>`}</dd>
       <dt>Upload link</dt><dd>${ev.materialsUploadUrl ? (ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="ok-t">upload-only ✓</span>` : `<span class="bad-t">not checked</span>`) : `<span class="bad-t">not made yet</span>`}</dd></dl>
     <p class="porg" style="margin:8px 0 0;font-size:12.5px">The lead, the board on this event, the president and the VP of operations can change this event. The rest of the board sees it as view only.</p></div></div>`;
-  // The invoice as it stands (Andrew 29 Oct 2026: "add the fixed costs pre/post and on-site management ... The receipts
-  // so far should be a running total of the invoice amount total"): the at-cost lines as their receipts (or what was
-  // typed over them), each fixed fee at what will be billed, then the running total before and with the fee and tax.
-  const quickInvoice = (s, A, P) => {
-    if (!s || !A) return "";
-    const amt = (l) => A.lines.find((x) => x.id === l.id)?.amount ?? 0;
-    const atCost = (s.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amt(l), 0) + (A.other ?? 0);
-    const fixed = (s.lines ?? []).filter((l) => l.type === "fixed");
-    return `<div class="smoney qinv"><span class="qhead">Invoice so far</span><b></b>
-      <span>Receipts, at cost</span><b>${usd(atCost)}</b>
-      ${fixed.map((l) => `<span>${esc(l.name)}</span><b>${usd(amt(l))}</b>`).join("")}
-      <span class="qsub">Subtotal</span><b class="qsub">${usd(A.subtotal)}</b>
-      <span class="qtot">With fee and tax</span><b class="qtot">${usd(A.total)}</b></div>
-      ${P ? `<div class="qprofit"><span>ONGIA profit so far</span><b>${usd(P.profit)}</b><small>Internal only: fixed fees + admin fee − stipends and other internal costs. Not on anything sent to RBH.</small></div>` : ""}`;
-  };
   // The RBH money at a glance: the president's and the VP's only (anyone else is refused the SOW, so this never shows).
   const sowNow = sow?.sow ?? null;
   const rbhCard = sow ? `<div class="card" id="rbhcard"><div class="card-head"><div><h2>RBH quick view</h2></div><span class="who">President &amp; VP</span></div><div class="card-body">
     ${sowNow ? `<div class="smoney"><span>Statement of work</span><b>${esc((SOW_STATUSES.find(([k]) => k === sowNow.status) ?? [, sowNow.status])[1])}</b>
       <span>Estimate, with fee and tax</span><b>${usd(sow.estimate?.total ?? 0)}</b>
       <span>Invoice</span><b>${esc(sowNow.invoice?.number ?? "—")}</b></div>
-      ${quickInvoice(sowNow, sow.actual, sow.profit?.actual)}`
+      <div id="rbhq">${quickInvoice(sowNow, sow.actual, sow.profit?.actual)}</div>`
     : `<div class="porg">No statement of work yet.</div>`}
     <div style="margin-top:10px"><button class="mini" data-gotab="money">Open Money</button></div></div></div>` : "";
   // Getting ready (redesign step 4): what a new event still needs, each with the button that does it. It stays on the
@@ -3394,7 +3423,7 @@ function eventScreen(data) {
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" }))
-    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${rbhCard}${comingCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${comingCard}${rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="padd">
@@ -5493,6 +5522,8 @@ function wireSow(ev, S) {
   };
   const sums = () => {
     drawProfit();
+    const q = document.getElementById("rbhq");
+    if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual"), dirty);
     const est = sowSums(sow, "estimate"), act = sowSums(sow, "actual"), showAct = afterApproval(sow);
     const row = (label, e, a, cls = "") => `<tr class="${cls}"><td>${label}</td><td>${e}</td><td class="act">${a}</td></tr>`;
     $("sw-sums").innerHTML = `<table><thead><tr><th></th><th>Statement of work</th><th class="act">Invoice</th></tr></thead><tbody>
@@ -5523,6 +5554,7 @@ function wireSow(ev, S) {
     read();
     const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) });
     Object.assign(sow, out.sow); locked = out.locked; changes = out.changedSinceSent ?? changes; dirty = false;
+    { const q = document.getElementById("rbhq"); if (q) q.innerHTML = quickInvoice(sow, sowSums(sow, "actual"), profitOf("actual")); }   // saved: no longer "not saved yet"
     if (!quiet) { toast("Saved."); render(); }
     return out;
   };
@@ -5603,6 +5635,7 @@ function wireReceipts(ev, R0) {
   const body = document.getElementById("rc-body");
   if (!body) return;
   let R = R0, timer = null, editing = null;
+  const rcOpen = new Set(), rcMore = new Set();   // sections opened, receipts showing their ⋯, while the page is open
   const $ = (sel, root = body) => root.querySelector(sel);
   const lineName = (id) => id === RC_OTHER ? "Other" : (R.lines.find((l) => l.id === id)?.name ?? "a line that has since been removed");
   const urls = {};
@@ -5669,6 +5702,42 @@ function wireReceipts(ev, R0) {
         ${failed ? `<button class="btn btn-ghost" data-again="${esc(d.id)}">Read it again</button>` : ""}<button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
   };
 
+  /*
+   * The receipts in a section for each line of the SOW (Andrew 29 Oct 2026: "One tight line per receipt with a link to
+   * the actual receipt in SharePoint. Each receipt will be in the appropriate section ... each section should be
+   * collapsible ... a badge with the number of items"; then "hide empty sections, start closed, ⋯ is fine"). A line's
+   * section shows only when it has receipts; sections start closed and stay as they were left while the page is open.
+   * The rest of what a receipt carries (who paid, the tax, opening the photo, Change, Remove) is under ⋯.
+   */
+  const rowHtml = (r) => {
+    if (editing === r.id) return itemHtml(r);
+    const sp = r.filed ? `<a class="rcsp" href="${esc(r.filed.url)}" target="_blank" rel="noopener" title="Open it in SharePoint">SharePoint ↗</a>`
+      : `<span class="rcsp rcprob" title="${esc(r.filedProblem ?? "not filed")}">Not in SharePoint</span>`;
+    const open = rcMore.has(r.id);
+    return `<div class="rcrow${open ? " more" : ""}" data-k="${esc(r.id)}"><span class="rqv">${esc(r.vendor)}</span><span class="rqd">${esc(fmtDate(r.date).replace(/ \d{4}$/, ""))}</span><span class="rqa">${usd(r.amount)}</span>
+      ${sp}<button type="button" class="rcmore" data-more="${esc(r.id)}" aria-expanded="${open}" aria-label="More about ${esc(r.vendor)}">⋯</button></div>
+      ${open ? `<div class="rcmorebox" data-k="${esc(r.id)}">
+        <div class="sub">${esc(fmtDate(r.date))}${r.lineId === RC_OTHER ? ` · ${esc(r.otherNote)}` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
+        <div class="sub">paid by <b>${esc(r.paidBy?.name ?? "—")}</b> · added by ${esc(r.addedBy?.name || r.addedBy?.email || "")}${r.readBy === "hand" ? " · typed in by hand" : ""}</div>
+        <div class="rclinks"><button class="lnk" data-open="${esc(r.id)}">Open the ${r.type === "application/pdf" ? "PDF" : "photo"}</button>
+          ${r.filed ? "" : `<span class="rcprob">Not in SharePoint: ${esc(r.filedProblem ?? "not filed")}</span> <button class="lnk" data-refile="${esc(r.id)}">Try again</button>`}
+          ${r.mine && !R.closed || R.canCost ? `<button class="lnk" data-edit="${esc(r.id)}">Change</button><button class="lnk" data-del="${esc(r.id)}">Remove</button>` : ""}</div></div>` : ""}`;
+  };
+  const groupsHtml = () => {
+    const ids = [...R.lines.map((l) => l.id), RC_OTHER];
+    const orphans = R.items.filter((r) => r.lineId !== RC_OTHER && !R.lines.some((l) => l.id === r.lineId));
+    const groups = ids.map((id) => ({ id, name: lineName(id), estimate: R.lines.find((l) => l.id === id)?.estimate, items: R.items.filter((r) => r.lineId === id) }))
+      .concat(orphans.length ? [{ id: "_gone", name: "A line that has since been removed", items: orphans }] : [])
+      .filter((g) => g.items.length);
+    const tools = groups.length > 1 ? `<div class="rctools"><button type="button" class="mini" data-rcall="open">Open all</button><button type="button" class="mini" data-rcall="close">Close all</button></div>` : "";
+    return tools + groups.map((g) => {
+      const tot = g.items.reduce((n, r) => n + r.amount, 0);
+      const open = rcOpen.has(g.id) || g.items.some((r) => r.id === editing);
+      return `<details class="rcsec" data-sec="${esc(g.id)}"${open ? " open" : ""}><summary><span class="rcsec-n">${esc(g.name)}</span><span class="rcbadge" aria-label="${g.items.length} receipt${g.items.length === 1 ? "" : "s"}">${g.items.length}</span>
+        <span class="rcsec-t">${usd(tot)}${g.estimate ? `<small> of ${usd(g.estimate)}</small>` : ""}</span><span class="rccaret" aria-hidden="true">▾</span></summary>
+        ${g.items.map(rowHtml).join("")}</details>`;
+    }).join("");
+  };
   const itemHtml = (r) => {
     if (editing === r.id) return `<div class="rck" data-k="${esc(r.id)}"><b>Change this receipt</b>${fields(r, { lines: R.lines })}
       <div class="acts" style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-gold" data-save="${esc(r.id)}">Save</button><button class="btn btn-ghost" data-cancel="1">Cancel</button></div></div>`;
@@ -5708,7 +5777,7 @@ function wireReceipts(ev, R0) {
       <div id="rc-drafts"></div>
       ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>
       ${R.canCost && R.byPayer?.length ? `<div class="rcsum rcpay"><span><b>Paid by</b> (total paid, tax included, for checking claims):</span>${R.byPayer.map((x) => `<span>${esc(x.name)} <b>${usd(x.paid)}</b> <small>${x.count} receipt${x.count === 1 ? "" : "s"}</small></span>`).join("")}</div>` : ""}` : ""}
-      <div id="rc-items">${R.items.map(itemHtml).join("") || `<p class="hint">No receipts yet.</p>`}</div>`;
+      <div id="rc-items">${R.items.length ? groupsHtml() : `<p class="hint">No receipts yet.</p>`}</div>`;
     const slot = $("#rc-drafts");
     while (dh.firstChild) slot.appendChild(dh.firstChild);
     wire();
@@ -5754,11 +5823,15 @@ function wireReceipts(ev, R0) {
           catch (e) { if (/already on this event/.test(e.message) && !force && confirm(`${e.message}\n\nAdd it anyway?`)) { force = true; continue; } throw e; }
         }
         toast(R.items.find((r) => r.id === id)?.filed ? "Counted, and filed in SharePoint." : "Counted. It isn't in SharePoint yet; see the receipt.");
+        const landed = R.items.find((r) => r.id === id); if (landed) rcOpen.add(landed.lineId);   // open its section, so it can be seen landing
         draw(); refreshSow();
       });
     });
     body.querySelectorAll("[data-refile]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&refile=${b.dataset.refile}`, { method: "POST" }); draw(); }); });
     body.querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { editing = b.dataset.edit; draw(); }; });
+    body.querySelectorAll("details.rcsec").forEach((d) => { d.ontoggle = () => { if (d.open) rcOpen.add(d.dataset.sec); else rcOpen.delete(d.dataset.sec); }; });
+    body.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { const id = b.dataset.more; if (rcMore.has(id)) rcMore.delete(id); else rcMore.add(id); draw(); }; });
+    body.querySelectorAll("[data-rcall]").forEach((b) => { b.onclick = () => { const open = b.dataset.rcall === "open"; body.querySelectorAll("details.rcsec").forEach((d) => { d.open = open; if (open) rcOpen.add(d.dataset.sec); else rcOpen.delete(d.dataset.sec); }); }; });
     body.querySelectorAll("[data-cancel]").forEach((b) => { b.onclick = () => { editing = null; draw(); }; });
     body.querySelectorAll("[data-save]").forEach((b) => { b.onclick = act(async () => { R = await api(`${q}&item=${b.dataset.save}`, { method: "PUT", body: JSON.stringify(collect(b.closest(".rck"))) }); editing = null; draw(); refreshSow(); }); });
     body.querySelectorAll("[data-del]").forEach((b) => { b.onclick = act(async () => { if (!confirm("Remove this receipt from the invoice?")) return; R = await api(`${q}&item=${b.dataset.del}`, { method: "DELETE" }); if (R.note) toast(R.note); draw(); refreshSow(); }); });

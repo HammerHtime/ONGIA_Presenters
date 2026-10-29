@@ -194,7 +194,7 @@ async function view(eventId, sow, costs, who, event) {
   return {
     allowed: true, canCost: costs, closed, hasSow: !!sow,
     // Names only: what each line is budgeted at is the president's and the VP's to see.
-    lines: (sow?.lines ?? []).map((l) => ({ id: l.id, name: l.name })),
+    lines: (sow?.lines ?? []).map((l) => ({ id: l.id, name: l.name, ...(costs && l.type === "cost" ? { estimate: l.estimate } : {}) })),
     items: items.map((r) => ({ ...publicItem(r), mine: costs || r.addedBy?.email === email })),
     drafts,
     sums: costs ? receiptSums(rec.items) : null,
