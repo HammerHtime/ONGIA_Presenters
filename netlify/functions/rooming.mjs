@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, isEmail, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters, listVolunteers, getRoster } from "./lib/store.mjs";
-import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, typeOf } from "./lib/rooming.mjs";
+import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, typeOf, sameName } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
 
@@ -32,8 +32,11 @@ export default async (req) => {
   const body = ["POST", "PUT"].includes(req.method) ? await req.json().catch(() => ({})) : null;
   // The board roster's names. A board member's room starts as ONGIA's to pay for, but what was chosen stands
   // (Andrew, 21 Oct 2026: a board member may pay their own room to earn the hotel's points).
-  const board = ((await getRoster()) ?? []).map((m) => m.name).filter(Boolean);
-  const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
+  const roster = (await getRoster()) ?? [];
+  const board = roster.map((m) => m.name).filter(Boolean);
+  // Board members' Marriott Bonvoy numbers, for the hotel's rooming list (Andrew 29 Oct 2026).
+  const bonvoy = Object.fromEntries(roster.filter((m) => m.name && m.bonvoy).map((m) => [sameName(m.name), m.bonvoy]));
+  const { rows, waiting } = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id), bonvoy);
   const pick = (keys) => (Array.isArray(keys) ? rows.filter((r) => keys.includes(r.key)) : rows.filter((r) => r.confirmed));
 
   if (req.method === "GET") {
@@ -53,7 +56,7 @@ export default async (req) => {
     event.roomingTypes = { ...(event.roomingTypes ?? {}) };
     if (type === "Presenter") delete event.roomingTypes[body.id]; else event.roomingTypes[body.id] = type;
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id), bonvoy);
     return json(state(event, again.rows, again.waiting, board));
   }
 
@@ -68,7 +71,7 @@ export default async (req) => {
     }
     event.roomingGuests = out;
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id), bonvoy);
     return json(state(event, again.rows, again.waiting, board));
   }
 
@@ -86,7 +89,7 @@ export default async (req) => {
     }
     event.roomingGuests = [...(event.roomingGuests ?? []), ...fresh];
     await putEvent(event);
-    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id));
+    const again = roomingRows(event, await listPresenters(event.id), event.roomingGuests ?? [], board, await listVolunteers(event.id), bonvoy);
     return json({ ok: true, added: fresh.length, problems: read.problems, skipped: read.skipped, ...state(event, again.rows, again.waiting, board) });
   }
 
