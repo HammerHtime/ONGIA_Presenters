@@ -59,7 +59,7 @@ await page.locator("#sowcard #sw-status").selectOption("approved"); await page.w
 const f4 = page.locator("#sowcard"); if (!(await f4.evaluate((d) => d.open))) await f4.locator("summary").first().click();
 ok("approved: still locked", /Amounts locked/.test(await f4.innerText()) && await f4.locator(".ln-est").first().isDisabled() && await f4.locator(".ln-name").first().isDisabled() && await f4.locator("#sw-add").isDisabled());
 ok("descriptions and the invoice amounts stay editable", await f4.locator(".ln-desc").first().isEnabled() && await f4.locator(".ln-act").first().isEnabled());
-ok("the invoice column and the invoice totals appear", await f4.locator("#sw-table th.act").first().isVisible() && await f4.locator("#sw-sums th.act").isVisible());
+ok("the invoice column and the invoice totals appear", await f4.locator("#sw-table td.inv").first().isVisible() && await f4.locator("#sw-sums th.act").isVisible());
 const rowOf = (name) => f4.locator("#sw-table tbody tr", { has: page.locator(`.ln-name[value="${name}"]`) });
 ok("fixed lines show their estimate as the automatic invoice amount; at-cost lines say no receipts yet", /55,360|15,000/.test(await rowOf("Hotel").locator(".ln-act").getAttribute("placeholder")) === false || true);
 ok("an at-cost line with nothing typed says so", /no receipts yet/.test(await rowOf("Dinners").locator(".ln-act").getAttribute("placeholder")), await rowOf("Dinners").locator(".ln-act").getAttribute("placeholder"));
