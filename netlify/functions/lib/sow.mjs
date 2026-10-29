@@ -177,6 +177,9 @@ export function cleanLines(lines, had = []) {
       type: l.type === "cost" ? "cost" : "fixed",
       estimate: money(Math.max(0, num(l.estimate) ?? 0)),
       actual: num(l.actual) === null ? null : money(Math.max(0, num(l.actual))),
+      // Added after RBH approved it (Andrew 29 Oct 2026: "sporting event tickets ... even though there is no approved
+      // set amount"): on the invoice, never on the statement of work.
+      ...(l.added === true ? { added: true } : {}),
     };
   }).filter((l) => l.name);
 }

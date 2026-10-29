@@ -114,7 +114,8 @@ function drawSow(doc, { event, sow, kind, logo }) {
     if (y + h > H - 60) { doc.addPage(); page(); y = 40; heading(); }
   };
   // "Other" (invoice only): receipts that fit no line of the SOW, with what they were for under it.
-  const rows = (sow.lines ?? []).map((l) => ({ id: l.id, name: l.name, description: l.description, fallback: l }));
+  // A line added after approval has no agreed amount: it is on the invoice, not the statement of work.
+  const rows = (sow.lines ?? []).filter((l) => kind === "invoice" || !l.added).map((l) => ({ id: l.id, name: l.name, description: l.description, fallback: l }));
   if (kind === "invoice" && t.other !== 0) rows.push({ id: "other", name: "Other", description: (sow.otherNotes ?? []).join("; "), fallback: null });
   rows.forEach((l, i) => {
     const descH = l.description ? Math.max(16, doc.font("Helvetica-Oblique").fontSize(8.5).heightOfString(l.description, { width: BODY - 24 }) + 8) : 0;

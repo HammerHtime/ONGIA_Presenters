@@ -752,6 +752,8 @@
   .swt.locked .ln-type:disabled{background-image:none}
   .swt.locked .ln-act,.swt.locked #sw-oth{background:#fff;border-color:var(--gold)}
   .swt.locked td.b .mini:disabled{opacity:.35;cursor:not-allowed}
+  /* A line added after approval: named and invoiced, with no agreed amount (Andrew 29 Oct 2026). */
+  .swt tr.added td{background:var(--gold-pale)} .addtag{font-size:12px;color:#7a5b10;font-weight:600;margin-top:4px}
   .swlock{font-size:10.5px;letter-spacing:.04em;text-transform:none;font-weight:600;color:var(--ink-mid);white-space:nowrap}
   /* ONGIA's own costs and profit (Andrew 29 Oct 2026): purple, so nothing internal is mistaken for what RBH is billed. */
   .intbox{margin-top:16px;border:1.5px solid #8a63b8;border-radius:12px;background:#f6f1fb;padding:12px 14px}
@@ -5651,20 +5653,20 @@ function wireSow(ev, S, { onSums = null } = {}) {
         <div class="row2" style="margin:0"><div class="field"><label for="sw-idate">Invoice date</label><input id="sw-idate" type="date" value="${esc(sow.invoiceDate ?? "")}"></div>
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
       <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}${locked ? " locked" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate${locked ? ` <span class="swlock" title="Agreed with RBH. Click Edit amounts and type EDIT if RBH agrees to a change.">🔒 agreed with RBH</span>` : ""}</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
-        ${sow.lines.map((l, i) => `<tr data-i="${i}"><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked ? " disabled" : ""}>
-            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description"></td>
-          <td class="t" data-l="Type"><select class="ln-type"${locked ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
-          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="$0.00" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
+        ${sow.lines.map((l, i) => `<tr data-i="${i}"${l.added ? ` class="added"` : ""}><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked && !l.added ? " disabled" : ""}>
+            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description">${l.added ? `<div class="addtag">Added after approval · no agreed amount · on the invoice only</div>` : ""}</td>
+          <td class="t" data-l="Type"><select class="ln-type"${locked && !l.added ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
+          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="${l.added ? "not in the SOW" : "$0.00"}" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
           ${rcCell(l)}
           <td class="n act inv" data-l="Invoice amount"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
           <td class="v act" data-l="vs estimate"></td>
-          <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="${l.receiptCount ? "There are receipts against this line" : "Remove the line"}"${locked || l.receiptCount ? " disabled" : ""}>✕</button></td></tr>`).join("")}
+          <td class="b"><button class="mini ghost" data-up="${i}" title="Move up"${locked ? " disabled" : ""}>↑</button> <button class="mini ghost" data-down="${i}" title="Move down"${locked ? " disabled" : ""}>↓</button> <button class="mini ghost" data-rm="${i}" title="${l.receiptCount ? "There are receipts against this line" : "Remove the line"}"${(locked && !l.added) || l.receiptCount ? " disabled" : ""}>✕</button></td></tr>`).join("")}
         ${act || sow.receiptsOther ? `<tr class="oth"><td class="nm"><b>Other</b> <span class="hint">receipts that fit no line</span>${sow.otherNotes?.length ? `<div class="rcl">${esc(sow.otherNotes.join("; "))}</div>` : ""}</td>
           <td class="t" data-l="Type"><span class="hint">At cost</span></td>
           <td class="n est" data-l="SOW estimate"><span class="hint">–</span></td>${anyRc ? `<td class="rcv" data-l="Receipts so far">${sow.otherCount ? `<b>${usd(sow.receiptsOther)}</b><div class="rcl">${sow.otherCount} receipt${sow.otherCount === 1 ? "" : "s"}</div>` : `<span class="hint">–</span>`}</td>` : ""}<td class="n act inv" data-l="Invoice amount"><input id="sw-oth" class="money" type="text" inputmode="decimal" autocomplete="off" value="${sow.otherActual !== null && sow.otherActual !== undefined ? usd(sow.otherActual) : ""}" aria-label="Other, in dollars"></td><td class="v act" data-l="vs estimate"></td><td class="b"></td></tr>` : ""}
       </tbody></table></div>
       ${anyRc ? `<div class="rctot">Receipts so far, before tax: <b>${usd(rcAll)}</b>${rcBudget ? ` · the at-cost lines are estimated at <b>${usd(rcBudget)}</b>` : ""}</div>` : ""}
-      <div style="margin-top:10px"><button class="mini" id="sw-add"${locked ? " disabled" : ""}>Add a line</button>
+      <div style="margin-top:10px"><button class="mini" id="sw-add">${locked ? "Add a line (not in the agreed SOW)" : "Add a line"}</button>
         <span class="hint" style="margin-left:10px"><b>Fixed fee</b>: the invoice uses the estimate. <b>At cost</b>: it uses the receipts (add them under <b>Receipts</b>). Type an invoice amount to overwrite either.</span></div>
       <div class="intbox" id="sw-internal"><h3><span class="lock">Internal only</span> Costs to ONGIA</h3>
         <div class="intnote">Will not be included on the statement of work or the final invoice sent to RBH. Amounts as paid, no tax added.</div>
@@ -5819,7 +5821,7 @@ function wireSow(ev, S, { onSums = null } = {}) {
     body.querySelectorAll("[data-up]").forEach((b) => { b.onclick = () => { const i = +b.dataset.up; if (i) { read(); [sow.lines[i - 1], sow.lines[i]] = [sow.lines[i], sow.lines[i - 1]]; draw(); dirty = true; auto.kick(true); } }; });
     body.querySelectorAll("[data-down]").forEach((b) => { b.onclick = () => { const i = +b.dataset.down; if (i < sow.lines.length - 1) { read(); [sow.lines[i + 1], sow.lines[i]] = [sow.lines[i], sow.lines[i + 1]]; draw(); dirty = true; auto.kick(true); } }; });
     body.querySelectorAll("[data-rm]").forEach((b) => { b.onclick = () => { read(); sow.lines.splice(+b.dataset.rm, 1); draw(); dirty = true; auto.kick(true); }; });
-    $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
+    $("sw-add").onclick = () => { read(); sow.lines.push({ id: `new${Date.now()}`, name: "", description: "", type: "cost", estimate: 0, actual: null, ...(locked ? { added: true } : {}) }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".ln-name")[sow.lines.length - 1]?.focus(); };
     body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; auto.kick(true); }; });
     $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; auto.kick(true); };
     body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; auto.kick(true); }; });

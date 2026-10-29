@@ -194,10 +194,14 @@ export default async (req) => {
     const stranded = sow.lines.filter((l) => !kept.has(l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id));
     if (stranded.length) return fail(`There are receipts against ${stranded.map((l) => `"${l.name}"`).join(", ")}. Move or remove them on the Receipts screen before deleting the line.`, 409);
     if (isLocked(sow)) {
-      // After approval the estimates are what RBH agreed to: names, types, amounts and the list of lines stay,
-      // and only descriptions and the actuals (the invoice) change until it is unlocked.
-      const same = lines.length === sow.lines.length && lines.every((l, i) => l.id === sow.lines[i].id && l.name === sow.lines[i].name && l.type === sow.lines[i].type && l.estimate === sow.lines[i].estimate);
+      // After approval the estimates are what RBH agreed to: those lines' names, types and amounts stay, and only
+      // descriptions and the actuals (the invoice) change until it is unlocked. A new line can still be added (Andrew
+      // 29 Oct 2026): it has no agreed amount, so its estimate is nil and it shows only on the invoice.
+      const agreed = sow.lines.filter((l) => !l.added), agreedIds = new Set(agreed.map((l) => l.id));
+      const kept = lines.filter((l) => agreedIds.has(l.id));
+      const same = kept.length === agreed.length && kept.every((l, i) => l.id === agreed[i].id && l.name === agreed[i].name && l.type === agreed[i].type && l.estimate === agreed[i].estimate);
       if (!same) return fail("This was sent to RBH, so the amounts are locked. Click Edit amounts and type EDIT if RBH has agreed to a change.", 409);
+      for (const l of lines) if (!agreedIds.has(l.id)) { l.added = true; l.estimate = 0; }
     }
     const next = {
       ...sow,
