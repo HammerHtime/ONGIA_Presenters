@@ -38,14 +38,20 @@ const view = async (event, raw) => {
   };
 };
 
+// One choice per kind of RBH event, the latest of each (Andrew 29 Oct 2026: "all the CFAOC and ITP events will be the same,
+// so I just need one of those options. Not a running list").
+export const sowFamily = (e) => (/organi[sz]ed crime|cfaoc/i.test(`${e.title} ${e.invoicePrefix ?? ""}`) ? "cfaoc"
+  : /\bitp\b/i.test(`${e.title} ${e.invoicePrefix ?? ""}`) ? "itp" : "other");
 async function copyChoices(event) {
-  const out = [];
+  const latest = new Map();
   for (const e of (await listEvents()) ?? []) {
     if (e.id === event.id || e.kind !== "rbh") continue;
+    const k = sowFamily(e), had = latest.get(k);
+    if (had && String(had.dayOne ?? "") >= String(e.dayOne ?? "")) continue;
     const s = await getSow(e.id);
-    if (s) out.push({ id: e.id, title: e.title, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
+    if (s) latest.set(k, { id: e.id, family: k, title: e.title, dayOne: e.dayOne, year: String(e.dayOne ?? "").slice(0, 4), total: totals(s, "estimate").subtotal });
   }
-  return out;
+  return ["cfaoc", "itp", "other"].filter((k) => latest.has(k)).map((k) => { const { dayOne, ...c } = latest.get(k); return c; });
 }
 
 async function nextInvoiceNumber(event) {
