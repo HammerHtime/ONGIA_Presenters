@@ -54,7 +54,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const band = await p.locator(".evband").innerText();
   ok(`${tag}: the navy band carries the lead, with when they last signed in`, /Lead: Raj Jaswal/.test(band) && /(last signed in|never signed in)/.test(band), band.slice(0, 300));
   const tiles = await p.locator(".etile").allInnerTexts();
-  ok(`${tag}: five tiles: agreements, final materials, hotel, Wix registrations, the next date`, tiles.length === 5 && /0\s*\/\s*\d+\s*Agreements signed/.test(tiles[0]) && /Final materials/.test(tiles[1]) && /Hotel/.test(tiles[2]) && /Wix registrations/.test(tiles[3]), tiles.join(" | "));
+  ok(`${tag}: six tiles: agreements, final materials, hotel, room seats, Wix registrations, the next date`, tiles.length === 6 && /0\s*\/\s*\d+\s*Agreements signed/.test(tiles[0]) && /Final materials/.test(tiles[1]) && /Hotel/.test(tiles[2]) && /Room seats/.test(tiles[3]) && /Wix registrations/.test(tiles[4]), tiles.join(" | "));
   ok(`${tag}: the bar has the home page's buttons here too`, (await p.locator(".bar #theyear").count()) === 1 && (await p.locator(".bar #newevent").count()) === 1 && (await p.locator("#root > .crumbs #back").count()) === 1);
   ok(`${tag}: the People tab carries a count of what needs you there`, /People\s*\d+/.test((await tabs(p))[1]), (await tabs(p))[1]);
   ok(`${tag}: the presenters are not on the Overview`, !(await p.locator('details[data-fold="sec-presenters"]').isVisible()));
