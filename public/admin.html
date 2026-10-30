@@ -1507,7 +1507,7 @@
   .rpinfo b{font-size:15px}.rpinfo .porg{margin-left:6px;font-size:13px}.rpinfo small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
   .rpstate{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-top:4px}.rpstate.live{color:var(--rbh)}.rpstate.final{color:var(--navy)}.rpstate.wait{color:var(--wait)}
   .rpstate .spin,.rpchat .spin{width:12px;height:12px}
-  .rpfiled{display:block;font-size:12px;color:var(--done);margin-top:3px}.rpfiled a{color:inherit}.rpfiled.bad{color:var(--late)}
+  .rpfiled{display:block;font-size:12px;color:var(--done);margin-top:3px}.rpfiled a{color:inherit}.rpfiled.no{color:var(--late)}
   .rpacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
   .rpbody{grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr)}
   .rppages{display:flex;flex-direction:column;align-items:center;gap:14px;place-items:initial}
@@ -5883,8 +5883,8 @@ function renderReports(ev, S) {
     return `<div class="rprow${v ? "" : " none"}"><span class="pdf" aria-hidden="true">PDF</span><div class="rpinfo"><b>${esc(r.name.en)}</b><span class="porg">${esc(r.name.fr)}</span>
         <small>${v ? `Built on ${v.answered}${v.invited ? ` of ${v.invited}` : ""} surveys · ${esc(rpWhen(v.at))} ${esc(RP_WHY[v.reason] ?? "")} · version ${v.n}${r.requests.length ? ` · ${r.requests.length} change${r.requests.length === 1 ? "" : "s"} you asked for` : ""}` : S.half ? "Ready to make." : S.invited ? `Made automatically the night half the surveys are back (${S.answered} of ${S.invited} so far), or now.` : "Make it whenever you like."}</small>
         ${state}${filed ? `<span class="rpfiled">✓ In OneDrive: Survey / <a href="${esc(r.filed.en.url)}" target="_blank" rel="noopener">${esc(r.name.en)}.pdf</a> · <a href="${esc(r.filed.fr.url)}" target="_blank" rel="noopener">${esc(r.name.fr)}.pdf</a></span>`
-          : r.filed && (r.filed.en?.skipped || r.filed.en?.error) ? `<span class="rpfiled bad">Not in OneDrive: ${esc(r.filed.en.skipped || r.filed.en.error)}</span>` : ""}
-        ${r.error && !r.building ? `<span class="rpfiled bad">The last try didn't work: ${esc(r.error)}</span>` : ""}</div>
+          : r.filed && (r.filed.en?.skipped || r.filed.en?.error) ? `<span class="rpfiled no">Not in OneDrive: ${esc(r.filed.en.skipped || r.filed.en.error)}</span>` : ""}
+        ${r.error && !r.building ? `<span class="rpfiled no">The last try didn't work: ${esc(r.error)}</span>` : ""}</div>
       <div class="rpacts">${v ? `<button class="mini" data-rpopen="${kind}|en">English</button><button class="mini" data-rpopen="${kind}|fr">Français</button>` : ""}
         ${!r.building && (!v || r.newSince) ? `<button class="mini gold" data-rpbuild="${kind}">${v ? "Make it again now" : "Make it now"}</button>` : ""}
         ${v && !r.building ? `<button class="linkish" data-rpfinal="${kind}|${r.final ? "0" : "1"}">${r.final ? "Resume nightly updates" : "Mark as final"}</button>` : ""}</div></div>`;
@@ -5915,7 +5915,7 @@ async function drawPdfPages(host, blob) {
 }
 /** The report on the left, Claude on the right: say what to change; it's rebuilt, filed again and shown. */
 function reportViewer(ev, kind, lang) {
-  const dlg = document.createElement("dialog"); dlg.className = "designdlg rpdlg"; document.body.append(dlg);
+  const dlg = document.createElement("dialog"); dlg.className = "designdlg repdlg"; document.body.append(dlg);
   let S = null, L = lang, V = null, wait = null, standing = { exec: [], info: [] };
   const q = `/reports?event=${encodeURIComponent(ev.id)}&kind=${kind}`;
   const pdfUrl = () => `/api${q}&lang=${L}&pdf=1${V ? `&v=${V}` : ""}`;
@@ -5926,7 +5926,8 @@ function reportViewer(ev, kind, lang) {
       const res = await apiFetch(pdfUrl(), { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The report could not be opened.");
       const blob = await res.blob();
-      dlg.querySelector("#rp-dl").onclick = () => saveBlob(blob, `${ev.title} - ${S.reports[kind].name[L]}.pdf`);
+      // Made inside the dialog: behind an open dialog the page doesn't take clicks, and the file would lose its name.
+      dlg.querySelector("#rp-dl").onclick = () => { const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${ev.title} - ${S.reports[kind].name[L]}.pdf` }); dlg.append(a); a.click(); setTimeout(() => a.remove(), 1000); };
       await drawPdfPages(host, blob);
     } catch (x) { host.innerHTML = `<p class="bad">${esc(x.message)}</p>`; }
   };

@@ -22,7 +22,7 @@ for (const e of [ev, plain]) {
   for (const [i, n] of [5, 5, 4, 5].entries())
     await fetch(`${S}/api/survey?t=${set.survey.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", lang: i === 1 ? "fr" : "en",
       about: { agency: "TPS", province: "QC", years: i, before: 0, again: 0, heard: 1 }, sessions: { sa: { ...stars(n), rebook: 0, ...(i === 0 ? { comment: "Both field tours closed the loop for me." } : {}) } },
-      overall: { quality: n, pace: 1, confidence: n, variety: 4, practical: n, venue: 5, nps: 9, topics: "Court testimony" } }) });
+      overall: { quality: n, pace: 1, confidence: n, variety: 4, practical: n, venue: 5, av: 4, registration: 5, food: 3, length: 1, nps: 9, topics: "Court testimony" } }) });
 }
 // What Claude writes (the stand-in on 8799 answers every request with this; each report reads the parts it needs).
 await fetch("http://127.0.0.1:8799/__set", { method: "POST", body: JSON.stringify({ reply: {
@@ -31,7 +31,8 @@ await fetch("http://127.0.0.1:8799/__set", { method: "POST", body: JSON.stringif
   tagline: "A strong result.", lockIn: [{ head: "Field visits.", text: "Keep them." }], buildNext: [], quote: { commentId: 1, about: "Field visits" }, wantNext: ["Court testimony"],
   reply: "Added a section on the Akwesasne visit." } }) });
 
-const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+// A UTF-8 setting, as any Mac or iPad has: without one the browser saves "Sommaire exécutif.pdf" as "download".
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, env: { ...process.env, LANG: "C.UTF-8", LC_ALL: "C.UTF-8" } });
 const open = async (id, w, h) => {
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, acceptDownloads: true });
   const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
@@ -56,7 +57,7 @@ await card.screenshot({ path: D + "reports-card.png" });
 
 // The viewer: the pages, then a change asked of Claude.
 await card.locator('[data-rpopen="exec|en"]').click();
-const dlg = p.locator("dialog.rpdlg");
+const dlg = p.locator("dialog.repdlg");
 ok("the viewer opens the summary's pages", await until(p, async () => (await dlg.locator("canvas.rppage").count()) >= 1, 20000) && /Executive Summary/.test(await dlg.locator("#rp-title").innerText()));
 await dlg.locator("#rp-text").fill("Add a section on the Akwesasne visit");
 await dlg.locator("#rp-send").click();
@@ -78,9 +79,24 @@ await p.close();
 // On a phone.
 p = await open(ev.id, 390, 844);
 await p.locator('[data-rpopen="exec|en"]').click();
-await until(p, async () => (await p.locator("dialog.rpdlg canvas.rppage").count()) >= 1, 20000);
+await until(p, async () => (await p.locator("dialog.repdlg canvas.rppage").count()) >= 1, 20000);
 await p.screenshot({ path: D + "reports-viewer-phone.png" });
 ok("phone: the viewer fits, the chat is below the pages", (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && await p.locator("#rp-text").count() === 1 && !p.errs.length, p.errs.join(" | "));
+await p.close();
+// Practice events from the Sandbox (Andrew 30 Oct 2026): make them, open the ITP week, its reports are ready to make.
+p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond", canCost: true, owner: true }]);
+p.on("dialog", (d) => d.accept()); const perrs = []; p.on("pageerror", (e) => perrs.push(String(e)));
+await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "sandbox" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+if (await p.locator("dialog.walk[open], dialog.sbxq[open]").count()) await p.keyboard.press("Escape");
+await p.locator("#practicebtn").click(); await p.waitForTimeout(800);
+await p.locator("#pr-make").click();
+ok("Sandbox › Practice events makes the ITP week and the symposium", await until(p, async () => (await p.locator("[data-popen]").count()) === 2));
+await p.locator("[data-popen]", { hasText: "ITP Week" }).click(); await p.waitForTimeout(1800);
+ok("the ITP week is marked Practice", /Practice/.test(await p.locator(".bhead h2, .evband h2").first().innerText()));
+await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: (await api("/api/sandbox?practice=1")).events.find((e) => e.kind === "rbh").id, tab: "survey" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
+ok("its Survey tab shows 12 of 12 surveys back, ready for the reports", /12 of 12 surveys back \(100%\)/.test(await p.locator("#reportsfold").innerText()), await p.locator("#reportsfold").innerText());
+ok("no errors in the Sandbox", !perrs.length, perrs.join(" | "));
 await p.close();
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -166,14 +166,14 @@ const L = {
     context: "Response Context", scoring: "Detailed Scoring", metric: "Metric", mean: "Mean / 5", top2: "Top-2 Box", top1: "Top-1 Box", note: "Note", ranking: "Session Component Ranking",
     rankIntro: "Sessions are ranked by Top-1 Box, the share of attendees who gave the maximum rating. Top-2 Box is included for context.", component: "Session", strengths: "Key Strengths",
     verbatim: "Verbatim Highlights", areas: "Areas to Watch", topics: "Requested Future Topics", recs: "Recommendations", page: "Page", of: "of",
-    top2Def: "Top-2 Box is the share who rated the item 4 or 5 out of 5.", answered: (a, i) => `${a} of ${i} surveys returned`, snapshot: "EXECUTIVE SNAPSHOT", results: "POST-TRAINING RESULTS",
+    top2Def: "Top-2 Box is the share who rated the item 4 or 5 out of 5.", answered: (a, i) => (i ? `${a} of ${i} surveys returned` : `${a} surveys returned`), snapshot: "EXECUTIVE SNAPSHOT", results: "POST-TRAINING RESULTS",
     rankHead: "SESSION RANKING BY TOP RATING", rankSub: "Share of attendees giving each session the maximum rating (Top-1 Box).", lock: "LOCK IN", build: "BUILD NEXT", want: "ATTENDEES WANT NEXT", wantSub: "FROM OPEN-ENDED FEEDBACK",
     nps: "Net Promoter Score", prepShort: (d) => `Prepared by ONGIA · ${d}`, title: "Executive Summary" },
   fr: { prepared: "Préparé pour", for: "Rothmans, Benson & Hedges (RBH) et la direction de l'ONGIA", by: "Préparé par", byWho: "ONGIA | Andrew Hammond, président", date: "Date", glance: "En un coup d'œil",
     context: "Contexte des réponses", scoring: "Résultats détaillés", metric: "Indicateur", mean: "Moyenne / 5", top2: "Top-2", top1: "Top-1", note: "Remarque", ranking: "Classement des séances",
     rankIntro: "Les séances sont classées selon le Top-1, la part des participants ayant donné la note maximale. Le Top-2 est indiqué à titre de contexte.", component: "Séance", strengths: "Points forts",
     verbatim: "Commentaires des participants", areas: "Points à surveiller", topics: "Sujets demandés pour l'avenir", recs: "Recommandations", page: "Page", of: "de",
-    top2Def: "Le Top-2 est la part des répondants ayant donné une note de 4 ou 5 sur 5.", answered: (a, i) => `${a} sondages reçus sur ${i}`, snapshot: "APERÇU EXÉCUTIF", results: "RÉSULTATS APRÈS LA FORMATION",
+    top2Def: "Le Top-2 est la part des répondants ayant donné une note de 4 ou 5 sur 5.", answered: (a, i) => (i ? `${a} sondages reçus sur ${i}` : `${a} sondages reçus`), snapshot: "APERÇU EXÉCUTIF", results: "RÉSULTATS APRÈS LA FORMATION",
     rankHead: "CLASSEMENT DES SÉANCES SELON LA NOTE MAXIMALE", rankSub: "Part des participants ayant donné la note maximale à chaque séance (Top-1).", lock: "À CONSERVER", build: "À DÉVELOPPER", want: "LES PARTICIPANTS SOUHAITENT", wantSub: "SELON LES COMMENTAIRES",
     nps: "Indice de recommandation (NPS)", prepShort: (d) => `Préparé par l'ONGIA · ${d}`, title: "Sommaire exécutif" },
 };
@@ -230,7 +230,7 @@ export async function execPdf(content, facts, lang, { date }) {
     doc.y = y + 68; doc.x = X;
   }
   h2(T.context);
-  bullets([T.answered(facts.answered, facts.invited || facts.answered) + (facts.invited ? ` (${facts.rate}%).` : "."), ...(content.context ?? [])]);
+  bullets([T.answered(facts.answered, facts.invited) + (facts.invited ? ` (${facts.rate}%).` : "."), ...(content.context ?? [])]);
   // Scoring table: the figures from the survey, the note from Claude.
   const table = (cols, rows) => {
     const x0 = X, widths = cols.map((c) => c.w * W);
