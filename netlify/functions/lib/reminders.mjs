@@ -58,7 +58,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
 
   const plan = [];
   const digestSections = [];
-  for (const event of await listEvents()) {
+  for (const event of (await listEvents()).filter((e) => !e.practice)) {
     if (onlyEvent && event.id !== onlyEvent) continue;
     if (event.lastDay < today) continue; // past events are history, not work
     const ev = describeEvent(event);

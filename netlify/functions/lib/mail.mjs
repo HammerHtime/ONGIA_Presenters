@@ -28,7 +28,16 @@ export function mailTransport() {
   return null;
 }
 
+// Practice events' made-up people (Sandbox) have addresses no mail can reach; never try to send to them.
+const PRACTICE = /@practice\.invalid\b/i;
+const realOnly = (v) => (Array.isArray(v) ? v : String(v ?? "").split(/[,;]/)).map((a) => String(a).trim()).filter((a) => a && !PRACTICE.test(a));
+
 export async function sendMail(message) {
+  if (PRACTICE.test(JSON.stringify([message.to, message.cc ?? ""]))) {
+    const to = realOnly(message.to);
+    if (!to.length) return { skipped: true, reason: "A practice event's made-up address." };
+    message = { ...message, to, cc: realOnly(message.cc) };
+  }
   const transport = mailTransport();
   if (!transport) return { skipped: true, reason: "No email transport is configured (MS_MAIL_FROM or RESEND_API_KEY)." };
   return transport.kind === "microsoft" ? sendViaGraph(message) : sendViaResend(message);

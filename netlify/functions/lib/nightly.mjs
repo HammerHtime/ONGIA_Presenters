@@ -7,6 +7,7 @@ import { pacer } from "./bulk.mjs";
 import { runInbox } from "./inbox.mjs";
 import { watchBackup } from "./backup.mjs";
 import { settle, everyone } from "./agencies.mjs";
+import { runReports } from "./reports.mjs";
 
 /** The site's own address, for links in emails and for starting background runs. */
 export const siteOrigin = (fallback = "") => process.env.APP_URL || process.env.URL || fallback;
@@ -39,6 +40,11 @@ export async function runNight({ origin = siteOrigin(), deadline = null, sendsOn
     await putMeta("agencies:run", { state: ag.error ? "failed" : "done", at: new Date().toISOString(), ...(ag.error ? { why: ag.error } : ag) }).catch(() => {});
     console.log(`agencies: ${JSON.stringify(out.agencies)}`);
 
+    // RBH survey reports: made at half the surveys back, then again each night more come in (Andrew 30 Oct 2026).
+    const rep = await runReports().catch((e) => [{ error: e.message }]);
+    out.reports = { made: rep.filter((x) => !x.error).length, errors: rep.filter((x) => x.error).length };
+    for (const x of rep) console.log(`report ${x.kind ?? ""} for ${x.event ?? "?"}: ${x.error ?? `${x.reason}, ${x.answered} of ${x.invited} answered`}`);
+
     const rem = await runReminders({ origin }).catch((e) => ({ error: e.message, results: [] }));
     out.reminders = rem.error ? { error: rem.error } : { planned: rem.count, sent: rem.results.filter((r) => r.sent).length, failed: rem.results.filter((r) => r.error).length };
     console.log(`reminders: ${JSON.stringify(out.reminders)}`);
@@ -51,12 +57,14 @@ export async function runNight({ origin = siteOrigin(), deadline = null, sendsOn
     console.log(`inbox: ${JSON.stringify(out.inbox)}`);
   }
 
-  const hotel = await runHotelReminders(await listEvents(), { deadline, pace }).catch((e) => [{ error: e.message }]);
+  // Practice events (Sandbox) are never written to.
+  const real = (await listEvents()).filter((e) => !e.practice);
+  const hotel = await runHotelReminders(real, { deadline, pace }).catch((e) => [{ error: e.message }]);
   for (const r of hotel) console.log(`hotel ${r.days ?? "?"}-day for ${r.title ?? r.event}: ${r.error ?? `${r.sent} sent, ${r.failed ?? 0} failed, ${r.left ?? 0} left`}`);
 
   // A letter with a problem in it is held back and the reason logged, rather
   // than sent with a blank or a note left in.
-  const letters = await runLetterRounds(await listEvents(), { deadline, pace }).catch((e) => [{ error: e.message }]);
+  const letters = await runLetterRounds(real, { deadline, pace }).catch((e) => [{ error: e.message }]);
   for (const r of letters.filter((x) => !x.skipped || x.blocked)) {
     console.log(`${r.kind ?? "letter"} for ${r.title ?? r.event}: ${r.error ?? (r.blocked ? `held back — ${r.blocked[0]}` : `${r.sent} sent, ${r.failed ?? 0} failed, ${r.left ?? 0} left`)}`);
   }

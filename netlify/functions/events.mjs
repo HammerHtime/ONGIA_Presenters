@@ -366,7 +366,7 @@ async function deleteEvent(id, canCost = true) {
   await deleteSurveyData(id);
   for (const f of event.welcomeFiles ?? []) await deleteKey(`wfile:${id}:${f.id}`);
   await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`), deleteKey(`meta:budget:${id}`),
-    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
+    deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`), deleteKey(`meta:reports:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
   return json({ ok: true, removedPresenters: people.length, removedVolunteers: volunteers.length });

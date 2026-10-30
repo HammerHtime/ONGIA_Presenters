@@ -363,7 +363,7 @@ export async function runInbox({ get = null, client = null, deadline = null, now
     .reverse()                                   // oldest first, so a reply follows what it answers
     .slice(0, MAX_MESSAGES);
 
-  const upcoming = (await listEvents()).filter((e) => String(e.lastDay || e.dayOne) >= daysAgo(30, now).slice(0, 10));
+  const upcoming = (await listEvents()).filter((e) => !e.practice && String(e.lastDay || e.dayOne) >= daysAgo(30, now).slice(0, 10));
   const ids = new Set(upcoming.map((e) => e.id));
 
   const filed = new Map();   // event id -> new items
