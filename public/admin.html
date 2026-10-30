@@ -415,7 +415,8 @@
   .sbx .mp th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   .sbx .mp td{position:relative}.sbx .mp td.d{font-weight:700;white-space:nowrap}.sbx .mp td.d span{display:block;font-weight:400;font-size:12px;color:var(--muted)}
   .sbx .mp td.t{text-align:right;font-weight:700;white-space:nowrap}
-  .sbx .m{display:block;width:104px;min-height:54px;border-radius:10px;padding:5px 6px;text-align:center;line-height:1.25;cursor:pointer;font:600 13px var(--fb)}
+  .sbx .mp{width:100%}.sbx .mp td:not(.d):not(.t){min-width:74px}
+  .sbx .m{display:block;width:100%;min-width:72px;min-height:54px;border-radius:10px;padding:5px 6px;text-align:center;line-height:1.25;cursor:pointer;font:600 13px var(--fb)}
   .sbx .m b{display:block;font-size:11.5px;font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase}
   .sbx .m.team{background:var(--purple-bg,#efe9f8);color:#5b3f8c;border:1.5px solid #cbb8ea}.sbx .m.all{background:var(--rbh-bg);color:var(--rbh);border:1.5px solid #a9d3cd}
   .sbx .m.off{background:#fff;color:var(--muted);border:1.5px dashed var(--border)}.sbx .m.flat{background:var(--gold-pale);color:#7a5b10;border:1.5px solid #e6cf9e;cursor:default}
@@ -425,6 +426,10 @@
   .sbx tr.pre td.d{color:var(--muted)}
   .sbx .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:8px}.sbx .legend .m{display:inline-block;width:auto;min-height:0;padding:1px 9px;cursor:default}
   .sbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:6px}.sbl td{padding:3px 2px;border-top:1px solid var(--sunk)}
+  /* The boxes share the width they're given rather than pushing out of their card (Andrew 30 Oct 2026). */
+  .sbl .sbin{width:100%!important;min-width:52px;box-sizing:border-box}.sbl td:last-child{width:34px}
+  .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
+  .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
   .sbxq{max-width:640px;width:calc(100% - 24px)}
   /* The event budget on the Money tab: the same page, a heading that fits under the event's own. */
@@ -8664,7 +8669,8 @@ function sbxDraw() {
 
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
-  const pays = [["ongia", "ONGIA's bill"], ["reimbursed", "They pay, we reimburse"], ["agency", "Their agency pays"]];
+  // Short enough that all three fit beside the nights (Andrew 30 Oct 2026); the title says each in full.
+  const pays = [["ongia", "ONGIA's bill", "ONGIA pays the hotel directly"], ["reimbursed", "Reimbursed", "They pay the hotel and ONGIA pays them back"], ["agency", "Agency pays", "Their own agency pays; not in the budget"]];
   const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
   // On a phone the names stay put on the left and one night fills the rest; a swipe brings the next (Andrew 30 Oct 2026).
   const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th><th class="pc"><button class="plus" data-more="before" title="Add a night before">+</button><span class="pl">Add a night before</span></th>${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}<th class="pc"><button class="plus" data-more="after" title="Add a night after">+</button><span class="pl">Add a night after</span></th><th class="nc">Nights</th><th>Who pays for the room</th><th></th></tr>`;
@@ -8672,13 +8678,19 @@ function sbxDraw() {
   const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td class="pc"></td>
       ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td>
       <td class="n nc">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
-      <td><span class="pbseg sm">${pays.map(([k, l]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}">${l}</button>`).join("")}</span></td>
+      <td><span class="pbseg sm">${pays.map(([k, l, t]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}" title="${t}">${l}</button>`).join("")}</span></td>
       <td>${p.key ? "" : `<button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button>`}</td></tr>`;
   const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
   const paysN = (k) => B.people.filter((p) => p.pays === k).reduce((n, p) => n + p.nights.length, 0);
   const nightsN = (n) => `${n} night${n === 1 ? "" : "s"}`;
   const grid = `<div class="scroll ngwrap"><table class="ng"><thead>${head}</thead><tbody>
-    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></span></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g);
+      // Board: pick from the board roster (Andrew 30 Oct 2026: "how do I add the board members to the hotel block").
+      const free = g === "board" ? (ROSTER ?? []).filter((m) => m.name && !B.people.some((p) => sameish(p.name, m.name))) : [];
+      // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
+      const add = free.length ? `${free.length > 1 ? `<button class="mini addall" data-paddall>Add all board members (${free.length})</button>` : ""}<select class="paddsel" data-paddboard aria-label="Add a board member"><option value="">+ Add a board member…</option>${free.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("")}<option value="__other">Someone else (type the name)</option></select>`
+        : `<button class="mini ghost" data-padd="${g}">+ Add</button>`;
+      return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} ${add}</span></td></tr>${ps.map(prow).join("")}`; }).join("")}
     <tr class="tot"><td class="nm">Rooms that night</td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td><td class="n nc">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
     <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${nightsN(C.blockNights)}</b></span><span>ONGIA's bill <b>${nightsN(paysN("ongia"))}</b></span>
       <span>Reimbursed <b>${nightsN(paysN("reimbursed"))} · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${nightsN(paysN("agency"))}</b> (not in the budget)</span></div>`;
@@ -8744,7 +8756,19 @@ function sbxWire() {
   SBX_HOST.querySelectorAll("[data-night]").forEach((b) => { b.onclick = () => { const [id, d] = b.dataset.night.split("|"), p = B.people.find((x) => x.id === id);
     if (p.nights.includes(d)) p.nights.splice(p.nights.indexOf(d), 1); else p.nights.push(d); p.nights.sort(); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-pays]").forEach((b) => { b.onclick = () => { const [id, k] = b.dataset.pays.split("|"); B.people.find((x) => x.id === id).pays = k; redraw(); }; });
-  SBX_HOST.querySelectorAll("[data-pdel]").forEach((b) => { b.onclick = () => { B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-pdel]").forEach((b) => { b.onclick = () => { const gone = B.people.find((p) => p.id === b.dataset.pdel);
+    // A board member taken off stays off, even though they're still on the event's board.
+    if (gone?.group === "board") B.boardOff = [...new Set([...(B.boardOff ?? []), gone.name])];
+    B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-paddall]").forEach((b) => { b.onclick = () => {
+    const free = (ROSTER ?? []).filter((m) => m.name && !B.people.some((p) => sameish(p.name, m.name)));
+    B.boardOff = [];
+    free.forEach((m, i) => B.people.push({ id: `p${Date.now().toString(36)}${i}`, name: m.name, group: "board", pays: "reimbursed", nights: boardNights(B.event) }));
+    toast(`${free.length} board member${free.length === 1 ? "" : "s"} added, each from three nights before day one. Tap a night to change it.`); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-paddboard]").forEach((el) => { el.onchange = () => { const v = el.value; if (!v) return;
+    const name = v === "__other" ? `Board member ${B.people.filter((p) => p.group === "board").length + 1}` : v;
+    B.boardOff = (B.boardOff ?? []).filter((n) => !sameish(n, name));
+    B.people.push({ id: `p${Date.now().toString(36)}`, name, group: "board", pays: "reimbursed", nights: boardNights(B.event) }); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
     B.people.push({ id: `p${Date.now().toString(36)}`, name: `${{ board: "Board member", presenter: "Presenter", volunteer: "Volunteer", other: "Guest" }[g]} ${n}`, group: g, pays: g === "board" ? "reimbursed" : "ongia", nights: [] }); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
@@ -8824,11 +8848,10 @@ function budgetSeed(ev, L) {
       .filter((d, i, a) => d.iso && a.findIndex((x) => x.iso === d.iso && x.what === d.what) === i).sort((a, b) => a.iso.localeCompare(b.iso)).map((d, i) => ({ id: `t${i}`, ...d })),
   };
   budgetSync(B, L);
-  // The board on the event, planned in until they are on the rooming list.
-  const first = sbxDay(E.dayOne, -3), nights = []; for (let d = first; d <= E.lastDay; d = sbxDay(d, 1)) nights.push(d);
-  for (const m of L.board) if (!B.people.some((p) => sameish(p.name, m.name))) B.people.push({ id: `b${B.people.length}`, name: m.name, group: "board", pays: "reimbursed", nights: [...nights] });
   return B;
 }
+/** A board member's planned nights: from three nights before day one (Andrew: "board arriving 3 days prior") to the last day. */
+const boardNights = (E) => { const out = []; for (let d = sbxDay(E.dayOne, -3); d <= E.lastDay; d = sbxDay(d, 1)) out.push(d); return out; };
 const sameish = (a, b) => String(a ?? "").toLowerCase().replace(/[^a-z]/g, "") === String(b ?? "").toLowerCase().replace(/[^a-z]/g, "");
 /** Bring the rooming list back in: its people and their nights. A planned row with the same name becomes theirs. */
 function budgetSync(B, L) {
@@ -8841,6 +8864,10 @@ function budgetSync(B, L) {
   // Off the rooming list now: no longer a room to count.
   B.people = B.people.filter((p) => !p.key || keys.has(p.key));
   B.event = { ...B.event, ...L.event };
+  // The board on the event, planned in until they are on the rooming list; one added to the event later comes in too,
+  // unless they were taken off the budget's list on purpose.
+  for (const m of L.board ?? []) if (!B.people.some((p) => sameish(p.name, m.name)) && !(B.boardOff ?? []).some((n) => sameish(n, m.name)))
+    B.people.push({ id: `b${Date.now().toString(36)}${B.people.length}`, name: m.name, group: "board", pays: "reimbursed", nights: boardNights(B.event) });
   if (L.registered && !B.reg.inPerson.sold && !B.reg.inPerson.fromWix?.length) B.reg.inPerson.sold = L.registered;
   applyWix(B, L.wix);
   // The grid shows every night someone on the rooming list has.
