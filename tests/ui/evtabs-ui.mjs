@@ -43,7 +43,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   p.off("request", seeList);
   ok(`${tag}: opening the event loads only that event, not the list of every event`, lists.length === 0, lists.join(" "));
   const names = (await tabs(p)).map((t) => t.replace(/\s*\d+$/, "").trim());
-  ok(`${tag}: the event has its tabs, in order, and no Money tab on an ordinary event`, names.join(",") === "Overview,People,Program,Logistics,Communications,Survey,Settings", names.join(","));
+  // ONGIA's own events have a Money tab for the president and the VP: the event budget (30 Oct 2026).
+  ok(`${tag}: the event has its tabs, in order, the Money tab for the president (the event budget)`, names.join(",") === "Overview,People,Program,Logistics,Money· president & VP,Communications,Survey,Settings", names.join(","));
   ok(`${tag}: it opens on Overview`, (await shown(p)) === "overview");
   const ov = await p.locator('.etabp[data-panel="overview"]').innerText();
   const side = await p.locator("#sidepanels").innerText();

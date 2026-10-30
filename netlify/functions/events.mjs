@@ -345,7 +345,7 @@ async function deleteEvent(id, canCost = true) {
   // So do the survey's answers and the would-be presenters' names (the summary PDF and spreadsheets are made from them).
   await deleteSurveyData(id);
   for (const f of event.welcomeFiles ?? []) await deleteKey(`wfile:${id}:${f.id}`);
-  await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`),
+  await Promise.all([deleteKey(`contract:${id}`), deleteKey(`contractread:${id}`), deleteKey(`attendees:${id}`), deleteKey(`meta:budget:${id}`),
     deleteKey(`agenda:${id}`), deleteKey(`agendaread:${id}`), deleteKey(`inbox:${id}`), deleteKey(`sheet:${id}`), deleteKey(`sow:${id}`)]);
   await deleteKey(`event:${id}`);
   // Filed PDFs in SharePoint are deliberately left alone — they are the record.
