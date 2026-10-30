@@ -1498,8 +1498,10 @@
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
   .shchip.warn{background:var(--wait-bg);color:var(--wait)}.tag.practice{background:var(--wait-bg);color:var(--wait)}.practlist{display:grid;gap:8px;margin-bottom:12px}
   /* Survey reports on RBH events (Andrew 30 Oct 2026) */
+  /* The surveys back fill green, light at the start and deepening toward all of them back (Andrew 30 Oct 2026): the gradient spans the
+     whole track, so a fuller bar shows more of the deep green. */
   .rpprog{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13.5px;background:var(--gold-pale);border-radius:10px;padding:9px 12px}
-  .rpbar{position:relative;flex:1 1 160px;height:8px;border-radius:99px;background:#fff;overflow:visible}.rpbar i{display:block;height:100%;border-radius:99px;background:var(--gold)}
+  .rpbar{position:relative;flex:1 1 160px;height:8px;border-radius:99px;background:#fff;overflow:visible}.rpbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#b9dcc4,#4f9a6f 55%,var(--done)) left/var(--rpfull,100%) 100% no-repeat}
   .rpbar em{position:absolute;top:-3px;width:2px;height:14px;background:var(--navy);opacity:.5}
   .rplist{display:grid;gap:8px;margin-top:10px}
   .rprow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}
@@ -5892,7 +5894,7 @@ function renderReports(ev, S) {
         ${!r.building && (!v || r.newSince) ? `<button class="mini gold" data-rpbuild="${kind}">${v ? "Make it again now" : "Make it now"}</button>` : ""}
         ${v && !r.building ? `<button class="linkish" data-rpfinal="${kind}|${r.final ? "0" : "1"}">${r.final ? "Resume nightly updates" : "Mark as final"}</button>` : ""}</div></div>`;
   };
-  box.innerHTML = `<div class="rpprog">${S.invited ? `<b>${S.answered} of ${S.invited} surveys back (${pct}%).</b><span class="rpbar"><i style="width:${pct}%"></i><em style="left:50%" title="Half"></em></span>
+  box.innerHTML = `<div class="rpprog">${S.invited ? `<b>${S.answered} of ${S.invited} surveys back (${pct}%).</b><span class="rpbar"><i style="width:${pct}%;--rpfull:${pct ? Math.round(10000 / pct) : 100}%"></i><em style="left:50%" title="Half"></em></span>
       <span>${S.half ? "Half are back." : "The reports are made the night half are back."}</span>` : `<b>${S.answered} survey${S.answered === 1 ? "" : "s"} back.</b><span>The survey hasn't gone out from the desk yet, so the reports are made when you ask.</span>`}</div>
     ${!S.folder ? `<div class="note" style="margin:8px 0 0">This event has no OneDrive folder set, so the reports stay here. Set the folder on the event to file them.</div>` : ""}
     <div class="rplist">${Object.keys(S.reports).map(row).join("")}</div>`;

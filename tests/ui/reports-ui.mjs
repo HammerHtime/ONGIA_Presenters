@@ -96,6 +96,7 @@ await p.locator("[data-popen]", { hasText: "ITP Week" }).click(); await p.waitFo
 ok("the ITP week is marked Practice", /Practice/.test(await p.locator(".bhead h2, .evband h2").first().innerText()));
 await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: (await api("/api/sandbox?practice=1")).events.find((e) => e.kind === "rbh").id, tab: "survey" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
 ok("its Survey tab shows 12 of 12 surveys back, ready for the reports", /12 of 12 surveys back \(100%\)/.test(await p.locator("#reportsfold").innerText()), await p.locator("#reportsfold").innerText());
+ok("the surveys back fill green, deepening toward all of them back: the full bar ends deep green", await p.evaluate(() => { const i = document.querySelector(".rpbar i"); const bg = getComputedStyle(i).backgroundImage; return /linear-gradient/.test(bg) && /47, 107, 79/.test(bg) && /^(\d+)%$/.test(i.style.getPropertyValue("--rpfull")); }));
 ok("no errors in the Sandbox", !perrs.length, perrs.join(" | "));
 await p.close();
 await b.close();
