@@ -1483,6 +1483,20 @@
   }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
+  /* Certificates, on Who's coming (Andrew 30 Oct 2026) */
+  .dlmenu{position:relative;display:inline-block}.dlmenu>summary{list-style:none;cursor:pointer}.dlmenu>summary::-webkit-details-marker{display:none}
+  .dlpop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:#fff;border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);width:min(300px,86vw);padding:6px;display:grid;gap:2px}
+  .dlpop button{display:block;text-align:left;border:0;background:none;border-radius:8px;padding:9px 10px;font:inherit;font-size:13px;color:var(--ink-mid);cursor:pointer}
+  .dlpop button:hover,.dlpop button:focus-visible{background:var(--gold-pale)}.dlpop b{display:block;font-size:14px;color:var(--ink)}
+  .certgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+  .certh{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}.certn{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px}
+  .certtpls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .certtpl{position:relative;border:1.5px solid var(--border);border-radius:12px;background:#fff;padding:8px;display:grid;gap:2px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+  .certtpl input{position:absolute;opacity:0;pointer-events:none}.certtpl img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+  .certtpl b{color:var(--ink);font-size:13.5px}.certtpl.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,146,42,.2)}
+  .certtpl:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+  .certl .certact{white-space:nowrap;text-align:right}.certl .certact .linkish{margin-left:8px}
+  @media (max-width:760px){.certgrid{grid-template-columns:1fr}.certl .certact{text-align:left}}
   /* Admin › Agencies (Andrew 30 Oct 2026) */
   .nb{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px}
   .nb[hidden]{display:none}
@@ -3891,7 +3905,7 @@ function eventScreen(data) {
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
-      + pv("guests", attendeesCard(ev, guests)))
+      + pv("guests", attendeesCard(ev, guests) + (mayCertifyHere(ev) ? certsCard() : "")))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
@@ -3988,6 +4002,7 @@ function eventScreen(data) {
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
+  if (document.getElementById("certbox")) loadCerts(ev);
   if (document.getElementById("rsbox")) loadResults(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
@@ -5416,6 +5431,80 @@ function agencyDialog(A, a, done) {
   };
   dlg.addEventListener("close", () => dlg.remove());
   dlg.showModal();
+}
+
+/**
+ * Certificates, on Who's coming (Andrew 30 Oct 2026): pick the design, the date (the event's last day unless changed)
+ * and, on the generic design, the course; then anyone's certificate downloads as a PDF to send yourself ("I need the
+ * ability in the backend to download anyones and send it to them outside the system"). For the president, the VP and
+ * the event's lead.
+ */
+const mayCertifyHere = (ev) => !WHO?.email || !!WHO?.canCost || (ev.board ?? []).some((m) => m.lead && String(m.email ?? "").toLowerCase() === String(WHO.email).toLowerCase());
+function certsCard() {
+  return secFold("certs", "Certificates", "Each person's certificate, from your design, ready to download", "", `<div class="card-body" id="certbox"><p class="porg">Loading…</p></div>`, { id: "certsfold", open: false });
+}
+let CERT_CUT = "in";
+async function loadCerts(ev) {
+  const box = document.getElementById("certbox");
+  try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`)); }
+  catch (x) { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }
+}
+async function certFile(url) {
+  const res = await apiFetch(url, { headers: { "x-admin-key": KEY } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The certificate could not be made (${res.status}).`);
+  const named = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
+  return { blob: await res.blob(), name: named ? decodeURIComponent(named[1]) : "certificate.pdf" };
+}
+function renderCerts(ev, C) {
+  const box = document.getElementById("certbox");
+  if (!box) return;
+  const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
+  const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
+  const row = (p) => `<tr data-certkey="${esc(p.key)}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
+      <td>${esc(p.agency || "")}${p.typed && p.typed !== p.agency ? `<span class="psub" title="As typed">${esc(p.typed)}</span>` : ""}</td>
+      <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? "Withdrawn" : `No. ${esc(p.cert.code)}`}</span>` : ""}</td>
+      <td class="certact"><button class="mini" data-certpdf="${esc(p.key)}">Download PDF</button>${p.cert && !p.cert.revoked ? `<button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>` : ""}</td></tr>`;
+  box.innerHTML = `<div class="certgrid">
+      <div><h3 class="certh"><span class="certn">1</span>The design</h3>
+        <div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
+          <img src="${esc(t.thumb)}" alt="" loading="lazy"><b>${esc(t.name)}</b><span>${esc(t.note)}</span></label>`).join("")}</div></div>
+      <div><h3 class="certh"><span class="certn">2</span>What it says</h3>
+        <div class="field"><label for="cert-date">Date issued</label><input type="date" id="cert-date" value="${esc(s.date)}">
+          <p class="hint">Prints as <b>${esc(s.date.split("-").reverse().join("/"))}</b>. ${s.dateSet ? `Changed from the event's last day. <button class="linkish" id="cert-dateback">Use the last day</button>` : "The event's last day; change it here if it should read otherwise."}</p></div>
+        ${tpl?.course ? `<div class="field"><label for="cert-course">Course</label><input id="cert-course" value="${esc(s.course)}" maxlength="200"><p class="hint">Printed under "For their successful completion of the".</p></div>` : ""}
+        <button class="mini" id="cert-preview">Preview a PDF</button></div></div>
+    <h3 class="certh" style="margin-top:18px"><span class="certn">3</span>Everyone's certificate</h3>
+    <div class="filters" style="margin:6px 0 10px"><button class="fchip${CERT_CUT === "in" ? " on" : ""}" data-certcut="in">Checked in <b>${C.counts.checkedIn}</b></button>
+      <button class="fchip${CERT_CUT === "all" ? " on" : ""}" data-certcut="all">Everyone coming <b>${C.counts.coming}</b></button></div>
+    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still download anyone's certificate under Everyone coming.</div>` : ""}
+    ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
+    <p class="hint" style="margin-top:12px">Each certificate gets its own number and QR code the first time it is downloaded, and is kept for good so it always verifies. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
+  const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
+  box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
+  box.querySelector("#cert-date").onchange = (e) => save({ date: e.target.value === C.lastDay ? "" : e.target.value });
+  box.querySelector("#cert-dateback")?.addEventListener("click", () => save({ date: "" }));
+  const course = box.querySelector("#cert-course");
+  if (course) course.onchange = () => save({ course: course.value, date: s.dateSet ? s.date : "" });
+  box.querySelectorAll("[data-certcut]").forEach((b) => b.onclick = () => { CERT_CUT = b.dataset.certcut; renderCerts(ev, C); });
+  box.querySelector("#cert-preview").onclick = async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = "Making the preview…";
+    try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); window.open(URL.createObjectURL(f.blob), "_blank", "noopener"); }
+    catch (x) { toast(x.message); }
+    b.disabled = false; b.textContent = "Preview a PDF";
+  };
+  box.querySelectorAll("[data-certpdf]").forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = "Making it…";
+    try {
+      const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}`);
+      Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
+      loadCerts(ev);
+    } catch (x) { toast(x.message); b.disabled = false; b.textContent = "Download PDF"; }
+  });
+  box.querySelectorAll("[data-certrevoke]").forEach((b) => b.onclick = async () => {
+    const p = C.people.find((x) => x.key === b.dataset.certrevoke);
+    if (!confirm(`Withdraw ${p.name}'s certificate? Its QR code will say it was withdrawn. Do this only for one issued in error.`)) return;
+    try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}&revoke=${encodeURIComponent(p.key)}`, { method: "POST", body: "{}" })); toast("Withdrawn."); } catch (x) { toast(x.message); }
+  });
 }
 
 /**
@@ -7659,7 +7748,9 @@ function attendeesCard(ev, guests) {
         ${counts.total ? `<span class="chipstat"><b>${counts.fromWix}</b>from the website</span>` : ""}
         ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
       </div></div>
-      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>
+      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
+          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, phone, checked in.</span></button>
+          <button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button></div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
       ${bar}
@@ -7781,6 +7872,17 @@ function wireAttendees(ev) {
       list.innerHTML = `<div class="bad">${esc(e.message)}</div>`;
     }
   };
+
+  // The two downloads (Andrew 30 Oct 2026), with each agency under its official name.
+  document.querySelectorAll("[data-glist]").forEach((b) => b.onclick = async () => {
+    b.closest("details").open = false;
+    try {
+      const res = await apiFetch(`/api/certificates?event=${encodeURIComponent(ev.id)}&csv=${b.dataset.glist}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The download failed.");
+      const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
+      Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
+    } catch (x) { toast(x.message); }
+  });
 
   // A spreadsheet goes up as plain text; the desk works out the columns.
   const pick = document.getElementById("g-csv"), file = document.getElementById("g-file");

@@ -45,6 +45,7 @@ const HEADERS = {
   phone: [/^(phone|mobile|cell)(\s*number)?$/i, /^telephone$/i],
   org: [/^(organi[sz]ation|organisation|company|agency|service|employer)$/i],
   status: [/^(rsvp|attendance|attending|status)$/i],
+  checkedIn: [/^checked[\s-]*in$/i, /^check[\s-]*in$/i, /^attended$/i, /^signed[\s-]*in$/i],
 };
 
 export function columnsFrom(header) {
@@ -101,6 +102,8 @@ export function readCsv(raw) {
       phone: at(row, cols.phone),
       organization: at(row, cols.org),
       status: readStatus(at(row, cols.status)),
+      // A sign-in sheet from the door (Andrew 30 Oct 2026: certificates go to the people checked in). Only a column that is there says so.
+      ...(cols.checkedIn !== undefined ? { checkedIn: /^(y|yes|oui|x|✓|true|1|checked in|attended)$/i.test(at(row, cols.checkedIn)) } : {}),
       source: "csv",
     });
   }
