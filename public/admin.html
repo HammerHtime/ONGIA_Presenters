@@ -1214,6 +1214,19 @@
   .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .bacts .mini:disabled{opacity:.5}
   .evtiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:18px}
+  /* The room tile flips over to its arithmetic. */
+  .rflip{perspective:900px;cursor:pointer;min-width:0;border-radius:14px}
+  .rflip-in{display:grid;height:100%;transition:transform .45s;transform-style:preserve-3d}
+  .rflip.on .rflip-in{transform:rotateY(180deg)}
+  /* Both faces share one grid cell, so the tile is as tall as the taller face and nothing on the back is cut off. */
+  .rflip .etile{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .rflip .rback{transform:rotateY(180deg);padding:9px 12px;display:flex;flex-direction:column;gap:0}
+  .rflip:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .rback .l{display:flex;justify-content:space-between;align-items:center;gap:6px;white-space:nowrap;min-width:0}.rback .l span{overflow:hidden;text-overflow:ellipsis}.rback .l{font-weight:700;font-size:13px;margin-bottom:3px}
+  .rback .rb{display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:1.3;color:var(--ink-mid)}.rback .rb b{font-variant-numeric:tabular-nums}
+  .rback .rb.tot{border-top:1px solid var(--border);padding-top:1px;color:var(--ink);font-weight:600}
+  .rback .rchange{flex:none;border:1px solid var(--border);background:#fff;border-radius:999px;font:600 11px var(--fb);padding:3px 8px;min-height:26px;cursor:pointer;color:var(--navy)}
+  @media (prefers-reduced-motion:reduce){.rflip-in{transition:none}}
   .etile.near{background:var(--gold-pale);box-shadow:inset 0 0 0 2.5px var(--gold)} .etile.near .s{color:#6b4e08;font-weight:600} .etile.near .tflag{background:var(--gold);color:#1c1608}
   .etile.full{background:#fbe1dc;box-shadow:inset 0 0 0 2.5px var(--late)} .etile.full .n,.etile.full .l,.etile.full .s{color:var(--late)} .etile.full .tflag{background:var(--late);color:#fff}
   .etile{background:#fff;color:var(--ink);border-radius:14px;padding:11px 14px 12px;min-width:0}
@@ -3782,8 +3795,16 @@ function eventScreen(data) {
     const t = !R0 ? tile("", "—", "Room seats", "Set the room's capacity")
       : tile(R0.cls, `${R0.att} <small>/ ${R0.max}</small>`, "Room seats", `${R0.left > 0 ? `${R0.left} left` : R0.left === 0 ? "none left" : `${-R0.left} over`} of ${R0.seats} seats`,
         `<div class="meter" aria-hidden="true"><i class="a" style="width:${R0.max ? Math.min(100, Math.round((R0.att / R0.max) * 100)) : 100}%"></i></div>`);
-    const why = R0 ? `${R0.att} registered for ${R0.max} attendee seats: ${R0.seats} seats less ${R0.pres} presenter${R0.pres === 1 ? "" : "s"}${R0.vips ? ` and ${R0.vips} VIP${R0.vips === 1 ? "" : "s"}` : ""}. Tap to change the seats.` : "Tap to set the room's seats";
-    return t.replace('<div class="etile', `<div data-roomset role="button" tabindex="0" title="${esc(why)}" class="etile tgo`);
+    if (!R0) return t.replace('<div class="etile', `<div data-roomset role="button" tabindex="0" title="Tap to set the room's seats" class="etile tgo`);
+    // Set: a tap flips it over to the arithmetic behind it (Andrew 30 Oct 2026: "if I press or click the tile it flips
+    // with the granular details in the back side of tile"); another tap flips it back.
+    const why = `${R0.att} registered for ${R0.max} attendee seats: ${R0.seats} seats less ${R0.pres} presenter${R0.pres === 1 ? "" : "s"}${R0.vips ? ` and ${R0.vips} VIP${R0.vips === 1 ? "" : "s"}` : ""}. Tap for the details.`;
+    const full = R0.max ? Math.round((R0.att / R0.max) * 100) : 100;
+    const line = (l, v, cls = "") => `<div class="rb${cls ? " " + cls : ""}"><span>${l}</span><b>${v}</b></div>`;
+    const back = `<div class="etile rback ${R0.cls}" aria-hidden="true"><div class="l"><span>The room</span><button type="button" class="rchange" data-roomchange title="Change the room's seats">Change</button></div>
+      ${line("Room seats", R0.seats)}${line(`less ${R0.pres} presenter${R0.pres === 1 ? "" : "s"}`, `−${R0.pres}`)}${R0.vips ? line(`less ${R0.vips} VIP${R0.vips === 1 ? "" : "s"}`, `−${R0.vips}`) : ""}
+      ${line("Attendee seats", R0.max, "tot")}${line("Registered (Wix)", R0.att)}${line(R0.left >= 0 ? "Left" : "Over", `${Math.abs(R0.left)} · ${full}% full`, "tot")}</div>`;
+    return `<div class="rflip" data-roomflip role="button" tabindex="0" aria-pressed="false" title="${esc(why)}"><div class="rflip-in">${t.replace('<div class="etile', '<div class="etile rfront')}${back}</div></div>`;
   }
   const tiles = [
     tile(lateA ? "behind" : reviewN || (outA && soonDays(dueA, 7)) ? "attn" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
@@ -4042,6 +4063,13 @@ function eventScreen(data) {
   // A tile opens its tab, cut to what is missing, and brings the work into view.
   ROOT.querySelectorAll("[data-roomset]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
     t.onclick = set; t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); set(); } }; });
+  ROOT.querySelectorAll("[data-roomflip]").forEach((t) => {
+    const flip = () => { const on = t.classList.toggle("on"); t.setAttribute("aria-pressed", String(on));
+      t.querySelector(".rfront").setAttribute("aria-hidden", String(on)); t.querySelector(".rback").setAttribute("aria-hidden", String(!on)); };
+    t.onclick = (e) => { if (e.target.closest("[data-roomchange]")) return; flip(); };
+    t.onkeydown = (e) => { if (e.target !== t) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
+    t.querySelector("[data-roomchange]").onclick = async (e) => { e.stopPropagation(); if (await askRoom(ev)) render(); };
+  });
   ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
     const go = () => {
       const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");

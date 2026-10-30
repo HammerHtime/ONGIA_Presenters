@@ -30,8 +30,23 @@ for (const [w, h, tag, kind] of [[1440, 1000, "wide", ""], [390, 844, "phone", "
   ok(`${tag}${kind ? " (RBH)" : ""}: the event page has a Room seats tile, asking for the room's capacity`, /Room seats/.test(await t.innerText()) && /Set the room's capacity/.test(await t.innerText()));
   await t.click(); await p.locator("#rm-seats").fill("45"); await p.locator("#rm-vips").fill("2"); await p.locator("#rm-ok").click(); await p.waitForTimeout(1800);
   // 45 seats less 4 presenters and 2 VIPs = 39 for attendees; 37 registered is over 90%.
-  ok(`${tag}: 37 registered of 39 seats left for attendees: nearly full, 2 left`, /Nearly full/i.test(await p.locator("[data-roomset]").innerText()) && /37\s*\/\s*39/.test(await p.locator("[data-roomset]").innerText()) && /2 left of 45 seats/.test(await p.locator("[data-roomset]").innerText()), await p.locator("[data-roomset]").innerText());
-  await p.locator("[data-roomset]").screenshot({ path: D + `roomtile-${tag}.png` });
+  const front = p.locator("[data-roomflip] .rfront"), back = p.locator("[data-roomflip] .rback");
+  ok(`${tag}: 37 registered of 39 seats left for attendees: nearly full, 2 left`, /Nearly full/i.test(await front.innerText()) && /37\s*\/\s*39/.test(await front.innerText()) && /2 left of 45 seats/.test(await front.innerText()), await front.innerText());
+  await p.locator("[data-roomflip]").screenshot({ path: D + `roomtile-${tag}.png` });
+  // Andrew 30 Oct 2026: "if I press or click the tile it flips with the granular details in the back side of tile".
+  await p.locator("[data-roomflip]").click(); await p.waitForTimeout(700);
+  const bt = (await back.innerText()).replace(/\s+/g, " ");
+  ok(`${tag}: tapping flips it to the workings: 45 seats, less 4 presenters and 2 VIPs, 39 for attendees, 37 registered, 2 left, 95% full`,
+    await p.locator("[data-roomflip].on[aria-pressed=true]").count() === 1 && /Room seats 45/.test(bt) && /presenters? −4/.test(bt) && /VIPs? −2/.test(bt) && /Attendee seats 39/.test(bt) && /Registered \(Wix\) 37/.test(bt) && /Left 2 · 95% full/.test(bt), bt);
+  await p.locator("[data-roomflip]").screenshot({ path: D + `roomtile-back-${tag}.png` });
+  await p.locator("[data-roomchange]").click(); await p.waitForTimeout(400);
+  ok(`${tag}: Change the seats on the back opens the seats box, at 45`, await p.locator("#rm-seats").isVisible() && await p.locator("#rm-seats").inputValue() === "45");
+  await p.keyboard.press("Escape"); await p.waitForTimeout(400);
+  if (await p.locator("[data-roomflip].on").count()) await p.locator("[data-roomflip]").click({ position: { x: 20, y: 20 } });
+  await p.waitForTimeout(700);
+  ok(`${tag}: tapping again flips it back`, await p.locator("[data-roomflip].on").count() === 0);
+  await p.locator("[data-roomflip]").focus(); await p.keyboard.press("Enter"); await p.waitForTimeout(300);
+  ok(`${tag}: Enter flips it too, for the keyboard`, await p.locator("[data-roomflip].on").count() === 1);
   // Andrew 30 Oct 2026: "Nearly full badge please", on the events list.
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
   const row = p.locator(`[data-open="${ev.id}"]`).first();
@@ -41,7 +56,7 @@ for (const [w, h, tag, kind] of [[1440, 1000, "wide", ""], [390, 844, "phone", "
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   ok(`${tag}: and Full on the list once it is`, /Full: 1 over/i.test(await p.locator(`[data-open="${ev.id}"]`).first().innerText()));
   await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
-  ok(`${tag}: 40 registered: full, 1 over`, /full/i.test(await p.locator("[data-roomset]").innerText()) && /1 over/.test(await p.locator("[data-roomset]").innerText()) && await p.locator("[data-roomset].full").count() === 1, await p.locator("[data-roomset]").innerText());
+  ok(`${tag}: 40 registered: full, 1 over`, /full/i.test(await p.locator("[data-roomflip] .rfront").innerText()) && /1 over/.test(await p.locator("[data-roomflip] .rfront").innerText()) && await p.locator("[data-roomflip] .rfront.full").count() === 1, await p.locator("[data-roomflip] .rfront").innerText());
   ok(`${tag}: fits, no errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
   await p.close();
 }
