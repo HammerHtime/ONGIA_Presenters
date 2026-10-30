@@ -165,6 +165,7 @@
   .pill.wait{background:var(--wait-bg);color:var(--wait)}
   .pill.late{background:var(--late-bg);color:var(--late)}
   /* Hotel not signed yet: the dates are held, not locked (Andrew 29 Oct 2026). Amber, with an open padlock. */
+  .pill.near{background:var(--gold-pale);color:#7a5b10;border:1px solid var(--gold)}
   .pill.hold{background:var(--wait-bg);color:var(--wait);border:1px dashed var(--wait)}
   .pill.hold::before{content:"🔓";width:auto;height:auto;background:none;font-size:11px}
   .tent{display:block;font-size:12px;color:var(--wait);font-weight:600;font-style:italic;white-space:nowrap}
@@ -1974,6 +1975,10 @@ function eventsTable(upcoming) {
     const pct = total ? Math.round((signed / total) * 100) : 0;
     const pills = [], open = !hotelLocked(ev);
     if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
+    // The main room (Andrew 30 Oct 2026: "Nearly full badge please"): as the event page's tile counts it.
+    const room = roomFill(ev, ev.registered ?? 0, ev.presenterCount ?? 0);
+    if (room?.cls === "full") pills.push(`<span class="pill late" title="${room.att} registered for ${room.max} attendee seats">Full${room.left < 0 ? `: ${-room.left} over` : ""}</span>`);
+    else if (room?.cls === "near") pills.push(`<span class="pill near" title="${room.att} registered for ${room.max} attendee seats">Nearly full: ${room.left} left</span>`);
     if ((a.review ?? []).length) pills.push(`<span class="pill late">${a.review.length} to review</span>`);
     if ((a.uninvited ?? []).length) pills.push(`<span class="pill wait">${a.uninvited.length} never sent</span>`);
     if ((a.failed ?? []).length) pills.push(`<span class="pill late">${a.failed.length} not filed</span>`);

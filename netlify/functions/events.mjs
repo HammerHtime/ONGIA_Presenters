@@ -3,7 +3,8 @@ import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster, deleteSurveyData,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies,
-  countSurveyResponses, getSeen, putSeen } from "./lib/store.mjs";
+  countSurveyResponses, getSeen, putSeen, getAttendees } from "./lib/store.mjs";
+import { tally } from "./lib/attendees.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -501,6 +502,8 @@ async function showList(canCost = true, viewer = { key: true }) {
         canEdit: mayEditEvent(viewer, event),
         counts: countStatuses(people),
         presenterCount: people.length,
+        // Who is coming, for the room's "Nearly full" badge (Andrew 30 Oct 2026); only read where the seats are set.
+        registered: event.room?.seats ? tally((await getAttendees(event.id))?.people ?? []).attending : null,
         // The desk's own jobs, tallied here so the year view and the attention
         // strip do not have to redo the working-day arithmetic in the browser.
         checklist: checklistOf(event).counts,

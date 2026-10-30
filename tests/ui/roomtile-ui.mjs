@@ -32,7 +32,15 @@ for (const [w, h, tag, kind] of [[1440, 1000, "wide", ""], [390, 844, "phone", "
   // 45 seats less 4 presenters and 2 VIPs = 39 for attendees; 37 registered is over 90%.
   ok(`${tag}: 37 registered of 39 seats left for attendees: nearly full, 2 left`, /Nearly full/i.test(await p.locator("[data-roomset]").innerText()) && /37\s*\/\s*39/.test(await p.locator("[data-roomset]").innerText()) && /2 left of 45 seats/.test(await p.locator("[data-roomset]").innerText()), await p.locator("[data-roomset]").innerText());
   await p.locator("[data-roomset]").screenshot({ path: D + `roomtile-${tag}.png` });
+  // Andrew 30 Oct 2026: "Nearly full badge please", on the events list.
+  await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
+  const row = p.locator(`[data-open="${ev.id}"]`).first();
+  ok(`${tag}: the events list marks it Nearly full, with how many are left`, /Nearly full: 2 left/i.test(await row.innerText()), await row.innerText());
+  await row.screenshot({ path: D + `roomtile-list-${tag}.png` });
   await people(ev.id, 40); await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1800);
+  await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+  ok(`${tag}: and Full on the list once it is`, /Full: 1 over/i.test(await p.locator(`[data-open="${ev.id}"]`).first().innerText()));
+  await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   ok(`${tag}: 40 registered: full, 1 over`, /full/i.test(await p.locator("[data-roomset]").innerText()) && /1 over/.test(await p.locator("[data-roomset]").innerText()) && await p.locator("[data-roomset].full").count() === 1, await p.locator("[data-roomset]").innerText());
   ok(`${tag}: fits, no errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
   await p.close();
