@@ -428,6 +428,12 @@
   .sbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:6px}.sbl td{padding:3px 2px;border-top:1px solid var(--sunk)}
   /* The boxes share the width they're given rather than pushing out of their card (Andrew 30 Oct 2026). */
   .sbl .sbin{width:100%!important;min-width:52px;box-sizing:border-box}.sbl td:last-child{width:34px}
+  .sbl select.sbgrp{text-align:left;padding:5px 22px 5px 6px;font-size:13.5px;-webkit-appearance:none;appearance:none;cursor:pointer;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231a2f5e'/%3E%3C/svg%3E") no-repeat right 7px center}
+  .sbl select.sbgrp:invalid,.sbl select.sbgrp option[value=""]{color:var(--muted)}
+  .sbelse{table-layout:fixed}
+  .sbgrid.two>.blk:first-child{grid-column:1/-1}   /* Everything else gets the width its four columns need */.sbelse .sbin.n{padding:5px 6px}
+  .grpdlg{max-width:440px;width:calc(100% - 24px)}
   .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
   .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
@@ -8551,6 +8557,7 @@ async function sandboxScreen() {
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const got = await api("/sandbox");
   SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null;
+  await loadBudgetGroups();
   SBX = got.budget ?? sbxSeed();
   sbxDraw();
   if (!SBX.asked) sbxQuestions();
@@ -8709,10 +8716,14 @@ function sbxDraw() {
     <div class="legend"><span>Tap a meal:</span><span class="m off">Not served</span>→<span class="m team">Team</span>→<span class="m all">Everyone</span><span>· <b>$</b> types an amount instead</span></div>`;
 
   // 4. Everything else, the internal rows, sponsors and deposits.
+  // The group: one of the common ones or one added before; the last choice adds a new one (Andrew 30 Oct 2026).
+  const groupSelect = (r) => { const list = BUDGET_GROUPS.includes(r.group) || !r.group ? BUDGET_GROUPS : [r.group, ...BUDGET_GROUPS];
+    return `<select class="sbin sbgrp" data-grp="${esc(r.id)}" aria-label="Group">${r.group ? "" : `<option value="" selected>Pick a group…</option>`}${list.map((g) => `<option${g === r.group ? " selected" : ""}>${esc(g)}</option>`).join("")}<option value="__add">+ Add a group…</option></select>`; };
   const listRows = (key, cols) => B[key].map((r) => `<tr>${cols.map(([f, kind, w]) => `<td>${kind === "toggle" ? `<span class="pbseg sm"><button type="button" data-tog="${key}|${r.id}|${f}" class="${r[f] ? "on" : ""}">${f === "received" ? "Received" : "Paid"}</button></span>`
+      : kind === "group" ? groupSelect(r)
       : `<input class="sbin${kind === "money" ? " n" : ""}" data-k="${key}.${r.id}.${f}" value="${esc(r[f] ?? "")}" ${kind === "money" ? `inputmode="decimal"` : kind === "date" ? `type="date"` : ""} style="width:${w}px">${key === "other" && f === "spent" && rcOn(`b-${r.id}`) ? `<small class="rcin">receipts ${money(rcOn(`b-${r.id}`))}</small>` : ""}`}</td>`).join("")}<td><button class="mini ghost" data-rdel="${key}|${r.id}">✕</button></td></tr>`).join("");
   const others = `<div class="sbgrid two">
-    <div class="blk"><h3>Everything else</h3><table class="sbl"><thead><tr><th>Group</th><th>Line</th><th>Planned</th><th>Spent</th><th></th></tr></thead><tbody>${listRows("other", [["group", "text", 130], ["name", "text", 220], ["planned", "money", 90], ["spent", "money", 90]])}</tbody></table>
+    <div class="blk"><h3>Everything else</h3><table class="sbl sbelse"><colgroup><col style="width:29%"><col style="width:27%"><col style="width:19%"><col style="width:19%"><col style="width:34px"></colgroup><thead><tr><th>Group</th><th>Line</th><th>Planned</th><th>Spent</th><th></th></tr></thead><tbody>${listRows("other", [["group", "group", 130], ["name", "text", 220], ["planned", "money", 90], ["spent", "money", 90]])}</tbody></table>
       <button class="mini" data-radd="other">Add a line</button><div class="row tot"><span>Planned · spent</span><b>${money(C.other)} · ${money(C.spent)}</b></div>
       ${RCS ? `<div class="row"><span>Receipts so far <small>everything uploaded on this event, before tax${RCS.other ? ` · ${money(RCS.other)} not sorted` : ""}${rcOn("rooms") ? ` · rooms ${money(rcOn("rooms"))}` : ""}${rcOn("meals") ? ` · food ${money(rcOn("meals"))}` : ""}</small></span><b>${money(rcAll)}</b></div>` : ""}
       <div class="intbox"><h3><span class="lock">Internal only</span> Stipends</h3><table class="sbl"><tbody>${listRows("stipends", [["name", "text", 200], ["planned", "money", 90], ["paid", "money", 90]])}</tbody></table><button class="mini" data-radd="stipends">Add a row</button></div></div>
@@ -8760,6 +8771,13 @@ function sbxWire() {
     // A board member taken off stays off, even though they're still on the event's board.
     if (gone?.group === "board") B.boardOff = [...new Set([...(B.boardOff ?? []), gone.name])];
     B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-grp]").forEach((el) => { el.onchange = async () => {
+    const row = B.other.find((r) => r.id === el.dataset.grp);
+    if (el.value !== "__add") { row.group = el.value; sbxPersist(); return; }
+    const name = await askGroup();
+    if (name) row.group = name;
+    redraw();
+  }; });
   SBX_HOST.querySelectorAll("[data-paddall]").forEach((b) => { b.onclick = () => {
     const free = (ROSTER ?? []).filter((m) => m.name && !B.people.some((p) => sameish(p.name, m.name)));
     B.boardOff = [];
@@ -8780,7 +8798,7 @@ function sbxWire() {
   SBX_HOST.querySelectorAll("[data-tog]").forEach((b) => { b.onclick = () => { const [key, id, f] = b.dataset.tog.split("|"), r = B[key].find((x) => x.id === id); r[f] = !r[f]; redraw(); }; });
   SBX_HOST.querySelectorAll("[data-rdel]").forEach((b) => { b.onclick = () => { const [key, id] = b.dataset.rdel.split("|"); B[key] = B[key].filter((r) => r.id !== id); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-radd]").forEach((b) => { b.onclick = () => { const key = b.dataset.radd, id = `${key[0]}${Date.now().toString(36)}`;
-    B[key].push(({ other: { id, group: "Other", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
+    B[key].push(({ other: { id, group: "", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
       deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
   document.getElementById("sbx-q").onclick = () => sbxQuestions();
   SBX_HOST.querySelectorAll("[data-wixkind]").forEach((el) => { el.onchange = () => { (B.wixKinds ??= {})[el.dataset.wixkind] = el.value; applyWix(B, SBX_LIVE?.wix); redraw(); }; });
@@ -8850,6 +8868,35 @@ function budgetSeed(ev, L) {
   budgetSync(B, L);
   return B;
 }
+/** The groups for "Everything else": the common ones and any added, the same for every budget. */
+const BUDGET_GROUPS_COMMON = ["Venue & AV", "Food & hospitality", "Travel", "Speakers", "Supplies & merchandise", "Printing & marketing", "Insurance", "Volunteers & staff", "Other"];
+let BUDGET_GROUPS = [...BUDGET_GROUPS_COMMON], BUDGET_GROUPS_AT = 0;
+async function loadBudgetGroups() {
+  if (Date.now() - BUDGET_GROUPS_AT < 60_000) return;
+  try { BUDGET_GROUPS = (await api("/budget?groups=1")).groups; BUDGET_GROUPS_AT = Date.now(); } catch { /* the common ones will do */ }
+}
+/** The box that pops open to name a new group; it's added to the list for every budget. Resolves to the name, or null. */
+function askGroup() {
+  return new Promise((done) => {
+    const dlg = document.createElement("dialog"); dlg.className = "sheet grpdlg"; document.body.append(dlg);
+    dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>Add a group</h2><p class="hint" style="margin-top:6px">It's added to the list for every event's budget.</p></div>
+      <div class="sheet-body"><div class="field"><label for="grp-name">Group</label><input id="grp-name" maxlength="40" autocomplete="off" placeholder="e.g. Security"></div>
+      <div class="bad" id="grp-why" hidden></div>
+      <div class="actions"><button class="btn btn-gold" id="grp-ok" value="ok">Add it</button><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div></div></form>`;
+    const input = dlg.querySelector("#grp-name"), why = dlg.querySelector("#grp-why");
+    let result = null;
+    dlg.querySelector("#grp-ok").onclick = async (e) => {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (!name) { why.hidden = false; why.textContent = "Type the group's name."; return; }
+      try { const out = await api("/budget?groups=1", { method: "POST", body: JSON.stringify({ name }) }); BUDGET_GROUPS = out.groups; BUDGET_GROUPS_AT = Date.now(); result = out.name; dlg.close(); }
+      catch (x) { why.hidden = false; why.textContent = x.message; }
+    };
+    dlg.addEventListener("close", () => { dlg.remove(); done(result); });
+    dlg.showModal(); input.focus();
+  });
+}
+
 /** A board member's planned nights: from three nights before day one (Andrew: "board arriving 3 days prior") to the last day. */
 const boardNights = (E) => { const out = []; for (let d = sbxDay(E.dayOne, -3); d <= E.lastDay; d = sbxDay(d, 1)) out.push(d); return out; };
 const sameish = (a, b) => String(a ?? "").toLowerCase().replace(/[^a-z]/g, "") === String(b ?? "").toLowerCase().replace(/[^a-z]/g, "");
@@ -8931,6 +8978,8 @@ function mountBudget(ev, got) {
   SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));
   if (got.budget && !mine && JSON.stringify(SBX) !== was) sbxPersist();
   sbxDraw();
+  // The added groups come from the server; the common ones are already there, so this redraws only if there are more.
+  if (Date.now() - BUDGET_GROUPS_AT > 60_000) loadBudgetGroups().then(() => { if (SBX_EV?.id === ev.id && SBX_HOST?.isConnected && BUDGET_GROUPS.length > BUDGET_GROUPS_COMMON.length && !SBX_HOST.contains(document.activeElement)) sbxDraw(); });
   if (!SBX.asked && (view.tab === "money" || BUDGET_ASK === ev.id)) { BUDGET_ASK = null; sbxQuestions(); }
 }
 let BUDGET_ASK = null;   // an event just made: ask its registration questions straight away

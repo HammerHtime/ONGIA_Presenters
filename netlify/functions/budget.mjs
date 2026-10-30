@@ -12,6 +12,8 @@ import { wixConfigured, listWixTickets } from "./lib/wix.mjs";
  *   GET    /api/budget?event=…   { budget (null until first saved), live }
  *   PUT    /api/budget?event=…   save it ({ budget })
  *   DELETE /api/budget?event=…   start over from the event's records
+ *   GET    /api/budget?groups=1    the groups the "Everything else" lines can be put under
+ *   POST   /api/budget?groups=1    add one ({ name }); kept for every budget, the Sandbox's too
  *
  * `live` is what the event's own records say right now: its dates and hotel, the amounts read from the hotel contract,
  * the rooming list (who has a room, which nights, who pays) and the board members on the event. The page starts a new
@@ -25,7 +27,9 @@ export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   if (!mayCost(adminWho(req))) return fail("Only ONGIA's president and VP of operations can open an event's budget.", 403);
-  const id = new URL(req.url).searchParams.get("event");
+  const url = new URL(req.url);
+  if (url.searchParams.get("groups")) return groups(req);
+  const id = url.searchParams.get("event");
   const event = id ? await getEvent(id) : null;
   if (!event) return fail("No such event.", 404);
   if (event.kind === "rbh") return fail("An RBH event's money is on its statement of work.", 409);
@@ -42,6 +46,28 @@ export default async (req) => {
   if (req.method === "DELETE") { await deleteKey(`meta:${key(id)}`); return json({ ok: true, live: await live(event) }); }
   return fail("Not allowed.", 405);
 };
+
+/**
+ * The groups for the budget's "Everything else" lines (Andrew 30 Oct 2026: "a dropdown for all the common groupings ...
+ * click add ... I add a new group, and then that gets added to the list"). The common ones are built in; the ones he
+ * adds are kept once for every event.
+ */
+export const COMMON_GROUPS = ["Venue & AV", "Food & hospitality", "Travel", "Speakers", "Supplies & merchandise", "Printing & marketing", "Insurance", "Volunteers & staff", "Other"];
+async function groups(req) {
+  const had = (await getMeta("budget-groups"))?.groups ?? [];
+  const all = () => [...COMMON_GROUPS, ...had.filter((g) => !COMMON_GROUPS.some((c) => c.toLowerCase() === g.toLowerCase()))];
+  if (req.method === "GET") return json({ groups: all(), added: had });
+  if (req.method !== "POST") return fail("Not allowed.", 405);
+  const body = await req.json().catch(() => null);
+  const name = String(body?.name ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+  if (!name) return fail("What's the group called?");
+  if (!all().some((g) => g.toLowerCase() === name.toLowerCase())) {
+    if (had.length >= 60) return fail("That's 60 groups added already. Use one of those.", 409);
+    had.push(name);
+    await putMeta("budget-groups", { groups: had, at: new Date().toISOString() });
+  }
+  return json({ groups: all(), name: all().find((g) => g.toLowerCase() === name.toLowerCase()) }, 201);
+}
 
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ""));
 const nightsOf = (from, to) => {
