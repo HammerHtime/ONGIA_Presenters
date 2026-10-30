@@ -165,6 +165,7 @@
   .pill.wait{background:var(--wait-bg);color:var(--wait)}
   .pill.late{background:var(--late-bg);color:var(--late)}
   /* Hotel not signed yet: the dates are held, not locked (Andrew 29 Oct 2026). Amber, with an open padlock. */
+  .pill.near{background:var(--gold-pale);color:#7a5b10;border:1px solid var(--gold)}
   .pill.hold{background:var(--wait-bg);color:var(--wait);border:1px dashed var(--wait)}
   .pill.hold::before{content:"🔓";width:auto;height:auto;background:none;font-size:11px}
   .tent{display:block;font-size:12px;color:var(--wait);font-weight:600;font-style:italic;white-space:nowrap}
@@ -370,14 +371,16 @@
   .sbxacts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .saved{border-radius:999px;padding:4px 12px;background:var(--done-bg);color:var(--done);font-weight:600;font-size:13px}
   .saved[data-saved="busy"]{background:var(--sunk);color:var(--muted)} .saved[data-saved="bad"]{background:var(--late-bg);color:var(--late)}
-  .sbtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  .sbt{background:#fff;border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
-  .sbt .k{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .sbt .v{font-family:var(--fd);font-size:27px;line-height:1.1}.sbt .v small{font-size:15px;color:var(--muted)}
-  .sbt .sm{font-size:12.5px;color:var(--muted);line-height:1.4}.sbt .sm b{color:var(--ink)}
+  /* Smaller than they were (Andrew 30 Oct 2026: "reduce the size of them. They don't need to be so big"). */
+  .sbtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}
+  .sbt{background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px 11px;display:flex;flex-direction:column;gap:1px;min-width:0}
+  .sbt .k{font-family:var(--fu);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sbt .v{font-family:var(--fd);font-size:21px;line-height:1.15}.sbt .v small{font-size:13px;color:var(--muted)}
+  .sbt .sm{font-size:11.5px;color:var(--muted);line-height:1.35}.sbt .sm b{color:var(--ink)}
+  .sbt.near{background:var(--gold-pale);border-color:#e6cf9e}.sbt.near .v{color:#7a5b10}
   .sbt.black{background:var(--done-bg);border-color:#bcd9c7}.sbt.black .v{color:var(--done)}
   .sbt.red{background:var(--late-bg);border-color:#e6b9b3}.sbt.red .v{color:var(--late)}
-  .sbt .days{display:flex;flex-wrap:wrap;gap:2px 12px;font-family:var(--fb);font-size:18px;font-weight:700}.sbt .days small{font-family:var(--fu);font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase}
+  .sbt .days{display:flex;flex-wrap:wrap;gap:0 10px;font-family:var(--fb);font-size:15px;font-weight:700}.sbt .days small{font-family:var(--fu);font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase}
   .okp,.warnp{display:inline-block;font-family:var(--fu);font-size:11px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:1px 8px}.okp{background:var(--done-bg);color:var(--done)}.warnp{background:var(--wait-bg);color:var(--wait)}
   .sbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .sbgrid .blk{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;min-width:0}
@@ -434,6 +437,52 @@
   .sbelse{table-layout:fixed}
   .sbgrid.two>.blk:first-child{grid-column:1/-1}   /* Everything else gets the width its four columns need */.sbelse .sbin.n{padding:5px 6px}
   .grpdlg{max-width:440px;width:calc(100% - 24px)}
+  /* The set-up walk-through. */
+  dialog.walk{padding:0;border:0;border-radius:22px;width:min(980px,calc(100% - 24px));max-height:calc(100dvh - 24px);background:var(--card);color:var(--ink)}
+  dialog.walk::backdrop{background:rgba(14,26,53,.55)}
+  .wwrap{display:grid;grid-template-columns:260px 1fr;min-height:520px}.wwrap.one{grid-template-columns:1fr;min-height:0}
+  .wside{background:var(--sand);border-right:1px solid var(--edge);padding:18px 14px;overflow:auto;max-height:calc(100dvh - 24px)}
+  .wside h3{font-family:var(--fd);font-weight:400;font-size:20px;margin:0}.wsub{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .wgrp{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 3px}
+  .wit{display:flex;align-items:center;gap:8px;width:100%;font:500 13.5px var(--fb);padding:5px 6px;border-radius:8px;border:0;background:none;color:var(--ink);cursor:pointer;text-align:left}
+  .wit .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex:none}
+  .wit.done .ck{background:var(--done);border-color:var(--done)}.wit.done .ck::after{content:"✓"}
+  .wit.skip .ck{background:var(--wait-bg);border-color:var(--wait);color:var(--wait)}.wit.skip .ck::after{content:"–"}
+  .wit.now{background:#fff;font-weight:700;box-shadow:inset 3px 0 0 var(--navy)}.wit.now .ck{border-color:var(--navy)}
+  .wit .v{margin-left:auto;color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap}
+  .wmain{padding:22px 30px;display:flex;flex-direction:column;min-width:0}
+  .wtop{position:relative}.wbar{height:6px;background:var(--sunk);border-radius:99px;overflow:hidden;margin:0 40px 14px 0}.wbar i{display:block;height:100%;background:var(--done);transition:width .2s}
+  .wdots{display:none}.wcount{font-family:var(--fu);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .wclose{position:absolute;right:-8px;top:-10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
+  .wq{font-family:var(--fd);font-size:30px;line-height:1.2;margin:8px 0 4px}.whelp{color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  .wbox{position:relative;width:min(300px,100%)}.wbox .cur{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:26px;color:var(--muted)}
+  .wbox input{width:100%;font:600 30px var(--fb);padding:13px 52px 13px 40px;border-radius:16px;border:2px solid var(--border);background:#fff;margin:0;min-height:0}
+  .wbox input.nomoney{padding-left:18px}.wbox .tick{position:absolute;right:13px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;background:var(--done);color:#fff;display:none;place-items:center;font-weight:700}
+  .wbox.ok input{border-color:var(--done);background:var(--done-bg);color:var(--done)}.wbox.ok .tick{display:grid}
+  .wfrom{align-self:flex-start;display:inline-block;font-family:var(--fu);font-size:11px;letter-spacing:.07em;text-transform:uppercase;border-radius:6px;padding:2px 8px;background:#e7eefc;color:#1d4fb8;margin-top:10px}
+  .wwhy{margin-top:8px;color:var(--late);font-size:14px;font-weight:600}
+  .wpills{display:flex;gap:10px;flex-wrap:wrap}.wpill{border:2px solid var(--border);border-radius:14px;padding:13px 18px;font:700 16px var(--fb);background:#fff;min-width:130px;cursor:pointer;color:var(--ink)}
+  .wpill.on{background:var(--done);border-color:var(--done);color:#fff}.wpill:disabled{cursor:default}
+  .wpills.shake{animation:wshake .3s}@keyframes wshake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .wstart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .wopt{border:2px solid var(--border);border-radius:16px;padding:15px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:var(--ink)}.wopt b{display:block;font-size:16px;margin-bottom:4px}.wopt span{color:var(--muted);font-size:13.5px}
+  .wopt.rec{border-color:var(--done);background:var(--done-bg)}
+  .wacts{display:flex;gap:10px;margin-top:22px;align-items:center;flex-wrap:wrap}
+  .wnext{background:var(--done);color:#fff;border:0;border-radius:14px;font:700 17px var(--fb);padding:13px 26px;min-height:52px;cursor:pointer}
+  .wghost{background:none;border:1.5px solid var(--border);border-radius:14px;font:600 15px var(--fb);padding:11px 16px;color:var(--ink-mid);cursor:pointer}
+  .wkbd{font-size:12.5px;color:var(--muted)}
+  .wlive{margin-top:auto;padding:11px 16px;border-radius:14px;background:var(--navy-deep);color:#fff;display:flex;gap:20px;flex-wrap:wrap;font-size:13.5px;margin-top:26px}
+  .wlive b{font-family:var(--fd);font-size:19px;font-weight:400;display:block}.wlive span{color:#aab3c8}
+  .wsum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 16px;margin:6px 0 4px}
+  .wsrow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:10px;background:var(--done-bg);font:inherit;font-size:14px;border:0;cursor:pointer;text-align:left;color:var(--ink)}.wsrow b{color:var(--done)}
+  .wsrow.skip{background:var(--wait-bg)}.wsrow.skip b{color:var(--wait)}
+  @media (max-width:760px){
+    dialog.walk{width:100%;max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
+    .wwrap{grid-template-columns:1fr;min-height:100dvh}.wside{display:none}.wmain{padding:16px 16px 20px}
+    .wbar{display:none}.wdots{display:flex;gap:3px;margin:0 44px 10px 0}.wdots i{flex:1;height:6px;border-radius:99px;background:var(--border)}.wdots i.d{background:var(--done)}.wdots i.n{background:var(--navy)}.wdots i.s{background:var(--wait)}
+    .wq{font-size:24px}.wbox{width:100%}.wnext{width:100%;font-size:18px;min-height:56px}.wkbd{display:none}.wstart,.wsum{grid-template-columns:1fr}
+    .wclose{right:0;top:-6px}.wlive{gap:14px;font-size:12.5px}.wlive b{font-size:16px}
+  }
   .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
   .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
@@ -455,6 +504,15 @@
     .wixt .sbl td{border:0;padding:0}.wixt .sbl td:nth-child(1){grid-column:1/-1;font-weight:600}.wixt .sbl td:nth-child(2)::before{content:"Price ";color:var(--muted);font-weight:400}
     .wixt .sbl td:nth-child(3)::before{content:"Sold ";color:var(--muted)}.wixt .sbl td:nth-child(4){grid-column:1/-1}.wixt select{width:100%}
   }
+  .sbgrid .blk.wide2{grid-column:1/-1}
+  .seats{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px;font-variant-numeric:tabular-nums}
+  .seats th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:4px 6px}
+  .seats td{text-align:right;padding:5px 6px;border-top:1px solid var(--sunk)}.seats td:first-child,.seats th:first-child{text-align:left;font-weight:700}
+  .seats td small{color:var(--muted)}.seats tr.over td{background:var(--late-bg);color:var(--late)}
+  .seatwarn{margin:6px 0;padding:8px 12px;border-radius:10px;background:var(--late-bg);color:var(--late);font-size:13.5px}
+  @media (max-width:560px){.seats{font-size:12.5px}.seats th,.seats td{padding:4px 3px}.seats th{font-size:10px;letter-spacing:.03em}
+    .seats th:nth-child(4),.seats td:nth-child(4),.seats th:nth-child(7),.seats td:nth-child(7){display:none}
+    .seats td small{display:block}}
   .wixnote{margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--sunk);font-size:13.5px}.wixnote.bad{background:var(--wait-bg);color:var(--wait)}
   .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
   /* Tablets: every night fits, who pays is a scroll away; the names stay put while it scrolls. */
@@ -484,7 +542,7 @@
   .sbxq .qin{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;text-align:right;min-height:0;margin:0}
   .sbxq .qdays{display:inline-flex;gap:4px;flex-wrap:wrap}.sbxq .qdays button{border:1px solid var(--border);border-radius:8px;padding:4px 10px;background:#fff;font:600 13px var(--fb);cursor:pointer}
   .sbxq .qdays button.on{background:var(--rbh);color:#fff;border-color:var(--rbh)}
-  @media (max-width:900px){.sbtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sbgrid,.sbgrid.two{grid-template-columns:1fr}.sbxhead h1{font-size:23px}.sbt .v{font-size:22px}}
+  @media (max-width:900px){.sbtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sbgrid,.sbgrid.two{grid-template-columns:1fr}.sbxhead h1{font-size:23px}.sbt .v{font-size:19px}}
   /* ---------- RBH SOWs: every statement of work in one place (Andrew 29 Oct 2026; the mock-up he approved) ---------- */
   .sowsscr{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
   .sowsscr>.card{margin:0}
@@ -1155,7 +1213,9 @@
   .bacts .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.42)}
   .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .bacts .mini:disabled{opacity:.5}
-  .evtiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:18px}
+  .evtiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:18px}
+  .etile.near{background:var(--gold-pale);box-shadow:inset 0 0 0 2.5px var(--gold)} .etile.near .s{color:#6b4e08;font-weight:600} .etile.near .tflag{background:var(--gold);color:#1c1608}
+  .etile.full{background:#fbe1dc;box-shadow:inset 0 0 0 2.5px var(--late)} .etile.full .n,.etile.full .l,.etile.full .s{color:var(--late)} .etile.full .tflag{background:var(--late);color:#fff}
   .etile{background:#fff;color:var(--ink);border-radius:14px;padding:11px 14px 12px;min-width:0}
   .etile .n{font-size:23px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .etile .n small{font-size:14.5px;font-weight:600;color:var(--muted)}
   .etile .l{font-size:13px;font-weight:600;color:var(--ink-mid)}
@@ -1961,6 +2021,10 @@ function eventsTable(upcoming) {
     const pct = total ? Math.round((signed / total) * 100) : 0;
     const pills = [], open = !hotelLocked(ev);
     if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
+    // The main room (Andrew 30 Oct 2026: "Nearly full badge please"): as the event page's tile counts it.
+    const room = roomFill(ev, ev.registered ?? 0, ev.presenterCount ?? 0);
+    if (room?.cls === "full") pills.push(`<span class="pill late" title="${room.att} registered for ${room.max} attendee seats">Full${room.left < 0 ? `: ${-room.left} over` : ""}</span>`);
+    else if (room?.cls === "near") pills.push(`<span class="pill near" title="${room.att} registered for ${room.max} attendee seats">Nearly full: ${room.left} left</span>`);
     if ((a.review ?? []).length) pills.push(`<span class="pill late">${a.review.length} to review</span>`);
     if ((a.uninvited ?? []).length) pills.push(`<span class="pill wait">${a.uninvited.length} never sent</span>`);
     if ((a.failed ?? []).length) pills.push(`<span class="pill late">${a.failed.length} not filed</span>`);
@@ -3707,10 +3771,20 @@ function eventScreen(data) {
   const nextUp = nextDl.find((x) => x.d >= 0);
   // Past due: red, with "Past due". Needs you soon (or now): gold, with "Needs you". Andrew, 21 Oct 2026: a thin edge was too easy to miss.
   // Each tile opens what it is about, with the list cut to what is missing (Andrew 21 Oct 2026): tab | people view | filter | place.
-  const tile = (cls, n, l, sub, meter = "", go = "") => `<div class="etile${cls ? " " + cls : ""}${go ? " tgo" : ""}"${go ? ` data-tgo="${go}" role="button" tabindex="0" title="Show me"` : ""}>${cls === "behind" ? `<span class="tflag">Past due</span>` : cls === "attn" ? `<span class="tflag">Needs you</span>` : ""}<div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
+  const tile = (cls, n, l, sub, meter = "", go = "") => `<div class="etile${cls ? " " + cls : ""}${go ? " tgo" : ""}"${go ? ` data-tgo="${go}" role="button" tabindex="0" title="Show me"` : ""}>${cls === "behind" ? `<span class="tflag">Past due</span>` : cls === "attn" ? `<span class="tflag">Needs you</span>` : cls === "full" ? `<span class="tflag">Full</span>` : cls === "near" ? `<span class="tflag">Nearly full</span>` : ""}<div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
   const soonDays = (iso, n) => !!iso && daysTo(iso) >= 0 && daysTo(iso) <= n;
   const meter = (a, b) => `<div class="meter" aria-hidden="true"><i class="a" style="width:${pct(a)}%"></i><i class="b" style="width:${pct(b)}%"></i></div>`;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  // The main room (Andrew 30 Oct 2026: "It'd be nice to know when we are getting close to capacity"): the registrations
+  // from Wix against the seats left once the presenters and VIPs are seated. Amber at 90%, red when full.
+  function roomTile() {
+    const R0 = roomFill(ev, guests?.counts?.attending ?? 0, c.total);
+    const t = !R0 ? tile("", "—", "Room seats", "Set the room's capacity")
+      : tile(R0.cls, `${R0.att} <small>/ ${R0.max}</small>`, "Room seats", `${R0.left > 0 ? `${R0.left} left` : R0.left === 0 ? "none left" : `${-R0.left} over`} of ${R0.seats} seats`,
+        `<div class="meter" aria-hidden="true"><i class="a" style="width:${R0.max ? Math.min(100, Math.round((R0.att / R0.max) * 100)) : 100}%"></i></div>`);
+    const why = R0 ? `${R0.att} registered for ${R0.max} attendee seats: ${R0.seats} seats less ${R0.pres} presenter${R0.pres === 1 ? "" : "s"}${R0.vips ? ` and ${R0.vips} VIP${R0.vips === 1 ? "" : "s"}` : ""}. Tap to change the seats.` : "Tap to set the room's seats";
+    return t.replace('<div class="etile', `<div data-roomset role="button" tabindex="0" title="${esc(why)}" class="etile tgo`);
+  }
   const tiles = [
     tile(lateA ? "behind" : reviewN || (outA && soonDays(dueA, 7)) ? "attn" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
       [reviewN ? `${reviewN} to review` : "", lateA ? "due date passed" : dueA ? `due ${esc(short(dueA))}` : ""].filter(Boolean).join(" · ") || (c.total ? "all in" : "No presenters yet"),
@@ -3721,6 +3795,7 @@ function eventScreen(data) {
     tile(roomWait ? "attn" : "", conf.length ? `${conf.length} <small>${conf.length === 1 ? "room" : "rooms"}</small> · ${nightsN} <small>${nightsN === 1 ? "night" : "nights"}</small>` : `0 <small>rooms</small>`, "Hotel",
       conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet", "",
       `logistics|||${roomWait ? "waiting" : "hotel"}`),
+    roomTile(),
     tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
       !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked", "", "people|guests"),
     cutoff ? tile(daysTo(cutoff) <= 7 ? "attn" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`, "", "logistics|||hotel")
@@ -3883,7 +3958,7 @@ function eventScreen(data) {
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
     syncSide();
-    if (k === "money" && SBX_EV?.id === ev.id && SBX && !SBX.asked) sbxQuestions();
+    if (k === "money" && SBX_EV?.id === ev.id && SBX && (!SBX.asked || (SBX.walk?.skipped ?? []).length) && !WALK_SHOWN.has(ev.id)) { WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     // Opening a tab is seeing what is new on it.
@@ -3965,6 +4040,8 @@ function eventScreen(data) {
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // A tile opens its tab, cut to what is missing, and brings the work into view.
+  ROOT.querySelectorAll("[data-roomset]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
+    t.onclick = set; t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); set(); } }; });
   ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
     const go = () => {
       const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");
@@ -8542,7 +8619,25 @@ function sbxCalc(B) {
   const minNights = Math.ceil(B.hotel.commitment * B.hotel.minPct / 100);
   const fbBase = meals / ((1 + ((Number(M.service) || 0) + (Number(M.admin) || 0)) / 100) * hstF);
   const paid = B.deposits.filter((d) => d.paid).reduce((n, d) => n + (Number(d.amount) || 0), 0);
-  return { days, nights, team, regs, everyone, mealDays, meals, rooms, nightCost, blockNights, paidNights, reimburse, pickup, rebate, gross, tickets, virtualNet, pledged, received,
+  // The room (Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap. Well, that 300 has to include our presenters
+  // ... with 8 people at a round table, how many tables? And what's our capacity?"). Seated each event day: the attendees,
+  // the presenters (everyone under Presenters on the grid) and the VIPs; not the board, sponsors or volunteers (Andrew
+  // 30 Oct 2026: "just attendees, presenters, and VIPs"). The presenters and VIPs come off the room's seats.
+  const RM = B.room ?? {}, perTable = Math.max(1, Number(RM.perTable) || 8), cap = Number(RM.seats) || 0;
+  const count = (g) => B.people.filter((p) => p.group === g).length;
+  // Presenters: those on the grid, or the event's own (their agreements) if more, as the event page's tile counts them.
+  const presAll = Math.max(count("presenter"), Number(SBX_EV && SBX_LIVE?.presenters) || 0);
+  const seating = days.map((iso) => {
+    const att = regs(iso), pres = presAll, vips = Number(RM.vips) || 0;
+    const seated = att + pres + vips, tables = Math.ceil(seated / perTable);
+    return { iso, att, pres, vips, seated, tables, seats: tables * perTable };
+  });
+  const notAttendees = seating.reduce((n, d) => Math.max(n, d.pres + d.vips), 0);
+  const peakAtt = seating.reduce((n, d) => Math.max(n, d.att), 0);
+  const soldAtt = (on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0) + (on("community") ? R.community.sold || 0 : 0);
+  const room = { cap, perTable, seating, notAttendees, maxAttendees: cap ? Math.max(0, cap - notAttendees) : null, peakAtt, soldAtt,
+    spare: cap ? cap - notAttendees - peakAtt : null, maxTables: seating.reduce((n, d) => Math.max(n, d.tables), 0) };
+  return { room, days, nights, team, regs, everyone, mealDays, meals, rooms, nightCost, blockNights, paidNights, reimburse, pickup, rebate, gross, tickets, virtualNet, pledged, received,
     revenue, other, spent, stipends, expenses, profit, margin, breakEven, toTarget, inPerson, community, sold, expected, minNights, fbBase, paid, perHead };
 }
 
@@ -8571,6 +8666,8 @@ async function sandboxScreen() {
 
 /** The registration questions (mock-up 5): yes or no to each kind, and its price when yes. */
 function sbxQuestions() {
+  // An event's budget not set up yet: the walk-through, one question at a time (Andrew 30 Oct 2026).
+  if (SBX_EV && !SBX.asked) return budgetWalk();
   const R = SBX.reg, B = SBX;
   const dlg = document.createElement("dialog"); dlg.className = "sheet sbxq"; document.body.append(dlg);
   const yn = (k) => `<span class="pbseg"><button type="button" data-yn="${k}" data-v="1" class="${R[k].on ? "on" : ""}">Yes</button><button type="button" data-yn="${k}" data-v="0" class="${R[k].on ? "" : "on"}">No</button></span>`;
@@ -8608,6 +8705,7 @@ function sbxQuestions() {
 }
 
 function sbxDraw() {
+  SBX.room ??= { seats: null, perTable: 8 };
   const B = SBX, C = sbxCalc(B), R = B.reg, on = (k) => R[k]?.on;
   const money = sbxMoney;
   // What the event's receipts come to against each line, for the president and the VP (receipts are optional here).
@@ -8630,8 +8728,13 @@ function sbxDraw() {
     // No block typed in or read from a contract yet: say so, rather than "minimum met" against nothing.
     C.minNights ? tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`)
       : tile("Room nights", `${pick}`, `${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ""} · <span class="warnp">no room block yet</span><br>type it under Hotel rooms, or upload the contract`),
+    // The room (Andrew 30 Oct 2026): registered so far (from Wix) against the seats left for attendees.
+    ...(SBX_EV ? [(() => { const Rm = C.room, reg = SBX_LIVE?.registered ?? Rm.soldAtt;
+      if (!Rm.cap) return tile("Room seats", "–", "type the room's seats under <b>The room and its tables</b>");
+      const left = Rm.maxAttendees - reg, cls = left <= 0 ? "red" : reg >= Rm.maxAttendees * 0.9 ? "near" : "";
+      return tile(`Room seats${left <= 0 ? " · full" : cls ? " · nearly full" : ""}`, `${reg} <small>of ${Rm.maxAttendees}</small>`, `registered so far · ${left > 0 ? `${left} left` : left === 0 ? "none left" : `${-left} over`}<br>${Rm.cap} seats less ${Rm.notAttendees} presenters &amp; VIPs`, cls); })()] : []),
     tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
-    tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, "registrations, presenters, volunteers, board"),
+    tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, C.room.cap ? `everyone, for meals · room seats ${C.room.cap}${C.room.spare < 0 ? ` <span class="warnp">over</span>` : ""}` : "registrations, presenters, volunteers, board"),
     tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
     tile("Sponsors", `${money(C.received)} <small>of ${money(C.pledged)}</small>`, `${B.sponsors.filter((s) => s.received).length} paid${B.sponsors.some((s) => !s.received) ? ` · ${esc(B.sponsors.filter((s) => !s.received).map((s) => s.name).join(", "))} owing` : ""}`),
     B.meals.fbMin ? tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`)
@@ -8678,7 +8781,25 @@ function sbxDraw() {
       <div class="row"><span>Presenters · volunteers <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "presenter").length} · ${B.people.filter((p) => p.group === "volunteer").length}</b></div>
       <div class="row"><span>Security, sponsors, VIPs each day</span>${inp("others", B.others, 60)}</div>
       <div class="row"><span>Profit target</span>${inp("target", B.target)}</div>
-      <div class="row tot"><span>Other costs (listed below)</span><b>${money(C.other)}</b></div></div></div>`;
+      <div class="row tot"><span>Other costs (listed below)</span><b>${money(C.other)}</b></div></div>
+    ${SBX_EV ? seatingBlock() : ""}</div>`;
+
+  // 5. The room and its tables.
+  function seatingBlock() {
+    const Rm = C.room, short = (iso) => `${esc(DAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()])} ${Number(iso.slice(8))}`;
+    const verdict = !Rm.cap ? `<span class="hint">Type the room's seats to see how many attendees it can take.</span>`
+      : Rm.spare >= 0 ? `<span class="okp">fits</span> room for <b>${Rm.maxAttendees}</b> attendees; ${Rm.peakAtt} expected leaves <b>${Rm.spare}</b> seat${Rm.spare === 1 ? "" : "s"} to spare`
+      : `<span class="warnp">over</span> room for <b>${Rm.maxAttendees}</b> attendees, and ${Rm.peakAtt} are expected: <b>${-Rm.spare} too many</b>`;
+    const soldOver = Rm.cap && Rm.soldAtt > Rm.maxAttendees ? `<div class="seatwarn">Already sold ${Rm.soldAtt} in-person registrations: ${Rm.soldAtt - Rm.maxAttendees} more than the room can seat.</div>` : "";
+    return `<div class="blk wide2"><h3><span class="n">5</span>The room and its tables</h3>
+      <div class="row"><span>Seats in the main room <small>the venue's capacity, everyone in it counted</small></span>${inp("room.seats", B.room?.seats ?? "", 80, "e.g. 300")}</div>
+      <div class="row"><span>VIPs seated in the room</span>${inp("room.vips", B.room?.vips ?? 0, 56)}</div>
+      <div class="row"><span>People at a round table</span>${inp("room.perTable", B.room?.perTable ?? 8, 56)}</div>
+      <div class="row tot"><span>${verdict}</span></div>${soldOver}
+      <table class="seats"><thead><tr><th></th><th>Attendees</th><th>Presenters</th><th>VIPs</th><th>Seated</th><th>Round tables</th><th>Seats at them</th></tr></thead><tbody>
+        ${Rm.seating.map((d) => `<tr${Rm.cap && d.seated > Rm.cap ? ` class="over"` : ""}><td>${short(d.iso)}</td><td>${d.att}</td><td>${d.pres}</td><td>${d.vips}</td><td><b>${d.seated}</b>${Rm.cap ? `<small> of ${Rm.cap}</small>` : ""}</td><td><b>${d.tables}</b></td><td>${d.seats}</td></tr>`).join("")}</tbody></table>
+      <p class="hint" style="margin:6px 0 0">Seated: the in-person attendees you expect (community ones on their days), the presenters under Presenters on the hotel nights grid below, and the VIPs. The board, sponsors and volunteers aren't counted.</p></div>`;
+  }
 
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
@@ -8745,7 +8866,7 @@ function sbxDraw() {
   SBX_HOST.innerHTML = `<div class="sbx${SBX_EV ? " evbud" : ""}">
     ${SBX_EV ? `<div class="sbxhead"><div><div class="porg sbxtag evtag">The event budget · president &amp; VP</div><h2 class="budh">What ${esc(B.event.title)} costs and brings in</h2>
         <div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))}${B.event.hotel ? ` · ${esc(B.event.hotel)}` : ""} · ${rl ? `${rl} ${rl === 1 ? "person" : "people"} from the rooming list` : "nobody on the rooming list yet"}${SBX_LIVE?.contract?.money ? " · amounts from the hotel contract" : ""}</div></div>
-      <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
+      <div class="sbxacts">${said}<button class="mini" id="sbx-walk">Walk me through it</button><button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
     : `<div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
       <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>`}
     <div class="sbtiles">${tiles}</div>
@@ -8768,7 +8889,11 @@ function sbxWire() {
       row[f] = ["planned", "spent", "paid", "amount"].includes(f) ? numOf(v) : v;
     } else {
       let o = B; for (const p of parts.slice(0, -1)) o = o[p];
-      o[parts.at(-1)] = numOf(v) ?? (parts.at(-1) === "pickup" ? null : 0);
+      o[parts.at(-1)] = numOf(v) ?? (["pickup", "seats"].includes(parts.at(-1)) ? null : parts.at(-1) === "perTable" ? 8 : 0);
+      if (SBX_EV && parts[0] === "room" && ["seats", "vips"].includes(parts[1])) {
+        api(`/events?id=${encodeURIComponent(SBX_EV.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: B.room.seats, vips: B.room.vips }) })
+          .then((out) => { SBX_EV.room = out.room; if (SBX_LIVE) SBX_LIVE.room = out.room; }).catch((x) => toast(x.message));
+      }
     }
     redraw();
   }, 0); });
@@ -8814,6 +8939,8 @@ function sbxWire() {
     B[key].push(({ other: { id, group: "", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
       deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
   document.getElementById("sbx-q").onclick = () => sbxQuestions();
+  const walkBtn = document.getElementById("sbx-walk");
+  if (walkBtn) walkBtn.onclick = () => budgetWalk();
   SBX_HOST.querySelectorAll("[data-wixkind]").forEach((el) => { el.onchange = () => { (B.wixKinds ??= {})[el.dataset.wixkind] = el.value; applyWix(B, SBX_LIVE?.wix); redraw(); }; });
   document.getElementById("sbx-reset").onclick = async () => {
     if (SBX_EV) {
@@ -8881,6 +9008,217 @@ function budgetSeed(ev, L) {
   budgetSync(B, L);
   return B;
 }
+/** How full the main room is: null until its seats are set. Presenters and VIPs are seated, so they come off first. */
+function roomFill(ev, att, pres) {
+  const seats = Number(ev?.room?.seats) || 0;
+  if (!seats) return null;
+  const vips = Number(ev.room.vips) || 0, max = Math.max(0, seats - pres - vips), left = max - att;
+  return { seats, vips, pres, att, max, left, cls: left <= 0 ? "full" : att >= max * 0.9 ? "near" : "" };
+}
+/** The box for the room's seats and VIPs, from the event page's tile. Resolves true when saved. */
+function askRoom(ev) {
+  return new Promise((done) => {
+    const dlg = document.createElement("dialog"); dlg.className = "sheet grpdlg"; document.body.append(dlg);
+    dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>The main room</h2><p class="hint" style="margin-top:6px">The venue's capacity for the room, everyone in it counted. The presenters and VIPs take seats first; the rest are for attendees.</p></div>
+      <div class="sheet-body"><div class="row2"><div class="field"><label for="rm-seats">Seats</label><input id="rm-seats" inputmode="numeric" value="${ev.room?.seats ?? ""}" placeholder="e.g. 300"></div>
+      <div class="field"><label for="rm-vips">VIPs seated</label><input id="rm-vips" inputmode="numeric" value="${ev.room?.vips ?? 0}"></div></div>
+      <div class="bad" id="rm-why" hidden></div>
+      <div class="actions"><button class="btn btn-gold" id="rm-ok" value="ok">Save</button><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div></div></form>`;
+    let saved = false;
+    dlg.querySelector("#rm-ok").onclick = async (e) => {
+      e.preventDefault();
+      try { const out = await api(`/events?id=${encodeURIComponent(ev.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: dlg.querySelector("#rm-seats").value.trim(), vips: dlg.querySelector("#rm-vips").value.trim() }) });
+        ev.room = out.room; saved = true; dlg.close(); }
+      catch (x) { const w = dlg.querySelector("#rm-why"); w.hidden = false; w.textContent = x.message; }
+    };
+    dlg.addEventListener("close", () => { dlg.remove(); done(saved); });
+    dlg.showModal(); dlg.querySelector("#rm-seats").focus();
+  });
+}
+
+/* ---------- The budget's set-up walk-through (Andrew 30 Oct 2026, from the mock-up he approved) ---------- */
+/**
+ * "When I type in an amount in a box it goes green or a green check box and I immediately go to next box automatically
+ * until I get through all the set up pricing." One question at a time; a box with an answer goes green with a ✓; Enter or
+ * Tab moves on (Shift+Tab goes back), and on a phone a big Next sits above the number pad. What Wix, the hotel contract or
+ * the last similar budget already says arrives filled and green. Every answer saves as it's given.
+ */
+const WALK_SHOWN = new Set();
+function walkSteps(B) {
+  const R = B.reg, M = SBX_LIVE?.contract?.money ?? {};
+  const wix = (k) => (R[k]?.fromWix?.length ? `From Wix: ${R[k].fromWix.join(", ")}` : "");
+  const from = (path) => (B.walkFrom ?? []).includes(path) ? `From ${B.walkFromTitle ?? "the last budget"}` : "";
+  const num = (id, group, q, help, path, o = {}) => ({ id, group, kind: "num", q, help, path, money: o.money !== false, zero: !!o.zero, tag: o.tag || from(path), short: o.short ?? q });
+  const kinds = [["inPerson", "In person"], ["earlyBird", "Early bird"], ["community", "Community"], ["virtual", "Virtual"], ["memberships", "Memberships"]];
+  const on = kinds.filter(([k]) => R[k]?.on);
+  return [
+    { id: "start", group: "Registration", kind: "start", short: "How to start" },
+    { id: "kinds", group: "Registration", kind: "kinds", short: "Kinds of registration", q: "How do people register?", help: "Tap every kind this event sells. In person is always on." },
+    ...on.map(([k, l]) => num(`price.${k}`, "Registration", k === "virtual" ? "What does a virtual ticket cost a member?" : `What does ${k === "memberships" ? "a membership" : k === "inPerson" ? "an in-person ticket" : `${/^[AEIOU]/.test(l) ? "an" : "a"} ${l.toLowerCase()} ticket`} cost?`,
+      k === "community" ? "The cheaper ticket for partners who come for some days only." : k === "earlyBird" ? "The price before the early-bird date." : "", `reg.${k}.price`, { tag: wix(k), short: `${k === "inPerson" ? "In-person" : l} price` })),
+    ...(R.virtual?.on ? [num("price.virtualNon", "Registration", "And a virtual ticket for a non-member?", "", "reg.virtual.priceNon", { tag: R.virtual.fromWixNon ? wix("virtual") : "", short: "Virtual, non-member" })] : []),
+    ...on.map(([k, l]) => num(`expected.${k}`, "Registration", `How many ${k === "memberships" ? "memberships" : `${k === "inPerson" ? "in-person" : l.toLowerCase()} registrations`} do you expect?`, "Your plan. What's sold so far comes from Wix.", `reg.${k}.expected`, { money: false, short: `${k === "inPerson" ? "In-person" : l} expected` })),
+    { id: "hst", group: "Registration", kind: "yesno", short: `Prices include ${B.taxName ?? "HST"}`, q: `Do the ticket prices include ${B.taxName ?? "HST"}?`, help: `If yes, the budget takes the ${B.taxName ?? "HST"} out before counting it as revenue.`, path: "pricesIncludeHst" },
+    num("rate", "Hotel", "What's the nightly room rate?", "Before tax. It's what the budget pays for every room ONGIA covers.", "hotel.rate", { tag: M.roomRate ? "From the hotel contract" : "", short: "Room rate" }),
+    num("block", "Hotel", "How many room nights are in the hotel block?", "From the contract: the nights ONGIA has committed to.", "hotel.commitment", { money: false, tag: M.blockNights ? "From the hotel contract" : "", short: "Room block" }),
+    num("seats", "The room", "How many seats does the main room hold?", "The venue's capacity for the room, everyone in it counted.", "room.seats", { money: false, tag: SBX_LIVE?.room?.seats ? "Set on the event" : "", short: "Seats" }),
+    num("vips", "The room", "How many VIPs will be seated in it?", "They take seats, like the presenters. 0 is fine.", "room.vips", { money: false, zero: true, short: "VIPs" }),
+    num("breakfast", "Meals", "What does breakfast cost a person?", "All fees in: the hotel's service and tax included.", "meals.breakfast", { short: "Breakfast" }),
+    num("break", "Meals", "And a break (coffee, snacks)?", "Per person, all fees in.", "meals.break", { short: "Break" }),
+    num("lunch", "Meals", "And lunch?", "Per person, all fees in.", "meals.lunch", { short: "Lunch" }),
+    num("dinner", "Meals", "And dinner?", "Per person, all fees in. Only the days you serve one count.", "meals.dinner", { short: "Dinner" }),
+    num("target", "The goal", "What profit are you aiming for?", "The tiles count how many more registrations it takes to get there.", "target", { short: "Profit target" }),
+  ];
+}
+const walkGet = (B, path) => path.split(".").reduce((o, k) => o?.[k], B);
+const walkSet = (B, path, v) => { const ks = path.split("."); let o = B; for (const k of ks.slice(0, -1)) o = o[k] ??= {}; o[ks.at(-1)] = v; };
+const walkAnswered = (B, st) => st.kind === "start" ? !!B.walkStarted : st.kind === "kinds" ? !!B.walkKinds : st.kind === "yesno" ? typeof B.pricesIncludeHst === "boolean" && !!B.walkHst
+  : (() => { const v = walkGet(B, st.path); return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)) && (st.zero ? Number(v) >= 0 && (B.walk?.done ?? []).includes(st.id) : Number(v) > 0); })();
+
+async function budgetWalk(startAt) {
+  const B = SBX, ev = SBX_EV;
+  if (!B || !ev) return;
+  B.walk ??= { done: [], skipped: [] };
+  document.querySelectorAll("dialog.walk").forEach((d) => d.remove());
+  const dlg = document.createElement("dialog"); dlg.className = "walk"; document.body.append(dlg);
+  let steps = walkSteps(B), i = Math.max(0, startAt ? steps.findIndex((x) => x.id === startAt) : 0), like = null, likeAsked = false, done = false;
+  const money = sbxMoney;
+  const mark = (id, how) => { B.walk.done = B.walk.done.filter((x) => x !== id); B.walk.skipped = B.walk.skipped.filter((x) => x !== id); B.walk[how].push(id); };
+  const saveRoom = () => api(`/events?id=${encodeURIComponent(ev.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: B.room?.seats ?? null, vips: B.room?.vips ?? 0 }) })
+    .then((out) => { ev.room = out.room; if (SBX_LIVE) SBX_LIVE.room = out.room; }).catch((x) => toast(x.message));
+  const live = () => { const C = sbxCalc(B), Rm = C.room; return `<div><span>Registration</span><b>${money(C.gross)}</b></div><div><span>Break-even</span><b>${C.breakEven === null ? "–" : `${C.breakEven} registrations`}</b></div><div><span>Profit as planned</span><b>${money(C.profit)}</b></div>${Rm.cap ? `<div><span>Room</span><b>${Rm.maxAttendees} attendee seats</b></div>` : ""}`; };
+  const valueText = (st) => st.kind === "start" ? (B.walkFromTitle ? "same as last" : B.walkStarted ? "fresh" : "") : st.kind === "kinds" ? (B.walkKinds ? `${Object.values(B.reg).filter((r) => r.on).length}` : "")
+    : st.kind === "yesno" ? (B.walkHst ? (B.pricesIncludeHst ? "yes" : "no") : "") : walkAnswered(B, st) ? (st.money ? money(walkGet(B, st.path)) : String(walkGet(B, st.path))) : "";
+  const side = () => { let g = ""; return steps.map((st, k) => { const head = st.group !== g ? `<div class="wgrp">${esc((g = st.group))}</div>` : "";
+    const cls = k === i ? "now" : walkAnswered(B, st) ? "done" : B.walk.skipped.includes(st.id) ? "skip" : "";
+    return `${head}<button type="button" class="wit ${cls}" data-wgo="${k}"><span class="ck"></span>${esc(st.short)}<span class="v">${esc(valueText(st))}</span></button>`; }).join(""); };
+  const draw = () => {
+    steps = walkSteps(B);
+    if (i >= steps.length) return finish();
+    const st = steps[i], pct = Math.round((i / steps.length) * 100);
+    let body = "";
+    if (st.kind === "start") {
+      body = `<div class="wq">How would you like to start?</div><p class="whelp">Either way you go through each box, and anything Wix or the hotel contract already says is filled in.</p>
+        <div class="wstart">${like?.budget ? `<button type="button" class="wopt rec" data-wstart="like"><b>✓ Same as ${esc(like.from.title)}</b><span>Its prices, expected numbers, meals, room rate and lines. Change what's different.</span></button>` : ""}
+          <button type="button" class="wopt${like?.budget ? "" : " rec"}" data-wstart="fresh"><b>Start fresh</b><span>One question at a time${likeAsked && !like?.budget ? ". There's no other event's budget to start from yet" : ""}.</span></button></div>`;
+    } else if (st.kind === "kinds") {
+      const R = B.reg, pill = (k, l, lock) => `<button type="button" class="wpill${R[k].on ? " on" : ""}" data-wkind="${k}"${lock ? " disabled" : ""}>${R[k].on ? "✓ " : ""}${l}</button>`;
+      body = `<div class="wq">${esc(st.q)}</div><p class="whelp">${esc(st.help)}</p><div class="wpills">${pill("inPerson", "In person", true)}${pill("earlyBird", "Early bird")}${pill("community", "Community")}${pill("virtual", "Virtual")}${pill("memberships", "Memberships")}</div>`;
+    } else if (st.kind === "yesno") {
+      body = `<div class="wq">${esc(st.q)}</div><p class="whelp">${esc(st.help)}</p><div class="wpills"><button type="button" class="wpill${B.walkHst && B.pricesIncludeHst ? " on" : ""}" data-wyes="1">${B.walkHst && B.pricesIncludeHst ? "✓ " : ""}Yes</button><button type="button" class="wpill${B.walkHst && !B.pricesIncludeHst ? " on" : ""}" data-wyes="0">${B.walkHst && !B.pricesIncludeHst ? "✓ " : ""}No</button></div>`;
+    } else {
+      const v = walkGet(B, st.path), shown = v === null || v === undefined || (Number(v) === 0 && !st.zero) ? "" : v;
+      body = `<div class="wq">${esc(st.q)}</div>${st.help ? `<p class="whelp">${esc(st.help)}</p>` : ""}
+        <div class="wbox${walkAnswered(B, st) ? " ok" : ""}">${st.money ? `<span class="cur">$</span>` : ""}<input id="wv" inputmode="decimal" autocomplete="off" value="${esc(String(shown))}" aria-label="${esc(st.q)}"${st.money ? "" : ` class="nomoney"`}><span class="tick" aria-hidden="true">✓</span></div>
+        ${st.tag ? `<span class="wfrom">${esc(st.tag)}</span>` : ""}<div class="wwhy" id="wwhy" hidden></div>`;
+    }
+    dlg.innerHTML = `<div class="wwrap"><div class="wside"><h3>Setting up the budget</h3><div class="wsub">${esc(ev.title)}</div>${side()}</div>
+      <div class="wmain"><div class="wtop"><div class="wbar"><i style="width:${pct}%"></i></div><div class="wdots">${steps.map((x, k) => `<i class="${k === i ? "n" : walkAnswered(B, x) ? "d" : B.walk.skipped.includes(x.id) ? "s" : ""}"></i>`).join("")}</div>
+        <div class="wcount">Step ${i + 1} of ${steps.length} · ${esc(st.group)}</div><button type="button" class="wclose" id="wclose" aria-label="Close">✕</button></div>
+        ${body}
+        <div class="wacts"><button type="button" class="wnext" id="wnext">Next ✓</button>${i ? `<button type="button" class="wghost" id="wback">Back</button>` : ""}${st.kind === "num" ? `<button type="button" class="wghost" id="wskip">Skip for now</button>` : ""}<span class="wkbd">Enter or Tab = Next</span></div>
+        <div class="wlive">${live()}</div></div></div>`;
+    wire(st);
+  };
+  const go = (k) => { i = Math.max(0, Math.min(k, steps.length)); sbxPersist(); draw(); };
+  const commit = (st) => {
+    if (st.kind !== "num") return true;
+    const el = dlg.querySelector("#wv"), raw = String(el.value).replace(/[$,\s]/g, "");
+    if (raw === "") { if (walkAnswered(B, st)) return true; const w = dlg.querySelector("#wwhy"); w.hidden = false; w.textContent = "Type an amount, or Skip for now."; el.focus(); return false; }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) { const w = dlg.querySelector("#wwhy"); w.hidden = false; w.textContent = "That isn't a number."; el.focus(); return false; }
+    walkSet(B, st.path, n); mark(st.id, "done");
+    if (st.path.startsWith("room.")) saveRoom();
+    return true;
+  };
+  const next = (st) => { if (commit(st)) go(i + 1); };
+  function wire(st) {
+    dlg.querySelector("#wclose").onclick = () => finish(true);
+    dlg.querySelector("#wnext").onclick = () => {
+      if (st.kind === "start" && !B.walkStarted) { B.walkStarted = true; mark("start", "done"); }
+      if (st.kind === "kinds") { B.walkKinds = true; mark("kinds", "done"); }
+      if (st.kind === "yesno" && !B.walkHst) { const w = dlg.querySelector(".wpills"); w.classList.add("shake"); setTimeout(() => w.classList.remove("shake"), 400); return; }
+      next(st);
+    };
+    const back = dlg.querySelector("#wback"); if (back) back.onclick = () => { commit(st); go(i - 1); };
+    const skip = dlg.querySelector("#wskip"); if (skip) skip.onclick = () => { mark(st.id, "skipped"); go(i + 1); };
+    dlg.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => { commit(st); go(+b.dataset.wgo); }; });
+    dlg.querySelectorAll("[data-wstart]").forEach((b) => { b.onclick = () => {
+      if (b.dataset.wstart === "like" && like?.budget) copyLike(B, like);
+      B.walkStarted = true; mark("start", "done"); go(i + 1); }; });
+    dlg.querySelectorAll("[data-wkind]").forEach((b) => { b.onclick = () => { const k = b.dataset.wkind; B.reg[k].on = !B.reg[k].on; B.walkKinds = true; sbxPersist(); draw(); }; });
+    dlg.querySelectorAll("[data-wyes]").forEach((b) => { b.onclick = () => { B.pricesIncludeHst = b.dataset.wyes === "1"; B.walkHst = true; mark("hst", "done"); draw(); setTimeout(() => go(i + 1), 250); }; });
+    const el = dlg.querySelector("#wv");
+    dlg.onkeydown = null;   // each step sets its own keys; a step's Enter must never also press the next one's Next
+    if (el) {
+      const box = el.closest(".wbox");
+      el.oninput = () => { const n = Number(String(el.value).replace(/[$,\s]/g, "")), good = el.value.trim() !== "" && Number.isFinite(n) && (st.zero ? n >= 0 : n > 0);
+        box.classList.toggle("ok", good); dlg.querySelector("#wwhy").hidden = true;
+        // The line at the bottom follows the typing.
+        if (good) { walkSet(B, st.path, n); dlg.querySelector(".wlive").innerHTML = live(); } };
+      el.onkeydown = (e) => {
+        if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) { e.preventDefault(); e.stopPropagation(); next(st); }
+        else if (e.key === "Tab" && e.shiftKey) { e.preventDefault(); e.stopPropagation(); commit(st); go(i - 1); }
+      };
+      setTimeout(() => { el.focus(); el.select(); }, 30);
+    } else {
+      dlg.onkeydown = (e) => { if (e.target.closest?.("[data-wgo],[data-wkind],[data-wyes],[data-wstart],#wclose,#wback")) return;
+        if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) { e.preventDefault(); dlg.querySelector("#wnext").click(); } };
+      dlg.querySelector("#wnext").focus();
+    }
+  }
+  function finish(closing = false) {
+    if (done) return;
+    const st = steps[i];
+    if (closing && st && st.kind === "num") commit(st);
+    if (!closing || i >= steps.length) {
+      // Anything never answered counts as skipped, so the walk-through asks it next time.
+      for (const x of steps) if (!walkAnswered(B, x) && !B.walk.skipped.includes(x.id) && x.kind === "num") B.walk.skipped.push(x.id);
+    }
+    if (!closing) { B.asked = true; summary(); return; }
+    done = true; B.asked = true; sbxPersist(); dlg.close(); dlg.remove(); sbxDraw();
+  }
+  function summary() {
+    steps = walkSteps(B);
+    const answered = steps.filter((x) => walkAnswered(B, x)).length, sk = steps.filter((x) => !walkAnswered(B, x));
+    const C = sbxCalc(B);
+    dlg.innerHTML = `<div class="wwrap one"><div class="wmain"><div class="wtop"><div class="wbar"><i style="width:100%"></i></div><div class="wcount">All done</div><button type="button" class="wclose" id="wclose" aria-label="Close">✕</button></div>
+      <div class="wq">That's the budget set up.</div><p class="whelp">${answered} of ${steps.length} answered.${sk.length ? ` ${sk.length} skipped: the walk-through will ask ${sk.length === 1 ? "it" : "them"} again next time you open the Money tab.` : ""}</p>
+      <div class="wsum">${steps.filter((x) => x.kind !== "start").map((x, k) => `<button type="button" class="wsrow${walkAnswered(B, x) ? "" : " skip"}" data-wgo="${steps.indexOf(x)}"><span>${esc(x.short)}</span><b>${esc(valueText(x) || "skipped")}</b></button>`).join("")}</div>
+      <div class="wacts"><button type="button" class="wnext" id="wopen">Open the budget</button><button type="button" class="wghost" id="wagain">Go back over it</button></div>
+      <div class="wlive">${live()}${C.room.cap ? "" : ""}</div></div></div>`;
+    sbxPersist();
+    dlg.onkeydown = null;
+    const close = () => { done = true; dlg.close(); dlg.remove(); sbxDraw(); };
+    dlg.querySelector("#wopen").onclick = close; dlg.querySelector("#wclose").onclick = close;
+    dlg.querySelector("#wagain").onclick = () => { i = 1; draw(); };
+    dlg.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => { i = +b.dataset.wgo; draw(); }; });
+    dlg.querySelector("#wopen").focus();
+  }
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(true); });
+  dlg.showModal();
+  draw();
+  // The last similar event's budget, for "Same as …".
+  if (i === 0) api(`/budget?like=${encodeURIComponent(ev.id)}`).then((out) => { like = out; likeAsked = true; if (!done && i === 0 && dlg.isConnected) draw(); }).catch(() => { likeAsked = true; });
+}
+/** Start from the last similar event's budget: its prices, expected numbers, meals, room rate, lines and goal. */
+function copyLike(B, like) {
+  const L = like.budget, took = [];
+  for (const k of Object.keys(B.reg)) {
+    const a = L.reg?.[k]; if (!a) continue;
+    B.reg[k].on = k === "inPerson" ? true : !!a.on;
+    for (const f of ["price", "priceNon", "expected", "expectedNon"]) if (a[f] !== undefined && !(f.startsWith("price") && B.reg[k].fromWix?.length)) { B.reg[k][f] = a[f]; took.push(`reg.${k}.${f}`); }
+    if (k === "community" && Array.isArray(a.days)) B.reg.community.days = [...B.reg.community.days];
+  }
+  if (typeof L.pricesIncludeHst === "boolean") B.pricesIncludeHst = L.pricesIncludeHst;
+  for (const f of ["breakfast", "break", "lunch", "dinner", "noShow"]) if (L.meals?.[f] !== undefined) { B.meals[f] = L.meals[f]; took.push(`meals.${f}`); }
+  if (!SBX_LIVE?.contract?.money?.roomRate && L.hotel?.rate) { B.hotel.rate = L.hotel.rate; took.push("hotel.rate"); }
+  if (L.target) { B.target = L.target; took.push("target"); }
+  if (!B.other?.length && Array.isArray(L.other)) B.other = L.other.map((o, n) => ({ ...o, id: `l${Date.now().toString(36)}${n}`, spent: null }));
+  if (L.room?.perTable) B.room = { ...(B.room ?? {}), perTable: L.room.perTable };
+  B.walkFrom = took; B.walkFromTitle = like.from.title;
+}
+
 /** The groups for "Everything else": the common ones and any added, the same for every budget. */
 const BUDGET_GROUPS_COMMON = ["Venue & AV", "Food & hospitality", "Travel", "Speakers", "Supplies & merchandise", "Printing & marketing", "Insurance", "Volunteers & staff", "Other"];
 let BUDGET_GROUPS = [...BUDGET_GROUPS_COMMON], BUDGET_GROUPS_AT = 0;
@@ -8930,6 +9268,8 @@ function budgetSync(B, L) {
     B.people.push({ id: `b${Date.now().toString(36)}${B.people.length}`, name: m.name, group: "board", pays: "reimbursed", nights: boardNights(B.event) });
   if (L.registered && !B.reg.inPerson.sold && !B.reg.inPerson.fromWix?.length) B.reg.inPerson.sold = L.registered;
   applyWix(B, L.wix);
+  // The room's seats and VIPs are the event's (every event has them); the budget shows and changes the same numbers.
+  if (L.room) B.room = { ...(B.room ?? { perTable: 8 }), seats: L.room.seats ?? null, vips: L.room.vips ?? 0 };
   // The grid shows every night someone on the rooming list has.
   const all = B.people.flatMap((p) => p.nights);
   if (all.length) {
@@ -8989,11 +9329,15 @@ function mountBudget(ev, got) {
   SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
   const was = JSON.stringify(mine ?? got.budget);
   SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));
+  // Unsaved typing is kept, but the room's seats are the event's: set from the event page's tile, they show here too.
+  if (mine && got.live?.room) SBX.room = { ...(SBX.room ?? { perTable: 8 }), seats: got.live.room.seats ?? null, vips: got.live.room.vips ?? 0 };
   if (got.budget && !mine && JSON.stringify(SBX) !== was) sbxPersist();
   sbxDraw();
   // The added groups come from the server; the common ones are already there, so this redraws only if there are more.
   if (Date.now() - BUDGET_GROUPS_AT > 60_000) loadBudgetGroups().then(() => { if (SBX_EV?.id === ev.id && SBX_HOST?.isConnected && BUDGET_GROUPS.length > BUDGET_GROUPS_COMMON.length && !SBX_HOST.contains(document.activeElement)) sbxDraw(); });
-  if (!SBX.asked && (view.tab === "money" || BUDGET_ASK === ev.id)) { BUDGET_ASK = null; sbxQuestions(); }
+  // Not set up yet, or steps skipped last time: the walk-through, once per visit to the page.
+  const due = !SBX.asked || (SBX.walk?.skipped ?? []).length;
+  if (due && (view.tab === "money" || BUDGET_ASK === ev.id) && !WALK_SHOWN.has(ev.id)) { BUDGET_ASK = null; WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
 }
 let BUDGET_ASK = null;   // an event just made: ask its registration questions straight away
 

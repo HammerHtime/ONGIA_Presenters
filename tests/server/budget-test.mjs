@@ -50,6 +50,17 @@ ok("nonsense isn't kept", (await call(budget, `/api/budget?event=${ev.id}`, "PUT
 r = await call(budget, `/api/budget?event=${ev.id}`, "DELETE");
 ok("Start over clears it and hands back the records to start again from", r.status === 200 && r.live?.event && (await call(budget, `/api/budget?event=${ev.id}`)).budget === null);
 
+console.log("— the main room, on every event");
+// Andrew 30 Oct 2026: "every one of those events will have a capacity ... It'd be nice to know when we are getting close".
+const roomEv = (await call(events, "/api/events", "POST", { title: `Room Test ${T}`, city: "Toronto, ON", dayOne: "2031-07-07", lastDay: "2031-07-07", invite: false,
+  board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], presenters: [{ first: "Pat", last: "Example", email: "pat.example@example.ca", organization: "Sample Police" }] })).event;
+let rr = await call(events, `/api/events?id=${roomEv.id}&room=1`, "PUT", { seats: "300", vips: 4 }, LEAD);
+ok("the event's lead can set the room's seats and VIPs", rr.status === 200 && rr.room.seats === 300 && rr.room.vips === 4, JSON.stringify(rr));
+ok("they're kept on the event, and the budget sees them with the event's presenters", (await call(events, `/api/events?id=${roomEv.id}`)).event.room.seats === 300 && (await call(budget, `/api/budget?event=${roomEv.id}`)).live.room.vips === 4 && (await call(budget, `/api/budget?event=${roomEv.id}`)).live.presenters === 1);
+ok("nonsense is refused", (await call(events, `/api/events?id=${roomEv.id}&room=1`, "PUT", { seats: "lots" })).status === 400);
+ok("an edit to the event doesn't lose them", (await call(events, `/api/events?id=${roomEv.id}`, "PUT", { ...(await call(events, `/api/events?id=${roomEv.id}`)).event, board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] })).status === 200 && (await call(events, `/api/events?id=${roomEv.id}`)).event.room?.seats === 300);
+await call(events, `/api/events?id=${roomEv.id}`, "DELETE");
+
 console.log("— the groups for Everything else");
 let G = await call(budget, "/api/budget?groups=1");
 ok("the common groups are there to start", G.status === 200 && G.groups.includes("Venue & AV") && G.groups.includes("Other"));

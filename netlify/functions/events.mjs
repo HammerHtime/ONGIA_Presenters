@@ -3,7 +3,8 @@ import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster, deleteSurveyData,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies,
-  countSurveyResponses, getSeen, putSeen } from "./lib/store.mjs";
+  countSurveyResponses, getSeen, putSeen, getAttendees } from "./lib/store.mjs";
+import { tally } from "./lib/attendees.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
@@ -28,6 +29,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   DELETE /api/events?id=…&presenter=…     remove one presenter (&final=1 for a signed, filed agreement)
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
+ *   PUT    /api/events?id=…&room=1          the main room's seats and the VIPs seated in it ({ seats, vips })
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -58,6 +60,7 @@ export default async (req) => {
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("lead")) return setLead(id, body);
+    if (url.searchParams.get("room")) return setRoom(id, body);
     const presenterId = url.searchParams.get("presenter");
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
@@ -69,6 +72,23 @@ export default async (req) => {
   }
   return fail("Method not allowed.", 405);
 };
+
+/**
+ * The main room's capacity (Andrew 30 Oct 2026: "every one of those events will have a capacity ... It'd be nice to know
+ * when we are getting close"). Every event has one, RBH or ONGIA's own; the seats are the venue's, and the VIPs are
+ * seated in it too, so both come off what's left for attendees. Changes those two numbers and nothing else.
+ */
+async function setRoom(id, body) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  const n = (v, max) => { if (v === "" || v === null || v === undefined) return null; const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 0 && x <= max ? x : undefined; };
+  const seats = n(body.seats, 20000), vips = n(body.vips, 2000);
+  if (seats === undefined || vips === undefined) return fail("That isn't a number of seats.");
+  event.room = seats || vips ? { seats, vips: vips ?? 0 } : null;
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, room: event.room });
+}
 
 /**
  * The switch at the top of an event: may the desk email this event's attendees
@@ -482,6 +502,8 @@ async function showList(canCost = true, viewer = { key: true }) {
         canEdit: mayEditEvent(viewer, event),
         counts: countStatuses(people),
         presenterCount: people.length,
+        // Who is coming, for the room's "Nearly full" badge (Andrew 30 Oct 2026); only read where the seats are set.
+        registered: event.room?.seats ? tally((await getAttendees(event.id))?.people ?? []).attending : null,
         // The desk's own jobs, tallied here so the year view and the attention
         // strip do not have to redo the working-day arithmetic in the browser.
         checklist: checklistOf(event).counts,

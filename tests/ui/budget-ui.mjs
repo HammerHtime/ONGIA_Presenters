@@ -33,13 +33,16 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   let p;
   if (tag === "wide") {
     p = await open(w, h, tab(ev.id, "money"));
-    ok(`${tag}: opening the Money tab the first time asks how people register`, await p.locator(".sbxq").isVisible() && /budget night/i.test(await p.locator(".sbxq").innerText()));
+    // The set-up walk-through comes up first (walk-ui tests it); closed, the one-page questions are a button away.
+    ok(`${tag}: opening the Money tab the first time starts the set-up walk-through`, await p.locator("dialog.walk").isVisible() && /budget night/i.test(await p.locator("dialog.walk").innerText()));
+    await p.locator("#wclose").click(); await p.waitForTimeout(600); await p.locator("#sbx-q").click(); await p.waitForTimeout(400);
     ok(`${tag}: and whether the ticket prices include the province's tax (GST in Saskatchewan)`, /include GST\?/.test(await p.locator(".sbxq").innerText()));
   } else {
     p = await open(w, h, tab(ev.id));
-    ok(`${tag}: the overview doesn't interrupt with it`, !(await p.locator(".sbxq").count()));
+    ok(`${tag}: the overview doesn't interrupt with it`, !(await p.locator(".sbxq, dialog.walk").count()));
     await p.locator('.etab[data-tab="money"]').click(); await p.waitForTimeout(800);
-    ok(`${tag}: pressing the Money tab asks the questions`, await p.locator(".sbxq").isVisible());
+    ok(`${tag}: pressing the Money tab starts the walk-through`, await p.locator("dialog.walk").isVisible());
+    await p.locator("#wclose").click(); await p.waitForTimeout(600); await p.locator("#sbx-q").click(); await p.waitForTimeout(400);
   }
   await p.locator('.sbxq [data-q="inPerson.price"]').fill("450");
   await p.locator('.sbxq [data-q="inPerson.expected"]').fill("100");
@@ -50,7 +53,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator("#q-done").click(); await p.waitForTimeout(1800);
   let B = await saved(ev.id);
   ok(`${tag}: the answers are saved with the event`, B?.asked && B.reg.inPerson.price === 450 && B.reg.inPerson.expected === 100 && B.reg.virtual.on && B.reg.virtual.price === 199 && B.pricesIncludeHst === false && B.hst === 5, JSON.stringify(B?.reg));
-  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbt").count()) === 12);
+  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbt").count()) === 13);
   ok(`${tag}: registration shows only what was said yes to`, /Virtual/.test(await p.locator(".sbreg").innerText()) && !/Community|Memberships/.test(await p.locator(".sbreg").innerText()));
   ok(`${tag}: the hotel's rate is filled in from the event`, (await p.locator('[data-k="hotel.rate"]').inputValue()) === "189");
   const patRow = p.locator("tr.rl", { hasText: "Pat Example" });
@@ -72,13 +75,26 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   B = await saved(ev.id);
   ok(`${tag}: tapping a board night takes it off, and it saves on its own`, B.people.find((x) => x.name === "Raj Jaswal").nights.length === 5 && /Saved/.test(await p.locator("#sbx-said").innerText()));
   await p.locator("#evbudget .sbtiles").screenshot({ path: D + `budget-tiles-${tag}.png` });
-  await p.locator("#evbudget .card", { hasText: "Hotel nights" }).screenshot({ path: D + `budget-nights-${tag}.png` });
+  await p.locator("#evbudget .card").filter({ has: p.locator("table.ng") }).screenshot({ path: D + `budget-nights-${tag}.png` });
   if (tag === "wide") {
     // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
     const before = (await saved(ev.id)).people.filter((x) => x.group === "board").length;
     await p.locator("[data-paddall]").click(); await p.waitForTimeout(1600);
     const board = (await saved(ev.id)).people.filter((x) => x.group === "board");
     ok(`${tag}: Add all board members puts the whole board roster on the grid, each from three nights before day one, reimbursed`, board.length > before && board.every((x) => x.pays === "reimbursed") && board.filter((x) => x.name !== "Raj Jaswal").every((x) => x.nights[0] === "2031-05-09" && x.nights.at(-1) === "2031-05-14") && !(await p.locator("[data-paddall]").count()), `${before} → ${board.length}`);
+    // Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap ... has to include our presenters ... with 8 people at
+    // a round table, how many tables?"
+    const seats = p.locator('[data-k="room.seats"]'); await seats.fill("120"); await seats.press("Tab"); await p.waitForTimeout(1500);
+    const vip = p.locator('[data-k="room.vips"]'); await vip.fill("4"); await vip.press("Tab"); await p.waitForTimeout(1500);
+    // Andrew 30 Oct 2026: "not include the sponsors ... board members ... volunteers ... just attendees, presenters, and VIPs".
+    const Bs = await saved(ev.id), notAtt = Bs.people.filter((x) => x.group === "presenter").length + 4;
+    ok(`${tag}: the room's seats are kept, and what's left for attendees is the seats less the presenters and VIPs, not the board`, Bs.room.seats === 120 && new RegExp(`room for ${120 - notAtt} attendees`).test(await p.locator(".blk.wide2 .row.tot").innerText()), await p.locator(".blk.wide2 .row.tot").innerText());
+    const day = await p.locator(".seats tbody tr").first().locator("td").allInnerTexts();
+    ok(`${tag}: each day says how many are seated and how many round tables of 8 that takes`, Number(day[3]) === 4 && Number(day[5]) === Math.ceil(Number(day[4].split(/\s/)[0]) / 8) && Number(day[6]) === Number(day[5]) * 8, day.join(" | "));
+    const exp = p.locator('[data-k="reg.inPerson.expected"]'); await exp.fill("200"); await exp.press("Tab"); await p.waitForTimeout(1500);
+    ok(`${tag}: expecting more than the room takes says so, in red`, /too many/.test(await p.locator(".blk.wide2 .row.tot").innerText()) && (await p.locator(".seats tr.over").count()) > 0);
+    await exp.fill("100"); await exp.press("Tab"); await p.waitForTimeout(1200);
+    ok(`${tag}: the room's seats typed in the budget are the event's own`, (await api(`/api/events?id=${ev.id}`)).event.room?.seats === 120);
     // Andrew 30 Oct 2026: "where are all the line items ... AV, presenter gifts, attendee gifts ... That was in the Excel
     // sheet", and "you could hide all of those spent columns and we'll just have the projected".
     ok(`${tag}: Everything else has Group, Line and Projected, no Spent`, (await p.locator(".sbelse thead").innerText()).replace(/\s+/g, " ").trim().toUpperCase() === "GROUP LINE PROJECTED" && !(await p.locator('[data-k$=".spent"], [data-k$=".paid"]').count()), await p.locator(".sbelse thead").innerText());
@@ -111,7 +127,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.close();
     p = await open(w, h, tab(ev.id, "money"));
     ok(`${tag}: someone added to the rooming list later is in the budget the next time, and nothing typed is lost`, (await p.locator("tr.rl", { hasText: "Sam Sample" }).locator(".c.on").count()) === 1
-      && !(await p.locator(".sbxq").count()) && (await saved(ev.id)).people.find((x) => x.name === "Raj Jaswal").nights.length === 5);
+      && !(await p.locator(".sbxq, dialog.walk").count()) && (await saved(ev.id)).people.find((x) => x.name === "Raj Jaswal").nights.length === 5);
     await p.close();
     // Making a new event of ONGIA's own: the questions come up as soon as it's made (Andrew 29 Oct 2026).
     p = await open(w, h, "");
@@ -120,8 +136,9 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.evaluate(() => { const m = document.querySelector('#board .member[data-email="president@ongia.ca"]'); const pick = m.querySelector(".pick"); pick.checked = true; pick.dispatchEvent(new Event("change", { bubbles: true }));
       const r = m.querySelector('input[name="lead"]'); r.disabled = false; r.checked = true; r.dispatchEvent(new Event("change", { bubbles: true })); });
     await p.locator("#create").click(); await p.waitForTimeout(2500);
-    ok(`${tag}: a new event asks the registration questions as soon as it's made`, await p.locator(".sbxq").isVisible() && /fresh budget/i.test(await p.locator(".sbxq").innerText()));
-    await p.locator('.sbxq [data-q="inPerson.price"]').fill("375"); await p.locator("#q-done").click(); await p.waitForTimeout(1500);
+    ok(`${tag}: a new event starts the set-up walk-through as soon as it's made`, await p.locator("dialog.walk").isVisible() && /fresh budget/i.test(await p.locator("dialog.walk").innerText()));
+    await p.locator('[data-wstart="fresh"]').click(); await p.waitForTimeout(300); await p.locator("#wnext").click(); await p.waitForTimeout(300);
+    await p.locator("#wv").fill("375"); await p.locator("#wv").press("Enter"); await p.waitForTimeout(300); await p.locator("#wclose").click(); await p.waitForTimeout(1500);
     const fresh = (await api("/api/events")).events.find((e) => e.title === `Fresh Budget ${T}`);
     ok(`${tag}: and its answers are that event's budget, with Ontario's HST`, (await saved(fresh.id))?.reg.inPerson.price === 375 && (await saved(fresh.id)).hst === 13 && !p.errs.length, p.errs.join(" | "));
     await p.close();
