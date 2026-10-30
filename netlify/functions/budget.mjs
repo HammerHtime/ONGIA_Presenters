@@ -63,7 +63,8 @@ export async function live(event) {
   const contract = read?.state === "done" ? read.found ?? null : null;
   const people = rows.map((r) => ({
     key: r.key, name: r.name, org: r.organization || "",
-    group: r.board || r.type === "Board Member" ? "board" : r.who === "presenter" ? "presenter" : r.who === "volunteer" ? "volunteer" : "other",
+    // Listed by type as well as by where they came from: a presenter typed straight onto the rooming list is a presenter.
+    group: r.board || /^board/i.test(r.type ?? "") ? "board" : r.who === "presenter" || /^presenter/i.test(r.type ?? "") ? "presenter" : r.who === "volunteer" || /^volunteer/i.test(r.type ?? "") ? "volunteer" : "other",
     billing: r.billing, nights: nightsOf(r.checkIn, r.checkOut), confirmed: r.confirmed !== false,
   }));
   return {

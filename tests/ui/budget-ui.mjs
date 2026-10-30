@@ -57,6 +57,17 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: the person on the rooming list is there with their three nights, marked as from the rooming list, not tappable`, (await patRow.locator(".c.on").count()) === 3 && /rooming list/.test(await patRow.innerText()) && await patRow.locator(".c").first().isDisabled());
   const raj = p.locator("tr", { has: p.locator('input.pname[value="Raj Jaswal"]') });
   ok(`${tag}: the board on the event is planned in from three nights before day one, reimbursed`, (await raj.locator(".c.on").count()) === 6 && /reimburse/i.test(await raj.locator(".pbseg button.on").innerText()), String(await raj.locator(".c.on").count()));
+  if (tag === "phone") {
+    // Andrew 30 Oct 2026: "the names are to the left and then I can see one day ... swipe to left and the next day appears".
+    const g = await p.locator(".ngwrap").evaluate((el) => ({ cw: el.clientWidth, day: el.querySelector("thead th.dc").getBoundingClientRect().width, snap: getComputedStyle(el).scrollSnapType }));
+    ok(`${tag}: one night at a time beside the names, snapping as it's swiped`, Math.abs(g.day - (g.cw - 140)) < 3 && /x/.test(g.snap), JSON.stringify(g));
+    await p.locator(".ngwrap").evaluate((el) => { el.scrollLeft = el.querySelectorAll("thead th.dc")[4].offsetLeft - 140; });
+    await p.waitForTimeout(400);
+    const before = await p.locator(".ngwrap").evaluate((el) => el.scrollLeft);
+    await raj.locator(".c").nth(4).click(); await p.waitForTimeout(900);
+    ok(`${tag}: a tap keeps the same night on screen`, Math.abs((await p.locator(".ngwrap").evaluate((el) => el.scrollLeft)) - before) < 3);
+    await raj.locator(".c").nth(4).click(); await p.waitForTimeout(900);
+  }
   await raj.locator(".c.on").first().click(); await p.waitForTimeout(1600);
   B = await saved(ev.id);
   ok(`${tag}: tapping a board night takes it off, and it saves on its own`, B.people.find((x) => x.name === "Raj Jaswal").nights.length === 5 && /Saved/.test(await p.locator("#sbx-said").innerText()));
@@ -85,6 +96,12 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const fresh = (await api("/api/events")).events.find((e) => e.title === `Fresh Budget ${T}`);
     ok(`${tag}: and its answers are that event's budget, with Ontario's HST`, (await saved(fresh.id))?.reg.inPerson.price === 375 && (await saved(fresh.id)).hst === 13 && !p.errs.length, p.errs.join(" | "));
     await p.close();
+    // An iPad, both ways round: nothing wider than the screen (the top bar's buttons wrap under).
+    for (const [iw, ih] of [[820, 1180], [1180, 820]]) {
+      const ip = await open(iw, ih, tab(ev.id, "money"));
+      ok(`iPad ${iw}×${ih}: the Money tab fits the screen`, await ip.evaluate(() => document.documentElement.scrollWidth <= innerWidth) && !ip.errs.length, ip.errs.join(" | "));
+      await ip.close();
+    }
     const lead = await open(w, h, tab(ev.id), "treasurer@ongia.ca", "Raj Jaswal", {});
     ok(`${tag}: the event's lead, who never sees the money, has no Money tab and no budget`, !(await lead.locator('.etab[data-tab="money"]').count()) && !(await lead.locator("#evbudget").count()));
     await lead.close();

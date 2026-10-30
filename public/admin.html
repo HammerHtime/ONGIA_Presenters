@@ -433,6 +433,27 @@
   .sbx .ng tr.rl .c{cursor:default}.sbx .ng tr.rl .c:not(.on){opacity:.55}
   .sbx .ng tr.rl b.pname{display:block;width:170px;overflow:hidden;text-overflow:ellipsis}
   .sbx .ng .rltag{font-style:normal;color:var(--rbh)}
+  .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
+  /* Tablets: every night fits, who pays is a scroll away; the names stay put while it scrolls. */
+  @media (max-width:1239px){.sbx .ng .nm{position:sticky;left:0;z-index:2;background:var(--card)}.sbx .ng tr.grp .gl{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px}}
+  /* Phone: names pinned on the left, one night at a time beside them, snapping into place as it's swiped. */
+  @media (max-width:560px){
+    .sbx .ngwrap{scroll-snap-type:x mandatory;scroll-padding-left:140px;overscroll-behavior-x:contain}
+    .sbx .ng{border-spacing:0 6px}
+    .sbx .ng .nm{position:sticky;left:0;z-index:2;background:var(--card);width:140px;min-width:140px;max-width:140px;padding-right:8px;white-space:normal}
+    .sbx .ng td.nm span{white-space:normal;overflow-wrap:anywhere}
+    .sbx .ng .pname,.sbx .ng tr.rl b.pname{width:130px;font-size:13.5px}
+    .sbx .ng .dc,.sbx .ng .pc{width:var(--dayw);min-width:var(--dayw);max-width:var(--dayw);scroll-snap-align:start;padding:0 4px}
+    .sbx .ng .nc{scroll-snap-align:start}
+    .sbx .ng .c{width:100%;height:46px}
+    .sbx .ng th.dc{font-size:0;padding-bottom:4px}.sbx .ng th.dc .d{display:none}
+    .sbx .ng th.dc .mo{display:block;font-family:var(--fb);font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted)}
+    .sbx .ng th.dc .mo b{display:block;font-size:16px;color:var(--ink)}.sbx .ng th.dc.ev .mo b{color:var(--navy)}
+    .sbx .ng th .swipe{display:block;font-family:var(--fb);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--muted);text-align:left;line-height:1.3}
+    .sbx .ng th.pc .pl{display:block;font-family:var(--fb);font-size:12px;letter-spacing:0;text-transform:none;color:var(--navy);margin-top:4px}
+    .sbx .ng tr.grp .gl{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px}
+    .sbx .ng tr.tot .nm{font-size:12.5px}
+  }
   .sbxq .qrow{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--sunk)}
   .sbxq .qrow>b{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
   .sbxq .qrow small{display:block;color:var(--muted);font-size:12.5px}
@@ -1341,7 +1362,9 @@
   .gbar i{display:block;height:100%;background:var(--done)}
   .pill.grey{background:var(--sunk);color:var(--ink-mid)}
   .hstrip.ok{padding:8px 4px;border:0;background:none}
-  @media (min-width:761px){.bar .right{flex-wrap:nowrap}}
+  /* One row only where it fits: on a tablet (iPad portrait and landscape) the buttons wrap under, never off the screen. */
+  @media (min-width:1240px){.bar .right{flex-wrap:nowrap}}
+  @media (min-width:761px) and (max-width:1239px){.bar .right{flex:1 1 auto;min-width:0}}
   @media (max-width:760px){
     /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); The year, Letters and Admin go under. */
     .bar{flex-wrap:nowrap;gap:10px} .bar > .sub{display:none}
@@ -8501,7 +8524,7 @@ async function sandboxScreen() {
   BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const got = await api("/sandbox");
-  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null;
+  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null;
   SBX = got.budget ?? sbxSeed();
   sbxDraw();
   if (!SBX.asked) sbxQuestions();
@@ -8605,19 +8628,22 @@ function sbxDraw() {
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
   const pays = [["ongia", "ONGIA's bill"], ["reimbursed", "They pay, we reimburse"], ["agency", "Their agency pays"]];
   const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
-  const head = `<tr><th></th><th><button class="plus" data-more="before" title="Add a night before">+</button></th>${C.nights.map((d) => `<th class="${evDay(d) ? "ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span></th>`).join("")}<th><button class="plus" data-more="after" title="Add a night after">+</button></th><th>Nights</th><th>Who pays for the room</th><th></th></tr>`;
+  // On a phone the names stay put on the left and one night fills the rest; a swipe brings the next (Andrew 30 Oct 2026).
+  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th><th class="pc"><button class="plus" data-more="before" title="Add a night before">+</button><span class="pl">Add a night before</span></th>${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}<th class="pc"><button class="plus" data-more="after" title="Add a night after">+</button><span class="pl">Add a night after</span></th><th class="nc">Nights</th><th>Who pays for the room</th><th></th></tr>`;
   // Someone on the rooming list: their nights come from it (change them there); everyone else is a plan, tapped in here.
-  const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td></td>
-      ${C.nights.map((d) => `<td><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td></td>
-      <td class="n">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
+  const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td class="pc"></td>
+      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td>
+      <td class="n nc">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
       <td><span class="pbseg sm">${pays.map(([k, l]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}">${l}</button>`).join("")}</span></td>
       <td>${p.key ? "" : `<button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button>`}</td></tr>`;
   const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
-  const grid = `<div class="scroll"><table class="ng"><thead>${head}</thead><tbody>
-    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></td></tr>${ps.map(prow).join("")}`; }).join("")}
-    <tr class="tot"><td class="nm">Rooms that night</td><td></td>${counts.map((n) => `<td>${n}</td>`).join("")}<td></td><td class="n">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
-    <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${C.blockNights} nights</b></span><span>ONGIA's bill <b>${B.people.filter((p) => p.pays === "ongia").reduce((n, p) => n + p.nights.length, 0)} nights</b></span>
-      <span>Reimbursed <b>${B.people.filter((p) => p.pays === "reimbursed").reduce((n, p) => n + p.nights.length, 0)} nights · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${B.people.filter((p) => p.pays === "agency").reduce((n, p) => n + p.nights.length, 0)} nights</b> (not in the budget)</span></div>`;
+  const paysN = (k) => B.people.filter((p) => p.pays === k).reduce((n, p) => n + p.nights.length, 0);
+  const nightsN = (n) => `${n} night${n === 1 ? "" : "s"}`;
+  const grid = `<div class="scroll ngwrap"><table class="ng"><thead>${head}</thead><tbody>
+    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></span></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    <tr class="tot"><td class="nm">Rooms that night</td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td><td class="n nc">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
+    <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${nightsN(C.blockNights)}</b></span><span>ONGIA's bill <b>${nightsN(paysN("ongia"))}</b></span>
+      <span>Reimbursed <b>${nightsN(paysN("reimbursed"))} · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${nightsN(paysN("agency"))}</b> (not in the budget)</span></div>`;
 
   // 3. Food & beverage: tap a meal to cycle Not served → Team → Everyone; type an amount and it's a set amount.
   const mealCell = (iso, x, slot) => {
@@ -8661,6 +8687,7 @@ function sbxDraw() {
 
 function sbxWire() {
   const B = SBX, redraw = () => { sbxPersist(); const k = document.activeElement?.dataset?.k, y = scrollY; sbxDraw(); scrollTo(0, y); if (k) SBX_HOST.querySelector(`[data-k="${CSS.escape(k)}"]`)?.focus(); };
+  sbxSwipe();
   const numOf = (v) => { const s = String(v).replace(/[$,\s]/g, ""); if (s === "") return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
   SBX_HOST.querySelectorAll("[data-k]").forEach((el) => { el.onchange = () => setTimeout(() => {
     const k = el.dataset.k, parts = k.split("."), v = el.value;
@@ -8701,6 +8728,27 @@ function sbxWire() {
     if (!confirm("Start over? Everything you've changed in the Sandbox goes, and it's back to the Summit spreadsheet's numbers.")) return;
     await api("/sandbox", { method: "DELETE" }); SBX = sbxSeed(); SBX_SAID = ""; sbxDraw(); sbxQuestions();
   };
+}
+
+/**
+ * The hotel nights on a phone: one night beside the names, a swipe for the next. The night's width is the space the names
+ * leave; the night on screen is kept through every tap (each tap redraws the grid), and the first time it opens on the
+ * first night with anyone in it.
+ */
+let SBX_NGX = null;
+function sbxSwipe() {
+  const w = SBX_HOST?.querySelector(".ngwrap");
+  if (!w) return;
+  const phone = matchMedia("(max-width:560px)").matches;
+  w.style.setProperty("--dayw", phone ? `${Math.max(140, w.clientWidth - 140)}px` : "");
+  if (!phone) return;
+  if (SBX_NGX === null) {
+    const first = [...w.querySelectorAll("thead th.dc")].findIndex((th, i) => w.querySelectorAll(`tbody tr:not(.grp) td.dc:nth-of-type(${i + 3}) .c.on`).length);
+    const th = w.querySelectorAll("thead th.dc")[Math.max(first, 0)];
+    SBX_NGX = th ? th.offsetLeft - w.querySelector("thead th.nm").offsetWidth : 0;
+  }
+  w.scrollLeft = SBX_NGX;
+  w.onscroll = () => { SBX_NGX = w.scrollLeft; };
 }
 
 /* ---------- The event budget: the Sandbox's page, kept for each of ONGIA's own events ---------- */
@@ -8769,6 +8817,7 @@ function mountBudget(ev, got) {
   if (!host || !got) return;
   // Unsaved typing in this event's budget wins over what was just fetched.
   const mine = SBX_EV?.id === ev.id && SBX ? SBX : null;
+  if (!mine) SBX_NGX = null;
   SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
   const was = JSON.stringify(mine ?? got.budget);
   SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));
