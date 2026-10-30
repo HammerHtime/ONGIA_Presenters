@@ -65,7 +65,7 @@ await phone.close();
 
 console.log("— on a laptop, as the president");
 const desk = await as("president@ongia.ca", "Andrew Hammond", { width: 1440, height: 1000 });
-const avRow = desk.locator(".sbl tr", { has: desk.locator('[data-k="other.o1.spent"]') });
+const avRow = desk.locator(".sbl tr", { has: desk.locator('[data-k="other.o1.planned"]') });
 ok("the budget shows what the receipts come to beside the AV rental line", /receipts \$1,200/.test(await avRow.innerText()), await avRow.innerText());
 ok("and a Receipts so far line, the unsorted one counted in it", /Receipts so far/.test(await desk.locator(".sbgrid.two").innerText()) && /\$1,219/.test(await desk.locator(".sbgrid.two").innerText()) && /\$19 not sorted|\$18\.5|not sorted/.test(await desk.locator(".sbgrid.two").innerText()));
 await desk.locator(".sbgrid.two .blk").first().screenshot({ path: D + "rcown-budget.png" });

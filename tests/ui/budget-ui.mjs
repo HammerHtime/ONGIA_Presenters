@@ -79,6 +79,13 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.locator("[data-paddall]").click(); await p.waitForTimeout(1600);
     const board = (await saved(ev.id)).people.filter((x) => x.group === "board");
     ok(`${tag}: Add all board members puts the whole board roster on the grid, each from three nights before day one, reimbursed`, board.length > before && board.every((x) => x.pays === "reimbursed") && board.filter((x) => x.name !== "Raj Jaswal").every((x) => x.nights[0] === "2031-05-09" && x.nights.at(-1) === "2031-05-14") && !(await p.locator("[data-paddall]").count()), `${before} → ${board.length}`);
+    // Andrew 30 Oct 2026: "where are all the line items ... AV, presenter gifts, attendee gifts ... That was in the Excel
+    // sheet", and "you could hide all of those spent columns and we'll just have the projected".
+    ok(`${tag}: Everything else has Group, Line and Projected, no Spent`, (await p.locator(".sbelse thead").innerText()).replace(/\s+/g, " ").trim().toUpperCase() === "GROUP LINE PROJECTED" && !(await p.locator('[data-k$=".spent"], [data-k$=".paid"]').count()), await p.locator(".sbelse thead").innerText());
+    await p.locator("[data-usual]").click(); await p.waitForTimeout(1500);
+    const lines = (await saved(ev.id)).other;
+    ok(`${tag}: Add the usual lines brings in the Summit budget's lines at its amounts, and the button goes`, lines.length >= 20 && lines.find((o) => o.name === "AV for the virtual component")?.planned === 42000 && lines.some((o) => o.name === "Presenter gifts ($100 each)") && lines.some((o) => o.name === "Tote bag items") && !(await p.locator("[data-usual]").count()), String(lines.length));
+    ok(`${tag}: no person's name among them`, !lines.some((o) => /Raj|Tyler|Andy|Jessy|Tessa|Ryan/i.test(o.name)));
     // Andrew 30 Oct 2026: "a dropdown for all the common groupings ... click add ... a box pops open ... added to the list".
     await p.locator('[data-radd="other"]').click(); await p.waitForTimeout(800);
     const sel = p.locator("select[data-grp]").last();
