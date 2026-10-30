@@ -10109,7 +10109,8 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const att = guests?.counts?.attending ?? 0;
   const R0 = roomFill(ev, att, presN);
   let C = null;
-  if (WHO?.canCost && budget?.budget) { try { C = sbxCalc(budgetSync(budget.budget, budget.live)); } catch { C = null; } }
+  // Worked out on a copy: the Money tab saves from the original, and must still see what changed since.
+  if (WHO?.canCost && budget?.budget) { try { C = sbxCalc(budgetSync(structuredClone(budget.budget), budget.live)); } catch { C = null; } }
   const be = C?.breakEven > 0 ? C.breakEven : null;
   const cap = R0?.max || null;
   const R = 60, L = 2 * Math.PI * R, fill = cap ? Math.min(att / cap, 1) : 0;   // no seats set: nothing to fill toward
