@@ -10105,7 +10105,9 @@ function mountBudget(ev, got) {
   const host = document.getElementById("evbudget");
   if (!host || !got) return;
   // Unsaved typing in this event's budget wins over what was just fetched.
-  const mine = SBX_EV?.id === ev.id && SBX ? SBX : null;
+  // But if someone else has saved since and nothing typed here is still waiting to save, theirs is the one to show.
+  const waiting = /Saving/.test(document.getElementById("sbx-said")?.textContent ?? "") || !!SBX_CONFLICT;
+  const mine = SBX_EV?.id === ev.id && SBX && !(SBX_REV != null && (got.rev ?? 0) > SBX_REV && !waiting) ? SBX : null;
   if (!mine) { SBX_NGX = null; SBX_REV = got.rev ?? 0; SBX_CONFLICT = null; }
   SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
   const was = JSON.stringify(mine ?? got.budget);

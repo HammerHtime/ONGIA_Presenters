@@ -45,7 +45,18 @@ await type(vp, "160");
 ok("from there the VP's change saves", /Saved/.test(await vp.locator("#sbx-said").innerText()) && (await saved(ev.id)).reg.inPerson.expected === 160);
 await type(vp, "165"); await type(vp, "170");
 ok("quick changes one after another all save, none tripping over the one before", /Saved/.test(await vp.locator("#sbx-said").innerText()) && (await saved(ev.id)).reg.inPerson.expected === 170);
-ok("no page errors", !pres.errs.length && !vp.errs.length, [...pres.errs, ...vp.errs].join(" | "));
+// The president changes it while the VP is on another tab: coming back, the VP simply sees the latest, no warning.
+await pres.reload({ waitUntil: "networkidle" }); await pres.waitForTimeout(1500);
+if (await pres.locator("dialog.walk[open]").count()) { await pres.locator("#wclose").click(); await pres.waitForTimeout(500); }
+await type(pres, "185");
+ok("(the president's change saves)", (await saved(ev.id)).reg.inPerson.expected === 185);
+await vp.locator('.etab[data-tab="overview"]').click(); await vp.waitForTimeout(800);
+await vp.locator('.etab[data-tab="money"]').click(); await vp.waitForTimeout(1500);
+if (await vp.locator("dialog.walk[open]").count()) { await vp.locator("#wclose").click(); await vp.waitForTimeout(500); }
+ok("back on Money, the VP sees the president's figure, with no warning", (await vp.locator('[data-k="reg.inPerson.expected"]').inputValue()) === "185" && !(await vp.locator("#sbx-latest").count()) && !/Not saved/.test(await vp.locator("#sbx-said").innerText()));
+await type(vp, "190");
+ok("and the VP's next change saves", /Saved/.test(await vp.locator("#sbx-said").innerText()) && (await saved(ev.id)).reg.inPerson.expected === 190);
+ok("no page errors",!pres.errs.length && !vp.errs.length, [...pres.errs, ...vp.errs].join(" | "));
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
