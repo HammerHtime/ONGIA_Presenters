@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, editGuard, text } from "./lib/http.mjs";
-import { getEvent, getAttendees } from "./lib/store.mjs";
-import { directory, agenciesOf, teach, suggest, PROVINCES } from "./lib/agencies.mjs";
+import { getEvent, getAttendees, getMeta, putMeta } from "./lib/store.mjs";
+import { directory, agenciesOf, agencyOf, teach, suggest, forget, editAgency, mergeAgencies, key, agencyLog, agencyWaiting, agencyBlank, everyone, PROVINCES } from "./lib/agencies.mjs";
 import { wixConfigured, wixSites, listWixGuests, listWixEvents } from "./lib/wix.mjs";
 
 /**
@@ -15,11 +15,26 @@ import { wixConfigured, wixSites, listWixGuests, listWixEvents } from "./lib/wix
  *                                           (Andrew 27 Oct 2026: "can you see previous events in wix"), so the list is
  *                                           tidied once from years of registrations. Only the agency each person wrote
  *                                           is read; no names or addresses are kept.
+ *
+ * The master list, under Admin (Andrew 30 Oct 2026: "the agencies master list should not sit inside each event"):
+ *   GET  /api/agencies?master=1               the list with each agency's people, what the desk matched, what waits
+ *   GET  /api/agencies?master=1&download=1    the master list as a spreadsheet
+ *   GET  /api/agencies?count=1                how many wait for Andrew (the badge on Admin)
+ *   POST /api/agencies?master=1&fix=1         { raw, agency, province? } that spelling is this agency, not what the desk said
+ *   POST /api/agencies?master=1&undo=1        { raw } the desk was wrong and Andrew doesn't know either: it waits
+ *   POST /api/agencies?master=1&blank=1       { raw } not an agency; leave it blank and stop asking
+ *   POST /api/agencies?master=1&clear=1       the matched list has been looked over
+ *   POST /api/agencies?master=1&edit=1        { name, newName?, province?, fr?, domains? }
+ *   POST /api/agencies?master=1&merge=1       { from, into }
+ *   POST /api/agencies?master=1&add=1         { name, province?, fr?, domains? }
+ * The matching itself runs nightly and from Check now (agencies-settle-background).
  */
 export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   const url = new URL(req.url);
+  if (url.searchParams.get("count")) return json({ waiting: (await agencyWaiting()).length });
+  if (url.searchParams.get("master")) return master(req, url);
   const all = !!url.searchParams.get("all");
   const event = all ? null : await getEvent(url.searchParams.get("event"));
   if (!all && !event) return fail("No such event.", 404);
@@ -89,4 +104,74 @@ function spellingsCsv(people) {
 async function show(people) {
   const list = await directory();
   return json({ ...agenciesOf(people, list), names: list.map((a) => a.name), provinces: PROVINCES, ...(people.read ? { read: people.read } : {}) });
+}
+
+async function masterView() {
+  const [list, people, log, waiting, run] = await Promise.all([directory(), everyone(), agencyLog(), agencyWaiting(), getMeta("agencies:run")]);
+  const counts = new Map();
+  for (const p of people) { if (p.status === "WITHDRAWN") continue; const a = agencyOf(p, list); if (a) counts.set(a.name, (counts.get(a.name) ?? 0) + 1); }
+  const week = Date.now() - 7 * 86400000;
+  return json({
+    agencies: list.map((a) => ({ name: a.name, province: a.province || "", fr: a.fr || "", domains: a.domains ?? [], aliases: a.aliases ?? [], people: counts.get(a.name) ?? 0 })),
+    matched: log, waiting, run: run ?? null, provinces: PROVINCES,
+    stats: { agencies: list.length, spellings: list.reduce((n, a) => n + (a.aliases?.length ?? 0), 0), domains: list.reduce((n, a) => n + (a.domains?.length ?? 0), 0),
+      week: log.filter((m) => Date.parse(m.at) > week).length },
+  });
+}
+
+async function master(req, url) {
+  const q = (k) => url.searchParams.get(k);
+  if (req.method === "GET") return q("download") ? masterCsv() : masterView();
+  if (req.method !== "POST") return fail("Method not allowed.", 405);
+  const body = await req.json().catch(() => ({}));
+  const raw = text(body.raw, 160);
+  const unwait = async () => putMeta("agencies:waiting", (await agencyWaiting()).filter((w) => key(w.raw) !== key(raw)));
+  // A correction shows in the matched list as Andrew's, whether it was the desk's match or one that was waiting.
+  const relog = async (change, was) => {
+    const log = await agencyLog();
+    if (log.some((m) => key(m.raw) === key(raw))) return putMeta("agencies:log", log.map((m) => key(m.raw) === key(raw) ? { ...m, ...change } : m));
+    return putMeta("agencies:log", [{ raw, count: was?.count ?? 0, events: was?.events ?? [], at: new Date().toISOString(), ...change }, ...log]);
+  };
+  try {
+    if (q("fix")) {
+      const agency = text(body.agency, 160);
+      if (!raw || !agency) return fail("Which spelling, and which agency?");
+      await forget(raw);
+      const name = await teach(raw, agency, text(body.province, 2).toUpperCase());
+      const was = (await agencyWaiting()).find((w) => key(w.raw) === key(raw));
+      await unwait(); await relog({ agency: name, by: "you", reason: "You set this one.", corrected: true }, was);
+    } else if (q("undo")) {
+      if (!raw) return fail("Which spelling?");
+      await forget(raw);
+      const m = (await agencyLog()).find((x) => key(x.raw) === key(raw));
+      await putMeta("agencies:log", (await agencyLog()).filter((x) => key(x.raw) !== key(raw)));
+      await putMeta("agencies:waiting", [{ raw, count: m?.count ?? 0, events: m?.events ?? [], reason: `You undid ${m?.agency ?? "the match"}. Type the right agency, or leave it blank.`, at: new Date().toISOString() },
+        ...(await agencyWaiting()).filter((w) => key(w.raw) !== key(raw))]);
+    } else if (q("blank")) {
+      if (!raw) return fail("Which spelling?");
+      await putMeta("agencies:blank", [...new Set([...(await agencyBlank()), key(raw)])]);
+      await unwait();
+    } else if (q("clear")) {
+      await putMeta("agencies:log", []);
+    } else if (q("edit")) {
+      await editAgency(text(body.name, 160), { newName: body.newName === undefined ? undefined : text(body.newName, 160), province: body.province === undefined ? undefined : text(body.province, 2).toUpperCase(),
+        fr: body.fr === undefined ? undefined : text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : undefined });
+    } else if (q("merge")) {
+      await mergeAgencies(text(body.from, 160), text(body.into, 160));
+    } else if (q("add")) {
+      const name = text(body.name, 160);
+      if (!name) return fail("What is the agency called?");
+      if ((await directory()).some((a) => a.name.toLowerCase() === name.toLowerCase())) return fail(`${name} is already on the list.`);
+      await teach(name, name, text(body.province, 2).toUpperCase(), { fr: text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : [] });
+    } else return fail("Expected fix, undo, blank, clear, edit, merge or add.");
+  } catch (e) { return fail(e.message); }
+  return masterView();
+}
+
+/** The master list as a spreadsheet (Andrew 30 Oct 2026: "a running list of all confirmed agencies in a dataset"). */
+async function masterCsv() {
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = (await directory()).map((a) => [a.name, a.province ? PROVINCES[a.province] ?? a.province : "Federal / national", a.fr, (a.domains ?? []).join(" "), (a.aliases ?? []).join(" | ")].map(cell).join(","));
+  return new Response(`\ufeffAgency,Province,French name,Work email domains,Also typed as\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
+    "content-disposition": 'attachment; filename="ongia-agencies-master-list.csv"', "cache-control": "no-store" } });
 }
