@@ -37,7 +37,7 @@ export function pdfTitle(event, sow) {
 
 /** `kind` is "sow" or "invoice". Resolves to a Buffer. */
 export async function buildSowPdf({ event, sow, kind = "sow" }) {
-  const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
+  const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
   // The title a PDF viewer shows in its tab and offers when saving: "ONGIA" and the invoice number, or the event's name
   // (shortened) if there is no number yet (Andrew 21 Oct 2026). displayTitle makes viewers show it instead of "unknown".
   const doc = new PDFDocument({ size: "LETTER", margin: 0, displayTitle: true, info: {
@@ -54,7 +54,7 @@ export async function buildSowPdf({ event, sow, kind = "sow" }) {
 
 /** Several in one PDF, each starting on its own page (Andrew 29 Oct 2026: "easier for printing them off"). */
 export async function buildSowsPdf(items, { title = "ONGIA statements of work" } = {}) {
-  const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
+  const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
   const doc = new PDFDocument({ size: "LETTER", margin: 0, displayTitle: true, info: { Title: title, Author: "ONGIA", Subject: title } });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
@@ -80,7 +80,7 @@ function drawSow(doc, { event, sow, kind, logo }) {
   doc.rect(0, 22, W, 62).fill(NAVY);
   doc.rect(0, 84, W, 4).fill(GOLD);
   doc.rect(0, 18, W, 4).fill(GOLD);
-  if (logo) doc.image(logo, M, 38, { height: 30 });
+  if (logo) doc.image(logo, M, 32, { height: 42 });
   doc.font("Times-BoldItalic").fontSize(titleSize(doc, title)).fillColor(GOLD_TEXT).text(title, 224, 38, { width: 216, align: "center", lineBreak: false });
   doc.font("Times-Italic").fontSize(8.5).fillColor(GOLD_PALE).text("ONGIA\nProfessional Event Services", 448, 41, { width: W - 448 - M, align: "center" });
 

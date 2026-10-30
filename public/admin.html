@@ -53,13 +53,14 @@
        padding-top:calc(12px + env(safe-area-inset-top,0px));
        /* The logo and the buttons line up with the page below (1200px wide, centred), not the screen's edges. */
        padding-left:max(20px, calc((100% - 1200px) / 2));padding-right:max(20px, calc((100% - 1200px) / 2))}
-  .bar .logo{height:28px;width:auto;display:block;flex:none}
-  @media (max-width:480px){.bar .logo{height:23px}}
+  .bar .logo{height:40px;width:auto;display:block;flex:none}
+  @media (max-width:480px){.bar .logo{height:34px}}
   .bar .sub{font-size:13px;color:rgba(255,255,255,.62)}
   .bar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;white-space:nowrap;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
 
   .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 70px}
@@ -1474,10 +1475,10 @@
   @media (min-width:1240px){.bar .right{flex-wrap:nowrap}}
   @media (min-width:761px) and (max-width:1239px){.bar .right{flex:1 1 auto;min-width:0}}
   @media (max-width:760px){
-    /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); The year, Letters and Admin go under. */
+    /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); Events, The year, Letters and Admin go under. */
     .bar{flex-wrap:nowrap;gap:10px} .bar > .sub{display:none}
     .bar .hsres{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 58px)}
-    .bar .logo{height:28px;width:25px;object-fit:cover;object-position:left center;align-self:flex-start;margin-top:4px}   /* the maple leaf alone: the wordmark leaves the search no room */
+    .bar .logo{height:34px;width:18px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);align-self:flex-start;margin-top:4px}   /* the maple leaf alone: the wordmark leaves the search no room */
     .bar .right{flex:1 1 0;min-width:0;gap:6px}
     .bar .hsearch{order:0;flex:1 1 120px;min-width:0;max-width:none;margin:0}
     .bar .hsearch input{min-height:36px;padding:7px 12px;font-size:14px}
@@ -1495,6 +1496,39 @@
   }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
+  .shchip.warn{background:var(--wait-bg);color:var(--wait)}.tag.practice{background:var(--wait-bg);color:var(--wait)}.practlist{display:grid;gap:8px;margin-bottom:12px}
+  /* Survey reports on RBH events (Andrew 30 Oct 2026) */
+  .rpprog{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13.5px;background:var(--gold-pale);border-radius:10px;padding:9px 12px}
+  .rpbar{position:relative;flex:1 1 160px;height:8px;border-radius:99px;background:#fff;overflow:visible}.rpbar i{display:block;height:100%;border-radius:99px;background:var(--gold)}
+  .rpbar em{position:absolute;top:-3px;width:2px;height:14px;background:var(--navy);opacity:.5}
+  .rplist{display:grid;gap:8px;margin-top:10px}
+  .rprow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+  .rprow .pdf{width:42px;height:52px;border-radius:6px;background:var(--sunk);display:grid;place-items:center;font:700 10.5px var(--fu);color:var(--late);letter-spacing:.06em}
+  .rprow.none .pdf{opacity:.45}
+  .rpinfo b{font-size:15px}.rpinfo .porg{margin-left:6px;font-size:13px}.rpinfo small{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
+  .rpstate{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-top:4px}.rpstate.live{color:var(--rbh)}.rpstate.final{color:var(--navy)}.rpstate.wait{color:var(--wait)}
+  .rpstate .spin,.rpchat .spin{width:12px;height:12px}
+  .rpfiled{display:block;font-size:12px;color:var(--done);margin-top:3px}.rpfiled a{color:inherit}.rpfiled.no{color:var(--late)}
+  .rpacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+  .rpbody{grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr)}
+  .rppages{display:flex;flex-direction:column;align-items:center;gap:14px;place-items:initial}
+  .rppage{width:100%;max-width:720px;height:auto;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35)}.rpload{color:#fff}
+  .rpchat{min-height:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--border);border-radius:12px}
+  .rphead{padding:12px 14px;border-bottom:1px solid var(--border);display:grid;gap:2px}.rphead .s{font-size:12.5px}
+  .rpmsgs{flex:1;min-height:120px;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  .rpmsgs .m{max-width:88%;padding:8px 12px;border-radius:14px;font-size:14px;white-space:pre-wrap}
+  .rpmsgs .m.me{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}.rpmsgs .m.me small{display:block;opacity:.75;font-size:11.5px;margin-top:3px}
+  .rpmsgs .m.cl{align-self:flex-start;background:var(--sunk);border-bottom-left-radius:4px}.rpmsgs .m.err{background:var(--late-bg);color:var(--late)}
+  .rpmsgs .m.wait{display:flex;gap:8px;align-items:center;color:var(--wait)}
+  .rpmsgs .done{display:block;margin-top:5px;font-size:12px;color:var(--done);font-weight:600}
+  .rpmsgs .ver{align-self:center;font-size:12.5px;color:var(--muted)}.rpmsgs .ver .linkish.on{text-decoration:none;color:var(--ink)}
+  .rpreqs{padding:0 14px;font-size:13px;max-height:30%;overflow:auto}.rpreqs:empty{display:none}.rpreqs>b{display:block;margin:8px 0 4px}
+  .rq{display:flex;gap:8px;justify-content:space-between;align-items:flex-start;padding:5px 0;border-top:1px solid var(--sunk)}.rq small{display:block;color:var(--muted);font-size:11.5px}
+  .rpask{border-top:1px solid var(--border);padding:10px;display:grid;gap:8px}
+  .rpask textarea{width:100%;font:14px var(--fb);border:1px solid var(--border);border-radius:12px;padding:9px 11px;resize:vertical}
+  .rpopts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}.rpopts select{font:13px var(--fb);padding:6px 8px;border-radius:8px;border:1px solid var(--border)}
+  .rpopts label{display:inline-flex;gap:6px;align-items:center;flex:1 1 180px}.rpopts .btn{margin-left:auto}
+  @media (max-width:900px){.rpbody{grid-template-columns:1fr}.rprow{grid-template-columns:42px minmax(0,1fr)}.rpacts{grid-column:1/-1;justify-content:flex-start}}
   /* Uploaded certificate designs (Andrew 30 Oct 2026) */
   @font-face{font-family:"Lato Cert";src:url(/assets/fonts/Lato-Regular.woff) format("woff");font-weight:400;font-style:normal}
   @font-face{font-family:"Lato Cert";src:url(/assets/fonts/Lato-Bold.woff) format("woff");font-weight:700;font-style:normal}
@@ -1711,7 +1745,7 @@
   .member input.deskbox{width:16px;height:16px;margin:0;accent-color:var(--navy)}
   .member .owner{font-weight:600;color:var(--navy)}
   .signin-brand{background:var(--navy-deep);padding:22px 20px 18px;text-align:center;border-bottom:3px solid var(--gold)}
-  .signin-brand img{height:39px;width:auto;display:inline-block}
+  .signin-brand img{height:56px;width:auto;display:inline-block}
   .signin-brand span{display:block;margin-top:9px;font-family:var(--fu);font-size:11px;letter-spacing:.16em;
     text-transform:uppercase;color:rgba(255,255,255,.66)}
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy-deep);color:#fff;
@@ -1723,7 +1757,7 @@
 <body>
 
 <div class="bar">
-  <img class="logo" src="/assets/ongia-logo.png" alt="ONGIA" width="168" height="28">
+  <img class="logo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="157" height="40">
   <span class="sub">Briefing Room</span>
   <span class="right" id="barright"></span>
 </div>
@@ -1913,7 +1947,7 @@ async function signInScreen(message) {
         <input id="k" type="password" autocomplete="current-password" placeholder="••••••••"></div>
       <div class="actions"><button class="btn ${ms ? "btn-ghost" : "btn-navy"}" id="go">Sign in with the key</button></div>`;
   ROOT.innerHTML = `<div class="card" style="max-width:420px;margin:40px auto">
-    <div class="signin-brand"><img src="/assets/ongia-logo.png" alt="ONGIA" width="232" height="39">
+    <div class="signin-brand"><img src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="220" height="56">
       <span>Briefing Room</span></div>
     <div class="card-head"><div><h2>Sign in</h2>
       <div class="s">${ms ? "With your ONGIA Microsoft account, the one you use for your @ongia.ca email." : "The admin key for this site."}</div></div></div>
@@ -1938,14 +1972,16 @@ async function signInScreen(message) {
 }
 
 /* ---------- events list ---------- */
-/** The bar's buttons, the same on every screen once signed in (audit, 21 Oct 2026): search, the year, letters, admin, new event, and who you are. */
+/** The bar's buttons, the same on every screen once signed in (audit, 21 Oct 2026): search, events (Andrew 30 Oct 2026), the year, letters, admin,
+ * new event, and who you are. */
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip${view.name === "list" ? " here" : ""}" id="eventsnav"${view.name === "list" ? ' aria-current="page"' : ""}>Events</button><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
+  document.getElementById("eventsnav").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   const sows = document.getElementById("sowsnav");
@@ -2082,7 +2118,7 @@ function qGroupsHtml(rows) {
     const d = ev.dayOne ? Math.round((Date.parse(ev.dayOne) - Date.parse(today)) / 86400000) : null;
     const when = ev.dayOne ? `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${d !== null && d >= 0 ? ` · ${d === 0 ? "today" : `in ${d} day${d === 1 ? "" : "s"}`}` : ""}` : "";
     const n = list.length;
-    return `<div class="qgroup"><div class="qgh"><b title="${esc(ev.title)}">${esc(short)}</b>${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}
+    return `<div class="qgroup"><div class="qgh"><b title="${esc(ev.title)}">${esc(short)}</b>${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}
         <span class="qgs">${[esc(ev.city ?? ""), when].filter(Boolean).join(" · ")}</span></div>
       <span class="qgn">${n} thing${n === 1 ? "" : "s"}</span><button class="mini" data-goev="${esc(ev.id)}">Open event</button></div>
       ${list.slice().sort((a, b) => a.rank - b.rank).map((r) => qRowHtml(r, { grouped: true })).join("")}`;
@@ -2146,7 +2182,7 @@ function eventsTable(upcoming) {
     // The tile's left edge says whether the event needs you (red) or not (navy).
     const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
-      <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
+      <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}${open ? `<span class="tent">held, not locked</span>` : ""}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
       <td class="m">${mf} of ${total} <span class="lab">final materials</span></td>
@@ -3927,7 +3963,7 @@ function eventScreen(data) {
   const sideOn = !!view.person && (allTabs || (tab === "people" && pview === "presenters"));
 
   ROOT.innerHTML = `<div class="evhead"><section class="evband">
-    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}</h2>
+    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
@@ -3962,7 +3998,7 @@ function eventScreen(data) {
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
-    + panel("survey", surveyCard() + resultsCard())
+    + panel("survey", (ev.kind === "rbh" ? reportsCard() : "") + surveyCard() + resultsCard())
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -4055,6 +4091,7 @@ function eventScreen(data) {
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
   if (document.getElementById("rsbox")) loadResults(ev);
+  if (document.getElementById("rpbox")) loadReports(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
   if (sheetShown) wireSheet(ev, sheetcheck);
@@ -5814,6 +5851,155 @@ function designsScreen(D) {
     if (scope === "event") { const got = await askScope({ events: D.events, mayTemplate: false }); if (!got) return; event = got.event; }
     try { await api(`/certificates?design=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ scope, event }) }); toast(scope === "any" ? "Now a template." : "Now for that event only."); again(); } catch (x) { toast(x.message); }
   });
+}
+
+/**
+ * Reports, on an RBH event's Survey tab (Andrew 30 Oct 2026): the Executive Summary and the infographic, each in English
+ * and French, made at half the surveys back (or now), filed to the event's OneDrive folder under Survey, opened here, and
+ * changed by asking Claude in the viewer ("I don't have to come back to this Claude chat").
+ */
+function reportsCard() {
+  return secFold("reports", "Reports", "The executive summary and the infographic, in English and French, filed to OneDrive", "", `<div class="card-body" id="rpbox"><p class="porg">Loading…</p></div>`, { id: "reportsfold", open: true });
+}
+let RP_POLL = null;
+async function loadReports(ev) {
+  const box = document.getElementById("rpbox");
+  if (!box) return;
+  try { renderReports(ev, await api(`/reports?event=${encodeURIComponent(ev.id)}`)); }
+  catch (x) { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }
+}
+const RP_WHY = { half: "when half the surveys were back", more: "with the newest surveys", asked: "when you asked", "asked-change": "with your changes" };
+const rpWhen = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : `${d.toLocaleDateString("en-CA", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}`; };
+function renderReports(ev, S) {
+  const box = document.getElementById("rpbox");
+  if (!box) return;
+  clearTimeout(RP_POLL);
+  const pct = S.invited ? Math.min(100, Math.round((100 * S.answered) / S.invited)) : 0;
+  const busy = Object.values(S.reports).some((r) => r.building);
+  const row = (kind) => {
+    const r = S.reports[kind];
+    const v = r.version;
+    const filed = r.filed && ["en", "fr"].every((l) => r.filed[l]?.url);
+    const state = r.building ? `<span class="rpstate wait"><span class="spin" aria-hidden="true"></span> Claude is writing it… a minute or two</span>`
+      : r.final ? `<span class="rpstate final">Final${r.newSince ? ` · ${r.newSince} new survey${r.newSince === 1 ? "" : "s"} since` : ""}</span>`
+      : v ? `<span class="rpstate live">Updates each night new surveys come in</span>` : "";
+    return `<div class="rprow${v ? "" : " none"}"><span class="pdf" aria-hidden="true">PDF</span><div class="rpinfo"><b>${esc(r.name.en)}</b><span class="porg">${esc(r.name.fr)}</span>
+        <small>${v ? `Built on ${v.answered}${v.invited ? ` of ${v.invited}` : ""} surveys · ${esc(rpWhen(v.at))} ${esc(RP_WHY[v.reason] ?? "")} · version ${v.n}${r.requests.length ? ` · ${r.requests.length} change${r.requests.length === 1 ? "" : "s"} you asked for` : ""}` : S.half ? "Ready to make." : S.invited ? `Made automatically the night half the surveys are back (${S.answered} of ${S.invited} so far), or now.` : "Make it whenever you like."}</small>
+        ${state}${filed ? `<span class="rpfiled">✓ In OneDrive: Survey / <a href="${esc(r.filed.en.url)}" target="_blank" rel="noopener">${esc(r.name.en)}.pdf</a> · <a href="${esc(r.filed.fr.url)}" target="_blank" rel="noopener">${esc(r.name.fr)}.pdf</a></span>`
+          : r.filed && (r.filed.en?.skipped || r.filed.en?.error) ? `<span class="rpfiled no">Not in OneDrive: ${esc(r.filed.en.skipped || r.filed.en.error)}</span>` : ""}
+        ${r.error && !r.building ? `<span class="rpfiled no">The last try didn't work: ${esc(r.error)}</span>` : ""}</div>
+      <div class="rpacts">${v ? `<button class="mini" data-rpopen="${kind}|en">English</button><button class="mini" data-rpopen="${kind}|fr">Français</button>` : ""}
+        ${!r.building && (!v || r.newSince) ? `<button class="mini gold" data-rpbuild="${kind}">${v ? "Make it again now" : "Make it now"}</button>` : ""}
+        ${v && !r.building ? `<button class="linkish" data-rpfinal="${kind}|${r.final ? "0" : "1"}">${r.final ? "Resume nightly updates" : "Mark as final"}</button>` : ""}</div></div>`;
+  };
+  box.innerHTML = `<div class="rpprog">${S.invited ? `<b>${S.answered} of ${S.invited} surveys back (${pct}%).</b><span class="rpbar"><i style="width:${pct}%"></i><em style="left:50%" title="Half"></em></span>
+      <span>${S.half ? "Half are back." : "The reports are made the night half are back."}</span>` : `<b>${S.answered} survey${S.answered === 1 ? "" : "s"} back.</b><span>The survey hasn't gone out from the desk yet, so the reports are made when you ask.</span>`}</div>
+    ${!S.folder ? `<div class="note" style="margin:8px 0 0">This event has no OneDrive folder set, so the reports stay here. Set the folder on the event to file them.</div>` : ""}
+    <div class="rplist">${Object.keys(S.reports).map(row).join("")}</div>`;
+  box.querySelectorAll("[data-rpopen]").forEach((b) => b.onclick = () => { const [kind, lang] = b.dataset.rpopen.split("|"); reportViewer(ev, kind, lang); });
+  box.querySelectorAll("[data-rpbuild]").forEach((b) => b.onclick = async () => { b.disabled = true; try { renderReports(ev, await api(`/reports?event=${encodeURIComponent(ev.id)}&kind=${b.dataset.rpbuild}&build=1`, { method: "POST", body: "{}" })); } catch (x) { toast(x.message); b.disabled = false; } });
+  box.querySelectorAll("[data-rpfinal]").forEach((b) => b.onclick = async () => { const [kind, on] = b.dataset.rpfinal.split("|");
+    try { renderReports(ev, await api(`/reports?event=${encodeURIComponent(ev.id)}&kind=${kind}&final=1`, { method: "POST", body: JSON.stringify({ final: on === "1" }) })); toast(on === "1" ? "Marked final. It won't change overnight." : "It will update again as surveys come in."); } catch (x) { toast(x.message); } });
+  if (busy) RP_POLL = setTimeout(() => { if (document.getElementById("rpbox")) loadReports(ev); }, 5000);
+}
+/** Draw a PDF's pages into a box, with pdf.js (an iPad's own viewer shows only the first page in a frame). */
+async function drawPdfPages(host, blob) {
+  const pdfjs = await loadPdfJs();
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+  host.innerHTML = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 2 });
+    const c = Object.assign(document.createElement("canvas"), { width: vp.width, height: vp.height, className: "rppage" });
+    c.setAttribute("aria-label", `Page ${i} of ${pdf.numPages}`);
+    host.append(c);
+    await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
+  }
+}
+/** The report on the left, Claude on the right: say what to change; it's rebuilt, filed again and shown. */
+function reportViewer(ev, kind, lang) {
+  const dlg = document.createElement("dialog"); dlg.className = "designdlg repdlg"; document.body.append(dlg);
+  let S = null, L = lang, V = null, wait = null, standing = { exec: [], info: [] };
+  const q = `/reports?event=${encodeURIComponent(ev.id)}&kind=${kind}`;
+  const pdfUrl = () => `/api${q}&lang=${L}&pdf=1${V ? `&v=${V}` : ""}`;
+  const show = async () => {
+    const host = dlg.querySelector("#rp-pages");
+    host.innerHTML = `<p class="rpload">Opening…</p>`;
+    try {
+      const res = await apiFetch(pdfUrl(), { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The report could not be opened.");
+      const blob = await res.blob();
+      // Made inside the dialog: behind an open dialog the page doesn't take clicks, and the file would lose its name.
+      dlg.querySelector("#rp-dl").onclick = () => { const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${ev.title} - ${S.reports[kind].name[L]}.pdf` }); dlg.append(a); a.click(); setTimeout(() => a.remove(), 1000); };
+      await drawPdfPages(host, blob);
+    } catch (x) { host.innerHTML = `<p class="bad">${esc(x.message)}</p>`; }
+  };
+  const draw = () => {
+    const r = S.reports[kind];
+    const cur = V ?? r.current;
+    dlg.querySelector("#rp-title").textContent = r.name[L];
+    dlg.querySelector("#rp-sub").textContent = `Version ${cur}${cur !== r.current ? ` (the current one is ${r.current})` : ""} · built on ${r.version?.answered ?? "?"}${r.version?.invited ? ` of ${r.version.invited}` : ""} surveys${r.final ? " · final" : ""}`;
+    dlg.querySelectorAll("[data-rplang]").forEach((b) => b.classList.toggle("on", b.dataset.rplang === L));
+    const od = r.filed?.[L]?.url;
+    const odb = dlg.querySelector("#rp-od"); odb.hidden = !od; if (od) odb.onclick = () => window.open(od, "_blank", "noopener");
+    dlg.querySelector("#rp-chat").innerHTML = (r.chat.length ? r.chat.map((m) => `<div class="m ${m.who === "me" ? "me" : "cl"}${m.error ? " err" : ""}">${esc(m.text)}${m.who === "me" && (m.lang !== "both" || m.always) ? `<small>${m.lang === "fr" ? "French only" : m.lang === "en" ? "English only" : ""}${m.always ? `${m.lang !== "both" ? " · " : ""}for every RBH report` : ""}</small>` : ""}${m.version ? `<span class="done">✓ Rebuilt and filed · version ${m.version}</span>` : ""}</div>`).join("")
+        : `<p class="hint">Say what you want changed in plain words, in English or French. For example: “Add a section on the Akwesasne visit”, “Make the Key Strengths shorter”, or “Take out the follow-up recommendation”.</p>`)
+      + (r.building ? `<div class="m cl wait"><span class="spin" aria-hidden="true"></span> Changing it… a minute or two</div>` : "")
+      + (r.versions.length > 1 ? `<div class="ver">Versions: ${r.versions.map((v) => `<button class="linkish${v.n === cur ? " on" : ""}" data-rpv="${v.n}">${v.n}</button>`).join(" ")}${cur !== r.current ? ` · <button class="linkish" data-rprevert="${cur}">Make version ${cur} the current one</button>` : ""}</div>` : "");
+    const reqs = [...r.requests.map((x) => ({ ...x, scope: "event" })), ...standing[kind].map((x) => ({ ...x, scope: "all" }))];
+    dlg.querySelector("#rp-reqs").innerHTML = reqs.length ? `<b>Your changes, kept on every rebuild</b>${reqs.map((x) => `<div class="rq"><span>${esc(x.text)}<small>${x.scope === "all" ? "Every RBH report" : "This report"}${x.lang && x.lang !== "both" ? ` · ${x.lang === "fr" ? "French only" : "English only"}` : ""}</small></span><button class="linkish" data-rqdel="${x.scope}|${esc(x.id)}">Remove</button></div>`).join("")}` : "";
+    dlg.querySelector("#rp-send").disabled = !!r.building;
+    dlg.querySelectorAll("[data-rpv]").forEach((b) => b.onclick = () => { V = Number(b.dataset.rpv) === r.current ? null : Number(b.dataset.rpv); draw(); show(); });
+    dlg.querySelectorAll("[data-rprevert]").forEach((b) => b.onclick = async () => { try { S = await api(`${q}&revert=${b.dataset.rprevert}`, { method: "POST", body: "{}" }); V = null; draw(); show(); renderReports(ev, S); } catch (x) { toast(x.message); } });
+    dlg.querySelectorAll("[data-rqdel]").forEach((b) => b.onclick = async () => {
+      const [scope, id] = b.dataset.rqdel.split("|");
+      if (!confirm(scope === "all" ? "Stop applying this to every RBH report from now on? This one is rebuilt without it." : "Stop applying this change? The report is rebuilt without it.")) return;
+      try {
+        if (scope === "all") { standing = await api(`/reports?standing=1&kind=${kind}&remove=${encodeURIComponent(id)}`, { method: "POST", body: "{}" }); S = await api(`${q}&build=1`, { method: "POST", body: "{}" }).catch(() => S); }
+        else S = await api(`${q}&remove=${encodeURIComponent(id)}`, { method: "POST", body: "{}" });
+        draw(); watch();
+      } catch (x) { toast(x.message); }
+    });
+    const chat = dlg.querySelector("#rp-chat"); chat.scrollTop = chat.scrollHeight;
+  };
+  const watch = () => {
+    clearTimeout(wait);
+    if (!S.reports[kind].building) return;
+    wait = setTimeout(async () => {
+      if (!dlg.open) return;
+      const was = S.reports[kind].current;
+      S = await api(`/reports?event=${encodeURIComponent(ev.id)}`).catch(() => S);
+      draw();
+      if (!S.reports[kind].building) { if (S.reports[kind].current !== was) { V = null; show(); } renderReports(ev, S); } else watch();
+    }, 5000);
+  };
+  dlg.innerHTML = `<div class="dshead"><div><h2 id="rp-title"></h2><p class="s" id="rp-sub"></p></div>
+      <div class="dsacts"><span class="pbseg sm"><button type="button" data-rplang="en">English</button><button type="button" data-rplang="fr">Français</button></span>
+        <button type="button" class="btn btn-ghost" id="rp-dl">Download</button><button type="button" class="btn btn-ghost" id="rp-od" hidden>Open in OneDrive</button><button type="button" class="btn btn-gold" id="rp-close">Close</button></div></div>
+    <div class="dsbody rpbody"><div class="dspagewrap rppages" id="rp-pages"></div>
+      <div class="rpchat"><div class="rphead"><b>Ask Claude to change it</b><span class="s">Plain words, English or French. Figures and attendee quotes always come from the survey; Claude can leave them out or reorder them, never change them.</span></div>
+        <div class="rpmsgs" id="rp-chat"></div><div class="rpreqs" id="rp-reqs"></div>
+        <form class="rpask" id="rp-form"><textarea id="rp-text" rows="3" placeholder="e.g. Add a short section on the Akwesasne visit for RBH" aria-label="What to change"></textarea>
+          <div class="rpopts"><select id="rp-lang" aria-label="Which language"><option value="both">Both languages</option><option value="en">English only</option><option value="fr">French only</option></select>
+            <label><input type="checkbox" id="rp-always"> Keep this for every RBH ${kind === "exec" ? "executive summary" : "infographic"}</label>
+            <button class="btn btn-gold" id="rp-send">Send</button></div></form></div></div>`;
+  dlg.querySelector("#rp-close").onclick = () => dlg.close();
+  dlg.querySelectorAll("[data-rplang]").forEach((b) => b.onclick = () => { L = b.dataset.rplang; draw(); show(); });
+  dlg.querySelector("#rp-text").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); dlg.querySelector("#rp-form").requestSubmit(); } };
+  dlg.querySelector("#rp-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const t = dlg.querySelector("#rp-text"), text = t.value.trim();
+    if (!text) { t.focus(); return; }
+    const send = dlg.querySelector("#rp-send"); send.disabled = true;
+    try {
+      S = await api(`${q}&ask=1`, { method: "POST", body: JSON.stringify({ text, lang: dlg.querySelector("#rp-lang").value, always: dlg.querySelector("#rp-always").checked }) });
+      if (dlg.querySelector("#rp-always").checked) standing = await api("/reports?standing=1").catch(() => standing);
+      t.value = ""; dlg.querySelector("#rp-always").checked = false; draw(); watch();
+    } catch (x) { toast(x.message); send.disabled = false; }
+  };
+  dlg.addEventListener("close", () => { clearTimeout(wait); dlg.remove(); loadReports(ev); });
+  dlg.showModal();
+  (async () => { try { [S, standing] = await Promise.all([api(`/reports?event=${encodeURIComponent(ev.id)}`), api("/reports?standing=1")]); draw(); show(); watch(); } catch (x) { toast(x.message); dlg.close(); } })();
 }
 
 /**
@@ -9163,14 +9349,37 @@ function sbxPersist() {
 }
 
 async function sandboxScreen() {
-  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="practicebtn">Practice events</button><button class="chip" id="back">Events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  document.getElementById("practicebtn").onclick = practiceDialog;
   const got = await api("/sandbox");
   SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null;
   await loadBudgetGroups();
   SBX = got.budget ?? sbxSeed();
   sbxDraw();
   if (!SBX.asked) sbxQuestions();
+}
+
+
+/**
+ * Practice events (Andrew 30 Oct 2026: "in the sandbox environment, add fake data … so I can play around with certificate
+ * and also build an RBH event (ITP week) … 12 attendees … the executive summary as well as the infographic"). Made-up
+ * people at addresses no mail can reach, on events marked Practice that nothing ever emails or files; removed in one go.
+ */
+async function practiceDialog() {
+  const dlg = document.createElement("dialog"); dlg.className = "sheet grpdlg"; document.body.append(dlg);
+  const draw = (list, busy = "") => {
+    dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>Practice events</h2><p class="hint" style="margin-top:6px">Two events with made-up people for trying the certificates and the RBH reports. Their addresses can't receive mail, and nothing on them is ever emailed, sent to Wix or filed to OneDrive.</p></div>
+      <div class="sheet-body">${list.length ? `<div class="practlist">${list.map((e) => `<button type="button" class="scopebtn" data-popen="${esc(e.id)}"><b>${esc(e.title)}</b><span>${e.kind === "rbh" ? "RBH · 12 attendees, all checked in, every survey back: try the Executive Summary and the infographic on its Survey tab." : "24 registered, 20 checked in, 16 surveys back: try certificates under People › Who's coming."}</span></button>`).join("")}</div>` : `<p>None yet.</p>`}
+      ${busy ? `<p class="porg"><span class="spin" aria-hidden="true"></span> ${esc(busy)}</p>` : ""}
+      <div class="actions"><button type="button" class="btn btn-gold" id="pr-make"${busy ? " disabled" : ""}>${list.length ? "Make them again, fresh" : "Make the practice events"}</button>${list.length ? `<button type="button" class="btn btn-ghost" id="pr-del"${busy ? " disabled" : ""}>Remove them</button>` : ""}<button class="btn btn-ghost" value="cancel" formnovalidate>Close</button></div></div></form>`;
+    dlg.querySelectorAll("[data-popen]").forEach((b) => b.onclick = () => { dlg.close(); view = { name: "event", eventId: b.dataset.popen }; render(); });
+    dlg.querySelector("#pr-make")?.addEventListener("click", async () => { draw(list, "Making them… a few seconds."); try { draw((await api("/sandbox?practice=1", { method: "POST", body: "{}" })).events); toast("Practice events ready."); } catch (x) { toast(x.message); draw(list); } });
+    dlg.querySelector("#pr-del")?.addEventListener("click", async () => { if (!confirm("Remove both practice events and everything made on them?")) return; draw(list, "Removing them…"); try { draw((await api("/sandbox?practice=1", { method: "DELETE" })).events); toast("Removed."); } catch (x) { toast(x.message); draw(list); } });
+  };
+  dlg.addEventListener("close", () => dlg.remove());
+  draw([], "Looking…"); dlg.showModal();
+  try { draw((await api("/sandbox?practice=1")).events); } catch (x) { toast(x.message); dlg.close(); }
 }
 
 /** The registration questions (mock-up 5): yes or no to each kind, and its price when yes. */

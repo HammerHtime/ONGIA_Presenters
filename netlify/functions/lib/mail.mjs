@@ -28,7 +28,16 @@ export function mailTransport() {
   return null;
 }
 
+// Practice events' made-up people (Sandbox) have addresses no mail can reach; never try to send to them.
+const PRACTICE = /@practice\.invalid\b/i;
+const realOnly = (v) => (Array.isArray(v) ? v : String(v ?? "").split(/[,;]/)).map((a) => String(a).trim()).filter((a) => a && !PRACTICE.test(a));
+
 export async function sendMail(message) {
+  if (PRACTICE.test(JSON.stringify([message.to, message.cc ?? ""]))) {
+    const to = realOnly(message.to);
+    if (!to.length) return { skipped: true, reason: "A practice event's made-up address." };
+    message = { ...message, to, cc: realOnly(message.cc) };
+  }
   const transport = mailTransport();
   if (!transport) return { skipped: true, reason: "No email transport is configured (MS_MAIL_FROM or RESEND_API_KEY)." };
   return transport.kind === "microsoft" ? sendViaGraph(message) : sendViaResend(message);
@@ -187,16 +196,16 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
     `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:${C.head};color:#fff;text-decoration:none;
         font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
     (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
-  // The header is centred, and the tagline is set narrower than the logo so phone
-  // mail apps keep it on one line beneath it (Andrew, 18 Oct 2026).
+  // The header is centred: ONGIA's logo with its tagline (Andrew 30 Oct 2026: "That logo goes on everything"),
+  // or the name and tagline in type where there's no site address to load it from.
   // The viewport line and the text-size lock stop phone mail apps from blowing
   // up paragraphs while leaving tables and buttons small beside them.
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
     <div style="background:${C.bar};color:#fff;padding:18px 24px;border-bottom:3px solid ${C.rule};text-align:center">
-      ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo.png" alt="ONGIA" width="204" height="34" style="display:block;margin:0 auto;border:0;height:34px;width:204px">`
-        : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:${C.tag}">.</span></div>`}
-      <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:${C.tag};letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>
+      ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="204" height="52" style="display:block;margin:0 auto;border:0;height:52px;width:204px">`
+        : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:${C.tag}">.</span></div>
+      <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:${C.tag};letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>`}
     </div>
     <div style="padding:24px;font-size:15px">
       <h1 style="font-size:22px;margin:0 0 16px;color:${C.head}">${esc(heading)}</h1>
