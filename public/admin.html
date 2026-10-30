@@ -87,10 +87,11 @@
     .withside .side{display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;width:232px;z-index:11;overflow-y:auto;
       background:var(--navy-deep);color:#fff;border-right:3px solid var(--gold);padding:calc(20px + env(safe-area-inset-top,0px)) 12px 14px}
     .withside .bar{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
-    .withside .bar .logo,.withside .bar .sub,.withside .bar .me{display:none}
+    .withside .bar > .logo,.withside .bar > .sub,.withside .bar .me{display:none}
     .withside .bar .chip:not(.solid){color:var(--ink);border-color:var(--border);background:#fff}
     .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
     .withside .bar .hsearch input::placeholder{color:var(--muted)}
+    .withside .bar .hsres{left:auto;right:0;width:min(440px, 70vw)}
   }
   /* A laptop: a narrow rail, each button's icon with its name small beneath, so the page keeps its width. */
   @media (min-width:900px) and (max-width:1365px){
@@ -1408,6 +1409,8 @@
   .pdh{display:flex;gap:12px;align-items:center;margin-bottom:6px}
   @media (max-width:1100px){.evtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:900px){.evbody{grid-template-columns:1fr} .evbody.withdrawer #sidepanels{display:block}}
+  /* With the sidebar's rail beside it, an iPad held sideways keeps the event's work full width; the side panels go below. */
+  @media (min-width:900px) and (max-width:1100px){.withside .evbody{grid-template-columns:1fr} .withside .evbody.withdrawer #sidepanels{display:block}}
   @media (max-width:760px){
     .evband{padding:16px 16px 14px;border-radius:18px 18px 0 0} .evband h2{font-size:22px} .bacts{justify-content:flex-start}
     .evtiles{grid-template-columns:1fr 1fr;gap:8px} .etile .n{font-size:20px}
@@ -2095,9 +2098,20 @@ const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email)
 function drawSide() {
   const el = document.getElementById("side");
   document.body.classList.toggle("withside", !!KEY);
-  if (!KEY) { el.hidden = true; el.innerHTML = ""; return; }
+  if (!KEY) { el.hidden = true; el.innerHTML = ""; delete el.dataset.built; return; }
   el.hidden = false; el.classList.remove("open");
   const at = ["list", "event", "edit", "new", "add"].includes(view.name) ? "events" : view.name === "roster" ? "admin" : view.name;
+  // Built once for whoever is signed in; after that a click only moves the highlight (Andrew 30 Oct 2026: does the left bar
+  // reload too? It shouldn't), so the logo and the buttons stay put while the page beside them changes.
+  const built = `${WHO?.email ?? "key"}|${!!WHO?.canCost}|${SPONSORS_ON}`;
+  if (el.dataset.built === built) {
+    const KEYS = { eventsnav: "events", theyear: "year", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors" };
+    el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
+    attention();
+    return;
+  }
+  el.dataset.built = built;
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
   const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
@@ -4315,7 +4329,7 @@ function eventScreen(data) {
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // A tile opens its tab, cut to what is missing, and brings the work into view.
-  ROOT.querySelectorAll("[data-roomset]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
+  ROOT.querySelectorAll("[data-roomset], [data-roomask]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
     t.onclick = set; t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); set(); } }; });
   ROOT.querySelectorAll("[data-roomflip]").forEach((t) => {
     const flip = () => { const on = t.classList.toggle("on"); t.setAttribute("aria-pressed", String(on));
@@ -9945,7 +9959,7 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const lines = [
     be ? (att >= be ? `<b>Past break-even</b> by ${att - be}` : `<b>${be - att} more</b> to break even (${be})`) : "",
     be && cap && be > cap ? `<b class="bad-t">Break-even is more than the room holds</b>` : "",
-    R0 ? (R0.left > 0 ? `${R0.left} seat${R0.left === 1 ? "" : "s"} left` : R0.left === 0 ? "<b>Full</b>" : `<b>${-R0.left} over</b> the seats`) : `<button class="linkish" data-roomset>Set the room's seats</button>`,
+    R0 ? (R0.left > 0 ? `${R0.left} seat${R0.left === 1 ? "" : "s"} left` : R0.left === 0 ? "<b>Full</b>" : `<b>${-R0.left} over</b> the seats`) : `<button class="linkish" data-roomask>Set the room's seats</button>`,
     newGuests ? `+${newGuests} this week` : "",
     C && be && att >= be ? `Forecast profit ${sbxMoney(C.profit)}` : "",
     WHO?.canCost && ev.kind !== "rbh" && !budget?.budget ? `<button class="linkish" data-tgo="money">Set up the budget</button> to see break-even` : "",

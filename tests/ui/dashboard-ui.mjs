@@ -35,7 +35,9 @@ ok("wide: a sidebar down the left, with the logo and every way around", (await b
   && ["#eventsnav", "#theyear", "#letters", "#admin", "#sowsnav", "#sandboxnav"].every(async (id) => await p.locator(`#side ${id}`).isVisible()));
 ok("wide: Events is lit up on the events list", await p.locator("#side #eventsnav.on").count() === 1);
 ok("wide: the top bar keeps the search and New event", await p.locator(".bar #hsearch").isVisible() && await p.locator(".bar #newevent").isVisible());
+await p.locator("#side .slogo").evaluate((img) => { img.dataset.mark = "kept"; });
 await p.locator("#theyear").click(); await p.waitForTimeout(900);
+ok("wide: going to another screen leaves the sidebar as it was (the same logo, not drawn again)", await p.locator('#side .slogo[data-mark="kept"]').count() === 1);
 ok("wide: The year opens, and is the one lit up", await p.locator("#side #theyear.on").count() === 1 && await p.locator("#side #eventsnav.on").count() === 0);
 ok("wide: who's signed in, at the foot of the sidebar", /Andrew Hammond/.test(await p.locator("#side .sme").innerText()) && /President/.test(await p.locator("#side .sme").innerText()));
 await p.screenshot({ path: D + "dashboard-side-wide.png" });
