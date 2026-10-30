@@ -86,6 +86,15 @@ M = (await call("master=1&blank=1", { raw: "Retired" })).body;
 ok("Leave blank: it stops waiting", !M.waiting.some((w) => w.raw === "Retired") && (await call("count=1")).body.waiting === 1);
 const third = await A.settle(await A.everyone(), { client });
 ok("and is never asked about again", !JSON.stringify(sent.slice(-3)).includes('\\"Retired\\"') || third.asked === 0, JSON.stringify(third));
+ok("what was left blank is listed, as typed, with how many", M.blank.some((b) => b.raw === "Retired" && b.count === 1), JSON.stringify(M.blank));
+// Andrew 30 Oct 2026: one left blank can be brought back. Ones left blank before what was typed was kept still show.
+await putMeta("agencies:blank", [...(await A.agencyBlank()), "old spelling"]);
+M = (await call("master=1")).body;
+ok("one left blank before 30 Oct shows by its spelling", M.blank.some((b) => b.raw === "old spelling"));
+M = (await call("master=1&unblank=1", { raw: "Retired" })).body;
+ok("Bring back: off the blank list and waiting for an agency again, counted on the badge", !M.blank.some((b) => b.raw === "Retired") && M.waiting.some((w) => w.raw === "Retired" && /brought this back/.test(w.reason)) && (await call("count=1")).body.waiting === 2);
+ok("bringing back one that isn't blank is refused", (await call("master=1&unblank=1", { raw: "Nothing Like It" })).status === 400);
+await call("master=1&blank=1", { raw: "Retired" });
 M = (await call("master=1&clear=1", {})).body;
 ok("Looks right, clear the list", M.matched.length === 0);
 

@@ -405,14 +405,24 @@
   .sbx .ng th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:0 2px}
   .sbx .ng th .d{display:block;font-family:var(--fb);font-size:13px;letter-spacing:0;color:var(--ink);font-weight:700}.sbx .ng th.ev,.sbx .ng th.ev .d{color:var(--navy)}
   .sbx .ng td.nm{white-space:nowrap;padding-right:8px}.sbx .ng td.nm span{display:block;font-size:12px;color:var(--muted)}
-  .sbx .ng .pname{border:0;background:none;font:600 14px var(--fb);padding:2px 0;min-height:0;width:170px}
-  .sbx .ng .c{display:block;height:32px;width:46px;border-radius:9px;border:1.5px solid var(--border);background:#fff;cursor:pointer;padding:0}
+  .sbx .ng .pname{border:0;background:none;font:600 14px var(--fb);padding:2px 0;min-height:0;width:138px}
+  .sbx .ng .c{display:block;height:30px;width:36px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;padding:0}
   .sbx .ng .c.pre{background:repeating-linear-gradient(135deg,#fff,#fff 6px,var(--sunk) 6px,var(--sunk) 12px)}
   .sbx .ng .c.on{background:var(--rbh);border-color:var(--rbh)}
   .sbx .ng td.n{text-align:right;color:var(--muted);padding:0 6px}
   .sbx .ng tr.grp td{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 0 2px;border-bottom:1px solid var(--edge)}
   .sbx .ng tr.tot td{font-weight:700;text-align:center;font-size:13px}
-  .sbx .plus{width:30px;height:30px;border-radius:50%;border:1.5px dashed var(--navy);background:#fff;color:var(--navy);font-size:18px;font-weight:700;line-height:24px;cursor:pointer;padding:0}
+  .sbx .plus{width:26px;height:26px;border-radius:50%;border:1.5px dashed var(--navy);background:#fff;color:var(--navy);font-size:16px;font-weight:700;line-height:20px;cursor:pointer;padding:0}
+  .sbx .plus:disabled{opacity:.35;cursor:default}
+  .sbx .ng .pm{display:inline-flex;flex-direction:column;gap:4px;align-items:center}
+  .sbx .ng th .d{white-space:nowrap;text-transform:none}
+  .sbx .ng td.nm .pnl{display:flex;align-items:center;gap:6px}.sbx .ng td.nm .pnl .pname{flex:1 1 auto;min-width:0}
+  .sbx .ng td.nm .pnn{display:inline;flex:none;font-size:12px;color:var(--muted);white-space:nowrap}
+  .sbx .ng .pdel{flex:none;border:0;background:none;color:var(--muted);font-size:13px;width:24px;height:24px;border-radius:50%;cursor:pointer;padding:0}.sbx .ng .pdel:hover{background:var(--sunk);color:var(--late)}
+  .sbx .ng td.nm .pbseg{display:inline-flex;margin-top:4px}
+  @media (max-width:560px){.sbx .ng td.nm .pbseg{flex-wrap:wrap;border-radius:12px}.sbx .ng td.nm .pbseg button{padding:3px 7px}}
+  .sbx .ng tr.tot td.nm span{display:block;font-weight:400}
+  .sbx .ng .pbseg.sm button{padding:3px 8px;font-size:11.5px}
   .sbx .sumrow{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13.5px;margin-top:10px;padding:10px 14px;background:var(--sand);border-radius:12px}
   .sbx .mp{border-collapse:separate;border-spacing:5px 6px;font-size:13.5px}
   .sbx .mp th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -483,8 +493,10 @@
     .wq{font-size:24px}.wbox{width:100%}.wnext{width:100%;font-size:18px;min-height:56px}.wkbd{display:none}.wstart,.wsum{grid-template-columns:1fr}
     .wclose{right:0;top:-6px}.wlive{gap:14px;font-size:12.5px}.wlive b{font-size:16px}
   }
-  .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
-  .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
+  /* Smaller pills on the hotel grid (Andrew 30 Oct 2026: "the Add all board members pill at top is too big"). */
+  .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0;font-size:11.5px;padding:3px 9px;min-height:26px}
+  .sbx .paddsel{font:600 11.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:3px 8px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:200px;min-height:26px}
+  .sbx .ng tr.grp .mini{font-size:11.5px;padding:3px 9px;min-height:26px;text-transform:none;letter-spacing:0}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
   .sbxq{max-width:640px;width:calc(100% - 24px)}
   /* The event budget on the Money tab: the same page, a heading that fits under the event's own. */
@@ -1483,6 +1495,20 @@
   }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
+  /* Certificates, on Who's coming (Andrew 30 Oct 2026) */
+  .dlmenu{position:relative;display:inline-block}.dlmenu>summary{list-style:none;cursor:pointer}.dlmenu>summary::-webkit-details-marker{display:none}
+  .dlpop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:#fff;border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);width:min(300px,86vw);padding:6px;display:grid;gap:2px}
+  .dlpop button{display:block;text-align:left;border:0;background:none;border-radius:8px;padding:9px 10px;font:inherit;font-size:13px;color:var(--ink-mid);cursor:pointer}
+  .dlpop button:hover,.dlpop button:focus-visible{background:var(--gold-pale)}.dlpop b{display:block;font-size:14px;color:var(--ink)}
+  .certgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+  .certh{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}.certn{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px}
+  .certtpls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .certtpl{position:relative;border:1.5px solid var(--border);border-radius:12px;background:#fff;padding:8px;display:grid;gap:2px;cursor:pointer;font-size:12.5px;color:var(--muted)}
+  .certtpl input{position:absolute;opacity:0;pointer-events:none}.certtpl img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+  .certtpl b{color:var(--ink);font-size:13.5px}.certtpl.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,146,42,.2)}
+  .certtpl:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+  .certl .certact{white-space:nowrap;text-align:right}.certl .certact .linkish{margin-left:8px}
+  @media (max-width:760px){.certgrid{grid-template-columns:1fr}.certl .certact{text-align:left}}
   /* Admin › Agencies (Andrew 30 Oct 2026) */
   .nb{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px}
   .nb[hidden]{display:none}
@@ -1503,6 +1529,8 @@
   .aga input{width:100%}.agb{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px}
   .linkish{background:none;border:0;padding:4px 2px;font:600 13px var(--fb);color:var(--navy);text-decoration:underline;cursor:pointer}
   .agwait{border-color:#e6cf9f;background:#fffaf0}
+  .agblank>summary{list-style:none;cursor:pointer}.agblank>summary::-webkit-details-marker{display:none}.agblank[open] .ibcaret{transform:rotate(180deg)}
+  .agq.agbl{grid-template-columns:minmax(0,1fr) auto;align-items:center}
   .agbtns{display:flex;gap:8px;flex-wrap:wrap}
   .agtable{overflow-x:auto;margin-top:10px}.agl{width:100%;border-collapse:collapse;font-size:13.5px}
   .agl th{text-align:left;font:500 11px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--edge)}
@@ -3891,7 +3919,7 @@ function eventScreen(data) {
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
-      + pv("guests", attendeesCard(ev, guests)))
+      + pv("guests", attendeesCard(ev, guests) + (mayCertifyHere(ev) ? certsCard() : "")))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
@@ -3988,6 +4016,7 @@ function eventScreen(data) {
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
+  if (document.getElementById("certbox")) loadCerts(ev);
   if (document.getElementById("rsbox")) loadResults(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
@@ -5338,6 +5367,9 @@ function agenciesScreen(A) {
     ${A.waiting.length ? `<div class="card agwait"><div class="card-head"><div><h2>Claude couldn't tell</h2><div class="s">Only these count on the Admin badge. Left blank until you type an agency or choose Leave blank.</div></div></div><div class="card-body">${waiting}</div></div>` : ""}
     <div class="card"><div class="card-head"><div><h2>Matched for you</h2><div class="s">${A.matched.length ? "Already applied everywhere. Nothing to do unless one is wrong: type the right agency, or press Undo." : "Nothing new since you last cleared the list."}</div></div>
       ${A.matched.length ? `<button class="mini" id="ag-clear">Looks right, clear the list</button>` : ""}</div>${A.matched.length ? `<div class="card-body">${matched}</div>` : ""}</div>
+    ${A.blank?.length ? `<details class="card agblank"><summary class="card-head"><div><h2>Left blank · ${A.blank.length}</h2><div class="s">Spellings you chose to leave without an agency. Bring one back to give it an agency after all.</div></div><span class="ibcaret" aria-hidden="true">▾</span></summary>
+      <div class="card-body">${A.blank.map((x, i) => `<div class="agq agbl" data-agraw="${esc(x.raw)}"><div class="agw"><div class="agt">Typed <q>${esc(x.raw)}</q>${x.count ? ` · ${x.count} ${x.count === 1 ? "person" : "people"}` : ""}${x.events?.length ? ` · ${esc(x.events.join(", "))}` : ""}</div></div>
+        <div class="agb"><button class="mini" data-agunblank="${i}">Bring back</button></div></div>`).join("")}</div></details>` : ""}
     <div class="card"><div class="card-head"><div><h2>The master list</h2><div class="s">Started from the 27 October clean-up of two years of Wix registrations, and grows with every match.</div></div>
       <div class="agbtns"><button class="mini" id="ag-add">Add an agency</button><button class="mini" id="ag-csv">Download the master list</button></div></div>
       <div class="card-body"><input type="search" id="ag-find" class="pfind" placeholder="Find an agency or a spelling…" aria-label="Find an agency or a spelling" value="${esc(AG_FIND)}" autocomplete="off">
@@ -5366,6 +5398,7 @@ function agenciesScreen(A) {
     save.onclick = () => ask(w.raw, inp, (a) => `"${w.raw}" is now ${a}.`);
   });
   ROOT.querySelectorAll("[data-agblank]").forEach((b) => b.onclick = () => { const w = A.waiting[+b.dataset.agblank]; redo("blank=1", { raw: w.raw }, `"${w.raw}" will be left blank.`); });
+  ROOT.querySelectorAll("[data-agunblank]").forEach((b) => b.onclick = () => { const x = A.blank[+b.dataset.agunblank]; redo("unblank=1", { raw: x.raw }, `"${x.raw}" is back, waiting for an agency.`); });
   document.getElementById("ag-clear")?.addEventListener("click", () => redo("clear=1", {}, "Cleared."));
   const find = document.getElementById("ag-find");
   const filter = () => { AG_FIND = find.value; const q = AG_FIND.trim().toLowerCase(); ROOT.querySelectorAll("[data-agrow]").forEach((tr) => { tr.hidden = !!q && !tr.dataset.find.includes(q); }); };
@@ -5416,6 +5449,88 @@ function agencyDialog(A, a, done) {
   };
   dlg.addEventListener("close", () => dlg.remove());
   dlg.showModal();
+}
+
+/**
+ * Certificates, on Who's coming (Andrew 30 Oct 2026): pick the design, the date (the event's last day unless changed)
+ * and, on the generic design, the course; then anyone's certificate downloads as a PDF to send yourself ("I need the
+ * ability in the backend to download anyones and send it to them outside the system"). For the president, the VP and
+ * the event's lead.
+ */
+const mayCertifyHere = (ev) => !WHO?.email || !!WHO?.canCost || (ev.board ?? []).some((m) => m.lead && String(m.email ?? "").toLowerCase() === String(WHO.email).toLowerCase());
+function certsCard() {
+  return secFold("certs", "Certificates", "Each person's certificate, from your design, ready to download", "", `<div class="card-body" id="certbox"><p class="porg">Loading…</p></div>`, { id: "certsfold", open: false });
+}
+let CERT_CUT = "in", CERT_FIND = "";
+async function loadCerts(ev) {
+  const box = document.getElementById("certbox");
+  try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`)); }
+  catch (x) { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }
+}
+async function certFile(url) {
+  const res = await apiFetch(url, { headers: { "x-admin-key": KEY } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The certificate could not be made (${res.status}).`);
+  const named = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
+  return { blob: await res.blob(), name: named ? decodeURIComponent(named[1]) : "certificate.pdf" };
+}
+function renderCerts(ev, C) {
+  const box = document.getElementById("certbox");
+  if (!box) return;
+  const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
+  const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
+  const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
+      <td>${esc(p.agency || "")}${p.typed && p.typed !== p.agency ? `<span class="psub" title="As typed">${esc(p.typed)}</span>` : ""}</td>
+      <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? "Withdrawn" : `No. ${esc(p.cert.code)}`}</span>` : ""}</td>
+      <td class="certact"><button class="mini" data-certpdf="${esc(p.key)}">Download PDF</button>${p.cert && !p.cert.revoked ? `<button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>` : ""}</td></tr>`;
+  box.innerHTML = `<div class="certgrid">
+      <div><h3 class="certh"><span class="certn">1</span>The design</h3>
+        <div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
+          <img src="${esc(t.thumb)}" alt="" loading="lazy"><b>${esc(t.name)}</b><span>${esc(t.note)}</span></label>`).join("")}</div></div>
+      <div><h3 class="certh"><span class="certn">2</span>What it says</h3>
+        <div class="field"><label for="cert-date">Date issued</label><input type="date" id="cert-date" value="${esc(s.date)}">
+          <p class="hint">Prints as <b>${esc(s.date.split("-").reverse().join("/"))}</b>. ${s.dateSet ? `Changed from the event's last day. <button class="linkish" id="cert-dateback">Use the last day</button>` : "The event's last day; change it here if it should read otherwise."}</p></div>
+        ${tpl?.course ? `<div class="field"><label for="cert-course">Course</label><input id="cert-course" value="${esc(s.course)}" maxlength="200"><p class="hint">Printed under "For their successful completion of the".</p></div>` : ""}
+        <button class="mini" id="cert-preview">Preview a PDF</button></div></div>
+    <h3 class="certh" style="margin-top:18px"><span class="certn">3</span>Everyone's certificate</h3>
+    <div class="filters" style="margin:6px 0 10px"><button class="fchip${CERT_CUT === "in" ? " on" : ""}" data-certcut="in">Checked in <b>${C.counts.checkedIn}</b></button>
+      <button class="fchip${CERT_CUT === "all" ? " on" : ""}" data-certcut="all">Everyone coming <b>${C.counts.coming}</b></button></div>
+    ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off" style="margin-bottom:10px">` : ""}
+    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still download anyone's certificate under Everyone coming.</div>` : ""}
+    <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
+    ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
+    <p class="hint" style="margin-top:12px">Each certificate gets its own number and QR code the first time it is downloaded, and is kept for good so it always verifies. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
+  const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
+  box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
+  box.querySelector("#cert-date").onchange = (e) => save({ date: e.target.value === C.lastDay ? "" : e.target.value });
+  box.querySelector("#cert-dateback")?.addEventListener("click", () => save({ date: "" }));
+  const course = box.querySelector("#cert-course");
+  if (course) course.onchange = () => save({ course: course.value, date: s.dateSet ? s.date : "" });
+  box.querySelectorAll("[data-certcut]").forEach((b) => b.onclick = () => { CERT_CUT = b.dataset.certcut; renderCerts(ev, C); });
+  // Andrew 30 Oct 2026: "I will need search capabilities to search for a name. 450 people is a lot to scroll through".
+  const find = box.querySelector("#cert-find");
+  const filter = () => { const q = CERT_FIND.trim().toLowerCase(); let n = 0;
+    box.querySelectorAll("[data-certkey]").forEach((tr) => { tr.hidden = !!q && !tr.dataset.find.includes(q); if (!tr.hidden) n++; });
+    box.querySelector("#cert-none").hidden = !q || n > 0; };
+  if (find) { find.oninput = () => { CERT_FIND = find.value; filter(); }; filter(); }
+  box.querySelector("#cert-preview").onclick = async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = "Making the preview…";
+    try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); window.open(URL.createObjectURL(f.blob), "_blank", "noopener"); }
+    catch (x) { toast(x.message); }
+    b.disabled = false; b.textContent = "Preview a PDF";
+  };
+  box.querySelectorAll("[data-certpdf]").forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = "Making it…";
+    try {
+      const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}`);
+      Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
+      loadCerts(ev);
+    } catch (x) { toast(x.message); b.disabled = false; b.textContent = "Download PDF"; }
+  });
+  box.querySelectorAll("[data-certrevoke]").forEach((b) => b.onclick = async () => {
+    const p = C.people.find((x) => x.key === b.dataset.certrevoke);
+    if (!confirm(`Withdraw ${p.name}'s certificate? Its QR code will say it was withdrawn. Do this only for one issued in error.`)) return;
+    try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}&revoke=${encodeURIComponent(p.key)}`, { method: "POST", body: "{}" })); toast("Withdrawn."); } catch (x) { toast(x.message); }
+  });
 }
 
 /**
@@ -7659,7 +7774,9 @@ function attendeesCard(ev, guests) {
         ${counts.total ? `<span class="chipstat"><b>${counts.fromWix}</b>from the website</span>` : ""}
         ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
       </div></div>
-      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>
+      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
+          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, phone, checked in.</span></button>
+          <button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button></div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
       ${bar}
@@ -7781,6 +7898,17 @@ function wireAttendees(ev) {
       list.innerHTML = `<div class="bad">${esc(e.message)}</div>`;
     }
   };
+
+  // The two downloads (Andrew 30 Oct 2026), with each agency under its official name.
+  document.querySelectorAll("[data-glist]").forEach((b) => b.onclick = async () => {
+    b.closest("details").open = false;
+    try {
+      const res = await apiFetch(`/api/certificates?event=${encodeURIComponent(ev.id)}&csv=${b.dataset.glist}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The download failed.");
+      const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
+      Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
+    } catch (x) { toast(x.message); }
+  });
 
   // A spreadsheet goes up as plain text; the desk works out the columns.
   const pick = document.getElementById("g-csv"), file = document.getElementById("g-file");
@@ -8902,16 +9030,18 @@ function sbxDraw() {
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
   // Short enough that all three fit beside the nights (Andrew 30 Oct 2026); the title says each in full.
-  const pays = [["ongia", "ONGIA's bill", "ONGIA pays the hotel directly"], ["reimbursed", "Reimbursed", "They pay the hotel and ONGIA pays them back"], ["agency", "Agency pays", "Their own agency pays; not in the budget"]];
+  const pays = [["ongia", "ONGIA", "ONGIA's bill: ONGIA pays the hotel directly"], ["reimbursed", "Reimbursed", "They pay the hotel and ONGIA pays them back"], ["agency", "Agency", "Their own agency pays; not in the budget"]];
   const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
   // On a phone the names stay put on the left and one night fills the rest; a swipe brings the next (Andrew 30 Oct 2026).
-  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th><th class="pc"><button class="plus" data-more="before" title="Add a night before">+</button><span class="pl">Add a night before</span></th>${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}<th class="pc"><button class="plus" data-more="after" title="Add a night after">+</button><span class="pl">Add a night after</span></th><th class="nc">Nights</th><th>Who pays for the room</th><th></th></tr>`;
+  // The month on every date, and a minus beside each plus (Andrew 30 Oct 2026: "there should be a Apr 3"; "we need a minus button as well").
+  const edge = (side) => `<th class="pc"><span class="pm"><button class="plus" data-more="${side}" title="Add a night ${side}">+</button><button class="plus minus" data-less="${side}" title="Take off the ${side === "before" ? "first" : "last"} night"${(B.hotel[side] ?? 2) > 0 ? "" : " disabled"}>−</button></span><span class="pl">Add or take off a night ${side}</span></th>`;
+  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th>${edge("before")}${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${esc(MONTHS[+d.slice(5, 7) - 1].slice(0, 3))} ${+d.slice(8)}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}${edge("after")}</tr>`;
   // Someone on the rooming list: their nights come from it (change them there); everyone else is a plan, tapped in here.
-  const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td class="pc"></td>
-      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td>
-      <td class="n nc">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
-      <td><span class="pbseg sm">${pays.map(([k, l, t]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}" title="${t}">${l}</button>`).join("")}</span></td>
-      <td>${p.key ? "" : `<button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button>`}</td></tr>`;
+  // Who pays and the night count sit under each name (Andrew 30 Oct 2026: "the window extends to right … scrolling left
+  // and right"): the grid is then just names and nights, and fits on an iPad and beside the budget's side panel.
+  const prow = (p) => { const n = p.nights.filter((d) => C.nights.includes(d)).length; return `<tr${p.key ? ` class="rl"` : ""}><td class="nm"><div class="pnl">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}<span class="pnn">${n} night${n === 1 ? "" : "s"}</span>${p.key ? "" : `<button class="pdel" data-pdel="${p.id}" title="Take ${esc(p.name || "them")} off the list" aria-label="Take ${esc(p.name || "them")} off the list">✕</button>`}</div>${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}
+      <span class="pbseg sm" role="group" aria-label="Who pays for ${esc(p.name)}'s room">${pays.map(([k, l, t]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}" title="${t}">${l}</button>`).join("")}</span></td><td class="pc"></td>
+      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td></tr>`; };
   const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
   const paysN = (k) => B.people.filter((p) => p.pays === k).reduce((n, p) => n + p.nights.length, 0);
   const nightsN = (n) => `${n} night${n === 1 ? "" : "s"}`;
@@ -8922,8 +9052,8 @@ function sbxDraw() {
       // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
       const add = free.length ? `${free.length > 1 ? `<button class="mini addall" data-paddall>Add all board members (${free.length})</button>` : ""}<select class="paddsel" data-paddboard aria-label="Add a board member"><option value="">+ Add a board member…</option>${free.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("")}<option value="__other">Someone else (type the name)</option></select>`
         : `<button class="mini ghost" data-padd="${g}">+ Add</button>`;
-      return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} ${add}</span></td></tr>${ps.map(prow).join("")}`; }).join("")}
-    <tr class="tot"><td class="nm">Rooms that night</td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td><td class="n nc">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
+      return `<tr class="grp"><td colspan="${C.nights.length + 3}"><span class="gl">${l} · ${ps.length} ${add}</span></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    <tr class="tot"><td class="nm">Rooms that night<span>${C.blockNights} room-night${C.blockNights === 1 ? "" : "s"} in all</span></td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td></tr></tbody></table></div>
     <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${nightsN(C.blockNights)}</b></span><span>ONGIA's bill <b>${nightsN(paysN("ongia"))}</b></span>
       <span>Reimbursed <b>${nightsN(paysN("reimbursed"))} · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${nightsN(paysN("agency"))}</b> (not in the budget)</span></div>`;
 
@@ -9026,6 +9156,16 @@ function sbxWire() {
   SBX_HOST.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
     B.people.push({ id: `p${Date.now().toString(36)}`, name: `${{ board: "Board member", presenter: "Presenter", volunteer: "Volunteer", other: "Guest" }[g]} ${n}`, group: g, pays: g === "board" ? "reimbursed" : "ongia", nights: [] }); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
+  // One night fewer on that side. A night booked on it here goes too; the rooming list's own nights stay where it has them.
+  SBX_HOST.querySelectorAll("[data-less]").forEach((b) => { b.onclick = () => {
+    const side = b.dataset.less, n = B.hotel[side] ?? 2;
+    if (n <= 0) return;
+    const gone = side === "before" ? sbxDay(B.event.dayOne, -n) : sbxDay(B.event.lastDay, n);
+    const booked = B.people.filter((p) => !p.key && p.nights.includes(gone));
+    if (booked.length && !confirm(`${booked.length === 1 ? booked[0].name + " has" : booked.length + " people have"} a room the night of ${sbxShort(gone)}. Take that night off?`)) return;
+    booked.forEach((p) => { p.nights = p.nights.filter((d) => d !== gone); });
+    B.hotel[side] = n - 1; redraw();
+  }; });
   SBX_HOST.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { const k = b.dataset.meal, v = B.meals.cells[k] ?? "off";
     B.meals.cells[k] = typeof v === "number" ? "off" : ({ off: "team", team: "all", all: "off" })[v] ?? "off"; redraw(); }; });
   SBX_HOST.querySelectorAll("[data-setamt]").forEach((b) => { b.onclick = () => { B.meals.cells[b.dataset.setamt] = 0; redraw(); SBX_HOST.querySelector(`[data-flat="${CSS.escape(b.dataset.setamt)}"]`)?.select(); }; });
