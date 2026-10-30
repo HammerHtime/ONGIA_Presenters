@@ -21,7 +21,7 @@ const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond"
 await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true, canCost: true }]);
 const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
 await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "money" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
-await p.locator("#q-done").click(); await p.waitForTimeout(1200);
+await p.locator("#wclose").click(); await p.waitForTimeout(1200);
 const saved = async () => (await (await fetch(`${S}/api/budget?event=${ev.id}`, { headers: PRES })).json()).budget;
 
 const box = p.locator('[data-k="meals.breakfast"]');

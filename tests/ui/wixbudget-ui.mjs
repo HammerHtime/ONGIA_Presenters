@@ -44,6 +44,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: `Wix Tickets ${tag} ${T}`, city: "Toronto, ON", dayOne: "2031-05-12", lastDay: "2031-05-13", invite: false,
     board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] }) })).event;
   const p = await open(w, h, ev.id);
+  await p.locator("#wclose").click(); await p.waitForTimeout(600); await p.locator("#sbx-q").click(); await p.waitForTimeout(400);
   ok(`${tag}: the questions show Wix's in-person price, not to be typed`, (await p.locator('.sbxq [data-q="inPerson.price"]').inputValue()) === "425" && (await p.locator('.sbxq [data-q="inPerson.price"]').getAttribute("readonly")) !== null);
   ok(`${tag}: and say yes already to the kinds sold on Wix (early bird, community, virtual)`, /on/.test(await p.locator('.sbxq [data-yn="earlyBird"][data-v="1"]').getAttribute("class")) && /on/.test(await p.locator('.sbxq [data-yn="virtual"][data-v="1"]').getAttribute("class")));
   await p.locator('.sbxq [data-q="inPerson.expected"]').fill("250");

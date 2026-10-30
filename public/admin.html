@@ -437,6 +437,52 @@
   .sbelse{table-layout:fixed}
   .sbgrid.two>.blk:first-child{grid-column:1/-1}   /* Everything else gets the width its four columns need */.sbelse .sbin.n{padding:5px 6px}
   .grpdlg{max-width:440px;width:calc(100% - 24px)}
+  /* The set-up walk-through. */
+  dialog.walk{padding:0;border:0;border-radius:22px;width:min(980px,calc(100% - 24px));max-height:calc(100dvh - 24px);background:var(--card);color:var(--ink)}
+  dialog.walk::backdrop{background:rgba(14,26,53,.55)}
+  .wwrap{display:grid;grid-template-columns:260px 1fr;min-height:520px}.wwrap.one{grid-template-columns:1fr;min-height:0}
+  .wside{background:var(--sand);border-right:1px solid var(--edge);padding:18px 14px;overflow:auto;max-height:calc(100dvh - 24px)}
+  .wside h3{font-family:var(--fd);font-weight:400;font-size:20px;margin:0}.wsub{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .wgrp{font-family:var(--fu);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 3px}
+  .wit{display:flex;align-items:center;gap:8px;width:100%;font:500 13.5px var(--fb);padding:5px 6px;border-radius:8px;border:0;background:none;color:var(--ink);cursor:pointer;text-align:left}
+  .wit .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex:none}
+  .wit.done .ck{background:var(--done);border-color:var(--done)}.wit.done .ck::after{content:"✓"}
+  .wit.skip .ck{background:var(--wait-bg);border-color:var(--wait);color:var(--wait)}.wit.skip .ck::after{content:"–"}
+  .wit.now{background:#fff;font-weight:700;box-shadow:inset 3px 0 0 var(--navy)}.wit.now .ck{border-color:var(--navy)}
+  .wit .v{margin-left:auto;color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap}
+  .wmain{padding:22px 30px;display:flex;flex-direction:column;min-width:0}
+  .wtop{position:relative}.wbar{height:6px;background:var(--sunk);border-radius:99px;overflow:hidden;margin:0 40px 14px 0}.wbar i{display:block;height:100%;background:var(--done);transition:width .2s}
+  .wdots{display:none}.wcount{font-family:var(--fu);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .wclose{position:absolute;right:-8px;top:-10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px}
+  .wq{font-family:var(--fd);font-size:30px;line-height:1.2;margin:8px 0 4px}.whelp{color:var(--muted);font-size:14.5px;margin:0 0 16px}
+  .wbox{position:relative;width:min(300px,100%)}.wbox .cur{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:26px;color:var(--muted)}
+  .wbox input{width:100%;font:600 30px var(--fb);padding:13px 52px 13px 40px;border-radius:16px;border:2px solid var(--border);background:#fff;margin:0;min-height:0}
+  .wbox input.nomoney{padding-left:18px}.wbox .tick{position:absolute;right:13px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;background:var(--done);color:#fff;display:none;place-items:center;font-weight:700}
+  .wbox.ok input{border-color:var(--done);background:var(--done-bg);color:var(--done)}.wbox.ok .tick{display:grid}
+  .wfrom{align-self:flex-start;display:inline-block;font-family:var(--fu);font-size:11px;letter-spacing:.07em;text-transform:uppercase;border-radius:6px;padding:2px 8px;background:#e7eefc;color:#1d4fb8;margin-top:10px}
+  .wwhy{margin-top:8px;color:var(--late);font-size:14px;font-weight:600}
+  .wpills{display:flex;gap:10px;flex-wrap:wrap}.wpill{border:2px solid var(--border);border-radius:14px;padding:13px 18px;font:700 16px var(--fb);background:#fff;min-width:130px;cursor:pointer;color:var(--ink)}
+  .wpill.on{background:var(--done);border-color:var(--done);color:#fff}.wpill:disabled{cursor:default}
+  .wpills.shake{animation:wshake .3s}@keyframes wshake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .wstart{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .wopt{border:2px solid var(--border);border-radius:16px;padding:15px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:var(--ink)}.wopt b{display:block;font-size:16px;margin-bottom:4px}.wopt span{color:var(--muted);font-size:13.5px}
+  .wopt.rec{border-color:var(--done);background:var(--done-bg)}
+  .wacts{display:flex;gap:10px;margin-top:22px;align-items:center;flex-wrap:wrap}
+  .wnext{background:var(--done);color:#fff;border:0;border-radius:14px;font:700 17px var(--fb);padding:13px 26px;min-height:52px;cursor:pointer}
+  .wghost{background:none;border:1.5px solid var(--border);border-radius:14px;font:600 15px var(--fb);padding:11px 16px;color:var(--ink-mid);cursor:pointer}
+  .wkbd{font-size:12.5px;color:var(--muted)}
+  .wlive{margin-top:auto;padding:11px 16px;border-radius:14px;background:var(--navy-deep);color:#fff;display:flex;gap:20px;flex-wrap:wrap;font-size:13.5px;margin-top:26px}
+  .wlive b{font-family:var(--fd);font-size:19px;font-weight:400;display:block}.wlive span{color:#aab3c8}
+  .wsum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 16px;margin:6px 0 4px}
+  .wsrow{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:10px;background:var(--done-bg);font:inherit;font-size:14px;border:0;cursor:pointer;text-align:left;color:var(--ink)}.wsrow b{color:var(--done)}
+  .wsrow.skip{background:var(--wait-bg)}.wsrow.skip b{color:var(--wait)}
+  @media (max-width:760px){
+    dialog.walk{width:100%;max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
+    .wwrap{grid-template-columns:1fr;min-height:100dvh}.wside{display:none}.wmain{padding:16px 16px 20px}
+    .wbar{display:none}.wdots{display:flex;gap:3px;margin:0 44px 10px 0}.wdots i{flex:1;height:6px;border-radius:99px;background:var(--border)}.wdots i.d{background:var(--done)}.wdots i.n{background:var(--navy)}.wdots i.s{background:var(--wait)}
+    .wq{font-size:24px}.wbox{width:100%}.wnext{width:100%;font-size:18px;min-height:56px}.wkbd{display:none}.wstart,.wsum{grid-template-columns:1fr}
+    .wclose{right:0;top:-6px}.wlive{gap:14px;font-size:12.5px}.wlive b{font-size:16px}
+  }
   .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
   .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
@@ -3912,7 +3958,7 @@ function eventScreen(data) {
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
     syncSide();
-    if (k === "money" && SBX_EV?.id === ev.id && SBX && !SBX.asked) sbxQuestions();
+    if (k === "money" && SBX_EV?.id === ev.id && SBX && (!SBX.asked || (SBX.walk?.skipped ?? []).length) && !WALK_SHOWN.has(ev.id)) { WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     // Opening a tab is seeing what is new on it.
@@ -8620,6 +8666,8 @@ async function sandboxScreen() {
 
 /** The registration questions (mock-up 5): yes or no to each kind, and its price when yes. */
 function sbxQuestions() {
+  // An event's budget not set up yet: the walk-through, one question at a time (Andrew 30 Oct 2026).
+  if (SBX_EV && !SBX.asked) return budgetWalk();
   const R = SBX.reg, B = SBX;
   const dlg = document.createElement("dialog"); dlg.className = "sheet sbxq"; document.body.append(dlg);
   const yn = (k) => `<span class="pbseg"><button type="button" data-yn="${k}" data-v="1" class="${R[k].on ? "on" : ""}">Yes</button><button type="button" data-yn="${k}" data-v="0" class="${R[k].on ? "" : "on"}">No</button></span>`;
@@ -8818,7 +8866,7 @@ function sbxDraw() {
   SBX_HOST.innerHTML = `<div class="sbx${SBX_EV ? " evbud" : ""}">
     ${SBX_EV ? `<div class="sbxhead"><div><div class="porg sbxtag evtag">The event budget · president &amp; VP</div><h2 class="budh">What ${esc(B.event.title)} costs and brings in</h2>
         <div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))}${B.event.hotel ? ` · ${esc(B.event.hotel)}` : ""} · ${rl ? `${rl} ${rl === 1 ? "person" : "people"} from the rooming list` : "nobody on the rooming list yet"}${SBX_LIVE?.contract?.money ? " · amounts from the hotel contract" : ""}</div></div>
-      <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
+      <div class="sbxacts">${said}<button class="mini" id="sbx-walk">Walk me through it</button><button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
     : `<div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
       <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>`}
     <div class="sbtiles">${tiles}</div>
@@ -8891,6 +8939,8 @@ function sbxWire() {
     B[key].push(({ other: { id, group: "", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
       deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
   document.getElementById("sbx-q").onclick = () => sbxQuestions();
+  const walkBtn = document.getElementById("sbx-walk");
+  if (walkBtn) walkBtn.onclick = () => budgetWalk();
   SBX_HOST.querySelectorAll("[data-wixkind]").forEach((el) => { el.onchange = () => { (B.wixKinds ??= {})[el.dataset.wixkind] = el.value; applyWix(B, SBX_LIVE?.wix); redraw(); }; });
   document.getElementById("sbx-reset").onclick = async () => {
     if (SBX_EV) {
@@ -8984,6 +9034,189 @@ function askRoom(ev) {
     dlg.addEventListener("close", () => { dlg.remove(); done(saved); });
     dlg.showModal(); dlg.querySelector("#rm-seats").focus();
   });
+}
+
+/* ---------- The budget's set-up walk-through (Andrew 30 Oct 2026, from the mock-up he approved) ---------- */
+/**
+ * "When I type in an amount in a box it goes green or a green check box and I immediately go to next box automatically
+ * until I get through all the set up pricing." One question at a time; a box with an answer goes green with a ✓; Enter or
+ * Tab moves on (Shift+Tab goes back), and on a phone a big Next sits above the number pad. What Wix, the hotel contract or
+ * the last similar budget already says arrives filled and green. Every answer saves as it's given.
+ */
+const WALK_SHOWN = new Set();
+function walkSteps(B) {
+  const R = B.reg, M = SBX_LIVE?.contract?.money ?? {};
+  const wix = (k) => (R[k]?.fromWix?.length ? `From Wix: ${R[k].fromWix.join(", ")}` : "");
+  const from = (path) => (B.walkFrom ?? []).includes(path) ? `From ${B.walkFromTitle ?? "the last budget"}` : "";
+  const num = (id, group, q, help, path, o = {}) => ({ id, group, kind: "num", q, help, path, money: o.money !== false, zero: !!o.zero, tag: o.tag || from(path), short: o.short ?? q });
+  const kinds = [["inPerson", "In person"], ["earlyBird", "Early bird"], ["community", "Community"], ["virtual", "Virtual"], ["memberships", "Memberships"]];
+  const on = kinds.filter(([k]) => R[k]?.on);
+  return [
+    { id: "start", group: "Registration", kind: "start", short: "How to start" },
+    { id: "kinds", group: "Registration", kind: "kinds", short: "Kinds of registration", q: "How do people register?", help: "Tap every kind this event sells. In person is always on." },
+    ...on.map(([k, l]) => num(`price.${k}`, "Registration", k === "virtual" ? "What does a virtual ticket cost a member?" : `What does ${k === "memberships" ? "a membership" : k === "inPerson" ? "an in-person ticket" : `${/^[AEIOU]/.test(l) ? "an" : "a"} ${l.toLowerCase()} ticket`} cost?`,
+      k === "community" ? "The cheaper ticket for partners who come for some days only." : k === "earlyBird" ? "The price before the early-bird date." : "", `reg.${k}.price`, { tag: wix(k), short: `${k === "inPerson" ? "In-person" : l} price` })),
+    ...(R.virtual?.on ? [num("price.virtualNon", "Registration", "And a virtual ticket for a non-member?", "", "reg.virtual.priceNon", { tag: R.virtual.fromWixNon ? wix("virtual") : "", short: "Virtual, non-member" })] : []),
+    ...on.map(([k, l]) => num(`expected.${k}`, "Registration", `How many ${k === "memberships" ? "memberships" : `${k === "inPerson" ? "in-person" : l.toLowerCase()} registrations`} do you expect?`, "Your plan. What's sold so far comes from Wix.", `reg.${k}.expected`, { money: false, short: `${k === "inPerson" ? "In-person" : l} expected` })),
+    { id: "hst", group: "Registration", kind: "yesno", short: `Prices include ${B.taxName ?? "HST"}`, q: `Do the ticket prices include ${B.taxName ?? "HST"}?`, help: `If yes, the budget takes the ${B.taxName ?? "HST"} out before counting it as revenue.`, path: "pricesIncludeHst" },
+    num("rate", "Hotel", "What's the nightly room rate?", "Before tax. It's what the budget pays for every room ONGIA covers.", "hotel.rate", { tag: M.roomRate ? "From the hotel contract" : "", short: "Room rate" }),
+    num("block", "Hotel", "How many room nights are in the hotel block?", "From the contract: the nights ONGIA has committed to.", "hotel.commitment", { money: false, tag: M.blockNights ? "From the hotel contract" : "", short: "Room block" }),
+    num("seats", "The room", "How many seats does the main room hold?", "The venue's capacity for the room, everyone in it counted.", "room.seats", { money: false, tag: SBX_LIVE?.room?.seats ? "Set on the event" : "", short: "Seats" }),
+    num("vips", "The room", "How many VIPs will be seated in it?", "They take seats, like the presenters. 0 is fine.", "room.vips", { money: false, zero: true, short: "VIPs" }),
+    num("breakfast", "Meals", "What does breakfast cost a person?", "All fees in: the hotel's service and tax included.", "meals.breakfast", { short: "Breakfast" }),
+    num("break", "Meals", "And a break (coffee, snacks)?", "Per person, all fees in.", "meals.break", { short: "Break" }),
+    num("lunch", "Meals", "And lunch?", "Per person, all fees in.", "meals.lunch", { short: "Lunch" }),
+    num("dinner", "Meals", "And dinner?", "Per person, all fees in. Only the days you serve one count.", "meals.dinner", { short: "Dinner" }),
+    num("target", "The goal", "What profit are you aiming for?", "The tiles count how many more registrations it takes to get there.", "target", { short: "Profit target" }),
+  ];
+}
+const walkGet = (B, path) => path.split(".").reduce((o, k) => o?.[k], B);
+const walkSet = (B, path, v) => { const ks = path.split("."); let o = B; for (const k of ks.slice(0, -1)) o = o[k] ??= {}; o[ks.at(-1)] = v; };
+const walkAnswered = (B, st) => st.kind === "start" ? !!B.walkStarted : st.kind === "kinds" ? !!B.walkKinds : st.kind === "yesno" ? typeof B.pricesIncludeHst === "boolean" && !!B.walkHst
+  : (() => { const v = walkGet(B, st.path); return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)) && (st.zero ? Number(v) >= 0 && (B.walk?.done ?? []).includes(st.id) : Number(v) > 0); })();
+
+async function budgetWalk(startAt) {
+  const B = SBX, ev = SBX_EV;
+  if (!B || !ev) return;
+  B.walk ??= { done: [], skipped: [] };
+  document.querySelectorAll("dialog.walk").forEach((d) => d.remove());
+  const dlg = document.createElement("dialog"); dlg.className = "walk"; document.body.append(dlg);
+  let steps = walkSteps(B), i = Math.max(0, startAt ? steps.findIndex((x) => x.id === startAt) : 0), like = null, likeAsked = false, done = false;
+  const money = sbxMoney;
+  const mark = (id, how) => { B.walk.done = B.walk.done.filter((x) => x !== id); B.walk.skipped = B.walk.skipped.filter((x) => x !== id); B.walk[how].push(id); };
+  const saveRoom = () => api(`/events?id=${encodeURIComponent(ev.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: B.room?.seats ?? null, vips: B.room?.vips ?? 0 }) })
+    .then((out) => { ev.room = out.room; if (SBX_LIVE) SBX_LIVE.room = out.room; }).catch((x) => toast(x.message));
+  const live = () => { const C = sbxCalc(B), Rm = C.room; return `<div><span>Registration</span><b>${money(C.gross)}</b></div><div><span>Break-even</span><b>${C.breakEven === null ? "–" : `${C.breakEven} registrations`}</b></div><div><span>Profit as planned</span><b>${money(C.profit)}</b></div>${Rm.cap ? `<div><span>Room</span><b>${Rm.maxAttendees} attendee seats</b></div>` : ""}`; };
+  const valueText = (st) => st.kind === "start" ? (B.walkFromTitle ? "same as last" : B.walkStarted ? "fresh" : "") : st.kind === "kinds" ? (B.walkKinds ? `${Object.values(B.reg).filter((r) => r.on).length}` : "")
+    : st.kind === "yesno" ? (B.walkHst ? (B.pricesIncludeHst ? "yes" : "no") : "") : walkAnswered(B, st) ? (st.money ? money(walkGet(B, st.path)) : String(walkGet(B, st.path))) : "";
+  const side = () => { let g = ""; return steps.map((st, k) => { const head = st.group !== g ? `<div class="wgrp">${esc((g = st.group))}</div>` : "";
+    const cls = k === i ? "now" : walkAnswered(B, st) ? "done" : B.walk.skipped.includes(st.id) ? "skip" : "";
+    return `${head}<button type="button" class="wit ${cls}" data-wgo="${k}"><span class="ck"></span>${esc(st.short)}<span class="v">${esc(valueText(st))}</span></button>`; }).join(""); };
+  const draw = () => {
+    steps = walkSteps(B);
+    if (i >= steps.length) return finish();
+    const st = steps[i], pct = Math.round((i / steps.length) * 100);
+    let body = "";
+    if (st.kind === "start") {
+      body = `<div class="wq">How would you like to start?</div><p class="whelp">Either way you go through each box, and anything Wix or the hotel contract already says is filled in.</p>
+        <div class="wstart">${like?.budget ? `<button type="button" class="wopt rec" data-wstart="like"><b>✓ Same as ${esc(like.from.title)}</b><span>Its prices, expected numbers, meals, room rate and lines. Change what's different.</span></button>` : ""}
+          <button type="button" class="wopt${like?.budget ? "" : " rec"}" data-wstart="fresh"><b>Start fresh</b><span>One question at a time${likeAsked && !like?.budget ? ". There's no other event's budget to start from yet" : ""}.</span></button></div>`;
+    } else if (st.kind === "kinds") {
+      const R = B.reg, pill = (k, l, lock) => `<button type="button" class="wpill${R[k].on ? " on" : ""}" data-wkind="${k}"${lock ? " disabled" : ""}>${R[k].on ? "✓ " : ""}${l}</button>`;
+      body = `<div class="wq">${esc(st.q)}</div><p class="whelp">${esc(st.help)}</p><div class="wpills">${pill("inPerson", "In person", true)}${pill("earlyBird", "Early bird")}${pill("community", "Community")}${pill("virtual", "Virtual")}${pill("memberships", "Memberships")}</div>`;
+    } else if (st.kind === "yesno") {
+      body = `<div class="wq">${esc(st.q)}</div><p class="whelp">${esc(st.help)}</p><div class="wpills"><button type="button" class="wpill${B.walkHst && B.pricesIncludeHst ? " on" : ""}" data-wyes="1">${B.walkHst && B.pricesIncludeHst ? "✓ " : ""}Yes</button><button type="button" class="wpill${B.walkHst && !B.pricesIncludeHst ? " on" : ""}" data-wyes="0">${B.walkHst && !B.pricesIncludeHst ? "✓ " : ""}No</button></div>`;
+    } else {
+      const v = walkGet(B, st.path), shown = v === null || v === undefined || (Number(v) === 0 && !st.zero) ? "" : v;
+      body = `<div class="wq">${esc(st.q)}</div>${st.help ? `<p class="whelp">${esc(st.help)}</p>` : ""}
+        <div class="wbox${walkAnswered(B, st) ? " ok" : ""}">${st.money ? `<span class="cur">$</span>` : ""}<input id="wv" inputmode="decimal" autocomplete="off" value="${esc(String(shown))}" aria-label="${esc(st.q)}"${st.money ? "" : ` class="nomoney"`}><span class="tick" aria-hidden="true">✓</span></div>
+        ${st.tag ? `<span class="wfrom">${esc(st.tag)}</span>` : ""}<div class="wwhy" id="wwhy" hidden></div>`;
+    }
+    dlg.innerHTML = `<div class="wwrap"><div class="wside"><h3>Setting up the budget</h3><div class="wsub">${esc(ev.title)}</div>${side()}</div>
+      <div class="wmain"><div class="wtop"><div class="wbar"><i style="width:${pct}%"></i></div><div class="wdots">${steps.map((x, k) => `<i class="${k === i ? "n" : walkAnswered(B, x) ? "d" : B.walk.skipped.includes(x.id) ? "s" : ""}"></i>`).join("")}</div>
+        <div class="wcount">Step ${i + 1} of ${steps.length} · ${esc(st.group)}</div><button type="button" class="wclose" id="wclose" aria-label="Close">✕</button></div>
+        ${body}
+        <div class="wacts"><button type="button" class="wnext" id="wnext">Next ✓</button>${i ? `<button type="button" class="wghost" id="wback">Back</button>` : ""}${st.kind === "num" ? `<button type="button" class="wghost" id="wskip">Skip for now</button>` : ""}<span class="wkbd">Enter or Tab = Next</span></div>
+        <div class="wlive">${live()}</div></div></div>`;
+    wire(st);
+  };
+  const go = (k) => { i = Math.max(0, Math.min(k, steps.length)); sbxPersist(); draw(); };
+  const commit = (st) => {
+    if (st.kind !== "num") return true;
+    const el = dlg.querySelector("#wv"), raw = String(el.value).replace(/[$,\s]/g, "");
+    if (raw === "") { if (walkAnswered(B, st)) return true; const w = dlg.querySelector("#wwhy"); w.hidden = false; w.textContent = "Type an amount, or Skip for now."; el.focus(); return false; }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) { const w = dlg.querySelector("#wwhy"); w.hidden = false; w.textContent = "That isn't a number."; el.focus(); return false; }
+    walkSet(B, st.path, n); mark(st.id, "done");
+    if (st.path.startsWith("room.")) saveRoom();
+    return true;
+  };
+  const next = (st) => { if (commit(st)) go(i + 1); };
+  function wire(st) {
+    dlg.querySelector("#wclose").onclick = () => finish(true);
+    dlg.querySelector("#wnext").onclick = () => {
+      if (st.kind === "start" && !B.walkStarted) { B.walkStarted = true; mark("start", "done"); }
+      if (st.kind === "kinds") { B.walkKinds = true; mark("kinds", "done"); }
+      if (st.kind === "yesno" && !B.walkHst) { const w = dlg.querySelector(".wpills"); w.classList.add("shake"); setTimeout(() => w.classList.remove("shake"), 400); return; }
+      next(st);
+    };
+    const back = dlg.querySelector("#wback"); if (back) back.onclick = () => { commit(st); go(i - 1); };
+    const skip = dlg.querySelector("#wskip"); if (skip) skip.onclick = () => { mark(st.id, "skipped"); go(i + 1); };
+    dlg.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => { commit(st); go(+b.dataset.wgo); }; });
+    dlg.querySelectorAll("[data-wstart]").forEach((b) => { b.onclick = () => {
+      if (b.dataset.wstart === "like" && like?.budget) copyLike(B, like);
+      B.walkStarted = true; mark("start", "done"); go(i + 1); }; });
+    dlg.querySelectorAll("[data-wkind]").forEach((b) => { b.onclick = () => { const k = b.dataset.wkind; B.reg[k].on = !B.reg[k].on; B.walkKinds = true; sbxPersist(); draw(); }; });
+    dlg.querySelectorAll("[data-wyes]").forEach((b) => { b.onclick = () => { B.pricesIncludeHst = b.dataset.wyes === "1"; B.walkHst = true; mark("hst", "done"); draw(); setTimeout(() => go(i + 1), 250); }; });
+    const el = dlg.querySelector("#wv");
+    dlg.onkeydown = null;   // each step sets its own keys; a step's Enter must never also press the next one's Next
+    if (el) {
+      const box = el.closest(".wbox");
+      el.oninput = () => { const n = Number(String(el.value).replace(/[$,\s]/g, "")), good = el.value.trim() !== "" && Number.isFinite(n) && (st.zero ? n >= 0 : n > 0);
+        box.classList.toggle("ok", good); dlg.querySelector("#wwhy").hidden = true;
+        // The line at the bottom follows the typing.
+        if (good) { walkSet(B, st.path, n); dlg.querySelector(".wlive").innerHTML = live(); } };
+      el.onkeydown = (e) => {
+        if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) { e.preventDefault(); e.stopPropagation(); next(st); }
+        else if (e.key === "Tab" && e.shiftKey) { e.preventDefault(); e.stopPropagation(); commit(st); go(i - 1); }
+      };
+      setTimeout(() => { el.focus(); el.select(); }, 30);
+    } else {
+      dlg.onkeydown = (e) => { if (e.target.closest?.("[data-wgo],[data-wkind],[data-wyes],[data-wstart],#wclose,#wback")) return;
+        if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) { e.preventDefault(); dlg.querySelector("#wnext").click(); } };
+      dlg.querySelector("#wnext").focus();
+    }
+  }
+  function finish(closing = false) {
+    if (done) return;
+    const st = steps[i];
+    if (closing && st && st.kind === "num") commit(st);
+    if (!closing || i >= steps.length) {
+      // Anything never answered counts as skipped, so the walk-through asks it next time.
+      for (const x of steps) if (!walkAnswered(B, x) && !B.walk.skipped.includes(x.id) && x.kind === "num") B.walk.skipped.push(x.id);
+    }
+    if (!closing) { B.asked = true; summary(); return; }
+    done = true; B.asked = true; sbxPersist(); dlg.close(); dlg.remove(); sbxDraw();
+  }
+  function summary() {
+    steps = walkSteps(B);
+    const answered = steps.filter((x) => walkAnswered(B, x)).length, sk = steps.filter((x) => !walkAnswered(B, x));
+    const C = sbxCalc(B);
+    dlg.innerHTML = `<div class="wwrap one"><div class="wmain"><div class="wtop"><div class="wbar"><i style="width:100%"></i></div><div class="wcount">All done</div><button type="button" class="wclose" id="wclose" aria-label="Close">✕</button></div>
+      <div class="wq">That's the budget set up.</div><p class="whelp">${answered} of ${steps.length} answered.${sk.length ? ` ${sk.length} skipped: the walk-through will ask ${sk.length === 1 ? "it" : "them"} again next time you open the Money tab.` : ""}</p>
+      <div class="wsum">${steps.filter((x) => x.kind !== "start").map((x, k) => `<button type="button" class="wsrow${walkAnswered(B, x) ? "" : " skip"}" data-wgo="${steps.indexOf(x)}"><span>${esc(x.short)}</span><b>${esc(valueText(x) || "skipped")}</b></button>`).join("")}</div>
+      <div class="wacts"><button type="button" class="wnext" id="wopen">Open the budget</button><button type="button" class="wghost" id="wagain">Go back over it</button></div>
+      <div class="wlive">${live()}${C.room.cap ? "" : ""}</div></div></div>`;
+    sbxPersist();
+    dlg.onkeydown = null;
+    const close = () => { done = true; dlg.close(); dlg.remove(); sbxDraw(); };
+    dlg.querySelector("#wopen").onclick = close; dlg.querySelector("#wclose").onclick = close;
+    dlg.querySelector("#wagain").onclick = () => { i = 1; draw(); };
+    dlg.querySelectorAll("[data-wgo]").forEach((b) => { b.onclick = () => { i = +b.dataset.wgo; draw(); }; });
+    dlg.querySelector("#wopen").focus();
+  }
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(true); });
+  dlg.showModal();
+  draw();
+  // The last similar event's budget, for "Same as …".
+  if (i === 0) api(`/budget?like=${encodeURIComponent(ev.id)}`).then((out) => { like = out; likeAsked = true; if (!done && i === 0 && dlg.isConnected) draw(); }).catch(() => { likeAsked = true; });
+}
+/** Start from the last similar event's budget: its prices, expected numbers, meals, room rate, lines and goal. */
+function copyLike(B, like) {
+  const L = like.budget, took = [];
+  for (const k of Object.keys(B.reg)) {
+    const a = L.reg?.[k]; if (!a) continue;
+    B.reg[k].on = k === "inPerson" ? true : !!a.on;
+    for (const f of ["price", "priceNon", "expected", "expectedNon"]) if (a[f] !== undefined && !(f.startsWith("price") && B.reg[k].fromWix?.length)) { B.reg[k][f] = a[f]; took.push(`reg.${k}.${f}`); }
+    if (k === "community" && Array.isArray(a.days)) B.reg.community.days = [...B.reg.community.days];
+  }
+  if (typeof L.pricesIncludeHst === "boolean") B.pricesIncludeHst = L.pricesIncludeHst;
+  for (const f of ["breakfast", "break", "lunch", "dinner", "noShow"]) if (L.meals?.[f] !== undefined) { B.meals[f] = L.meals[f]; took.push(`meals.${f}`); }
+  if (!SBX_LIVE?.contract?.money?.roomRate && L.hotel?.rate) { B.hotel.rate = L.hotel.rate; took.push("hotel.rate"); }
+  if (L.target) { B.target = L.target; took.push("target"); }
+  if (!B.other?.length && Array.isArray(L.other)) B.other = L.other.map((o, n) => ({ ...o, id: `l${Date.now().toString(36)}${n}`, spent: null }));
+  if (L.room?.perTable) B.room = { ...(B.room ?? {}), perTable: L.room.perTable };
+  B.walkFrom = took; B.walkFromTitle = like.from.title;
 }
 
 /** The groups for "Everything else": the common ones and any added, the same for every budget. */
@@ -9102,7 +9335,9 @@ function mountBudget(ev, got) {
   sbxDraw();
   // The added groups come from the server; the common ones are already there, so this redraws only if there are more.
   if (Date.now() - BUDGET_GROUPS_AT > 60_000) loadBudgetGroups().then(() => { if (SBX_EV?.id === ev.id && SBX_HOST?.isConnected && BUDGET_GROUPS.length > BUDGET_GROUPS_COMMON.length && !SBX_HOST.contains(document.activeElement)) sbxDraw(); });
-  if (!SBX.asked && (view.tab === "money" || BUDGET_ASK === ev.id)) { BUDGET_ASK = null; sbxQuestions(); }
+  // Not set up yet, or steps skipped last time: the walk-through, once per visit to the page.
+  const due = !SBX.asked || (SBX.walk?.skipped ?? []).length;
+  if (due && (view.tab === "money" || BUDGET_ASK === ev.id) && !WALK_SHOWN.has(ev.id)) { BUDGET_ASK = null; WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
 }
 let BUDGET_ASK = null;   // an event just made: ask its registration questions straight away
 

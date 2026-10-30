@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, adminWho } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
-import { getEvent, getMeta, putMeta, deleteKey, listPresenters, listVolunteers, getRoster, getContractRead, getAttendees } from "./lib/store.mjs";
+import { getEvent, listEvents, getMeta, putMeta, deleteKey, listPresenters, listVolunteers, getRoster, getContractRead, getAttendees } from "./lib/store.mjs";
 import { roomingRows, sameName } from "./lib/rooming.mjs";
 import { PROVINCES, guessProvince } from "./lib/sow.mjs";
 import { wixConfigured, listWixTickets } from "./lib/wix.mjs";
@@ -13,6 +13,7 @@ import { tally } from "./lib/attendees.mjs";
  *   GET    /api/budget?event=…   { budget (null until first saved), live }
  *   PUT    /api/budget?event=…   save it ({ budget })
  *   DELETE /api/budget?event=…   start over from the event's records
+ *   GET    /api/budget?like=…      the budget of the last event most like this one, to start from ({ from, budget })
  *   GET    /api/budget?groups=1    the groups the "Everything else" lines can be put under
  *   POST   /api/budget?groups=1    add one ({ name }); kept for every budget, the Sandbox's too
  *
@@ -30,6 +31,7 @@ export default async (req) => {
   if (!mayCost(adminWho(req))) return fail("Only ONGIA's president and VP of operations can open an event's budget.", 403);
   const url = new URL(req.url);
   if (url.searchParams.get("groups")) return groups(req);
+  if (url.searchParams.get("like")) return like(url.searchParams.get("like"));
   const id = url.searchParams.get("event");
   const event = id ? await getEvent(id) : null;
   if (!event) return fail("No such event.", 404);
@@ -68,6 +70,27 @@ async function groups(req) {
     await putMeta("budget-groups", { groups: had, at: new Date().toISOString() });
   }
   return json({ groups: all(), name: all().find((g) => g.toLowerCase() === name.toLowerCase()) }, 201);
+}
+
+/**
+ * The budget to start a new one from (Andrew 30 Oct 2026, the set-up walk-through: "Same as the last one like it"): of
+ * ONGIA's own events with a budget, the one whose title shares the most words with this one's, the latest of those.
+ */
+async function like(id) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  const words = (t) => new Set(String(t ?? "").toLowerCase().replace(/\b(20\d\d|ongia|the|of|and|for|training|event)\b/g, " ").split(/[^a-z]+/).filter((w) => w.length > 2));
+  const mine = words(event.title);
+  const others = (await listEvents()).filter((e) => e.id !== id && e.kind !== "rbh");
+  const scored = [];
+  for (const e of others) {
+    const b = (await getMeta(key(e.id)))?.budget;
+    if (!b?.reg) continue;
+    scored.push({ e, b, score: [...words(e.title)].filter((w) => mine.has(w)).length });
+  }
+  scored.sort((x, y) => y.score - x.score || String(y.e.dayOne).localeCompare(String(x.e.dayOne)));
+  const best = scored[0];
+  return json(best ? { from: { id: best.e.id, title: best.e.title, dayOne: best.e.dayOne }, budget: best.b } : { from: null, budget: null });
 }
 
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s ?? ""));
