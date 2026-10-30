@@ -1,6 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
-import { getEvent, getSow, getReceiptFile, putReceiptRead } from "./lib/store.mjs";
-import { readReceipt, whyItFailed } from "./lib/receipts.mjs";
+import { getEvent, getReceiptFile, putReceiptRead } from "./lib/store.mjs";
+import { readReceipt, whyItFailed, receiptLines } from "./lib/receipts.mjs";
 
 /**
  * Background reader for one receipt (started by /api/receipts). Reading a photo takes seconds, but a phone on a
@@ -14,8 +14,8 @@ export default async (req) => {
   const [event, file] = await Promise.all([getEvent(eventId), getReceiptFile(eventId, id)]);
   if (!event || !file) return new Response("Nothing to read.", { status: 404 });
   try {
-    const sow = await getSow(eventId);
-    const found = await readReceipt(file.bytes, file.type, (sow?.lines ?? []).map((l) => l.name));
+    const { lines } = await receiptLines(event);
+    const found = await readReceipt(file.bytes, file.type, lines.map((l) => l.name));
     await putReceiptRead(eventId, id, { state: "done", at: new Date().toISOString(), found });
   } catch (e) {
     console.error("receipt read failed", eventId, id, e?.status ?? "", e?.message);
