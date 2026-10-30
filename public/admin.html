@@ -2208,7 +2208,7 @@ function eventFormScreen(existing = null) {
       </details>
       <details class="settings" style="margin-top:4px">
         <summary>Presentation slot</summary>
-        <div class="field" style="margin-top:12px"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" min="15" step="5" value="${v("sessionMinutes", 70)}" style="max-width:160px"></div>
+        <div class="field" style="margin-top:12px"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" inputmode="numeric" min="15" step="5" value="${v("sessionMinutes", 70)}" style="max-width:160px"></div>
       </details>
       <div id="problem"></div>
       <div class="actions"><button class="btn btn-gold" id="create">${ev ? "Save changes" : "Create event"}</button></div>
@@ -2364,7 +2364,7 @@ function eventFormScreen(existing = null) {
   const drawSkeleton = () => {
     preview.innerHTML = `<dl class="dates">${OFFSET_ROWS.map(([k, label, sub]) => `
       <div class="drow"><dt>${label}<span>${sub}</span></dt>
-        <label class="daysback"><input type="number" min="1" max="365" step="1" id="off-${k}" value="${offsets[k]}" aria-label="${label}: days before day one"> days before</label>
+        <label class="daysback"><input type="number" inputmode="numeric" min="1" max="365" step="1" id="off-${k}" value="${offsets[k]}" aria-label="${label}: days before day one"> days before</label>
         <dd id="dd-${k}">—</dd></div>`).join("")}
     </dl><div id="dl-note"></div>`;
     for (const [k] of OFFSET_ROWS) {
@@ -6495,7 +6495,7 @@ function costBanner(T, $) {
       <div class="sub">${left ? `Not counted: ${nn(left)} where the presenter pays their own room or the sheet says an agency pays. ` : ""}${T.missingNights ? `The sheet also left out ${nn(T.missingNights)} the agreements have (presenters who would have had no room): ${$(T.missingCost)} at the same rate.` : "The sheet left out no nights the agreements have."}
         Only agreements already submitted are counted.</div>
       <details class="rates"><summary>Change the rate</summary>
-        <span class="ratefields"><label>Room rate $<input id="rt-n" type="number" min="1" step="0.01" value="${T.nightly}"></label><label>+ <input id="rt-a" type="number" min="0" max="100" step="0.01" value="${a}">%</label><label>+ <input id="rt-b" type="number" min="0" max="100" step="0.01" value="${b}">%</label><button class="mini" id="rt-save">Save</button></span></details></div></div>`;
+        <span class="ratefields"><label>Room rate $<input id="rt-n" type="number" inputmode="decimal" min="1" step="0.01" value="${T.nightly}"></label><label>+ <input id="rt-a" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="${a}">%</label><label>+ <input id="rt-b" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="${b}">%</label><button class="mini" id="rt-save">Save</button></span></details></div></div>`;
 }
 
 /** The president's and VP's page: the sheet as it stood against the agreements as they are now. */
@@ -8996,6 +8996,31 @@ function mountBudget(ev, got) {
   if (!SBX.asked && (view.tab === "money" || BUDGET_ASK === ev.id)) { BUDGET_ASK = null; sbxQuestions(); }
 }
 let BUDGET_ASK = null;   // an event just made: ask its registration questions straight away
+
+/* ---------- number boxes on a phone or an iPad (Andrew 30 Oct 2026) ---------- */
+/**
+ * "If it shows a zero, if I click on it, that zero kind of disappears and my iPhone number pad ... pop[s] up so I can
+ * type in the amount ... for all the number fields in the entire app, in the mobile environment and the iPad". One rule
+ * for every box on the desk that holds a number or an amount: a zero ($0, 0.00) clears when the box is entered, and comes
+ * back if it's left empty; and the box asks for the number pad. Text boxes are left alone.
+ */
+const ZERO = /^\s*\$?\s*0+(?:[.,]0+)?\s*$/;
+const isNumberBox = (el) => el instanceof HTMLInputElement && !el.readOnly && !el.disabled
+  && (el.type === "number" || /^(decimal|numeric)$/.test(el.inputMode) || el.classList.contains("money"));
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!isNumberBox(el)) return;
+  if (!el.inputMode) el.inputMode = el.type === "number" && el.step === "1" ? "numeric" : "decimal";
+  if (ZERO.test(el.value)) { el.dataset.zeroWas = el.value; el.value = ""; }
+});
+// Caught on the way down, before the box's own blur handler tidies or saves it: those see the zero back, not a blank.
+document.addEventListener("blur", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.dataset.zeroWas === undefined) return;
+  // Left without typing: the zero goes back, and nothing is saved, as nothing changed.
+  if (el.value === "") el.value = el.dataset.zeroWas;
+  delete el.dataset.zeroWas;
+}, true);
 
 /* ---------- shared helpers ---------- */
 let toastTimer;
