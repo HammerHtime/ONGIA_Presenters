@@ -59,8 +59,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     // Download Jordan's certificate and read it.
     const row = p.locator("[data-certkey]", { hasText: "Jordan Tremblay" });
     const [dl] = await Promise.all([p.waitForEvent("download"), row.locator("[data-certpdf]").click()]);
-    const file = await dl.path(); fs.copyFileSync(file, D + "certs-jordan.pdf");
-    const words = execFileSync("pdftotext", ["-layout", D + "certs-jordan.pdf", "-"]).toString();
+    const file = await dl.path(); fs.copyFileSync(file, "/tmp/certs-jordan.pdf");
+    const words = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan.pdf", "-"]).toString();
     ok("Download PDF gives Jordan's certificate: name, official agency, the last day", dl.suggestedFilename() === "Jordan Tremblay - certificate.pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2031/.test(words), words.slice(0, 200));
     await p.waitForTimeout(1200);
     ok("and it now shows its number", /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
