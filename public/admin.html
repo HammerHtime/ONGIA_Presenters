@@ -462,7 +462,7 @@
   .seats td small{color:var(--muted)}.seats tr.over td{background:var(--late-bg);color:var(--late)}
   .seatwarn{margin:6px 0;padding:8px 12px;border-radius:10px;background:var(--late-bg);color:var(--late);font-size:13.5px}
   @media (max-width:560px){.seats{font-size:12.5px}.seats th,.seats td{padding:4px 3px}.seats th{font-size:10px;letter-spacing:.03em}
-    .seats th:nth-child(4),.seats td:nth-child(4),.seats th:nth-child(5),.seats td:nth-child(5),.seats th:nth-child(8),.seats td:nth-child(8){display:none}
+    .seats th:nth-child(4),.seats td:nth-child(4),.seats th:nth-child(7),.seats td:nth-child(7){display:none}
     .seats td small{display:block}}
   .wixnote{margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--sunk);font-size:13.5px}.wixnote.bad{background:var(--wait-bg);color:var(--wait)}
   .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
@@ -8553,16 +8553,16 @@ function sbxCalc(B) {
   const paid = B.deposits.filter((d) => d.paid).reduce((n, d) => n + (Number(d.amount) || 0), 0);
   // The room (Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap. Well, that 300 has to include our presenters
   // ... with 8 people at a round table, how many tables? And what's our capacity?"). Seated each event day: the attendees,
-  // and everyone on the grid except volunteers (they're working), plus the security, sponsors and VIPs; the most of those
-  // who aren't attendees on any day is what comes off the room's seats.
+  // the presenters (everyone under Presenters on the grid) and the VIPs; not the board, sponsors or volunteers (Andrew
+  // 30 Oct 2026: "just attendees, presenters, and VIPs"). The presenters and VIPs come off the room's seats.
   const RM = B.room ?? {}, perTable = Math.max(1, Number(RM.perTable) || 8), cap = Number(RM.seats) || 0;
   const count = (g) => B.people.filter((p) => p.group === g).length;
   const seating = days.map((iso) => {
-    const att = regs(iso), pres = count("presenter"), board = count("board") + count("other"), oth = Number(B.others) || 0;
-    const seated = att + pres + board + oth, tables = Math.ceil(seated / perTable);
-    return { iso, att, pres, board, oth, seated, tables, seats: tables * perTable };
+    const att = regs(iso), pres = count("presenter"), vips = Number(RM.vips) || 0;
+    const seated = att + pres + vips, tables = Math.ceil(seated / perTable);
+    return { iso, att, pres, vips, seated, tables, seats: tables * perTable };
   });
-  const notAttendees = seating.reduce((n, d) => Math.max(n, d.pres + d.board + d.oth), 0);
+  const notAttendees = seating.reduce((n, d) => Math.max(n, d.pres + d.vips), 0);
   const peakAtt = seating.reduce((n, d) => Math.max(n, d.att), 0);
   const soldAtt = (on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0) + (on("community") ? R.community.sold || 0 : 0);
   const room = { cap, perTable, seating, notAttendees, maxAttendees: cap ? Math.max(0, cap - notAttendees) : null, peakAtt, soldAtt,
@@ -8716,11 +8716,12 @@ function sbxDraw() {
     const soldOver = Rm.cap && Rm.soldAtt > Rm.maxAttendees ? `<div class="seatwarn">Already sold ${Rm.soldAtt} in-person registrations: ${Rm.soldAtt - Rm.maxAttendees} more than the room can seat.</div>` : "";
     return `<div class="blk wide2"><h3><span class="n">5</span>The room and its tables</h3>
       <div class="row"><span>Seats in the main room <small>the venue's capacity, everyone in it counted</small></span>${inp("room.seats", B.room?.seats ?? "", 80, "e.g. 300")}</div>
+      <div class="row"><span>VIPs seated in the room</span>${inp("room.vips", B.room?.vips ?? 0, 56)}</div>
       <div class="row"><span>People at a round table</span>${inp("room.perTable", B.room?.perTable ?? 8, 56)}</div>
       <div class="row tot"><span>${verdict}</span></div>${soldOver}
-      <table class="seats"><thead><tr><th></th><th>Attendees</th><th>Presenters</th><th>Board &amp; others</th><th>Security, VIPs</th><th>Seated</th><th>Round tables</th><th>Seats at them</th></tr></thead><tbody>
-        ${Rm.seating.map((d) => `<tr${Rm.cap && d.seated > Rm.cap ? ` class="over"` : ""}><td>${short(d.iso)}</td><td>${d.att}</td><td>${d.pres}</td><td>${d.board}</td><td>${d.oth}</td><td><b>${d.seated}</b>${Rm.cap ? `<small> of ${Rm.cap}</small>` : ""}</td><td><b>${d.tables}</b></td><td>${d.seats}</td></tr>`).join("")}</tbody></table>
-      <p class="hint" style="margin:6px 0 0">Presenters and the board are everyone on the hotel nights grid below; volunteers aren't counted, as they're working. Attendees are the in-person registrations you expect (community ones on their days).</p></div>`;
+      <table class="seats"><thead><tr><th></th><th>Attendees</th><th>Presenters</th><th>VIPs</th><th>Seated</th><th>Round tables</th><th>Seats at them</th></tr></thead><tbody>
+        ${Rm.seating.map((d) => `<tr${Rm.cap && d.seated > Rm.cap ? ` class="over"` : ""}><td>${short(d.iso)}</td><td>${d.att}</td><td>${d.pres}</td><td>${d.vips}</td><td><b>${d.seated}</b>${Rm.cap ? `<small> of ${Rm.cap}</small>` : ""}</td><td><b>${d.tables}</b></td><td>${d.seats}</td></tr>`).join("")}</tbody></table>
+      <p class="hint" style="margin:6px 0 0">Seated: the in-person attendees you expect (community ones on their days), the presenters under Presenters on the hotel nights grid below, and the VIPs. The board, sponsors and volunteers aren't counted.</p></div>`;
   }
 
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.

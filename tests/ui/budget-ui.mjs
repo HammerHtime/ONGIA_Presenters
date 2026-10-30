@@ -82,10 +82,12 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     // Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap ... has to include our presenters ... with 8 people at
     // a round table, how many tables?"
     const seats = p.locator('[data-k="room.seats"]'); await seats.fill("120"); await seats.press("Tab"); await p.waitForTimeout(1500);
-    const Bs = await saved(ev.id), notAtt = Bs.people.filter((x) => x.group !== "volunteer").length + (Bs.others || 0);
-    ok(`${tag}: the room's seats are kept, and what's left for attendees is the seats less everyone else seated`, Bs.room.seats === 120 && new RegExp(`room for ${120 - notAtt} attendees`).test(await p.locator(".blk.wide2 .row.tot").innerText()), await p.locator(".blk.wide2 .row.tot").innerText());
+    const vip = p.locator('[data-k="room.vips"]'); await vip.fill("4"); await vip.press("Tab"); await p.waitForTimeout(1500);
+    // Andrew 30 Oct 2026: "not include the sponsors ... board members ... volunteers ... just attendees, presenters, and VIPs".
+    const Bs = await saved(ev.id), notAtt = Bs.people.filter((x) => x.group === "presenter").length + 4;
+    ok(`${tag}: the room's seats are kept, and what's left for attendees is the seats less the presenters and VIPs, not the board`, Bs.room.seats === 120 && new RegExp(`room for ${120 - notAtt} attendees`).test(await p.locator(".blk.wide2 .row.tot").innerText()), await p.locator(".blk.wide2 .row.tot").innerText());
     const day = await p.locator(".seats tbody tr").first().locator("td").allInnerTexts();
-    ok(`${tag}: each day says how many are seated and how many round tables of 8 that takes`, Number(day[6]) === Math.ceil(Number(day[5].split(/\s/)[0]) / 8) && Number(day[7]) === Number(day[6]) * 8, day.join(" | "));
+    ok(`${tag}: each day says how many are seated and how many round tables of 8 that takes`, Number(day[3]) === 4 && Number(day[5]) === Math.ceil(Number(day[4].split(/\s/)[0]) / 8) && Number(day[6]) === Number(day[5]) * 8, day.join(" | "));
     const exp = p.locator('[data-k="reg.inPerson.expected"]'); await exp.fill("200"); await exp.press("Tab"); await p.waitForTimeout(1500);
     ok(`${tag}: expecting more than the room takes says so, in red`, /too many/.test(await p.locator(".blk.wide2 .row.tot").innerText()) && (await p.locator(".seats tr.over").count()) > 0);
     await exp.fill("100"); await exp.press("Tab"); await p.waitForTimeout(1200);
