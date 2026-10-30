@@ -4111,6 +4111,8 @@ function eventScreen(data) {
     view = { ...view, tab: k };
     syncSide();
     if (k === "money" && SBX_EV?.id === ev.id && SBX && (!SBX.asked || (SBX.walk?.skipped ?? []).length) && !WALK_SHOWN.has(ev.id)) { WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
+    // Back on Money: if someone else has saved the budget since, and nothing typed here is waiting, show theirs.
+    if (k === "money" && SBX_EV?.id === ev.id) api(`/budget?event=${encodeURIComponent(ev.id)}`).then((got) => { if ((got.rev ?? 0) > (SBX_REV ?? 0) && SBX_EV?.id === ev.id) mountBudget(ev, got); }).catch(() => {});
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     // Opening a tab is seeing what is new on it.
