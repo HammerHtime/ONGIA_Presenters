@@ -1262,19 +1262,50 @@
   /* The event page (Andrew 21 Oct 2026): a navy band with the key numbers as tiles, the tabs under it, the work on the
      left and the event's side column on the right. */
   .evhead{margin-bottom:18px}
-  .evband{background:var(--navy);color:#fff;border-radius:20px 20px 0 0;padding:20px 24px 18px;border-bottom:3px solid var(--gold)}
+  /* The event's header is a white card now (the mock-up Andrew picked, 30 Oct 2026); the key numbers moved to the Overview. */
+  .evband{background:#fff;color:var(--ink);border:1.5px solid var(--edge);border-bottom:0;border-radius:20px 20px 0 0;padding:20px 24px 16px}
   .evband .bhead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
   .evband .bhead>div:first-child{flex:1 1 380px;min-width:0}
-  .evband h2{font-family:var(--fd);font-size:28px;line-height:1.15;color:#fff}
-  .evband .tag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:1px 9px;margin-left:8px;vertical-align:5px}
-  .bmeta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:14px;color:rgba(255,255,255,.8)}
+  .evband h2{font-family:var(--fd);font-size:30px;line-height:1.15;color:var(--navy-deep)}
+  .evband .tag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border);color:var(--ink-mid);border-radius:999px;padding:1px 9px;margin-left:8px;vertical-align:6px}
+  .bmeta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:14px;color:var(--muted)}
   .bmeta>span{display:inline-flex;align-items:center;gap:6px;min-width:0} .bmeta svg{width:15px;height:15px;flex:none;opacity:.75}
   .bmeta .seen{font-size:12px;white-space:nowrap;opacity:.78;margin-left:4px}
   .bacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-  .bacts .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.42)}
+  .bacts .mini{background:#fff;color:var(--ink);border-color:var(--border)}
   .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .bacts .mini:disabled{opacity:.5}
-  .evtiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:18px}
+  .evtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .dash .etile{border:1px solid var(--border)}
+  .dash{margin:0 0 18px}
+  .dgrid{display:grid;gap:16px;margin-bottom:16px;align-items:stretch}
+  .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr) minmax(0,.8fr)}
+  .dgrid.three + .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr)}
+  .dbcard{margin:0;padding:16px 18px;display:flex;flex-direction:column;box-shadow:var(--lift)}
+  .dh{display:flex;align-items:center;gap:10px;margin-bottom:12px} .dh h2{font-family:var(--fd);font-size:20px;color:var(--navy-deep)} .dh .porg{margin-left:auto;font-size:12.5px}
+  .dtag{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .dtag.good{background:var(--done-bg);color:var(--done)} .dtag.wait{background:var(--wait-bg);color:var(--wait)} .dtag.idle{background:var(--sunk);color:var(--muted)}
+  .regrow{display:flex;align-items:center;gap:16px} .rring{width:136px;height:136px;flex:none}
+  .rring .rn{font:400 34px var(--fd);fill:var(--navy-deep)} .rring .rl{font:500 12.5px var(--fb);fill:var(--muted)}
+  .dlines{list-style:none;margin:0;padding:0;font-size:13.5px;color:var(--ink-mid);min-width:0}
+  .dlines li{padding:5px 0;border-top:1px solid var(--hair)} .dlines li:first-child{border-top:0} .dlines b{color:var(--ink)}
+  .dmore{margin-top:auto;align-self:flex-start;padding-top:10px}
+  .qacts{display:flex;flex-direction:column;gap:7px}
+  @media (max-width:760px){.qacts{display:grid;grid-template-columns:1fr 1fr} .qacts .qact.gold{grid-column:1 / -1}}
+  .qact{display:flex;align-items:center;gap:9px;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 12px;font:600 13.5px var(--fb);color:var(--ink);cursor:pointer;text-align:left}
+  .qact:hover{border-color:var(--gold)} .qact.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .qact svg,.fic svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .dsub{margin:-6px 0 12px;font-size:13px}
+  .dnums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .dnums div{background:var(--sunk);border-radius:10px;padding:9px 6px;text-align:center} .dnums b{display:block;font:400 24px var(--fd);line-height:1.1} .dnums span{font-size:12px;color:var(--muted)}
+  .dbtn{margin-top:auto;align-self:flex-start}
+  .feed{list-style:none;margin:0;padding:0}
+  .feed li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--hair);font-size:13.5px}
+  .feed li:first-child{border-top:0} .feed time{font-size:12px;color:var(--muted);white-space:nowrap}
+  .fic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--sunk);color:var(--ink-mid)}
+  .fic.g{background:var(--done-bg);color:var(--done)} .fic.y{background:var(--gold-pale);color:var(--wait)}
+  @media (max-width:1250px){.dgrid.three,.dgrid.three + .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .dgrid.three > :nth-child(3){grid-column:1 / -1}}
+  @media (max-width:760px){.dgrid.three,.dgrid.three + .dgrid.three{grid-template-columns:1fr} .dgrid.three > :nth-child(3){grid-column:auto} .rring{width:112px;height:112px}}
   /* The room tile flips over to its arithmetic. */
   .rflip{perspective:900px;cursor:pointer;min-width:0;border-radius:14px}
   .rflip-in{display:grid;height:100%;transition:transform .45s;transform-style:preserve-3d}
@@ -1364,7 +1395,7 @@
   /* On a narrower screen the Room column goes (each presenter's panel shows the room), so the names keep their room. */
   @media (min-width:761px) and (max-width:1320px){ .ptable .pr, .ptable .thr{display:none} }
   .pdh{display:flex;gap:12px;align-items:center;margin-bottom:6px}
-  @media (max-width:1100px){.evtiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:1100px){.evtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:900px){.evbody{grid-template-columns:1fr} .evbody.withdrawer #sidepanels{display:block}}
   @media (max-width:760px){
     .evband{padding:16px 16px 14px;border-radius:18px 18px 0 0} .evband h2{font-size:22px} .bacts{justify-content:flex-start}
@@ -4025,8 +4056,6 @@ function eventScreen(data) {
       conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet", "",
       `logistics|||${roomWait ? "waiting" : "hotel"}`),
     roomTile(),
-    tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
-      !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked", "", "people|guests"),
     cutoff ? tile(daysTo(cutoff) <= 7 ? "attn" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`, "", "logistics|||hotel")
       : cutoffGone ? tile("behind", `${-daysTo(cutoffGone)} <small>${daysTo(cutoffGone) === -1 ? "day" : "days"} ago</small>`, "Hotel cut-off", `${esc(plainDay(cutoffGone))} · rooming list`, "", "logistics|||hotel")
       : nextUp ? tile("", `${nextUp.d} <small>${nextUp.d === 1 ? "day" : "days"}</small>`, esc(nextUp.l), esc(plainDay(nextUp.iso)), "", "overview|||tasks")
@@ -4041,6 +4070,7 @@ function eventScreen(data) {
   const blockedHtml = blockers.length && !readyShown ? `<div class="blocked" style="margin:0 0 16px"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : "";
   const sideOn = !!view.person && (allTabs || (tab === "people" && pview === "presenters"));
+  const dashHtml = eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN: c.total, tab, allTabs });
 
   ROOT.innerHTML = `<div class="evhead"><section class="evband">
     <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
@@ -4049,9 +4079,9 @@ function eventScreen(data) {
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
       ${hotelLocked(ev) ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
-    <div class="evtiles">${tiles}</div></section>${evNotices(ev)}
+</section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
-    <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
+    ${blockedHtml}${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
@@ -4187,6 +4217,8 @@ function eventScreen(data) {
   const syncSide = () => document.getElementById("evbody")?.classList.toggle("withdrawer", !!view.person && (allTabs || ((view.tab ?? "overview") === "people" && (view.pview ?? "presenters") === "presenters")) && !!document.getElementById("pdrawer"));
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
+    // The Overview's registrations circle reads the budget: changed on Money, it's drawn again with the new break-even.
+    if (k === "overview" && DASH_STALE === ev.id) { DASH_STALE = null; keepAddress(); render(); return; }
     syncSide();
     if (k === "money" && SBX_EV?.id === ev.id && SBX && (!SBX.asked || (SBX.walk?.skipped ?? []).length) && !WALK_SHOWN.has(ev.id)) { WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
@@ -4279,6 +4311,8 @@ function eventScreen(data) {
     t.onkeydown = (e) => { if (e.target !== t) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
     t.querySelector("[data-roomchange]").onclick = async (e) => { e.stopPropagation(); if (await askRoom(ev)) render(); };
   });
+  fillDash(ev);
+  ROOT.querySelectorAll("[data-quick=add]").forEach((b) => b.onclick = () => document.getElementById("add")?.click());
   ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
     const go = () => {
       const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");
@@ -4288,6 +4322,7 @@ function eventScreen(data) {
       const target = place === "waiting" ? [...ROOT.querySelectorAll(".roomgroup")].find((g) => /Waiting/i.test(g.querySelector(".rghead")?.textContent ?? ""))
         : place === "hotel" ? ROOT.querySelector('details[data-fold="sec-hotel"]')
         : place === "tasks" ? ROOT.querySelector('details[data-fold="sec-tasks"]')
+        : place === "certs" ? ROOT.querySelector('details[data-fold="sec-certs"]')
         : document.getElementById("evbody");
       (target ?? document.getElementById("evbody"))?.scrollIntoView({ block: "start", behavior: "smooth" });
     };
@@ -9354,6 +9389,7 @@ let SBX = null, SBX_SAVE = null, SBX_SAID = "";
 let SBX_HOST = null, SBX_PATH = "/sandbox", SBX_EV = null, SBX_LIVE = null;
 // An event budget's save number, the saves queued one after another, and, if someone else saved first, who and when.
 let SBX_REV = null, SBX_QUEUE = Promise.resolve(), SBX_CONFLICT = null;
+let DASH_STALE = null;   // an event whose budget was saved since its Overview was drawn
 let SBX_RC = null;   // { ev, sums }: the event's receipts by line, shown beside the budget's lines
 const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
 const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -9453,6 +9489,7 @@ function sbxPersist() {
     try {
       const out = await api(path, { method: "PUT", body: JSON.stringify(ev ? { budget, rev: SBX_REV ?? 0 } : { budget }) });
       if (ev && SBX_EV?.id === ev.id) SBX_REV = out.rev ?? SBX_REV;
+      if (ev) DASH_STALE = ev.id;
       SBX_SAID = "Saved ✓";
     } catch (e) {
       if (e.status === 409 && e.body?.conflict && ev) {
@@ -9868,6 +9905,118 @@ function budgetSeed(ev, L) {
   return B;
 }
 /** How full the main room is: null until its seats are set. Presenters and VIPs are seated, so they come off first. */
+/**
+ * The event's Overview, from the mock-up Andrew picked (30 Oct 2026: "i like the first dashboard"): a circle for the
+ * registrations, the key numbers, quick actions, the survey and the certificates, and what has happened lately.
+ *
+ * The circle fills toward the room's attendee seats; for the president and the VP a mark on it shows break-even, and it is
+ * gold until registrations pass that mark and green after (Andrew: "This should show the registrations either until
+ * capacity or until we break even. Not sure which one I want" - both, in one). Nobody else sees the money in it.
+ */
+function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN, tab, allTabs }) {
+  const att = guests?.counts?.attending ?? 0;
+  const R0 = roomFill(ev, att, presN);
+  let C = null;
+  if (WHO?.canCost && budget?.budget) { try { C = sbxCalc(budgetSync(budget.budget, budget.live)); } catch { C = null; } }
+  const be = C?.breakEven > 0 ? C.breakEven : null;
+  const cap = R0?.max || null;
+  const R = 60, L = 2 * Math.PI * R, fill = cap ? Math.min(att / cap, 1) : 0;   // no seats set: nothing to fill toward
+  const col = be ? (att >= be ? "var(--done)" : "var(--gold)") : "var(--navy)";
+  const mark = be && cap && be <= cap ? (() => { const a = (be / cap) * 2 * Math.PI - Math.PI / 2, x = (r) => (75 + r * Math.cos(a)).toFixed(1), y = (r) => (75 + r * Math.sin(a)).toFixed(1);
+    return `<line x1="${x(R - 11)}" y1="${y(R - 11)}" x2="${x(R + 11)}" y2="${y(R + 11)}" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="${x(R - 11)}" y1="${y(R - 11)}" x2="${x(R + 11)}" y2="${y(R + 11)}" stroke="var(--navy-deep)" stroke-width="3.5" stroke-linecap="round"/>`; })() : "";
+  const ring = `<svg class="rring" viewBox="0 0 150 150" role="img" aria-label="${att} registered${cap ? ` of ${cap} seats` : ""}${be ? `; break-even at ${be}` : ""}">
+    <circle cx="75" cy="75" r="${R}" stroke="#ece6d6" stroke-width="14" fill="none"/>
+    <circle cx="75" cy="75" r="${R}" stroke="${col}" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)}" stroke-dashoffset="${(L * (1 - fill)).toFixed(1)}" transform="rotate(-90 75 75)"/>${mark}
+    <text x="75" y="78" text-anchor="middle" class="rn">${att}</text><text x="75" y="99" text-anchor="middle" class="rl">${cap ? `of ${cap} seats` : "registered"}</text></svg>`;
+  const tag = be ? (att >= be ? ["good", "Making money"] : ["wait", "Below break-even"]) : R0 ? (R0.left <= 0 ? ["wait", "Full"] : ["idle", `${Math.round((100 * att) / (R0.max || 1))}% full`]) : null;
+  const lines = [
+    be ? (att >= be ? `<b>Past break-even</b> by ${att - be}` : `<b>${be - att} more</b> to break even (${be})`) : "",
+    R0 ? (R0.left > 0 ? `${R0.left} seat${R0.left === 1 ? "" : "s"} left` : R0.left === 0 ? "<b>Full</b>" : `<b>${-R0.left} over</b> the seats`) : `<button class="linkish" data-roomset>Set the room's seats</button>`,
+    newGuests ? `+${newGuests} this week` : "",
+    C && be && att >= be ? `Forecast profit ${sbxMoney(C.profit)}` : "",
+    WHO?.canCost && ev.kind !== "rbh" && !budget?.budget ? `<button class="linkish" data-tgo="money">Set up the budget</button> to see break-even` : "",
+    !guests?.wix?.eventId ? "Wix not linked yet" : "",
+  ].filter(Boolean);
+  const reg = `<section class="card dbcard regcard"><div class="dh"><h2>Registrations</h2>${tag ? `<span class="dtag ${tag[0]}">${tag[1]}</span>` : ""}</div>
+    <div class="regrow">${ring}<ul class="dlines">${lines.map((l) => `<li>${l}</li>`).join("")}</ul></div>
+    <button class="linkish dmore" data-tgo="people|guests">Who's coming ›</button></section>`;
+  const nums = `<section class="card dbcard"><div class="dh"><h2>Key numbers</h2></div><div class="evtiles">${tiles}</div></section>`;
+  const q = (label, go, icon, cls = "") => `<button type="button" class="qact${cls}" ${go === "add" ? 'data-quick="add"' : `data-tgo="${go}"`}><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>${label}</button>`;
+  const quick = `<section class="card dbcard"><div class="dh"><h2>Quick actions</h2></div><div class="qacts">
+    ${ev.canEdit === false ? "" : q("Add presenters", "add", '<path d="M12 5v14M5 12h14"/>', " gold")}
+    ${q("The agenda", "program", '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 13h6M9 16h4"/>')}
+    ${q("Welcome letter and emails", "communications", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>')}
+    ${q("The survey", "survey", '<path d="M4 4h16v12H8l-4 4z"/>')}
+    ${q("Who's coming", "people|guests", '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0M16 4a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 4 6"/>')}
+    ${q("Hotel and rooming", "logistics|||hotel", '<path d="M3 18V8l9-5 9 5v10M3 18h18M7 18v-6h10v6"/>')}
+    ${showMoney ? q("Money", "money", '<path d="M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.6 5 3 5 1.1 5 3-2.2 3-5 3-5-1.1-5-3"/>') : ""}</div></section>`;
+  const survey = `<section class="card dbcard" id="dsurvey"><div class="dh"><h2>Survey</h2></div><p class="porg">Loading…</p></section>`;
+  const certs = mayCertifyHere(ev) ? `<section class="card dbcard" id="dcerts"><div class="dh"><h2>Certificates</h2></div><p class="porg">Loading…</p></section>` : "";
+  const acts = activityOf(ev, presenters, guests, mstat);
+  const activity = `<section class="card dbcard dact"><div class="dh"><h2>Recent activity</h2><span class="porg">Last two weeks</span></div>${acts.length
+    ? `<ul class="feed">${acts.map((a) => `<li><span class="fic ${a.cls}"><svg viewBox="0 0 24 24" aria-hidden="true">${a.icon}</svg></span><span>${a.what}</span><time datetime="${esc(a.at)}">${esc(agoWords(a.at))}</time></li>`).join("")}</ul>`
+    : `<p class="porg">Nothing in the last two weeks.</p>`}</section>`;
+  return `<section class="etabp dash" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>
+    <div class="dgrid three">${reg}${nums}${quick}</div><div class="dgrid three">${survey}${certs}${activity}</div></section>`;
+}
+/** What has happened on the event lately, from what the desk already records: newest first, two weeks back, six at most. */
+function activityOf(ev, presenters, guests, mstat) {
+  const since = Date.now() - 14 * 86400000, out = [];
+  const add = (at, what, icon, cls = "") => { const t = Date.parse(at ?? ""); if (t >= since && t <= Date.now() + 60000) out.push({ at, t, what, icon, cls }); };
+  const I = { ok: '<path d="m5 12 5 5 9-10"/>', sign: '<path d="M6 3h9l4 4v14H6z"/><path d="m9 14 2 2 4-4"/>', mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+    file: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/>', ppl: '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/>', kit: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 17v3M17 17v3"/>' };
+  for (const p of presenters) {
+    const who = `<b>${esc([p.first, p.last].filter(Boolean).join(" ") || p.email)}</b>`;
+    const sent = (p.mail ?? []).filter((x) => x.type !== "called");
+    if (sent.length) add(sent.at(-1).at, `Emailed ${who}${sent.length > 1 ? " again" : " their link"}`, I.mail);
+    if (p.submittedAt) add(p.submittedAt, `${who} signed their agreement`, I.sign, "g");
+    if (p.status === "approved" && p.approvedAt) add(p.approvedAt, `${who}'s agreement approved`, I.ok, "g");
+    if (p.avAt) add(p.avAt, `${who} sent their room and equipment needs`, I.kit);
+    const m = mstat?.[p.id] ?? {};
+    if (m.final) add(m.final, `${who} sent their final materials`, I.file, "y");
+    else if (m.draft) add(m.draft, `${who} sent draft materials`, I.file, "y");
+  }
+  const byDay = new Map();
+  for (const g of guests?.people ?? []) if (g.status === "ATTENDING" && g.addedAt && Date.parse(g.addedAt) >= since) { const d = g.addedAt.slice(0, 10); byDay.set(d, [...(byDay.get(d) ?? []), g.addedAt]); }
+  for (const [, ats] of byDay) add(ats.sort().at(-1), `<b>${ats.length} registration${ats.length === 1 ? "" : "s"}</b> came in${ev.wix?.eventId || guests?.wix?.eventId ? " from Wix" : ""}`, I.ppl);
+  return out.sort((a, b) => b.t - a.t).slice(0, 6);
+}
+const agoWords = (iso) => {
+  const t = Date.parse(iso), mins = Math.round((Date.now() - t) / 60000);
+  if (mins < 60) return mins <= 1 ? "Just now" : `${mins} minutes ago`;
+  if (mins < 12 * 60) return `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"} ago`;
+  const d = new Date(t), today = todayIso(), day = todayIso(d);
+  if (day === today) return "Today";
+  if (day === todayIso(new Date(Date.now() - 86400000))) return "Yesterday";
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+};
+/** The survey and certificate cards on the Overview fill in once their own records are in. */
+async function fillDash(ev) {
+  const sv = document.getElementById("dsurvey");
+  if (sv) api(`/survey?event=${encodeURIComponent(ev.id)}`).then((S) => {
+    const x = S.survey, daily = x?.mode === "daily";
+    const sent = Object.values(S.sent ?? {}).reduce((n, v) => n + (Number(v) || 0), 0);
+    const first = daily ? (S.times ?? []).find((t) => t.at)?.at ?? S.days?.[0] : x?.sendOn;
+    const st = !x ? ["idle", "Not set up"] : !x.open ? ["idle", "Closed"] : S.problems?.length || (daily && (S.times ?? []).some((t) => !t.at)) ? ["wait", "Needs a fix"]
+      : sent ? (daily && (ev.lastDay || ev.dayOne) >= todayIso() ? ["good", "Sending"] : ["good", "Sent"]) : ["good", "Ready"];
+    const sessions = (x?.sessions ?? []).length;
+    sv.innerHTML = `<div class="dh"><h2>Survey</h2><span class="dtag ${st[0]}">${st[1]}</span></div>
+      <p class="porg dsub">${!x ? "Set it up on the Survey tab: daily, or once after the event." : `${daily ? "At the end of each day" : "Once, after the event"} · ${sessions} session${sessions === 1 ? "" : "s"}${first ? ` · ${sent ? "first went" : "first goes"} ${esc(fmtDate(String(first).slice(0, 10)))}` : ""}`}</p>
+      <div class="dnums"><div><b>${sent || "—"}</b><span>Sent</span></div><div><b>${S.responses ?? 0}</b><span>Answers</span></div><div><b>${sent && S.responses ? Math.round((100 * S.responses) / sent) + "%" : "—"}</b><span>Back</span></div></div>
+      <button class="mini dbtn" data-dgo="survey">${x ? "Open the survey" : "Set up the survey"}</button>`;
+    sv.querySelector("[data-dgo]").onclick = () => document.querySelector('.etab[data-tab="survey"]')?.click();
+  }).catch(() => { sv.querySelector(".porg").textContent = "The survey couldn't load. Open its tab to try again."; });
+  const ce = document.getElementById("dcerts");
+  if (ce) api(`/certificates?event=${encodeURIComponent(ev.id)}`).then((C) => {
+    const t = C.templates.find((d) => d.id === C.settings.template), n = C.counts, left = Math.max(0, n.checkedIn - C.people.filter((p) => p.checkedIn && p.cert && !p.cert.revoked).length);
+    const st = !n.checkedIn ? ["idle", "Waiting on check-in"] : left ? ["wait", `${left} to issue`] : ["good", "All issued"];
+    ce.innerHTML = `<div class="dh"><h2>Certificates</h2><span class="dtag ${st[0]}">${st[1]}</span></div>
+      <p class="porg dsub">${esc(t?.name ?? "No design yet")} · dated ${esc(fmtDate(C.settings.date))}</p>
+      <div class="dnums"><div><b>${n.checkedIn}</b><span>Checked in</span></div><div><b>${n.issued}</b><span>Issued</span></div><div><b>${n.coming}</b><span>Registered</span></div></div>
+      <button class="mini gold dbtn" data-dgo="certs">Certificates</button>`;
+    ce.querySelector("[data-dgo]").onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); render().then(() => document.querySelector('details[data-fold="sec-certs"]')?.scrollIntoView({ block: "start", behavior: "smooth" })); };
+  }).catch(() => { ce.querySelector(".porg").textContent = "The certificates couldn't load."; });
+}
 function roomFill(ev, att, pres) {
   const seats = Number(ev?.room?.seats) || 0;
   if (!seats) return null;
