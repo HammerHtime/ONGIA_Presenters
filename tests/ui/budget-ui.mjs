@@ -73,6 +73,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: tapping a board night takes it off, and it saves on its own`, B.people.find((x) => x.name === "Raj Jaswal").nights.length === 5 && /Saved/.test(await p.locator("#sbx-said").innerText()));
   await p.locator("#evbudget .sbtiles").screenshot({ path: D + `budget-tiles-${tag}.png` });
   await p.locator("#evbudget .card", { hasText: "Hotel nights" }).screenshot({ path: D + `budget-nights-${tag}.png` });
+  if (tag === "wide") {
+    // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
+    const before = (await saved(ev.id)).people.filter((x) => x.group === "board").length;
+    await p.locator("[data-paddall]").click(); await p.waitForTimeout(1600);
+    const board = (await saved(ev.id)).people.filter((x) => x.group === "board");
+    ok(`${tag}: Add all board members puts the whole board roster on the grid, each from three nights before day one, reimbursed`, board.length > before && board.every((x) => x.pays === "reimbursed") && board.filter((x) => x.name !== "Raj Jaswal").every((x) => x.nights[0] === "2031-05-09" && x.nights.at(-1) === "2031-05-14") && !(await p.locator("[data-paddall]").count()), `${before} → ${board.length}`);
+    ok(`${tag}: the stipends and the food table stay inside their cards`, await p.evaluate(() => { const i = document.querySelector("#evbudget .intbox"), f = document.querySelector("#evbudget table.mp")?.closest(".scroll"); return i.scrollWidth <= i.clientWidth + 1 && f.scrollWidth <= f.clientWidth + 1; }));
+  }
   ok(`${tag}: fits the screen, no page errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !p.errs.length, p.errs.join(" | "));
 
   if (tag === "wide") {
