@@ -13,6 +13,7 @@ import { token } from "./lib/ids.mjs";
  *   POST   /api/tasks?event=…&seed=1     pull in the standard list
  *   POST   /api/tasks?event=…&sync=1     bring this list up to the standard one
  *   PUT    /api/tasks?event=…&id=…       rename it, move it, tick it
+ *   PUT    /api/tasks?event=…&bulk=1     tick, rule out or put back several at once: { jobs: [{ id, done?, na? }] }
  *   DELETE /api/tasks?event=…&id=…       remove it
  *   GET    /api/tasks?template=1         the standard list every event starts from
  *   PUT    /api/tasks?template=1         change that standard list
@@ -76,6 +77,7 @@ export default async (req) => {
   }
   if (req.method === "PUT") {
     if (!body) return fail("Expected a JSON body.");
+    if (url.searchParams.get("bulk")) return bulk(event, body);
     return change(event, url.searchParams.get("id"), body);
   }
   if (req.method === "DELETE") return remove(event, url.searchParams.get("id"));
@@ -168,6 +170,32 @@ async function change(event, id, body) {
   }
   await putEvent(event);
   return json({ ok: true, ...await list(event) });
+}
+
+/**
+ * Several jobs in one write (Andrew 30 Oct 2026: "Select several", then Mark all done or Not needed). The same rules as
+ * one tick at a time; Undo sends the jobs back as they were, doneAt included, so an undone tick keeps its old date.
+ */
+async function bulk(event, body) {
+  const jobs = Array.isArray(body.jobs) ? body.jobs.slice(0, MAX_TASKS) : [];
+  if (!jobs.length) return fail("Which jobs?");
+  const byId = new Map(event.tasks.map((t) => [t.id, t]));
+  if (jobs.some((j) => !byId.has(j?.id))) return fail("No such job.", 404);
+  const now = new Date().toISOString();
+  for (const j of jobs) {
+    const task = byId.get(j.id);
+    if (j.na !== undefined) {
+      task.na = j.na === true;
+      if (task.na) { task.done = false; task.doneAt = null; }
+    }
+    if (j.done !== undefined && !task.na) {
+      task.done = j.done === true;
+      const was = typeof j.doneAt === "string" && !Number.isNaN(Date.parse(j.doneAt)) ? new Date(j.doneAt).toISOString() : null;
+      task.doneAt = task.done ? (was ?? now) : null;
+    }
+  }
+  await putEvent(event);
+  return json({ ok: true, changed: jobs.length, ...await list(event) });
 }
 
 async function remove(event, id) {
