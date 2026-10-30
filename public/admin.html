@@ -518,6 +518,33 @@
                     font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;line-height:1.3}
   .job .jact button:hover{border-color:var(--navy);color:var(--navy)}
   .jobsum{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+  /* Select several (Andrew 30 Oct 2026): every row is one push button; tapped, it goes green. */
+  .jobs.sel .job{grid-template-columns:auto 1fr auto;cursor:pointer;background:var(--card);user-select:none}
+  .jobs.sel .job:hover{background:#fff}
+  .jobs.sel .job.on{background:var(--done-bg);box-shadow:inset 4px 0 0 var(--done)}
+  .jobs.sel .job.na .what{text-decoration:line-through}
+  .job .pick{width:26px;height:26px;border-radius:8px;border:2px solid var(--edge);background:#fff;display:grid;place-items:center;
+    color:#fff;font-weight:700;font-size:15px;line-height:1}
+  .job.on .pick{background:var(--done);border-color:var(--done)}
+  .job .pick::after{content:""} .job.on .pick::after{content:"✓"}
+  .job:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+  .jquick{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px;max-width:820px}
+  .jquick button{border:1px dashed var(--edge);background:var(--card);color:var(--navy);cursor:pointer;font-size:12.5px;
+    font-weight:600;padding:5px 11px;border-radius:999px}
+  .jquick button:hover{border-style:solid;border-color:var(--navy)}
+  .jquick button:disabled{opacity:.45;cursor:default}
+  .jselbar{position:sticky;bottom:0;z-index:3;background:var(--navy-deep);color:#fff;display:flex;align-items:center;gap:10px;
+    flex-wrap:wrap;padding:12px 20px;border-top:3px solid var(--gold);margin:14px -22px -18px;max-width:none}
+  .jselbar .n{font-weight:700;font-size:15px;margin-right:auto;flex:1 1 220px;min-width:0}
+  .jselbar button{flex:none;white-space:nowrap}
+  .jselbar .n small{display:block;font-weight:400;color:#aab3c8;font-size:12px;overflow-wrap:anywhere}
+  .jselbar button{border:0;border-radius:12px;font:inherit;font-weight:700;font-size:14px;padding:11px 16px;min-height:44px;cursor:pointer}
+  .jselbar .go{background:var(--done);color:#fff} .jselbar .nn{background:#fff;color:var(--ink)}
+  .jselbar .x{background:transparent;color:#c9d1e3;border:1px solid #44506b}
+  .jselbar button:disabled{opacity:.4;cursor:default}
+  .toast .undo{margin-left:14px;background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:999px;
+    padding:4px 12px;font:inherit;font-weight:700;cursor:pointer}
+  @media (max-width:560px){.jselbar{padding:12px 16px;margin:14px -16px -16px;gap:8px}.jselbar .n{flex-basis:100%}.jselbar button{flex:1 1 auto;padding:11px 10px}}
 
   /* ---------- attendee emails: on or off, at the top of an event ---------- */
   .mailsw{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1.5px solid var(--edge);font-size:13.5px}
@@ -4179,10 +4206,19 @@ function checklistCard(ev, checklist) {
   // One focus in a long list: the nearest job that is not already late. The
   // late ones are red already and do not need a second mark.
   const nextId = tasks.find((t) => !t.done && !t.na && !t.late)?.id ?? null;
+  const sel = JOBSEL?.ev === ev.id ? JOBSEL.ids : null;
 
   // Finished jobs sink to the bottom (Andrew 21 Oct 2026), so what is left to do is at the top; not-needed ones go last.
   const ordered = [...tasks.filter((t) => !t.done && !t.na), ...tasks.filter((t) => t.done && !t.na), ...tasks.filter((t) => t.na)];
   const rows = ordered.map((t) => {
+    if (sel) {
+      const on = sel.has(t.id);
+      const when = t.na ? `<span>not needed</span>` : t.done ? `<span>done</span>`
+        : t.scheduled ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b>${t.late ? `<span>${-t.days} day${t.days === -1 ? "" : "s"} ago</span>` : ""}`
+        : `<b class="nodate">No date yet</b>`;
+      return `<div class="job${on ? " on" : ""}${t.na ? " na" : t.done ? " done" : ""}" data-jpick="${esc(t.id)}" role="checkbox" aria-checked="${on}" tabindex="0">
+        <div class="pick" aria-hidden="true"></div><div class="what">${esc(t.what)}</div><div class="when">${when}</div></div>`;
+    }
     const when = t.na
       ? `<span>not needed for this one</span>`
       : t.scheduled
@@ -4215,12 +4251,16 @@ function checklistCard(ev, checklist) {
     <div class="card-head"><div>
       <div class="s">What ONGIA owes this event, not what the presenters owe, in the order the jobs get done. Every date counts back from day one, so moving the training moves the list.</div>
       <div class="jobsum" style="margin-top:8px">${summary}</div></div>
-      <div class="cardacts"><button class="mini jobadd" id="jadd">Add a job</button>
-        ${tasks.length ? "" : `<button class="mini jobadd" id="jseed">Use the standard list</button>`}</div></div>
+      <div class="cardacts">${sel ? `<button class="mini jobadd on" id="jselect">Done selecting</button>`
+        : `${tasks.length ? `<button class="mini jobadd" id="jselect">Select several</button>` : ""}<button class="mini jobadd" id="jadd">Add a job</button>
+        ${tasks.length ? "" : `<button class="mini jobadd" id="jseed">Use the standard list</button>`}`}</div></div>
     <div class="card-body">
-      ${tasks.length ? behindNote(checklist.behind) : ""}
-      ${tasks.length ? `<div class="jobs">${rows}</div>` : `<div class="empty">Nothing on the list yet.</div>`}
-      <p class="hint jobadd">The standard list new events start from is on <b>The year</b> screen.</p>
+      ${sel ? `<div class="jquick">${JOBGROUPS.map(([k, label, fits]) => {
+          const n = tasks.filter(fits).length;
+          return `<button data-jgroup="${k}"${n ? "" : " disabled"}>${label} (${n})</button>`; }).join("")}<button data-jgroup="none">Clear</button></div>`
+        : tasks.length ? behindNote(checklist.behind) : ""}
+      ${tasks.length ? `<div class="jobs${sel ? " sel" : ""}">${rows}</div>` : `<div class="empty">Nothing on the list yet.</div>`}
+      ${sel ? `<div class="jselbar" id="jselbar"></div>` : `<p class="hint jobadd">The standard list new events start from is on <b>The year</b> screen.</p>`}
     </div>`);
 }
 
@@ -4230,6 +4270,7 @@ function wireChecklist(ev) {
     try { await api(path, init); render(); }
     catch (e) { toast(e.message); render(); }
   };
+  wireJobSelect(ev);
   ROOT.querySelectorAll("[data-tick]").forEach((box) => {
     box.onchange = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(box.dataset.tick)}`,
       { method: "PUT", body: JSON.stringify({ done: box.checked }) });
@@ -4258,7 +4299,8 @@ function wireChecklist(ev) {
     document.getElementById("j-when").value = task?.from === "cutoff" ? "cutoff" : task && task.daysBefore < 0 ? "after" : "before";
     document.getElementById("j-why").textContent = "";
   };
-  document.getElementById("jadd").onclick = () => { fill(null); dlg.showModal(); document.getElementById("j-what").focus(); };
+  const add = document.getElementById("jadd");   // not there while picking several
+  if (add) add.onclick = () => { fill(null); dlg.showModal(); document.getElementById("j-what").focus(); };
   const seed = document.getElementById("jseed");
   if (seed) seed.onclick = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&seed=1`, { method: "POST" });
   const sync = document.getElementById("jsync");
@@ -4319,6 +4361,79 @@ function letterOptions(kind, title, chosen, group = false) {
     .filter((l) => letterFits(l, title) || l.id === chosen)
     .map((l) => `<option value="${esc(l.id)}"${l.id === chosen ? " selected" : ""}>${esc(l.name)}${
       !letterFits(l, title) ? ` (only for ${esc(l.onlyFor)} events)` : l.problems?.length ? " (needs attention)" : ""}</option>`).join("");
+}
+
+/**
+ * Select several (Andrew 30 Oct 2026: "Some events dont need the standard to do's and I would either just check them off or
+ * click N/A"). Tapped rows go green; the bar at the bottom marks them all done or not needed in one write, and the note
+ * that follows has Undo, which puts every one back as it was. Picking only redraws the rows, never the page.
+ */
+let JOBSEL = null;   // { ev, ids: Set } while an event's checklist is in select mode
+const JOBGROUPS = [
+  ["left", "Pick everything left to do", (t) => !t.done && !t.na],
+  ["late", "Pick the overdue ones", (t) => !t.done && !t.na && t.late],
+  ["nodate", "Pick the ones with no date", (t) => !t.done && !t.na && !t.scheduled],
+];
+function wireJobSelect(ev) {
+  const btn = document.getElementById("jselect");
+  if (btn) btn.onclick = () => { JOBSEL = JOBSEL?.ev === ev.id ? null : { ev: ev.id, ids: new Set() }; render(); };
+  const bar = document.getElementById("jselbar");
+  if (!bar || JOBSEL?.ev !== ev.id) return;
+  const tasks = data_checklist()?.tasks ?? [];
+  const ids = JOBSEL.ids;
+  const short = (w) => w.replace(/\s*\([^)]*\)\s*$/, "").replace(/ (booked|confirmed|sent|done|printed|completed)( .*)?$/i, "");
+  const draw = () => {
+    ROOT.querySelectorAll("[data-jpick]").forEach((r) => { const on = ids.has(r.dataset.jpick); r.classList.toggle("on", on); r.setAttribute("aria-checked", on); });
+    const picked = tasks.filter((t) => ids.has(t.id));
+    const names = picked.map((t) => short(t.what));
+    bar.innerHTML = `<div class="n">${picked.length ? `${picked.length} job${picked.length === 1 ? "" : "s"} picked` : "Tap the jobs to pick them"}
+        <small>${picked.length ? esc(names.slice(0, 6).join(", ") + (names.length > 6 ? ` and ${names.length - 6} more` : "")) : "Or use the shortcuts at the top."}</small></div>
+      <button class="go" data-jdo="done"${picked.length ? "" : " disabled"}>✓ Mark all done</button>
+      <button class="nn" data-jdo="na"${picked.length ? "" : " disabled"}>Not needed</button>
+      <button class="x" data-jdo="cancel">Cancel</button>`;
+    bar.querySelectorAll("[data-jdo]").forEach((b) => { b.onclick = () => apply(b.dataset.jdo); });
+  };
+  const flip = (id) => { if (ids.has(id)) ids.delete(id); else ids.add(id); draw(); };
+  ROOT.querySelectorAll("[data-jpick]").forEach((r) => {
+    r.onclick = () => flip(r.dataset.jpick);
+    r.onkeydown = (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(r.dataset.jpick); } };
+  });
+  ROOT.querySelectorAll("[data-jgroup]").forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.jgroup === "none") ids.clear();
+      else tasks.filter(JOBGROUPS.find(([k]) => k === b.dataset.jgroup)[2]).forEach((t) => ids.add(t.id));
+      draw();
+    };
+  });
+  const path = `/tasks?event=${encodeURIComponent(ev.id)}&bulk=1`;
+  const apply = async (what) => {
+    if (what === "cancel") { JOBSEL = null; render(); return; }
+    const picked = tasks.filter((t) => ids.has(t.id));
+    const before = picked.map((t) => ({ id: t.id, na: t.na === true, done: t.done === true, doneAt: t.doneAt ?? null }));
+    bar.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    try {
+      await api(path, { method: "PUT", body: JSON.stringify({ jobs: picked.map((t) => (what === "done" ? { id: t.id, na: false, done: true } : { id: t.id, na: true })) }) });
+      JOBSEL = null;
+      const n = picked.length, jobs = `${n} job${n === 1 ? "" : "s"}`;
+      undoToast(`${jobs} marked ${what === "done" ? "done" : "not needed"}.`, async () => {
+        try { await api(path, { method: "PUT", body: JSON.stringify({ jobs: before }) }); toast(`${jobs} put back as they were.`); }
+        catch (e) { toast(e.message); }
+        render();
+      });
+    } catch (e) { toast(e.message); }
+    render();
+  };
+  draw();
+}
+
+/** A note at the bottom with an Undo button; it stays a little longer than a plain one so there is time to press it. */
+function undoToast(msg, undo) {
+  toast(msg);
+  const t = document.querySelector(".toast");
+  const b = document.createElement("button"); b.className = "undo"; b.textContent = "Undo";
+  b.onclick = () => { t.remove(); undo(); };
+  t.append(b);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 9000);
 }
 
 /** The checklist the screen is currently showing, for the edit dialog to read. */
