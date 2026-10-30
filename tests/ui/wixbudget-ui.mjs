@@ -32,7 +32,7 @@ const open = async (w, h, id) => {
   p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e))); p.on("dialog", (d) => d.accept());
   await p.route(/\/api\/budget\?/, async (route) => {
     if (route.request().method() !== "GET") return route.continue();
-    const r = await route.fetch(); const j = await r.json(); j.live.wix = wix;
+    const r = await route.fetch(); const j = await r.json(); if (!j.live) return route.fulfill({ response: r, json: j }); j.live.wix = wix;
     return route.fulfill({ response: r, json: j });
   });
   await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: id, tab: "money" })), { waitUntil: "networkidle" }); await p.waitForTimeout(2000);

@@ -50,6 +50,15 @@ ok("nonsense isn't kept", (await call(budget, `/api/budget?event=${ev.id}`, "PUT
 r = await call(budget, `/api/budget?event=${ev.id}`, "DELETE");
 ok("Start over clears it and hands back the records to start again from", r.status === 200 && r.live?.event && (await call(budget, `/api/budget?event=${ev.id}`)).budget === null);
 
+console.log("— the groups for Everything else");
+let G = await call(budget, "/api/budget?groups=1");
+ok("the common groups are there to start", G.status === 200 && G.groups.includes("Venue & AV") && G.groups.includes("Other"));
+G = await call(budget, "/api/budget?groups=1", "POST", { name: `  Security   ${T} ` });
+ok("a new one is added, tidied, and kept for every budget", G.status === 201 && G.name === `Security ${T}` && (await call(budget, "/api/budget?groups=1")).groups.includes(`Security ${T}`));
+ok("the same name again, in any case, isn't added twice", (await call(budget, "/api/budget?groups=1", "POST", { name: `SECURITY ${T}` })).groups.filter((g) => g.toLowerCase() === `security ${T}`.toLowerCase()).length === 1);
+ok("nor is a common one, or nothing", (await call(budget, "/api/budget?groups=1", "POST", { name: "travel" })).groups.filter((g) => /^travel$/i.test(g)).length === 1 && (await call(budget, "/api/budget?groups=1", "POST", { name: " " })).status === 400);
+ok("a lead can't add one", (await call(budget, "/api/budget?groups=1", "POST", { name: "X" }, LEAD)).status === 403);
+
 const rbh = (await call(events, "/api/events", "POST", { title: `RBH Budget ${T}`, city: "Montreal", dayOne: "2031-06-02", lastDay: "2031-06-02", invite: false, kind: "rbh", province: "QC", invoicePrefix: "BUD",
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] })).event;
 ok("an RBH event's money stays on its statement of work", (await call(budget, `/api/budget?event=${rbh.id}`)).status === 409);

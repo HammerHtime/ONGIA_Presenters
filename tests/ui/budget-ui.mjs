@@ -79,6 +79,27 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.locator("[data-paddall]").click(); await p.waitForTimeout(1600);
     const board = (await saved(ev.id)).people.filter((x) => x.group === "board");
     ok(`${tag}: Add all board members puts the whole board roster on the grid, each from three nights before day one, reimbursed`, board.length > before && board.every((x) => x.pays === "reimbursed") && board.filter((x) => x.name !== "Raj Jaswal").every((x) => x.nights[0] === "2031-05-09" && x.nights.at(-1) === "2031-05-14") && !(await p.locator("[data-paddall]").count()), `${before} → ${board.length}`);
+    // Andrew 30 Oct 2026: "where are all the line items ... AV, presenter gifts, attendee gifts ... That was in the Excel
+    // sheet", and "you could hide all of those spent columns and we'll just have the projected".
+    ok(`${tag}: Everything else has Group, Line and Projected, no Spent`, (await p.locator(".sbelse thead").innerText()).replace(/\s+/g, " ").trim().toUpperCase() === "GROUP LINE PROJECTED" && !(await p.locator('[data-k$=".spent"], [data-k$=".paid"]').count()), await p.locator(".sbelse thead").innerText());
+    await p.locator("[data-usual]").click(); await p.waitForTimeout(1500);
+    const lines = (await saved(ev.id)).other;
+    ok(`${tag}: Add the usual lines brings in the Summit budget's lines at its amounts, and the button goes`, lines.length >= 20 && lines.find((o) => o.name === "AV for the virtual component")?.planned === 42000 && lines.some((o) => o.name === "Presenter gifts ($100 each)") && lines.some((o) => o.name === "Tote bag items") && !(await p.locator("[data-usual]").count()), String(lines.length));
+    ok(`${tag}: no person's name among them`, !lines.some((o) => /Raj|Tyler|Andy|Jessy|Tessa|Ryan/i.test(o.name)));
+    // Andrew 30 Oct 2026: "a dropdown for all the common groupings ... click add ... a box pops open ... added to the list".
+    await p.locator('[data-radd="other"]').click(); await p.waitForTimeout(800);
+    const sel = p.locator("select[data-grp]").last();
+    const opts = await sel.locator("option").allInnerTexts();
+    ok(`${tag}: a new line's group is a dropdown of the common groups, with Add a group last`, opts.includes("Venue & AV") && opts.includes("Travel") && opts.at(-1) === "+ Add a group…" && opts[0] === "Pick a group…", opts.join(" | "));
+    await sel.selectOption("Travel"); await p.waitForTimeout(1500);
+    ok(`${tag}: picking one saves it`, (await saved(ev.id)).other.at(-1).group === "Travel");
+    const grp = `Security ${T}`;
+    await p.locator("select[data-grp]").last().selectOption("__add"); await p.waitForTimeout(400);
+    ok(`${tag}: Add a group opens a box`, await p.locator(".grpdlg").isVisible());
+    await p.locator("#grp-name").fill(grp); await p.locator("#grp-ok").click(); await p.waitForTimeout(1500);
+    ok(`${tag}: the new group is on that line, and in the list for every budget`, (await saved(ev.id)).other.at(-1).group === grp && (await (await fetch(`${S}/api/budget?groups=1`, { headers: PRES })).json()).groups.includes(grp));
+    await p.locator('[data-radd="other"]').click(); await p.waitForTimeout(800);
+    ok(`${tag}: and it's offered on the next line`, (await p.locator("select[data-grp]").last().locator("option").allInnerTexts()).includes(grp));
     ok(`${tag}: the stipends and the food table stay inside their cards`, await p.evaluate(() => { const i = document.querySelector("#evbudget .intbox"), f = document.querySelector("#evbudget table.mp")?.closest(".scroll"); return i.scrollWidth <= i.clientWidth + 1 && f.scrollWidth <= f.clientWidth + 1; }));
   }
   ok(`${tag}: fits the screen, no page errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !p.errs.length, p.errs.join(" | "));
