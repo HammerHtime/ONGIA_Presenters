@@ -3,6 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, getMeta, putMeta, deleteKey, listPresenters, listVolunteers, getRoster, getContractRead, getAttendees } from "./lib/store.mjs";
 import { roomingRows, sameName } from "./lib/rooming.mjs";
 import { PROVINCES, guessProvince } from "./lib/sow.mjs";
+import { wixConfigured, listWixTickets } from "./lib/wix.mjs";
 
 /**
  * An event's own budget, on its Money tab (Andrew 30 Oct 2026: "build the ONGIA event budgets"), the same page as the
@@ -75,5 +76,24 @@ export async function live(event) {
     people,
     board: (event.board ?? []).map((m) => ({ name: m.name, email: m.email })).filter((m) => m.name),
     registered: (attendees?.people ?? []).length || null,
+    wix: await wixTickets(event),
   };
+}
+
+/**
+ * The ticket types on every Wix event linked to this one (the main one, and any others such as the community partners'
+ * site), with their prices and sales. null when the event isn't linked to Wix; { problem } when Wix wouldn't say, so the
+ * page can say why instead of quietly showing typed numbers as if they were Wix's.
+ */
+async function wixTickets(event) {
+  const links = [...(event.wix?.eventId ? [{ ...event.wix, group: "" }] : []), ...(event.wixMore ?? [])].filter((l) => l?.eventId);
+  if (!links.length || !wixConfigured()) return null;
+  try {
+    const per = await Promise.all(links.map(async (l) => (await listWixTickets({ eventId: l.eventId, site: l.site || "1" })).map((t) => ({ ...t, from: l.group || l.title || "" }))));
+    return { tickets: per.flat(), at: new Date().toISOString() };
+  } catch (e) {
+    return { tickets: [], problem: e.status === 401 || e.status === 403
+      ? "Wix wouldn't share this event's ticket types. The Wix API key needs one more permission, Manage Ticket Definitions, added in the Wix dashboard's API Key Manager."
+      : `Couldn't read the ticket types from Wix just now: ${e.message}` };
+  }
 }

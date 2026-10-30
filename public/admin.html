@@ -433,6 +433,17 @@
   .sbx .ng tr.rl .c{cursor:default}.sbx .ng tr.rl .c:not(.on){opacity:.55}
   .sbx .ng tr.rl b.pname{display:block;width:170px;overflow:hidden;text-overflow:ellipsis}
   .sbx .ng .rltag{font-style:normal;color:var(--rbh)}
+  .src.s-wix{background:#e7eefc;color:#1d4fb8}
+  .sbreg .wixof{display:block;font-size:11.5px;color:var(--muted);white-space:normal}
+  .wixt{margin-top:10px;background:var(--sunk);border-radius:12px;padding:10px 12px}.wixt h4{margin:0 0 6px;font-size:14px}.wixt h4 small{font-weight:400;color:var(--muted)}
+  .wixt .sbl td small{color:var(--muted)}.wixt tr.hid td{color:var(--muted)}.wixt select{font:inherit;font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--border);background:#fff}
+  @media (max-width:560px){
+    .sbreg .s-wix{display:block;width:max-content;margin:2px 0 0}.sbreg td{white-space:normal;vertical-align:top}.sbreg .wixof{display:none}
+    .wixt{padding:10px 8px}.wixt thead{display:none}.wixt .sbl tr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--border)}
+    .wixt .sbl td{border:0;padding:0}.wixt .sbl td:nth-child(1){grid-column:1/-1;font-weight:600}.wixt .sbl td:nth-child(2)::before{content:"Price ";color:var(--muted);font-weight:400}
+    .wixt .sbl td:nth-child(3)::before{content:"Sold ";color:var(--muted)}.wixt .sbl td:nth-child(4){grid-column:1/-1}.wixt select{width:100%}
+  }
+  .wixnote{margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--sunk);font-size:13.5px}.wixnote.bad{background:var(--wait-bg);color:var(--wait)}
   .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
   /* Tablets: every night fits, who pays is a scroll away; the names stay put while it scrolls. */
   @media (max-width:1239px){.sbx .ng .nm{position:sticky;left:0;z-index:2;background:var(--card)}.sbx .ng tr.grp .gl{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px}}
@@ -8536,7 +8547,8 @@ function sbxQuestions() {
   const dlg = document.createElement("dialog"); dlg.className = "sheet sbxq"; document.body.append(dlg);
   const yn = (k) => `<span class="pbseg"><button type="button" data-yn="${k}" data-v="1" class="${R[k].on ? "on" : ""}">Yes</button><button type="button" data-yn="${k}" data-v="0" class="${R[k].on ? "" : "on"}">No</button></span>`;
   const box = (k, inner) => `<div class="qbox" data-box="${k}"${R[k].on ? "" : " hidden"}>${inner}</div>`;
-  const num = (path, v, w = 90) => `<input class="qin" data-q="${path}" inputmode="decimal" value="${v ?? ""}" style="width:${w}px">`;
+  const fromWix = (path) => { const [k, f] = path.split("."); return /^price/.test(f) && R[k]?.fromWix?.length && (f === "price" || R[k].fromWixNon); };
+  const num = (path, v, w = 90) => `<input class="qin" data-q="${path}" inputmode="decimal" value="${v ?? ""}" style="width:${w}px"${fromWix(path) ? ` readonly title="From Wix"` : ""}>`;
   const days = sbxCalc(B).days;
   dlg.innerHTML = `<div class="sheet-head"><div class="porg" style="text-transform:uppercase;letter-spacing:.08em;font-size:11.5px">Setting up the budget${SBX_EV ? ` · ${esc(SBX_EV.title)}` : ""}</div><h2>How do people register for this event?</h2>
       <p class="hint" style="margin-top:6px">Answer yes or no. Only what you say yes to shows up in the budget and the tiles. Change these any time with <b>Registration questions</b>.</p></div>
@@ -8597,7 +8609,18 @@ function sbxDraw() {
 
   // 1. The numbers you set.
   const inp = (k, v, w = 96, ph = "") => `<input class="sbin" data-k="${k}" value="${v ?? ""}" placeholder="${ph}" inputmode="decimal" style="width:${w}px">`;
-  const regRow = (k, label, extra = "") => (on(k) ? `<tr><td>${label}</td><td>${inp(`reg.${k}.price`, R[k].price, 80)}${extra}</td><td>${inp(`reg.${k}.expected`, R[k].expected, 70)}${k === "virtual" ? ` + ${inp("reg.virtual.expectedNon", R.virtual.expectedNon, 56)}` : ""}</td><td>${inp(`reg.${k}.sold`, R[k].sold, 70)}</td></tr>` : "");
+  // A kind sold on Wix shows Wix's price and sales, not a box to type them in (Andrew 30 Oct 2026).
+  const wixd = (k) => !!R[k]?.fromWix?.length;
+  const wixv = (v) => `<b>${v}</b> <span class="src s-wix">Wix</span>`;
+  const regRow = (k, label, extra = "") => (on(k) ? `<tr><td>${label}${wixd(k) && !(R[k].fromWix.length === 1 && sameish(R[k].fromWix[0], label.replace(/<[^>]*>.*$/, ""))) ? `<small class="wixof">${esc(R[k].fromWix.join(" · "))}</small>` : ""}</td><td>${wixd(k) ? wixv(money(R[k].price)) : inp(`reg.${k}.price`, R[k].price, 80)}${extra}</td><td>${inp(`reg.${k}.expected`, R[k].expected, 70)}${k === "virtual" ? ` + ${inp("reg.virtual.expectedNon", R.virtual.expectedNon, 56)}` : ""}</td><td>${wixd(k) ? wixv(R[k].sold) : inp(`reg.${k}.sold`, R[k].sold, 70)}</td></tr>` : "");
+  const W = SBX_EV ? SBX_LIVE?.wix : null;
+  const wixBlock = !W ? "" : W.problem ? `<div class="wixnote bad">${esc(W.problem)}</div>`
+    : !W.tickets.length ? `<div class="wixnote">The Wix event has no ticket types yet. Once it does, their prices and sales come in here.</div>`
+    : `<div class="wixt"><h4>Ticket types on Wix <small>prices and sales as of when this page opened · choose what each one counts as</small></h4>
+        <table class="sbl"><thead><tr><th>Ticket</th><th>Price</th><th>Sold</th><th>Counts as</th></tr></thead><tbody>${W.tickets.map((t) => `<tr${t.hidden ? ` class="hid"` : ""}>
+          <td>${esc(t.name)}${t.from ? `<small> · ${esc(t.from)}</small>` : ""}${t.hidden ? `<small> · hidden on Wix</small>` : ""}</td>
+          <td>${t.price === null ? "–" : money(t.price)}</td><td>${t.shared ? "–" : `${t.sold}${t.limit ? ` <small>of ${t.limit}</small>` : ""}${t.soldOut ? ` <span class="okp">sold out</span>` : ""}`}</td>
+          <td><select data-wixkind="${esc(t.id)}" aria-label="What ${esc(t.name)} counts as">${WIX_KINDS.map(([k, l]) => `<option value="${k}"${wixKindOf(B, t) === k ? " selected" : ""}>${l}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div>`;
   const numbers = `<div class="sbgrid">
     <div class="blk"><h3><span class="n">2</span>Hotel rooms</h3>
       <div class="row"><span>Nightly rate <span class="src s-ct">contract</span></span>${inp("hotel.rate", B.hotel.rate)}</div>
@@ -8608,7 +8631,8 @@ function sbxDraw() {
       <div class="row tot"><span>Rooms ONGIA pays or reimburses</span><b>${C.paidNights} nights · ${money(C.rooms)}</b></div></div>
     <div class="blk wide"><h3><span class="n">1</span>Registration <button class="mini" id="sbx-q" style="margin-left:auto">Registration questions</button></h3>
       <table class="sbreg"><thead><tr><th></th><th>Price</th><th>Expected</th><th>Sold so far</th></tr></thead><tbody>
-        ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", ` / ${inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}`)}${regRow("memberships", "Memberships")}</tbody></table>
+        ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", ` / ${wixd("virtual") && R.virtual.fromWixNon ? wixv(money(R.virtual.priceNon)) : inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}`)}${regRow("memberships", "Memberships")}</tbody></table>
+      ${wixBlock}
       <div class="row"><span>Ticket prices include HST</span><span class="pbseg"><button type="button" data-flag="pricesIncludeHst" data-v="1" class="${B.pricesIncludeHst ? "on" : ""}">Yes</button><button type="button" data-flag="pricesIncludeHst" data-v="0" class="${B.pricesIncludeHst ? "" : "on"}">No</button></span></div>
       <div class="row tot"><span>Registration comes to</span><b>${money(C.gross)}${B.pricesIncludeHst ? ` <small>· ${money(C.tickets)} after HST</small>` : ""}</b></div></div>
     <div class="blk"><h3><span class="n">3</span>Meals &amp; breaks</h3>
@@ -8720,6 +8744,7 @@ function sbxWire() {
     B[key].push(({ other: { id, group: "Other", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
       deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
   document.getElementById("sbx-q").onclick = () => sbxQuestions();
+  SBX_HOST.querySelectorAll("[data-wixkind]").forEach((el) => { el.onchange = () => { (B.wixKinds ??= {})[el.dataset.wixkind] = el.value; applyWix(B, SBX_LIVE?.wix); redraw(); }; });
   document.getElementById("sbx-reset").onclick = async () => {
     if (SBX_EV) {
       if (!confirm("Start this event's budget over? Everything typed into it goes; it starts again from the event's rooming list, hotel contract and board.")) return;
@@ -8801,7 +8826,8 @@ function budgetSync(B, L) {
   // Off the rooming list now: no longer a room to count.
   B.people = B.people.filter((p) => !p.key || keys.has(p.key));
   B.event = { ...B.event, ...L.event };
-  if (L.registered && !B.reg.inPerson.sold) B.reg.inPerson.sold = L.registered;
+  if (L.registered && !B.reg.inPerson.sold && !B.reg.inPerson.fromWix?.length) B.reg.inPerson.sold = L.registered;
+  applyWix(B, L.wix);
   // The grid shows every night someone on the rooming list has.
   const all = B.people.flatMap((p) => p.nights);
   if (all.length) {
@@ -8811,6 +8837,46 @@ function budgetSync(B, L) {
   }
   return B;
 }
+/**
+ * Wix's ticket types into the budget (Andrew 30 Oct 2026). Each ticket type counts as one of the budget's kinds of
+ * registration, guessed from its name and changeable on the page. A kind with tickets on Wix takes Wix's price (the
+ * average over what has sold, when its tickets have different prices) and Wix's sales; Expected stays Andrew's plan.
+ */
+const WIX_KINDS = [["inPerson", "In person"], ["earlyBird", "Early bird"], ["community", "Community"], ["virtual", "Virtual"], ["virtualNon", "Virtual, non-member"], ["memberships", "Membership"], ["skip", "Not counted"]];
+function wixKindOf(B, t) {
+  const set = B.wixKinds?.[t.id];
+  if (set) return set;
+  const n = String(t.name ?? "").toLowerCase();
+  if (/virtual|online|livestream|stream|webinar|zoom/.test(n)) return /non[\s-]*member/.test(n) ? "virtualNon" : "virtual";
+  if (/early/.test(n)) return "earlyBird";
+  if (/community|partner/.test(n)) return "community";
+  if (/membership/.test(n)) return "memberships";
+  if (t.price === 0 || /\b(comp|complimentary|staff|volunteer|presenter|speaker|board|sponsor)\b/.test(n)) return "skip";
+  return "inPerson";
+}
+function applyWix(B, W) {
+  const R = B.reg;
+  for (const k of Object.keys(R)) { delete R[k].fromWix; delete R[k].fromWixNon; }
+  if (!W?.tickets?.length) return B;
+  const by = {};
+  for (const t of W.tickets) (by[wixKindOf(B, t)] ??= []).push(t);
+  const avg = (ts) => { const priced = ts.filter((t) => t.price !== null); const sold = priced.reduce((n, t) => n + t.sold, 0);
+    const v = sold ? priced.reduce((n, t) => n + t.price * t.sold, 0) / sold : priced.reduce((n, t) => n + t.price, 0) / (priced.length || 1);
+    return Math.round(v * 100) / 100; };
+  const sold = (ts) => ts.reduce((n, t) => n + t.sold, 0);
+  for (const [k, ts] of Object.entries(by)) {
+    if (k === "skip") continue;
+    if (k === "virtualNon") continue;
+    R[k].on = true; R[k].price = avg(ts); R[k].sold = sold(ts); R[k].fromWix = ts.map((t) => t.name);
+  }
+  if (by.virtualNon) {
+    R.virtual.on = true; R.virtual.priceNon = avg(by.virtualNon); R.virtual.fromWixNon = true;
+    R.virtual.sold = (by.virtual ? sold(by.virtual) : 0) + sold(by.virtualNon);
+    R.virtual.fromWix = [...(R.virtual.fromWix ?? []), ...by.virtualNon.map((t) => t.name)];
+  }
+  return B;
+}
+
 /** Draw the budget into the event's Money tab; the first time, ask the registration questions. */
 function mountBudget(ev, got) {
   const host = document.getElementById("evbudget");
