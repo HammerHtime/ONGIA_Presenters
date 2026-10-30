@@ -427,6 +427,33 @@
   .sbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:6px}.sbl td{padding:3px 2px;border-top:1px solid var(--sunk)}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
   .sbxq{max-width:640px;width:calc(100% - 24px)}
+  /* The event budget on the Money tab: the same page, a heading that fits under the event's own. */
+  .evbud{margin-bottom:16px}.evbud .budh{font-family:var(--fd);font-weight:400;font-size:25px;line-height:1.2;margin:0}
+  .sbxtag.evtag{color:var(--navy)!important;background:var(--sand)}
+  .sbx .ng tr.rl .c{cursor:default}.sbx .ng tr.rl .c:not(.on){opacity:.55}
+  .sbx .ng tr.rl b.pname{display:block;width:170px;overflow:hidden;text-overflow:ellipsis}
+  .sbx .ng .rltag{font-style:normal;color:var(--rbh)}
+  .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
+  /* Tablets: every night fits, who pays is a scroll away; the names stay put while it scrolls. */
+  @media (max-width:1239px){.sbx .ng .nm{position:sticky;left:0;z-index:2;background:var(--card)}.sbx .ng tr.grp .gl{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px}}
+  /* Phone: names pinned on the left, one night at a time beside them, snapping into place as it's swiped. */
+  @media (max-width:560px){
+    .sbx .ngwrap{scroll-snap-type:x mandatory;scroll-padding-left:140px;overscroll-behavior-x:contain}
+    .sbx .ng{border-spacing:0 6px}
+    .sbx .ng .nm{position:sticky;left:0;z-index:2;background:var(--card);width:140px;min-width:140px;max-width:140px;padding-right:8px;white-space:normal}
+    .sbx .ng td.nm span{white-space:normal;overflow-wrap:anywhere}
+    .sbx .ng .pname,.sbx .ng tr.rl b.pname{width:130px;font-size:13.5px}
+    .sbx .ng .dc,.sbx .ng .pc{width:var(--dayw);min-width:var(--dayw);max-width:var(--dayw);scroll-snap-align:start;padding:0 4px}
+    .sbx .ng .nc{scroll-snap-align:start}
+    .sbx .ng .c{width:100%;height:46px}
+    .sbx .ng th.dc{font-size:0;padding-bottom:4px}.sbx .ng th.dc .d{display:none}
+    .sbx .ng th.dc .mo{display:block;font-family:var(--fb);font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted)}
+    .sbx .ng th.dc .mo b{display:block;font-size:16px;color:var(--ink)}.sbx .ng th.dc.ev .mo b{color:var(--navy)}
+    .sbx .ng th .swipe{display:block;font-family:var(--fb);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--muted);text-align:left;line-height:1.3}
+    .sbx .ng th.pc .pl{display:block;font-family:var(--fb);font-size:12px;letter-spacing:0;text-transform:none;color:var(--navy);margin-top:4px}
+    .sbx .ng tr.grp .gl{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px}
+    .sbx .ng tr.tot .nm{font-size:12.5px}
+  }
   .sbxq .qrow{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--sunk)}
   .sbxq .qrow>b{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
   .sbxq .qrow small{display:block;color:var(--muted);font-size:12.5px}
@@ -1335,7 +1362,9 @@
   .gbar i{display:block;height:100%;background:var(--done)}
   .pill.grey{background:var(--sunk);color:var(--ink-mid)}
   .hstrip.ok{padding:8px 4px;border:0;background:none}
-  @media (min-width:761px){.bar .right{flex-wrap:nowrap}}
+  /* One row only where it fits: on a tablet (iPad portrait and landscape) the buttons wrap under, never off the screen. */
+  @media (min-width:1240px){.bar .right{flex-wrap:nowrap}}
+  @media (min-width:761px) and (max-width:1239px){.bar .right{flex:1 1 auto;min-width:0}}
   @media (max-width:760px){
     /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); The year, Letters and Admin go under. */
     .bar{flex-wrap:nowrap;gap:10px} .bar > .sub{display:none}
@@ -2507,6 +2536,8 @@ function eventFormScreen(existing = null) {
         } catch (le) { said.push(`<b>The event was made, but linking it to Wix didn't work:</b> ${esc(le.message)} Use <b>Link to Wix</b> under Getting ready to try again.`); }
       }
       EV_NOTICE = said.length ? { eventId: out.event.id, html: said.join("<br>"), rows } : null;
+      // A new event of ONGIA's own: its budget's registration questions come up straight away (Andrew 29 Oct 2026).
+      if (!ev && out.event.kind !== "rbh" && WHO?.canCost) BUDGET_ASK = out.event.id;
       view = { name: "event", eventId: out.event.id };
       busy = false; render();
     } catch (err) {
@@ -3193,7 +3224,7 @@ const quickInvoice = (s, A, P, unsaved = false) => {
 };
 
 function eventScreen(data) {
-  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, allEvents } = data;
+  const { event: ev, presenters, counts: c, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, sow, receipts, budget, allEvents } = data;
   // The sheet check belongs to the events that have a logistics sheet (one uploaded, or switched on), not every event.
   const sheetShown = !!sheetcheck && (!!sheetcheck.baseline || sheetcheck.enabled === true);
   const mstat = materials?.status ?? {};
@@ -3531,7 +3562,7 @@ function eventScreen(data) {
 
   // The event page in tabs (redesign step 2, Andrew 20 Oct 2026). The whole event still loads in one go, so a tab
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
-  const showMoney = !!(sow || receipts);
+  const showMoney = !!(sow || receipts || budget);
   const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
     ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["survey", "Survey"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
@@ -3716,7 +3747,7 @@ function eventScreen(data) {
       + pv("guests", attendeesCard(ev, guests) + agenciesCard()))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
-    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
+    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "") + (budget ? `<div id="evbudget"></div>` : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     + panel("survey", surveyCard() + resultsCard())
@@ -3801,6 +3832,7 @@ function eventScreen(data) {
   loadShots(ROOT, ev.id, presenters);
   wireActions();
   wireChecklist(ev);
+  mountBudget(ev, budget);
   wireRooming(ev, rooming);
   wireAgenda(ev, agenda);
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
@@ -3826,6 +3858,7 @@ function eventScreen(data) {
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
     syncSide();
+    if (k === "money" && SBX_EV?.id === ev.id && SBX && !SBX.asked) sbxQuestions();
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     // Opening a tab is seeing what is new on it.
@@ -8404,6 +8437,9 @@ function sbxSeed() {
 }
 
 let SBX = null, SBX_SAVE = null, SBX_SAID = "";
+// Where the budget page is drawn and saved: the Sandbox screen, or one event's Money tab (SBX_EV is that event, SBX_LIVE
+// what its records say: the rooming list, the hotel contract, the board on it).
+let SBX_HOST = null, SBX_PATH = "/sandbox", SBX_EV = null, SBX_LIVE = null;
 const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
 const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const sbxShort = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
@@ -8476,8 +8512,9 @@ function sbxPersist() {
   clearTimeout(SBX_SAVE);
   const chip = document.getElementById("sbx-said");
   if (chip) { chip.textContent = "Saving…"; chip.dataset.saved = "busy"; }
+  const path = SBX_PATH, budget = SBX;   // where it was typed, even if the page moves on before it saves
   SBX_SAVE = setTimeout(async () => {
-    try { await api("/sandbox", { method: "PUT", body: JSON.stringify({ budget: SBX }) }); SBX_SAID = "Saved ✓"; }
+    try { await api(path, { method: "PUT", body: JSON.stringify({ budget }) }); SBX_SAID = "Saved ✓"; }
     catch (e) { SBX_SAID = `Couldn't save: ${e.message}`; }
     const c = document.getElementById("sbx-said"); if (c) { c.textContent = SBX_SAID; c.dataset.saved = /Couldn/.test(SBX_SAID) ? "bad" : "ok"; }
   }, 700);
@@ -8487,6 +8524,7 @@ async function sandboxScreen() {
   BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const got = await api("/sandbox");
+  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null;
   SBX = got.budget ?? sbxSeed();
   sbxDraw();
   if (!SBX.asked) sbxQuestions();
@@ -8500,7 +8538,7 @@ function sbxQuestions() {
   const box = (k, inner) => `<div class="qbox" data-box="${k}"${R[k].on ? "" : " hidden"}>${inner}</div>`;
   const num = (path, v, w = 90) => `<input class="qin" data-q="${path}" inputmode="decimal" value="${v ?? ""}" style="width:${w}px">`;
   const days = sbxCalc(B).days;
-  dlg.innerHTML = `<div class="sheet-head"><div class="porg" style="text-transform:uppercase;letter-spacing:.08em;font-size:11.5px">Setting up the budget</div><h2>How do people register for this event?</h2>
+  dlg.innerHTML = `<div class="sheet-head"><div class="porg" style="text-transform:uppercase;letter-spacing:.08em;font-size:11.5px">Setting up the budget${SBX_EV ? ` · ${esc(SBX_EV.title)}` : ""}</div><h2>How do people register for this event?</h2>
       <p class="hint" style="margin-top:6px">Answer yes or no. Only what you say yes to shows up in the budget and the tiles. Change these any time with <b>Registration questions</b>.</p></div>
     <div class="sheet-body">
       <div class="qrow"><b>1</b><span>In-person registration <small>always on</small></span><span class="pbseg"><button type="button" class="on" disabled>Yes</button></span></div>
@@ -8513,10 +8551,12 @@ function sbxQuestions() {
       ${box("virtual", `Member ${num("virtual.price", R.virtual.price)} Non-member ${num("virtual.priceNon", R.virtual.priceNon)} Expected ${num("virtual.expected", R.virtual.expected, 70)} + ${num("virtual.expectedNon", R.virtual.expectedNon, 60)}`)}
       <div class="qrow"><b>5</b><span>Memberships sold with registration?</span>${yn("memberships")}</div>
       ${box("memberships", `Price ${num("memberships.price", R.memberships.price)} Expected ${num("memberships.expected", R.memberships.expected, 70)}`)}
+      <div class="qrow"><b>6</b><span>Do the ticket prices include ${esc(B.taxName ?? "HST")}? <small>if yes, the budget takes the ${esc(B.taxName ?? "HST")} out before counting it as revenue</small></span><span class="pbseg"><button type="button" data-tax="1" class="${B.pricesIncludeHst ? "on" : ""}">Yes</button><button type="button" data-tax="0" class="${B.pricesIncludeHst ? "" : "on"}">No</button></span></div>
       <div class="actions"><button class="btn btn-gold" id="q-done">Save</button><span class="hint" style="align-self:center">Expected is your plan; sold so far is on the page.</span></div>
     </div>`;
   dlg.querySelectorAll("[data-yn]").forEach((b) => { b.onclick = () => { const k = b.dataset.yn, v = b.dataset.v === "1"; R[k].on = v;
     dlg.querySelectorAll(`[data-yn="${k}"]`).forEach((x) => x.classList.toggle("on", (x.dataset.v === "1") === v)); dlg.querySelector(`[data-box="${k}"]`).hidden = !v; }; });
+  dlg.querySelectorAll("[data-tax]").forEach((b) => { b.onclick = () => { B.pricesIncludeHst = b.dataset.tax === "1"; dlg.querySelectorAll("[data-tax]").forEach((x) => x.classList.toggle("on", x === b)); }; });
   dlg.querySelectorAll("[data-cday]").forEach((b) => { b.onclick = () => { const d = b.dataset.cday, list = R.community.days;
     if (list.includes(d)) list.splice(list.indexOf(d), 1); else list.push(d); b.classList.toggle("on", list.includes(d)); }; });
   dlg.querySelector("#q-done").onclick = () => {
@@ -8543,12 +8583,15 @@ function sbxDraw() {
     tile("Expenses", money(C.expenses), `meals ${money(C.meals)} · rooms ${money(C.rooms)}<br>everything else ${money(C.other + C.stipends)}`),
     tile("Break-even", above === null ? "–" : `${above >= 0 ? "+" : "−"}${Math.abs(above)}`, above === null ? "set an in-person price" : `registrations ${above >= 0 ? "above" : "short of"} break-even (${C.breakEven} needed)${C.toTarget !== null ? `<br><b>${C.toTarget}</b> more to reach ${money(B.target)}` : ""}`),
     tile("Registrations", `${C.sold} <small>of ${C.expected}</small>`, split || "nothing offered yet"),
-    tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`),
+    // No block typed in or read from a contract yet: say so, rather than "minimum met" against nothing.
+    C.minNights ? tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`)
+      : tile("Room nights", `${pick}`, `${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ""} · <span class="warnp">no room block yet</span><br>type it under Hotel rooms, or upload the contract`),
     tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
     tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, "registrations, presenters, volunteers, board"),
     tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
     tile("Sponsors", `${money(C.received)} <small>of ${money(C.pledged)}</small>`, `${B.sponsors.filter((s) => s.received).length} paid${B.sponsors.some((s) => !s.received) ? ` · ${esc(B.sponsors.filter((s) => !s.received).map((s) => s.name).join(", "))} owing` : ""}`),
-    tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`),
+    B.meals.fbMin ? tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`)
+      : tile("Food & beverage", money(C.fbBase), "before tax and service<br>no minimum set yet"),
     tile("Coming up with the hotel", "", coming.length ? coming.map((d) => `<b>${esc(sbxShort(d.iso))}</b> ${esc(d.what)}`).join("<br>") : "Nothing still to come"),
   ].join("");
 
@@ -8585,18 +8628,22 @@ function sbxDraw() {
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
   const pays = [["ongia", "ONGIA's bill"], ["reimbursed", "They pay, we reimburse"], ["agency", "Their agency pays"]];
   const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
-  const head = `<tr><th></th><th><button class="plus" data-more="before" title="Add a night before">+</button></th>${C.nights.map((d) => `<th class="${evDay(d) ? "ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span></th>`).join("")}<th><button class="plus" data-more="after" title="Add a night after">+</button></th><th>Nights</th><th>Who pays for the room</th><th></th></tr>`;
-  const prow = (p) => `<tr><td class="nm"><input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">${p.org ? `<span>${esc(p.org)}</span>` : ""}</td><td></td>
-      ${C.nights.map((d) => `<td><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}" aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td></td>
-      <td class="n">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
+  // On a phone the names stay put on the left and one night fills the rest; a swipe brings the next (Andrew 30 Oct 2026).
+  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th><th class="pc"><button class="plus" data-more="before" title="Add a night before">+</button><span class="pl">Add a night before</span></th>${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}<th class="pc"><button class="plus" data-more="after" title="Add a night after">+</button><span class="pl">Add a night after</span></th><th class="nc">Nights</th><th>Who pays for the room</th><th></th></tr>`;
+  // Someone on the rooming list: their nights come from it (change them there); everyone else is a plan, tapped in here.
+  const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td class="pc"></td>
+      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td>
+      <td class="n nc">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
       <td><span class="pbseg sm">${pays.map(([k, l]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}">${l}</button>`).join("")}</span></td>
-      <td><button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button></td></tr>`;
+      <td>${p.key ? "" : `<button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button>`}</td></tr>`;
   const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
-  const grid = `<div class="scroll"><table class="ng"><thead>${head}</thead><tbody>
-    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></td></tr>${ps.map(prow).join("")}`; }).join("")}
-    <tr class="tot"><td class="nm">Rooms that night</td><td></td>${counts.map((n) => `<td>${n}</td>`).join("")}<td></td><td class="n">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
-    <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${C.blockNights} nights</b></span><span>ONGIA's bill <b>${B.people.filter((p) => p.pays === "ongia").reduce((n, p) => n + p.nights.length, 0)} nights</b></span>
-      <span>Reimbursed <b>${B.people.filter((p) => p.pays === "reimbursed").reduce((n, p) => n + p.nights.length, 0)} nights · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${B.people.filter((p) => p.pays === "agency").reduce((n, p) => n + p.nights.length, 0)} nights</b> (not in the budget)</span></div>`;
+  const paysN = (k) => B.people.filter((p) => p.pays === k).reduce((n, p) => n + p.nights.length, 0);
+  const nightsN = (n) => `${n} night${n === 1 ? "" : "s"}`;
+  const grid = `<div class="scroll ngwrap"><table class="ng"><thead>${head}</thead><tbody>
+    ${groups.map(([g, l]) => { const ps = B.people.filter((p) => p.group === g); return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} <button class="mini ghost" data-padd="${g}">+ Add</button></span></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    <tr class="tot"><td class="nm">Rooms that night</td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td><td class="n nc">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
+    <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${nightsN(C.blockNights)}</b></span><span>ONGIA's bill <b>${nightsN(paysN("ongia"))}</b></span>
+      <span>Reimbursed <b>${nightsN(paysN("reimbursed"))} · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${nightsN(paysN("agency"))}</b> (not in the budget)</span></div>`;
 
   // 3. Food & beverage: tap a meal to cycle Not served → Team → Everyone; type an amount and it's a set amount.
   const mealCell = (iso, x, slot) => {
@@ -8622,21 +8669,27 @@ function sbxDraw() {
       <h3 style="margin-top:16px">Deposits &amp; payments</h3><table class="sbl"><tbody>${listRows("deposits", [["what", "text", 190], ["due", "date", 140], ["amount", "money", 90], ["paid", "toggle"]])}</tbody></table><button class="mini" data-radd="deposits">Add a payment</button>
       <h3 style="margin-top:16px">Dates with the hotel</h3><table class="sbl"><tbody>${listRows("dates", [["iso", "date", 140], ["what", "text", 280]])}</tbody></table><button class="mini" data-radd="dates">Add a date</button></div></div>`;
 
-  ROOT.innerHTML = `<div class="sbx">
-    <div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
-      <div class="sbxacts"><span class="saved" id="sbx-said" data-saved="${/Couldn/.test(SBX_SAID) ? "bad" : "ok"}">${esc(SBX_SAID || "Saved ✓")}</span><button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>
+  const said = `<span class="saved" id="sbx-said" data-saved="${/Couldn/.test(SBX_SAID) ? "bad" : "ok"}">${esc(SBX_SAID || "Saved ✓")}</span>`;
+  const rl = SBX_EV ? (SBX_LIVE?.people ?? []).length : 0;
+  SBX_HOST.innerHTML = `<div class="sbx${SBX_EV ? " evbud" : ""}">
+    ${SBX_EV ? `<div class="sbxhead"><div><div class="porg sbxtag evtag">The event budget · president &amp; VP</div><h2 class="budh">What ${esc(B.event.title)} costs and brings in</h2>
+        <div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))}${B.event.hotel ? ` · ${esc(B.event.hotel)}` : ""} · ${rl ? `${rl} ${rl === 1 ? "person" : "people"} from the rooming list` : "nobody on the rooming list yet"}${SBX_LIVE?.contract?.money ? " · amounts from the hotel contract" : ""}</div></div>
+      <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
+    : `<div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
+      <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>`}
     <div class="sbtiles">${tiles}</div>
     <div class="card"><div class="card-head"><div><h2>The numbers you set</h2><div class="s">Type a number and press Tab: everything above and below works itself out.</div></div></div><div class="card-body">${numbers}</div></div>
-    <div class="card"><div class="card-head"><div><h2>Hotel nights</h2><div class="s">Tap a night to book it, tap again to take it off. + adds a night before or after. Everyone here is on the block; who pays decides what's in the budget.</div></div></div><div class="card-body">${grid}</div></div>
+    <div class="card"><div class="card-head"><div><h2>Hotel nights</h2><div class="s">Tap a night to book it, tap again to take it off. + adds a night before or after. Everyone here is on the block; who pays decides what's in the budget.${SBX_EV ? " People from the rooming list keep the nights it has for them: change those on the rooming list, under Logistics." : ""}</div></div></div><div class="card-body">${grid}</div></div>
     <div class="card"><div class="card-head"><div><h2>Food &amp; beverage</h2><div class="s">The team (board, presenters, volunteers, others) always eats; attendees get the breaks, and lunch when you say so. Days before and after the event take set amounts.</div></div></div><div class="card-body">${food}</div></div>
     <div class="card"><div class="card-body">${others}</div></div></div>`;
   sbxWire();
 }
 
 function sbxWire() {
-  const B = SBX, redraw = () => { sbxPersist(); const k = document.activeElement?.dataset?.k, y = scrollY; sbxDraw(); scrollTo(0, y); if (k) ROOT.querySelector(`[data-k="${CSS.escape(k)}"]`)?.focus(); };
+  const B = SBX, redraw = () => { sbxPersist(); const k = document.activeElement?.dataset?.k, y = scrollY; sbxDraw(); scrollTo(0, y); if (k) SBX_HOST.querySelector(`[data-k="${CSS.escape(k)}"]`)?.focus(); };
+  sbxSwipe();
   const numOf = (v) => { const s = String(v).replace(/[$,\s]/g, ""); if (s === "") return null; const n = Number(s); return Number.isFinite(n) ? n : null; };
-  ROOT.querySelectorAll("[data-k]").forEach((el) => { el.onchange = () => setTimeout(() => {
+  SBX_HOST.querySelectorAll("[data-k]").forEach((el) => { el.onchange = () => setTimeout(() => {
     const k = el.dataset.k, parts = k.split("."), v = el.value;
     if (parts[0] === "extra") B.meals.boardExtra[parts.slice(1).join(".")] = numOf(v);
     else if (["other", "stipends", "sponsors", "deposits", "dates"].includes(parts[0])) {
@@ -8648,30 +8701,131 @@ function sbxWire() {
     }
     redraw();
   }, 0); });
-  ROOT.querySelectorAll("[data-pname]").forEach((el) => { el.onchange = () => { B.people.find((p) => p.id === el.dataset.pname).name = el.value.trim(); sbxPersist(); }; });
-  ROOT.querySelectorAll("[data-night]").forEach((b) => { b.onclick = () => { const [id, d] = b.dataset.night.split("|"), p = B.people.find((x) => x.id === id);
+  SBX_HOST.querySelectorAll("[data-pname]").forEach((el) => { el.onchange = () => { B.people.find((p) => p.id === el.dataset.pname).name = el.value.trim(); sbxPersist(); }; });
+  SBX_HOST.querySelectorAll("[data-night]").forEach((b) => { b.onclick = () => { const [id, d] = b.dataset.night.split("|"), p = B.people.find((x) => x.id === id);
     if (p.nights.includes(d)) p.nights.splice(p.nights.indexOf(d), 1); else p.nights.push(d); p.nights.sort(); redraw(); }; });
-  ROOT.querySelectorAll("[data-pays]").forEach((b) => { b.onclick = () => { const [id, k] = b.dataset.pays.split("|"); B.people.find((x) => x.id === id).pays = k; redraw(); }; });
-  ROOT.querySelectorAll("[data-pdel]").forEach((b) => { b.onclick = () => { B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
-  ROOT.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
+  SBX_HOST.querySelectorAll("[data-pays]").forEach((b) => { b.onclick = () => { const [id, k] = b.dataset.pays.split("|"); B.people.find((x) => x.id === id).pays = k; redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-pdel]").forEach((b) => { b.onclick = () => { B.people = B.people.filter((p) => p.id !== b.dataset.pdel); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
     B.people.push({ id: `p${Date.now().toString(36)}`, name: `${{ board: "Board member", presenter: "Presenter", volunteer: "Volunteer", other: "Guest" }[g]} ${n}`, group: g, pays: g === "board" ? "reimbursed" : "ongia", nights: [] }); redraw(); }; });
-  ROOT.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
-  ROOT.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { const k = b.dataset.meal, v = B.meals.cells[k] ?? "off";
+  SBX_HOST.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { const k = b.dataset.meal, v = B.meals.cells[k] ?? "off";
     B.meals.cells[k] = typeof v === "number" ? "off" : ({ off: "team", team: "all", all: "off" })[v] ?? "off"; redraw(); }; });
-  ROOT.querySelectorAll("[data-setamt]").forEach((b) => { b.onclick = () => { B.meals.cells[b.dataset.setamt] = 0; redraw(); ROOT.querySelector(`[data-flat="${CSS.escape(b.dataset.setamt)}"]`)?.select(); }; });
-  ROOT.querySelectorAll("[data-flat]").forEach((el) => { el.onchange = () => setTimeout(() => { B.meals.cells[el.dataset.flat] = numOf(el.value) ?? 0; redraw(); }, 0); });
-  ROOT.querySelectorAll("[data-flag]").forEach((b) => { b.onclick = () => { B[b.dataset.flag] = b.dataset.v === "1"; redraw(); }; });
-  ROOT.querySelectorAll("[data-tog]").forEach((b) => { b.onclick = () => { const [key, id, f] = b.dataset.tog.split("|"), r = B[key].find((x) => x.id === id); r[f] = !r[f]; redraw(); }; });
-  ROOT.querySelectorAll("[data-rdel]").forEach((b) => { b.onclick = () => { const [key, id] = b.dataset.rdel.split("|"); B[key] = B[key].filter((r) => r.id !== id); redraw(); }; });
-  ROOT.querySelectorAll("[data-radd]").forEach((b) => { b.onclick = () => { const key = b.dataset.radd, id = `${key[0]}${Date.now().toString(36)}`;
+  SBX_HOST.querySelectorAll("[data-setamt]").forEach((b) => { b.onclick = () => { B.meals.cells[b.dataset.setamt] = 0; redraw(); SBX_HOST.querySelector(`[data-flat="${CSS.escape(b.dataset.setamt)}"]`)?.select(); }; });
+  SBX_HOST.querySelectorAll("[data-flat]").forEach((el) => { el.onchange = () => setTimeout(() => { B.meals.cells[el.dataset.flat] = numOf(el.value) ?? 0; redraw(); }, 0); });
+  SBX_HOST.querySelectorAll("[data-flag]").forEach((b) => { b.onclick = () => { B[b.dataset.flag] = b.dataset.v === "1"; redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-tog]").forEach((b) => { b.onclick = () => { const [key, id, f] = b.dataset.tog.split("|"), r = B[key].find((x) => x.id === id); r[f] = !r[f]; redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-rdel]").forEach((b) => { b.onclick = () => { const [key, id] = b.dataset.rdel.split("|"); B[key] = B[key].filter((r) => r.id !== id); redraw(); }; });
+  SBX_HOST.querySelectorAll("[data-radd]").forEach((b) => { b.onclick = () => { const key = b.dataset.radd, id = `${key[0]}${Date.now().toString(36)}`;
     B[key].push(({ other: { id, group: "Other", name: "", planned: null, spent: null }, stipends: { id, name: "", planned: null, paid: null }, sponsors: { id, name: "", amount: null, received: false },
       deposits: { id, what: "", due: "", amount: null, paid: false }, dates: { id, iso: "", what: "" } })[key]); redraw(); }; });
   document.getElementById("sbx-q").onclick = () => sbxQuestions();
   document.getElementById("sbx-reset").onclick = async () => {
+    if (SBX_EV) {
+      if (!confirm("Start this event's budget over? Everything typed into it goes; it starts again from the event's rooming list, hotel contract and board.")) return;
+      const out = await api(SBX_PATH, { method: "DELETE" }); SBX_LIVE = out.live; SBX = budgetSeed(SBX_EV, SBX_LIVE); SBX_SAID = ""; sbxDraw(); sbxQuestions(); return;
+    }
     if (!confirm("Start over? Everything you've changed in the Sandbox goes, and it's back to the Summit spreadsheet's numbers.")) return;
     await api("/sandbox", { method: "DELETE" }); SBX = sbxSeed(); SBX_SAID = ""; sbxDraw(); sbxQuestions();
   };
 }
+
+/**
+ * The hotel nights on a phone: one night beside the names, a swipe for the next. The night's width is the space the names
+ * leave; the night on screen is kept through every tap (each tap redraws the grid), and the first time it opens on the
+ * first night with anyone in it.
+ */
+let SBX_NGX = null;
+function sbxSwipe() {
+  const w = SBX_HOST?.querySelector(".ngwrap");
+  if (!w) return;
+  const phone = matchMedia("(max-width:560px)").matches;
+  w.style.setProperty("--dayw", phone ? `${Math.max(140, w.clientWidth - 140)}px` : "");
+  if (!phone) return;
+  if (SBX_NGX === null) {
+    const first = [...w.querySelectorAll("thead th.dc")].findIndex((th, i) => w.querySelectorAll(`tbody tr:not(.grp) td.dc:nth-of-type(${i + 3}) .c.on`).length);
+    const th = w.querySelectorAll("thead th.dc")[Math.max(first, 0)];
+    SBX_NGX = th ? th.offsetLeft - w.querySelector("thead th.nm").offsetWidth : 0;
+  }
+  w.scrollLeft = SBX_NGX;
+  w.onscroll = () => { SBX_NGX = w.scrollLeft; };
+}
+
+/* ---------- The event budget: the Sandbox's page, kept for each of ONGIA's own events ---------- */
+/**
+ * Andrew 30 Oct 2026: "build the ONGIA event budgets". Each event (not RBH: its money is the statement of work) gets the
+ * page he tried in the Sandbox, on its Money tab, saved at /api/budget. A new budget starts from the event's records: its
+ * dates and hotel, the amounts Claude read from the hotel contract, the rooming list and the board on the event. Board
+ * members not on the rooming list yet are planned in from three nights before day one (Andrew: "board arriving 3 days
+ * prior"), their rooms reimbursed (they pay and ONGIA pays them back). Every time it opens, the rooming list's people and
+ * nights are brought back in, so the grid never disagrees with what goes to the hotel.
+ */
+const pays0 = (r) => (r.group === "board" ? "reimbursed" : r.billing === "Guest" ? (r.group === "presenter" ? "agency" : "reimbursed") : "ongia");
+function budgetSeed(ev, L) {
+  const E = L.event, M = L.contract?.money ?? {};
+  const days = []; for (let d = E.dayOne; d <= E.lastDay; d = sbxDay(d, 1)) days.push(d);
+  const cells = {};
+  for (const d of days) { cells[`${d}|breakfast`] = "team"; cells[`${d}|am`] = "all"; cells[`${d}|lunch`] = "all"; cells[`${d}|pm`] = "all"; }
+  const B = {
+    v: 1, eventId: ev.id, event: { ...E }, asked: false, taxName: L.salesTaxName,
+    reg: {
+      inPerson: { on: true, price: 0, expected: 0, sold: L.registered ?? 0 },
+      earlyBird: { on: false, price: 0, expected: 0, sold: 0, ends: "" },
+      community: { on: false, price: 0, expected: 0, sold: 0, days: [...days] },
+      virtual: { on: false, price: 0, priceNon: 0, expected: 0, expectedNon: 0, sold: 0 },
+      memberships: { on: false, price: 40, expected: 0, sold: 0 },
+    },
+    pricesIncludeHst: true, hst: L.salesTax, target: 0,
+    hotel: { rate: M.roomRate ?? L.hotel.rate ?? 0, mat: M.roomTaxPct ?? 0, commitment: M.blockNights ?? 0, minPct: M.minimumPct ?? 80, pickup: null, rebate: M.rebatePerNight ?? 0, before: 3, after: 1 },
+    people: [], others: 0,
+    meals: { breakfast: 0, break: 0, lunch: 0, dinner: 0, noShow: 10, service: M.servicePct ?? 0, admin: M.adminPct ?? 0, fbMin: M.fbMinimum ?? 0, cells, boardExtra: {} },
+    other: [], stipends: [{ id: "s0", name: "Stipends", planned: 0, paid: null }], sponsors: [], deposits: [],
+    dates: [...(L.contract?.dates ?? []), ...(L.hotel.cutoff ? [{ iso: L.hotel.cutoff, what: "Room block cut-off" }] : []), ...(L.hotel.foodAndBev ? [{ iso: L.hotel.foodAndBev, what: "Final meal numbers" }] : [])]
+      .filter((d, i, a) => d.iso && a.findIndex((x) => x.iso === d.iso && x.what === d.what) === i).sort((a, b) => a.iso.localeCompare(b.iso)).map((d, i) => ({ id: `t${i}`, ...d })),
+  };
+  budgetSync(B, L);
+  // The board on the event, planned in until they are on the rooming list.
+  const first = sbxDay(E.dayOne, -3), nights = []; for (let d = first; d <= E.lastDay; d = sbxDay(d, 1)) nights.push(d);
+  for (const m of L.board) if (!B.people.some((p) => sameish(p.name, m.name))) B.people.push({ id: `b${B.people.length}`, name: m.name, group: "board", pays: "reimbursed", nights: [...nights] });
+  return B;
+}
+const sameish = (a, b) => String(a ?? "").toLowerCase().replace(/[^a-z]/g, "") === String(b ?? "").toLowerCase().replace(/[^a-z]/g, "");
+/** Bring the rooming list back in: its people and their nights. A planned row with the same name becomes theirs. */
+function budgetSync(B, L) {
+  const keys = new Set(L.people.map((r) => r.key));
+  for (const r of L.people) {
+    let p = B.people.find((x) => x.key === r.key) ?? B.people.find((x) => !x.key && sameish(x.name, r.name));
+    if (!p) { p = { id: `r${r.key}`, pays: pays0(r) }; B.people.push(p); }
+    Object.assign(p, { key: r.key, name: r.name, org: r.org, group: r.group, nights: [...r.nights], waiting: !r.confirmed });
+  }
+  // Off the rooming list now: no longer a room to count.
+  B.people = B.people.filter((p) => !p.key || keys.has(p.key));
+  B.event = { ...B.event, ...L.event };
+  if (L.registered && !B.reg.inPerson.sold) B.reg.inPerson.sold = L.registered;
+  // The grid shows every night someone on the rooming list has.
+  const all = B.people.flatMap((p) => p.nights);
+  if (all.length) {
+    const lo = all.reduce((a, b) => (a < b ? a : b)), hi = all.reduce((a, b) => (a > b ? a : b));
+    const before = Math.round((Date.parse(B.event.dayOne) - Date.parse(lo)) / 864e5), after = Math.round((Date.parse(hi) - Date.parse(B.event.lastDay)) / 864e5);
+    B.hotel.before = Math.max(B.hotel.before ?? 0, before); B.hotel.after = Math.max(B.hotel.after ?? 0, after);
+  }
+  return B;
+}
+/** Draw the budget into the event's Money tab; the first time, ask the registration questions. */
+function mountBudget(ev, got) {
+  const host = document.getElementById("evbudget");
+  if (!host || !got) return;
+  // Unsaved typing in this event's budget wins over what was just fetched.
+  const mine = SBX_EV?.id === ev.id && SBX ? SBX : null;
+  if (!mine) SBX_NGX = null;
+  SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
+  const was = JSON.stringify(mine ?? got.budget);
+  SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));
+  if (got.budget && !mine && JSON.stringify(SBX) !== was) sbxPersist();
+  sbxDraw();
+  if (!SBX.asked && (view.tab === "money" || BUDGET_ASK === ev.id)) { BUDGET_ASK = null; sbxQuestions(); }
+}
+let BUDGET_ASK = null;   // an event just made: ask its registration questions straight away
 
 /* ---------- shared helpers ---------- */
 let toastTimer;
@@ -9419,7 +9573,9 @@ async function drawScreen() {
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       const receipts = data.event?.kind === "rbh" ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
-      const out = eventScreen({ ...data, sow, receipts, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
+      // ONGIA's own events: the budget, for the president and the VP (anyone else is refused, so it stays hidden).
+      const budget = data.event && data.event.kind !== "rbh" && data.canCost ? await api(`/budget?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      const out = eventScreen({ ...data, sow, receipts, budget, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
       freshen(view.eventId, { guests, materials, event: data.event, canEdit: data.canEdit });
       return out;
     }

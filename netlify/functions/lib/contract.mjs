@@ -29,7 +29,7 @@ const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["hotelName", "city", "rate", "arrival", "departure", "meetingFirst", "meetingLast", "dates", "notes"],
+  required: ["hotelName", "city", "rate", "arrival", "departure", "meetingFirst", "meetingLast", "dates", "money", "notes"],
   properties: {
     hotelName: nullable({ type: "string" }),
     city: nullable({ type: "string" }),
@@ -53,6 +53,24 @@ const SCHEMA = {
         },
       },
     },
+    // The amounts the event budget starts from (Andrew 29 Oct 2026: "I would upload the hotel contract with all the
+    // info that Claude to take from"). Never shown to attendees.
+    money: {
+      type: "object",
+      additionalProperties: false,
+      required: ["roomRate", "roomTaxPct", "blockNights", "minimumPct", "fbMinimum", "servicePct", "adminPct", "rebatePerNight", "facilityFee"],
+      properties: {
+        roomRate: nullable({ type: "number" }),
+        roomTaxPct: nullable({ type: "number" }),
+        blockNights: nullable({ type: "integer" }),
+        minimumPct: nullable({ type: "number" }),
+        fbMinimum: nullable({ type: "number" }),
+        servicePct: nullable({ type: "number" }),
+        adminPct: nullable({ type: "number" }),
+        rebatePerNight: nullable({ type: "number" }),
+        facilityFee: nullable({ type: "number" }),
+      },
+    },
     notes: { type: "string" },
   },
 };
@@ -71,6 +89,8 @@ Date kinds:
 - other: any other date that needs action.
 
 For each date, quote the contract's own words in "quote" (one sentence at most) and give the page number if you can tell. Write "what" in plain English, under twelve words. When the contract gives a deadline relative to arrival ("30 days prior to arrival"), work out the calendar date from the contract's arrival date and say so in "what". Leave out the nights of the stay themselves and the date the contract was signed. Give "rate" as an attendee booking a room should see it, because it goes into emails to attendees: the price, the room type and "plus taxes" (naming the taxes briefly if the contract lists them), under 100 characters. Never put commissions, rebates, attrition or any other term between ONGIA and the hotel in "rate"; if the rate includes a commission, say so in "notes" instead.
+
+In "money", give the numbers ONGIA's own budget needs, each as a plain number with no currency sign: "roomRate" the nightly group rate before tax (the lowest if room types differ); "roomTaxPct" any municipal or destination accommodation tax as a percentage (not HST or GST); "blockNights" the total room nights in the block; "minimumPct" the share of the block ONGIA must fill without penalty, as a percentage; "fbMinimum" the food and beverage minimum before tax and service; "servicePct" and "adminPct" the service charge and administration fee on food as percentages; "rebatePerNight" any rebate per paid room night to ONGIA; "facilityFee" a meeting room or facility fee that applies if the minimums are not met. Leave any the contract does not state as null; never guess one.
 
 Never give a date the contract does not support. If something is unclear — two different cut-off dates, a deadline with no date, a year that does not match the event — say so briefly in "notes"; otherwise leave "notes" empty.`;
 
@@ -141,8 +161,20 @@ export function tidy(raw, event, today = todayIso()) {
     arrival: isDate(raw?.arrival) ? raw.arrival : null,
     departure: isDate(raw?.departure) ? raw.departure : null,
     dates,
+    money: cleanMoney(raw?.money),
     notes: clip(raw?.notes, 800),
   };
+}
+
+/** The contract's amounts for the budget; anything missing, negative or absurd is left out rather than guessed. */
+const MONEY_LIMITS = { roomRate: 5000, roomTaxPct: 30, blockNights: 20000, minimumPct: 100, fbMinimum: 1e7, servicePct: 40, adminPct: 40, rebatePerNight: 500, facilityFee: 1e7 };
+export function cleanMoney(raw) {
+  const out = {};
+  for (const [k, max] of Object.entries(MONEY_LIMITS)) {
+    const n = typeof raw?.[k] === "number" ? raw[k] : Number(String(raw?.[k] ?? "").replace(/[$,%\s]/g, "") || NaN);
+    out[k] = Number.isFinite(n) && n >= 0 && n <= max ? (k === "blockNights" ? Math.round(n) : Math.round(n * 100) / 100) : null;
+  }
+  return out;
 }
 
 /** Plain words for an API failure, for a screen Andrew reads. */
