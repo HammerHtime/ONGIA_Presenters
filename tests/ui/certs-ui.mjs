@@ -73,6 +73,16 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.locator('.certtpl:has(input[value="generic"])').click(); await p.waitForTimeout(1200);
     ok("the generic design adds the course, filled with the event's title", await p.locator("#cert-course").isVisible() && (await p.locator("#cert-course").inputValue()) === "National Gang Summit");
     await p.locator('.certtpl:has(input[value="national-gang-summit"])').click(); await p.waitForTimeout(1200);
+    // Find someone (Andrew 30 Oct 2026: "450 people is a lot to scroll through").
+    await p.locator("#cert-find").fill("okafor");
+    let seen = await p.evaluate(() => [...document.querySelectorAll("[data-certkey]")].filter((tr) => !tr.hidden).map((tr) => tr.innerText.split("\n")[0]));
+    ok("the find box narrows the list to a name", seen.length === 1 && /Sam Okafor/.test(seen[0]), JSON.stringify(seen));
+    await p.locator("#cert-find").fill("toronto police");
+    seen = await p.evaluate(() => [...document.querySelectorAll("[data-certkey]")].filter((tr) => !tr.hidden).map((tr) => tr.innerText.split("\n")[0]));
+    ok("or to an agency", seen.length === 1 && /Jordan Tremblay/.test(seen[0]), JSON.stringify(seen));
+    await p.locator("#cert-find").fill("nobody here");
+    ok("and says when nobody matches", await p.locator("#cert-none").isVisible());
+    await p.locator("#cert-find").fill("");
     // Everyone coming.
     await p.locator('[data-certcut="all"]').click(); await p.waitForTimeout(500);
     ok("Everyone coming shows Alex too, not checked in, still downloadable", await p.locator("[data-certkey]").count() === 3 && /Not checked in/i.test(await p.locator("[data-certkey]", { hasText: "Alex Martin" }).innerText()));

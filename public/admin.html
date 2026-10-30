@@ -5461,7 +5461,7 @@ const mayCertifyHere = (ev) => !WHO?.email || !!WHO?.canCost || (ev.board ?? [])
 function certsCard() {
   return secFold("certs", "Certificates", "Each person's certificate, from your design, ready to download", "", `<div class="card-body" id="certbox"><p class="porg">Loading…</p></div>`, { id: "certsfold", open: false });
 }
-let CERT_CUT = "in";
+let CERT_CUT = "in", CERT_FIND = "";
 async function loadCerts(ev) {
   const box = document.getElementById("certbox");
   try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`)); }
@@ -5478,7 +5478,7 @@ function renderCerts(ev, C) {
   if (!box) return;
   const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
   const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
-  const row = (p) => `<tr data-certkey="${esc(p.key)}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
+  const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
       <td>${esc(p.agency || "")}${p.typed && p.typed !== p.agency ? `<span class="psub" title="As typed">${esc(p.typed)}</span>` : ""}</td>
       <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? "Withdrawn" : `No. ${esc(p.cert.code)}`}</span>` : ""}</td>
       <td class="certact"><button class="mini" data-certpdf="${esc(p.key)}">Download PDF</button>${p.cert && !p.cert.revoked ? `<button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>` : ""}</td></tr>`;
@@ -5494,7 +5494,9 @@ function renderCerts(ev, C) {
     <h3 class="certh" style="margin-top:18px"><span class="certn">3</span>Everyone's certificate</h3>
     <div class="filters" style="margin:6px 0 10px"><button class="fchip${CERT_CUT === "in" ? " on" : ""}" data-certcut="in">Checked in <b>${C.counts.checkedIn}</b></button>
       <button class="fchip${CERT_CUT === "all" ? " on" : ""}" data-certcut="all">Everyone coming <b>${C.counts.coming}</b></button></div>
+    ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off" style="margin-bottom:10px">` : ""}
     ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still download anyone's certificate under Everyone coming.</div>` : ""}
+    <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
     ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
     <p class="hint" style="margin-top:12px">Each certificate gets its own number and QR code the first time it is downloaded, and is kept for good so it always verifies. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
   const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
@@ -5504,6 +5506,12 @@ function renderCerts(ev, C) {
   const course = box.querySelector("#cert-course");
   if (course) course.onchange = () => save({ course: course.value, date: s.dateSet ? s.date : "" });
   box.querySelectorAll("[data-certcut]").forEach((b) => b.onclick = () => { CERT_CUT = b.dataset.certcut; renderCerts(ev, C); });
+  // Andrew 30 Oct 2026: "I will need search capabilities to search for a name. 450 people is a lot to scroll through".
+  const find = box.querySelector("#cert-find");
+  const filter = () => { const q = CERT_FIND.trim().toLowerCase(); let n = 0;
+    box.querySelectorAll("[data-certkey]").forEach((tr) => { tr.hidden = !!q && !tr.dataset.find.includes(q); if (!tr.hidden) n++; });
+    box.querySelector("#cert-none").hidden = !q || n > 0; };
+  if (find) { find.oninput = () => { CERT_FIND = find.value; filter(); }; filter(); }
   box.querySelector("#cert-preview").onclick = async (e) => {
     const b = e.target; b.disabled = true; b.textContent = "Making the preview…";
     try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); window.open(URL.createObjectURL(f.blob), "_blank", "noopener"); }
