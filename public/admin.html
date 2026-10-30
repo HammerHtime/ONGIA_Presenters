@@ -1495,6 +1495,43 @@
   }
   .healthwrap{margin:0 0 16px}
   .ro button:disabled,.ro input:disabled,.ro select:disabled,.ro textarea:disabled,.ro label.btn{opacity:.5;cursor:not-allowed}
+  /* Uploaded certificate designs (Andrew 30 Oct 2026) */
+  @font-face{font-family:"Lato Cert";src:url(/assets/fonts/Lato-Regular.woff) format("woff");font-weight:400;font-style:normal}
+  @font-face{font-family:"Lato Cert";src:url(/assets/fonts/Lato-Bold.woff) format("woff");font-weight:700;font-style:normal}
+  @font-face{font-family:"Lato Cert";src:url(/assets/fonts/Lato-Italic.woff) format("woff");font-weight:400;font-style:italic}
+  .certup{border-style:dashed;text-align:left;font:inherit;color:var(--muted);align-content:start}.certplus{display:grid;place-items:center;width:100%;aspect-ratio:8.5/11;border-radius:6px;background:var(--sunk);font-size:34px;color:var(--navy)}
+  .scopes{display:grid;gap:10px;margin-bottom:12px}
+  .scopebtn{display:grid;gap:2px;text-align:left;border:1.5px solid var(--border);background:#fff;border-radius:12px;padding:12px 14px;font:inherit;cursor:pointer;color:var(--muted);font-size:13.5px}
+  .scopebtn b{color:var(--ink);font-size:15.5px}.scopebtn:hover,.scopebtn:focus-visible{border-color:var(--gold);background:var(--gold-pale)}
+  .scopebtn.pick{cursor:default}.scopebtn.pick select{margin:6px 0;font:14px var(--fb);padding:8px;border-radius:10px;border:1px solid var(--border)}.scopebtn.pick .mini{justify-self:start}
+  .workdlg .sheet-body{display:flex;align-items:center;gap:14px;padding:22px}.workdlg p{margin:0;font-weight:600}
+  .workdlg .spin{width:26px;height:26px;border-width:3px;border-top-color:var(--gold);flex:none}
+  dialog.designdlg{width:min(1280px,calc(100vw - 24px));max-width:none;height:calc(100dvh - 24px);max-height:none;padding:0;border:0;border-radius:16px;background:var(--card);display:flex;flex-direction:column}
+  dialog.designdlg:not([open]){display:none}
+  .dshead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--border)}.dshead h2{font-family:var(--fd);font-weight:400;font-size:24px;margin:0}.dshead .s{margin:2px 0 0}
+  .dsacts{display:flex;gap:8px;align-items:flex-start}
+  .dsbody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,1fr);gap:16px;padding:14px 18px}
+  .dspagewrap{min-height:0;overflow:auto;display:grid;place-items:start center;background:#525659;border-radius:12px;padding:14px}
+  .dspage{position:relative;width:100%;max-width:640px;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);touch-action:none;user-select:none}
+  .dspage img{display:block;width:100%;height:100%;object-fit:fill;pointer-events:none}
+  .dsbox{position:absolute;border:1.5px dashed var(--gold);background:rgba(184,146,42,.07);cursor:move}.dsbox.on{border-style:solid;border-color:var(--navy);background:rgba(26,47,94,.05)}
+  .dsbox i,.dsqr i{position:absolute;left:-1.5px;bottom:100%;font:600 10px var(--fu);letter-spacing:.1em;text-transform:uppercase;background:var(--gold);color:#fff;padding:1px 6px;border-radius:3px 3px 0 0;font-style:normal;white-space:nowrap}
+  .dsbox.on i{background:var(--navy)}
+  .dstext{position:absolute;inset:0;display:flex;align-items:center;font-family:"Lato Cert",Lato,sans-serif;line-height:1.2;white-space:nowrap;overflow:hidden;pointer-events:none}
+  .dstext.two{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;padding-top:0}
+  .dstext.f-b{font-weight:700}.dstext.f-i{font-style:italic}
+  .dsgrip{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#fff;border:1.5px solid var(--navy);border-radius:2px;cursor:nwse-resize}
+  .dsqr{position:absolute;cursor:move;background:repeating-conic-gradient(#1a2f5e 0 25%,#fff 0 50%) 0 0/25% 25%;border:1.5px dashed var(--gold)}.dsqr i{left:auto;right:-1.5px}
+  .dspanel{min-height:0;overflow:auto}
+  .dsrow{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px;align-items:start;padding:9px 6px;border-top:1px solid var(--border);border-radius:8px}.dsrow.on{background:var(--gold-pale)}
+  .dsrow b{padding-top:4px}.dsctl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .dssize{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}.dssize input{width:66px;padding:4px 6px;min-height:30px}
+  .dsoff{display:inline-flex;align-items:center;gap:6px;font-size:13px;width:100%}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .dcard{display:grid;grid-template-columns:86px minmax(0,1fr);gap:12px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px}.dcard.retired{opacity:.7}
+  .dcard img{width:86px;aspect-ratio:8.5/11;object-fit:cover;border:1px solid var(--border);border-radius:6px;background:var(--sunk)}.dcard img.land{aspect-ratio:11/8.5;align-self:start}
+  .dcard .porg{display:block;font-size:12.5px}.dbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+  @media (max-width:900px){.dsbody{grid-template-columns:1fr;overflow:auto}.dspagewrap{overflow:visible}dialog.designdlg{width:100vw;height:100dvh;border-radius:0}}
   /* Certificates, on Who's coming (Andrew 30 Oct 2026) */
   .dlmenu{position:relative;display:inline-block}.dlmenu>summary{list-style:none;cursor:pointer}.dlmenu>summary::-webkit-details-marker{display:none}
   .dlpop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:#fff;border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);width:min(300px,86vw);padding:6px;display:grid;gap:2px}
@@ -5485,7 +5522,8 @@ function renderCerts(ev, C) {
   box.innerHTML = `<div class="certgrid">
       <div><h3 class="certh"><span class="certn">1</span>The design</h3>
         <div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
-          <img src="${esc(t.thumb)}" alt="" loading="lazy"><b>${esc(t.name)}</b><span>${esc(t.note)}</span></label>`).join("")}</div></div>
+          ${t.builtIn ? `<img src="${esc(t.thumb)}" alt="" loading="lazy">` : `<img data-design="${esc(t.id)}" alt="">`}<b>${esc(t.name)}</b><span>${esc(t.note)}</span></label>`).join("")}
+          <button type="button" class="certtpl certup" id="cert-upload"><span class="certplus" aria-hidden="true">＋</span><b>Upload a new design</b><span>From your designer: a PDF or a picture. Claude places the words.</span></button></div></div>
       <div><h3 class="certh"><span class="certn">2</span>What it says</h3>
         <div class="field"><label for="cert-date">Date issued</label><input type="date" id="cert-date" value="${esc(s.date)}">
           <p class="hint">Prints as <b>${esc(s.date.split("-").reverse().join("/"))}</b>. ${s.dateSet ? `Changed from the event's last day. <button class="linkish" id="cert-dateback">Use the last day</button>` : "The event's last day; change it here if it should read otherwise."}</p></div>
@@ -5501,6 +5539,8 @@ function renderCerts(ev, C) {
     <p class="hint" style="margin-top:12px">Each certificate gets its own number and QR code the first time it is downloaded, and is kept for good so it always verifies. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
   const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
   box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
+  designThumbs(box);
+  box.querySelector("#cert-upload").onclick = () => uploadDesign({ event: ev, saved: (d) => save({ template: d.id, date: s.dateSet ? s.date : "" }) });
   box.querySelector("#cert-date").onchange = (e) => save({ date: e.target.value === C.lastDay ? "" : e.target.value });
   box.querySelector("#cert-dateback")?.addEventListener("click", () => save({ date: "" }));
   const course = box.querySelector("#cert-course");
@@ -5530,6 +5570,249 @@ function renderCerts(ev, C) {
     const p = C.people.find((x) => x.key === b.dataset.certrevoke);
     if (!confirm(`Withdraw ${p.name}'s certificate? Its QR code will say it was withdrawn. Do this only for one issued in error.`)) return;
     try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}&revoke=${encodeURIComponent(p.key)}`, { method: "POST", body: "{}" })); toast("Withdrawn."); } catch (x) { toast(x.message); }
+  });
+}
+
+/**
+ * Certificate designs uploaded in the app (Andrew 30 Oct 2026): "upload it right in the app … and the upload feature
+ * figures out where the name goes, agency etc. and then add it to the list of templates". Asked first whether it is for
+ * one event or a template for any ("That way it doesn't get added to the template list if only for specific event").
+ * The page is drawn here (a PDF through pdf.js), Claude places the words, sample words are lifted off by painting over
+ * them with the colour around them, and the editor shows everything as it will print, to drag into place and save.
+ */
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+let PDFJS_READY = null;
+const loadPdfJs = () => PDFJS_READY ??= new Promise((ok, bad) => {
+  const s = Object.assign(document.createElement("script"), { src: PDFJS, onload: () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS.replace("pdf.min.js", "pdf.worker.min.js"); ok(window.pdfjsLib); }, onerror: () => { PDFJS_READY = null; bad(new Error("The PDF reader would not load. Check the connection, or upload the design as a PNG or JPG.")); } });
+  document.head.append(s);
+});
+/** The design as a canvas about 300 dots to the inch, with its size in points. */
+async function drawDesign(file) {
+  if (/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name)) {
+    const pdf = await (await loadPdfJs()).getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const page = await pdf.getPage(1);
+    const pt = page.getViewport({ scale: 1 });
+    const scale = Math.min(300 / 72, 3600 / Math.max(pt.width, pt.height));
+    const vp = page.getViewport({ scale });
+    const c = Object.assign(document.createElement("canvas"), { width: Math.round(vp.width), height: Math.round(vp.height) });
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: g, viewport: vp }).promise;
+    return { canvas: c, w: pt.width, h: pt.height };
+  }
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) throw new Error("Upload the design as a PDF, PNG or JPG.");
+  const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("That picture could not be opened.")); i.src = URL.createObjectURL(file); });
+  const landscape = img.naturalWidth > img.naturalHeight;
+  const w = landscape ? 792 : 612, h = Math.round(w * img.naturalHeight / img.naturalWidth);
+  const scale = Math.min(1, 3300 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = Object.assign(document.createElement("canvas"), { width: Math.round(img.naturalWidth * scale), height: Math.round(img.naturalHeight * scale) });
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  return { canvas: c, w, h };
+}
+const jpegOf = (canvas, maxSide, quality = 0.88) => {
+  const k = Math.min(1, maxSide / Math.max(canvas.width, canvas.height));
+  const c = Object.assign(document.createElement("canvas"), { width: Math.round(canvas.width * k), height: Math.round(canvas.height * k) });
+  c.getContext("2d").drawImage(canvas, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", quality).split(",")[1];
+};
+/** Lift sample words off: paint each box with the colour most common just outside it. */
+function eraseSamples(canvas, boxes, w) {
+  const k = canvas.width / w, g = canvas.getContext("2d");
+  for (const b of boxes) {
+    const x = Math.max(0, Math.round(b.x * k) - 2), y = Math.max(0, Math.round(b.y * k) - 2), bw = Math.round(b.w * k) + 4, bh = Math.round(b.h * k) + 4;
+    const ring = [];
+    const take = (px, py, n, dx, dy) => { for (let i = 0; i < n; i += 3) { const X = px + dx * i, Y = py + dy * i; if (X < 0 || Y < 0 || X >= canvas.width || Y >= canvas.height) continue; ring.push(g.getImageData(X, Y, 1, 1).data.slice(0, 3)); } };
+    take(x, y - 3, bw, 1, 0); take(x, y + bh + 3, bw, 1, 0); take(x - 3, y, bh, 0, 1); take(x + bw + 3, y, bh, 0, 1);
+    if (!ring.length) continue;
+    const mid = (i) => ring.map((p) => p[i]).sort((a, b) => a - b)[ring.length >> 1];
+    g.fillStyle = `rgb(${mid(0)},${mid(1)},${mid(2)})`;
+    g.fillRect(x, y, bw, bh);
+  }
+}
+/** Ask: one event, or a template for any. From an event the answer is that event or any; from Admin, any or a picked event. */
+function askScope({ event = null, events = [], mayTemplate = true }) {
+  return new Promise((done) => {
+    const dlg = document.createElement("dialog"); dlg.className = "sheet grpdlg"; document.body.append(dlg);
+    dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>Is this certificate for one event, or a template?</h2>
+      <p class="hint" style="margin-top:6px">A template joins the list every event can pick from. A design for one event shows only on that event.</p></div>
+      <div class="sheet-body"><div class="scopes">
+        ${event ? `<button type="button" class="scopebtn" data-scope="event"><b>Just for ${esc(event.title)}</b><span>Shows only on this event</span></button>`
+          : `<div class="scopebtn pick"><b>For one event</b><select id="ds-event" aria-label="Which event"><option value="">Pick the event…</option>${events.map((e) => `<option value="${esc(e.id)}">${esc(e.title)}</option>`).join("")}</select><button type="button" class="mini gold" data-scope="event">Use this event</button></div>`}
+        ${mayTemplate ? `<button type="button" class="scopebtn" data-scope="any"><b>A template for any event</b><span>Joins the list next to the National Gang Summit and the generic design</span></button>` : ""}
+      </div><div class="actions"><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div></div></form>`;
+    let out = null;
+    dlg.querySelectorAll("[data-scope]").forEach((b) => b.onclick = () => {
+      const scope = b.dataset.scope, id = event ? event.id : dlg.querySelector("#ds-event")?.value;
+      if (scope === "event" && !id) { toast("Pick the event first."); return; }
+      out = { scope, event: scope === "event" ? id : "" }; dlg.close();
+    });
+    dlg.addEventListener("close", () => { dlg.remove(); done(out); });
+    dlg.showModal();
+  });
+}
+/** The whole upload: the file, the question, the drawing, Claude's placing, the editor. Calls `saved(design)` once saved. */
+function uploadDesign({ event = null, events = [], saved }) {
+  const pick = Object.assign(document.createElement("input"), { type: "file", accept: ".pdf,application/pdf,image/png,image/jpeg,image/webp", hidden: true });
+  document.body.append(pick);
+  pick.onchange = async () => {
+    const file = pick.files?.[0]; pick.remove();
+    if (!file) return;
+    const scope = await askScope({ event, events, mayTemplate: !WHO?.email || !!WHO?.canCost });
+    if (!scope) return;
+    const wait = workingSheet("Reading the design…");
+    try {
+      const { canvas, w, h } = await drawDesign(file);
+      wait.say("Claude is finding where the name, agency, course and date go…");
+      let placed;
+      try { placed = await api(`/certificates?place=1${scope.event ? `&event=${encodeURIComponent(scope.event)}` : ""}`, { method: "POST", body: JSON.stringify({ image: jpegOf(canvas, 1400, 0.85), mediaType: "image/jpeg", w, h }) }); }
+      catch (x) { placed = null; toast(`${x.message} The boxes start in the usual places; drag them where they go.`); }
+      if (placed?.erase?.length) { wait.say("Taking off the sample words…"); eraseSamples(canvas, placed.erase, w); }
+      wait.close();
+      const forEvent = (event && scope.event === event.id) ? event : events.find((e) => e.id === scope.event) ?? null;
+      designEditor({ canvas, w, h, placed, design: { name: forEvent ? `${forEvent.title}` : file.name.replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " "), ...scope }, forEvent, saved });
+    } catch (x) { wait.close(); toast(x.message); }
+  };
+  pick.click();
+}
+function workingSheet(msg) {
+  const d = document.createElement("dialog"); d.className = "sheet grpdlg workdlg"; d.innerHTML = `<div class="sheet-body"><div class="spin" aria-hidden="true"></div><p id="wk-msg">${esc(msg)}</p></div>`;
+  document.body.append(d); d.showModal();
+  return { say: (m) => { d.querySelector("#wk-msg").textContent = m; }, close: () => { d.close(); d.remove(); } };
+}
+/** The usual places, for a design Claude could not read: a centred column, top to bottom. */
+const fallbackPlacement = (w, h) => ({ fields: {
+  name: { x: w * 0.1, y: h * 0.42, w: w * 0.8, h: h * 0.05, font: "b", size: 30, color: "#111111", align: "center", lines: 1 },
+  agency: { x: w * 0.15, y: h * 0.48, w: w * 0.7, h: h * 0.03, font: "i", size: 16, color: "#111111", align: "center", lines: 1 },
+  course: { x: w * 0.12, y: h * 0.56, w: w * 0.76, h: h * 0.07, font: "b", size: 18, color: "#111111", align: "center", lines: 2, off: true },
+  date: { x: w * 0.1, y: h * 0.8, w: w * 0.25, h: h * 0.025, font: "r", size: 12, color: "#111111", align: "left", lines: 1 } },
+  qr: { x: w - w * 0.06 - 30, y: 30, size: Math.round(w * 0.06), light: false }, erase: [], notes: "" });
+const FIELD_LABEL = { name: "Name", agency: "Agency", course: "Course", date: "Date" };
+const sampleWords = (k, ev, dateStyle) => k === "name" ? "Jordan Tremblay" : k === "agency" ? "Toronto Police Service" : k === "course" ? (ev?.title || "The training's title") :
+  ((d) => dateStyle === "long" ? fmtDate(d).replace(/^\w+ (\d+) (\w+) (\d+)$/, (m, a, b, c) => `${({ Jan: "January", Feb: "February", Mar: "March", Apr: "April", May: "May", Jun: "June", Jul: "July", Aug: "August", Sep: "September", Oct: "October", Nov: "November", Dec: "December" })[b] ?? b} ${a}, ${c}`) : d.split("-").reverse().join("/"))(ev?.lastDay || ev?.dayOne || new Date().toISOString().slice(0, 10));
+/**
+ * The editor: the design with a box for each item showing its words as they will print. Drag a box to move it, its
+ * corner to size it; the panel sets the face, size, colour and alignment. Saves a new design, or changes an old one.
+ */
+function designEditor({ canvas = null, imageUrl = null, w, h, placed = null, design, forEvent = null, saved, existing = null }) {
+  const P = existing ? { fields: structuredClone(existing.fields), qr: existing.qr ? { ...existing.qr } : null, erase: [], notes: "" } : (placed ?? fallbackPlacement(w, h));
+  if (!P.fields.course) P.fields.course = { ...fallbackPlacement(w, h).fields.course };
+  const st = { name: design.name, dateStyle: existing?.dateStyle ?? "dmy", qr: P.qr ?? { ...fallbackPlacement(w, h).qr, off: true }, fields: P.fields, on: "name" };
+  if (existing && !existing.qr) st.qr.off = true;
+  const dlg = document.createElement("dialog"); dlg.className = "designdlg"; document.body.append(dlg);
+  const src = canvas ? canvas.toDataURL("image/jpeg", 0.9) : imageUrl;
+  const seg = (k, opts, val) => `<span class="pbseg sm" data-seg="${k}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${String(val) === String(v) ? "on" : ""}">${l}</button>`).join("")}</span>`;
+  const controls = () => Object.entries(st.fields).map(([k, f]) => `<div class="dsrow${st.on === k ? " on" : ""}" data-row="${k}"><b>${FIELD_LABEL[k]}</b><div class="dsctl">
+      ${k === "course" || k === "date" ? `<label class="dsoff"><input type="checkbox" data-print="${k}"${f.off ? "" : " checked"}> Print it</label>` : ""}
+      ${seg(`${k}.font`, [["b", "Bold"], ["r", "Regular"], ["i", "Italic"]], f.font)}
+      <label class="dssize">Size <input type="number" min="6" max="96" step="0.5" data-size="${k}" value="${f.size}" inputmode="decimal"></label>
+      ${seg(`${k}.color`, [["#111111", "Black"], ["#1a2f5e", "Navy"], ["#ffffff", "White"]], f.color)}
+      ${seg(`${k}.align`, [["left", "Left"], ["center", "Centre"]], f.align)}
+      ${k === "date" ? seg("dateStyle", [["dmy", sampleWords("date", forEvent, "dmy")], ["long", sampleWords("date", forEvent, "long")]], st.dateStyle) : ""}</div></div>`).join("")
+    + `<div class="dsrow" data-row="qr"><b>QR code</b><div class="dsctl">${seg("qr.off", [["false", "Show"], ["true", "Leave off"]], !!st.qr.off)}<span class="hint">Drag it to a quiet spot</span></div></div>`;
+  dlg.innerHTML = `<div class="dshead"><div><h2>${existing ? "Edit the design" : "Check where everything goes"}</h2>
+      <p class="s">${existing ? "" : "Claude placed each item. "}Drag a box to move it; pull its corner to size it. The words shown are how they'll print.${P.notes ? ` <b>${esc(P.notes)}</b>` : ""}</p></div>
+      <div class="dsacts"><button type="button" class="btn btn-ghost" id="ds-cancel">Cancel</button><button type="button" class="btn btn-gold" id="ds-save">${existing ? "Save the changes" : "Save the design"}</button></div></div>
+    <div class="dsbody"><div class="dspagewrap"><div class="dspage" id="ds-page" style="aspect-ratio:${w}/${h}"><img src="${esc(src)}" alt="The certificate design" draggable="false"><div id="ds-boxes"></div></div></div>
+      <div class="dspanel">${P.erase?.length ? `<div class="note" style="margin-bottom:10px">✓ Took off the sample words: ${P.erase.map((e) => `“${esc(e.text)}”`).join(", ")}.</div>` : ""}
+        <div class="field"><label for="ds-name">Name of the design</label><input id="ds-name" value="${esc(st.name)}" maxlength="120"></div>
+        <p class="hint" style="margin:-4px 0 10px">${design.scope === "any" ? "A template: every event can pick it." : `Only for ${esc(forEvent?.title ?? "this event")}.`}</p>
+        <div id="ds-controls">${controls()}</div></div></div>`;
+  const page = dlg.querySelector("#ds-page"), boxes = dlg.querySelector("#ds-boxes");
+  const k = () => page.clientWidth / w;
+  const draw = () => {
+    const K = k();
+    boxes.innerHTML = Object.entries(st.fields).filter(([, f]) => !f.off).map(([key, f]) => `<div class="dsbox${st.on === key ? " on" : ""}" data-box="${key}" style="left:${f.x * K}px;top:${f.y * K}px;width:${f.w * K}px;height:${f.h * K}px">
+        <i>${FIELD_LABEL[key]}</i><span class="dstext f-${f.font}${f.lines > 1 ? " two" : ""}" style="font-size:${f.size * K}px;color:${f.color};text-align:${f.align};justify-content:${f.align === "center" ? "center" : "flex-start"}">${esc(sampleWords(key, forEvent, st.dateStyle))}</span><span class="dsgrip" data-grip="${key}"></span></div>`).join("")
+      + (st.qr.off ? "" : `<div class="dsqr" data-box="qr" style="left:${st.qr.x * K}px;top:${st.qr.y * K}px;width:${st.qr.size * K}px;height:${st.qr.size * K}px"><i>QR</i><span class="dsgrip" data-grip="qr"></span></div>`);
+  };
+  const panel = () => { dlg.querySelector("#ds-controls").innerHTML = controls(); wirePanel(); };
+  const wirePanel = () => {
+    dlg.querySelectorAll("[data-seg]").forEach((sg) => sg.querySelectorAll("button").forEach((b) => b.onclick = () => {
+      const [key, prop] = sg.dataset.seg.split(".");
+      if (key === "dateStyle") st.dateStyle = b.dataset.v;
+      else if (key === "qr") st.qr.off = b.dataset.v === "true";
+      else { st.fields[key][prop] = b.dataset.v; st.on = key; if (prop === "color" && b.dataset.v === "#ffffff" && key === "name") st.qr.light = true; }
+      panel(); draw();
+    }));
+    dlg.querySelectorAll("[data-size]").forEach((i) => i.oninput = () => { const v = Number(i.value); if (v >= 6 && v <= 96) { st.fields[i.dataset.size].size = v; draw(); } });
+    dlg.querySelectorAll("[data-print]").forEach((c) => c.onchange = () => { st.fields[c.dataset.print].off = !c.checked; draw(); });
+    dlg.querySelectorAll("[data-row]").forEach((r) => r.onfocusin = () => { if (r.dataset.row !== "qr" && st.on !== r.dataset.row) { st.on = r.dataset.row; dlg.querySelectorAll("[data-row]").forEach((x) => x.classList.toggle("on", x.dataset.row === st.on)); draw(); } });
+  };
+  // Drag to move, the corner to size; in points, so the page can be any size on screen.
+  boxes.onpointerdown = (e) => {
+    const grip = e.target.closest("[data-grip]"), el = e.target.closest("[data-box]");
+    if (!el) return;
+    e.preventDefault();
+    const key = el.dataset.box, f = key === "qr" ? st.qr : st.fields[key], K = k();
+    if (key !== "qr" && st.on !== key) { st.on = key; dlg.querySelectorAll("[data-row]").forEach((x) => x.classList.toggle("on", x.dataset.row === key)); }
+    const start = { x: e.clientX, y: e.clientY, fx: f.x, fy: f.y, fw: f.w ?? f.size, fh: f.h ?? f.size };
+    const move = (m) => {
+      const dx = (m.clientX - start.x) / K, dy = (m.clientY - start.y) / K;
+      if (grip) { if (key === "qr") f.size = Math.max(24, Math.min(96, start.fw + Math.max(dx, dy))); else { f.w = Math.max(20, Math.min(w - f.x, start.fw + dx)); f.h = Math.max(6, Math.min(h - f.y, start.fh + dy)); } }
+      else { const fw = key === "qr" ? f.size : f.w, fh = key === "qr" ? f.size : f.h; f.x = Math.max(0, Math.min(w - fw, start.fx + dx)); f.y = Math.max(0, Math.min(h - fh, start.fy + dy)); }
+      draw();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  };
+  const ro = new ResizeObserver(draw); ro.observe(page);
+  dlg.querySelector("#ds-cancel").onclick = () => { if (existing || confirm("Leave without saving this design?")) dlg.close(); };
+  dlg.querySelector("#ds-save").onclick = async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = "Saving…";
+    const body = { name: dlg.querySelector("#ds-name").value.trim(), fields: st.fields, qr: st.qr.off ? null : st.qr, dateStyle: st.dateStyle };
+    try {
+      const out = existing ? await api(`/certificates?design=${encodeURIComponent(existing.id)}`, { method: "PUT", body: JSON.stringify(body) })
+        : await api(`/certificates?design=new`, { method: "POST", body: JSON.stringify({ ...body, scope: design.scope, event: design.event, w, h, image: jpegOf(canvas, 3300, 0.88) }) });
+      dlg.close(); toast(existing ? "Saved." : `${out.design.name} saved${design.scope === "any" ? " as a template" : ""}.`); saved?.(out.design);
+    } catch (x) { toast(x.message); b.disabled = false; b.textContent = existing ? "Save the changes" : "Save the design"; }
+  };
+  dlg.addEventListener("close", () => { ro.disconnect(); dlg.remove(); });
+  dlg.showModal(); wirePanel(); requestAnimationFrame(draw);
+}
+/** An uploaded design's picture: it needs signing in, so it comes as a blob. */
+const DESIGN_THUMBS = new Map();
+async function designThumbs(root) {
+  for (const img of root.querySelectorAll("img[data-design]")) {
+    const id = img.dataset.design;
+    if (!DESIGN_THUMBS.has(id)) DESIGN_THUMBS.set(id, apiFetch(`/api/certificates?design=${encodeURIComponent(id)}&image=1`, { headers: { "x-admin-key": KEY } }).then((r) => (r.ok ? r.blob() : null)).then((b) => (b ? URL.createObjectURL(b) : "")).catch(() => ""));
+    DESIGN_THUMBS.get(id).then((u) => { if (u) img.src = u; });
+  }
+}
+/** Edit a saved design: its picture from the desk, the editor over it. */
+async function editDesign(id, saved) {
+  try {
+    const { design } = await api(`/certificates?design=${encodeURIComponent(id)}`);
+    const res = await apiFetch(`/api/certificates?design=${encodeURIComponent(id)}&image=1`, { headers: { "x-admin-key": KEY } });
+    if (!res.ok) throw new Error("The design's picture could not be loaded.");
+    const imageUrl = URL.createObjectURL(await res.blob());
+    designEditor({ imageUrl, w: design.w, h: design.h, design: { name: design.name, scope: design.scope, event: design.event }, existing: design, forEvent: null, saved });
+  } catch (x) { toast(x.message); }
+}
+/** Admin › Certificate designs: every uploaded design, which event it is for or that it is a template, to edit, retire or add. */
+function designsScreen(D) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const live = D.designs.filter((d) => !d.retired), gone = D.designs.filter((d) => d.retired);
+  const card = (d) => `<div class="dcard${d.retired ? " retired" : ""}"><img data-design="${esc(d.id)}" alt="" class="${d.landscape ? "land" : ""}"><div><b>${esc(d.name)}</b>
+      <span class="porg">${d.scope === "any" ? "Template · any event" : `For ${esc(d.eventTitle || "an event no longer on the desk")}`}</span>
+      <div class="dbtns"><button class="mini" data-dedit="${esc(d.id)}">Edit</button>${d.scope === "event" && D.mayTemplate ? `<button class="mini" data-dscope="${esc(d.id)}|any">Make it a template</button>` : ""}${d.scope === "any" && D.mayTemplate ? `<button class="mini" data-dscope="${esc(d.id)}|event">Just one event…</button>` : ""}
+      <button class="linkish" data-dretire="${esc(d.id)}|${d.retired ? "0" : "1"}">${d.retired ? "Bring back" : "Retire"}</button></div></div></div>`;
+  ROOT.innerHTML = `${adminTabsHtml("designs")}<div class="agtop"><div><h2 class="agh">Certificate designs</h2><p class="s">The designs your designer made, uploaded here. Each is a template any event can pick, or for one event only. The National Gang Summit and the generic design are always there.</p></div>
+      <div class="agrun"><button class="mini gold" id="ds-upload">Upload a new design</button></div></div>
+    <div class="dgrid">${live.length ? live.map(card).join("") : `<div class="empty">No designs uploaded yet.</div>`}</div>
+    ${gone.length ? `<details class="card agblank" style="margin-top:16px"><summary class="card-head"><div><h2>Retired · ${gone.length}</h2><div class="s">Not offered on any event. Certificates already issued on them still open and verify.</div></div><span class="ibcaret" aria-hidden="true">▾</span></summary><div class="card-body"><div class="dgrid">${gone.map(card).join("")}</div></div></details>` : ""}`;
+  wireAdminTabs(); designThumbs(ROOT);
+  const again = async () => designsScreen(await api("/certificates?designs=1"));
+  document.getElementById("ds-upload").onclick = () => uploadDesign({ events: D.events, saved: again });
+  ROOT.querySelectorAll("[data-dedit]").forEach((b) => b.onclick = () => editDesign(b.dataset.dedit, again));
+  ROOT.querySelectorAll("[data-dretire]").forEach((b) => b.onclick = async () => {
+    const [id, on] = b.dataset.dretire.split("|");
+    try { await api(`/certificates?design=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ retired: on === "1" }) }); again(); } catch (x) { toast(x.message); }
+  });
+  ROOT.querySelectorAll("[data-dscope]").forEach((b) => b.onclick = async () => {
+    const [id, scope] = b.dataset.dscope.split("|");
+    let event = "";
+    if (scope === "event") { const got = await askScope({ events: D.events, mayTemplate: false }); if (!got) return; event = got.event; }
+    try { await api(`/certificates?design=${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ scope, event }) }); toast(scope === "any" ? "Now a template." : "Now for that event only."); again(); } catch (x) { toast(x.message); }
   });
 }
 
@@ -8587,7 +8870,7 @@ async function backupLine(host) {
 let ADMIN_BACKUP = false;
 function adminTabsHtml(active) {
   const tab = (k, label) => `<button class="atab${active === k ? " on" : ""}" data-atab="${k}" role="tab" aria-selected="${active === k}">${label}</button>`;
-  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
+  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${tab("designs", "Certificate designs")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
 }
 function wireAdminTabs() {
   ROOT.querySelectorAll("[data-atab]").forEach((b) => { b.onclick = () => { view = { name: "admin", tab: b.dataset.atab }; render(); }; });
@@ -10320,6 +10603,7 @@ async function drawScreen() {
       ADMIN_BACKUP = !!B;
       if (view.name === "admin" && view.tab === "backup" && B) return backupScreen(B);
       if (view.name === "admin" && view.tab === "agencies") return agenciesScreen(await api("/agencies?master=1"));
+      if (view.name === "admin" && view.tab === "designs") return designsScreen(await api("/certificates?designs=1"));
       return rosterScreen(await loadRoster());
     }
     if (view.name === "sponsors" && SPONSORS_ON) {
