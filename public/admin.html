@@ -434,6 +434,7 @@
   .sbx .ng tr.rl b.pname{display:block;width:170px;overflow:hidden;text-overflow:ellipsis}
   .sbx .ng .rltag{font-style:normal;color:var(--rbh)}
   .src.s-wix{background:#e7eefc;color:#1d4fb8}
+  .sbl .rcin{display:block;font-size:11.5px;color:var(--rbh);text-align:right;margin-top:1px}
   .sbreg .wixof{display:block;font-size:11.5px;color:var(--muted);white-space:normal}
   .wixt{margin-top:10px;background:var(--sunk);border-radius:12px;padding:10px 12px}.wixt h4{margin:0 0 6px;font-size:14px}.wixt h4 small{font-weight:400;color:var(--muted)}
   .wixt .sbl td small{color:var(--muted)}.wixt tr.hid td{color:var(--muted)}.wixt select{font:inherit;font-size:13px;padding:3px 6px;border-radius:8px;border:1px solid var(--border);background:#fff}
@@ -3575,7 +3576,8 @@ function eventScreen(data) {
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
   const showMoney = !!(sow || receipts || budget);
   const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
-    ...(showMoney ? [["money", "Money"]] : []), ["communications", "Communications"], ["survey", "Survey"], ["settings", "Settings"]];
+    // A board member on the event sees only its receipts there, so for them the tab says so.
+    ...(showMoney ? [["money", data.canCost ? "Money" : "Receipts"]] : []), ["communications", "Communications"], ["survey", "Survey"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
@@ -3733,7 +3735,7 @@ function eventScreen(data) {
       ${hotelLocked(ev) ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
     <div class="evtiles">${tiles}</div></section>${evNotices(ev)}
-    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
+    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
     <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
@@ -3758,7 +3760,7 @@ function eventScreen(data) {
       + pv("guests", attendeesCard(ev, guests) + agenciesCard()))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
-    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (receipts ? receiptsCard(ev, receipts) : "") + (budget ? `<div id="evbudget"></div>` : "")) : "")
+    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     + panel("survey", surveyCard() + resultsCard())
@@ -3843,6 +3845,7 @@ function eventScreen(data) {
   loadShots(ROOT, ev.id, presenters);
   wireActions();
   wireChecklist(ev);
+  SBX_RC = receipts?.optional ? { ev: ev.id, sums: receipts.sums } : null;
   mountBudget(ev, budget);
   wireRooming(ev, rooming);
   wireAgenda(ev, agenda);
@@ -6259,7 +6262,8 @@ function wireReceipts(ev, R0) {
   let R = R0, timer = null, editing = null;
   const rcOpen = new Set(), rcMore = new Set();   // sections opened, receipts showing their ⋯, while the page is open
   const $ = (sel, root = body) => root.querySelector(sel);
-  const lineName = (id) => id === RC_OTHER ? "Other" : (R.lines.find((l) => l.id === id)?.name ?? "a line that has since been removed");
+  // ONGIA's own events (R.optional): receipts are optional, and so is sorting them; one under no line is "Not sorted".
+  const lineName = (id) => id === RC_OTHER ? (R.optional ? "Not sorted" : "Other") : (R.lines.find((l) => l.id === id)?.name ?? "a line that has since been removed");
   const urls = {};
 
   const fileBlob = async (id) => {
@@ -6276,13 +6280,16 @@ function wireReceipts(ev, R0) {
     const me = String(WHO?.email ?? "").toLowerCase(), want = v.paidBy?.email ?? (R.payers.some((x) => x.email === me) ? me : "");
     const opt = (x) => `<option value="${esc(x.email)}"${want === x.email ? " selected" : ""}>${esc(x.name)}</option>`;
     const on = R.payers.filter((x) => x.onEvent), off = R.payers.filter((x) => !x.onEvent);
-    return `<div class="field full"><label>Paid by (the board member who will claim it)</label><select class="f-paid" aria-label="Paid by"><option value="">Pick a board member…</option>
+    return `<div class="field full"><label>${R.optional ? `Who paid? <span style="text-transform:none;letter-spacing:0">(a board member to pay back, or ONGIA)</span>` : "Paid by (the board member who will claim it)"}</label><select class="f-paid" aria-label="Paid by"><option value="">${R.optional ? "ONGIA paid it directly" : "Pick a board member…"}</option>
       ${on.length ? `<optgroup label="On this event">${on.map(opt).join("")}</optgroup>` : ""}${off.length ? `<optgroup label="Other board members">${off.map(opt).join("")}</optgroup>` : ""}</select></div>`;
   };
   const fields = (v, { lines }) => `<div class="rcf">${payerSelect(v)}
-      <div class="field full"><label>Which line of the statement of work?</label>
+      ${R.optional ? `<div class="field full"><label>Which line of the budget? <span style="text-transform:none;letter-spacing:0">(if you know)</span></label>
+        <select class="f-line" aria-label="Line of the budget"><option value="">Not sorted</option>${lines.map((l) => `<option value="${esc(l.id)}"${v.lineId === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("")}</select></div>
+      <div class="field full f-othwrap"><label>Note <span style="text-transform:none;letter-spacing:0">(if it helps)</span></label><input class="f-oth" maxlength="160" value="${esc(v.otherNote ?? "")}" placeholder="e.g. coffee for the volunteers"></div>`
+      : `<div class="field full"><label>Which line of the statement of work?</label>
         <select class="f-line" aria-label="Line of the statement of work"><option value="">Pick one…</option>${lines.map((l) => `<option value="${esc(l.id)}"${v.lineId === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("")}<option value="${RC_OTHER}"${v.lineId === RC_OTHER ? " selected" : ""}>Other</option></select></div>
-      <div class="field full f-othwrap"${v.lineId === RC_OTHER ? "" : " hidden"}><label>What was it for? (Other)</label><input class="f-oth" maxlength="160" value="${esc(v.otherNote ?? "")}" placeholder="e.g. taxi to the studio"></div>
+      <div class="field full f-othwrap"${v.lineId === RC_OTHER ? "" : " hidden"}><label>What was it for? (Other)</label><input class="f-oth" maxlength="160" value="${esc(v.otherNote ?? "")}" placeholder="e.g. taxi to the studio"></div>`}
       <div class="field"><label>Vendor</label><input class="f-vendor" maxlength="120" value="${esc(v.vendor ?? "")}" autocomplete="off"></div>
       <div class="field"><label>Date on the receipt</label><input class="f-date" type="date" value="${esc(v.date ?? "")}"></div>
       <div class="field full"><label>Amount before tax <span style="text-transform:none;letter-spacing:0">(this is what counts)</span></label>
@@ -6297,7 +6304,7 @@ function wireReceipts(ev, R0) {
   });
   const wireFields = (root) => {
     const sel = $(".f-line", root);
-    sel.onchange = () => { $(".f-othwrap", root).hidden = sel.value !== RC_OTHER; };
+    if (!R.optional) sel.onchange = () => { $(".f-othwrap", root).hidden = sel.value !== RC_OTHER; };
     // Tax and total are filled in for the person: amount + tax = total, whichever two are typed.
     const a = $(".f-amount", root), t = $(".f-tax", root), tot = $(".f-total", root);
     const fill = (changed) => {
@@ -6314,13 +6321,13 @@ function wireReceipts(ev, R0) {
     if (d.read.state === "reading") return `<div class="rcd reading" data-d="${esc(d.id)}" data-state="reading">${pv}<div class="reading-line"><span class="dot"></span> Claude is reading it…</div>
       <div class="acts"><button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
     const f = d.read.found, failed = d.read.state === "failed";
-    const v = failed ? {} : { ...f, amount: f.counted ?? "", lineId: f.suggestedLine === "Other" ? RC_OTHER : (R.lines.find((l) => l.name === f.suggestedLine)?.id ?? "") };
+    const v = failed ? {} : { ...f, amount: f.counted ?? "", lineId: f.suggestedLine === "Other" ? (R.optional ? "" : RC_OTHER) : (R.lines.find((l) => l.name === f.suggestedLine)?.id ?? "") };
     const notes = failed ? `<div class="rcn warn">${esc(d.read.why)}</div>`
       : !f.isReceipt ? `<div class="rcn bad">This doesn't look like a receipt or an invoice. Check the file, or discard it.</div>`
       : [f.confidence === "low" ? `<div class="rcn warn"><b>Claude wasn't sure about this one.</b> Check each figure against the picture before you confirm.</div>` : f.confidence === "medium" ? `<div class="rcn info">Claude was fairly sure. A quick look at the figures is worth it.</div>` : "",
          f.notes ? `<div class="rcn info">${esc(f.notes)}</div>` : ""].join("");
     return `<div class="rcd" data-d="${esc(d.id)}" data-state="${d.read.state}">${pv}${notes}${fields(v, { lines: R.lines })}
-      <div class="acts"><button class="btn btn-gold" data-confirm="${esc(d.id)}">Confirm and count it</button>
+      <div class="acts"><button class="btn btn-gold" data-confirm="${esc(d.id)}">${R.optional ? "Keep it" : "Confirm and count it"}</button>
         ${failed ? `<button class="btn btn-ghost" data-again="${esc(d.id)}">Read it again</button>` : ""}<button class="btn btn-ghost" data-discard="${esc(d.id)}">Discard</button></div></div>`;
   };
 
@@ -6339,8 +6346,8 @@ function wireReceipts(ev, R0) {
     return `<div class="rcrow${open ? " more" : ""}" data-k="${esc(r.id)}"><span class="rqv">${esc(r.vendor)}</span><span class="rqd">${esc(fmtDate(r.date).replace(/ \d{4}$/, ""))}</span><span class="rqa">${usd(r.amount)}</span>
       ${sp}<button type="button" class="rcmore" data-more="${esc(r.id)}" aria-expanded="${open}" aria-label="More about ${esc(r.vendor)}">⋯</button></div>
       ${open ? `<div class="rcmorebox" data-k="${esc(r.id)}">
-        <div class="sub">${esc(fmtDate(r.date))}${r.lineId === RC_OTHER ? ` · ${esc(r.otherNote)}` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
-        <div class="sub">paid by <b>${esc(r.paidBy?.name ?? "—")}</b> · added by ${esc(r.addedBy?.name || r.addedBy?.email || "")}${r.readBy === "hand" ? " · typed in by hand" : ""}</div>
+        <div class="sub">${esc(fmtDate(r.date))}${r.otherNote ? ` · ${esc(r.otherNote)}` : ""}${r.tax !== null && r.tax !== undefined ? ` · tax ${usd(r.tax)} not counted` : ""}${r.currency && r.currency !== "CAD" ? ` · <b>${esc(r.currency)}</b>: not converted` : ""}</div>
+        <div class="sub">paid by <b>${esc(r.paidBy?.name ?? (R.optional ? "ONGIA directly" : "—"))}</b> · added by ${esc(r.addedBy?.name || r.addedBy?.email || "")}${r.readBy === "hand" ? " · typed in by hand" : ""}</div>
         <div class="rclinks"><button class="lnk" data-open="${esc(r.id)}">Open the ${r.type === "application/pdf" ? "PDF" : "photo"}</button>
           ${r.filed ? "" : `<span class="rcprob">Not in SharePoint: ${esc(r.filedProblem ?? "not filed")}</span> <button class="lnk" data-refile="${esc(r.id)}">Try again</button>`}
           ${r.mine && !R.closed || R.canCost ? `<button class="lnk" data-edit="${esc(r.id)}">Change</button><button class="lnk" data-del="${esc(r.id)}">Remove</button>` : ""}</div></div>` : ""}`;
@@ -6373,6 +6380,8 @@ function wireReceipts(ev, R0) {
   };
 
   const draw = () => {
+    // The budget beside it shows what the receipts come to: a receipt kept or removed redraws it.
+    if (R.optional && SBX_EV?.id === ev.id && JSON.stringify(SBX_RC?.sums) !== JSON.stringify(R.sums)) { SBX_RC = { ev: ev.id, sums: R.sums }; if (SBX_HOST?.isConnected) sbxDraw(); }
     const sum = body.closest("details")?.querySelector("summary");
     if (sum) {
       const n = R.items.length, pend = R.drafts.length;
@@ -6392,13 +6401,13 @@ function wireReceipts(ev, R0) {
       dh.appendChild(node);
     });
     body.innerHTML = `${R.closed ? `<div class="rcn info">The invoice has gone out, so receipts can't be added or changed from here now. The president or the VP can still do it.</div>` : ""}
-      ${R.hasSow ? "" : `<div class="rcn info">There is no statement of work for this event yet, so there are no lines to put receipts under. Use <b>Other</b> and say what each was for; the president or the VP can move them later.</div>`}
+      ${R.hasSow || R.optional ? "" : `<div class="rcn info">There is no statement of work for this event yet, so there are no lines to put receipts under. Use <b>Other</b> and say what each was for; the president or the VP can move them later.</div>`}
       ${R.closed ? "" : `<div class="rc-add"><label class="btn btn-gold" id="rc-cam">📷 Take a photo<input type="file" accept="image/*" capture="environment"></label>
         <label class="btn btn-ghost" id="rc-pick">Choose a photo or PDF<input type="file" accept="image/*,application/pdf" multiple></label></div>
-        <p class="hint" style="margin:-4px 0 14px" id="rc-said">Claude reads the vendor, date and amounts; you check them and say which line they belong to. Nothing counts until you confirm it.</p>`}
+        <p class="hint" style="margin:-4px 0 14px" id="rc-said">${R.optional ? "Receipts are optional on this event: upload the ones you have. Claude reads the vendor, date and amounts; you check them, and put them under a budget line if you know which." : "Claude reads the vendor, date and amounts; you check them and say which line they belong to. Nothing counts until you confirm it."}</p>`}
       <div id="rc-drafts"></div>
-      ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is under Other</span>` : ""}</div>
-      ${R.canCost && R.byPayer?.length ? `<div class="rcsum rcpay"><span><b>Paid by</b> (total paid, tax included, for checking claims):</span>${R.byPayer.map((x) => `<span>${esc(x.name)} <b>${usd(x.paid)}</b> <small>${x.count} receipt${x.count === 1 ? "" : "s"}</small></span>`).join("")}</div>` : ""}` : ""}
+      ${R.items.length ? `<div class="rcsum"><span><b>${usd(R.total)}</b> before tax, ${R.items.length} receipt${R.items.length === 1 ? "" : "s"}</span>${R.canCost && R.sums?.other ? `<span>of which <b>${usd(R.sums.other)}</b> is ${R.optional ? "not sorted" : "under Other"}</span>` : ""}</div>
+      ${R.canCost && R.byPayer?.length ? `<div class="rcsum rcpay"><span><b>Paid by</b> (total paid, tax included, for checking claims):</span>${R.byPayer.map((x) => `<span>${esc(x.email ? x.name : R.optional ? "ONGIA directly" : x.name)} <b>${usd(x.paid)}</b> <small>${x.count} receipt${x.count === 1 ? "" : "s"}</small></span>`).join("")}</div>` : ""}` : ""}
       <div id="rc-items">${R.items.length ? groupsHtml() : `<p class="hint">No receipts yet.</p>`}</div>`;
     const slot = $("#rc-drafts");
     while (dh.firstChild) slot.appendChild(dh.firstChild);
@@ -8451,6 +8460,7 @@ let SBX = null, SBX_SAVE = null, SBX_SAID = "";
 // Where the budget page is drawn and saved: the Sandbox screen, or one event's Money tab (SBX_EV is that event, SBX_LIVE
 // what its records say: the rooming list, the hotel contract, the board on it).
 let SBX_HOST = null, SBX_PATH = "/sandbox", SBX_EV = null, SBX_LIVE = null;
+let SBX_RC = null;   // { ev, sums }: the event's receipts by line, shown beside the budget's lines
 const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
 const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const sbxShort = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
@@ -8582,6 +8592,10 @@ function sbxQuestions() {
 function sbxDraw() {
   const B = SBX, C = sbxCalc(B), R = B.reg, on = (k) => R[k]?.on;
   const money = sbxMoney;
+  // What the event's receipts come to against each line, for the president and the VP (receipts are optional here).
+  const RCS = SBX_EV && SBX_RC?.ev === SBX_EV.id ? SBX_RC.sums : null;
+  const rcOn = (id) => RCS?.byLine?.[id] ?? 0;
+  const rcAll = RCS ? Object.values(RCS.byLine ?? {}).reduce((n, v) => n + v, 0) + (RCS.other ?? 0) : 0;
   const today = todayIso();
   const tile = (k, v, sm, cls = "") => `<div class="sbt ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sm">${sm}</div></div>`;
   const split = [on("inPerson") || on("earlyBird") ? `In person <b>${(on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0)}</b>` : "",
@@ -8628,7 +8642,7 @@ function sbxDraw() {
       <div class="row"><span>Room block <span class="src s-ct">contract</span></span><span>${inp("hotel.commitment", B.hotel.commitment, 70)} nights, ${inp("hotel.minPct", B.hotel.minPct, 50)}% minimum</span></div>
       <div class="row"><span>Attendees' nights so far <small>from the hotel's pick-up report</small></span>${inp("hotel.pickup", B.hotel.pickup, 80, "type it")}</div>
       <div class="row"><span>Rebate per paid night <span class="src s-ct">contract</span></span>${inp("hotel.rebate", B.hotel.rebate, 56)}</div>
-      <div class="row tot"><span>Rooms ONGIA pays or reimburses</span><b>${C.paidNights} nights · ${money(C.rooms)}</b></div></div>
+      <div class="row tot"><span>Rooms ONGIA pays or reimburses</span><b>${C.paidNights} nights · ${money(C.rooms)}</b></div>${rcOn("rooms") ? `<div class="row"><span>Receipts so far</span><b>${money(rcOn("rooms"))}</b></div>` : ""}</div>
     <div class="blk wide"><h3><span class="n">1</span>Registration <button class="mini" id="sbx-q" style="margin-left:auto">Registration questions</button></h3>
       <table class="sbreg"><thead><tr><th></th><th>Price</th><th>Expected</th><th>Sold so far</th></tr></thead><tbody>
         ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", ` / ${wixd("virtual") && R.virtual.fromWixNon ? wixv(money(R.virtual.priceNon)) : inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}`)}${regRow("memberships", "Memberships")}</tbody></table>
@@ -8640,7 +8654,7 @@ function sbxDraw() {
       <div class="row"><span>Order fewer for no-shows %</span>${inp("meals.noShow", B.meals.noShow, 56)}</div>
       <div class="row"><span>Hotel's service % and admin % on food <span class="src s-ct">contract</span></span><span>${inp("meals.service", B.meals.service, 56)} ${inp("meals.admin", B.meals.admin, 56)}</span></div>
       <div class="row"><span>Food &amp; beverage minimum <span class="src s-ct">contract</span></span>${inp("meals.fbMin", B.meals.fbMin)}</div>
-      <div class="row tot"><span>Meals come to</span><b>${money(C.meals)}</b></div></div>
+      <div class="row tot"><span>Meals come to</span><b>${money(C.meals)}</b></div>${rcOn("meals") ? `<div class="row"><span>Receipts so far</span><b>${money(rcOn("meals"))}</b></div>` : ""}</div>
     <div class="blk"><h3><span class="n">4</span>Everyone else, and the goal</h3>
       <div class="row"><span>Board <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "board").length}</b></div>
       <div class="row"><span>Presenters · volunteers <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "presenter").length} · ${B.people.filter((p) => p.group === "volunteer").length}</b></div>
@@ -8684,10 +8698,11 @@ function sbxDraw() {
 
   // 4. Everything else, the internal rows, sponsors and deposits.
   const listRows = (key, cols) => B[key].map((r) => `<tr>${cols.map(([f, kind, w]) => `<td>${kind === "toggle" ? `<span class="pbseg sm"><button type="button" data-tog="${key}|${r.id}|${f}" class="${r[f] ? "on" : ""}">${f === "received" ? "Received" : "Paid"}</button></span>`
-      : `<input class="sbin${kind === "money" ? " n" : ""}" data-k="${key}.${r.id}.${f}" value="${esc(r[f] ?? "")}" ${kind === "money" ? `inputmode="decimal"` : kind === "date" ? `type="date"` : ""} style="width:${w}px">`}</td>`).join("")}<td><button class="mini ghost" data-rdel="${key}|${r.id}">✕</button></td></tr>`).join("");
+      : `<input class="sbin${kind === "money" ? " n" : ""}" data-k="${key}.${r.id}.${f}" value="${esc(r[f] ?? "")}" ${kind === "money" ? `inputmode="decimal"` : kind === "date" ? `type="date"` : ""} style="width:${w}px">${key === "other" && f === "spent" && rcOn(`b-${r.id}`) ? `<small class="rcin">receipts ${money(rcOn(`b-${r.id}`))}</small>` : ""}`}</td>`).join("")}<td><button class="mini ghost" data-rdel="${key}|${r.id}">✕</button></td></tr>`).join("");
   const others = `<div class="sbgrid two">
     <div class="blk"><h3>Everything else</h3><table class="sbl"><thead><tr><th>Group</th><th>Line</th><th>Planned</th><th>Spent</th><th></th></tr></thead><tbody>${listRows("other", [["group", "text", 130], ["name", "text", 220], ["planned", "money", 90], ["spent", "money", 90]])}</tbody></table>
       <button class="mini" data-radd="other">Add a line</button><div class="row tot"><span>Planned · spent</span><b>${money(C.other)} · ${money(C.spent)}</b></div>
+      ${RCS ? `<div class="row"><span>Receipts so far <small>everything uploaded on this event, before tax${RCS.other ? ` · ${money(RCS.other)} not sorted` : ""}${rcOn("rooms") ? ` · rooms ${money(rcOn("rooms"))}` : ""}${rcOn("meals") ? ` · food ${money(rcOn("meals"))}` : ""}</small></span><b>${money(rcAll)}</b></div>` : ""}
       <div class="intbox"><h3><span class="lock">Internal only</span> Stipends</h3><table class="sbl"><tbody>${listRows("stipends", [["name", "text", 200], ["planned", "money", 90], ["paid", "money", 90]])}</tbody></table><button class="mini" data-radd="stipends">Add a row</button></div></div>
     <div class="blk"><h3>Sponsors</h3><table class="sbl"><tbody>${listRows("sponsors", [["name", "text", 200], ["amount", "money", 90], ["received", "toggle"]])}</tbody></table><button class="mini" data-radd="sponsors">Add a sponsor</button>
       <h3 style="margin-top:16px">Deposits &amp; payments</h3><table class="sbl"><tbody>${listRows("deposits", [["what", "text", 190], ["due", "date", 140], ["amount", "money", 90], ["paid", "toggle"]])}</tbody></table><button class="mini" data-radd="deposits">Add a payment</button>
@@ -9638,7 +9653,8 @@ async function drawScreen() {
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
       const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
-      const receipts = data.event?.kind === "rbh" ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      // Every event has them now (Andrew 30 Oct 2026); on ONGIA's own events they're optional.
+      const receipts = data.event ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       // ONGIA's own events: the budget, for the president and the VP (anyone else is refused, so it stays hidden).
       const budget = data.event && data.event.kind !== "rbh" && data.canCost ? await api(`/budget?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
       const out = eventScreen({ ...data, sow, receipts, budget, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });

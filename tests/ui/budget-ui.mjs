@@ -103,7 +103,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
       await ip.close();
     }
     const lead = await open(w, h, tab(ev.id), "treasurer@ongia.ca", "Raj Jaswal", {});
-    ok(`${tag}: the event's lead, who never sees the money, has no Money tab and no budget`, !(await lead.locator('.etab[data-tab="money"]').count()) && !(await lead.locator("#evbudget").count()));
+    // Since 30 Oct 2026 a board member on the event can add receipts here, so the tab is there for them, called Receipts.
+    ok(`${tag}: the event's lead, who never sees the money, gets a Receipts tab and no budget`, /^Receipts/.test((await lead.locator('.etab[data-tab="money"]').innerText()).trim()) && !(await lead.locator("#evbudget").count()) && (await lead.locator("#receiptscard").count()) === 1);
     await lead.close();
   } else await p.close();
 }

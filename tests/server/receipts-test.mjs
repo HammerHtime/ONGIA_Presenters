@@ -73,7 +73,8 @@ const g = (id, who) => call(rec, `/api/receipts?event=${id}`, "GET", undefined, 
 ok("the president, the VP, the lead and another board member on the event may", (await g(ev.id, PRES)).status === 200 && (await g(ev.id, VP)).status === 200 && (await g(ev.id, LEAD)).status === 200 && (await g(ev.id, MEMBER)).status === 200);
 ok("a board member not on this event may not", (await g(ev.id, OUTSIDER)).status === 403);
 ok("an upload by them is refused too", (await upload(ev.id, JPEG, OUTSIDER)).status === 403);
-ok("an ordinary event has no receipts", (await g(plain.id, PRES)).status === 409);
+// ONGIA's own events keep receipts too (Andrew 30 Oct 2026), optional ones: the test is at the end.
+ok("an ordinary event's receipts are for the same people", (await g(plain.id, PRES)).status === 200 && (await g(plain.id, OUTSIDER)).status === 403);
 const lv = await g(ev.id, LEAD);
 ok("the lead sees the names of the lines but no amounts and no sums", lv.lines.length === 8 && lv.lines.every((l) => Object.keys(l).sort().join() === "id,name") && lv.sums === null && lv.canCost === false);
 ok("the president sees the sums", (await g(ev.id, PRES)).sums !== null);
@@ -214,6 +215,30 @@ ok("and Other can still be used", r.status === 201 && r.items[0].readBy === "han
 const wr = withReceipts({ lines: [{ id: "a", name: "A", type: "cost", estimate: 10 }] }, [{ lineId: "gone", amount: 7 }, { lineId: "a", amount: 3 }]);
 ok("a receipt against a line that has since gone counts as Other", wr.receiptsOther === 7 && wr.lines[0].receiptsTotal === 3);
 ok("the duplicate check compares the total when there is one, else the amount", isDuplicate([{ vendor: "A", date: "d", amount: 10, total: 11.5 }], { vendor: "a", date: "d", amount: 10, total: 11.5 }) && !isDuplicate([{ vendor: "A", date: "d", amount: 10, total: 11.5 }], { vendor: "a", date: "d", amount: 10, total: 12 }));
+
+console.log("— one of ONGIA's own events: receipts optional");
+// Andrew 30 Oct 2026: "every single line item is not going to have a receipt attached, but at least people could upload
+// it, and the event will store those receipts ... the receipts aren't mandatory."
+process.env.ANTHROPIC_API_KEY = "sk-test";
+const { putMeta } = await import(F + "lib/store.mjs");
+await putMeta(`budget:${plain.id}`, { budget: { other: [{ id: "o1", group: "Venue & AV", name: "AV for the virtual component", planned: 4200 }, { id: "o2", name: "" }] } });
+let pv = await g(plain.id, PRES);
+ok("its lines are the budget's: hotel rooms, food and beverage, and each line under Everything else", pv.linesFrom === "budget" && pv.optional === true && pv.lines.map((l) => l.name).join("|") === "Hotel rooms|Food & beverage|AV for the virtual component" && pv.lines[2].estimate === 4200, JSON.stringify(pv.lines));
+ok("a board member on the event sees the names, not what each line is planned at", (await g(plain.id, LEAD)).lines.every((l) => l.estimate === undefined));
+reply = { isReceipt: true, vendor: "Ottawa AV Rentals", date: "2026-09-29", subtotal: 3900, tax: 507, total: 4407, currency: "CAD", confidence: "high", suggestedLine: "AV for the virtual component", notes: null };
+up = await upload(plain.id, JPEG, LEAD);
+await runReader(plain.id, up.started);
+pv = await g(plain.id, LEAD);
+ok("Claude is given the budget's lines and suggests one", pv.drafts[0].read.state === "done" && pv.drafts[0].read.found.suggestedLine === "AV for the virtual component" && /AV for the virtual component/.test(JSON.stringify(seen.at(-1).body)));
+r = await conf(plain.id, up.started, { paidBy: "", lineId: "b-o1", vendor: "Ottawa AV Rentals", date: "2026-09-29", amount: 3900, tax: 507, total: 4407 }, LEAD);
+ok("kept under its budget line, with nobody named as having paid it (ONGIA paid directly)", r.status === 201 && r.items[0].lineId === "b-o1" && !r.items[0].paidBy, JSON.stringify(r).slice(0, 200));
+up = await upload(plain.id, PDF, PRES);
+r = await conf(plain.id, up.started, { vendor: "Corner Store", date: "2026-09-30", amount: 18.5 }, PRES);
+ok("no line and no note is fine: it's kept, unsorted", r.status === 201 && r.items.some((x) => x.vendor === "Corner Store" && x.lineId === "other" && x.otherNote === ""), JSON.stringify(r).slice(0, 300));
+pv = await g(plain.id, PRES);
+ok("the president sees what's been spent against each line", pv.sums.byLine["b-o1"] === 3900 && pv.sums.other === 18.5 && pv.total === 3918.5);
+r = await conf(plain.id, (await upload(plain.id, JPEG, PRES)).started, { lineId: "b-zz", vendor: "X", date: "2026-09-30", amount: 1 }, PRES);
+ok("a line that isn't in the budget is still refused", r.status === 400 && /isn't in the budget/.test(r.error ?? ""), JSON.stringify(r).slice(0, 200));
 
 fake.close();
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

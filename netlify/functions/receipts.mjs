@@ -1,14 +1,17 @@
 import { json, fail, requireAdmin, adminWho, fileName, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { token } from "./lib/ids.mjs";
-import { getEvent, getSow, putSow, getRoster, getReceipts, putReceipts, putReceiptFile, getReceiptFile, deleteReceiptFile, getReceiptRead, putReceiptRead, deleteReceiptRead } from "./lib/store.mjs";
-import { MAX_BYTES, TYPES, OTHER, cleanConfirm, receiptSums, isDuplicate, payerChoices, paidByPerson } from "./lib/receipts.mjs";
+import { getEvent, getRoster, getReceipts, putReceipts, putReceiptFile, getReceiptFile, deleteReceiptFile, getReceiptRead, putReceiptRead, deleteReceiptRead } from "./lib/store.mjs";
+import { MAX_BYTES, TYPES, OTHER, cleanConfirm, receiptSums, isDuplicate, payerChoices, paidByPerson, receiptLines } from "./lib/receipts.mjs";
 import { STATUSES } from "./lib/sow.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 import { fileEventDocument, RECEIPTS_FOLDER } from "./lib/graph.mjs";
 
 /**
- * Receipts for an RBH event. Who: the president and the VP on every event, and the board members attached to
+ * Receipts for any event (RBH from 29 Oct 2026; ONGIA's own events too from 30 Oct 2026, where Andrew: "every single
+ * line item is not going to have a receipt attached, but at least people could upload it ... the receipts aren't
+ * mandatory"). On an RBH event they go under the statement of work's lines and count toward its invoice; on one of
+ * ONGIA's own events they go under the budget's lines, or none, and nothing asks for one that isn't there. Who: the president and the VP on every event, and the board members attached to
  * the event on that event (the lead included). Everyone else is refused. Board members see their event's
  * receipts and the names of the SOW's lines, never the SOW's amounts: only the president and the VP see those.
  *
@@ -47,14 +50,15 @@ export default async (req) => {
   const id = url.searchParams.get("event");
   const event = id && (await getEvent(id));
   if (!event) return fail("No such event.", 404);
-  if (event.kind !== "rbh") return fail("Receipts are kept for RBH events only.", 409);
   const email = String(who.email ?? "").toLowerCase();
   const costs = mayCost(who);
   const onBoard = !!email && (event.board ?? []).some((m) => String(m.email ?? "").toLowerCase() === email);
-  if (!costs && !onBoard) return fail("Receipts for an RBH event are for the board members on that event, the president and the VP of operations.", 403);
+  if (!costs && !onBoard) return fail("An event's receipts are for the board members on that event, the president and the VP of operations.", 403);
   const q = (k) => url.searchParams.get(k);
   const who2 = { name: who.name || who.email || "", email };
-  const sow = await getSow(id);
+  const L = await receiptLines(event, { costs });
+  const sow = L.sow, optional = L.from === "budget";
+  const lineIds = L.lines.map((l) => l.id), nameOf = (lid) => (lid === OTHER ? (optional ? "" : "Other") : L.lines.find((l) => l.id === lid)?.name);
   const closed = !costs && !!sow && STATUSES.indexOf(sow.status) >= STATUSES.indexOf("invoiced");
 
   if (req.method === "GET" && q("file")) {
@@ -62,13 +66,13 @@ export default async (req) => {
     if (!f) return fail("That file is not on record.", 404);
     return new Response(f.bytes, { headers: { "content-type": f.type, "content-disposition": `inline; filename="${f.name.replace(/[^\w.\- ]+/g, "_")}"`, "cache-control": "no-store" } });
   }
-  if (req.method === "GET") return json(await view(id, sow, costs, who, event));
+  if (req.method === "GET") return json(await view(id, L, costs, who, event));
 
   if (req.method === "POST" && q("again")) {
     const rec = await getReceipts(id);
     const d = rec.drafts.find((x) => x.id === q("again"));
     if (!d) return fail("That upload is no longer pending.", 404);
-    return start(req, id, d, url.origin, sow, costs, who, event);
+    return start(req, id, d, url.origin, L, costs, who, event);
   }
 
   if (req.method === "POST" && q("confirm")) {
@@ -77,28 +81,27 @@ export default async (req) => {
     if (!d) return fail("That upload is no longer pending. Reload and look again.", 404);
     if (closed) return fail("The invoice has gone out, so only the president or the VP can add receipts now.", 403);
     const body = await req.json().catch(() => null);
-    const ok = cleanConfirm(body, (sow?.lines ?? []).map((l) => l.id), payerChoices(event, await getRoster(), rec.items));
+    const ok = cleanConfirm(body, lineIds, payerChoices(event, await getRoster(), rec.items), { optional });
     if (ok.problem) return fail(ok.problem);
     const c = ok.ok;
     if (!body.force && isDuplicate(rec.items, c)) return fail("This looks like a receipt already on this event: same vendor, date and total. If it really is another one, confirm it again.", 409);
     const read = await getReceiptRead(id, d.id);
     const item = { id: d.id, ...c, name: d.name, type: d.type, size: d.size, addedBy: d.by, addedAt: d.at, confirmedAt: new Date().toISOString(), confirmedBy: who2, readBy: read?.state === "done" ? "claude" : "hand" };
-    const lineName = c.lineId === OTHER ? "Other" : sow.lines.find((l) => l.id === c.lineId)?.name;
-    await filed(event, item, lineName);
+    await filed(event, item, nameOf(c.lineId));
     rec.items.push(item);
     rec.drafts = rec.drafts.filter((x) => x.id !== d.id);
     await putReceipts(id, rec);
     await deleteReceiptRead(id, d.id);
-    return json(await view(id, sow, costs, who, event), 201);
+    return json(await view(id, L, costs, who, event), 201);
   }
 
   if (req.method === "POST" && q("refile")) {
     const rec = await getReceipts(id);
     const item = rec.items.find((x) => x.id === q("refile"));
     if (!item) return fail("No such receipt.", 404);
-    await filed(event, item, item.lineId === OTHER ? "Other" : sow?.lines.find((l) => l.id === item.lineId)?.name);
+    await filed(event, item, nameOf(item.lineId));
     await putReceipts(id, rec);
-    return json(await view(id, sow, costs, who, event));
+    return json(await view(id, L, costs, who, event));
   }
 
   if (req.method === "POST") {
@@ -115,7 +118,7 @@ export default async (req) => {
     await putReceiptFile(id, draft.id, buffer, { name: draft.name, type, size: bytes.length });
     rec.drafts.push(draft);
     await putReceipts(id, rec);
-    return start(req, id, draft, url.origin, sow, costs, who, event);
+    return start(req, id, draft, url.origin, L, costs, who, event);
   }
 
   if (req.method === "PUT" && q("item")) {
@@ -124,11 +127,11 @@ export default async (req) => {
     if (!item) return fail("No such receipt.", 404);
     if (!costs && (!mine(item, who2) || closed)) return fail("You can change the receipts you added, until the invoice goes out. The president or the VP can change any.", 403);
     const body = await req.json().catch(() => null);
-    const ok = cleanConfirm(body, (sow?.lines ?? []).map((l) => l.id), payerChoices(event, await getRoster(), rec.items));
+    const ok = cleanConfirm(body, lineIds, payerChoices(event, await getRoster(), rec.items), { optional });
     if (ok.problem) return fail(ok.problem);
     Object.assign(item, ok.ok, { editedAt: new Date().toISOString(), editedBy: who2 });
     await putReceipts(id, rec);
-    return json(await view(id, sow, costs, who, event));
+    return json(await view(id, L, costs, who, event));
   }
 
   if (req.method === "DELETE") {
@@ -137,7 +140,7 @@ export default async (req) => {
       if (!rec.drafts.some((x) => x.id === q("draft"))) return fail("That upload is no longer pending.", 404);
       rec.drafts = rec.drafts.filter((x) => x.id !== q("draft"));
       await Promise.all([putReceipts(id, rec), deleteReceiptFile(id, q("draft")), deleteReceiptRead(id, q("draft"))]);
-      return json(await view(id, sow, costs, who, event));
+      return json(await view(id, L, costs, who, event));
     }
     const item = rec.items.find((x) => x.id === q("item"));
     if (!item) return fail("No such receipt.", 404);
@@ -145,7 +148,7 @@ export default async (req) => {
     rec.items = rec.items.filter((x) => x.id !== item.id);
     await Promise.all([putReceipts(id, rec), deleteReceiptFile(id, item.id)]);
     // The copy on SharePoint is left where it is: the desk can't safely delete from the shared library.
-    const out = await view(id, sow, costs, who, event);
+    const out = await view(id, L, costs, who, event);
     return json(item.filed ? { ...out, note: "Removed from the invoice. The copy already in the SharePoint Receipts folder is still there; delete it there if it shouldn't be." } : out);
   }
   return fail("Method not allowed.", 405);
@@ -165,7 +168,7 @@ async function filed(event, item, lineName) {
   } catch (e) { item.filed = null; item.filedProblem = e.message; }
 }
 
-async function start(req, eventId, draft, origin, sow, costs, who, event) {
+async function start(req, eventId, draft, origin, L, costs, who, event) {
   if (!anthropicKey()) {
     await putReceiptRead(eventId, draft.id, { state: "failed", at: new Date().toISOString(), why: "The desk has no Anthropic API key, so Claude cannot read this. Fill the boxes in by hand." });
   } else {
@@ -177,10 +180,11 @@ async function start(req, eventId, draft, origin, sow, costs, who, event) {
       await putReceiptRead(eventId, draft.id, { state: "failed", at: new Date().toISOString(), why: `Could not start the reader (${e.message}). Fill the boxes in by hand, or press Read it again.` });
     }
   }
-  return json({ ...(await view(eventId, sow, costs, who, event)), started: draft.id }, 202);
+  return json({ ...(await view(eventId, L, costs, who, event)), started: draft.id }, 202);
 }
 
-async function view(eventId, sow, costs, who, event) {
+async function view(eventId, L, costs, who, event) {
+  const sow = L.sow;
   const rec = await getReceipts(eventId);
   const email = String(who.email ?? "").toLowerCase();
   const drafts = [];
@@ -193,8 +197,10 @@ async function view(eventId, sow, costs, who, event) {
   const closed = !costs && !!sow && STATUSES.indexOf(sow.status) >= STATUSES.indexOf("invoiced");
   return {
     allowed: true, canCost: costs, closed, hasSow: !!sow,
+    // "sow": an RBH event, receipts required and counted toward the invoice. "budget": one of ONGIA's own, all optional.
+    linesFrom: L.from, optional: L.from === "budget",
     // Names only: what each line is budgeted at is the president's and the VP's to see.
-    lines: (sow?.lines ?? []).map((l) => ({ id: l.id, name: l.name, ...(costs && l.type === "cost" ? { estimate: l.estimate } : {}) })),
+    lines: L.lines,
     items: items.map((r) => ({ ...publicItem(r), mine: costs || r.addedBy?.email === email })),
     drafts,
     sums: costs ? receiptSums(rec.items) : null,

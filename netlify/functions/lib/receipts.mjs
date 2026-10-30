@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropicKey } from "./contract.mjs";
 import { money } from "./sow.mjs";
+import { getSow, getMeta } from "./store.mjs";
 
 /**
  * Receipts for an RBH event. A photo or a PDF goes in; Claude reads the vendor, the date and the amounts; a person
@@ -87,7 +88,7 @@ export async function readReceipt(bytes, type, lineNames = [], { client = null }
     max_tokens: 1500,
     output_config: { format: { type: "json_schema", schema: SCHEMA } },
     system: SYSTEM,
-    messages: [{ role: "user", content: [file, { type: "text", text: `The lines on the statement of work are: ${lineNames.length ? lineNames.join("; ") : "(none yet)"}, and Other. Read this receipt.` }] }],
+    messages: [{ role: "user", content: [file, { type: "text", text: `The lines this receipt could go under are: ${lineNames.length ? lineNames.join("; ") : "(none yet)"}, and Other. Read this receipt.` }] }],
   });
   if (message.stop_reason === "refusal") throw new Error("Claude declined to read this one.");
   const text = message.content.filter((b) => b.type === "text").map((b) => b.text).join("");
@@ -100,19 +101,22 @@ export async function readReceipt(bytes, type, lineNames = [], { client = null }
  * What a person confirmed, checked before it is kept. Returns { problem } or { ok }.
  * `lineIds` are the lines of the statement of work; the only other place a receipt can go is "other".
  */
-export function cleanConfirm(body, lineIds, payers = null) {
-  // Who paid: a board member, so the expense claim they send in later can be matched to the receipt.
+export function cleanConfirm(body, lineIds, payers = null, { optional: loose = false } = {}) {
+  // Who paid: a board member, so the expense claim they send in later can be matched to the receipt. On one of ONGIA's
+  // own events (`optional`) it can be left blank: ONGIA paid it directly.
   let paidBy = null;
   if (payers) {
     const email = String(body?.paidBy ?? "").trim().toLowerCase();
     const who = payers.find((x) => x.email.toLowerCase() === email);
-    if (!who) return { problem: "Pick the board member who paid for this, or who is claiming it." };
-    paidBy = { email: who.email.toLowerCase(), name: who.name };
+    if (!who && !(loose && !email)) return { problem: "Pick the board member who paid for this, or who is claiming it." };
+    if (who) paidBy = { email: who.email.toLowerCase(), name: who.name };
   }
-  const lineId = String(body?.lineId ?? "");
-  if (lineId !== OTHER && !lineIds.includes(lineId)) return { problem: "Pick which line of the statement of work this receipt belongs to, or Other." };
+  // Which line: on an RBH event, a line of the statement of work or Other with a word on what it was for. On ONGIA's own
+  // events receipts are optional and so is sorting them: no line is Other, and Other needs no note.
+  const lineId = String(body?.lineId ?? "") || (loose ? OTHER : "");
+  if (lineId !== OTHER && !lineIds.includes(lineId)) return { problem: loose ? "That line isn't in the budget any more. Pick another, or leave it unsorted." : "Pick which line of the statement of work this receipt belongs to, or Other." };
   const otherNote = String(body?.otherNote ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
-  if (lineId === OTHER && !otherNote) return { problem: "For Other, say what it was for." };
+  if (lineId === OTHER && !otherNote && !loose) return { problem: "For Other, say what it was for." };
   const vendor = String(body?.vendor ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!vendor) return { problem: "Who was it from? Type the vendor's name." };
   const date = String(body?.date ?? "");
@@ -121,6 +125,23 @@ export function cleanConfirm(body, lineIds, payers = null) {
   if (!(amount >= 0) || !Number.isFinite(amount) || body?.amount === "" || body?.amount === null) return { problem: "Type the amount before tax." };
   const optional = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : money(Number(v)));
   return { ok: { ...(paidBy ? { paidBy } : {}), lineId, otherNote: lineId === OTHER ? otherNote : "", vendor, date, amount: money(amount), tax: optional(body?.tax), total: optional(body?.total), currency: /^[A-Za-z]{3}$/.test(String(body?.currency ?? "")) ? String(body.currency).toUpperCase() : "CAD" } };
+}
+
+/**
+ * The lines a receipt can go under. An RBH event: the lines of its statement of work. One of ONGIA's own events (Andrew
+ * 30 Oct 2026: "the receipts aren't mandatory"): its budget's hotel rooms, food and beverage, and each line under
+ * Everything else. `estimate` is what the line is planned at, for the president and the VP only.
+ */
+export const ROOMS = "rooms", MEALS = "meals";
+export async function receiptLines(event, { costs = false } = {}) {
+  if (event.kind === "rbh") {
+    const sow = await getSow(event.id);
+    return { from: "sow", sow, lines: (sow?.lines ?? []).map((l) => ({ id: l.id, name: l.name, ...(costs && l.type === "cost" ? { estimate: l.estimate } : {}) })) };
+  }
+  const B = (await getMeta(`budget:${event.id}`))?.budget ?? null;
+  const other = (Array.isArray(B?.other) ? B.other : []).filter((o) => o?.id && String(o.name ?? "").trim());
+  return { from: "budget", sow: null, lines: [{ id: ROOMS, name: "Hotel rooms" }, { id: MEALS, name: "Food & beverage" },
+    ...other.map((o) => ({ id: `b-${o.id}`, name: String(o.name).trim().slice(0, 120), ...(costs && Number(o.planned) ? { estimate: Number(o.planned) } : {}) }))] };
 }
 
 /** What a line's receipts come to, and what is under Other. */
