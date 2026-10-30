@@ -1865,7 +1865,7 @@ async function api(path, options = {}) {
     headers: { "content-type": "application/json", "x-admin-key": KEY, ...(options.headers ?? {}) },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? `Request failed (${res.status})`), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? `Request failed (${res.status})`), { status: res.status, body });
   return body;
 }
 
@@ -9250,6 +9250,8 @@ let SBX = null, SBX_SAVE = null, SBX_SAID = "";
 // Where the budget page is drawn and saved: the Sandbox screen, or one event's Money tab (SBX_EV is that event, SBX_LIVE
 // what its records say: the rooming list, the hotel contract, the board on it).
 let SBX_HOST = null, SBX_PATH = "/sandbox", SBX_EV = null, SBX_LIVE = null;
+// An event budget's save number, the saves queued one after another, and, if someone else saved first, who and when.
+let SBX_REV = null, SBX_QUEUE = Promise.resolve(), SBX_CONFLICT = null;
 let SBX_RC = null;   // { ev, sums }: the event's receipts by line, shown beside the budget's lines
 const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
 const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -9341,13 +9343,34 @@ function sbxCalc(B) {
 function sbxPersist() {
   clearTimeout(SBX_SAVE);
   const chip = document.getElementById("sbx-said");
+  if (SBX_CONFLICT) return;   // nothing more is saved over someone else's changes until theirs are loaded
   if (chip) { chip.textContent = "Saving…"; chip.dataset.saved = "busy"; }
-  const path = SBX_PATH, budget = SBX;   // where it was typed, even if the page moves on before it saves
-  SBX_SAVE = setTimeout(async () => {
-    try { await api(path, { method: "PUT", body: JSON.stringify({ budget }) }); SBX_SAID = "Saved ✓"; }
-    catch (e) { SBX_SAID = `Couldn't save: ${e.message}`; }
-    const c = document.getElementById("sbx-said"); if (c) { c.textContent = SBX_SAID; c.dataset.saved = /Couldn/.test(SBX_SAID) ? "bad" : "ok"; }
-  }, 700);
+  const path = SBX_PATH, budget = SBX, ev = SBX_EV;   // where it was typed, even if the page moves on before it saves
+  // One save at a time, each sending the number the last one came back with, so quick edits never trip over each other.
+  SBX_SAVE = setTimeout(() => { SBX_QUEUE = SBX_QUEUE.then(async () => {
+    try {
+      const out = await api(path, { method: "PUT", body: JSON.stringify(ev ? { budget, rev: SBX_REV ?? 0 } : { budget }) });
+      if (ev && SBX_EV?.id === ev.id) SBX_REV = out.rev ?? SBX_REV;
+      SBX_SAID = "Saved ✓";
+    } catch (e) {
+      if (e.status === 409 && e.body?.conflict && ev) {
+        SBX_CONFLICT = e.body.conflict;
+        SBX_SAID = `Not saved: ${SBX_CONFLICT.by || "someone"} changed this budget${SBX_CONFLICT.at ? ` at ${new Date(SBX_CONFLICT.at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}` : ""}, after you opened it.`;
+        if (SBX_EV?.id === ev.id) sbxDraw();
+        return;
+      }
+      SBX_SAID = `Couldn't save: ${e.message}`;
+    }
+    const c = document.getElementById("sbx-said"); if (c) { c.textContent = SBX_SAID; c.dataset.saved = /Couldn|Not saved/.test(SBX_SAID) ? "bad" : "ok"; }
+  }); }, 700);
+}
+
+/** Someone else saved this budget first: load theirs, setting aside what was typed here since. */
+async function sbxLoadLatest() {
+  const ev = SBX_EV;
+  const got = await api(`/budget?event=${encodeURIComponent(ev.id)}`);
+  SBX = null; SBX_REV = null; SBX_CONFLICT = null; SBX_SAID = "";
+  mountBudget(ev, got);
 }
 
 async function sandboxScreen() {
@@ -9355,7 +9378,7 @@ async function sandboxScreen() {
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("practicebtn").onclick = practiceDialog;
   const got = await api("/sandbox");
-  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null;
+  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null; SBX_REV = null; SBX_CONFLICT = null;
   await loadBudgetGroups();
   SBX = got.budget ?? sbxSeed();
   sbxDraw();
@@ -9583,7 +9606,7 @@ function sbxDraw() {
       <h3 style="margin-top:16px">Deposits &amp; payments</h3><table class="sbl"><tbody>${listRows("deposits", [["what", "text", 190], ["due", "date", 140], ["amount", "money", 90], ["paid", "toggle"]])}</tbody></table><button class="mini" data-radd="deposits">Add a payment</button>
       <h3 style="margin-top:16px">Dates with the hotel</h3><table class="sbl"><tbody>${listRows("dates", [["iso", "date", 140], ["what", "text", 280]])}</tbody></table><button class="mini" data-radd="dates">Add a date</button></div></div>`;
 
-  const said = `<span class="saved" id="sbx-said" data-saved="${/Couldn/.test(SBX_SAID) ? "bad" : "ok"}">${esc(SBX_SAID || "Saved ✓")}</span>`;
+  const said = `<span class="saved" id="sbx-said" data-saved="${/Couldn|Not saved/.test(SBX_SAID) ? "bad" : "ok"}">${esc(SBX_SAID || "Saved ✓")}</span>${SBX_CONFLICT ? `<button class="mini gold" id="sbx-latest">Load their version</button>` : ""}`;
   const rl = SBX_EV ? (SBX_LIVE?.people ?? []).length : 0;
   SBX_HOST.innerHTML = `<div class="sbx${SBX_EV ? " evbud" : ""}">
     ${SBX_EV ? `<div class="sbxhead"><div><div class="porg sbxtag evtag">The event budget · president &amp; VP</div><h2 class="budh">What ${esc(B.event.title)} costs and brings in</h2>
@@ -9674,10 +9697,12 @@ function sbxWire() {
   const walkBtn = document.getElementById("sbx-walk");
   if (walkBtn) walkBtn.onclick = () => budgetWalk();
   SBX_HOST.querySelectorAll("[data-wixkind]").forEach((el) => { el.onchange = () => { (B.wixKinds ??= {})[el.dataset.wixkind] = el.value; applyWix(B, SBX_LIVE?.wix); redraw(); }; });
+  const latest = document.getElementById("sbx-latest");
+  if (latest) latest.onclick = () => sbxLoadLatest().catch((e) => toast(e.message));
   document.getElementById("sbx-reset").onclick = async () => {
     if (SBX_EV) {
       if (!confirm("Start this event's budget over? Everything typed into it goes; it starts again from the event's rooming list, hotel contract and board.")) return;
-      const out = await api(SBX_PATH, { method: "DELETE" }); SBX_LIVE = out.live; SBX = budgetSeed(SBX_EV, SBX_LIVE); SBX_SAID = ""; sbxDraw(); sbxQuestions(); return;
+      const out = await api(SBX_PATH, { method: "DELETE" }); SBX_LIVE = out.live; SBX = budgetSeed(SBX_EV, SBX_LIVE); SBX_SAID = ""; SBX_REV = 0; SBX_CONFLICT = null; sbxDraw(); sbxQuestions(); return;
     }
     if (!confirm("Start over? Everything you've changed in the Sandbox goes, and it's back to the Summit spreadsheet's numbers.")) return;
     await api("/sandbox", { method: "DELETE" }); SBX = sbxSeed(); SBX_SAID = ""; sbxDraw(); sbxQuestions();
@@ -10057,7 +10082,7 @@ function mountBudget(ev, got) {
   if (!host || !got) return;
   // Unsaved typing in this event's budget wins over what was just fetched.
   const mine = SBX_EV?.id === ev.id && SBX ? SBX : null;
-  if (!mine) SBX_NGX = null;
+  if (!mine) { SBX_NGX = null; SBX_REV = got.rev ?? 0; SBX_CONFLICT = null; }
   SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
   const was = JSON.stringify(mine ?? got.budget);
   SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));

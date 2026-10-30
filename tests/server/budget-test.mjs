@@ -46,7 +46,19 @@ const B = { v: 1, asked: true, reg: { inPerson: { on: true, price: 450, expected
 r = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B });
 ok("saved, and there on the next open", r.status === 200 && (await call(budget, `/api/budget?event=${ev.id}`)).budget.reg.inPerson.price === 450);
 ok("a lead, who never sees the money, is refused it", (await call(budget, `/api/budget?event=${ev.id}`, "GET", undefined, LEAD)).status === 403 && (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B }, LEAD)).status === 403);
-ok("nonsense isn't kept", (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: [1] })).status === 400 && (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { x: "y".repeat(410_000) } })).status === 413);
+// Two people on the same budget (audit, 30 Oct 2026): a save made from an older copy is turned back, not written over.
+const VP = { "x-admin-key": issueSession({ email: "vp_operations@ongia.ca", name: "Barb Konkle" }), "content-type": "application/json" };
+const open1 = await call(budget, `/api/budget?event=${ev.id}`), open2 = await call(budget, `/api/budget?event=${ev.id}`, "GET", undefined, VP);
+ok("opening it says which save it is", Number.isInteger(open1.rev) && open1.rev === open2.rev && open1.rev >= 1, JSON.stringify({ a: open1.rev, b: open2.rev }));
+const a = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 120 } } }, rev: open1.rev });
+ok("the president's change saves, as the next number", a.status === 200 && a.rev === open1.rev + 1);
+const v = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 450, expected: 150 } } }, rev: open2.rev }, VP);
+ok("the VP's, made from the copy before it, is turned back and says who changed it", v.status === 409 && v.conflict.by === "Andrew Hammond" && v.conflict.rev === a.rev && /Andrew Hammond changed this budget/.test(v.error), JSON.stringify(v));
+ok("and the president's change is still what's kept", (await call(budget, `/api/budget?event=${ev.id}`)).budget.reg.inPerson.price === 475);
+const v2 = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 150 } } }, rev: a.rev }, VP);
+ok("once the VP has the latest, their change saves", v2.status === 200 && v2.rev === a.rev + 1 && (await call(budget, `/api/budget?event=${ev.id}`)).by === "Barb Konkle");
+ok("a page opened before this change, sending no number, still saves", (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 150 } } } })).status === 200);
+ok("nonsense isn't kept",(await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: [1] })).status === 400 && (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { x: "y".repeat(410_000) } })).status === 413);
 r = await call(budget, `/api/budget?event=${ev.id}`, "DELETE");
 ok("Start over clears it and hands back the records to start again from", r.status === 200 && r.live?.event && (await call(budget, `/api/budget?event=${ev.id}`)).budget === null);
 
