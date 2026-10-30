@@ -405,14 +405,24 @@
   .sbx .ng th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:0 2px}
   .sbx .ng th .d{display:block;font-family:var(--fb);font-size:13px;letter-spacing:0;color:var(--ink);font-weight:700}.sbx .ng th.ev,.sbx .ng th.ev .d{color:var(--navy)}
   .sbx .ng td.nm{white-space:nowrap;padding-right:8px}.sbx .ng td.nm span{display:block;font-size:12px;color:var(--muted)}
-  .sbx .ng .pname{border:0;background:none;font:600 14px var(--fb);padding:2px 0;min-height:0;width:170px}
-  .sbx .ng .c{display:block;height:32px;width:46px;border-radius:9px;border:1.5px solid var(--border);background:#fff;cursor:pointer;padding:0}
+  .sbx .ng .pname{border:0;background:none;font:600 14px var(--fb);padding:2px 0;min-height:0;width:138px}
+  .sbx .ng .c{display:block;height:30px;width:36px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;padding:0}
   .sbx .ng .c.pre{background:repeating-linear-gradient(135deg,#fff,#fff 6px,var(--sunk) 6px,var(--sunk) 12px)}
   .sbx .ng .c.on{background:var(--rbh);border-color:var(--rbh)}
   .sbx .ng td.n{text-align:right;color:var(--muted);padding:0 6px}
   .sbx .ng tr.grp td{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 0 2px;border-bottom:1px solid var(--edge)}
   .sbx .ng tr.tot td{font-weight:700;text-align:center;font-size:13px}
-  .sbx .plus{width:30px;height:30px;border-radius:50%;border:1.5px dashed var(--navy);background:#fff;color:var(--navy);font-size:18px;font-weight:700;line-height:24px;cursor:pointer;padding:0}
+  .sbx .plus{width:26px;height:26px;border-radius:50%;border:1.5px dashed var(--navy);background:#fff;color:var(--navy);font-size:16px;font-weight:700;line-height:20px;cursor:pointer;padding:0}
+  .sbx .plus:disabled{opacity:.35;cursor:default}
+  .sbx .ng .pm{display:inline-flex;flex-direction:column;gap:4px;align-items:center}
+  .sbx .ng th .d{white-space:nowrap;text-transform:none}
+  .sbx .ng td.nm .pnl{display:flex;align-items:center;gap:6px}.sbx .ng td.nm .pnl .pname{flex:1 1 auto;min-width:0}
+  .sbx .ng td.nm .pnn{display:inline;flex:none;font-size:12px;color:var(--muted);white-space:nowrap}
+  .sbx .ng .pdel{flex:none;border:0;background:none;color:var(--muted);font-size:13px;width:24px;height:24px;border-radius:50%;cursor:pointer;padding:0}.sbx .ng .pdel:hover{background:var(--sunk);color:var(--late)}
+  .sbx .ng td.nm .pbseg{display:inline-flex;margin-top:4px}
+  @media (max-width:560px){.sbx .ng td.nm .pbseg{flex-wrap:wrap;border-radius:12px}.sbx .ng td.nm .pbseg button{padding:3px 7px}}
+  .sbx .ng tr.tot td.nm span{display:block;font-weight:400}
+  .sbx .ng .pbseg.sm button{padding:3px 8px;font-size:11.5px}
   .sbx .sumrow{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13.5px;margin-top:10px;padding:10px 14px;background:var(--sand);border-radius:12px}
   .sbx .mp{border-collapse:separate;border-spacing:5px 6px;font-size:13.5px}
   .sbx .mp th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -483,8 +493,10 @@
     .wq{font-size:24px}.wbox{width:100%}.wnext{width:100%;font-size:18px;min-height:56px}.wkbd{display:none}.wstart,.wsum{grid-template-columns:1fr}
     .wclose{right:0;top:-6px}.wlive{gap:14px;font-size:12.5px}.wlive b{font-size:16px}
   }
-  .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0}
-  .sbx .paddsel{font:600 12.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:4px 10px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:240px}
+  /* Smaller pills on the hotel grid (Andrew 30 Oct 2026: "the Add all board members pill at top is too big"). */
+  .sbx .addall{background:var(--rbh);border-color:var(--rbh);color:#fff;margin-right:4px;text-transform:none;letter-spacing:0;font-size:11.5px;padding:3px 9px;min-height:26px}
+  .sbx .paddsel{font:600 11.5px var(--fb);border:1px dashed var(--navy);border-radius:999px;padding:3px 8px;background:#fff;color:var(--navy);text-transform:none;letter-spacing:0;cursor:pointer;max-width:200px;min-height:26px}
+  .sbx .ng tr.grp .mini{font-size:11.5px;padding:3px 9px;min-height:26px;text-transform:none;letter-spacing:0}
   .sbl th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px}
   .sbxq{max-width:640px;width:calc(100% - 24px)}
   /* The event budget on the Money tab: the same page, a heading that fits under the event's own. */
@@ -8832,16 +8844,18 @@ function sbxDraw() {
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
   // Short enough that all three fit beside the nights (Andrew 30 Oct 2026); the title says each in full.
-  const pays = [["ongia", "ONGIA's bill", "ONGIA pays the hotel directly"], ["reimbursed", "Reimbursed", "They pay the hotel and ONGIA pays them back"], ["agency", "Agency pays", "Their own agency pays; not in the budget"]];
+  const pays = [["ongia", "ONGIA", "ONGIA's bill: ONGIA pays the hotel directly"], ["reimbursed", "Reimbursed", "They pay the hotel and ONGIA pays them back"], ["agency", "Agency", "Their own agency pays; not in the budget"]];
   const evDay = (d) => d >= B.event.dayOne && d <= B.event.lastDay;
   // On a phone the names stay put on the left and one night fills the rest; a swipe brings the next (Andrew 30 Oct 2026).
-  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th><th class="pc"><button class="plus" data-more="before" title="Add a night before">+</button><span class="pl">Add a night before</span></th>${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${Number(d.slice(8))}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}<th class="pc"><button class="plus" data-more="after" title="Add a night after">+</button><span class="pl">Add a night after</span></th><th class="nc">Nights</th><th>Who pays for the room</th><th></th></tr>`;
+  // The month on every date, and a minus beside each plus (Andrew 30 Oct 2026: "there should be a Apr 3"; "we need a minus button as well").
+  const edge = (side) => `<th class="pc"><span class="pm"><button class="plus" data-more="${side}" title="Add a night ${side}">+</button><button class="plus minus" data-less="${side}" title="Take off the ${side === "before" ? "first" : "last"} night"${(B.hotel[side] ?? 2) > 0 ? "" : " disabled"}>−</button></span><span class="pl">Add or take off a night ${side}</span></th>`;
+  const head = `<tr><th class="nm"><span class="swipe">Swipe for the other nights</span></th>${edge("before")}${C.nights.map((d) => `<th class="dc${evDay(d) ? " ev" : ""}">${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}<span class="d">${esc(MONTHS[+d.slice(5, 7) - 1].slice(0, 3))} ${+d.slice(8)}</span><span class="mo"><b>${esc(fmtDate(d).replace(/ \d{4}$/, ""))}</b>${evDay(d) ? "event day" : "before or after"}</span></th>`).join("")}${edge("after")}</tr>`;
   // Someone on the rooming list: their nights come from it (change them there); everyone else is a plan, tapped in here.
-  const prow = (p) => `<tr${p.key ? ` class="rl"` : ""}><td class="nm">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}</td><td class="pc"></td>
-      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td>
-      <td class="n nc">${p.nights.filter((d) => C.nights.includes(d)).length}</td>
-      <td><span class="pbseg sm">${pays.map(([k, l, t]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}" title="${t}">${l}</button>`).join("")}</span></td>
-      <td>${p.key ? "" : `<button class="mini ghost" data-pdel="${p.id}" title="Take off the list">✕</button>`}</td></tr>`;
+  // Who pays and the night count sit under each name (Andrew 30 Oct 2026: "the window extends to right … scrolling left
+  // and right"): the grid is then just names and nights, and fits on an iPad and beside the budget's side panel.
+  const prow = (p) => { const n = p.nights.filter((d) => C.nights.includes(d)).length; return `<tr${p.key ? ` class="rl"` : ""}><td class="nm"><div class="pnl">${p.key ? `<b class="pname">${esc(p.name)}</b>` : `<input class="pname" data-pname="${p.id}" value="${esc(p.name)}" aria-label="Name">`}<span class="pnn">${n} night${n === 1 ? "" : "s"}</span>${p.key ? "" : `<button class="pdel" data-pdel="${p.id}" title="Take ${esc(p.name || "them")} off the list" aria-label="Take ${esc(p.name || "them")} off the list">✕</button>`}</div>${p.org || p.key ? `<span>${esc(p.org ?? "")}${p.key ? `${p.org ? " · " : ""}<i class="rltag">${p.waiting ? "agreement not approved yet" : "rooming list"}</i>` : ""}</span>` : ""}
+      <span class="pbseg sm" role="group" aria-label="Who pays for ${esc(p.name)}'s room">${pays.map(([k, l, t]) => `<button type="button" data-pays="${p.id}|${k}" class="${p.pays === k ? `on ${k}` : ""}" title="${t}">${l}</button>`).join("")}</span></td><td class="pc"></td>
+      ${C.nights.map((d) => `<td class="dc"><button class="c${p.nights.includes(d) ? " on" : ""}${evDay(d) ? "" : " pre"}" data-night="${p.id}|${d}"${p.key ? ` disabled title="From the rooming list: change it there"` : ""} aria-label="${esc(p.name)}, night of ${esc(sbxShort(d))}"></button></td>`).join("")}<td class="pc"></td></tr>`; };
   const counts = C.nights.map((d) => B.people.filter((p) => p.nights.includes(d)).length);
   const paysN = (k) => B.people.filter((p) => p.pays === k).reduce((n, p) => n + p.nights.length, 0);
   const nightsN = (n) => `${n} night${n === 1 ? "" : "s"}`;
@@ -8852,8 +8866,8 @@ function sbxDraw() {
       // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
       const add = free.length ? `${free.length > 1 ? `<button class="mini addall" data-paddall>Add all board members (${free.length})</button>` : ""}<select class="paddsel" data-paddboard aria-label="Add a board member"><option value="">+ Add a board member…</option>${free.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("")}<option value="__other">Someone else (type the name)</option></select>`
         : `<button class="mini ghost" data-padd="${g}">+ Add</button>`;
-      return `<tr class="grp"><td colspan="${C.nights.length + 6}"><span class="gl">${l} · ${ps.length} ${add}</span></td></tr>${ps.map(prow).join("")}`; }).join("")}
-    <tr class="tot"><td class="nm">Rooms that night</td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td><td class="n nc">${C.blockNights}</td><td></td><td></td></tr></tbody></table></div>
+      return `<tr class="grp"><td colspan="${C.nights.length + 3}"><span class="gl">${l} · ${ps.length} ${add}</span></td></tr>${ps.map(prow).join("")}`; }).join("")}
+    <tr class="tot"><td class="nm">Rooms that night<span>${C.blockNights} room-night${C.blockNights === 1 ? "" : "s"} in all</span></td><td class="pc"></td>${counts.map((n) => `<td class="dc">${n}</td>`).join("")}<td class="pc"></td></tr></tbody></table></div>
     <div class="sumrow"><span>On the block <b>${B.people.filter((p) => p.nights.length).length} people · ${nightsN(C.blockNights)}</b></span><span>ONGIA's bill <b>${nightsN(paysN("ongia"))}</b></span>
       <span>Reimbursed <b>${nightsN(paysN("reimbursed"))} · ${money(C.reimburse.reduce((n, r) => n + r.amount, 0))}</b></span><span>Agency pays <b>${nightsN(paysN("agency"))}</b> (not in the budget)</span></div>`;
 
@@ -8956,6 +8970,16 @@ function sbxWire() {
   SBX_HOST.querySelectorAll("[data-padd]").forEach((b) => { b.onclick = () => { const g = b.dataset.padd, n = B.people.filter((p) => p.group === g).length + 1;
     B.people.push({ id: `p${Date.now().toString(36)}`, name: `${{ board: "Board member", presenter: "Presenter", volunteer: "Volunteer", other: "Guest" }[g]} ${n}`, group: g, pays: g === "board" ? "reimbursed" : "ongia", nights: [] }); redraw(); }; });
   SBX_HOST.querySelectorAll("[data-more]").forEach((b) => { b.onclick = () => { B.hotel[b.dataset.more] = (B.hotel[b.dataset.more] ?? 2) + 1; redraw(); }; });
+  // One night fewer on that side. A night booked on it here goes too; the rooming list's own nights stay where it has them.
+  SBX_HOST.querySelectorAll("[data-less]").forEach((b) => { b.onclick = () => {
+    const side = b.dataset.less, n = B.hotel[side] ?? 2;
+    if (n <= 0) return;
+    const gone = side === "before" ? sbxDay(B.event.dayOne, -n) : sbxDay(B.event.lastDay, n);
+    const booked = B.people.filter((p) => !p.key && p.nights.includes(gone));
+    if (booked.length && !confirm(`${booked.length === 1 ? booked[0].name + " has" : booked.length + " people have"} a room the night of ${sbxShort(gone)}. Take that night off?`)) return;
+    booked.forEach((p) => { p.nights = p.nights.filter((d) => d !== gone); });
+    B.hotel[side] = n - 1; redraw();
+  }; });
   SBX_HOST.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { const k = b.dataset.meal, v = B.meals.cells[k] ?? "off";
     B.meals.cells[k] = typeof v === "number" ? "off" : ({ off: "team", team: "all", all: "off" })[v] ?? "off"; redraw(); }; });
   SBX_HOST.querySelectorAll("[data-setamt]").forEach((b) => { b.onclick = () => { B.meals.cells[b.dataset.setamt] = 0; redraw(); SBX_HOST.querySelector(`[data-flat="${CSS.escape(b.dataset.setamt)}"]`)?.select(); }; });
