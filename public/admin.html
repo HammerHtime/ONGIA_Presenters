@@ -1529,6 +1529,8 @@
   .aga input{width:100%}.agb{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px}
   .linkish{background:none;border:0;padding:4px 2px;font:600 13px var(--fb);color:var(--navy);text-decoration:underline;cursor:pointer}
   .agwait{border-color:#e6cf9f;background:#fffaf0}
+  .agblank>summary{list-style:none;cursor:pointer}.agblank>summary::-webkit-details-marker{display:none}.agblank[open] .ibcaret{transform:rotate(180deg)}
+  .agq.agbl{grid-template-columns:minmax(0,1fr) auto;align-items:center}
   .agbtns{display:flex;gap:8px;flex-wrap:wrap}
   .agtable{overflow-x:auto;margin-top:10px}.agl{width:100%;border-collapse:collapse;font-size:13.5px}
   .agl th{text-align:left;font:500 11px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--edge)}
@@ -5365,6 +5367,9 @@ function agenciesScreen(A) {
     ${A.waiting.length ? `<div class="card agwait"><div class="card-head"><div><h2>Claude couldn't tell</h2><div class="s">Only these count on the Admin badge. Left blank until you type an agency or choose Leave blank.</div></div></div><div class="card-body">${waiting}</div></div>` : ""}
     <div class="card"><div class="card-head"><div><h2>Matched for you</h2><div class="s">${A.matched.length ? "Already applied everywhere. Nothing to do unless one is wrong: type the right agency, or press Undo." : "Nothing new since you last cleared the list."}</div></div>
       ${A.matched.length ? `<button class="mini" id="ag-clear">Looks right, clear the list</button>` : ""}</div>${A.matched.length ? `<div class="card-body">${matched}</div>` : ""}</div>
+    ${A.blank?.length ? `<details class="card agblank"><summary class="card-head"><div><h2>Left blank · ${A.blank.length}</h2><div class="s">Spellings you chose to leave without an agency. Bring one back to give it an agency after all.</div></div><span class="ibcaret" aria-hidden="true">▾</span></summary>
+      <div class="card-body">${A.blank.map((x, i) => `<div class="agq agbl" data-agraw="${esc(x.raw)}"><div class="agw"><div class="agt">Typed <q>${esc(x.raw)}</q>${x.count ? ` · ${x.count} ${x.count === 1 ? "person" : "people"}` : ""}${x.events?.length ? ` · ${esc(x.events.join(", "))}` : ""}</div></div>
+        <div class="agb"><button class="mini" data-agunblank="${i}">Bring back</button></div></div>`).join("")}</div></details>` : ""}
     <div class="card"><div class="card-head"><div><h2>The master list</h2><div class="s">Started from the 27 October clean-up of two years of Wix registrations, and grows with every match.</div></div>
       <div class="agbtns"><button class="mini" id="ag-add">Add an agency</button><button class="mini" id="ag-csv">Download the master list</button></div></div>
       <div class="card-body"><input type="search" id="ag-find" class="pfind" placeholder="Find an agency or a spelling…" aria-label="Find an agency or a spelling" value="${esc(AG_FIND)}" autocomplete="off">
@@ -5393,6 +5398,7 @@ function agenciesScreen(A) {
     save.onclick = () => ask(w.raw, inp, (a) => `"${w.raw}" is now ${a}.`);
   });
   ROOT.querySelectorAll("[data-agblank]").forEach((b) => b.onclick = () => { const w = A.waiting[+b.dataset.agblank]; redo("blank=1", { raw: w.raw }, `"${w.raw}" will be left blank.`); });
+  ROOT.querySelectorAll("[data-agunblank]").forEach((b) => b.onclick = () => { const x = A.blank[+b.dataset.agunblank]; redo("unblank=1", { raw: x.raw }, `"${x.raw}" is back, waiting for an agency.`); });
   document.getElementById("ag-clear")?.addEventListener("click", () => redo("clear=1", {}, "Cleared."));
   const find = document.getElementById("ag-find");
   const filter = () => { AG_FIND = find.value; const q = AG_FIND.trim().toLowerCase(); ROOT.querySelectorAll("[data-agrow]").forEach((tr) => { tr.hidden = !!q && !tr.dataset.find.includes(q); }); };

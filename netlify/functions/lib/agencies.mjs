@@ -446,7 +446,8 @@ export async function suggest(raws, list, { client = null } = {}) {
  */
 export const agencyLog = async () => (await getMeta("agencies:log")) ?? [];
 export const agencyWaiting = async () => (await getMeta("agencies:waiting")) ?? [];
-export const agencyBlank = async () => (await getMeta("agencies:blank")) ?? [];
+// Left blank on purpose; stored as just the spelling's key before 30 Oct 2026, with what was typed since.
+export const agencyBlank = async () => ((await getMeta("agencies:blank")) ?? []).map((b) => (typeof b === "string" ? { key: b, raw: b } : b));
 
 /** Everyone on every event's list, with the event's title, for counting and matching. */
 export async function everyone() {
@@ -515,7 +516,7 @@ async function lookUp(api, batch) {
 /** Place every spelling the master list does not know yet. `people` carry eventTitle; `client` is for tests. */
 export async function settle(people, { client = null, at = new Date().toISOString() } = {}) {
   const list = await directory();
-  const log = await agencyLog(), blank = new Set(await agencyBlank());
+  const log = await agencyLog(), blank = new Set((await agencyBlank()).map((b) => b.key));
   // One that waited and has since been placed (Andrew taught that spelling elsewhere, or merged it) stops waiting.
   const waiting = (await agencyWaiting()).filter((w) => !placeOf(w.raw, list) && !blank.has(key(w.raw)));
   const waitingKeys = new Set(waiting.map((w) => key(w.raw)));

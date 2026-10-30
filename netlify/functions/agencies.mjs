@@ -23,6 +23,7 @@ import { wixConfigured, wixSites, listWixGuests, listWixEvents } from "./lib/wix
  *   POST /api/agencies?master=1&fix=1         { raw, agency, province? } that spelling is this agency, not what the desk said
  *   POST /api/agencies?master=1&undo=1        { raw } the desk was wrong and Andrew doesn't know either: it waits
  *   POST /api/agencies?master=1&blank=1       { raw } not an agency; leave it blank and stop asking
+ *   POST /api/agencies?master=1&unblank=1     { raw } bring one left blank back, to be given an agency after all
  *   POST /api/agencies?master=1&clear=1       the matched list has been looked over
  *   POST /api/agencies?master=1&edit=1        { name, newName?, province?, fr?, domains? }
  *   POST /api/agencies?master=1&merge=1       { from, into }
@@ -107,13 +108,13 @@ async function show(people) {
 }
 
 async function masterView() {
-  const [list, people, log, waiting, run] = await Promise.all([directory(), everyone(), agencyLog(), agencyWaiting(), getMeta("agencies:run")]);
+  const [list, people, log, waiting, run, blank] = await Promise.all([directory(), everyone(), agencyLog(), agencyWaiting(), getMeta("agencies:run"), agencyBlank()]);
   const counts = new Map();
   for (const p of people) { if (p.status === "WITHDRAWN") continue; const a = agencyOf(p, list); if (a) counts.set(a.name, (counts.get(a.name) ?? 0) + 1); }
   const week = Date.now() - 7 * 86400000;
   return json({
     agencies: list.map((a) => ({ name: a.name, province: a.province || "", fr: a.fr || "", domains: a.domains ?? [], aliases: a.aliases ?? [], people: counts.get(a.name) ?? 0 })),
-    matched: log, waiting, run: run ?? null, provinces: PROVINCES,
+    matched: log, waiting, blank, run: run ?? null, provinces: PROVINCES,
     stats: { agencies: list.length, spellings: list.reduce((n, a) => n + (a.aliases?.length ?? 0), 0), domains: list.reduce((n, a) => n + (a.domains?.length ?? 0), 0),
       week: log.filter((m) => Date.parse(m.at) > week).length },
   });
@@ -149,8 +150,17 @@ async function master(req, url) {
         ...(await agencyWaiting()).filter((w) => key(w.raw) !== key(raw))]);
     } else if (q("blank")) {
       if (!raw) return fail("Which spelling?");
-      await putMeta("agencies:blank", [...new Set([...(await agencyBlank()), key(raw)])]);
+      const was = (await agencyWaiting()).find((w) => key(w.raw) === key(raw));
+      await putMeta("agencies:blank", [{ key: key(raw), raw, count: was?.count ?? 0, events: was?.events ?? [], at: new Date().toISOString() },
+        ...(await agencyBlank()).filter((b) => b.key !== key(raw))]);
       await unwait();
+    } else if (q("unblank")) {
+      // Andrew 30 Oct 2026: a spelling left blank can come back, to be given an agency after all.
+      const was = (await agencyBlank()).find((b) => b.key === key(raw));
+      if (!was) return fail("That spelling isn't on the left-blank list.");
+      await putMeta("agencies:blank", (await agencyBlank()).filter((b) => b.key !== key(raw)));
+      await putMeta("agencies:waiting", [{ raw: was.raw, count: was.count ?? 0, events: was.events ?? [], reason: "You brought this back. Type the agency, or leave it blank again.", at: new Date().toISOString() },
+        ...(await agencyWaiting()).filter((w) => key(w.raw) !== key(raw))]);
     } else if (q("clear")) {
       await putMeta("agencies:log", []);
     } else if (q("edit")) {
@@ -163,7 +173,7 @@ async function master(req, url) {
       if (!name) return fail("What is the agency called?");
       if ((await directory()).some((a) => a.name.toLowerCase() === name.toLowerCase())) return fail(`${name} is already on the list.`);
       await teach(name, name, text(body.province, 2).toUpperCase(), { fr: text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : [] });
-    } else return fail("Expected fix, undo, blank, clear, edit, merge or add.");
+    } else return fail("Expected fix, undo, blank, unblank, clear, edit, merge or add.");
   } catch (e) { return fail(e.message); }
   return masterView();
 }
