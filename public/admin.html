@@ -5545,10 +5545,19 @@ async function loadCerts(ev) {
 }
 async function certFile(url) {
   const res = await apiFetch(url, { headers: { "x-admin-key": KEY } });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `The certificate could not be made (${res.status}).`);
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw Object.assign(new Error(body.error ?? `The certificate could not be made (${res.status}).`), { status: res.status, body }); }
   const named = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
   return { blob: await res.blob(), name: named ? decodeURIComponent(named[1]) : "certificate.pdf" };
 }
+/**
+ * The button on each person's row says what it does (audit, 30 Oct 2026): the first press issues the certificate (its number
+ * and QR code, kept for good), later ones download that same certificate. Someone not checked in, or a certificate that was
+ * withdrawn, takes a deliberate "…anyway" / "…again".
+ */
+const certAct = (p) => !p.cert ? (p.checkedIn ? `<button class="mini gold" data-certpdf="${esc(p.key)}">Issue &amp; download</button>` : `<button class="mini" data-certpdf="${esc(p.key)}">Issue anyway…</button>`)
+  : p.cert.revoked ? `<button class="mini" data-certpdf="${esc(p.key)}">Issue again…</button>`
+  : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><button class="linkish" data-certfix="${esc(p.key)}">Correct details</button><button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>`;
+const fmtShort = (iso) => { const d = new Date(iso ?? ""); return isNaN(d) ? "" : `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 function renderCerts(ev, C) {
   const box = document.getElementById("certbox");
   if (!box) return;
@@ -5556,8 +5565,9 @@ function renderCerts(ev, C) {
   const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
   const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
       <td>${esc(p.agency || "")}${p.typed && p.typed !== p.agency ? `<span class="psub" title="As typed">${esc(p.typed)}</span>` : ""}</td>
-      <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? "Withdrawn" : `No. ${esc(p.cert.code)}`}</span>` : ""}</td>
-      <td class="certact"><button class="mini" data-certpdf="${esc(p.key)}">Download PDF</button>${p.cert && !p.cert.revoked ? `<button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>` : ""}</td></tr>`;
+      <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? `Withdrawn · <s>${esc(p.cert.code)}</s>`
+        : `Issued ${esc(fmtShort(p.cert.issuedAt))} · No. ${esc(p.cert.code)}${p.cert.corrected ? " · corrected" : ""}`}</span>` : ""}</td>
+      <td class="certact">${certAct(p)}</td></tr>`;
   box.innerHTML = `<div class="certgrid">
       <div><h3 class="certh"><span class="certn">1</span>The design</h3>
         <div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
@@ -5572,10 +5582,10 @@ function renderCerts(ev, C) {
     <div class="filters" style="margin:6px 0 10px"><button class="fchip${CERT_CUT === "in" ? " on" : ""}" data-certcut="in">Checked in <b>${C.counts.checkedIn}</b></button>
       <button class="fchip${CERT_CUT === "all" ? " on" : ""}" data-certcut="all">Everyone coming <b>${C.counts.coming}</b></button></div>
     ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off" style="margin-bottom:10px">` : ""}
-    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still download anyone's certificate under Everyone coming.</div>` : ""}
+    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still issue anyone's certificate under Everyone coming.</div>` : ""}
     <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
     ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
-    <p class="hint" style="margin-top:12px">Each certificate gets its own number and QR code the first time it is downloaded, and is kept for good so it always verifies. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
+    <p class="hint" style="margin-top:12px">Issuing a certificate gives it its own number and QR code. From then on it stays exactly as issued, so it always verifies; if a name or date was wrong, <b>Correct details</b> puts the right ones on it and keeps the number. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
   const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
   box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
   designThumbs(box);
@@ -5598,12 +5608,26 @@ function renderCerts(ev, C) {
     b.disabled = false; b.textContent = "Preview a PDF";
   };
   box.querySelectorAll("[data-certpdf]").forEach((b) => b.onclick = async () => {
+    const label = b.textContent, extra = [];
     b.disabled = true; b.textContent = "Making it…";
-    try {
-      const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}`);
-      Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
-      loadCerts(ev);
-    } catch (x) { toast(x.message); b.disabled = false; b.textContent = "Download PDF"; }
+    for (;;) {
+      try {
+        const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}${extra.join("")}`);
+        Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
+        loadCerts(ev);
+      } catch (x) {
+        // Not checked in, or withdrawn: the server says so, and it's issued only if that's what's wanted.
+        if (x.status === 409 && x.body?.ask && confirm(`${x.message}\n\n${x.body.ask === "again" ? "Issue a new certificate?" : "Issue a certificate anyway?"}`)) { extra.push(`&${x.body.ask}=1`); continue; }
+        if (!(x.status === 409 && x.body?.ask)) toast(x.message);
+        b.disabled = false; b.textContent = label;
+      }
+      break;
+    }
+  });
+  box.querySelectorAll("[data-certfix]").forEach((b) => b.onclick = async () => {
+    const p = C.people.find((x) => x.key === b.dataset.certfix);
+    if (!confirm(`Put ${p.name}'s details as they are now (name, agency, date and design) on certificate ${p.cert.code}? It keeps its number, and what it said before is kept on record.`)) return;
+    try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}&correct=${encodeURIComponent(p.key)}`, { method: "POST", body: "{}" })); toast("Corrected. Download it again for the new PDF."); } catch (x) { toast(x.message); }
   });
   box.querySelectorAll("[data-certrevoke]").forEach((b) => b.onclick = async () => {
     const p = C.people.find((x) => x.key === b.dataset.certrevoke);

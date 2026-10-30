@@ -12,7 +12,10 @@ import { randomBytes } from "node:crypto";
  *
  *   GET  /api/certificates?event=…                     the settings, the designs, and everyone with their certificate if issued
  *   PUT  /api/certificates?event=…                     { template, date, course } (date "" goes back to the event's last day)
- *   GET  /api/certificates?event=…&pdf=<person key>    that person's certificate (issued the first time; kept for good)
+ *   GET  /api/certificates?event=…&pdf=<person key>    that person's certificate: issued the first time, then the same one every
+ *                                                     time. Issuing to someone not checked in needs &anyway=1, and issuing a
+ *                                                     withdrawn one again (a new number) needs &again=1; otherwise 409.
+ *   POST /api/certificates?event=…&correct=<key>      put the details as they are now on an issued certificate, same number
  *   GET  /api/certificates?event=…&preview=1           the design filled with the first person checked in, or a sample name
  *   POST /api/certificates?event=…&revoke=<key>        a certificate issued in error stops verifying
  *   GET  /api/certificates?event=…&csv=registration    everyone registered, sorted by last name
@@ -49,7 +52,10 @@ export default async (req) => {
     if (q("pdf")) {
       const p = people.find((x) => x.key === q("pdf"));
       if (!p) return fail("That person is not on this event's list.", 404);
-      rec = await issue(event, p, { name: p.name, agency: p.agency, settings });
+      const had = await certRecord((await certIndex(event.id))[p.key]);
+      if (had?.revokedAt && q("again") !== "1") return json({ error: `${p.name}'s certificate was withdrawn. Issuing it again gives it a new number.`, ask: "again" }, 409);
+      if ((!had || had.revokedAt) && !p.checkedIn && q("anyway") !== "1") return json({ error: `${p.name} isn't checked in. A certificate says they completed the training.`, ask: "anyway" }, 409);
+      rec = await issue(event, p, { name: p.name, agency: p.agency, settings, by: adminWho(req)?.email || "desk" });
     } else {
       // A preview is never issued: it carries a sample code that verifies nothing.
       const p = people.find((x) => x.checkedIn) ?? { name: "Your Name", agency: "Toronto Police Service" };
@@ -66,6 +72,13 @@ export default async (req) => {
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("Pick a date.");
     event.certs = { ...(event.certs ?? {}), ...(template ? { template } : {}), date, ...(body.course !== undefined ? { course: text(body.course, 200) } : {}) };
     await putEvent(event);
+    return json(await view(event, people, templates));
+  }
+  if (req.method === "POST" && q("correct")) {
+    const p = people.find((x) => x.key === q("correct"));
+    const had = p ? await certRecord((await certIndex(event.id))[p.key]) : null;
+    if (!had || had.revokedAt) return fail("No certificate in use has been issued to that person.", 404);
+    await issue(event, p, { name: p.name, agency: p.agency, settings: certSettings(event, templates), by: adminWho(req)?.email || "desk", correct: true });
     return json(await view(event, people, templates));
   }
   if (req.method === "POST" && q("revoke")) {
@@ -97,10 +110,13 @@ async function view(event, people, templates) {
     settings: certSettings(event, templates),
     lastDay: event.lastDay || event.dayOne || "",
     templates: templates.map(designCard),
-    people: people.map((p) => ({ ...p, cert: issued.has(p.key) ? { code: issued.get(p.key).code, revoked: !!issued.get(p.key).revokedAt, issuedAt: issued.get(p.key).issuedAt } : null })),
+    people: people.map((p) => ({ ...p, cert: issued.has(p.key) ? certCard(issued.get(p.key)) : null })),
     counts: { coming: people.filter((p) => p.status === "ATTENDING").length, checkedIn: people.filter((p) => p.checkedIn).length, issued: issued.size },
   };
 }
+
+/** An issued certificate as the list shows it: its number, when, and whether it's been corrected or withdrawn. */
+const certCard = (r) => ({ code: r.code, revoked: !!r.revokedAt, issuedAt: r.issuedAt, corrected: (r.history ?? []).length, notCheckedIn: !!r.notCheckedIn });
 
 /** The two downloads (Andrew 30 Oct 2026: "export the list for registration as well as … a list in csv to upload to the certificate program"). */
 /** A design as the screens show it. An uploaded one's picture needs signing in, so the page fetches it with the key. */

@@ -58,12 +58,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await fold.screenshot({ path: D + "certs-wide.png" });
     // Download Jordan's certificate and read it.
     const row = p.locator("[data-certkey]", { hasText: "Jordan Tremblay" });
+    ok("before it's issued, the button says so: Issue & download", (await row.locator("[data-certpdf]").innerText()) === "Issue & download");
     const [dl] = await Promise.all([p.waitForEvent("download"), row.locator("[data-certpdf]").click()]);
     const file = await dl.path(); fs.copyFileSync(file, "/tmp/certs-jordan.pdf");
     const words = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan.pdf", "-"]).toString();
     ok("Download PDF gives Jordan's certificate: name, official agency, the last day", dl.suggestedFilename() === "Jordan Tremblay - certificate.pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2031/.test(words), words.slice(0, 200));
     await p.waitForTimeout(1200);
-    ok("and it now shows its number", /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
+    ok("and it now shows when it was issued and its number", /Issued \d+ \w{3} · No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
+    ok("from then on the button is Download, with Correct details and Withdraw beside it", (await row.locator("[data-certpdf]").innerText()) === "Download" && await row.locator("[data-certfix]").isVisible() && await row.locator("[data-certrevoke]").isVisible());
     // Change the date; then back.
     await p.locator("#cert-date").fill("2031-05-07"); await p.locator("#cert-date").dispatchEvent("change"); await p.waitForTimeout(1200);
     ok("the date can be changed, and says so", (await p.locator("#cert-date").inputValue()) === "2031-05-07" && await p.locator("#cert-dateback").isVisible());
@@ -85,7 +87,16 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.locator("#cert-find").fill("");
     // Everyone coming.
     await p.locator('[data-certcut="all"]').click(); await p.waitForTimeout(500);
-    ok("Everyone coming shows Alex too, not checked in, still downloadable", await p.locator("[data-certkey]").count() === 3 && /Not checked in/i.test(await p.locator("[data-certkey]", { hasText: "Alex Martin" }).innerText()));
+    const alex = p.locator("[data-certkey]", { hasText: "Alex Martin" });
+    ok("Everyone coming shows Alex too, not checked in, with Issue anyway…", await p.locator("[data-certkey]").count() === 3 && /Not checked in/i.test(await alex.innerText()) && (await alex.locator("[data-certpdf]").innerText()) === "Issue anyway…");
+    let asked = "";
+    p.once("dialog", (d) => { asked = d.message(); d.dismiss(); });
+    await alex.locator("[data-certpdf]").click(); await p.waitForTimeout(1200);
+    ok("Issue anyway asks first, and saying no issues nothing", /isn't checked in/.test(asked) && !/No\./.test(await alex.innerText()) && (await alex.locator("[data-certpdf]").innerText()) === "Issue anyway…", asked);
+    p.once("dialog", (d) => d.accept());
+    const [dla] = await Promise.all([p.waitForEvent("download"), alex.locator("[data-certpdf]").click()]);
+    await p.waitForTimeout(1200);
+    ok("saying yes issues Alex's", dla.suggestedFilename() === "Alex Martin - certificate.pdf" && /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await alex.innerText()));
     // Preview opens a PDF in a new tab.
     const [tab] = await Promise.all([p.context().waitForEvent("page"), p.locator("#cert-preview").click()]);
     ok("Preview a PDF opens one", !!tab); await tab.close().catch(() => {});
@@ -98,6 +109,16 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await vp.screenshot({ path: D + "certs-verify.png", fullPage: true });
     await vp.goto(`${S}/verify.html?c=ZZZZ-ZZZZ`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
     ok("a made-up number is not genuine", /no certificate with this number/i.test(await vp.locator("#box").innerText()));
+    // Issued stays issued; Correct details changes it on purpose, same number.
+    await p.locator("#cert-date").fill("2031-05-07"); await p.locator("#cert-date").dispatchEvent("change"); await p.waitForTimeout(1200);
+    await vp.goto(`${S}/verify.html?c=${code}`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
+    ok("changing the date doesn't change a certificate already issued", /May 6, 2031/.test(await vp.locator("#box").innerText()));
+    p.once("dialog", (d) => d.accept());
+    await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).locator("[data-certfix]").click(); await p.waitForTimeout(1500);
+    await vp.goto(`${S}/verify.html?c=${code}`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
+    ok("Correct details puts the new date on it, keeping its number, marked corrected", /May 7, 2031/.test(await vp.locator("#box").innerText()) && new RegExp(`No\\. ${code} · corrected`).test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
+    await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).screenshot({ path: D + "certs-row-issued.png" });
+    await p.locator("#cert-dateback").click(); await p.waitForTimeout(1200);
     await vp.close();
   } else {
     await fold.screenshot({ path: D + "certs-phone.png" });

@@ -6,7 +6,7 @@ process.env.ADMIN_KEY = "testkey";
 process.env.APP_URL = "https://events.ongia.org";
 process.env.COSTING_USERS = "president@ongia.ca,vp_operations@ongia.ca";
 const F = REPO + "netlify/functions/";
-const { putEvent, putAttendees, getEvent } = await import(F + "lib/store.mjs");
+const { putEvent, putAttendees, getEvent, getMeta } = await import(F + "lib/store.mjs");
 const { issueSession } = await import(F + "lib/auth.mjs");
 const certificates = (await import(F + "certificates.mjs")).default;
 const verify = (await import(F + "verify.mjs")).default;
@@ -71,20 +71,35 @@ ok("with an Add to LinkedIn link filled in", /linkedin\.com\/profile\/add\?/.tes
 ok("it says nothing more: no email", !JSON.stringify(V.body).includes("@"));
 ok("a made-up number is not genuine", (await v("ZZZZ-ZZZZ")).body.valid === false && (await v("bad")).status === 404);
 
-// A change shows on the next download and on the verify page; the number stays.
+// Once issued it stays as issued (audit, 30 Oct 2026): a change to the settings doesn't alter it on the next download;
+// Correct details puts it on, on purpose, keeping the number and what it said before.
 await call("event=ngs27", { method: "PUT", body: { date: "2027-05-07" } });
-await call("event=ngs27&pdf=k1");
-ok("a changed date shows on the verify page, same number", /May 7, 2027/.test((await v(code)).body.date));
+const again = await call("event=ngs27&pdf=k1");
+fs.writeFileSync("/tmp/cert-k1b.pdf", again.body);
+ok("after the date is changed, downloading it again gives the certificate as issued", /May 6, 2027/.test((await v(code)).body.date) && /06\/05\/2027/.test(execFileSync("pdftotext", ["-layout", "/tmp/cert-k1b.pdf", "-"]).toString()));
+C = (await call("event=ngs27&correct=k1", { method: "POST", body: {} })).body;
+ok("Correct details puts the new date on it, same number, marked corrected", /May 7, 2027/.test((await v(code)).body.date) && C.people.find((x) => x.key === "k1").cert.code === code && C.people.find((x) => x.key === "k1").cert.corrected === 1);
+ok("what it said before is kept on its record", (await getMeta(`certs:code:${code}`)).history?.[0]?.date === "2027-05-06");
 await call("event=ngs27", { method: "PUT", body: { date: "" } });
+// Someone not checked in: issued only when that's what's wanted.
+const k3 = await call("event=ngs27&pdf=k3");
+ok("someone not checked in isn't issued one by a plain download: it asks", k3.status === 409 && k3.body.ask === "anyway" && /isn't checked in/.test(k3.body.error) && !(await call("event=ngs27")).body.people.find((x) => x.key === "k3").cert);
+const k3b = await call("event=ngs27&pdf=k3&anyway=1");
+ok("Issue anyway issues it, noted as not checked in", k3b.type === "application/pdf" && (await getMeta(`certs:code:${(await call("event=ngs27")).body.people.find((x) => x.key === "k3").cert.code}`)).notCheckedIn === true);
 
 // Withdrawn in error.
 await call("event=ngs27&revoke=k1", { method: "POST", body: {} });
 V = await v(code);
 ok("a withdrawn certificate says so", V.body.valid === false && V.body.revoked === true);
+const w0 = await call("event=ngs27&pdf=k1");
+ok("a withdrawn one isn't issued again by a plain download: it asks", w0.status === 409 && w0.body.ask === "again");
+await call("event=ngs27&pdf=k1&again=1");
+const code2 = (await call("event=ngs27")).body.people.find((x) => x.key === "k1").cert.code;
+ok("Issue again gives a new number; the old one still says withdrawn", code2 !== code && (await v(code2)).body.valid === true && (await v(code)).body.revoked === true && (await getMeta(`certs:code:${code2}`)).replaces === code);
 
 // A preview is never issued.
 const pre = await call("event=ngs27&preview=1");
-ok("Preview makes a PDF without issuing one", pre.type === "application/pdf" && (await call("event=ngs27")).body.people.filter((x) => x.cert).length === 1);
+ok("Preview makes a PDF without issuing one", pre.type === "application/pdf" && (await call("event=ngs27")).body.people.filter((x) => x.cert).length === 2);
 
 // The generic design prints the course.
 const w = await call("event=web1&pdf=w1");
