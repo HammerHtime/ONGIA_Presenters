@@ -81,7 +81,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator('[data-qscope="all"]').click(); await p.waitForTimeout(900);
   // search
   await p.fill("#hsearch", "Iewer"); await p.waitForTimeout(900);
-  ok(`${tag}: the search finds a presenter as you type, with their event`, (await p.locator("#hsres").isVisible()) && new RegExp(`Rev Iewer[\\s\\S]*Home Summit ${T}`).test(await p.locator("#hsres").innerText()), await p.locator("#hsres").innerText());
+  ok(`${tag}: the search finds a presenter as you type, with their event`, (await p.locator("#hsres").isVisible()) && new RegExp(`Rev Iewer[\\s\\S]*Home Summit ${T}`).test(await p.locator("#hsres").innerText()), JSON.stringify(await p.locator("#hsres").innerText()));
   await p.locator("#hsres [data-i]").first().click(); await p.waitForTimeout(1500);
   ok(`${tag}: clicking it opens their agreement`, /Rev Iewer/.test(await p.locator("body").innerText()) && (await p.locator("#r-name, #r-attest").count()) >= 1);
   await p.goBack(); await p.waitForTimeout(1200);

@@ -54,9 +54,9 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const band = await p.locator(".evband").innerText();
   ok(`${tag}: the navy band carries the lead, with when they last signed in`, /Lead: Raj Jaswal/.test(band) && /(last signed in|never signed in)/.test(band), band.slice(0, 300));
   const tiles = await p.locator(".etile").allInnerTexts();
-  ok(`${tag}: six tiles: agreements, final materials, hotel, room seats, Wix registrations, the next date`, tiles.length === 6 && /0\s*\/\s*\d+\s*Agreements signed/.test(tiles[0]) && /Final materials/.test(tiles[1]) && /Hotel/.test(tiles[2]) && /Room seats/.test(tiles[3]) && /Wix registrations/.test(tiles[4]), tiles.join(" | "));
-  ok(`${tag}: the bar has the home page's buttons here too`, (await p.locator(".bar #theyear").count()) === 1 && (await p.locator(".bar #newevent").count()) === 1 && (await p.locator("#root > .crumbs #back").count()) === 1);
-  ok(`${tag}: Events sits beside The year in the bar (Andrew 30 Oct 2026), not lit up away from the list`, await p.evaluate(() => document.querySelector(".bar #eventsnav")?.nextElementSibling?.id === "theyear") && (await p.locator(".bar #eventsnav.here").count()) === 0);
+  ok(`${tag}: the Overview's key numbers: agreements, final materials, hotel, room seats, the next date (registrations have their own circle)`, tiles.length === 5 && /0\s*\/\s*\d+\s*Agreements signed/.test(tiles[0]) && /Final materials/.test(tiles[1]) && /Hotel/.test(tiles[2]) && /Room seats/.test(tiles[3]) && await p.locator(".regcard .rring").count() === 1, tiles.join(" | "));
+  ok(`${tag}: the sidebar (a bottom bar on a phone) and the top bar's search and New event are here too`, (await p.locator("#side #theyear").count()) === 1 && (await p.locator(".bar #newevent").count()) === 1 && (await p.locator(".bar #hsearch").count()) === 1 && (await p.locator("#root > .crumbs #back").count()) === 1);
+  ok(`${tag}: Events sits just above The year in the sidebar, lit up on an event too`, await p.evaluate(() => document.querySelector("#side #eventsnav")?.nextElementSibling?.id === "theyear") && (await p.locator("#side #eventsnav.on[aria-current=page]").count()) === 1);
   ok(`${tag}: the People tab carries a count of what needs you there`, /People\s*\d+/.test((await tabs(p))[1]), (await tabs(p))[1]);
   ok(`${tag}: the presenters are not on the Overview`, !(await p.locator('details[data-fold="sec-presenters"]').isVisible()));
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-overview-wide.png", fullPage: true }); else await p.screenshot({ path: D + "evtabs-overview-phone.png", fullPage: true });
@@ -102,8 +102,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: an RBH event adds a Money tab for the president`, rn.includes("money"), rn.join(","));
   await p.locator('[data-tab="money"]').click(); await p.waitForTimeout(300);
   ok(`${tag}: Money holds the SOW`, await p.locator('details[data-fold="sec-sow"]').isVisible());
-  if (tag === "wide") { await p.locator(".bar #eventsnav").click(); await p.waitForTimeout(1200);
-    ok(`${tag}: Events in the bar goes back to the events list, and is lit up there`, (await p.locator(`[data-open="${R.id}"]`).count()) === 1 && (await p.locator(".bar #eventsnav.here[aria-current=page]").count()) === 1); }
+  if (tag === "wide") { await p.locator("#side #eventsnav").click(); await p.waitForTimeout(1200);
+    ok(`${tag}: Events in the sidebar goes back to the events list, and is lit up there`, (await p.locator(`[data-open="${R.id}"]`).count()) === 1 && (await p.locator("#side #eventsnav.on[aria-current=page]").count()) === 1); }
   ok(`${tag}: no page errors`, p.errs.length === 0, p.errs.join(" | "));
   await p.close();
 }

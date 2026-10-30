@@ -49,8 +49,10 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);
   await t0.click(); await p.waitForTimeout(500);
   ok(`${tag}: clicking it opens People, cut to the ones that need you`, (await p.locator(".etabp:not([hidden])").getAttribute("data-panel")) === "people" && /Needs me/.test(await p.locator(".pview[data-pview=\"presenters\"] .fchip.on").innerText()) && (await p.locator("tr.prow:not([hidden])").count()) >= 1, await p.locator(".pview[data-pview=\"presenters\"] .fchip.on").innerText().catch(() => ""));
-  await p.locator(".etile", { hasText: "Wix registrations" }).click(); await p.waitForTimeout(400);
-  ok(`${tag}: the Wix tile opens Who's coming`, (await p.locator("[data-pseg].on").getAttribute("data-pseg")) === "guests");
+  await p.locator('.etab[data-tab="overview"]').click(); await p.waitForTimeout(300);
+  await p.locator(".regcard .dmore").click(); await p.waitForTimeout(400);
+  ok(`${tag}: the registrations circle's Who's coming opens Who's coming`, (await p.locator("[data-pseg].on").getAttribute("data-pseg")) === "guests");
+  await p.locator('.etab[data-tab="overview"]').click(); await p.waitForTimeout(300);   // the key numbers are on the Overview
   await p.locator(".etile", { hasText: "Hotel" }).first().click(); await p.waitForTimeout(400);
   ok(`${tag}: the hotel tile opens the hotel list on Logistics`, (await p.locator(".etabp:not([hidden])").getAttribute("data-panel")) === "logistics" && await p.locator('details[data-fold="sec-hotel"]').isVisible());
   await go({ name: "event", eventId: ev.id, tab: "people", pview: "presenters", filter: "all" });

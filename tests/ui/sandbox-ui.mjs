@@ -92,7 +92,8 @@ await p.close();
 
 console.log("— on a phone");
 p = await open(390, 844);
-await p.locator("#sandboxnav").click().catch(async () => { await p.evaluate(() => { view = { name: "sandbox" }; render(); }); });
+if (!(await p.locator("#sandboxnav").isVisible()) && await p.locator("#snmore").isVisible()) { await p.locator("#snmore").click(); await p.waitForTimeout(300); }   // on a phone it's under More
+await p.locator("#sandboxnav").click();
 await p.waitForTimeout(1500);
 if (await p.locator(".sbxq").count()) { await p.locator(".sbxq").screenshot({ path: D + "sandbox-questions-phone.png" }); await p.locator("#q-done").click(); await p.waitForTimeout(800); }
 ok("phone: the tiles, two across, and nothing wider than the screen", (await p.locator(".sbt").count()) === 12 && await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

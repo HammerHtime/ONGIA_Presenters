@@ -63,6 +63,119 @@
   .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
 
+  /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
+  .k-ongia{--kc:var(--navy);--kt:#fff;--ki:#f1cf76} .k-rbh{--kc:var(--rbh);--kt:#fff;--ki:#f1cf76} .k-ext{--kc:var(--gold);--kt:#1c1608;--ki:var(--navy-deep)}
+  .calhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px} .calhead h1{font-family:var(--fd);font-weight:400;font-size:32px;color:var(--navy-deep);margin-right:4px}
+  .calnav{display:flex;align-items:center;border:1px solid var(--border);background:#fff;border-radius:999px;padding:2px}
+  .calnav button{border:0;background:none;width:32px;height:32px;border-radius:50%;font-size:20px;color:var(--muted);cursor:pointer} .calnav button:hover{background:var(--sunk)}
+  .calnav .yr{font-weight:700;padding:0 8px;min-width:56px;text-align:center}
+  .calseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff}
+  .calseg button{border:0;background:none;padding:8px 16px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink-mid)} .calseg button.on{background:var(--navy);color:#fff}
+  #addconf{margin-left:auto}
+  .caltiles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 14px;font-size:13.5px;color:var(--muted)} .caltiles b{font:400 20px var(--fd);color:var(--ink);margin-right:4px} .caltiles .hot b{color:var(--late)}
+  .callay{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start;margin-bottom:18px}
+  .calmain{margin:0;overflow:hidden} .calside{display:flex;flex-direction:column;gap:16px} .calcard{margin:0;padding:16px 18px;box-shadow:var(--lift)}
+  .ygrid{position:relative}
+  .yrw{display:grid;grid-template-columns:210px minmax(0,1fr);border-bottom:1px solid var(--hair);min-height:54px}
+  .yrw.yhd{min-height:0;background:var(--sand);border-bottom:1px solid var(--edge)}
+  .yhd .yname{font:600 11px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:9px 14px}
+  .ymon{display:grid;grid-template-columns:repeat(12,1fr)} .ymon span{font:600 11px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;padding:9px 0;border-left:1px solid var(--hair)}
+  button.yname{border:0;background:none;text-align:left;padding:8px 14px;cursor:pointer;font:inherit;min-width:0} button.yname:hover b{text-decoration:underline}
+  .yname b{display:block;font-size:13.5px;line-height:1.3} .yname span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ytr{position:relative;background-image:linear-gradient(to right,var(--hair) 1px,transparent 1px);background-size:calc(100% / 12) 100%}
+  .ybar{position:absolute;top:50%;transform:translateY(-50%);height:26px;min-width:5px;border:0;border-radius:7px;background:var(--kc);color:var(--kt);display:flex;align-items:center;gap:8px;
+    padding:0 9px;font:600 11.5px var(--fb);white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .ybar .yini{color:var(--ki)} .ybar.thin{padding:0;min-width:22px}
+  .ylab{position:absolute;top:50%;transform:translateY(-50%);margin-left:6px;display:flex;gap:7px;align-items:center;font:600 11.5px var(--fb);white-space:nowrap;color:var(--ink-mid);pointer-events:none}
+  .ylab.before{margin:0 6px 0 0} .ylab .yini{color:var(--kc)}
+  .yini{font-size:10.5px;letter-spacing:.04em;font-weight:700} .yini u,.mbar small u,.cwho u{text-decoration:none;border-bottom:1.5px solid currentColor}
+  .ytk{position:absolute;bottom:2px;width:17px;height:17px;margin-left:-8px;padding:0;border-radius:50%;font:700 9.5px/14px var(--fb);text-align:center;color:#fff;background:var(--navy);border:1.5px solid #fff;cursor:pointer;z-index:1}
+  .ytk.agreement{background:var(--gold);color:#1c1608} .ytk.draft{background:var(--wait)} .ytk.cutoff{background:var(--rbh)} .ytk.late{background:var(--late);color:#fff}
+  .ynowwrap{position:absolute;inset:0 0 0 210px;pointer-events:none} .ynowwrap .ytr{height:100%;background:none} .ynow{position:absolute;top:0;bottom:0;width:2px;background:var(--late);opacity:.55}
+  .mcal .mhd{display:grid;grid-template-columns:repeat(7,1fr);background:var(--sand);border-bottom:1px solid var(--edge)} .mcal .mhd span{font:600 11px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;padding:9px 0}
+  .mwk{position:relative;border-bottom:1px solid var(--hair)} .mdays{position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr)}
+  .mday{border-left:1px solid var(--hair);padding:5px 8px;font-size:13px;color:var(--ink-mid)} .mday:first-child{border-left:0} .mday.out{color:#b9b2a2;background:rgba(0,0,0,.015)}
+  .mday.now span{background:var(--gold);color:#1c1608;border-radius:999px;padding:1px 7px;font-weight:700}
+  .mbars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:40px;row-gap:4px;padding:28px 3px 8px}
+  .mbar{border:0;border-radius:7px;margin:0 2px;padding:4px 9px;text-align:left;background:var(--kc);color:var(--kt);cursor:pointer;overflow:hidden;font:inherit;min-width:0}
+  .mbar b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .mbar small{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ki)}
+  .clist .crow{display:grid;grid-template-columns:120px minmax(0,1.4fr) minmax(0,1fr) 140px;gap:12px;align-items:center;width:100%;border:0;border-bottom:1px solid var(--hair);background:none;text-align:left;padding:11px 16px;font:inherit;cursor:pointer;box-shadow:inset 4px 0 var(--kc)}
+  .clist .crow:hover{background:var(--card)} .cwhen{font-weight:700;font-size:13.5px} .cwhat b{display:block} .cwhat span{font-size:12.5px;color:var(--muted)} .cwho{font-size:13px;color:var(--ink-mid)} .ckind{font-size:12px;color:var(--muted);text-align:right}
+  .cup{list-style:none;margin:0 0 8px;padding:0} .cup li button{display:flex;gap:12px;width:100%;border:0;border-top:1px solid var(--hair);background:none;text-align:left;padding:8px 0;font:inherit;cursor:pointer}
+  .cup li:first-child button{border-top:0} .cupd{width:36px;flex:none;text-align:center} .cupd small{display:block;font:600 10px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)} .cupd b{font:400 21px var(--fd);line-height:1}
+  .cupw{font-size:13px;min-width:0} .cupw b{display:block} .cupw span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px} .cupw i,.cshow i{width:9px;height:9px;border-radius:3px;background:var(--kc);flex:none;display:inline-block}
+  .cshow{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:5px 0} .cshow i{width:11px;height:11px} .cshow b{margin-left:auto;color:var(--muted);font-weight:600}
+  .cwhosel{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--muted)} .cwhosel select{flex:1;margin:0}
+  .cfpick{display:flex;flex-wrap:wrap;gap:6px} .cfpick button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 13px;font:600 13px var(--fb);cursor:pointer;min-height:36px}
+  .cfpick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  dialog.msdlg{padding:0;width:min(440px,94vw)} dialog.msdlg .yside{position:static;margin:0;width:auto;max-height:80vh;display:flex;flex-direction:column}
+  @media (max-width:1100px){.callay{grid-template-columns:1fr}.calside{display:grid;grid-template-columns:1fr 1fr}}
+  @media (max-width:760px){.calhead h1{font-size:26px;width:100%} #addconf{margin-left:0} .calside{grid-template-columns:1fr}
+    .yrw{grid-template-columns:110px minmax(0,1fr)} .ynowwrap{left:110px} .yname span{display:none} .ylab .ywhen{display:none}
+    .mbar small{display:none} .mbars{grid-auto-rows:26px}
+    .clist .crow{grid-template-columns:86px minmax(0,1fr);row-gap:2px} .cwho{grid-column:2} .ckind{display:none}}
+  @media print{.calside,.calhead button,#addconf{display:none}.callay{display:block}}
+
+  /* The way around the desk (Andrew 30 Oct 2026, from the mock-ups: "I like the first dashboard"): a navy column down the
+     left on a wide screen; on a phone or tablet the same buttons as a bar along the bottom, with More for the rest. The top
+     bar keeps the search and New event. */
+  .side{display:none}
+  .sn{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;color:rgba(255,255,255,.86);font:600 14px var(--fb);
+      padding:9px 12px;border-radius:10px;cursor:pointer;text-align:left;position:relative}
+  .sn svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .sn:hover{background:rgba(255,255,255,.07)}
+  .sn.on{background:var(--gold);color:#1c1608}
+  .sn.rbh:not(.on){color:#9fd8d2}
+  .sn .nb{margin-left:auto}
+  .slogo{height:46px;width:auto;display:block;margin:0 8px}
+  .sroom{font-size:12px;color:rgba(255,255,255,.55);margin:2px 10px 18px}
+  .snav{display:flex;flex-direction:column;gap:3px}
+  .smore{display:flex;flex-direction:column;gap:3px;border-top:1px solid rgba(255,255,255,.12);margin-top:10px;padding-top:10px}
+  .snmore{display:none}
+  .sme{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 8px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .sme i{flex:none;width:34px;height:34px;border-radius:50%;background:var(--gold-pale);color:var(--navy-deep);display:grid;place-items:center;font:700 12px var(--fb);font-style:normal}
+  .sme b{display:block;font-size:13.5px;line-height:1.3} .sme span{font-size:12px;color:rgba(255,255,255,.55)}
+  @media (min-width:900px){
+    body.withside{padding-left:232px}
+    .withside .side{display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;width:232px;z-index:11;overflow-y:auto;
+      background:var(--navy-deep);color:#fff;border-right:3px solid var(--gold);padding:calc(20px + env(safe-area-inset-top,0px)) 12px 14px}
+    .withside .bar{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
+    .withside .bar > .logo,.withside .bar > .sub,.withside .bar .me{display:none}
+    .withside .bar .chip:not(.solid){color:var(--ink);border-color:var(--border);background:#fff}
+    .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
+    .withside .bar .hsearch input::placeholder{color:var(--muted)}
+    .withside .bar .hsres{left:auto;right:0;width:min(440px, 70vw)}
+  }
+  /* A laptop: a narrow rail, each button's icon with its name small beneath, so the page keeps its width. */
+  @media (min-width:900px) and (max-width:1365px){
+    body.withside{padding-left:88px}
+    .withside .side{width:88px;padding-left:6px;padding-right:6px}
+    .withside .slogo{height:40px;width:30px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);margin:0 auto 14px}
+    .withside .sroom{display:none}
+    .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
+    .withside .sn svg{width:21px;height:21px}
+    .withside .sn .nb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
+    .withside .sme{justify-content:center;padding:12px 0 0} .withside .sme div{display:none}
+  }
+  @media (max-width:899px){
+    body.withside{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+    .withside .side{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:20;
+      background:#fff;border-top:1px solid var(--edge);box-shadow:0 -4px 16px rgba(14,26,53,.06);padding:5px 4px calc(7px + env(safe-area-inset-bottom,0px))}
+    .withside .slogo,.withside .sroom,.withside .sme{display:none}
+    .withside .snav{display:contents}
+    .withside .snav > .sn{flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;color:var(--muted);text-align:center;border-radius:10px;justify-content:center;min-height:50px}
+    .withside .snav > .sn svg{width:22px;height:22px}
+    .withside .snav > .sn.on{background:none;color:var(--navy-deep)} .withside .snav > .sn.on svg{color:var(--gold)}
+    .withside .snav > .sn .nb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
+    .withside .snmore{display:flex}
+    .withside .smore{display:none;position:fixed;right:8px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-width:220px;margin:0;padding:6px;
+      background:#fff;border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow)}
+    .withside .side.open .smore{display:flex}
+    .withside .smore .sn{color:var(--ink)} .withside .smore .sn.rbh:not(.on){color:var(--rbh)} .withside .smore .sn:hover{background:var(--sunk)}
+    .withside .toast,.withside .reloadbar,.withside #netpill{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+    .withside .jselbar{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+  }
+
   .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 70px}
   .card{background:var(--card);border:1.5px solid var(--edge);border-radius:20px;
         box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
@@ -1214,19 +1327,50 @@
   /* The event page (Andrew 21 Oct 2026): a navy band with the key numbers as tiles, the tabs under it, the work on the
      left and the event's side column on the right. */
   .evhead{margin-bottom:18px}
-  .evband{background:var(--navy);color:#fff;border-radius:20px 20px 0 0;padding:20px 24px 18px;border-bottom:3px solid var(--gold)}
+  /* The event's header is a white card now (the mock-up Andrew picked, 30 Oct 2026); the key numbers moved to the Overview. */
+  .evband{background:#fff;color:var(--ink);border:1.5px solid var(--edge);border-bottom:0;border-radius:20px 20px 0 0;padding:20px 24px 16px}
   .evband .bhead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
   .evband .bhead>div:first-child{flex:1 1 380px;min-width:0}
-  .evband h2{font-family:var(--fd);font-size:28px;line-height:1.15;color:#fff}
-  .evband .tag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:1px 9px;margin-left:8px;vertical-align:5px}
-  .bmeta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:14px;color:rgba(255,255,255,.8)}
+  .evband h2{font-family:var(--fd);font-size:30px;line-height:1.15;color:var(--navy-deep)}
+  .evband .tag{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--border);color:var(--ink-mid);border-radius:999px;padding:1px 9px;margin-left:8px;vertical-align:6px}
+  .bmeta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:14px;color:var(--muted)}
   .bmeta>span{display:inline-flex;align-items:center;gap:6px;min-width:0} .bmeta svg{width:15px;height:15px;flex:none;opacity:.75}
   .bmeta .seen{font-size:12px;white-space:nowrap;opacity:.78;margin-left:4px}
   .bacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-  .bacts .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.42)}
+  .bacts .mini{background:#fff;color:var(--ink);border-color:var(--border)}
   .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .bacts .mini:disabled{opacity:.5}
-  .evtiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:18px}
+  .evtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .dash .etile{border:1px solid var(--border)}
+  .dash{margin:0 0 18px}
+  .dgrid{display:grid;gap:16px;margin-bottom:16px;align-items:stretch}
+  .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr) minmax(0,.8fr)}
+  .dgrid.three + .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr)}
+  .dbcard{margin:0;padding:16px 18px;display:flex;flex-direction:column;box-shadow:var(--lift)}
+  .dh{display:flex;align-items:center;gap:10px;margin-bottom:12px} .dh h2{font-family:var(--fd);font-size:20px;color:var(--navy-deep)} .dh .porg{margin-left:auto;font-size:12.5px}
+  .dtag{font-family:var(--fu);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .dtag.good{background:var(--done-bg);color:var(--done)} .dtag.wait{background:var(--wait-bg);color:var(--wait)} .dtag.idle{background:var(--sunk);color:var(--muted)}
+  .regrow{display:flex;align-items:center;gap:16px} .rring{width:136px;height:136px;flex:none}
+  .rring .rn{font:400 34px var(--fd);fill:var(--navy-deep)} .rring .rl{font:500 12.5px var(--fb);fill:var(--muted)}
+  .dlines{list-style:none;margin:0;padding:0;font-size:13.5px;color:var(--ink-mid);min-width:0}
+  .dlines li{padding:5px 0;border-top:1px solid var(--hair)} .dlines .bad-t{color:var(--late)} .dlines li:first-child{border-top:0} .dlines b{color:var(--ink)}
+  .dmore{margin-top:auto;align-self:flex-start;padding-top:10px}
+  .qacts{display:flex;flex-direction:column;gap:7px}
+  @media (max-width:760px){.qacts{display:grid;grid-template-columns:1fr 1fr} .qacts .qact.gold{grid-column:1 / -1}}
+  .qact{display:flex;align-items:center;gap:9px;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 12px;font:600 13.5px var(--fb);color:var(--ink);cursor:pointer;text-align:left}
+  .qact:hover{border-color:var(--gold)} .qact.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .qact svg,.fic svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .dsub{margin:-6px 0 12px;font-size:13px}
+  .dnums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .dnums div{background:var(--sunk);border-radius:10px;padding:9px 6px;text-align:center} .dnums b{display:block;font:400 24px var(--fd);line-height:1.1} .dnums span{font-size:12px;color:var(--muted)}
+  .dbtn{margin-top:auto;align-self:flex-start}
+  .feed{list-style:none;margin:0;padding:0}
+  .feed li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--hair);font-size:13.5px}
+  .feed li:first-child{border-top:0} .feed time{font-size:12px;color:var(--muted);white-space:nowrap}
+  .fic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--sunk);color:var(--ink-mid)}
+  .fic.g{background:var(--done-bg);color:var(--done)} .fic.y{background:var(--gold-pale);color:var(--wait)}
+  @media (max-width:1250px){.dgrid.three,.dgrid.three + .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .dgrid.three > :nth-child(3){grid-column:1 / -1}}
+  @media (max-width:760px){.dgrid.three,.dgrid.three + .dgrid.three{grid-template-columns:1fr} .dgrid.three > :nth-child(3){grid-column:auto} .rring{width:112px;height:112px}}
   /* The room tile flips over to its arithmetic. */
   .rflip{perspective:900px;cursor:pointer;min-width:0;border-radius:14px}
   .rflip-in{display:grid;height:100%;transition:transform .45s;transform-style:preserve-3d}
@@ -1316,8 +1460,10 @@
   /* On a narrower screen the Room column goes (each presenter's panel shows the room), so the names keep their room. */
   @media (min-width:761px) and (max-width:1320px){ .ptable .pr, .ptable .thr{display:none} }
   .pdh{display:flex;gap:12px;align-items:center;margin-bottom:6px}
-  @media (max-width:1100px){.evtiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (max-width:1100px){.evtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media (max-width:900px){.evbody{grid-template-columns:1fr} .evbody.withdrawer #sidepanels{display:block}}
+  /* With the sidebar's rail beside it, an iPad held sideways keeps the event's work full width; the side panels go below. */
+  @media (min-width:900px) and (max-width:1100px){.withside .evbody{grid-template-columns:1fr} .withside .evbody.withdrawer #sidepanels{display:block}}
   @media (max-width:760px){
     .evband{padding:16px 16px 14px;border-radius:18px 18px 0 0} .evband h2{font-size:22px} .bacts{justify-content:flex-start}
     .evtiles{grid-template-columns:1fr 1fr;gap:8px} .etile .n{font-size:20px}
@@ -1758,6 +1904,7 @@
 </head>
 <body>
 
+<nav class="side" id="side" aria-label="Main" hidden></nav>
 <div class="bar">
   <img class="logo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="157" height="40">
   <span class="sub">Briefing Room</span>
@@ -1783,7 +1930,7 @@ const placeCrumbs = () => {
   if (!row) { row = document.createElement("nav"); row.className = "crumbs"; row.setAttribute("aria-label", "Back"); ROOT.prepend(row); }
   CRUMBS.forEach((b) => { b.classList.remove("chip"); b.classList.add("crumb"); row.append(b); });
   // Every screen with a way back also gets the home page's buttons in the bar.
-  if (KEY && !BARRIGHT.querySelector("#theyear")) { BARRIGHT.insertAdjacentHTML("beforeend", `<span class="sharedbar">${barChips()}</span>`); wireBarChips(); }
+  if (KEY && !BARRIGHT.querySelector("#hsearch")) { BARRIGHT.insertAdjacentHTML("beforeend", `<span class="sharedbar">${barChips()}</span>`); wireBarChips(); }
 };
 // Screens that draw their page after the bar wipe the row: put it back whenever either changes.
 new MutationObserver(placeCrumbs).observe(BARRIGHT, { childList: true });
@@ -1931,6 +2078,7 @@ async function finishMicrosoft() {
   return true;
 }
 function whoami() {
+  drawSide();
   const el = document.getElementById("whoami");
   if (!KEY) { el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
@@ -1979,23 +2127,62 @@ async function signInScreen(message) {
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip${view.name === "list" ? " here" : ""}" id="eventsnav"${view.name === "list" ? ' aria-current="page"' : ""}>Events</button><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div>`
+    + `<button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
-  document.getElementById("eventsnav").onclick = () => { view = { name: "list" }; render(); };
-  document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
-  document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
-  const sows = document.getElementById("sowsnav");
-  if (sows) sows.onclick = () => { view = { name: "sows" }; render(); };
-  const sbx = document.getElementById("sandboxnav");
-  if (sbx) sbx.onclick = () => { view = { name: "sandbox" }; render(); };
-  document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
-  attention();
-  if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
   wireSearch();
 }
+
+/** The sidebar (a bottom bar on a phone): the same on every screen once signed in, the screen you're on lit up. */
+const SIDE_ICON = {
+  events: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  year: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
+  letters: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  sows: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/>',
+  sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
+  sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
+  more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+};
+const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email) ? "President" : /^vp_/i.test(WHO.email) ? "VP of operations" : "Board";
+function drawSide() {
+  const el = document.getElementById("side");
+  document.body.classList.toggle("withside", !!KEY);
+  if (!KEY) { el.hidden = true; el.innerHTML = ""; delete el.dataset.built; return; }
+  el.hidden = false; el.classList.remove("open");
+  const at = ["list", "event", "edit", "new", "add"].includes(view.name) ? "events" : view.name === "roster" ? "admin" : view.name;
+  // Built once for whoever is signed in; after that a click only moves the highlight (Andrew 30 Oct 2026: does the left bar
+  // reload too? It shouldn't), so the logo and the buttons stay put while the page beside them changes.
+  const built = `${WHO?.email ?? "key"}|${!!WHO?.canCost}|${SPONSORS_ON}`;
+  if (el.dataset.built === built) {
+    const KEYS = { eventsnav: "events", theyear: "year", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors" };
+    el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
+    attention();
+    return;
+  }
+  el.dataset.built = built;
+  const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
+    + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
+  const who = WHO?.name || WHO?.email || "";
+  const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
+    <div class="snav">${item("eventsnav", "events", "Events")}${item("theyear", "year", "The year")}${item("letters", "letters", "Letters")}${item("admin", "admin", "Admin", "", attnBadge())}
+      ${more.length ? `<button type="button" class="sn snmore" id="snmore" aria-expanded="false" aria-controls="smore"><svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON.more}</svg><span>More</span></button><div class="smore" id="smore">${more.join("")}</div>` : ""}</div>
+    <div class="sme"><i aria-hidden="true">${esc(initials)}</i><div><b>${esc(who || "Signed in with the key")}</b><span>${esc(sideRole())}</span></div></div>`;
+  const go = (id, v) => { const b = document.getElementById(id); if (b) b.onclick = () => { view = v; render(); }; };
+  go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("letters", { name: "letters" });
+  go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
+  document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
+  const mb = document.getElementById("snmore");
+  if (mb) mb.onclick = (e) => { e.stopPropagation(); const open = el.classList.toggle("open"); mb.setAttribute("aria-expanded", String(open)); };
+  attention();
+}
+document.addEventListener("click", (e) => { const el = document.getElementById("side"); if (el?.classList.contains("open") && !el.contains(e.target)) { el.classList.remove("open"); document.getElementById("snmore")?.setAttribute("aria-expanded", "false"); } });
 function listScreen(events, inbox = null) {
   BARRIGHT.innerHTML = barChips();
   queueMicrotask(healthStrip);
@@ -2887,82 +3074,194 @@ function crunchOf(events, year, today) {
   return out;
 }
 
-function yearScreen(events, year) {
+/**
+ * The year as a calendar (Andrew 30 Oct 2026, from his picture: "I like this view of the calendar"): Year, Month or List.
+ * Three colours: ONGIA-led events navy, RBH events teal, other people's conferences our board goes to gold ("a colour
+ * scheme for ... Ongia lead events and RBH events, one more for external conferences"). Every bar says who's going so a
+ * month shows "where we're allocating our people": initials on the year (the lead underlined, no bubbles: "just text"),
+ * first names on the month ("everyone knows everyone by their first name"). No double-booking warnings ("I'm not looking
+ * for the app to warn me"). The conferences are placeholders kept apart from the events (/api/conferences).
+ */
+const CAL_KINDS = [["ongia", "ONGIA-led"], ["rbh", "RBH"], ["ext", "External conference"]];
+let CAL_SHOW = { ongia: true, rbh: true, ext: true }, CAL_WHO = "";
+function calItems(events, confs) {
+  const nameOf = (email) => ROSTER.find((m) => String(m.email ?? "").toLowerCase() === email)?.name || email.split("@")[0];
+  const items = [
+    ...events.filter((e) => isDate(e.dayOne) && !e.practice).map((e) => ({ key: `e:${e.id}`, kind: e.kind === "rbh" ? "rbh" : "ongia", title: e.title, place: e.city ?? "",
+      from: e.dayOne, to: isDate(e.lastDay) && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne, ev: e,
+      people: [...(e.board ?? [])].sort((a, b) => !!b.lead - !!a.lead).map((m) => ({ name: m.name || m.email, email: String(m.email ?? "").toLowerCase(), lead: !!m.lead })) })),
+    ...confs.map((c) => ({ key: `c:${c.id}`, kind: "ext", title: c.title, place: c.place ?? "", from: c.from, to: c.to || c.from, conf: c, role: c.role,
+      people: (c.who ?? []).map((e) => ({ name: nameOf(e), email: e, lead: false })) })),
+  ];
+  // First names, with a last initial only where two people share a first name.
+  const firsts = new Map();
+  for (const p of items.flatMap((i) => i.people)) { const f = p.name.split(/\s+/)[0]; firsts.set(f, new Set([...(firsts.get(f) ?? []), p.name])); }
+  for (const p of items.flatMap((i) => i.people)) {
+    const [f, ...rest] = p.name.split(/\s+/);
+    p.first = firsts.get(f)?.size > 1 && rest.length ? `${f} ${rest.at(-1)[0]}.` : f;
+    p.ini = (p.name.match(/\b\p{L}/gu) ?? []).filter((_, i, a) => i === 0 || i === a.length - 1).join("").toUpperCase();
+  }
+  return items.sort((a, b) => a.from.localeCompare(b.from) || a.title.localeCompare(b.title));
+}
+const calShown = (i) => CAL_SHOW[i.kind] && (!CAL_WHO || i.people.some((p) => p.email === CAL_WHO));
+const calWhen = (a, b) => { const A = new Date(`${a}T12:00`), B = new Date(`${b}T12:00`);
+  return `${MONTHS[A.getMonth()]} ${A.getDate()}${a === b ? "" : A.getMonth() === B.getMonth() ? `–${B.getDate()}` : ` – ${MONTHS[B.getMonth()]} ${B.getDate()}`}`; };
+const calIni = (i) => i.people.map((p) => p.lead ? `<u>${esc(p.ini)}</u>` : esc(p.ini)).join(" / ");
+const calFirst = (i) => i.people.map((p) => p.lead ? `<u>${esc(p.first)}</u>` : esc(p.first)).join(", ");
+const calTip = (i) => `${i.title} · ${calWhen(i.from, i.to)}${i.place ? ` · ${i.place}` : ""}${i.people.length ? ` · ${i.people.map((p) => p.name + (p.lead ? " (lead)" : "")).join(", ")}` : ""}`;
+const calOpen = (i) => i.ev ? `data-goev="${esc(i.ev.id)}"` : `data-conf="${esc(i.conf.id)}"`;
+
+function calYear(items, events, year, today) {
+  const start = Date.parse(`${year}-01-01T00:00`), span = Date.parse(`${year + 1}-01-01T00:00`) - start;
+  const at = (iso) => Math.max(0, Math.min(100, ((Date.parse(`${iso}T00:00`) - start) / span) * 100));
+  const mine = items.filter((i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`);
+  if (!mine.length) return `<div class="empty" style="padding:40px 20px">Nothing in ${year} for what's shown. Create an event, add a conference, or show more.</div>`;
+  const ticks = (i) => !i.ev ? "" : [...deadlinesOf(i.ev).map((d) => ({ iso: d.iso, k: d.key, l: { agreement: "A", draft: "D", final: "F" }[d.key], what: `${d.label} due`, late: d.iso < today && d.left > 0 })),
+    ...(i.ev.dates ?? []).filter((d) => d.kind === "cutoff").map((d) => ({ iso: d.date, k: "cutoff", l: "H", what: d.what, late: !!d.late }))]
+    .filter((d) => yearOf(d.iso) === year)
+    .map((d) => `<button type="button" class="ytk ${d.k}${d.late ? " late" : ""}" data-goev="${esc(i.ev.id)}" style="left:${at(d.iso)}%" title="${esc(d.what)} for ${esc(i.title)} · ${esc(fmtDate(d.iso))}${d.late ? " · overdue" : ""}">${d.l}</button>`).join("");
+  const rows = mine.map((i) => {
+    const L = at(i.from < `${year}-01-01` ? `${year}-01-01` : i.from), R = at(i.to > `${year}-12-31` ? `${year + 1}-01-01` : sbxDay(i.to, 1)), W = Math.max(R - L, 0.6);
+    const label = `<span class="ywhen">${esc(calWhen(i.from, i.to))}</span>${i.people.length ? `<span class="yini">${calIni(i)}</span>` : ""}`;
+    const inside = W >= 13, late = L > 70;
+    return `<div class="yrw k-${i.kind}"><button type="button" class="yname" ${calOpen(i)} title="${esc(calTip(i))}"><b>${esc(i.title)}</b><span>${esc(i.place)}${i.role ? ` · ${i.role === "presenting" ? "Presenting" : "Attending"}` : ""}</span></button>
+      <div class="ytr">${ticks(i)}<button type="button" class="ybar${inside ? "" : " thin"}" ${calOpen(i)} title="${esc(calTip(i))}" style="left:${L}%;width:${W}%">${inside ? label : ""}</button>
+        ${inside ? "" : `<span class="ylab${late ? " before" : ""}" style="${late ? `right:calc(${100 - L}% + 2px)` : `left:calc(${L}% + max(${W}%, 22px) + 6px)`}">${label}</span>`}</div></div>`;
+  }).join("");
+  const now = yearOf(today) === year ? `<div class="ynow" style="left:${at(today)}%" title="Today"></div>` : "";
+  return `<div class="ygrid"><div class="yrw yhd"><span class="yname">Event</span><div class="ytr ymon">${MONTHS.map((m) => `<span>${m}</span>`).join("")}</div></div>
+    ${rows}<div class="ynowwrap"><div class="ytr">${now}</div></div></div>`;
+}
+
+function calMonth(items, year, month, today) {
+  const first = new Date(year, month - 1, 1), from = new Date(first); from.setDate(1 - first.getDay());
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const weeks = [];
+  for (let w = new Date(from); w.getMonth() === month - 1 || w < first; w.setDate(w.getDate() + 7)) {
+    const days = Array.from({ length: 7 }, (_, k) => { const d = new Date(w); d.setDate(w.getDate() + k); return d; });
+    const a = iso(days[0]), b = iso(days[6]);
+    const on = items.filter((i) => i.to >= a && i.from <= b);
+    const bars = on.map((i, n) => {
+      const s = i.from < a ? 0 : days.findIndex((d) => iso(d) === i.from), e = i.to > b ? 6 : days.findIndex((d) => iso(d) === i.to);
+      return `<button type="button" class="mbar k-${i.kind}" ${calOpen(i)} title="${esc(calTip(i))}" style="grid-column:${s + 1} / ${e + 2};grid-row:${n + 1}"><b>${esc(i.title)}</b>${i.people.length ? `<small>${calFirst(i)}</small>` : ""}</button>`;
+    }).join("");
+    weeks.push(`<div class="mwk"><div class="mdays">${days.map((d) => `<div class="mday${d.getMonth() !== month - 1 ? " out" : ""}${iso(d) === today ? " now" : ""}"><span>${d.getDate()}</span></div>`).join("")}</div>
+      <div class="mbars" style="min-height:${Math.max(56, on.length * 44)}px">${bars}</div></div>`);
+  }
+  return `<div class="mcal"><div class="mhd">${DAYS.map((d) => `<span>${d}</span>`).join("")}</div>${weeks.join("")}</div>`;
+}
+
+function calList(items, year) {
+  const mine = items.filter((i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`);
+  if (!mine.length) return `<div class="empty" style="padding:40px 20px">Nothing in ${year} for what's shown.</div>`;
+  return `<div class="clist">${mine.map((i) => `<button type="button" class="crow k-${i.kind}" ${calOpen(i)}><span class="cwhen">${esc(calWhen(i.from, i.to))}</span>
+    <span class="cwhat"><b>${esc(i.title)}</b><span>${esc(i.place)}${i.role ? ` · ${i.role === "presenting" ? "Presenting" : "Attending"}` : ""}</span></span>
+    <span class="cwho">${i.people.length ? calFirst(i) : `<span class="porg">nobody named yet</span>`}</span><span class="ckind">${esc(CAL_KINDS.find(([k]) => k === i.kind)[1])}</span></button>`).join("")}</div>`;
+}
+
+/** The next 30 days: deadlines, hotel cut-offs, events starting and conferences, soonest first. */
+function calComing(items, today) {
+  const end = sbxDay(today, 30), out = [];
+  for (const i of items) {
+    if (i.from >= today && i.from <= end) out.push({ iso: i.from, kind: i.kind, what: i.conf ? `${i.people.map((p) => p.first).join(" and ") || "Our people"} ${i.role === "presenting" ? "presenting" : "attending"}` : "Event starts", title: i.title, open: calOpen(i) });
+    if (!i.ev) continue;
+    for (const d of deadlinesOf(i.ev)) if (d.iso >= today && d.iso <= end) out.push({ iso: d.iso, kind: i.kind, what: `${d.label} due${d.left > 0 ? ` · ${d.left} out` : ""}`, title: i.title, open: calOpen(i) });
+    for (const d of i.ev.dates ?? []) if (d.date >= today && d.date <= end) out.push({ iso: d.date, kind: i.kind, what: d.what, title: i.title, open: calOpen(i) });
+  }
+  out.sort((a, b) => a.iso.localeCompare(b.iso));
+  return out.slice(0, 9);
+}
+
+function yearScreen(events, year, confs = []) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="printyear">Print</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("printyear").onclick = () => window.print();
-
   const today = todayIso();
-  const years = yearsWithWork(events);
-  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year)
-    .sort((a, b) => a.dayOne.localeCompare(b.dayOne));
-
+  const how = view.cal ?? (matchMedia("(max-width:760px)").matches ? "list" : "year");
+  const month = view.month ?? (yearOf(today) === year ? monthOf(today) : 1);
+  const all = calItems(events, confs), items = all.filter(calShown);
+  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year && !e.practice).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
   const trainingDays = mine.reduce((n, e) => n + (isDate(e.lastDay) ? daysBetween(e.dayOne, e.lastDay) + 1 : 1), 0);
   const cities = new Set(mine.map((e) => (e.city ?? "").trim()).filter(Boolean)).size;
   const presenters = mine.reduce((n, e) => n + (e.counts?.total ?? 0), 0);
   const outstanding = mine.reduce((n, e) => n + ((e.counts?.total ?? 0) - (e.counts?.approved ?? 0)), 0);
+  const inYear = (i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`;
+  const people = [...new Map(all.flatMap((i) => i.people).map((p) => [p.email, p])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  const coming = calComing(all.filter(calShown), today);
+  const navLabel = how === "month" ? `${MONTH_LONG[month - 1]} ${year}` : String(year);
 
-  const sideOpen = (() => { try { return localStorage.getItem("ongia-year-side") === "1"; } catch { return false; } })();
-  const head = `<div class="ywrap${sideOpen ? " side" : ""}" id="ywrap"><div class="card ycal">
-    <button class="ytab" id="ytab" aria-expanded="${sideOpen}" aria-controls="yside" title="Every milestone and deadline, in date order">Milestones &amp; deadlines</button>
-    <div class="card-head">
-      <div class="yearhead">
-        <button class="ynav" id="yprev" ${years.some((y) => y < year) ? "" : "disabled"} title="Earlier year">&#8249;</button>
-        <span class="yr">${year}</span>
-        <button class="ynav" id="ynext" ${years.some((y) => y > year) ? "" : "disabled"} title="Later year">&#8250;</button>
-      </div>
-      <div style="flex:1"></div></div>
-    <div class="tiles">
-      <div class="tile"><div class="k">Events</div><div class="v">${mine.length}</div></div>
-      <div class="tile"><div class="k">Training days</div><div class="v">${trainingDays}</div></div>
-      <div class="tile"><div class="k">Cities</div><div class="v">${cities}</div></div>
-      <div class="tile"><div class="k">Presenters</div><div class="v">${presenters}</div></div>
-      <div class="tile${outstanding ? " accent" : ""}"><div class="k">Agreements out</div><div class="v">${outstanding}</div></div>
-    </div>
-    ${monthsMarkup(events, year, today)}
-    <div class="ylegend">
-      <span><i style="background:var(--navy);height:13px;border-radius:4px"></i>Training dates</span>
-      <span><i class="ylg" style="background:var(--gold);color:#1c1608">A</i>Agreements due</span>
-      <span><i class="ylg" style="background:var(--wait)">D</i>Draft materials due</span>
-      <span><i class="ylg" style="background:var(--navy)">F</i>Final materials due</span>
-      <span><i class="ylg" style="background:var(--late)">A</i>Overdue (the same letter, in red)</span>
-      <span style="color:var(--muted)">Shaded columns are weekends.</span>
-    </div>
-    <div class="card-body" style="padding-top:10px"></div></div>
-    ${milestonesPanel(events, year, today)}</div>`;
-
-  const crunch = crunchOf(events, year, today);
-  const crunchCard = crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
-    ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}">
-      <div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div>
-      <button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : "";
-
-  ROOT.innerHTML = head + crunchCard + listForYear(mine, today, year) + templateCard();
+  const body = how === "month" ? calMonth(items, year, month, today) : how === "list" ? calList(items, year) : calYear(items, events, year, today);
+  ROOT.innerHTML = `<div class="calhead"><h1>The year</h1>
+      <div class="calnav"><button type="button" id="yprev" aria-label="Earlier">&#8249;</button><span class="yr">${esc(navLabel)}</span><button type="button" id="ynext" aria-label="Later">&#8250;</button></div>
+      <div class="calseg" role="tablist">${[["year", "Year"], ["month", "Month"], ["list", "List"]].map(([k, l]) => `<button type="button" role="tab" data-calhow="${k}" class="${k === how ? "on" : ""}" aria-selected="${k === how}">${l}</button>`).join("")}</div>
+      <button type="button" class="mini" id="addconf">+ Add a conference</button></div>
+    <div class="caltiles"><span><b>${mine.length}</b> events</span><span><b>${trainingDays}</b> training days</span><span><b>${cities}</b> cities</span><span><b>${presenters}</b> presenters</span><span class="${outstanding ? "hot" : ""}"><b>${outstanding}</b> agreements out</span><span><b>${all.filter((i) => i.kind === "ext" && inYear(i)).length}</b> conferences</span></div>
+    <div class="callay"><div class="card calmain">${body}</div>
+      <aside class="calside">
+        <section class="card calcard"><div class="dh"><h2>Coming up</h2><span class="porg">Next 30 days</span></div>
+          ${coming.length ? `<ul class="cup">${coming.map((c) => `<li><button type="button" ${c.open}><span class="cupd"><small>${esc(MONTHS[monthOf(c.iso) - 1])}</small><b>${dayOf(c.iso)}</b></span>
+            <span class="cupw"><b>${esc(c.what)}</b><span><i class="k-${c.kind}"></i>${esc(c.title)}</span></span></button></li>`).join("")}</ul>` : `<p class="porg">Nothing in the next 30 days.</p>`}
+          <button type="button" class="linkish" id="allms">Every milestone in ${year} ›</button></section>
+        <section class="card calcard"><div class="dh"><h2>Show</h2></div>
+          ${CAL_KINDS.map(([k, l]) => `<label class="cshow"><input type="checkbox" data-calshow="${k}"${CAL_SHOW[k] ? " checked" : ""}><i class="k-${k}"></i>${l}<b>${all.filter((i) => i.kind === k && inYear(i)).length}</b></label>`).join("")}
+          <label class="cwhosel">Who<select id="calwho"><option value="">Everyone</option>${people.map((p) => `<option value="${esc(p.email)}"${p.email === CAL_WHO ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+          <p class="porg" style="margin-top:10px">On each bar, who's going; the lead is underlined. A, D, F: agreements, draft and final materials due. H: hotel cut-off.</p></section>
+      </aside></div>`
+    + (() => { const crunch = crunchOf(events, year, today); return crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
+      ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}"><div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div><button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : ""; })()
+    + templateCard()
+    + `<dialog class="sheet msdlg" id="msdlg">${milestonesPanel(events, year, today)}</dialog>`;
 
   wireTemplate();
-  document.getElementById("yprev").onclick = () => { view = { name: "year", year: Math.max(...years.filter((y) => y < year)) }; render(); };
-  document.getElementById("ynext").onclick = () => { view = { name: "year", year: Math.min(...years.filter((y) => y > year)) }; render(); };
-  ROOT.querySelectorAll("[data-goev]").forEach((b) => {
-    b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); };
-  });
-  // The side panel slides in and pushes the calendar over; it stays open or shut from one visit to the next.
-  const wrap = document.getElementById("ywrap");
-  const showSide = (on) => {
-    wrap.classList.toggle("side", on);
-    document.getElementById("ytab").setAttribute("aria-expanded", String(on));
-    try { localStorage.setItem("ongia-year-side", on ? "1" : "0"); } catch {}
-    below();
-    if (on) toNext();
+  const go = (v) => { view = { ...view, name: "year", ...v }; render(); };
+  document.getElementById("yprev").onclick = () => how === "month" ? go(month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }) : go({ year: year - 1, month: undefined });
+  document.getElementById("ynext").onclick = () => how === "month" ? go(month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }) : go({ year: year + 1, month: undefined });
+  ROOT.querySelectorAll("[data-calhow]").forEach((b) => b.onclick = () => go({ cal: b.dataset.calhow, year, month }));
+  ROOT.querySelectorAll("[data-calshow]").forEach((c) => c.onchange = () => { CAL_SHOW = { ...CAL_SHOW, [c.dataset.calshow]: c.checked }; render(); });
+  document.getElementById("calwho").onchange = (e) => { CAL_WHO = e.target.value; render(); };
+  ROOT.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+  ROOT.querySelectorAll("[data-conf]").forEach((b) => { b.onclick = () => confDialog(confs.find((c) => c.id === b.dataset.conf)); });
+  document.getElementById("addconf").onclick = () => confDialog(null, year);
+  const ms = document.getElementById("msdlg");
+  document.getElementById("allms").onclick = () => { ms.showModal(); requestAnimationFrame(() => { const n = ms.querySelector(".ms.next"), list = ms.querySelector("#yside-list"); if (n && list) list.scrollTop = n.offsetTop - list.offsetTop - 70; }); };
+  ms.querySelector("#yside-close").onclick = () => ms.close();
+  ms.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = () => { ms.close(); view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+}
+
+/** Add a conference our people are going to, or change or take off one. Saved to the calendar only. */
+function confDialog(c, year) {
+  const dlg = document.createElement("dialog"); dlg.className = "sheet confdlg"; document.body.append(dlg);
+  const who = new Set(c?.who ?? []);
+  const board = ROSTER.filter((m) => m.email).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>${c ? "The conference" : "Add a conference"}</h2>
+      <p class="hint" style="margin-top:6px">Someone else's conference our people are going to. It shows on the calendar only: no presenters, logistics, budget or emails.</p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="cf-title">Conference</label><input id="cf-title" value="${esc(c?.title ?? "")}" placeholder="e.g. Arizona Gang Conference" maxlength="160"></div>
+      <div class="row2"><div class="field"><label for="cf-from">From</label><input type="date" id="cf-from" value="${esc(c?.from ?? "")}"></div>
+        <div class="field"><label for="cf-to">To</label><input type="date" id="cf-to" value="${esc(c?.to ?? "")}"></div></div>
+      <div class="field"><label for="cf-place">Where</label><input id="cf-place" value="${esc(c?.place ?? "")}" placeholder="e.g. Phoenix, AZ" maxlength="160"></div>
+      <div class="field"><label>We're</label><div class="cfpick" id="cf-role">${[["attending", "Attending"], ["presenting", "Presenting"]].map(([k, l]) => `<button type="button" data-role="${k}" class="${(c?.role ?? "attending") === k ? "on" : ""}" aria-pressed="${(c?.role ?? "attending") === k}">${l}</button>`).join("")}</div></div>
+      <div class="field"><label>Who's going</label><div class="cfpick" id="cf-who">${board.map((m) => `<button type="button" data-who="${esc(String(m.email).toLowerCase())}" class="${who.has(String(m.email).toLowerCase()) ? "on" : ""}" aria-pressed="${who.has(String(m.email).toLowerCase())}">${esc(m.name || m.email)}</button>`).join("") || `<span class="porg">Add the board under Admin first.</span>`}</div></div>
+      <div class="field"><label for="cf-note">Note or link (optional)</label><input id="cf-note" value="${esc(c?.note ?? "")}" maxlength="600"></div>
+      <div id="cf-said"></div></div>
+    <div class="actions" style="padding:0 20px 20px;justify-content:flex-end;flex-wrap:wrap">${c ? `<button type="button" class="btn btn-ghost" id="cf-del" style="margin-right:auto">Take it off</button>` : ""}<button type="button" class="btn btn-ghost" id="cf-cancel">Cancel</button><button type="button" class="btn btn-gold" id="cf-save">${c ? "Save" : "Add it to the calendar"}</button></div></form>`;
+  const q = (s) => dlg.querySelector(s);
+  dlg.querySelectorAll("#cf-role [data-role]").forEach((b) => b.onclick = () => dlg.querySelectorAll("#cf-role [data-role]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); }));
+  dlg.querySelectorAll("#cf-who [data-who]").forEach((b) => b.onclick = () => { b.classList.toggle("on"); b.setAttribute("aria-pressed", String(b.classList.contains("on"))); });
+  q("#cf-from").onchange = () => { if (!q("#cf-to").value || q("#cf-to").value < q("#cf-from").value) q("#cf-to").value = q("#cf-from").value; };
+  const done = () => { dlg.close(); dlg.remove(); };
+  q("#cf-cancel").onclick = done;
+  dlg.addEventListener("cancel", () => dlg.remove());
+  const send = async (method, body) => {
+    try { await api(`/conferences${c ? `?id=${encodeURIComponent(c.id)}` : ""}`, { method, body: body ? JSON.stringify(body) : undefined }); done(); render(); }
+    catch (e) { q("#cf-said").innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
   };
-  // Held just below the top bar, however tall it is on this screen.
-  const below = () => { const h = document.querySelector(".bar")?.getBoundingClientRect().height ?? 0, side = document.getElementById("yside");
-    side.style.top = `${Math.round(h) + 12}px`; document.getElementById("yside-list").style.maxHeight = `calc(100vh - ${Math.round(h) + 110}px)`; };
-  document.getElementById("ytab").onclick = () => showSide(!wrap.classList.contains("side"));
-  document.getElementById("yside-close").onclick = () => showSide(false);
-  // The list opens at what is next, with Today just above it.
-  function toNext() { const n = document.querySelector("#yside .ms.next"), list = document.getElementById("yside-list"); if (n && list) list.scrollTop = n.offsetTop - list.offsetTop - 70; }
-  below();
-  if (wrap.classList.contains("side")) requestAnimationFrame(toNext);
+  q("#cf-save").onclick = () => send(c ? "PUT" : "POST", { title: q("#cf-title").value, from: q("#cf-from").value, to: q("#cf-to").value, place: q("#cf-place").value,
+    role: dlg.querySelector("#cf-role .on")?.dataset.role ?? "attending", who: [...dlg.querySelectorAll("#cf-who .on")].map((b) => b.dataset.who), note: q("#cf-note").value });
+  if (c) q("#cf-del").onclick = () => { if (confirm(`Take ${c.title} off the calendar?`)) send("DELETE"); };
+  dlg.showModal();
+  if (!c && year && yearOf(todayIso()) !== year) q("#cf-from").value = `${year}-01-01`;
+  q("#cf-title").focus();
 }
 
 /**
@@ -3947,8 +4246,6 @@ function eventScreen(data) {
       conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet", "",
       `logistics|||${roomWait ? "waiting" : "hotel"}`),
     roomTile(),
-    tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
-      !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked", "", "people|guests"),
     cutoff ? tile(daysTo(cutoff) <= 7 ? "attn" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`, "", "logistics|||hotel")
       : cutoffGone ? tile("behind", `${-daysTo(cutoffGone)} <small>${daysTo(cutoffGone) === -1 ? "day" : "days"} ago</small>`, "Hotel cut-off", `${esc(plainDay(cutoffGone))} · rooming list`, "", "logistics|||hotel")
       : nextUp ? tile("", `${nextUp.d} <small>${nextUp.d === 1 ? "day" : "days"}</small>`, esc(nextUp.l), esc(plainDay(nextUp.iso)), "", "overview|||tasks")
@@ -3963,6 +4260,7 @@ function eventScreen(data) {
   const blockedHtml = blockers.length && !readyShown ? `<div class="blocked" style="margin:0 0 16px"><b>This event is blocked.</b>${blockers.map((b) => `
         <div class="brow"><span><b>${esc(b.title)}</b> — ${esc(b.why)}</span><button class="mini" data-fix="${esc(b.act)}">${esc(b.fix)}</button></div>`).join("")}</div>` : "";
   const sideOn = !!view.person && (allTabs || (tab === "people" && pview === "presenters"));
+  const dashHtml = eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN: c.total, tab, allTabs });
 
   ROOT.innerHTML = `<div class="evhead"><section class="evband">
     <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
@@ -3971,9 +4269,9 @@ function eventScreen(data) {
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
       ${hotelLocked(ev) ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
-    <div class="evtiles">${tiles}</div></section>${evNotices(ev)}
+</section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
-    <div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">${blockedHtml}`
+    ${blockedHtml}${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
@@ -4109,6 +4407,8 @@ function eventScreen(data) {
   const syncSide = () => document.getElementById("evbody")?.classList.toggle("withdrawer", !!view.person && (allTabs || ((view.tab ?? "overview") === "people" && (view.pview ?? "presenters") === "presenters")) && !!document.getElementById("pdrawer"));
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
+    // The Overview's registrations circle reads the budget: changed on Money, it's drawn again with the new break-even.
+    if (k === "overview" && DASH_STALE === ev.id) { DASH_STALE = null; keepAddress(); render(); return; }
     syncSide();
     if (k === "money" && SBX_EV?.id === ev.id && SBX && (!SBX.asked || (SBX.walk?.skipped ?? []).length) && !WALK_SHOWN.has(ev.id)) { WALK_SHOWN.add(ev.id); budgetWalk((SBX.walk?.skipped ?? [])[0]); }
     // Back on Money: if someone else has saved the budget since, and nothing typed here is waiting, show theirs.
@@ -4194,7 +4494,7 @@ function eventScreen(data) {
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // A tile opens its tab, cut to what is missing, and brings the work into view.
-  ROOT.querySelectorAll("[data-roomset]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
+  ROOT.querySelectorAll("[data-roomset], [data-roomask]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
     t.onclick = set; t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); set(); } }; });
   ROOT.querySelectorAll("[data-roomflip]").forEach((t) => {
     const flip = () => { const on = t.classList.toggle("on"); t.setAttribute("aria-pressed", String(on));
@@ -4203,6 +4503,8 @@ function eventScreen(data) {
     t.onkeydown = (e) => { if (e.target !== t) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
     t.querySelector("[data-roomchange]").onclick = async (e) => { e.stopPropagation(); if (await askRoom(ev)) render(); };
   });
+  fillDash(ev);
+  ROOT.querySelectorAll("[data-quick=add]").forEach((b) => b.onclick = () => document.getElementById("add")?.click());
   ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
     const go = () => {
       const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");
@@ -4212,6 +4514,7 @@ function eventScreen(data) {
       const target = place === "waiting" ? [...ROOT.querySelectorAll(".roomgroup")].find((g) => /Waiting/i.test(g.querySelector(".rghead")?.textContent ?? ""))
         : place === "hotel" ? ROOT.querySelector('details[data-fold="sec-hotel"]')
         : place === "tasks" ? ROOT.querySelector('details[data-fold="sec-tasks"]')
+        : place === "certs" ? ROOT.querySelector('details[data-fold="sec-certs"]')
         : document.getElementById("evbody");
       (target ?? document.getElementById("evbody"))?.scrollIntoView({ block: "start", behavior: "smooth" });
     };
@@ -9278,6 +9581,7 @@ let SBX = null, SBX_SAVE = null, SBX_SAID = "";
 let SBX_HOST = null, SBX_PATH = "/sandbox", SBX_EV = null, SBX_LIVE = null;
 // An event budget's save number, the saves queued one after another, and, if someone else saved first, who and when.
 let SBX_REV = null, SBX_QUEUE = Promise.resolve(), SBX_CONFLICT = null;
+let DASH_STALE = null;   // an event whose budget was saved since its Overview was drawn
 let SBX_RC = null;   // { ev, sums }: the event's receipts by line, shown beside the budget's lines
 const SBX_SLOTS = [["breakfast", "Breakfast", "breakfast"], ["am", "AM break", "break"], ["lunch", "Lunch", "lunch"], ["pm", "PM break", "break"], ["dinner", "Dinner", "dinner"]];
 const sbxDay = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -9377,6 +9681,7 @@ function sbxPersist() {
     try {
       const out = await api(path, { method: "PUT", body: JSON.stringify(ev ? { budget, rev: SBX_REV ?? 0 } : { budget }) });
       if (ev && SBX_EV?.id === ev.id) SBX_REV = out.rev ?? SBX_REV;
+      if (ev) DASH_STALE = ev.id;
       SBX_SAID = "Saved ✓";
     } catch (e) {
       if (e.status === 409 && e.body?.conflict && ev) {
@@ -9792,6 +10097,120 @@ function budgetSeed(ev, L) {
   return B;
 }
 /** How full the main room is: null until its seats are set. Presenters and VIPs are seated, so they come off first. */
+/**
+ * The event's Overview, from the mock-up Andrew picked (30 Oct 2026: "i like the first dashboard"): a circle for the
+ * registrations, the key numbers, quick actions, the survey and the certificates, and what has happened lately.
+ *
+ * The circle fills toward the room's attendee seats; for the president and the VP a mark on it shows break-even, and it is
+ * gold until registrations pass that mark and green after (Andrew: "This should show the registrations either until
+ * capacity or until we break even. Not sure which one I want" - both, in one). Nobody else sees the money in it.
+ */
+function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN, tab, allTabs }) {
+  const att = guests?.counts?.attending ?? 0;
+  const R0 = roomFill(ev, att, presN);
+  let C = null;
+  // Worked out on a copy: the Money tab saves from the original, and must still see what changed since.
+  if (WHO?.canCost && budget?.budget) { try { C = sbxCalc(budgetSync(structuredClone(budget.budget), budget.live)); } catch { C = null; } }
+  const be = C?.breakEven > 0 ? C.breakEven : null;
+  const cap = R0?.max || null;
+  const R = 60, L = 2 * Math.PI * R, fill = cap ? Math.min(att / cap, 1) : 0;   // no seats set: nothing to fill toward
+  const col = be ? (att >= be ? "var(--done)" : "var(--gold)") : "var(--navy)";
+  const mark = be && cap && be <= cap ? (() => { const a = (be / cap) * 2 * Math.PI - Math.PI / 2, x = (r) => (75 + r * Math.cos(a)).toFixed(1), y = (r) => (75 + r * Math.sin(a)).toFixed(1);
+    return `<line x1="${x(R - 11)}" y1="${y(R - 11)}" x2="${x(R + 11)}" y2="${y(R + 11)}" stroke="#fff" stroke-width="7" stroke-linecap="round"/><line x1="${x(R - 11)}" y1="${y(R - 11)}" x2="${x(R + 11)}" y2="${y(R + 11)}" stroke="var(--navy-deep)" stroke-width="3.5" stroke-linecap="round"/>`; })() : "";
+  const ring = `<svg class="rring" viewBox="0 0 150 150" role="img" aria-label="${att} registered${cap ? ` of ${cap} seats` : ""}${be ? `; break-even at ${be}` : ""}">
+    <circle cx="75" cy="75" r="${R}" stroke="#ece6d6" stroke-width="14" fill="none"/>
+    <circle cx="75" cy="75" r="${R}" stroke="${col}" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="${L.toFixed(1)}" stroke-dashoffset="${(L * (1 - fill)).toFixed(1)}" transform="rotate(-90 75 75)"/>${mark}
+    <text x="75" y="78" text-anchor="middle" class="rn">${att}</text><text x="75" y="99" text-anchor="middle" class="rl">${cap ? `of ${cap} seats` : "registered"}</text></svg>`;
+  const tag = be ? (att >= be ? ["good", "Making money"] : ["wait", "Below break-even"]) : R0 ? (R0.left <= 0 ? ["wait", "Full"] : ["idle", `${Math.round((100 * att) / (R0.max || 1))}% full`]) : null;
+  const lines = [
+    be ? (att >= be ? `<b>Past break-even</b> by ${att - be}` : `<b>${be - att} more</b> to break even (${be})`) : "",
+    be && cap && be > cap ? `<b class="bad-t">Break-even is more than the room holds</b>` : "",
+    R0 ? (R0.left > 0 ? `${R0.left} seat${R0.left === 1 ? "" : "s"} left` : R0.left === 0 ? "<b>Full</b>" : `<b>${-R0.left} over</b> the seats`) : `<button class="linkish" data-roomask>Set the room's seats</button>`,
+    newGuests ? `+${newGuests} this week` : "",
+    C && be && att >= be ? `Forecast profit ${sbxMoney(C.profit)}` : "",
+    WHO?.canCost && ev.kind !== "rbh" && !budget?.budget ? `<button class="linkish" data-tgo="money">Set up the budget</button> to see break-even` : "",
+    !guests?.wix?.eventId ? "Wix not linked yet" : "",
+  ].filter(Boolean);
+  const reg = `<section class="card dbcard regcard"><div class="dh"><h2>Registrations</h2>${tag ? `<span class="dtag ${tag[0]}">${tag[1]}</span>` : ""}</div>
+    <div class="regrow">${ring}<ul class="dlines">${lines.map((l) => `<li>${l}</li>`).join("")}</ul></div>
+    <button class="linkish dmore" data-tgo="people|guests">Who's coming ›</button></section>`;
+  const nums = `<section class="card dbcard"><div class="dh"><h2>Key numbers</h2></div><div class="evtiles">${tiles}</div></section>`;
+  const q = (label, go, icon, cls = "") => `<button type="button" class="qact${cls}" ${go === "add" ? 'data-quick="add"' : `data-tgo="${go}"`}><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>${label}</button>`;
+  const quick = `<section class="card dbcard"><div class="dh"><h2>Quick actions</h2></div><div class="qacts">
+    ${ev.canEdit === false ? "" : q("Add presenters", "add", '<path d="M12 5v14M5 12h14"/>', " gold")}
+    ${q("The agenda", "program", '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 13h6M9 16h4"/>')}
+    ${q("Welcome letter and emails", "communications", '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>')}
+    ${q("The survey", "survey", '<path d="M4 4h16v12H8l-4 4z"/>')}
+    ${q("Who's coming", "people|guests", '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0M16 4a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 4 6"/>')}
+    ${q("Hotel and rooming", "logistics|||hotel", '<path d="M3 18V8l9-5 9 5v10M3 18h18M7 18v-6h10v6"/>')}
+    ${showMoney ? q("Money", "money", '<path d="M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 2.2 2.6 5 3 5 1.1 5 3-2.2 3-5 3-5-1.1-5-3"/>') : ""}</div></section>`;
+  const survey = `<section class="card dbcard" id="dsurvey"><div class="dh"><h2>Survey</h2></div><p class="porg">Loading…</p></section>`;
+  const certs = mayCertifyHere(ev) ? `<section class="card dbcard" id="dcerts"><div class="dh"><h2>Certificates</h2></div><p class="porg">Loading…</p></section>` : "";
+  const acts = activityOf(ev, presenters, guests, mstat);
+  const activity = `<section class="card dbcard dact"><div class="dh"><h2>Recent activity</h2><span class="porg">Last two weeks</span></div>${acts.length
+    ? `<ul class="feed">${acts.map((a) => `<li><span class="fic ${a.cls}"><svg viewBox="0 0 24 24" aria-hidden="true">${a.icon}</svg></span><span>${a.what}</span><time datetime="${esc(a.at)}">${esc(agoWords(a.at))}</time></li>`).join("")}</ul>`
+    : `<p class="porg">Nothing in the last two weeks.</p>`}</section>`;
+  return `<section class="dash" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>
+    <div class="dgrid three">${reg}${nums}${quick}</div><div class="dgrid three">${survey}${certs}${activity}</div></section>`;
+}
+/** What has happened on the event lately, from what the desk already records: newest first, two weeks back, six at most. */
+function activityOf(ev, presenters, guests, mstat) {
+  const since = Date.now() - 14 * 86400000, out = [];
+  const add = (at, what, icon, cls = "") => { const t = Date.parse(at ?? ""); if (t >= since && t <= Date.now() + 60000) out.push({ at, t, what, icon, cls }); };
+  const I = { ok: '<path d="m5 12 5 5 9-10"/>', sign: '<path d="M6 3h9l4 4v14H6z"/><path d="m9 14 2 2 4-4"/>', mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+    file: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/>', ppl: '<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/>', kit: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 17v3M17 17v3"/>' };
+  for (const p of presenters) {
+    const who = `<b>${esc([p.first, p.last].filter(Boolean).join(" ") || p.email)}</b>`;
+    const sent = (p.mail ?? []).filter((x) => x.type !== "called");
+    if (sent.length) add(sent.at(-1).at, `Emailed ${who}${sent.length > 1 ? " again" : " their link"}`, I.mail);
+    if (p.submittedAt) add(p.submittedAt, `${who} signed their agreement`, I.sign, "g");
+    if (p.status === "approved" && p.approvedAt) add(p.approvedAt, `${who}'s agreement approved`, I.ok, "g");
+    if (p.avAt) add(p.avAt, `${who} sent their room and equipment needs`, I.kit);
+    const m = mstat?.[p.id] ?? {};
+    if (m.final) add(m.final, `${who} sent their final materials`, I.file, "y");
+    else if (m.draft) add(m.draft, `${who} sent draft materials`, I.file, "y");
+  }
+  const byDay = new Map();
+  for (const g of guests?.people ?? []) if (g.status === "ATTENDING" && g.addedAt && Date.parse(g.addedAt) >= since) { const d = g.addedAt.slice(0, 10); byDay.set(d, [...(byDay.get(d) ?? []), g.addedAt]); }
+  for (const [, ats] of byDay) add(ats.sort().at(-1), `<b>${ats.length} registration${ats.length === 1 ? "" : "s"}</b> came in${ev.wix?.eventId || guests?.wix?.eventId ? " from Wix" : ""}`, I.ppl);
+  return out.sort((a, b) => b.t - a.t).slice(0, 6);
+}
+const agoWords = (iso) => {
+  const t = Date.parse(iso), mins = Math.round((Date.now() - t) / 60000);
+  if (mins < 60) return mins <= 1 ? "Just now" : `${mins} minutes ago`;
+  if (mins < 12 * 60) return `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"} ago`;
+  const d = new Date(t), today = todayIso(), day = todayIso(d);
+  if (day === today) return "Today";
+  if (day === todayIso(new Date(Date.now() - 86400000))) return "Yesterday";
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+};
+/** The survey and certificate cards on the Overview fill in once their own records are in. */
+async function fillDash(ev) {
+  const sv = document.getElementById("dsurvey");
+  if (sv) api(`/survey?event=${encodeURIComponent(ev.id)}`).then((S) => {
+    const x = S.survey, daily = x?.mode === "daily";
+    const sent = Object.values(S.sent ?? {}).reduce((n, v) => n + (Number(v) || 0), 0);
+    const first = daily ? (S.times ?? []).find((t) => t.at)?.at ?? S.days?.[0] : x?.sendOn;
+    const st = !x ? ["idle", "Not set up"] : !x.open ? ["idle", "Closed"] : S.problems?.length || (daily && (S.times ?? []).some((t) => !t.at)) ? ["wait", "Needs a fix"]
+      : sent ? (daily && (ev.lastDay || ev.dayOne) >= todayIso() ? ["good", "Sending"] : ["good", "Sent"]) : ["good", "Ready"];
+    const sessions = (x?.sessions ?? []).length;
+    sv.innerHTML = `<div class="dh"><h2>Survey</h2><span class="dtag ${st[0]}">${st[1]}</span></div>
+      <p class="porg dsub">${!x ? "Set it up on the Survey tab: daily, or once after the event." : `${daily ? "At the end of each day" : "Once, after the event"} · ${sessions} session${sessions === 1 ? "" : "s"}${first ? ` · ${sent ? "first went" : "first goes"} ${esc(fmtDate(String(first).slice(0, 10)))}` : ""}`}</p>
+      <div class="dnums"><div><b>${sent || "—"}</b><span>Sent</span></div><div><b>${S.responses ?? 0}</b><span>Answers</span></div><div><b>${sent && S.responses ? Math.round((100 * S.responses) / sent) + "%" : "—"}</b><span>Back</span></div></div>
+      <button class="mini dbtn" data-dgo="survey">${x ? "Open the survey" : "Set up the survey"}</button>`;
+    sv.querySelector("[data-dgo]").onclick = () => document.querySelector('.etab[data-tab="survey"]')?.click();
+  }).catch(() => { sv.querySelector(".porg").textContent = "The survey couldn't load. Open its tab to try again."; });
+  const ce = document.getElementById("dcerts");
+  if (ce) api(`/certificates?event=${encodeURIComponent(ev.id)}`).then((C) => {
+    const t = C.templates.find((d) => d.id === C.settings.template), n = C.counts, left = Math.max(0, n.checkedIn - C.people.filter((p) => p.checkedIn && p.cert && !p.cert.revoked).length);
+    const st = !n.checkedIn ? ["idle", "Waiting on check-in"] : left ? ["wait", `${left} to issue`] : ["good", "All issued"];
+    ce.innerHTML = `<div class="dh"><h2>Certificates</h2><span class="dtag ${st[0]}">${st[1]}</span></div>
+      <p class="porg dsub">${esc(t?.name ?? "No design yet")} · dated ${esc(fmtDate(C.settings.date))}</p>
+      <div class="dnums"><div><b>${n.checkedIn}</b><span>Checked in</span></div><div><b>${n.issued}</b><span>Issued</span></div><div><b>${n.coming}</b><span>Registered</span></div></div>
+      <button class="mini gold dbtn" data-dgo="certs">Certificates</button>`;
+    ce.querySelector("[data-dgo]").onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); render().then(() => document.querySelector('details[data-fold="sec-certs"]')?.scrollIntoView({ block: "start", behavior: "smooth" })); };
+  }).catch(() => { ce.querySelector(".porg").textContent = "The certificates couldn't load."; });
+}
 function roomFill(ev, att, pres) {
   const seats = Number(ev?.room?.seats) || 0;
   if (!seats) return null;
@@ -10853,7 +11272,8 @@ async function drawScreen() {
     }
     if (view.name === "year") {
       const { events } = await api("/events");
-      return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
+      const [{ conferences }] = await Promise.all([api("/conferences").catch(() => ({ conferences: [] })), loadRoster()]);
+      return yearScreen(events, view.year ?? defaultYear(events, todayIso()), conferences);
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
     if (view.name === "sandbox") return sandboxScreen();

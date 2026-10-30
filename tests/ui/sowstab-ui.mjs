@@ -31,7 +31,9 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   p.on("dialog", (d) => d.accept());
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
-  ok(`${tag}: the top bar has an RBH SOWs button`, await p.locator("#sowsnav").isVisible());
+  const more = async () => { if (!(await p.locator("#sowsnav").isVisible()) && await p.locator("#snmore").isVisible()) { await p.locator("#snmore").click(); await p.waitForTimeout(300); } };   // on a phone it's under More
+  await more();
+  ok(`${tag}: the sidebar (on a phone, More) has an RBH SOWs button`, await p.locator("#sowsnav").isVisible());
   await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
   const row = (id) => p.locator(`[data-sowrow="${id}"]`);
   ok(`${tag}: each RBH event is a row, the one with no statement of work too, with Start it`, await row(vip.id).count() && await row(itp.id).count() && /No SOW yet/i.test(await row(bare.id).innerText()) && /Start it/.test(await row(bare.id).innerText()));
@@ -64,7 +66,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
     // And the other way: changed on the event, it shows here.
     const s2 = (await api(`/api/sow?event=${itp.id}`)).sow;
     await api(`/api/sow?event=${itp.id}`, { method: "PUT", body: JSON.stringify({ lines: s2.lines.map((l, i) => (i ? l : { ...l, estimate: 12345 })), taxes: s2.taxes, internal: s2.internal }) });
-    await p.locator("#back").click(); await p.waitForTimeout(800); await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
+    await p.locator("#back").click(); await p.waitForTimeout(800); await more(); await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
     const fresh = (await api("/api/sow?all=1")).events.find((e) => e.id === itp.id);
     ok(`${tag}: a change made on the event shows in the list`, (await row(itp.id).innerText()).includes(`$${fresh.estimate.total.toLocaleString("en-CA", { minimumFractionDigits: 2 })}`), await row(itp.id).innerText());
     // Start it, for the event that has none.
@@ -80,7 +82,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
     for (const st of ["submitted", "approved"]) await api(`/api/sow?event=${itp.id}&status=${st}`, { method: "PUT", body: "{}" });
     await api(`/api/sow?event=${itp.id}`, { method: "PUT", body: JSON.stringify({ lines: s3.lines.map((l) => ({ ...l, actual: l.type === "fixed" ? l.estimate + 1000 : l.estimate })), taxes: s3.taxes, internal: s3.internal }) });
     await api(`/api/sow?event=${itp.id}&status=invoiced`, { method: "PUT", body: "{}" });
-    await p.locator("#back").click(); await p.waitForTimeout(800); await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
+    await p.locator("#back").click(); await p.waitForTimeout(800); await more(); await p.locator("#sowsnav").click(); await p.waitForTimeout(1500);
     const now = (await api("/api/sow?all=1")).events.filter((e) => e.sow && (e.lastDay || e.dayOne) >= new Date().toISOString().slice(0, 10));
     const expect = Math.round(now.reduce((n, e) => n + (e.invoiced ? e.actual.profit : e.estimate.profit), 0) * 100) / 100;
     const planned = Math.round(now.reduce((n, e) => n + e.estimate.profit, 0) * 100) / 100;
