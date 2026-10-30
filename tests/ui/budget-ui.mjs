@@ -72,13 +72,23 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   B = await saved(ev.id);
   ok(`${tag}: tapping a board night takes it off, and it saves on its own`, B.people.find((x) => x.name === "Raj Jaswal").nights.length === 5 && /Saved/.test(await p.locator("#sbx-said").innerText()));
   await p.locator("#evbudget .sbtiles").screenshot({ path: D + `budget-tiles-${tag}.png` });
-  await p.locator("#evbudget .card", { hasText: "Hotel nights" }).screenshot({ path: D + `budget-nights-${tag}.png` });
+  await p.locator("#evbudget .card").filter({ has: p.locator("table.ng") }).screenshot({ path: D + `budget-nights-${tag}.png` });
   if (tag === "wide") {
     // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
     const before = (await saved(ev.id)).people.filter((x) => x.group === "board").length;
     await p.locator("[data-paddall]").click(); await p.waitForTimeout(1600);
     const board = (await saved(ev.id)).people.filter((x) => x.group === "board");
     ok(`${tag}: Add all board members puts the whole board roster on the grid, each from three nights before day one, reimbursed`, board.length > before && board.every((x) => x.pays === "reimbursed") && board.filter((x) => x.name !== "Raj Jaswal").every((x) => x.nights[0] === "2031-05-09" && x.nights.at(-1) === "2031-05-14") && !(await p.locator("[data-paddall]").count()), `${before} → ${board.length}`);
+    // Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap ... has to include our presenters ... with 8 people at
+    // a round table, how many tables?"
+    const seats = p.locator('[data-k="room.seats"]'); await seats.fill("120"); await seats.press("Tab"); await p.waitForTimeout(1500);
+    const Bs = await saved(ev.id), notAtt = Bs.people.filter((x) => x.group !== "volunteer").length + (Bs.others || 0);
+    ok(`${tag}: the room's seats are kept, and what's left for attendees is the seats less everyone else seated`, Bs.room.seats === 120 && new RegExp(`room for ${120 - notAtt} attendees`).test(await p.locator(".blk.wide2 .row.tot").innerText()), await p.locator(".blk.wide2 .row.tot").innerText());
+    const day = await p.locator(".seats tbody tr").first().locator("td").allInnerTexts();
+    ok(`${tag}: each day says how many are seated and how many round tables of 8 that takes`, Number(day[6]) === Math.ceil(Number(day[5].split(/\s/)[0]) / 8) && Number(day[7]) === Number(day[6]) * 8, day.join(" | "));
+    const exp = p.locator('[data-k="reg.inPerson.expected"]'); await exp.fill("200"); await exp.press("Tab"); await p.waitForTimeout(1500);
+    ok(`${tag}: expecting more than the room takes says so, in red`, /too many/.test(await p.locator(".blk.wide2 .row.tot").innerText()) && (await p.locator(".seats tr.over").count()) > 0);
+    await exp.fill("100"); await exp.press("Tab"); await p.waitForTimeout(1200);
     // Andrew 30 Oct 2026: "where are all the line items ... AV, presenter gifts, attendee gifts ... That was in the Excel
     // sheet", and "you could hide all of those spent columns and we'll just have the projected".
     ok(`${tag}: Everything else has Group, Line and Projected, no Spent`, (await p.locator(".sbelse thead").innerText()).replace(/\s+/g, " ").trim().toUpperCase() === "GROUP LINE PROJECTED" && !(await p.locator('[data-k$=".spent"], [data-k$=".paid"]').count()), await p.locator(".sbelse thead").innerText());

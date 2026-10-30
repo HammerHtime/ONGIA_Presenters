@@ -455,6 +455,15 @@
     .wixt .sbl td{border:0;padding:0}.wixt .sbl td:nth-child(1){grid-column:1/-1;font-weight:600}.wixt .sbl td:nth-child(2)::before{content:"Price ";color:var(--muted);font-weight:400}
     .wixt .sbl td:nth-child(3)::before{content:"Sold ";color:var(--muted)}.wixt .sbl td:nth-child(4){grid-column:1/-1}.wixt select{width:100%}
   }
+  .sbgrid .blk.wide2{grid-column:1/-1}
+  .seats{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px;font-variant-numeric:tabular-nums}
+  .seats th{font-family:var(--fu);font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:4px 6px}
+  .seats td{text-align:right;padding:5px 6px;border-top:1px solid var(--sunk)}.seats td:first-child,.seats th:first-child{text-align:left;font-weight:700}
+  .seats td small{color:var(--muted)}.seats tr.over td{background:var(--late-bg);color:var(--late)}
+  .seatwarn{margin:6px 0;padding:8px 12px;border-radius:10px;background:var(--late-bg);color:var(--late);font-size:13.5px}
+  @media (max-width:560px){.seats{font-size:12.5px}.seats th,.seats td{padding:4px 3px}.seats th{font-size:10px;letter-spacing:.03em}
+    .seats th:nth-child(4),.seats td:nth-child(4),.seats th:nth-child(5),.seats td:nth-child(5),.seats th:nth-child(8),.seats td:nth-child(8){display:none}
+    .seats td small{display:block}}
   .wixnote{margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--sunk);font-size:13.5px}.wixnote.bad{background:var(--wait-bg);color:var(--wait)}
   .sbx .ng .swipe,.sbx .ng .pl,.sbx .ng .mo{display:none}
   /* Tablets: every night fits, who pays is a scroll away; the names stay put while it scrolls. */
@@ -8542,7 +8551,23 @@ function sbxCalc(B) {
   const minNights = Math.ceil(B.hotel.commitment * B.hotel.minPct / 100);
   const fbBase = meals / ((1 + ((Number(M.service) || 0) + (Number(M.admin) || 0)) / 100) * hstF);
   const paid = B.deposits.filter((d) => d.paid).reduce((n, d) => n + (Number(d.amount) || 0), 0);
-  return { days, nights, team, regs, everyone, mealDays, meals, rooms, nightCost, blockNights, paidNights, reimburse, pickup, rebate, gross, tickets, virtualNet, pledged, received,
+  // The room (Andrew 30 Oct 2026: "a venue that only can seat 300 is our cap. Well, that 300 has to include our presenters
+  // ... with 8 people at a round table, how many tables? And what's our capacity?"). Seated each event day: the attendees,
+  // and everyone on the grid except volunteers (they're working), plus the security, sponsors and VIPs; the most of those
+  // who aren't attendees on any day is what comes off the room's seats.
+  const RM = B.room ?? {}, perTable = Math.max(1, Number(RM.perTable) || 8), cap = Number(RM.seats) || 0;
+  const count = (g) => B.people.filter((p) => p.group === g).length;
+  const seating = days.map((iso) => {
+    const att = regs(iso), pres = count("presenter"), board = count("board") + count("other"), oth = Number(B.others) || 0;
+    const seated = att + pres + board + oth, tables = Math.ceil(seated / perTable);
+    return { iso, att, pres, board, oth, seated, tables, seats: tables * perTable };
+  });
+  const notAttendees = seating.reduce((n, d) => Math.max(n, d.pres + d.board + d.oth), 0);
+  const peakAtt = seating.reduce((n, d) => Math.max(n, d.att), 0);
+  const soldAtt = (on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0) + (on("community") ? R.community.sold || 0 : 0);
+  const room = { cap, perTable, seating, notAttendees, maxAttendees: cap ? Math.max(0, cap - notAttendees) : null, peakAtt, soldAtt,
+    spare: cap ? cap - notAttendees - peakAtt : null, maxTables: seating.reduce((n, d) => Math.max(n, d.tables), 0) };
+  return { room, days, nights, team, regs, everyone, mealDays, meals, rooms, nightCost, blockNights, paidNights, reimburse, pickup, rebate, gross, tickets, virtualNet, pledged, received,
     revenue, other, spent, stipends, expenses, profit, margin, breakEven, toTarget, inPerson, community, sold, expected, minNights, fbBase, paid, perHead };
 }
 
@@ -8608,6 +8633,7 @@ function sbxQuestions() {
 }
 
 function sbxDraw() {
+  SBX.room ??= { seats: null, perTable: 8 };
   const B = SBX, C = sbxCalc(B), R = B.reg, on = (k) => R[k]?.on;
   const money = sbxMoney;
   // What the event's receipts come to against each line, for the president and the VP (receipts are optional here).
@@ -8631,7 +8657,7 @@ function sbxDraw() {
     C.minNights ? tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`)
       : tile("Room nights", `${pick}`, `${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ""} · <span class="warnp">no room block yet</span><br>type it under Hotel rooms, or upload the contract`),
     tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
-    tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, "registrations, presenters, volunteers, board"),
+    tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, C.room.cap ? `everyone, for meals · room seats ${C.room.cap}${C.room.spare < 0 ? ` <span class="warnp">over</span>` : ""}` : "registrations, presenters, volunteers, board"),
     tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
     tile("Sponsors", `${money(C.received)} <small>of ${money(C.pledged)}</small>`, `${B.sponsors.filter((s) => s.received).length} paid${B.sponsors.some((s) => !s.received) ? ` · ${esc(B.sponsors.filter((s) => !s.received).map((s) => s.name).join(", "))} owing` : ""}`),
     B.meals.fbMin ? tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`)
@@ -8678,7 +8704,24 @@ function sbxDraw() {
       <div class="row"><span>Presenters · volunteers <span class="src s-type">grid below</span></span><b>${B.people.filter((p) => p.group === "presenter").length} · ${B.people.filter((p) => p.group === "volunteer").length}</b></div>
       <div class="row"><span>Security, sponsors, VIPs each day</span>${inp("others", B.others, 60)}</div>
       <div class="row"><span>Profit target</span>${inp("target", B.target)}</div>
-      <div class="row tot"><span>Other costs (listed below)</span><b>${money(C.other)}</b></div></div></div>`;
+      <div class="row tot"><span>Other costs (listed below)</span><b>${money(C.other)}</b></div></div>
+    ${SBX_EV ? seatingBlock() : ""}</div>`;
+
+  // 5. The room and its tables.
+  function seatingBlock() {
+    const Rm = C.room, short = (iso) => `${esc(DAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()])} ${Number(iso.slice(8))}`;
+    const verdict = !Rm.cap ? `<span class="hint">Type the room's seats to see how many attendees it can take.</span>`
+      : Rm.spare >= 0 ? `<span class="okp">fits</span> room for <b>${Rm.maxAttendees}</b> attendees; ${Rm.peakAtt} expected leaves <b>${Rm.spare}</b> seat${Rm.spare === 1 ? "" : "s"} to spare`
+      : `<span class="warnp">over</span> room for <b>${Rm.maxAttendees}</b> attendees, and ${Rm.peakAtt} are expected: <b>${-Rm.spare} too many</b>`;
+    const soldOver = Rm.cap && Rm.soldAtt > Rm.maxAttendees ? `<div class="seatwarn">Already sold ${Rm.soldAtt} in-person registrations: ${Rm.soldAtt - Rm.maxAttendees} more than the room can seat.</div>` : "";
+    return `<div class="blk wide2"><h3><span class="n">5</span>The room and its tables</h3>
+      <div class="row"><span>Seats in the main room <small>the venue's capacity, everyone in it counted</small></span>${inp("room.seats", B.room?.seats ?? "", 80, "e.g. 300")}</div>
+      <div class="row"><span>People at a round table</span>${inp("room.perTable", B.room?.perTable ?? 8, 56)}</div>
+      <div class="row tot"><span>${verdict}</span></div>${soldOver}
+      <table class="seats"><thead><tr><th></th><th>Attendees</th><th>Presenters</th><th>Board &amp; others</th><th>Security, VIPs</th><th>Seated</th><th>Round tables</th><th>Seats at them</th></tr></thead><tbody>
+        ${Rm.seating.map((d) => `<tr${Rm.cap && d.seated > Rm.cap ? ` class="over"` : ""}><td>${short(d.iso)}</td><td>${d.att}</td><td>${d.pres}</td><td>${d.board}</td><td>${d.oth}</td><td><b>${d.seated}</b>${Rm.cap ? `<small> of ${Rm.cap}</small>` : ""}</td><td><b>${d.tables}</b></td><td>${d.seats}</td></tr>`).join("")}</tbody></table>
+      <p class="hint" style="margin:6px 0 0">Presenters and the board are everyone on the hotel nights grid below; volunteers aren't counted, as they're working. Attendees are the in-person registrations you expect (community ones on their days).</p></div>`;
+  }
 
   // 2. Hotel nights: tap a night, it goes green; who pays on the right.
   const groups = [["board", "Board"], ["presenter", "Presenters"], ["volunteer", "Volunteers"], ["other", "Others"]];
@@ -8768,7 +8811,7 @@ function sbxWire() {
       row[f] = ["planned", "spent", "paid", "amount"].includes(f) ? numOf(v) : v;
     } else {
       let o = B; for (const p of parts.slice(0, -1)) o = o[p];
-      o[parts.at(-1)] = numOf(v) ?? (parts.at(-1) === "pickup" ? null : 0);
+      o[parts.at(-1)] = numOf(v) ?? (["pickup", "seats"].includes(parts.at(-1)) ? null : parts.at(-1) === "perTable" ? 8 : 0);
     }
     redraw();
   }, 0); });
