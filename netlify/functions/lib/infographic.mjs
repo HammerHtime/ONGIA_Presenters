@@ -12,12 +12,12 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The ONGIA logo (white leaf, gold letters, for a dark background), inside the page so the picture made from it has it too.
+// The ONGIA logo with its tagline (white leaf, gold letters, for a dark background), inside the page so the picture made from it has it too.
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LOGO_FILE = [path.resolve(HERE, "../../../public/assets"), path.resolve(HERE, "../../public/assets"), path.resolve(process.cwd(), "public/assets"), "/var/task/public/assets"]
-  .map((d) => path.join(d, "ongia-logo.png")).find((f) => existsSync(f));
+  .map((d) => path.join(d, "ongia-logo-tagline-dark.png")).find((f) => existsSync(f));
 const LOGO = LOGO_FILE ? `data:image/png;base64,${readFileSync(LOGO_FILE).toString("base64")}` : "";
-const logo = (h) => LOGO ? `<img src="${LOGO}" alt="ONGIA" style="height:${h}px;width:${h * 6}px;display:block">` : `<span class="h" style="font-weight:700;font-size:${h * 0.8}px;letter-spacing:.12em;color:#fff">ONGIA</span>`;
+const logo = (h) => LOGO ? `<img src="${LOGO}" alt="ONGIA" style="height:${h}px;width:${Math.round(h * 1000 / 255)}px;display:block">` : `<span class="h" style="font-weight:700;font-size:${h * 0.8}px;letter-spacing:.12em;color:#fff">ONGIA</span>`;
 
 const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#c9a032", GOLDL = "#e2bf5c", PALE = "#f6f1e4", INK = "#14181f", MUTED = "#5d6577";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -127,7 +127,7 @@ function sections(event, R, analysis, lang, square = false) {
   const h = R.headline;
   const sec = (name, inner, style = "") => `<section data-block="${name}" class="sec" style="${style}">${inner}</section>`;
   return {
-    event: `<div style="background:${DEEP};padding:22px 56px;border-bottom:5px solid ${GOLD}">${logo(46)}</div>
+    event: `<div style="background:${DEEP};padding:22px 56px;border-bottom:5px solid ${GOLD}">${logo(60)}</div>
       <div style="display:grid;grid-template-columns:1fr 420px;gap:10px;padding:40px 56px 30px;align-items:end">
         <div><div class="h" style="font-weight:700;font-size:${title.length > 22 ? 76 : 96}px;line-height:.92;color:${NAVY}">${esc(title)}</div>
           <div class="h" style="font-weight:700;font-size:96px;line-height:.92;color:${GOLD}">${esc(year)}</div>
@@ -220,7 +220,7 @@ export function infographicHtml(event, R, analysis, { lang = "en", block = "" } 
   if (block) {
     const one = block === "event" ? s.event : s[block];
     if (!one) return null;
-    const small = `<div class="badge" style="background:${DEEP};color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:5px solid ${GOLD}">${logo(40)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
+    const small = `<div class="badge" style="background:${DEEP};color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:5px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
     return `${head}<div class="square" id="art"><div class="fit"><div class="in">${one}</div></div>${block === "event" ? "" : small}</div></body></html>`;
   }
   return `${head}<div class="page" id="art">${s.event}${s.stats}${s.provinces}${s.agencies}${s.topics}${s.takeaways}${s.quotes}${s.foot}</div></body></html>`;

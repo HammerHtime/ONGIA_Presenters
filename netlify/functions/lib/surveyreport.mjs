@@ -33,7 +33,7 @@ const tally = (list) => {
 };
 
 export async function surveySummaryPdf(event, R, analysis = null) {
-  const logo = await readFile(path.join(ASSETS, "ongia-logo.png")).catch(() => null);
+  const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
   const doc = new PDFDocument({ size: "LETTER", margin: 0, bufferPages: true, displayTitle: true, info: { Title: `ONGIA survey results · ${String(event.title).split(/\s*:\s*/)[0]}`, Author: "ONGIA" } });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
@@ -61,7 +61,7 @@ export async function surveySummaryPdf(event, R, analysis = null) {
   // Cover band.
   doc.rect(0, 0, W, 118).fill(DEEP);
   doc.rect(0, 118, W, 4).fill(GOLD);
-  if (logo) doc.image(logo, M, 26, { height: 26 });
+  if (logo) doc.image(logo, M, 14, { height: 36 });
   doc.font("Helvetica-Bold").fontSize(20).fillColor("#ffffff").text("Survey results", M, 62, { width: BODY });
   doc.font("Helvetica").fontSize(10.5).fillColor("#e2bf5c").text(`${event.title}${event.city ? ` · ${event.city}` : ""} · ${dates(event)}`, M, 88, { width: BODY });
   y = 140;
