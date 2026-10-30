@@ -101,21 +101,31 @@ export const certIndex = async (eventId) => (await getMeta(`certs:event:${eventI
 export const certRecord = async (code) => (/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code ?? "") ? await getMeta(`certs:code:${code}`) : null);
 
 /**
- * The certificate for one person, issued the first time it is asked for and kept for good. Its words follow the event's
- * settings and the person's details as they are now, so a corrected name or date shows on the next download and on the
- * verify page; the code never changes.
+ * The certificate for one person, issued the first time it is asked for and kept for good. Once issued it stays as it was
+ * issued: downloading it again gives the same certificate, even if the event's settings or the person's details have
+ * changed since (audit, 30 Oct 2026: a credential that verifies shouldn't quietly change what it says). `correct` puts the
+ * details as they are now on it on purpose, keeping its number, with what it said before kept in its history. A withdrawn
+ * one, issued again, gets a new number; the old number goes on saying it was withdrawn.
  */
-export async function issue(event, person, { name, agency, settings }) {
+export async function issue(event, person, { name, agency, settings, by = null, correct = false }) {
   const index = await certIndex(event.id);
-  let code = index[person.key];
-  const had = code ? await certRecord(code) : null;
-  if (!had) {
-    do code = newCode(); while (await certRecord(code));
-    index[person.key] = code;
-    await putMeta(`certs:event:${event.id}`, index);
+  const had = index[person.key] ? await certRecord(index[person.key]) : null;
+  if (had && !had.revokedAt && !correct) return had;
+  const now = new Date().toISOString();
+  const words = { name, agency, date: settings.date, course: settings.course, template: settings.template };
+  if (had && !had.revokedAt) {
+    const before = { at: now, by, name: had.name, agency: had.agency, date: had.date, course: had.course, template: had.template };
+    const rec = { ...had, ...words, eventTitle: event.title, updatedAt: now, history: [...(had.history ?? []), before] };
+    await putMeta(`certs:code:${had.code}`, rec);
+    return rec;
   }
-  const rec = { ...(had ?? {}), code, event: event.id, eventTitle: event.title, key: person.key, email: person.email ?? "", name, agency,
-    date: settings.date, course: settings.course, template: settings.template, issuedAt: had?.issuedAt ?? new Date().toISOString(), updatedAt: new Date().toISOString() };
+  let code;
+  do code = newCode(); while (await certRecord(code));
+  index[person.key] = code;
+  await putMeta(`certs:event:${event.id}`, index);
+  if (had) await putMeta(`certs:code:${had.code}`, { ...had, replacedBy: code });
+  const rec = { code, event: event.id, eventTitle: event.title, key: person.key, email: person.email ?? "", ...words, issuedAt: now, updatedAt: now, issuedBy: by,
+    ...(had ? { replaces: had.code } : {}), ...(person.checkedIn === false ? { notCheckedIn: true } : {}) };
   await putMeta(`certs:code:${code}`, rec);
   return rec;
 }

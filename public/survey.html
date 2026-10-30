@@ -121,20 +121,24 @@ let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { retu
 const T = {
  en: { other: "Français", loading: "Loading…", anon: "Your answers are anonymous.", about: "About you", aboutHint: "Asked once.", pick: "Choose…", typeAgency: "Start typing your agency…", useTyped: (s) => `Use “${s}” (not on the list)`,
   yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
-  overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…",
+  overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…", retry: "Try again", failed: "We couldn't send your answers.", failedText: "They're still here. Check your connection, then try again.",
   missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
   already: "You've already answered this part. Thank you!", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
   contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
  fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", typeAgency: "Commencez à taper votre organisme…", useTyped: (s) => `Utiliser « ${s} » (pas dans la liste)`,
   yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
-  overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…",
+  overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…", retry: "Réessayer", failed: "Nous n'avons pas pu envoyer vos réponses.", failedText: "Elles sont toujours ici. Vérifiez votre connexion, puis réessayez.",
   missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
   already: "Vous avez déjà répondu à cette partie. Merci!", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
   contactAsk: "Laissez votre nom et votre courriel, et nous communiquerons avec vous. Ces renseignements sont conservés à part de vos réponses.", name: "Nom", email: "Courriel", topic: "Sur quel sujet présenteriez-vous? (facultatif)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("fr-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Jour ${n}` } };
 const t = (k, ...a) => (typeof T[LANG][k] === "function" ? T[LANG][k](...a) : T[LANG][k]);
 let D = null, A = { about: {}, sessions: {}, overall: {}, skipDays: [], contact: {} }, MISSING = new Set(), STATE = "form";
+// A send that didn't go through (audit, 30 Oct 2026: it used to just reset the button, so people couldn't tell): said plainly
+// above the button, kept through a language switch or another answer, and the answers stay where they are.
+let SENDFAIL = null;
+const failNote = () => SENDFAIL ? `<div class="problems" role="alert"><b>${t("failed")}</b> ${t("failedText")}${SENDFAIL.why ? `<br><small>${esc(SENDFAIL.why)}</small>` : ""}</div>` : "";
 const words = () => D.stars[LANG];
 const qText = (q) => q[LANG] || q.en;
 
@@ -220,8 +224,8 @@ function render() {
         <div class="row2"><div class="field" style="margin:0"><label>${t("name")}</label><input type="text" data-contact="name" value="${esc(A.contact.name ?? "")}"></div>
         <div class="field" style="margin:0"><label>${t("email")}</label><input type="email" data-contact="email" value="${esc(A.contact.email ?? "")}"></div></div>
         <div class="field"><label>${t("topic")}</label><input type="text" data-contact="topic" value="${esc(A.contact.topic ?? "")}"></div></div>` : ""}</div>` : ""}
-    <div id="problems"></div>
-    <button type="button" class="btn btn-gold" id="send">${t("send")}</button>`;
+    <div id="problems" aria-live="assertive">${failNote()}</div>
+    <button type="button" class="btn btn-gold" id="send">${t(SENDFAIL ? "retry" : "send")}</button>`;
   wire();
 }
 
@@ -257,14 +261,18 @@ async function send() {
       body: JSON.stringify({ part: D.part, lang: LANG, about: A.about, sessions: A.sessions, skipDays: A.skipDays, overall: A.overall, contact: A.contact }) });
     const out = await res.json().catch(() => ({}));
     if (res.status === 400 && out.missing) {
-      MISSING = new Set(out.missing); render();
+      SENDFAIL = null; MISSING = new Set(out.missing); render();
       document.getElementById("problems").innerHTML = `<div class="problems">${t("missing", out.missing.length)}</div>`;
       document.getElementById(`q-${out.missing[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (!res.ok) throw new Error(out.error || "");
-    STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
-  } catch { btn.disabled = false; btn.textContent = t("send"); }
+    if (!res.ok) throw Object.assign(new Error(out.error || ""), { server: true });
+    SENDFAIL = null; STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
+  } catch (e) {
+    SENDFAIL = { why: e.server && LANG === "en" ? e.message : "" };   // the server's own reason is in English; the French page keeps to its own words
+    btn.disabled = false; btn.textContent = t("retry");
+    const box = document.getElementById("problems"); box.innerHTML = failNote(); box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };

@@ -10,8 +10,8 @@ import { tally } from "./lib/attendees.mjs";
  * An event's own budget, on its Money tab (Andrew 30 Oct 2026: "build the ONGIA event budgets"), the same page as the
  * Sandbox he tried on the 2026 Summit's numbers, now kept for each of ONGIA's own events. The president and the VP only.
  *
- *   GET    /api/budget?event=…   { budget (null until first saved), live }
- *   PUT    /api/budget?event=…   save it ({ budget })
+ *   GET    /api/budget?event=…   { budget (null until first saved), live, rev, at, by }
+ *   PUT    /api/budget?event=…   save it ({ budget, rev }); 409 if someone saved since `rev` (the save is not made)
  *   DELETE /api/budget?event=…   start over from the event's records
  *   GET    /api/budget?like=…      the budget of the last event most like this one, to start from ({ from, budget })
  *   GET    /api/budget?groups=1    the groups the "Everything else" lines can be put under
@@ -37,14 +37,21 @@ export default async (req) => {
   if (!event) return fail("No such event.", 404);
   if (event.kind === "rbh") return fail("An RBH event's money is on its statement of work.", 409);
 
-  if (req.method === "GET") return json({ budget: (await getMeta(key(id)))?.budget ?? null, live: await live(event) });
+  // Each save gets the next number. A save made from an older copy is turned back, so the president and the VP working on
+  // the same budget never quietly wipe out each other's changes (audit, 30 Oct 2026). A page that sends no number (one
+  // opened before this) still saves, as before.
+  if (req.method === "GET") { const had = await getMeta(key(id)); return json({ budget: had?.budget ?? null, live: await live(event), rev: had?.rev ?? 0, at: had?.at ?? null, by: had?.byName ?? had?.by ?? null }); }
   if (req.method === "PUT") {
     const raw = await req.text();
     if (raw.length > MAX) return fail("That is too big to keep.", 413);
     let body; try { body = JSON.parse(raw); } catch { return fail("Expected { budget }."); }
     if (!body?.budget || typeof body.budget !== "object" || Array.isArray(body.budget)) return fail("Expected { budget }.");
-    await putMeta(key(id), { budget: body.budget, at: new Date().toISOString(), by: adminWho(req)?.email ?? null });
-    return json({ ok: true });
+    const had = await getMeta(key(id)), rev = had?.rev ?? 0;
+    if (Number.isInteger(body.rev) && body.rev !== rev)
+      return json({ error: `${had?.byName || had?.by || "Someone"} changed this budget since you opened it.`, conflict: { rev, at: had?.at ?? null, by: had?.byName ?? had?.by ?? null } }, 409);
+    const who = adminWho(req);
+    await putMeta(key(id), { budget: body.budget, rev: rev + 1, at: new Date().toISOString(), by: who?.email ?? null, byName: who?.name ?? null });
+    return json({ ok: true, rev: rev + 1 });
   }
   if (req.method === "DELETE") { await deleteKey(`meta:${key(id)}`); return json({ ok: true, live: await live(event) }); }
   return fail("Not allowed.", 405);
