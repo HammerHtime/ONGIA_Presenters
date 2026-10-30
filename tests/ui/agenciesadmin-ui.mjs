@@ -77,7 +77,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     ok("Undo sends it back to waiting, and the badge goes up", await p.locator(".agwait .agq[data-agraw=\"Toronto Polcie Service\"]").count() === 1 && +(await p.locator('.atab [data-attn]').innerText()) === before + 1);
     // Leave blank: it stops waiting, and the badge goes down.
     await p.locator(`.agwait .agq[data-agraw="Retired ${T}"] [data-agblank]`).click(); await p.waitForTimeout(1200);
-    ok("Leave blank: it stops waiting and the badge goes down", await p.locator(`.agq[data-agraw="Retired ${T}"]`).count() === 0 && +(await p.locator('.atab [data-attn]').innerText()) === before);
+    ok("Leave blank: it stops waiting and the badge goes down", await p.locator(`.agwait .agq[data-agraw="Retired ${T}"]`).count() === 0 && +(await p.locator('.atab [data-attn]').innerText()) === before);
     // Left blank shows at the bottom, and Bring back returns it (Andrew 30 Oct 2026).
     ok("Left blank lists it", await p.locator(`.agblank .agq[data-agraw="Retired ${T}"]`).count() === 1);
     await p.locator(".agblank > summary").click();
