@@ -1288,7 +1288,7 @@
   .regrow{display:flex;align-items:center;gap:16px} .rring{width:136px;height:136px;flex:none}
   .rring .rn{font:400 34px var(--fd);fill:var(--navy-deep)} .rring .rl{font:500 12.5px var(--fb);fill:var(--muted)}
   .dlines{list-style:none;margin:0;padding:0;font-size:13.5px;color:var(--ink-mid);min-width:0}
-  .dlines li{padding:5px 0;border-top:1px solid var(--hair)} .dlines li:first-child{border-top:0} .dlines b{color:var(--ink)}
+  .dlines li{padding:5px 0;border-top:1px solid var(--hair)} .dlines .bad-t{color:var(--late)} .dlines li:first-child{border-top:0} .dlines b{color:var(--ink)}
   .dmore{margin-top:auto;align-self:flex-start;padding-top:10px}
   .qacts{display:flex;flex-direction:column;gap:7px}
   @media (max-width:760px){.qacts{display:grid;grid-template-columns:1fr 1fr} .qacts .qact.gold{grid-column:1 / -1}}
@@ -9933,6 +9933,7 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const tag = be ? (att >= be ? ["good", "Making money"] : ["wait", "Below break-even"]) : R0 ? (R0.left <= 0 ? ["wait", "Full"] : ["idle", `${Math.round((100 * att) / (R0.max || 1))}% full`]) : null;
   const lines = [
     be ? (att >= be ? `<b>Past break-even</b> by ${att - be}` : `<b>${be - att} more</b> to break even (${be})`) : "",
+    be && cap && be > cap ? `<b class="bad-t">Break-even is more than the room holds</b>` : "",
     R0 ? (R0.left > 0 ? `${R0.left} seat${R0.left === 1 ? "" : "s"} left` : R0.left === 0 ? "<b>Full</b>" : `<b>${-R0.left} over</b> the seats`) : `<button class="linkish" data-roomset>Set the room's seats</button>`,
     newGuests ? `+${newGuests} this week` : "",
     C && be && att >= be ? `Forecast profit ${sbxMoney(C.profit)}` : "",
