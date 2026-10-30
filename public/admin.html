@@ -92,6 +92,17 @@
     .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
     .withside .bar .hsearch input::placeholder{color:var(--muted)}
   }
+  /* A laptop: a narrow rail, each button's icon with its name small beneath, so the page keeps its width. */
+  @media (min-width:900px) and (max-width:1365px){
+    body.withside{padding-left:88px}
+    .withside .side{width:88px;padding-left:6px;padding-right:6px}
+    .withside .slogo{height:40px;width:30px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);margin:0 auto 14px}
+    .withside .sroom{display:none}
+    .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
+    .withside .sn svg{width:21px;height:21px}
+    .withside .sn .nb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
+    .withside .sme{justify-content:center;padding:12px 0 0} .withside .sme div{display:none}
+  }
   @media (max-width:899px){
     body.withside{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
     .withside .side{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:20;
@@ -9959,7 +9970,7 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const activity = `<section class="card dbcard dact"><div class="dh"><h2>Recent activity</h2><span class="porg">Last two weeks</span></div>${acts.length
     ? `<ul class="feed">${acts.map((a) => `<li><span class="fic ${a.cls}"><svg viewBox="0 0 24 24" aria-hidden="true">${a.icon}</svg></span><span>${a.what}</span><time datetime="${esc(a.at)}">${esc(agoWords(a.at))}</time></li>`).join("")}</ul>`
     : `<p class="porg">Nothing in the last two weeks.</p>`}</section>`;
-  return `<section class="etabp dash" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>
+  return `<section class="dash" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>
     <div class="dgrid three">${reg}${nums}${quick}</div><div class="dgrid three">${survey}${certs}${activity}</div></section>`;
 }
 /** What has happened on the event lately, from what the desk already records: newest first, two weeks back, six at most. */
