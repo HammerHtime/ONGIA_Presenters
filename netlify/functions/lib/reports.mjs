@@ -34,6 +34,9 @@ export const fileNameOf = (kind, lang) => `${KINDS[kind][lang]}.pdf`;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ASSET_DIRS = [path.resolve(HERE, "../../../public/assets"), path.resolve(HERE, "../../public/assets"), path.resolve(process.cwd(), "public/assets"), "/var/task/public/assets"];
 const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "fonts", "Lato-Bold.woff"))) ?? ASSET_DIRS[0];
+// ONGIA's logo with its tagline, navy leaf and gold letters, for white pages (Andrew 30 Oct 2026: "This logo needs to be on
+// all infographics and executive summaries in place of the ONGIA in the top left corner").
+const LOGO = path.join(ASSETS, "ongia-logo-tagline.png");
 
 /* ---------- What the survey says, in figures ---------- */
 
@@ -197,9 +200,10 @@ export async function execPdf(content, facts, lang, { date }) {
   const { doc, done } = newDoc(title);
   const W = doc.page.width - 108, X = 54;
   const header = () => {
-    doc.font("b").fontSize(9).fillColor(NAVY).text("ONGIA", X, 30, { continued: true }).font("r").fillColor(MUTED).text("  |  Organization for National Gang Information & Awareness");
-    doc.moveTo(X, 46).lineTo(X + W, 46).lineWidth(1).strokeColor(GOLD).stroke();
-    doc.x = X; doc.y = 64;
+    doc.image(LOGO, X, 20, { height: 26 });
+    doc.font("r").fontSize(8).fillColor(MUTED).text("Organization for National Gang Information & Awareness", X, 34, { width: W, align: "right" });
+    doc.moveTo(X, 52).lineTo(X + W, 52).lineWidth(1).strokeColor(GOLD).stroke();
+    doc.x = X; doc.y = 66;
   };
   doc.on("pageAdded", header); header();
   const room = (h) => { if (doc.y + h > doc.page.height - 70) doc.addPage(); };
@@ -289,13 +293,12 @@ export async function infoPdf(content, facts, lang, { date }) {
   const T = L[lang];
   const { doc, done } = newDoc(`${facts.event.title} — ${KINDS.info[lang]}`);
   const X = 40, W = doc.page.width - 80;
-  doc.font("b").fontSize(18).fillColor(NAVY).text("ONGIA", X, 32);
-  doc.font("r").fontSize(6.5).fillColor(MUTED).text("ORGANIZATION FOR NATIONAL GANG INFORMATION & AWARENESS", X, 52, { characterSpacing: 1 });
+  doc.image(LOGO, X, 24, { height: 36 });
   doc.font("b").fontSize(7.5).fillColor(NAVY).text(T.snapshot, X, 34, { width: W, align: "right", characterSpacing: 0.8 });
   doc.font("r").fontSize(7.5).fillColor(MUTED).text(`${whenText(facts, lang).toUpperCase()}${facts.event.city ? ` · ${facts.event.city.toUpperCase()}` : ""}`, X, 45, { width: W, align: "right", characterSpacing: 0.6 });
-  doc.moveTo(X, 66).lineTo(X + W, 66).lineWidth(0.6).strokeColor(LINE).stroke();
-  doc.font("b").fontSize(8).fillColor(GOLD).text(T.results, X, 80, { characterSpacing: 1.5 });
-  doc.font("b").fontSize(26).fillColor(NAVY).text(facts.event.title, X, 94, { width: W, lineGap: -2 });
+  doc.moveTo(X, 72).lineTo(X + W, 72).lineWidth(0.6).strokeColor(LINE).stroke();
+  doc.font("b").fontSize(8).fillColor(GOLD).text(T.results, X, 86, { characterSpacing: 1.5 });
+  doc.font("b").fontSize(26).fillColor(NAVY).text(facts.event.title, X, 100, { width: W, lineGap: -2 });
   doc.font("i").fontSize(11).fillColor(MUTED).text(content.tagline ?? "", X, doc.y + 2, { width: W });
   // Tiles.
   let y = doc.y + 12;
