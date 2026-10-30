@@ -6,6 +6,7 @@ import { listEvents, putMeta } from "./store.mjs";
 import { pacer } from "./bulk.mjs";
 import { runInbox } from "./inbox.mjs";
 import { watchBackup } from "./backup.mjs";
+import { settle, everyone } from "./agencies.mjs";
 
 /** The site's own address, for links in emails and for starting background runs. */
 export const siteOrigin = (fallback = "") => process.env.APP_URL || process.env.URL || fallback;
@@ -31,6 +32,12 @@ export async function runNight({ origin = siteOrigin(), deadline = null, sendsOn
     const wix = await sweepWix().catch((e) => ({ error: e.message }));
     out.wix = wix.error ? { error: wix.error } : wix.skipped ? { skipped: wix.reason } : { events: wix.events.length, failed: wix.events.filter((e) => e.error).length };
     console.log(`wix sweep: ${JSON.stringify(out.wix)}`);
+
+    // New agency spellings from the sweep, placed on the master list (Andrew 30 Oct 2026). Never holds up the rest.
+    const ag = await settle(await everyone()).catch((e) => ({ error: e.message }));
+    out.agencies = ag.error ? { error: ag.error } : { matched: ag.near + ag.email + ag.claude, waiting: ag.waiting };
+    await putMeta("agencies:run", { state: ag.error ? "failed" : "done", at: new Date().toISOString(), ...(ag.error ? { why: ag.error } : ag) }).catch(() => {});
+    console.log(`agencies: ${JSON.stringify(out.agencies)}`);
 
     const rem = await runReminders({ origin }).catch((e) => ({ error: e.message, results: [] }));
     out.reminders = rem.error ? { error: rem.error } : { planned: rem.count, sent: rem.results.filter((r) => r.sent).length, failed: rem.results.filter((r) => r.error).length };

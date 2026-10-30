@@ -3,6 +3,7 @@ import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./li
 import { readCsv, merge, tally, writeableTo, keyOf } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { letterProblems, eventProblems } from "./lib/letters.mjs";
+import { directory, agencyOf } from "./lib/agencies.mjs";
 
 /**
  * The people coming to a training event.
@@ -44,8 +45,10 @@ export default async (req) => {
 
 async function show(event) {
   const stored = (await getAttendees(event.id)) ?? { people: [], syncedAt: null };
+  // Each person's agency under its one official name (Andrew 30 Oct 2026); what they typed stays as they typed it.
+  const list = await directory().catch(() => []);
   return {
-    people: stored.people ?? [],
+    people: (stored.people ?? []).map((p) => ({ ...p, agency: agencyOf(p, list)?.name ?? "" })),
     counts: tally(stored.people ?? []),
     syncedAt: stored.syncedAt ?? null,
     lastImport: stored.lastImport ?? null,
