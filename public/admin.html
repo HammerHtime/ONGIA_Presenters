@@ -60,6 +60,7 @@
   .chip{border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;white-space:nowrap;
         border:1px solid rgba(255,255,255,.34);color:#fff;background:transparent;cursor:pointer}
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
 
   .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 70px}
@@ -1474,7 +1475,7 @@
   @media (min-width:1240px){.bar .right{flex-wrap:nowrap}}
   @media (min-width:761px) and (max-width:1239px){.bar .right{flex:1 1 auto;min-width:0}}
   @media (max-width:760px){
-    /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); The year, Letters and Admin go under. */
+    /* On a phone the search sits beside New event on the first row (Andrew 22 Oct 2026); Events, The year, Letters and Admin go under. */
     .bar{flex-wrap:nowrap;gap:10px} .bar > .sub{display:none}
     .bar .hsres{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 58px)}
     .bar .logo{height:34px;width:18px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);align-self:flex-start;margin-top:4px}   /* the maple leaf alone: the wordmark leaves the search no room */
@@ -1971,14 +1972,16 @@ async function signInScreen(message) {
 }
 
 /* ---------- events list ---------- */
-/** The bar's buttons, the same on every screen once signed in (audit, 21 Oct 2026): search, the year, letters, admin, new event, and who you are. */
+/** The bar's buttons, the same on every screen once signed in (audit, 21 Oct 2026): search, events (Andrew 30 Oct 2026), the year, letters, admin,
+ * new event, and who you are. */
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip${view.name === "list" ? " here" : ""}" id="eventsnav"${view.name === "list" ? ' aria-current="page"' : ""}>Events</button><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
+  document.getElementById("eventsnav").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
   document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
   const sows = document.getElementById("sowsnav");
