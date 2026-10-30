@@ -40,7 +40,10 @@ ok("a lead, who never sees the costing, is refused the list", (await call(sowFn,
 
 const pdf = await call(sowFn, `/api/sow?all=1&doc=sow&ids=${a.id},${none.id},${b.id}`);
 const info = pdfInfo(Buffer.from(await pdf.res.arrayBuffer()));
-ok("Print all: one PDF, both statements of work, each on its own page; the event with none is skipped", pdf.status === 200 && info.pages >= 2 && info.text.indexOf(`RBH VIP All ${T}`) >= 0 && info.text.indexOf(`CFAOC All ${T}`) > info.text.indexOf(`RBH VIP All ${T}`) && !info.text.includes(`ITP None ${T}`), `${info.pages} pages`);
+// Page by page: a long title can wrap in the PDF (how far depends on the random T's letters), so look for its words on
+// the page rather than the whole title on one line.
+const pages = info.text.split("\f"), has = (pg, ...w) => w.every((x) => (pg ?? "").includes(x));
+ok("Print all: one PDF, both statements of work, each on its own page; the event with none is skipped", pdf.status === 200 && info.pages >= 2 && has(pages[0], "RBH VIP All", T) && has(pages[1], "CFAOC All", T) && !info.text.includes("ITP None"), `${info.pages} pages`);
 ok("each still carries its own total", (info.text.match(/TOTAL BALANCE DUE/g) ?? []).length === 2);
 ok("the one PDF a single event makes is unchanged", (await call(sowFn, `/api/sow?event=${a.id}&doc=sow`)).status === 200);
 

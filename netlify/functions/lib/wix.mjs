@@ -11,6 +11,8 @@
  * The key needs two scopes, both read-only:
  *   SCOPE.DC-EVENTS.READ-EVENTS        query the events
  *   SCOPE.DC-EVENTS.READ-GUEST-LIST    query who registered
+ * and, for an event budget's ticket types and sales, a third (Wix offers no read-only one; the desk only ever queries):
+ *   SCOPE.DC-EVENTS.MANAGE-TICKET-DEF  "Manage Ticket Definitions"
  *
  * Only an account owner or co-owner can mint one, in the Wix dashboard's API
  * Key Manager. It lives in WIX_API_KEY and never in this repository.
@@ -292,6 +294,32 @@ export async function listWixGuests({ eventId = null, type = "RSVP", since = nul
   }
   await agenciesFromAnswers(guests);
   return guests;
+}
+
+/**
+ * An event's ticket types on Wix, each with its price and how many have sold (Andrew 30 Oct 2026: the budget's prices and
+ * "sold so far" from Wix rather than typed twice). Read only. A ticket with price options (adult and child, say) comes
+ * back as one row per option, all sharing the ticket's sales count on the first; Wix doesn't count options apart.
+ *   https://dev.wix.com/docs/rest/business-solutions/events/event-management/ticket-definitions-v3/query-ticket-definitions
+ */
+export async function listWixTickets({ eventId, site = "1" } = {}) {
+  if (!eventId) return [];
+  const body = { query: { filter: { eventId }, cursorPaging: { limit: 100 } }, fields: ["SALES_DETAILS"] };
+  // Wix's reference gives this path; its own example uses the older one. Whichever answers.
+  let out;
+  try { out = await wix("/events-ticket-definitions/v3/ticket-definitions/query", body, site); }
+  catch (e) { if (e.status !== 404) throw e; out = await wix("/events/v3/ticket-definitions/query", body, site); }
+  const num = (m) => { const n = Number(m?.value); return Number.isFinite(n) ? n : null; };
+  const rows = [];
+  for (const t of out.ticketDefinitions ?? []) {
+    const pm = t.pricingMethod ?? {}, sd = t.salesDetails ?? {};
+    const base = { ticketId: t.id, hidden: t.hidden === true, feeType: t.feeType ?? "", saleStatus: t.saleStatus ?? "", saleEnds: t.salePeriod?.endDate?.slice(0, 10) ?? null,
+      limit: t.actualLimit ?? t.initialLimit ?? null, sold: Number(sd.soldCount) || 0, reserved: Number(sd.reservedCount) || 0, soldOut: sd.soldOut === true };
+    const opts = pm.pricingOptions?.optionDetails ?? [];
+    if (opts.length) opts.forEach((o, i) => rows.push({ ...base, id: `${t.id}:${o.optionId ?? i}`, name: `${t.name ?? "Ticket"} · ${o.name ?? ""}`.trim(), price: num(o.price), currency: o.price?.currency ?? "CAD", sold: i ? 0 : base.sold, reserved: i ? 0 : base.reserved, shared: true }));
+    else rows.push({ ...base, id: t.id, name: t.name ?? "Ticket", price: pm.free ? 0 : num(pm.fixedPrice ?? pm.guestPrice), currency: (pm.fixedPrice ?? pm.guestPrice)?.currency ?? "CAD", donation: !!pm.guestPrice });
+  }
+  return rows;
 }
 
 /**
