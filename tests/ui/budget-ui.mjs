@@ -50,7 +50,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator("#q-done").click(); await p.waitForTimeout(1800);
   let B = await saved(ev.id);
   ok(`${tag}: the answers are saved with the event`, B?.asked && B.reg.inPerson.price === 450 && B.reg.inPerson.expected === 100 && B.reg.virtual.on && B.reg.virtual.price === 199 && B.pricesIncludeHst === false && B.hst === 5, JSON.stringify(B?.reg));
-  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbt").count()) === 12);
+  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbt").count()) === 13);
   ok(`${tag}: registration shows only what was said yes to`, /Virtual/.test(await p.locator(".sbreg").innerText()) && !/Community|Memberships/.test(await p.locator(".sbreg").innerText()));
   ok(`${tag}: the hotel's rate is filled in from the event`, (await p.locator('[data-k="hotel.rate"]').inputValue()) === "189");
   const patRow = p.locator("tr.rl", { hasText: "Pat Example" });
@@ -91,6 +91,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const exp = p.locator('[data-k="reg.inPerson.expected"]'); await exp.fill("200"); await exp.press("Tab"); await p.waitForTimeout(1500);
     ok(`${tag}: expecting more than the room takes says so, in red`, /too many/.test(await p.locator(".blk.wide2 .row.tot").innerText()) && (await p.locator(".seats tr.over").count()) > 0);
     await exp.fill("100"); await exp.press("Tab"); await p.waitForTimeout(1200);
+    ok(`${tag}: the room's seats typed in the budget are the event's own`, (await api(`/api/events?id=${ev.id}`)).event.room?.seats === 120);
     // Andrew 30 Oct 2026: "where are all the line items ... AV, presenter gifts, attendee gifts ... That was in the Excel
     // sheet", and "you could hide all of those spent columns and we'll just have the projected".
     ok(`${tag}: Everything else has Group, Line and Projected, no Spent`, (await p.locator(".sbelse thead").innerText()).replace(/\s+/g, " ").trim().toUpperCase() === "GROUP LINE PROJECTED" && !(await p.locator('[data-k$=".spent"], [data-k$=".paid"]').count()), await p.locator(".sbelse thead").innerText());

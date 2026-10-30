@@ -4,6 +4,7 @@ import { getEvent, getMeta, putMeta, deleteKey, listPresenters, listVolunteers, 
 import { roomingRows, sameName } from "./lib/rooming.mjs";
 import { PROVINCES, guessProvince } from "./lib/sow.mjs";
 import { wixConfigured, listWixTickets } from "./lib/wix.mjs";
+import { tally } from "./lib/attendees.mjs";
 
 /**
  * An event's own budget, on its Money tab (Andrew 30 Oct 2026: "build the ONGIA event budgets"), the same page as the
@@ -101,7 +102,11 @@ export async function live(event) {
     contract: contract ? { money: contract.money ?? null, dates: (contract.dates ?? []).map((d) => ({ iso: d.date, what: d.what })) } : null,
     people,
     board: (event.board ?? []).map((m) => ({ name: m.name, email: m.email })).filter((m) => m.name),
-    registered: (attendees?.people ?? []).length || null,
+    // Who is coming, as the event page counts them: registrations marked attending (Wix's, and any typed in).
+    registered: tally(attendees?.people ?? []).attending || null,
+    room: event.room ?? null,
+    // The presenters on the event (their agreements), for the room's seats, as the event page counts them.
+    presenters: presenters.length,   // the main room's seats and VIPs, kept on the event (every event has one)
     wix: await wixTickets(event),
   };
 }

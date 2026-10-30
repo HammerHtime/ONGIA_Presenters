@@ -370,14 +370,16 @@
   .sbxacts{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .saved{border-radius:999px;padding:4px 12px;background:var(--done-bg);color:var(--done);font-weight:600;font-size:13px}
   .saved[data-saved="busy"]{background:var(--sunk);color:var(--muted)} .saved[data-saved="bad"]{background:var(--late-bg);color:var(--late)}
-  .sbtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  .sbt{background:#fff;border:1px solid var(--border);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
-  .sbt .k{font-family:var(--fu);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .sbt .v{font-family:var(--fd);font-size:27px;line-height:1.1}.sbt .v small{font-size:15px;color:var(--muted)}
-  .sbt .sm{font-size:12.5px;color:var(--muted);line-height:1.4}.sbt .sm b{color:var(--ink)}
+  /* Smaller than they were (Andrew 30 Oct 2026: "reduce the size of them. They don't need to be so big"). */
+  .sbtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}
+  .sbt{background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px 11px;display:flex;flex-direction:column;gap:1px;min-width:0}
+  .sbt .k{font-family:var(--fu);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .sbt .v{font-family:var(--fd);font-size:21px;line-height:1.15}.sbt .v small{font-size:13px;color:var(--muted)}
+  .sbt .sm{font-size:11.5px;color:var(--muted);line-height:1.35}.sbt .sm b{color:var(--ink)}
+  .sbt.near{background:var(--gold-pale);border-color:#e6cf9e}.sbt.near .v{color:#7a5b10}
   .sbt.black{background:var(--done-bg);border-color:#bcd9c7}.sbt.black .v{color:var(--done)}
   .sbt.red{background:var(--late-bg);border-color:#e6b9b3}.sbt.red .v{color:var(--late)}
-  .sbt .days{display:flex;flex-wrap:wrap;gap:2px 12px;font-family:var(--fb);font-size:18px;font-weight:700}.sbt .days small{font-family:var(--fu);font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase}
+  .sbt .days{display:flex;flex-wrap:wrap;gap:0 10px;font-family:var(--fb);font-size:15px;font-weight:700}.sbt .days small{font-family:var(--fu);font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase}
   .okp,.warnp{display:inline-block;font-family:var(--fu);font-size:11px;letter-spacing:.07em;text-transform:uppercase;border-radius:999px;padding:1px 8px}.okp{background:var(--done-bg);color:var(--done)}.warnp{background:var(--wait-bg);color:var(--wait)}
   .sbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .sbgrid .blk{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;min-width:0}
@@ -493,7 +495,7 @@
   .sbxq .qin{border:1px solid var(--border);border-radius:8px;padding:5px 8px;font:inherit;text-align:right;min-height:0;margin:0}
   .sbxq .qdays{display:inline-flex;gap:4px;flex-wrap:wrap}.sbxq .qdays button{border:1px solid var(--border);border-radius:8px;padding:4px 10px;background:#fff;font:600 13px var(--fb);cursor:pointer}
   .sbxq .qdays button.on{background:var(--rbh);color:#fff;border-color:var(--rbh)}
-  @media (max-width:900px){.sbtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sbgrid,.sbgrid.two{grid-template-columns:1fr}.sbxhead h1{font-size:23px}.sbt .v{font-size:22px}}
+  @media (max-width:900px){.sbtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sbgrid,.sbgrid.two{grid-template-columns:1fr}.sbxhead h1{font-size:23px}.sbt .v{font-size:19px}}
   /* ---------- RBH SOWs: every statement of work in one place (Andrew 29 Oct 2026; the mock-up he approved) ---------- */
   .sowsscr{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
   .sowsscr>.card{margin:0}
@@ -1164,7 +1166,9 @@
   .bacts .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.42)}
   .bacts .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .bacts .mini:disabled{opacity:.5}
-  .evtiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:18px}
+  .evtiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:18px}
+  .etile.near{background:var(--gold-pale);box-shadow:inset 0 0 0 2.5px var(--gold)} .etile.near .s{color:#6b4e08;font-weight:600} .etile.near .tflag{background:var(--gold);color:#1c1608}
+  .etile.full{background:#fbe1dc;box-shadow:inset 0 0 0 2.5px var(--late)} .etile.full .n,.etile.full .l,.etile.full .s{color:var(--late)} .etile.full .tflag{background:var(--late);color:#fff}
   .etile{background:#fff;color:var(--ink);border-radius:14px;padding:11px 14px 12px;min-width:0}
   .etile .n{font-size:23px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .etile .n small{font-size:14.5px;font-weight:600;color:var(--muted)}
   .etile .l{font-size:13px;font-weight:600;color:var(--ink-mid)}
@@ -3716,10 +3720,20 @@ function eventScreen(data) {
   const nextUp = nextDl.find((x) => x.d >= 0);
   // Past due: red, with "Past due". Needs you soon (or now): gold, with "Needs you". Andrew, 21 Oct 2026: a thin edge was too easy to miss.
   // Each tile opens what it is about, with the list cut to what is missing (Andrew 21 Oct 2026): tab | people view | filter | place.
-  const tile = (cls, n, l, sub, meter = "", go = "") => `<div class="etile${cls ? " " + cls : ""}${go ? " tgo" : ""}"${go ? ` data-tgo="${go}" role="button" tabindex="0" title="Show me"` : ""}>${cls === "behind" ? `<span class="tflag">Past due</span>` : cls === "attn" ? `<span class="tflag">Needs you</span>` : ""}<div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
+  const tile = (cls, n, l, sub, meter = "", go = "") => `<div class="etile${cls ? " " + cls : ""}${go ? " tgo" : ""}"${go ? ` data-tgo="${go}" role="button" tabindex="0" title="Show me"` : ""}>${cls === "behind" ? `<span class="tflag">Past due</span>` : cls === "attn" ? `<span class="tflag">Needs you</span>` : cls === "full" ? `<span class="tflag">Full</span>` : cls === "near" ? `<span class="tflag">Nearly full</span>` : ""}<div class="n">${n}</div><div class="l">${l}</div>${meter}<div class="s">${sub}</div></div>`;
   const soonDays = (iso, n) => !!iso && daysTo(iso) >= 0 && daysTo(iso) <= n;
   const meter = (a, b) => `<div class="meter" aria-hidden="true"><i class="a" style="width:${pct(a)}%"></i><i class="b" style="width:${pct(b)}%"></i></div>`;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  // The main room (Andrew 30 Oct 2026: "It'd be nice to know when we are getting close to capacity"): the registrations
+  // from Wix against the seats left once the presenters and VIPs are seated. Amber at 90%, red when full.
+  function roomTile() {
+    const R0 = roomFill(ev, guests?.counts?.attending ?? 0, c.total);
+    const t = !R0 ? tile("", "—", "Room seats", "Set the room's capacity")
+      : tile(R0.cls, `${R0.att} <small>/ ${R0.max}</small>`, "Room seats", `${R0.left > 0 ? `${R0.left} left` : R0.left === 0 ? "none left" : `${-R0.left} over`} of ${R0.seats} seats`,
+        `<div class="meter" aria-hidden="true"><i class="a" style="width:${R0.max ? Math.min(100, Math.round((R0.att / R0.max) * 100)) : 100}%"></i></div>`);
+    const why = R0 ? `${R0.att} registered for ${R0.max} attendee seats: ${R0.seats} seats less ${R0.pres} presenter${R0.pres === 1 ? "" : "s"}${R0.vips ? ` and ${R0.vips} VIP${R0.vips === 1 ? "" : "s"}` : ""}. Tap to change the seats.` : "Tap to set the room's seats";
+    return t.replace('<div class="etile', `<div data-roomset role="button" tabindex="0" title="${esc(why)}" class="etile tgo`);
+  }
   const tiles = [
     tile(lateA ? "behind" : reviewN || (outA && soonDays(dueA, 7)) ? "attn" : "", `${signedN} <small>/ ${c.total}</small>`, "Agreements signed",
       [reviewN ? `${reviewN} to review` : "", lateA ? "due date passed" : dueA ? `due ${esc(short(dueA))}` : ""].filter(Boolean).join(" · ") || (c.total ? "all in" : "No presenters yet"),
@@ -3730,6 +3744,7 @@ function eventScreen(data) {
     tile(roomWait ? "attn" : "", conf.length ? `${conf.length} <small>${conf.length === 1 ? "room" : "rooms"}</small> · ${nightsN} <small>${nightsN === 1 ? "night" : "nights"}</small>` : `0 <small>rooms</small>`, "Hotel",
       conf.length || roomWait ? [`${masterN} on the master block`, roomWait ? `${roomWait} waiting` : ""].filter(Boolean).join(" · ") : ev.hotel?.name ? esc(ev.hotel.name) : "No hotel set yet", "",
       `logistics|||${roomWait ? "waiting" : "hotel"}`),
+    roomTile(),
     tile("", guests ? `${guests.counts?.attending ?? 0}` : "—", "Wix registrations",
       !guests ? "could not load" : guests.wix?.eventId ? [newGuests ? `+${newGuests} this week` : "", "from Wix"].filter(Boolean).join(" · ") : "Wix not linked", "", "people|guests"),
     cutoff ? tile(daysTo(cutoff) <= 7 ? "attn" : "", `${daysTo(cutoff)} <small>${daysTo(cutoff) === 1 ? "day" : "days"}</small>`, "Hotel cut-off", `${esc(plainDay(cutoff))} · rooming list`, "", "logistics|||hotel")
@@ -3974,6 +3989,8 @@ function eventScreen(data) {
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // A tile opens its tab, cut to what is missing, and brings the work into view.
+  ROOT.querySelectorAll("[data-roomset]").forEach((t) => { const set = async () => { if (await askRoom(ev)) render(); };
+    t.onclick = set; t.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); set(); } }; });
   ROOT.querySelectorAll("[data-tgo]").forEach((t) => {
     const go = () => {
       const [tabTo, pv, filt, place] = t.dataset.tgo.split("|");
@@ -8557,8 +8574,10 @@ function sbxCalc(B) {
   // 30 Oct 2026: "just attendees, presenters, and VIPs"). The presenters and VIPs come off the room's seats.
   const RM = B.room ?? {}, perTable = Math.max(1, Number(RM.perTable) || 8), cap = Number(RM.seats) || 0;
   const count = (g) => B.people.filter((p) => p.group === g).length;
+  // Presenters: those on the grid, or the event's own (their agreements) if more, as the event page's tile counts them.
+  const presAll = Math.max(count("presenter"), Number(SBX_EV && SBX_LIVE?.presenters) || 0);
   const seating = days.map((iso) => {
-    const att = regs(iso), pres = count("presenter"), vips = Number(RM.vips) || 0;
+    const att = regs(iso), pres = presAll, vips = Number(RM.vips) || 0;
     const seated = att + pres + vips, tables = Math.ceil(seated / perTable);
     return { iso, att, pres, vips, seated, tables, seats: tables * perTable };
   });
@@ -8656,6 +8675,11 @@ function sbxDraw() {
     // No block typed in or read from a contract yet: say so, rather than "minimum met" against nothing.
     C.minNights ? tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`)
       : tile("Room nights", `${pick}`, `${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ""} · <span class="warnp">no room block yet</span><br>type it under Hotel rooms, or upload the contract`),
+    // The room (Andrew 30 Oct 2026): registered so far (from Wix) against the seats left for attendees.
+    ...(SBX_EV ? [(() => { const Rm = C.room, reg = SBX_LIVE?.registered ?? Rm.soldAtt;
+      if (!Rm.cap) return tile("Room seats", "–", "type the room's seats under <b>The room and its tables</b>");
+      const left = Rm.maxAttendees - reg, cls = left <= 0 ? "red" : reg >= Rm.maxAttendees * 0.9 ? "near" : "";
+      return tile(`Room seats${left <= 0 ? " · full" : cls ? " · nearly full" : ""}`, `${reg} <small>of ${Rm.maxAttendees}</small>`, `registered so far · ${left > 0 ? `${left} left` : left === 0 ? "none left" : `${-left} over`}<br>${Rm.cap} seats less ${Rm.notAttendees} presenters &amp; VIPs`, cls); })()] : []),
     tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
     tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, C.room.cap ? `everyone, for meals · room seats ${C.room.cap}${C.room.spare < 0 ? ` <span class="warnp">over</span>` : ""}` : "registrations, presenters, volunteers, board"),
     tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
@@ -8813,6 +8837,10 @@ function sbxWire() {
     } else {
       let o = B; for (const p of parts.slice(0, -1)) o = o[p];
       o[parts.at(-1)] = numOf(v) ?? (["pickup", "seats"].includes(parts.at(-1)) ? null : parts.at(-1) === "perTable" ? 8 : 0);
+      if (SBX_EV && parts[0] === "room" && ["seats", "vips"].includes(parts[1])) {
+        api(`/events?id=${encodeURIComponent(SBX_EV.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: B.room.seats, vips: B.room.vips }) })
+          .then((out) => { SBX_EV.room = out.room; if (SBX_LIVE) SBX_LIVE.room = out.room; }).catch((x) => toast(x.message));
+      }
     }
     redraw();
   }, 0); });
@@ -8925,6 +8953,34 @@ function budgetSeed(ev, L) {
   budgetSync(B, L);
   return B;
 }
+/** How full the main room is: null until its seats are set. Presenters and VIPs are seated, so they come off first. */
+function roomFill(ev, att, pres) {
+  const seats = Number(ev?.room?.seats) || 0;
+  if (!seats) return null;
+  const vips = Number(ev.room.vips) || 0, max = Math.max(0, seats - pres - vips), left = max - att;
+  return { seats, vips, pres, att, max, left, cls: left <= 0 ? "full" : att >= max * 0.9 ? "near" : "" };
+}
+/** The box for the room's seats and VIPs, from the event page's tile. Resolves true when saved. */
+function askRoom(ev) {
+  return new Promise((done) => {
+    const dlg = document.createElement("dialog"); dlg.className = "sheet grpdlg"; document.body.append(dlg);
+    dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>The main room</h2><p class="hint" style="margin-top:6px">The venue's capacity for the room, everyone in it counted. The presenters and VIPs take seats first; the rest are for attendees.</p></div>
+      <div class="sheet-body"><div class="row2"><div class="field"><label for="rm-seats">Seats</label><input id="rm-seats" inputmode="numeric" value="${ev.room?.seats ?? ""}" placeholder="e.g. 300"></div>
+      <div class="field"><label for="rm-vips">VIPs seated</label><input id="rm-vips" inputmode="numeric" value="${ev.room?.vips ?? 0}"></div></div>
+      <div class="bad" id="rm-why" hidden></div>
+      <div class="actions"><button class="btn btn-gold" id="rm-ok" value="ok">Save</button><button class="btn btn-ghost" value="cancel" formnovalidate>Cancel</button></div></div></form>`;
+    let saved = false;
+    dlg.querySelector("#rm-ok").onclick = async (e) => {
+      e.preventDefault();
+      try { const out = await api(`/events?id=${encodeURIComponent(ev.id)}&room=1`, { method: "PUT", body: JSON.stringify({ seats: dlg.querySelector("#rm-seats").value.trim(), vips: dlg.querySelector("#rm-vips").value.trim() }) });
+        ev.room = out.room; saved = true; dlg.close(); }
+      catch (x) { const w = dlg.querySelector("#rm-why"); w.hidden = false; w.textContent = x.message; }
+    };
+    dlg.addEventListener("close", () => { dlg.remove(); done(saved); });
+    dlg.showModal(); dlg.querySelector("#rm-seats").focus();
+  });
+}
+
 /** The groups for "Everything else": the common ones and any added, the same for every budget. */
 const BUDGET_GROUPS_COMMON = ["Venue & AV", "Food & hospitality", "Travel", "Speakers", "Supplies & merchandise", "Printing & marketing", "Insurance", "Volunteers & staff", "Other"];
 let BUDGET_GROUPS = [...BUDGET_GROUPS_COMMON], BUDGET_GROUPS_AT = 0;
@@ -8974,6 +9030,8 @@ function budgetSync(B, L) {
     B.people.push({ id: `b${Date.now().toString(36)}${B.people.length}`, name: m.name, group: "board", pays: "reimbursed", nights: boardNights(B.event) });
   if (L.registered && !B.reg.inPerson.sold && !B.reg.inPerson.fromWix?.length) B.reg.inPerson.sold = L.registered;
   applyWix(B, L.wix);
+  // The room's seats and VIPs are the event's (every event has them); the budget shows and changes the same numbers.
+  if (L.room) B.room = { ...(B.room ?? { perTable: 8 }), seats: L.room.seats ?? null, vips: L.room.vips ?? 0 };
   // The grid shows every night someone on the rooming list has.
   const all = B.people.flatMap((p) => p.nights);
   if (all.length) {
@@ -9033,6 +9091,8 @@ function mountBudget(ev, got) {
   SBX_HOST = host; SBX_PATH = `/budget?event=${encodeURIComponent(ev.id)}`; SBX_EV = ev; SBX_LIVE = got.live;
   const was = JSON.stringify(mine ?? got.budget);
   SBX = mine ?? (got.budget ? budgetSync(got.budget, got.live) : budgetSeed(ev, got.live));
+  // Unsaved typing is kept, but the room's seats are the event's: set from the event page's tile, they show here too.
+  if (mine && got.live?.room) SBX.room = { ...(SBX.room ?? { perTable: 8 }), seats: got.live.room.seats ?? null, vips: got.live.room.vips ?? 0 };
   if (got.budget && !mine && JSON.stringify(SBX) !== was) sbxPersist();
   sbxDraw();
   // The added groups come from the server; the common ones are already there, so this redraws only if there are more.
