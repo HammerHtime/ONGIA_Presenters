@@ -24,40 +24,32 @@ for (const [w, h, tag] of [[1284, 900, "laptop"], [390, 844, "phone"]]) {
   const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
   await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true }]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-  await p.goto(`${S}/admin.html#v=${encodeURIComponent(JSON.stringify({ name: "year", year: Y }))}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
-  const dots = p.locator(".months .tick");
-  ok(`${tag}: the deadlines show as dots`, (await dots.count()) >= 3, String(await dots.count()));
+  await p.goto(`${S}/admin.html#v=${encodeURIComponent(JSON.stringify({ name: "year", year: Y, cal: "year" }))}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+  const dots = p.locator(".ygrid .ytk");
+  ok(`${tag}: the deadlines show as dots on their event's row`, (await dots.count()) >= 3, String(await dots.count()));
   const box = await dots.first().boundingBox();
   ok(`${tag}: each dot is big enough to see and to tap (16px)`, box.width >= 15 && box.height >= 15, JSON.stringify(box));
   const letters = await dots.evaluateAll((els) => els.map((e) => e.textContent.trim()));
   ok(`${tag}: each carries its letter: A agreements, D draft, F final`, letters.includes("A") && letters.includes("D") && letters.includes("F"), letters.join(""));
-  const band = await p.locator(`.band[data-goev="${one.id}"]`).boundingBox();
+  const band = await p.locator(`.ybar[data-goev="${one.id}"]`).boundingBox();
   ok(`${tag}: a one-day training is at least 22px wide`, band.width >= 21.5, JSON.stringify(band));
-  ok(`${tag}: the legend says what the letters mean`, /A\s*Agreements due[\s\S]*D\s*Draft materials due[\s\S]*F\s*Final materials due/.test(await p.locator(".ylegend").innerText()));
-  await p.locator(".months").screenshot({ path: D + `yearmarks-${tag}.png` });
-  await p.locator(".ylegend").screenshot({ path: D + `yearmarks-legend-${tag}.png` });
-  // The side panel: every milestone and deadline in date order, pushing the calendar over.
-  await p.evaluate(() => { try { localStorage.removeItem("ongia-year-side"); } catch {} });
-  const calW = (await p.locator(".ycal").boundingBox()).width;
-  ok(`${tag}: a Milestones & deadlines tab is on the calendar, the panel shut`, await p.locator("#ytab").isVisible() && !(await p.locator("#yside").isVisible()));
-  await p.locator("#ytab").click(); await p.waitForTimeout(600);
-  ok(`${tag}: clicking it opens the panel`, await p.locator("#yside").isVisible());
-  if (tag === "laptop") ok(`${tag}: and the calendar moves over to make room, beside it`, (await p.locator(".ycal").boundingBox()).width < calW - 300 && (await p.locator("#yside").boundingBox()).x > (await p.locator(".ycal").boundingBox()).x + 300, `${calW} → ${(await p.locator(".ycal").boundingBox()).width}`);
-  const ms = await p.locator("#yside .ms").evaluateAll((els) => els.map((e) => ({ d: e.querySelector(".msd b").textContent, k: e.querySelector(".msk").textContent, t: e.innerText })));
-  const order = await p.evaluate(() => [...document.querySelectorAll("#yside .msmonth, #yside .ms")].map((e) => e.className.includes("msmonth") ? `M:${e.textContent}` : Number(e.querySelector(".msd b").textContent)));
+  ok(`${tag}: the key says what the letters mean`, /A, D, F: agreements, draft and final materials due/.test(await p.locator(".calside").innerText()));
+  await p.locator(".calmain").screenshot({ path: D + `yearmarks-${tag}.png` });
+  // Every milestone and deadline in date order, a click away.
+  await p.locator("#allms").click(); await p.waitForTimeout(600);
+  ok(`${tag}: Every milestone opens the whole year's list`, await p.locator("#msdlg #yside").isVisible());
+  const ms = await p.locator("#msdlg .ms").evaluateAll((els) => els.map((e) => ({ d: e.querySelector(".msd b").textContent, k: e.querySelector(".msk").textContent, t: e.innerText })));
+  const order = await p.evaluate(() => [...document.querySelectorAll("#msdlg .msmonth, #msdlg .ms")].map((e) => e.className.includes("msmonth") ? `M:${e.textContent}` : Number(e.querySelector(".msd b").textContent)));
   let okOrder = true, last = 0; for (const o of order) { if (typeof o === "string") last = 0; else { if (o < last) okOrder = false; last = o; } }
-  ok(`${tag}: it lists the trainings and the A, D and F deadlines, by month, in date order`, okOrder && ms.some((m) => m.k === "T" && /Training \(one day\)/.test(m.t)) && ["A", "D", "F"].every((k) => ms.some((m) => m.k === k)), JSON.stringify(order));
-  await p.locator("#ywrap").screenshot({ path: D + `yearside-${tag}.png` });
-  await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1200);
-  ok(`${tag}: it stays open next time`, await p.locator("#yside").isVisible());
+  ok(`${tag}: it lists the trainings and the A, D and F deadlines, by month, in date order`, okOrder && ms.some((m) => m.k === "T" && /Training \(one day\)/.test(m.t)) && ["A", "D", "F"].every((k) => ms.some((m) => m.k === k)), JSON.stringify(ms.slice(0, 4)));
   await p.locator("#yside-close").click(); await p.waitForTimeout(400);
-  ok(`${tag}: ✕ shuts it`, !(await p.locator("#yside").isVisible()));
-  await p.locator("#ytab").click(); await p.waitForTimeout(400);
+  ok(`${tag}: ✕ shuts it`, !(await p.locator("#msdlg").isVisible()));
   if (tag === "laptop") {
-    await p.locator(`#yside .ms.k-train[data-goev="${one.id}"]`).click(); await p.waitForTimeout(1500);
+    await p.locator("#allms").click(); await p.waitForTimeout(400);
+    await p.locator(`#msdlg .ms.k-train[data-goev="${one.id}"]`).click(); await p.waitForTimeout(1500);
     ok(`${tag}: a row opens its event`, (await p.locator(".bhead h2").innerText().catch(() => "")).includes(`One Day ${T}`));
     await p.goBack(); await p.waitForTimeout(1500);
-    await p.locator(`.tick[data-goev="${one.id}"]`).first().click(); await p.waitForTimeout(1500);
+    await p.locator(`.ytk[data-goev="${one.id}"]`).first().click(); await p.waitForTimeout(1500);
     ok(`${tag}: clicking a dot opens its event`, (await p.locator(".bhead h2").innerText().catch(() => "")).includes(`One Day ${T}`));
   }
   ok(`${tag}: fits the screen, no page errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));

@@ -63,6 +63,59 @@
   .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
 
+  /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
+  .k-ongia{--kc:var(--navy);--kt:#fff;--ki:#f1cf76} .k-rbh{--kc:var(--rbh);--kt:#fff;--ki:#f1cf76} .k-ext{--kc:var(--gold);--kt:#1c1608;--ki:var(--navy-deep)}
+  .calhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px} .calhead h1{font-family:var(--fd);font-weight:400;font-size:32px;color:var(--navy-deep);margin-right:4px}
+  .calnav{display:flex;align-items:center;border:1px solid var(--border);background:#fff;border-radius:999px;padding:2px}
+  .calnav button{border:0;background:none;width:32px;height:32px;border-radius:50%;font-size:20px;color:var(--muted);cursor:pointer} .calnav button:hover{background:var(--sunk)}
+  .calnav .yr{font-weight:700;padding:0 8px;min-width:56px;text-align:center}
+  .calseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff}
+  .calseg button{border:0;background:none;padding:8px 16px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink-mid)} .calseg button.on{background:var(--navy);color:#fff}
+  #addconf{margin-left:auto}
+  .caltiles{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 14px;font-size:13.5px;color:var(--muted)} .caltiles b{font:400 20px var(--fd);color:var(--ink);margin-right:4px} .caltiles .hot b{color:var(--late)}
+  .callay{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start;margin-bottom:18px}
+  .calmain{margin:0;overflow:hidden} .calside{display:flex;flex-direction:column;gap:16px} .calcard{margin:0;padding:16px 18px;box-shadow:var(--lift)}
+  .ygrid{position:relative}
+  .yrw{display:grid;grid-template-columns:210px minmax(0,1fr);border-bottom:1px solid var(--hair);min-height:54px}
+  .yrw.yhd{min-height:0;background:var(--sand);border-bottom:1px solid var(--edge)}
+  .yhd .yname{font:600 11px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:9px 14px}
+  .ymon{display:grid;grid-template-columns:repeat(12,1fr)} .ymon span{font:600 11px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;padding:9px 0;border-left:1px solid var(--hair)}
+  button.yname{border:0;background:none;text-align:left;padding:8px 14px;cursor:pointer;font:inherit;min-width:0} button.yname:hover b{text-decoration:underline}
+  .yname b{display:block;font-size:13.5px;line-height:1.3} .yname span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ytr{position:relative;background-image:linear-gradient(to right,var(--hair) 1px,transparent 1px);background-size:calc(100% / 12) 100%}
+  .ybar{position:absolute;top:50%;transform:translateY(-50%);height:26px;min-width:5px;border:0;border-radius:7px;background:var(--kc);color:var(--kt);display:flex;align-items:center;gap:8px;
+    padding:0 9px;font:600 11.5px var(--fb);white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .ybar .yini{color:var(--ki)} .ybar.thin{padding:0;min-width:22px}
+  .ylab{position:absolute;top:50%;transform:translateY(-50%);margin-left:6px;display:flex;gap:7px;align-items:center;font:600 11.5px var(--fb);white-space:nowrap;color:var(--ink-mid);pointer-events:none}
+  .ylab.before{margin:0 6px 0 0} .ylab .yini{color:var(--kc)}
+  .yini{font-size:10.5px;letter-spacing:.04em;font-weight:700} .yini u,.mbar small u,.cwho u{text-decoration:none;border-bottom:1.5px solid currentColor}
+  .ytk{position:absolute;bottom:2px;width:17px;height:17px;margin-left:-8px;padding:0;border-radius:50%;font:700 9.5px/14px var(--fb);text-align:center;color:#fff;background:var(--navy);border:1.5px solid #fff;cursor:pointer;z-index:1}
+  .ytk.agreement{background:var(--gold);color:#1c1608} .ytk.draft{background:var(--wait)} .ytk.cutoff{background:var(--rbh)} .ytk.late{background:var(--late);color:#fff}
+  .ynowwrap{position:absolute;inset:0 0 0 210px;pointer-events:none} .ynowwrap .ytr{height:100%;background:none} .ynow{position:absolute;top:0;bottom:0;width:2px;background:var(--late);opacity:.55}
+  .mcal .mhd{display:grid;grid-template-columns:repeat(7,1fr);background:var(--sand);border-bottom:1px solid var(--edge)} .mcal .mhd span{font:600 11px var(--fu);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;padding:9px 0}
+  .mwk{position:relative;border-bottom:1px solid var(--hair)} .mdays{position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr)}
+  .mday{border-left:1px solid var(--hair);padding:5px 8px;font-size:13px;color:var(--ink-mid)} .mday:first-child{border-left:0} .mday.out{color:#b9b2a2;background:rgba(0,0,0,.015)}
+  .mday.now span{background:var(--gold);color:#1c1608;border-radius:999px;padding:1px 7px;font-weight:700}
+  .mbars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:40px;row-gap:4px;padding:28px 3px 8px}
+  .mbar{border:0;border-radius:7px;margin:0 2px;padding:4px 9px;text-align:left;background:var(--kc);color:var(--kt);cursor:pointer;overflow:hidden;font:inherit;min-width:0}
+  .mbar b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .mbar small{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ki)}
+  .clist .crow{display:grid;grid-template-columns:120px minmax(0,1.4fr) minmax(0,1fr) 140px;gap:12px;align-items:center;width:100%;border:0;border-bottom:1px solid var(--hair);background:none;text-align:left;padding:11px 16px;font:inherit;cursor:pointer;box-shadow:inset 4px 0 var(--kc)}
+  .clist .crow:hover{background:var(--card)} .cwhen{font-weight:700;font-size:13.5px} .cwhat b{display:block} .cwhat span{font-size:12.5px;color:var(--muted)} .cwho{font-size:13px;color:var(--ink-mid)} .ckind{font-size:12px;color:var(--muted);text-align:right}
+  .cup{list-style:none;margin:0 0 8px;padding:0} .cup li button{display:flex;gap:12px;width:100%;border:0;border-top:1px solid var(--hair);background:none;text-align:left;padding:8px 0;font:inherit;cursor:pointer}
+  .cup li:first-child button{border-top:0} .cupd{width:36px;flex:none;text-align:center} .cupd small{display:block;font:600 10px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)} .cupd b{font:400 21px var(--fd);line-height:1}
+  .cupw{font-size:13px;min-width:0} .cupw b{display:block} .cupw span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px} .cupw i,.cshow i{width:9px;height:9px;border-radius:3px;background:var(--kc);flex:none;display:inline-block}
+  .cshow{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:5px 0} .cshow i{width:11px;height:11px} .cshow b{margin-left:auto;color:var(--muted);font-weight:600}
+  .cwhosel{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--muted)} .cwhosel select{flex:1;margin:0}
+  .cfpick{display:flex;flex-wrap:wrap;gap:6px} .cfpick button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 13px;font:600 13px var(--fb);cursor:pointer;min-height:36px}
+  .cfpick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  dialog.msdlg{padding:0;width:min(440px,94vw)} dialog.msdlg .yside{position:static;margin:0;width:auto;max-height:80vh;display:flex;flex-direction:column}
+  @media (max-width:1100px){.callay{grid-template-columns:1fr}.calside{display:grid;grid-template-columns:1fr 1fr}}
+  @media (max-width:760px){.calhead h1{font-size:26px;width:100%} #addconf{margin-left:0} .calside{grid-template-columns:1fr}
+    .yrw{grid-template-columns:110px minmax(0,1fr)} .ynowwrap{left:110px} .yname span{display:none} .ylab .ywhen{display:none}
+    .mbar small{display:none} .mbars{grid-auto-rows:26px}
+    .clist .crow{grid-template-columns:86px minmax(0,1fr);row-gap:2px} .cwho{grid-column:2} .ckind{display:none}}
+  @media print{.calside,.calhead button,#addconf{display:none}.callay{display:block}}
+
   /* The way around the desk (Andrew 30 Oct 2026, from the mock-ups: "I like the first dashboard"): a navy column down the
      left on a wide screen; on a phone or tablet the same buttons as a bar along the bottom, with More for the rest. The top
      bar keeps the search and New event. */
@@ -3021,82 +3074,194 @@ function crunchOf(events, year, today) {
   return out;
 }
 
-function yearScreen(events, year) {
+/**
+ * The year as a calendar (Andrew 30 Oct 2026, from his picture: "I like this view of the calendar"): Year, Month or List.
+ * Three colours: ONGIA-led events navy, RBH events teal, other people's conferences our board goes to gold ("a colour
+ * scheme for ... Ongia lead events and RBH events, one more for external conferences"). Every bar says who's going so a
+ * month shows "where we're allocating our people": initials on the year (the lead underlined, no bubbles: "just text"),
+ * first names on the month ("everyone knows everyone by their first name"). No double-booking warnings ("I'm not looking
+ * for the app to warn me"). The conferences are placeholders kept apart from the events (/api/conferences).
+ */
+const CAL_KINDS = [["ongia", "ONGIA-led"], ["rbh", "RBH"], ["ext", "External conference"]];
+let CAL_SHOW = { ongia: true, rbh: true, ext: true }, CAL_WHO = "";
+function calItems(events, confs) {
+  const nameOf = (email) => ROSTER.find((m) => String(m.email ?? "").toLowerCase() === email)?.name || email.split("@")[0];
+  const items = [
+    ...events.filter((e) => isDate(e.dayOne) && !e.practice).map((e) => ({ key: `e:${e.id}`, kind: e.kind === "rbh" ? "rbh" : "ongia", title: e.title, place: e.city ?? "",
+      from: e.dayOne, to: isDate(e.lastDay) && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne, ev: e,
+      people: [...(e.board ?? [])].sort((a, b) => !!b.lead - !!a.lead).map((m) => ({ name: m.name || m.email, email: String(m.email ?? "").toLowerCase(), lead: !!m.lead })) })),
+    ...confs.map((c) => ({ key: `c:${c.id}`, kind: "ext", title: c.title, place: c.place ?? "", from: c.from, to: c.to || c.from, conf: c, role: c.role,
+      people: (c.who ?? []).map((e) => ({ name: nameOf(e), email: e, lead: false })) })),
+  ];
+  // First names, with a last initial only where two people share a first name.
+  const firsts = new Map();
+  for (const p of items.flatMap((i) => i.people)) { const f = p.name.split(/\s+/)[0]; firsts.set(f, new Set([...(firsts.get(f) ?? []), p.name])); }
+  for (const p of items.flatMap((i) => i.people)) {
+    const [f, ...rest] = p.name.split(/\s+/);
+    p.first = firsts.get(f)?.size > 1 && rest.length ? `${f} ${rest.at(-1)[0]}.` : f;
+    p.ini = (p.name.match(/\b\p{L}/gu) ?? []).filter((_, i, a) => i === 0 || i === a.length - 1).join("").toUpperCase();
+  }
+  return items.sort((a, b) => a.from.localeCompare(b.from) || a.title.localeCompare(b.title));
+}
+const calShown = (i) => CAL_SHOW[i.kind] && (!CAL_WHO || i.people.some((p) => p.email === CAL_WHO));
+const calWhen = (a, b) => { const A = new Date(`${a}T12:00`), B = new Date(`${b}T12:00`);
+  return `${MONTHS[A.getMonth()]} ${A.getDate()}${a === b ? "" : A.getMonth() === B.getMonth() ? `–${B.getDate()}` : ` – ${MONTHS[B.getMonth()]} ${B.getDate()}`}`; };
+const calIni = (i) => i.people.map((p) => p.lead ? `<u>${esc(p.ini)}</u>` : esc(p.ini)).join(" / ");
+const calFirst = (i) => i.people.map((p) => p.lead ? `<u>${esc(p.first)}</u>` : esc(p.first)).join(", ");
+const calTip = (i) => `${i.title} · ${calWhen(i.from, i.to)}${i.place ? ` · ${i.place}` : ""}${i.people.length ? ` · ${i.people.map((p) => p.name + (p.lead ? " (lead)" : "")).join(", ")}` : ""}`;
+const calOpen = (i) => i.ev ? `data-goev="${esc(i.ev.id)}"` : `data-conf="${esc(i.conf.id)}"`;
+
+function calYear(items, events, year, today) {
+  const start = Date.parse(`${year}-01-01T00:00`), span = Date.parse(`${year + 1}-01-01T00:00`) - start;
+  const at = (iso) => Math.max(0, Math.min(100, ((Date.parse(`${iso}T00:00`) - start) / span) * 100));
+  const mine = items.filter((i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`);
+  if (!mine.length) return `<div class="empty" style="padding:40px 20px">Nothing in ${year} for what's shown. Create an event, add a conference, or show more.</div>`;
+  const ticks = (i) => !i.ev ? "" : [...deadlinesOf(i.ev).map((d) => ({ iso: d.iso, k: d.key, l: { agreement: "A", draft: "D", final: "F" }[d.key], what: `${d.label} due`, late: d.iso < today && d.left > 0 })),
+    ...(i.ev.dates ?? []).filter((d) => d.kind === "cutoff").map((d) => ({ iso: d.date, k: "cutoff", l: "H", what: d.what, late: !!d.late }))]
+    .filter((d) => yearOf(d.iso) === year)
+    .map((d) => `<button type="button" class="ytk ${d.k}${d.late ? " late" : ""}" data-goev="${esc(i.ev.id)}" style="left:${at(d.iso)}%" title="${esc(d.what)} for ${esc(i.title)} · ${esc(fmtDate(d.iso))}${d.late ? " · overdue" : ""}">${d.l}</button>`).join("");
+  const rows = mine.map((i) => {
+    const L = at(i.from < `${year}-01-01` ? `${year}-01-01` : i.from), R = at(i.to > `${year}-12-31` ? `${year + 1}-01-01` : sbxDay(i.to, 1)), W = Math.max(R - L, 0.6);
+    const label = `<span class="ywhen">${esc(calWhen(i.from, i.to))}</span>${i.people.length ? `<span class="yini">${calIni(i)}</span>` : ""}`;
+    const inside = W >= 13, late = L > 70;
+    return `<div class="yrw k-${i.kind}"><button type="button" class="yname" ${calOpen(i)} title="${esc(calTip(i))}"><b>${esc(i.title)}</b><span>${esc(i.place)}${i.role ? ` · ${i.role === "presenting" ? "Presenting" : "Attending"}` : ""}</span></button>
+      <div class="ytr">${ticks(i)}<button type="button" class="ybar${inside ? "" : " thin"}" ${calOpen(i)} title="${esc(calTip(i))}" style="left:${L}%;width:${W}%">${inside ? label : ""}</button>
+        ${inside ? "" : `<span class="ylab${late ? " before" : ""}" style="${late ? `right:calc(${100 - L}% + 2px)` : `left:calc(${L}% + max(${W}%, 22px) + 6px)`}">${label}</span>`}</div></div>`;
+  }).join("");
+  const now = yearOf(today) === year ? `<div class="ynow" style="left:${at(today)}%" title="Today"></div>` : "";
+  return `<div class="ygrid"><div class="yrw yhd"><span class="yname">Event</span><div class="ytr ymon">${MONTHS.map((m) => `<span>${m}</span>`).join("")}</div></div>
+    ${rows}<div class="ynowwrap"><div class="ytr">${now}</div></div></div>`;
+}
+
+function calMonth(items, year, month, today) {
+  const first = new Date(year, month - 1, 1), from = new Date(first); from.setDate(1 - first.getDay());
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const weeks = [];
+  for (let w = new Date(from); w.getMonth() === month - 1 || w < first; w.setDate(w.getDate() + 7)) {
+    const days = Array.from({ length: 7 }, (_, k) => { const d = new Date(w); d.setDate(w.getDate() + k); return d; });
+    const a = iso(days[0]), b = iso(days[6]);
+    const on = items.filter((i) => i.to >= a && i.from <= b);
+    const bars = on.map((i, n) => {
+      const s = i.from < a ? 0 : days.findIndex((d) => iso(d) === i.from), e = i.to > b ? 6 : days.findIndex((d) => iso(d) === i.to);
+      return `<button type="button" class="mbar k-${i.kind}" ${calOpen(i)} title="${esc(calTip(i))}" style="grid-column:${s + 1} / ${e + 2};grid-row:${n + 1}"><b>${esc(i.title)}</b>${i.people.length ? `<small>${calFirst(i)}</small>` : ""}</button>`;
+    }).join("");
+    weeks.push(`<div class="mwk"><div class="mdays">${days.map((d) => `<div class="mday${d.getMonth() !== month - 1 ? " out" : ""}${iso(d) === today ? " now" : ""}"><span>${d.getDate()}</span></div>`).join("")}</div>
+      <div class="mbars" style="min-height:${Math.max(56, on.length * 44)}px">${bars}</div></div>`);
+  }
+  return `<div class="mcal"><div class="mhd">${DAYS.map((d) => `<span>${d}</span>`).join("")}</div>${weeks.join("")}</div>`;
+}
+
+function calList(items, year) {
+  const mine = items.filter((i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`);
+  if (!mine.length) return `<div class="empty" style="padding:40px 20px">Nothing in ${year} for what's shown.</div>`;
+  return `<div class="clist">${mine.map((i) => `<button type="button" class="crow k-${i.kind}" ${calOpen(i)}><span class="cwhen">${esc(calWhen(i.from, i.to))}</span>
+    <span class="cwhat"><b>${esc(i.title)}</b><span>${esc(i.place)}${i.role ? ` · ${i.role === "presenting" ? "Presenting" : "Attending"}` : ""}</span></span>
+    <span class="cwho">${i.people.length ? calFirst(i) : `<span class="porg">nobody named yet</span>`}</span><span class="ckind">${esc(CAL_KINDS.find(([k]) => k === i.kind)[1])}</span></button>`).join("")}</div>`;
+}
+
+/** The next 30 days: deadlines, hotel cut-offs, events starting and conferences, soonest first. */
+function calComing(items, today) {
+  const end = sbxDay(today, 30), out = [];
+  for (const i of items) {
+    if (i.from >= today && i.from <= end) out.push({ iso: i.from, kind: i.kind, what: i.conf ? `${i.people.map((p) => p.first).join(" and ") || "Our people"} ${i.role === "presenting" ? "presenting" : "attending"}` : "Event starts", title: i.title, open: calOpen(i) });
+    if (!i.ev) continue;
+    for (const d of deadlinesOf(i.ev)) if (d.iso >= today && d.iso <= end) out.push({ iso: d.iso, kind: i.kind, what: `${d.label} due${d.left > 0 ? ` · ${d.left} out` : ""}`, title: i.title, open: calOpen(i) });
+    for (const d of i.ev.dates ?? []) if (d.date >= today && d.date <= end) out.push({ iso: d.date, kind: i.kind, what: d.what, title: i.title, open: calOpen(i) });
+  }
+  out.sort((a, b) => a.iso.localeCompare(b.iso));
+  return out.slice(0, 9);
+}
+
+function yearScreen(events, year, confs = []) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="printyear">Print</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("printyear").onclick = () => window.print();
-
   const today = todayIso();
-  const years = yearsWithWork(events);
-  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year)
-    .sort((a, b) => a.dayOne.localeCompare(b.dayOne));
-
+  const how = view.cal ?? (matchMedia("(max-width:760px)").matches ? "list" : "year");
+  const month = view.month ?? (yearOf(today) === year ? monthOf(today) : 1);
+  const all = calItems(events, confs), items = all.filter(calShown);
+  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year && !e.practice).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
   const trainingDays = mine.reduce((n, e) => n + (isDate(e.lastDay) ? daysBetween(e.dayOne, e.lastDay) + 1 : 1), 0);
   const cities = new Set(mine.map((e) => (e.city ?? "").trim()).filter(Boolean)).size;
   const presenters = mine.reduce((n, e) => n + (e.counts?.total ?? 0), 0);
   const outstanding = mine.reduce((n, e) => n + ((e.counts?.total ?? 0) - (e.counts?.approved ?? 0)), 0);
+  const inYear = (i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`;
+  const people = [...new Map(all.flatMap((i) => i.people).map((p) => [p.email, p])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  const coming = calComing(all.filter(calShown), today);
+  const navLabel = how === "month" ? `${MONTH_LONG[month - 1]} ${year}` : String(year);
 
-  const sideOpen = (() => { try { return localStorage.getItem("ongia-year-side") === "1"; } catch { return false; } })();
-  const head = `<div class="ywrap${sideOpen ? " side" : ""}" id="ywrap"><div class="card ycal">
-    <button class="ytab" id="ytab" aria-expanded="${sideOpen}" aria-controls="yside" title="Every milestone and deadline, in date order">Milestones &amp; deadlines</button>
-    <div class="card-head">
-      <div class="yearhead">
-        <button class="ynav" id="yprev" ${years.some((y) => y < year) ? "" : "disabled"} title="Earlier year">&#8249;</button>
-        <span class="yr">${year}</span>
-        <button class="ynav" id="ynext" ${years.some((y) => y > year) ? "" : "disabled"} title="Later year">&#8250;</button>
-      </div>
-      <div style="flex:1"></div></div>
-    <div class="tiles">
-      <div class="tile"><div class="k">Events</div><div class="v">${mine.length}</div></div>
-      <div class="tile"><div class="k">Training days</div><div class="v">${trainingDays}</div></div>
-      <div class="tile"><div class="k">Cities</div><div class="v">${cities}</div></div>
-      <div class="tile"><div class="k">Presenters</div><div class="v">${presenters}</div></div>
-      <div class="tile${outstanding ? " accent" : ""}"><div class="k">Agreements out</div><div class="v">${outstanding}</div></div>
-    </div>
-    ${monthsMarkup(events, year, today)}
-    <div class="ylegend">
-      <span><i style="background:var(--navy);height:13px;border-radius:4px"></i>Training dates</span>
-      <span><i class="ylg" style="background:var(--gold);color:#1c1608">A</i>Agreements due</span>
-      <span><i class="ylg" style="background:var(--wait)">D</i>Draft materials due</span>
-      <span><i class="ylg" style="background:var(--navy)">F</i>Final materials due</span>
-      <span><i class="ylg" style="background:var(--late)">A</i>Overdue (the same letter, in red)</span>
-      <span style="color:var(--muted)">Shaded columns are weekends.</span>
-    </div>
-    <div class="card-body" style="padding-top:10px"></div></div>
-    ${milestonesPanel(events, year, today)}</div>`;
-
-  const crunch = crunchOf(events, year, today);
-  const crunchCard = crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
-    ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}">
-      <div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div>
-      <button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : "";
-
-  ROOT.innerHTML = head + crunchCard + listForYear(mine, today, year) + templateCard();
+  const body = how === "month" ? calMonth(items, year, month, today) : how === "list" ? calList(items, year) : calYear(items, events, year, today);
+  ROOT.innerHTML = `<div class="calhead"><h1>The year</h1>
+      <div class="calnav"><button type="button" id="yprev" aria-label="Earlier">&#8249;</button><span class="yr">${esc(navLabel)}</span><button type="button" id="ynext" aria-label="Later">&#8250;</button></div>
+      <div class="calseg" role="tablist">${[["year", "Year"], ["month", "Month"], ["list", "List"]].map(([k, l]) => `<button type="button" role="tab" data-calhow="${k}" class="${k === how ? "on" : ""}" aria-selected="${k === how}">${l}</button>`).join("")}</div>
+      <button type="button" class="mini" id="addconf">+ Add a conference</button></div>
+    <div class="caltiles"><span><b>${mine.length}</b> events</span><span><b>${trainingDays}</b> training days</span><span><b>${cities}</b> cities</span><span><b>${presenters}</b> presenters</span><span class="${outstanding ? "hot" : ""}"><b>${outstanding}</b> agreements out</span><span><b>${all.filter((i) => i.kind === "ext" && inYear(i)).length}</b> conferences</span></div>
+    <div class="callay"><div class="card calmain">${body}</div>
+      <aside class="calside">
+        <section class="card calcard"><div class="dh"><h2>Coming up</h2><span class="porg">Next 30 days</span></div>
+          ${coming.length ? `<ul class="cup">${coming.map((c) => `<li><button type="button" ${c.open}><span class="cupd"><small>${esc(MONTHS[monthOf(c.iso) - 1])}</small><b>${dayOf(c.iso)}</b></span>
+            <span class="cupw"><b>${esc(c.what)}</b><span><i class="k-${c.kind}"></i>${esc(c.title)}</span></span></button></li>`).join("")}</ul>` : `<p class="porg">Nothing in the next 30 days.</p>`}
+          <button type="button" class="linkish" id="allms">Every milestone in ${year} ›</button></section>
+        <section class="card calcard"><div class="dh"><h2>Show</h2></div>
+          ${CAL_KINDS.map(([k, l]) => `<label class="cshow"><input type="checkbox" data-calshow="${k}"${CAL_SHOW[k] ? " checked" : ""}><i class="k-${k}"></i>${l}<b>${all.filter((i) => i.kind === k && inYear(i)).length}</b></label>`).join("")}
+          <label class="cwhosel">Who<select id="calwho"><option value="">Everyone</option>${people.map((p) => `<option value="${esc(p.email)}"${p.email === CAL_WHO ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+          <p class="porg" style="margin-top:10px">On each bar, who's going; the lead is underlined. A, D, F: agreements, draft and final materials due. H: hotel cut-off.</p></section>
+      </aside></div>`
+    + (() => { const crunch = crunchOf(events, year, today); return crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
+      ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}"><div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div><button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : ""; })()
+    + templateCard()
+    + `<dialog class="sheet msdlg" id="msdlg">${milestonesPanel(events, year, today)}</dialog>`;
 
   wireTemplate();
-  document.getElementById("yprev").onclick = () => { view = { name: "year", year: Math.max(...years.filter((y) => y < year)) }; render(); };
-  document.getElementById("ynext").onclick = () => { view = { name: "year", year: Math.min(...years.filter((y) => y > year)) }; render(); };
-  ROOT.querySelectorAll("[data-goev]").forEach((b) => {
-    b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); };
-  });
-  // The side panel slides in and pushes the calendar over; it stays open or shut from one visit to the next.
-  const wrap = document.getElementById("ywrap");
-  const showSide = (on) => {
-    wrap.classList.toggle("side", on);
-    document.getElementById("ytab").setAttribute("aria-expanded", String(on));
-    try { localStorage.setItem("ongia-year-side", on ? "1" : "0"); } catch {}
-    below();
-    if (on) toNext();
+  const go = (v) => { view = { ...view, name: "year", ...v }; render(); };
+  document.getElementById("yprev").onclick = () => how === "month" ? go(month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }) : go({ year: year - 1, month: undefined });
+  document.getElementById("ynext").onclick = () => how === "month" ? go(month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }) : go({ year: year + 1, month: undefined });
+  ROOT.querySelectorAll("[data-calhow]").forEach((b) => b.onclick = () => go({ cal: b.dataset.calhow, year, month }));
+  ROOT.querySelectorAll("[data-calshow]").forEach((c) => c.onchange = () => { CAL_SHOW = { ...CAL_SHOW, [c.dataset.calshow]: c.checked }; render(); });
+  document.getElementById("calwho").onchange = (e) => { CAL_WHO = e.target.value; render(); };
+  ROOT.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = () => { view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+  ROOT.querySelectorAll("[data-conf]").forEach((b) => { b.onclick = () => confDialog(confs.find((c) => c.id === b.dataset.conf)); });
+  document.getElementById("addconf").onclick = () => confDialog(null, year);
+  const ms = document.getElementById("msdlg");
+  document.getElementById("allms").onclick = () => { ms.showModal(); requestAnimationFrame(() => { const n = ms.querySelector(".ms.next"), list = ms.querySelector("#yside-list"); if (n && list) list.scrollTop = n.offsetTop - list.offsetTop - 70; }); };
+  ms.querySelector("#yside-close").onclick = () => ms.close();
+  ms.querySelectorAll("[data-goev]").forEach((b) => { b.onclick = () => { ms.close(); view = { name: "event", eventId: b.dataset.goev }; render(); }; });
+}
+
+/** Add a conference our people are going to, or change or take off one. Saved to the calendar only. */
+function confDialog(c, year) {
+  const dlg = document.createElement("dialog"); dlg.className = "sheet confdlg"; document.body.append(dlg);
+  const who = new Set(c?.who ?? []);
+  const board = ROSTER.filter((m) => m.email).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  dlg.innerHTML = `<form method="dialog"><div class="sheet-head"><h2>${c ? "The conference" : "Add a conference"}</h2>
+      <p class="hint" style="margin-top:6px">Someone else's conference our people are going to. It shows on the calendar only: no presenters, logistics, budget or emails.</p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="cf-title">Conference</label><input id="cf-title" value="${esc(c?.title ?? "")}" placeholder="e.g. Arizona Gang Conference" maxlength="160"></div>
+      <div class="row2"><div class="field"><label for="cf-from">From</label><input type="date" id="cf-from" value="${esc(c?.from ?? "")}"></div>
+        <div class="field"><label for="cf-to">To</label><input type="date" id="cf-to" value="${esc(c?.to ?? "")}"></div></div>
+      <div class="field"><label for="cf-place">Where</label><input id="cf-place" value="${esc(c?.place ?? "")}" placeholder="e.g. Phoenix, AZ" maxlength="160"></div>
+      <div class="field"><label>We're</label><div class="cfpick" id="cf-role">${[["attending", "Attending"], ["presenting", "Presenting"]].map(([k, l]) => `<button type="button" data-role="${k}" class="${(c?.role ?? "attending") === k ? "on" : ""}" aria-pressed="${(c?.role ?? "attending") === k}">${l}</button>`).join("")}</div></div>
+      <div class="field"><label>Who's going</label><div class="cfpick" id="cf-who">${board.map((m) => `<button type="button" data-who="${esc(String(m.email).toLowerCase())}" class="${who.has(String(m.email).toLowerCase()) ? "on" : ""}" aria-pressed="${who.has(String(m.email).toLowerCase())}">${esc(m.name || m.email)}</button>`).join("") || `<span class="porg">Add the board under Admin first.</span>`}</div></div>
+      <div class="field"><label for="cf-note">Note or link (optional)</label><input id="cf-note" value="${esc(c?.note ?? "")}" maxlength="600"></div>
+      <div id="cf-said"></div></div>
+    <div class="actions" style="padding:0 20px 20px;justify-content:flex-end;flex-wrap:wrap">${c ? `<button type="button" class="btn btn-ghost" id="cf-del" style="margin-right:auto">Take it off</button>` : ""}<button type="button" class="btn btn-ghost" id="cf-cancel">Cancel</button><button type="button" class="btn btn-gold" id="cf-save">${c ? "Save" : "Add it to the calendar"}</button></div></form>`;
+  const q = (s) => dlg.querySelector(s);
+  dlg.querySelectorAll("#cf-role [data-role]").forEach((b) => b.onclick = () => dlg.querySelectorAll("#cf-role [data-role]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); }));
+  dlg.querySelectorAll("#cf-who [data-who]").forEach((b) => b.onclick = () => { b.classList.toggle("on"); b.setAttribute("aria-pressed", String(b.classList.contains("on"))); });
+  q("#cf-from").onchange = () => { if (!q("#cf-to").value || q("#cf-to").value < q("#cf-from").value) q("#cf-to").value = q("#cf-from").value; };
+  const done = () => { dlg.close(); dlg.remove(); };
+  q("#cf-cancel").onclick = done;
+  dlg.addEventListener("cancel", () => dlg.remove());
+  const send = async (method, body) => {
+    try { await api(`/conferences${c ? `?id=${encodeURIComponent(c.id)}` : ""}`, { method, body: body ? JSON.stringify(body) : undefined }); done(); render(); }
+    catch (e) { q("#cf-said").innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
   };
-  // Held just below the top bar, however tall it is on this screen.
-  const below = () => { const h = document.querySelector(".bar")?.getBoundingClientRect().height ?? 0, side = document.getElementById("yside");
-    side.style.top = `${Math.round(h) + 12}px`; document.getElementById("yside-list").style.maxHeight = `calc(100vh - ${Math.round(h) + 110}px)`; };
-  document.getElementById("ytab").onclick = () => showSide(!wrap.classList.contains("side"));
-  document.getElementById("yside-close").onclick = () => showSide(false);
-  // The list opens at what is next, with Today just above it.
-  function toNext() { const n = document.querySelector("#yside .ms.next"), list = document.getElementById("yside-list"); if (n && list) list.scrollTop = n.offsetTop - list.offsetTop - 70; }
-  below();
-  if (wrap.classList.contains("side")) requestAnimationFrame(toNext);
+  q("#cf-save").onclick = () => send(c ? "PUT" : "POST", { title: q("#cf-title").value, from: q("#cf-from").value, to: q("#cf-to").value, place: q("#cf-place").value,
+    role: dlg.querySelector("#cf-role .on")?.dataset.role ?? "attending", who: [...dlg.querySelectorAll("#cf-who .on")].map((b) => b.dataset.who), note: q("#cf-note").value });
+  if (c) q("#cf-del").onclick = () => { if (confirm(`Take ${c.title} off the calendar?`)) send("DELETE"); };
+  dlg.showModal();
+  if (!c && year && yearOf(todayIso()) !== year) q("#cf-from").value = `${year}-01-01`;
+  q("#cf-title").focus();
 }
 
 /**
@@ -11106,7 +11271,8 @@ async function drawScreen() {
     }
     if (view.name === "year") {
       const { events } = await api("/events");
-      return yearScreen(events, view.year ?? defaultYear(events, todayIso()));
+      const [{ conferences }] = await Promise.all([api("/conferences").catch(() => ({ conferences: [] })), loadRoster()]);
+      return yearScreen(events, view.year ?? defaultYear(events, todayIso()), conferences);
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
     if (view.name === "sandbox") return sandboxScreen();
