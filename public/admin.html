@@ -63,6 +63,54 @@
   .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
 
+  /* The way around the desk (Andrew 30 Oct 2026, from the mock-ups: "I like the first dashboard"): a navy column down the
+     left on a wide screen; on a phone or tablet the same buttons as a bar along the bottom, with More for the rest. The top
+     bar keeps the search and New event. */
+  .side{display:none}
+  .sn{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;color:rgba(255,255,255,.86);font:600 14px var(--fb);
+      padding:9px 12px;border-radius:10px;cursor:pointer;text-align:left;position:relative}
+  .sn svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .sn:hover{background:rgba(255,255,255,.07)}
+  .sn.on{background:var(--gold);color:#1c1608}
+  .sn.rbh:not(.on){color:#9fd8d2}
+  .sn .nb{margin-left:auto}
+  .slogo{height:46px;width:auto;display:block;margin:0 8px}
+  .sroom{font-size:12px;color:rgba(255,255,255,.55);margin:2px 10px 18px}
+  .snav{display:flex;flex-direction:column;gap:3px}
+  .smore{display:flex;flex-direction:column;gap:3px;border-top:1px solid rgba(255,255,255,.12);margin-top:10px;padding-top:10px}
+  .snmore{display:none}
+  .sme{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 8px 0;border-top:1px solid rgba(255,255,255,.12)}
+  .sme i{flex:none;width:34px;height:34px;border-radius:50%;background:var(--gold-pale);color:var(--navy-deep);display:grid;place-items:center;font:700 12px var(--fb);font-style:normal}
+  .sme b{display:block;font-size:13.5px;line-height:1.3} .sme span{font-size:12px;color:rgba(255,255,255,.55)}
+  @media (min-width:900px){
+    body.withside{padding-left:232px}
+    .withside .side{display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;width:232px;z-index:11;overflow-y:auto;
+      background:var(--navy-deep);color:#fff;border-right:3px solid var(--gold);padding:calc(20px + env(safe-area-inset-top,0px)) 12px 14px}
+    .withside .bar{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
+    .withside .bar .logo,.withside .bar .sub,.withside .bar .me{display:none}
+    .withside .bar .chip:not(.solid){color:var(--ink);border-color:var(--border);background:#fff}
+    .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
+    .withside .bar .hsearch input::placeholder{color:var(--muted)}
+  }
+  @media (max-width:899px){
+    body.withside{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+    .withside .side{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;position:fixed;left:0;right:0;bottom:0;z-index:20;
+      background:#fff;border-top:1px solid var(--edge);box-shadow:0 -4px 16px rgba(14,26,53,.06);padding:5px 4px calc(7px + env(safe-area-inset-bottom,0px))}
+    .withside .slogo,.withside .sroom,.withside .sme{display:none}
+    .withside .snav{display:contents}
+    .withside .snav > .sn{flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;color:var(--muted);text-align:center;border-radius:10px;justify-content:center;min-height:50px}
+    .withside .snav > .sn svg{width:22px;height:22px}
+    .withside .snav > .sn.on{background:none;color:var(--navy-deep)} .withside .snav > .sn.on svg{color:var(--gold)}
+    .withside .snav > .sn .nb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
+    .withside .snmore{display:flex}
+    .withside .smore{display:none;position:fixed;right:8px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-width:220px;margin:0;padding:6px;
+      background:#fff;border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow)}
+    .withside .side.open .smore{display:flex}
+    .withside .smore .sn{color:var(--ink)} .withside .smore .sn.rbh:not(.on){color:var(--rbh)} .withside .smore .sn:hover{background:var(--sunk)}
+    .withside .toast,.withside .reloadbar,.withside #netpill{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+    .withside .jselbar{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+  }
+
   .wrap{max-width:1240px;margin:0 auto;padding:26px 20px 70px}
   .card{background:var(--card);border:1.5px solid var(--edge);border-radius:20px;
         box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
@@ -1758,6 +1806,7 @@
 </head>
 <body>
 
+<nav class="side" id="side" aria-label="Main" hidden></nav>
 <div class="bar">
   <img class="logo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="157" height="40">
   <span class="sub">Briefing Room</span>
@@ -1783,7 +1832,7 @@ const placeCrumbs = () => {
   if (!row) { row = document.createElement("nav"); row.className = "crumbs"; row.setAttribute("aria-label", "Back"); ROOT.prepend(row); }
   CRUMBS.forEach((b) => { b.classList.remove("chip"); b.classList.add("crumb"); row.append(b); });
   // Every screen with a way back also gets the home page's buttons in the bar.
-  if (KEY && !BARRIGHT.querySelector("#theyear")) { BARRIGHT.insertAdjacentHTML("beforeend", `<span class="sharedbar">${barChips()}</span>`); wireBarChips(); }
+  if (KEY && !BARRIGHT.querySelector("#hsearch")) { BARRIGHT.insertAdjacentHTML("beforeend", `<span class="sharedbar">${barChips()}</span>`); wireBarChips(); }
 };
 // Screens that draw their page after the bar wipe the row: put it back whenever either changes.
 new MutationObserver(placeCrumbs).observe(BARRIGHT, { childList: true });
@@ -1931,6 +1980,7 @@ async function finishMicrosoft() {
   return true;
 }
 function whoami() {
+  drawSide();
   const el = document.getElementById("whoami");
   if (!KEY) { el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
@@ -1979,23 +2029,51 @@ async function signInScreen(message) {
 function barChips() {
   const who = WHO?.name || WHO?.email || "";
   const initials = who.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
-  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div><button class="chip${view.name === "list" ? " here" : ""}" id="eventsnav"${view.name === "list" ? ' aria-current="page"' : ""}>Events</button><button class="chip" id="theyear">The year</button>${WHO?.canCost ? `<button class="chip rbhchip" id="sowsnav">RBH SOWs</button>` : ""}<button class="chip" id="letters">Letters</button>${SPONSORS_ON ? `<button class="chip" id="sponsors">Sponsors</button>` : ""}<button class="chip" id="admin">Admin${attnBadge()}</button>${WHO?.canCost ? `<button class="chip sbxchip" id="sandboxnav">Sandbox</button>` : ""}<button class="chip solid" id="newevent">New event</button>`
+  return `<div class="hsearch"><input id="hsearch" type="search" autocomplete="off" placeholder="${matchMedia("(max-width:760px)").matches ? "Search…" : "Search people and events…"}" aria-label="Search presenters, volunteers and events"><div class="hsres" id="hsres" hidden></div></div>`
+    + `<button class="chip solid" id="newevent">New event</button>`
     + (who ? `<span class="me" title="${esc(WHO?.email ?? "")}"><i aria-hidden="true">${esc(initials)}</i><span>${esc(WHO?.name || WHO?.email)}</span></span>` : "");
 }
 function wireBarChips() {
-  document.getElementById("eventsnav").onclick = () => { view = { name: "list" }; render(); };
-  document.getElementById("theyear").onclick = () => { view = { name: "year", year: null }; render(); };
-  document.getElementById("letters").onclick = () => { view = { name: "letters" }; render(); };
-  const sows = document.getElementById("sowsnav");
-  if (sows) sows.onclick = () => { view = { name: "sows" }; render(); };
-  const sbx = document.getElementById("sandboxnav");
-  if (sbx) sbx.onclick = () => { view = { name: "sandbox" }; render(); };
-  document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
-  attention();
-  if (SPONSORS_ON) document.getElementById("sponsors").onclick = () => { view = { name: "sponsors" }; render(); };
   document.getElementById("newevent").onclick = () => { view = { name: "new" }; render(); };
   wireSearch();
 }
+
+/** The sidebar (a bottom bar on a phone): the same on every screen once signed in, the screen you're on lit up. */
+const SIDE_ICON = {
+  events: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  year: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
+  letters: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  sows: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/>',
+  sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
+  sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
+  more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+};
+const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email) ? "President" : /^vp_/i.test(WHO.email) ? "VP of operations" : "Board";
+function drawSide() {
+  const el = document.getElementById("side");
+  document.body.classList.toggle("withside", !!KEY);
+  if (!KEY) { el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false; el.classList.remove("open");
+  const at = ["list", "event", "edit", "new", "add"].includes(view.name) ? "events" : view.name === "roster" ? "admin" : view.name;
+  const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
+    + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
+  const who = WHO?.name || WHO?.email || "";
+  const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
+    <div class="snav">${item("eventsnav", "events", "Events")}${item("theyear", "year", "The year")}${item("letters", "letters", "Letters")}${item("admin", "admin", "Admin", "", attnBadge())}
+      ${more.length ? `<button type="button" class="sn snmore" id="snmore" aria-expanded="false" aria-controls="smore"><svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON.more}</svg><span>More</span></button><div class="smore" id="smore">${more.join("")}</div>` : ""}</div>
+    <div class="sme"><i aria-hidden="true">${esc(initials)}</i><div><b>${esc(who || "Signed in with the key")}</b><span>${esc(sideRole())}</span></div></div>`;
+  const go = (id, v) => { const b = document.getElementById(id); if (b) b.onclick = () => { view = v; render(); }; };
+  go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("letters", { name: "letters" });
+  go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
+  document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
+  const mb = document.getElementById("snmore");
+  if (mb) mb.onclick = (e) => { e.stopPropagation(); const open = el.classList.toggle("open"); mb.setAttribute("aria-expanded", String(open)); };
+  attention();
+}
+document.addEventListener("click", (e) => { const el = document.getElementById("side"); if (el?.classList.contains("open") && !el.contains(e.target)) { el.classList.remove("open"); document.getElementById("snmore")?.setAttribute("aria-expanded", "false"); } });
 function listScreen(events, inbox = null) {
   BARRIGHT.innerHTML = barChips();
   queueMicrotask(healthStrip);
