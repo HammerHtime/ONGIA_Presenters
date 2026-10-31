@@ -9,6 +9,11 @@
  *
  *   Resend — RESEND_API_KEY, from MAIL_FROM on a verified sending domain.
  *
+ * Mail to attendees in bulk (certificates first) goes through Resend whatever else is set (Andrew 31 Oct 2026):
+ * hundreds of messages from a Microsoft mailbox risk it being blocked as hijacked, and bounces and out-of-office
+ * replies would land in a person's inbox. It sends from an address on send.ongia.ca and replies go to the shared
+ * ONGIA Events mailbox. See sendAttendeeMail.
+ *
  * Replies are steered to the event's ONGIA contact either way, so a presenter
  * who hits Reply reaches a person. With neither transport configured the send
  * is skipped, not failed — the rest of the approval still completes and the
@@ -20,6 +25,8 @@ import { siteUrl } from "./site.mjs";
 
 const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
 const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
+export const ATTENDEE_REPLY_TO = process.env.ATTENDEE_REPLY_TO || "ongiaevents@ongia.ca";
+export const CERT_FROM = process.env.CERT_MAIL_FROM || "ONGIA Certificates <certificates@send.ongia.ca>";
 const GRAPH_DISPLAY = process.env.MS_MAIL_FROM_NAME || "ONGIA Training";
 
 export function mailTransport() {
@@ -84,8 +91,19 @@ async function sendViaGraph({ to, cc, replyTo, subject, html, text, attachments 
   return { id: res.headers.get("request-id") ?? "sent", transport: "microsoft" };
 }
 
-async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments }) {
-  const payload = { from: RESEND_FROM, to: list(to), subject, html, text };
+/**
+ * Mail to attendees: through Resend from the given sender, replies to ONGIA Events. Without a Resend key it is
+ * skipped, not sent from Microsoft instead, so a bulk send never lands on a person's mailbox by accident.
+ */
+export async function sendAttendeeMail(message, { from = CERT_FROM } = {}) {
+  const to = realOnly(message.to);
+  if (!to.length) return { skipped: true, reason: "A practice event's made-up address." };
+  if (!process.env.RESEND_API_KEY) return { skipped: true, reason: "Attendee email isn't set up on this site (no Resend key)." };
+  return sendViaResend({ ...message, to, replyTo: message.replyTo ?? ATTENDEE_REPLY_TO }, from);
+}
+
+async function sendViaResend({ to, cc, replyTo, subject, html, text, attachments }, from = RESEND_FROM) {
+  const payload = { from, to: list(to), subject, html, text };
   if (cc?.length) payload.cc = cc;
   if (replyTo) payload.reply_to = replyTo;
   if (attachments?.length) {

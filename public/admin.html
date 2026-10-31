@@ -91,7 +91,7 @@
   /* Sized to the room the section has, not the screen: beside an event's Getting ready column it is much narrower
      than the window (seen on the live Summit page, 31 Oct 2026, where the ZIP button wrapped onto three lines). */
   .certsec{container-type:inline-size}
-  @container (max-width:1000px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certgo{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}}
+  @container (max-width:1000px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certset .certf:nth-child(4){grid-column:2/-1}.certgo{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center}}
   @container (max-width:620px){.certtiles{grid-template-columns:1fr 1fr}.certset{grid-template-columns:72px minmax(0,1fr)}.certset .certf:not(:nth-child(2)){grid-column:1/-1}}
   @media (max-width:760px){.certl td .cnoph{display:block}.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
   .svdl > div{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line, var(--hair))} .svdl > div:first-child{border-top:0} .svdl b{min-width:170px}
@@ -5924,14 +5924,16 @@ async function certFile(url) {
 const certAct = (p) => !p.cert ? (p.checkedIn ? `<button class="mini gold" data-certpdf="${esc(p.key)}">Issue &amp; download</button>` : `<button class="mini" data-certpdf="${esc(p.key)}">Issue anyway…</button>`)
   : p.cert.revoked ? `<button class="mini" data-certpdf="${esc(p.key)}">Issue again…</button>`
   : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><details class="certmore"><summary class="mini" aria-label="More for ${esc(p.name)}">•••</summary><div class="certmenu">
-      <button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}">${p.mail ? "Email it again" : "Email it"}</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
-/** What happened to each person's certificate email (mock-up, 31 Oct 2026): sent, downloaded from the link in it, or bounced. */
-const certMail = (p) => !p.cert || p.cert.revoked ? `<span class="porg">—</span>`
-  : !p.mail ? `<span class="porg">Not emailed</span>`
-  : p.mail.bounced ? `<span class="pill late">Bounced</span><span class="psub">${esc(p.mail.bounced)}</span>`
-  : p.mail.failed ? `<span class="pill late">Couldn't send</span><span class="psub">${esc(p.mail.failed)}</span>`
-  : p.mail.downloadedAt ? `<span class="pill done">Downloaded ${esc(fmtShort(p.mail.downloadedAt))}</span><span class="psub">Emailed ${esc(fmtShort(p.mail.sentAt))}</span>`
-  : `<span class="pill wait">Emailed ${esc(fmtShort(p.mail.sentAt))}</span><span class="psub">Not downloaded yet</span>`;
+      <button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}"${p.email ? "" : " disabled"}>${p.cert.mail?.sentAt ? "Email it again" : "Email it"}</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
+/** What happened to each person's certificate email (Andrew 31 Oct 2026): sent, downloaded from the link in it, bounced, or couldn't send. */
+const mailBad = (m) => !!(m && (m.bounced || m.failed));
+const certMail = (p) => { const m = p.cert?.mail;
+  return !p.cert || p.cert.revoked ? `<span class="porg">—</span>`
+  : m?.bounced ? `<span class="pill late">Bounced</span><span class="psub">${esc(m.bounced)}</span>`
+  : m?.failed ? `<span class="pill late">Couldn't send</span><span class="psub">${esc(m.failed)}</span>`
+  : m?.downloadedAt ? `<span class="pill done">Downloaded ${esc(fmtShort(m.downloadedAt))}</span><span class="psub">Emailed ${esc(fmtShort(m.sentAt))}</span>`
+  : m?.sentAt ? `<span class="pill wait">Emailed ${esc(fmtShort(m.sentAt))}</span><span class="psub">Not downloaded yet</span>`
+  : !p.email ? `<span class="porg">No email address</span>` : `<span class="porg">Not emailed</span>`; };
 const certStatus = (p) => p.cert?.revoked ? `<span class="pill late">Withdrawn</span>`
   : p.cert ? `<span class="pill done">Issued ${esc(fmtShort(p.cert.issuedAt))}</span>`
   : p.checkedIn ? `<span class="pill near">Ready</span>` : `<span class="pill idle">Not checked in</span>`;
@@ -5967,6 +5969,46 @@ async function certsAll(ev, C, ready) {
   renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
   const kept = document.getElementById("cert-said"); if (kept && said.innerHTML) kept.innerHTML = said.innerHTML;
 }
+/**
+ * Email everyone their certificate (Andrew 31 Oct 2026): anyone checked in without one is issued theirs first, then each
+ * person with a certificate and an address who hasn't had it (or whose last one bounced or couldn't go) is sent it, a few
+ * at a time, with a count as it goes. Nobody is emailed twice by pressing it again.
+ */
+async function certsMail(ev, C, ready) {
+  const b = document.getElementById("cert-mail"), said = document.getElementById("cert-said");
+  const due = (D) => D.people.filter((p) => p.cert && !p.cert.revoked && p.email && (!p.cert.mail?.sentAt || mailBad(p.cert.mail)));
+  const noEmail = C.people.filter((p) => ((p.cert && !p.cert.revoked) || (p.checkedIn && !p.cert)) && !p.email).length;
+  const already = C.people.filter((p) => p.cert && !p.cert.revoked && p.cert.mail?.sentAt && !mailBad(p.cert.mail)).length;
+  const n = due(C).length + C.people.filter((p) => p.checkedIn && !p.cert && p.email).length;
+  if (!n) { toast(already ? "Everyone with a certificate has been emailed it." : "Nobody to email yet."); return; }
+  if (!confirm([`Email ${n} ${n === 1 ? "person" : "people"} their certificate?`, "",
+    "It goes from certificates@send.ongia.ca, in English and French, with the PDF attached. Replies go to ongiaevents@ongia.ca.",
+    ready ? `\n${ready} checked in ${ready === 1 ? "doesn't" : "don't"} have a certificate yet; they're issued theirs first.` : "",
+    already ? `${already} already emailed won't get it twice.` : "", noEmail ? `${noEmail} with no email address on the list are left out.` : ""].filter(Boolean).join("\n"))) return;
+  b.disabled = true; b.textContent = ready ? "Issuing…" : "Getting ready…";
+  let sentN = 0, badN = 0;
+  try {
+    if (ready) C = await api(`/certificates?event=${encodeURIComponent(ev.id)}&issueAll=1`, { method: "POST", body: "{}" });
+    const keys = due(C).map((p) => p.key), batches = [];
+    for (let i = 0; i < keys.length; i += 5) batches.push(keys.slice(i, i + 5));
+    let done = 0, next = 0;
+    const one = async () => {
+      while (next < batches.length) {
+        const batch = batches[next++];
+        try {
+          const r = await api(`/certificates?event=${encodeURIComponent(ev.id)}&mail=1`, { method: "POST", body: JSON.stringify({ keys: batch }) });
+          for (const x of r.results) { if (x.mail?.sentAt && !x.mail.failed) sentN++; else badN++; }
+        } catch { badN += batch.length; }
+        done += batch.length; b.textContent = `Emailing ${done} of ${keys.length}…`;
+      }
+    };
+    await Promise.all([one(), one(), one()]);
+    said.innerHTML = `Emailed ${sentN} certificate${sentN === 1 ? "" : "s"}.${badN ? ` <b>${badN} couldn't be sent.</b> <button class="linkish" data-certcut="mailbad">Show them</button>` : ""}`;
+  } catch (x) { said.textContent = x.message; }
+  const kept = said.innerHTML;
+  renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
+  const k = document.getElementById("cert-said"); if (k && kept) { k.innerHTML = kept; k.querySelector("[data-certcut]")?.addEventListener("click", () => { CERT_CUT = "mailbad"; loadCerts(ev); }); }
+}
 const slugOf = (t) => String(t ?? "event").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "event";
 /** A plain ZIP of files stored as they are (PDFs are already compressed), which every unzip tool opens. */
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -5993,7 +6035,7 @@ function renderCerts(ev, C) {
   const box = document.getElementById("certbox");
   if (!box) return;
   const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
-  const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
+  const shown = C.people.filter((p) => CERT_CUT === "mailbad" ? mailBad(p.cert?.mail) && !p.cert.revoked : CERT_CUT === "all" || p.checkedIn);
   const live = C.people.filter((p) => p.cert && !p.cert.revoked);
   const ready = C.people.filter((p) => p.checkedIn && !p.cert).length, withdrawn = C.people.filter((p) => p.cert?.revoked).length;
   const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
@@ -6013,8 +6055,10 @@ function renderCerts(ev, C) {
       ${tpl?.course ? `<div class="certf"><label class="certk" for="cert-course">Course</label><input id="cert-course" value="${esc(s.course)}" maxlength="200"><span class="hint">Printed under "For their successful completion of the".</span></div>` : ""}
       <div class="certgo"><button class="mini" id="cert-preview">Preview a sample</button>
         <button class="mini gold certall" id="cert-all"${ready + live.length ? "" : " disabled"}>Issue &amp; download all (ZIP)</button>
-        <button class="mini solid" id="cert-mail"${ready + live.length ? "" : " disabled"}>Email everyone their certificate</button></div>
-      ${(() => { const m = live.filter((x) => x.mail); if (!m.length) return ""; const dl = m.filter((x) => x.mail.downloadedAt).length, bad = m.filter((x) => x.mail.bounced || x.mail.failed).length;
+        <button class="mini solid" id="cert-mail"${ready + live.length ? "" : " disabled"}>Email everyone their certificate</button>
+        <button class="linkish" id="cert-sample">Email me a sample</button></div>
+      ${(() => { const m = live.filter((x) => x.cert.mail?.sentAt && !mailBad(x.cert.mail)), bad = live.filter((x) => mailBad(x.cert.mail)).length; if (!m.length && !bad) return "";
+        const dl = m.filter((x) => x.cert.mail.downloadedAt).length;
         return `<p class="certmailsum">Emailed <b>${m.length}</b> of ${live.length} · downloaded <b>${dl}</b>${bad ? ` · <span class="bad-t"><b>${bad}</b> bounced or couldn't send</span> <button class="linkish" data-certcut="mailbad">Show them</button>` : ""}</p>`; })()}
       <p class="certsaid" id="cert-said" aria-live="polite"></p></div>
     <div class="card certpick"${CERT_PICK ? "" : " hidden"}><div class="card-body"><div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
@@ -6022,12 +6066,12 @@ function renderCerts(ev, C) {
           <button type="button" class="certtpl certup" id="cert-upload"><span class="certplus" aria-hidden="true">＋</span><b>Upload a new design</b><span>From your designer: a PDF or a picture. Claude places the words.</span></button></div></div></div>
     <div class="card"><div class="card-body">
     <div class="certtools"><div class="certseg" role="group" aria-label="Who to show"><button class="${CERT_CUT === "in" ? "on" : ""}" data-certcut="in">Checked in ${C.counts.checkedIn}</button>
-      <button class="${CERT_CUT === "all" ? "on" : ""}" data-certcut="all">Everyone registered ${C.counts.coming}</button></div>
+      <button class="${CERT_CUT === "all" ? "on" : ""}" data-certcut="all">Everyone registered ${C.counts.coming}</button>${CERT_CUT === "mailbad" ? `<button class="on" data-certcut="mailbad">Bounced or couldn't send ${shown.length}</button>` : ""}</div>
     ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off">` : ""}</div>
     ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix on Who's coming. You can still issue anyone's certificate under Everyone registered.</div>` : ""}
     <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
     ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Certificate</th><th>Email</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
-    <p class="hint" style="margin-top:12px">Issuing a certificate gives it its own number and QR code. From then on it stays exactly as issued, so it always verifies; if a name or date was wrong, <b>Correct details</b> (under •••) puts the right ones on it and keeps the number. Emailing everyone their certificate, with tracking, is the next part of the build.</p></div></div>`;
+    <p class="hint" style="margin-top:12px">Issuing a certificate gives it its own number and QR code. From then on it stays exactly as issued, so it always verifies; if a name or date was wrong, <b>Correct details</b> (under •••) puts the right ones on it and keeps the number. <b>Email everyone their certificate</b> sends each person theirs from certificates@send.ongia.ca, in English and French, with the PDF attached; replies go to ongiaevents@ongia.ca, and the Email column shows who has downloaded theirs.</p></div></div>`;
   const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
   box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
   designThumbs(box);
@@ -6045,6 +6089,24 @@ function renderCerts(ev, C) {
     b.closest("details").open = false;
   });
   box.querySelector("#cert-all").onclick = () => certsAll(ev, C, ready);
+  box.querySelector("#cert-mail").onclick = () => certsMail(ev, C, ready);
+  box.querySelector("#cert-sample").onclick = async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = "Sending the sample…";
+    try { const r = await api(`/certificates?event=${encodeURIComponent(ev.id)}&sample=1`, { method: "POST", body: "{}" }); toast(`Sample sent to ${r.to}. It uses a sample certificate number that verifies nothing.`); }
+    catch (x) { toast(x.message); }
+    b.disabled = false; b.textContent = "Email me a sample";
+  };
+  box.querySelectorAll("[data-certmail1]").forEach((b) => b.onclick = async () => {
+    const p = C.people.find((x) => x.key === b.dataset.certmail1);
+    b.closest("details").open = false;
+    const again = !!p.cert.mail?.sentAt && !mailBad(p.cert.mail);
+    if (!confirm(`Email ${p.name} their certificate${again ? " again" : ""}, at ${p.email}?`)) return;
+    try {
+      const r = (await api(`/certificates?event=${encodeURIComponent(ev.id)}&mail=1`, { method: "POST", body: JSON.stringify({ keys: [p.key], again: true }) })).results[0];
+      toast(r.error || (r.mail?.failed ? `Couldn't send: ${r.mail.failed}` : `Sent to ${p.email}.`));
+    } catch (x) { toast(x.message); }
+    loadCerts(ev);
+  });
   // Andrew 30 Oct 2026: "I will need search capabilities to search for a name. 450 people is a lot to scroll through".
   const find = box.querySelector("#cert-find");
   const filter = () => { const q = CERT_FIND.trim().toLowerCase(); let n = 0;
