@@ -1364,6 +1364,8 @@
      left and the event's side column on the right. */
   .evhead{margin-bottom:18px}
   /* The event's header is a white card now (the mock-up Andrew picked, 30 Oct 2026); the key numbers moved to the Overview. */
+  .practband{background:repeating-linear-gradient(-45deg,var(--wait-bg) 0 14px,#fff3d6 14px 28px);color:#6b4d05;border:1.5px solid var(--gold);border-radius:14px;padding:10px 16px;margin:0 0 10px;font-size:14px}
+  .practband b{color:#4a3504}
   .evband{background:#fff;color:var(--ink);border:1.5px solid var(--edge);border-bottom:0;border-radius:20px 20px 0 0;padding:20px 24px 16px}
   .evband .bhead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
   .evband .bhead>div:first-child{flex:1 1 380px;min-width:0}
@@ -4298,7 +4300,8 @@ function eventScreen(data) {
   const sideOn = !!view.person && (allTabs || (tab === "people" && pview === "presenters"));
   const dashHtml = eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN: c.total, tab, allTabs });
 
-  ROOT.innerHTML = `<div class="evhead"><section class="evband">
+  // A practice event says so across the top, so nobody mistakes it for the real one (audit, 30 Oct 2026).
+  ROOT.innerHTML = `<div class="evhead">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
     <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
@@ -6067,10 +6070,13 @@ function renderCerts(ev, C) {
  * The page is drawn here (a PDF through pdf.js), Claude places the words, sample words are lifted off by painting over
  * them with the colour around them, and the editor shows everything as it will print, to drag into place and save.
  */
-const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+// pdf.js 3.11.174 is served from the site itself (audit, 30 Oct 2026), so reading a PDF design doesn't depend on another
+// site being up or reachable from a police network. public/vendor/pdfjs/ holds the files as cdnjs publishes them.
+const PDFJS = "/vendor/pdfjs/pdf.min.js";
+const PDFJS_WORKER = "/vendor/pdfjs/pdf.worker.min.js";
 let PDFJS_READY = null;
 const loadPdfJs = () => PDFJS_READY ??= new Promise((ok, bad) => {
-  const s = Object.assign(document.createElement("script"), { src: PDFJS, onload: () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS.replace("pdf.min.js", "pdf.worker.min.js"); ok(window.pdfjsLib); }, onerror: () => { PDFJS_READY = null; bad(new Error("The PDF reader would not load. Check the connection, or upload the design as a PNG or JPG.")); } });
+  const s = Object.assign(document.createElement("script"), { src: PDFJS, onload: () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; ok(window.pdfjsLib); }, onerror: () => { PDFJS_READY = null; bad(new Error("The PDF reader would not load. Reload the page and try again, or upload the design as a PNG or JPG.")); } });
   document.head.append(s);
 });
 /** The design as a canvas about 300 dots to the inch, with its size in points. */

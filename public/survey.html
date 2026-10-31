@@ -84,6 +84,8 @@
   .nps{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;margin-top:6px}
   .nps button{min-height:44px;border-radius:9px;border:1.5px solid var(--border);background:var(--sunk);font:inherit;font-weight:700;font-size:14px;color:var(--ink-mid);padding:0;cursor:pointer}
   .nps button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+  /* 0 to 10 in one row is eleven 26-pixel buttons on a phone: two rows, 0–5 and 6–10, keep each one a thumb wide (audit, 30 Oct 2026). */
+  @media (max-width:480px){.nps{grid-template-columns:repeat(6,1fr);gap:6px}}
   .npsends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
   .dayhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:12px 14px;margin:20px 0 10px;font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;font-size:15px}
   .skip{background:none;border:1.5px dashed var(--edge);border-radius:999px;padding:8px 14px;font:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;margin-top:10px}
@@ -121,14 +123,14 @@ let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { retu
 const T = {
  en: { other: "Français", loading: "Loading…", anon: "Your answers are anonymous.", about: "About you", aboutHint: "Asked once.", pick: "Choose…", typeAgency: "Start typing your agency…", useTyped: (s) => `Use “${s}” (not on the list)`,
   yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
-  overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…", retry: "Try again", failed: "We couldn't send your answers.", failedText: "They're still here. Check your connection, then try again.",
+  overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…", retry: "Try again", failed: "We couldn't send your answers.", failedText: "They're still here. Check your connection, then try again.", kept: "Your answers so far are still here.",
   missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
   already: "You've already answered this part. Thank you!", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
   contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
  fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", typeAgency: "Commencez à taper votre organisme…", useTyped: (s) => `Utiliser « ${s} » (pas dans la liste)`,
   yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
-  overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…", retry: "Réessayer", failed: "Nous n'avons pas pu envoyer vos réponses.", failedText: "Elles sont toujours ici. Vérifiez votre connexion, puis réessayez.",
+  overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…", retry: "Réessayer", failed: "Nous n'avons pas pu envoyer vos réponses.", failedText: "Elles sont toujours ici. Vérifiez votre connexion, puis réessayez.", kept: "Les réponses déjà données sont toujours là.",
   missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
   already: "Vous avez déjà répondu à cette partie. Merci!", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
   contactAsk: "Laissez votre nom et votre courriel, et nous communiquerons avec vous. Ces renseignements sont conservés à part de vos réponses.", name: "Nom", email: "Courriel", topic: "Sur quel sujet présenteriez-vous? (facultatif)",
@@ -138,6 +140,20 @@ let D = null, A = { about: {}, sessions: {}, overall: {}, skipDays: [], contact:
 // A send that didn't go through (audit, 30 Oct 2026: it used to just reset the button, so people couldn't tell): said plainly
 // above the button, kept through a language switch or another answer, and the answers stay where they are.
 let SENDFAIL = null;
+// Answers in progress survive a reload or a slip of the back button (audit, 30 Oct 2026). Kept for this tab only, so a
+// shared computer at the conference doesn't hand the next person someone else's answers; gone once they're sent.
+let KEPT = false;
+const DRAFT = () => `ongia-survey:${TOKEN}:${PERSON}:${D?.part ?? ""}${PREVIEW ? ":preview" : ""}`;
+const keep = () => { if (STATE !== "form" || !D) return; try { sessionStorage.setItem(DRAFT(), JSON.stringify({ ...A, agencyTyped: A.agencyTyped ?? "" })); } catch {} };
+const forget = () => { try { sessionStorage.removeItem(DRAFT()); } catch {} };
+const restore = () => {
+  try {
+    const was = JSON.parse(sessionStorage.getItem(DRAFT()) ?? "null");
+    if (!was || typeof was !== "object") return;
+    A = { about: was.about ?? {}, sessions: was.sessions ?? {}, overall: was.overall ?? {}, skipDays: Array.isArray(was.skipDays) ? was.skipDays : [], contact: was.contact ?? {}, ...(was.agencyTyped ? { agencyTyped: was.agencyTyped } : {}) };
+    KEPT = [A.about, A.sessions, A.overall, A.contact].some((o) => Object.keys(o).length) || A.skipDays.length > 0;
+  } catch {}
+};
 const failNote = () => SENDFAIL ? `<div class="problems" role="alert"><b>${t("failed")}</b> ${t("failedText")}${SENDFAIL.why ? `<br><small>${esc(SENDFAIL.why)}</small>` : ""}</div>` : "";
 const words = () => D.stars[LANG];
 const qText = (q) => q[LANG] || q.en;
@@ -191,7 +207,7 @@ function question(key, q, value) {
 const get = (key) => { const [a, b, c] = key.split("."); return a === "about" ? A.about[b] : a === "overall" ? A.overall[b] : (A.sessions[a] ?? {})[b]; };
 const answered = (v) => v !== undefined && v !== null && v !== "";
 const put = (key, v) => {
-  const [a, b] = key.split("."); if (a === "about") A.about[b] = v; else if (a === "overall") A.overall[b] = v; else (A.sessions[a] ??= {})[b] = v; MISSING.delete(key);
+  const [a, b] = key.split("."); if (a === "about") A.about[b] = v; else if (a === "overall") A.overall[b] = v; else (A.sessions[a] ??= {})[b] = v; MISSING.delete(key); keep();
   const el = document.getElementById(`q-${key}`);
   if (el) { el.classList.remove("missing-q"); if (el.hasAttribute("data-req")) el.classList.toggle("done-q", answered(v)); }
 };
@@ -200,6 +216,7 @@ function render() {
   document.documentElement.lang = LANG; LANGBTN.textContent = t("other");
   if (STATE === "broken") { ROOT.innerHTML = `<div class="card"><h1>${t("broken")}</h1></div>`; return; }
   if (STATE === "closed") { ROOT.innerHTML = `<div class="card"><h1>${esc(D.title)}</h1><p class="lede">${t("closed")}</p></div>`; return; }
+  keep();
   if (STATE === "done" || STATE === "already") { ROOT.innerHTML = `<div class="card done"><div class="okmark">✓</div><h1>${t("done")}</h1><p class="lede">${STATE === "done" ? t("doneText") : t("already")}</p></div>`; return; }
   const day1 = D.allDays?.[0];
   const dayLabel = (iso) => `${D.dayNumber?.[iso] ? `${t("dayN", D.dayNumber[iso])} · ` : ""}${t("dayName", iso)}`;
@@ -216,7 +233,7 @@ function render() {
   const wantsToPresent = A.overall.present === 0;
   ROOT.innerHTML = `
     ${PREVIEW ? `<div class="problems">${t("preview")}</div>` : ""}
-    <div class="card"><span class="tag">${esc(D.title)}</span><h1>${D.daily ? t("yourDay") : t("wholeEvent")}</h1><p class="lede">${t("anon")}</p></div>
+    <div class="card"><span class="tag">${esc(D.title)}</span><h1>${D.daily ? t("yourDay") : t("wholeEvent")}</h1><p class="lede">${t("anon")}</p>${KEPT ? `<p class="hint" id="kept" style="margin:8px 0 0">${t("kept")}</p>` : ""}</div>
     ${D.about ? `<div class="card"><h2>${t("about")}</h2><p class="hint">${t("aboutHint")}</p>${D.about.map((q) => question(`about.${q.id}`, q, get(`about.${q.id}`))).join("")}</div>` : ""}
     ${daysHtml}
     ${D.overall ? `<div class="card"><h2>${t("overall")}</h2>${D.overall.map((q) => question(`overall.${q.id}`, q, get(`overall.${q.id}`))).join("")}
@@ -243,7 +260,7 @@ function wire() {
   });
   wireAgencyPicks();
   ROOT.querySelectorAll("[data-text]").forEach((x) => x.oninput = () => put(x.dataset.text, x.value));
-  ROOT.querySelectorAll("[data-contact]").forEach((x) => x.oninput = () => { A.contact[x.dataset.contact] = x.value; });
+  ROOT.querySelectorAll("[data-contact]").forEach((x) => x.oninput = () => { A.contact[x.dataset.contact] = x.value; keep(); });
   ROOT.querySelectorAll("[data-skipday]").forEach((b) => b.onclick = () => { const d = b.dataset.skipday; A.skipDays = A.skipDays.includes(d) ? A.skipDays.filter((x) => x !== d) : [...A.skipDays, d]; render(); });
   ROOT.querySelectorAll("[data-skipsession]").forEach((b) => b.onclick = () => { const id = b.dataset.skipsession; const s = (A.sessions[id] ??= {}); if (s.skipped) delete s.skipped; else s.skipped = true; render(); });
   document.getElementById("send").onclick = send;
@@ -267,7 +284,7 @@ async function send() {
       return;
     }
     if (!res.ok) throw Object.assign(new Error(out.error || ""), { server: true });
-    SENDFAIL = null; STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
+    SENDFAIL = null; forget(); STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
   } catch (e) {
     SENDFAIL = { why: e.server && LANG === "en" ? e.message : "" };   // the server's own reason is in English; the French page keeps to its own words
     btn.disabled = false; btn.textContent = t("retry");
@@ -282,6 +299,7 @@ LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage
     if (!res.ok) { STATE = "broken"; return render(); }
     D = await res.json();
     STATE = !D.open ? "closed" : D.answered && !PREVIEW ? "already" : "form";
+    if (STATE === "form") restore(); else forget();
     render();
   } catch { STATE = "broken"; render(); }
 })();
