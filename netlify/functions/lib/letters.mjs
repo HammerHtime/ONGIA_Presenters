@@ -290,7 +290,7 @@ function bodyHtmlOf(body, event, person) {
       const href = BLANKS[b.name].from(event, person);
       if (!href) return "";
       // The same gold button the bottom of an email carries, with the address under it for mail apps that drop buttons.
-      return `<p style="margin:22px 0 8px"><a href="${esc(href)}" style="background:#b8922a;color:#12161f;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block">${esc(BLANKS[b.name].button(event))}</a></p>` +
+      return `<p style="margin:22px 0 8px"><a href="${esc(href)}" style="background:#b8922a;color:#12161f;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block;text-align:center;line-height:1.3;max-width:100%;box-sizing:border-box">${esc(BLANKS[b.name].button(event))}</a></p>` +
         `<p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all;overflow-wrap:anywhere">${esc(href)}</p>`;
     }
     if (b.type === "schedule") {

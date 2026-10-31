@@ -207,18 +207,20 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   // long, ugly and nobody types it.
   const cta = button
     ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:${C.btn};color:${C.btnText};text-decoration:none;
-        font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block">${esc(button.label)}</a></p>
+        font-weight:700;padding:13px 22px;border-radius:999px;display:inline-block;text-align:center;line-height:1.3;max-width:100%;box-sizing:border-box">${esc(button.label)}</a></p>
        <p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all">Or paste this into your browser: ${esc(button.href)}</p>`
     : "";
   const extra = buttons.filter((b) => b?.href).map((b) =>
     `<p style="margin:18px 0 6px"><a href="${esc(b.href)}" style="background:${C.head};color:#fff;text-decoration:none;
-        font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block">${esc(b.label)}</a></p>` +
+        font-weight:700;padding:12px 22px;border-radius:999px;display:inline-block;text-align:center;line-height:1.3;max-width:100%;box-sizing:border-box">${esc(b.label)}</a></p>` +
     (b.note ? `<p style="margin:0 0 14px;font-size:13px;color:#767f92">${b.note}</p>` : "")).join("");
   // The header is centred: ONGIA's logo with its tagline (Andrew 30 Oct 2026: "That logo goes on everything"),
   // or the name and tagline in type where there's no site address to load it from.
+  // The phone's mail app turns dates and places into blue links unless told not to (Andrew 31 Oct 2026: the dates in the
+  // certificate email came up underlined), and is asked to keep these colours rather than invert them in dark mode.
   // The viewport line and the text-size lock stop phone mail apps from blowing
   // up paragraphs while leaving tables and buttons small beside them.
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="format-detection" content="date=no,address=no,telephone=no"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font-size:inherit!important;font-weight:inherit!important;line-height:inherit!important}</style></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
   <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
     <div style="background:${C.bar};color:#fff;padding:18px 24px;border-bottom:3px solid ${C.rule};text-align:center">
       ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="204" height="52" style="display:block;margin:0 auto;border:0;height:52px;width:204px">`
@@ -769,7 +771,7 @@ export function weeklyDigestMail({ sections, adminUrl }) {
       html += `<div style="margin:6px 0;font-size:14px"><b>Next:</b> ${esc(next.label)} ${esc(next.due)}, ${inDays}.</div>`;
       text.push(`Next: ${next.label} ${next.due}, ${inDays}.`);
     }
-    html += `<p style="margin:14px 0 0"><a href="${esc(s.adminUrl)}" style="background:${C.navy};color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;display:inline-block;font-size:14px">Open ${esc(event.city || event.title)}</a></p>`;
+    html += `<p style="margin:14px 0 0"><a href="${esc(s.adminUrl)}" style="background:${C.navy};color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;display:inline-block;text-align:center;line-height:1.3;max-width:100%;box-sizing:border-box;font-size:14px">Open ${esc(event.city || event.title)}</a></p>`;
     text.push(`Open: ${s.adminUrl}`, "");
   }
   html += `<hr style="border:0;border-top:1px solid #ddd7c8;margin:22px 0 14px"><p style="margin:0;font-size:14px;line-height:1.5">Presenters who haven't submitted, and those whose materials are missing, are being reminded automatically.</p>`;

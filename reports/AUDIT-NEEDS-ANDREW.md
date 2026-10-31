@@ -116,9 +116,13 @@ distinguish a form setting from a bare import.
 
 ---
 
-## 8. Certificate emails can't send yet: send.ongia.ca isn't verified in Resend
+## 8. Certificate emails couldn't send: send.ongia.ca wasn't verified in Resend — RESOLVED
 
-**Status (31 Oct 2026):** blocked on one DNS record. Nothing has been sent to any attendee.
+**Status (31 Oct 2026): resolved.** Andrew added the MX record in Wix under "Other MX records". Resend shows
+send.ongia.ca as verified, and a sample to president@ongia.ca was delivered (Resend status "delivered").
+His phone check found three layout problems: button text left-aligned when it wrapped, "Hello Desk" taken from the
+admin key's name, and iOS turning dates into links. All three are fixed. Nothing has been sent to any attendee.
+The notes below are kept for the record.
 
 **What failed.** The first sample certificate email (to president@ongia.ca only), sent from the live site, was
 refused by Resend: *"Email failed (403): The send.ongia.ca domain is not verified."* The live site does have a

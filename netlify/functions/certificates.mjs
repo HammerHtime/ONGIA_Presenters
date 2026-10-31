@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
-import { getEvent, putEvent, getAttendees, putMeta, listEvents } from "./lib/store.mjs";
+import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from "./lib/store.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { directory, agencyOf } from "./lib/agencies.mjs";
@@ -104,7 +104,10 @@ export default async (req) => {
     const who = adminWho(req);
     const to = text(body.to, 200) || who?.email || "";
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return fail("Which address should the sample go to?");
-    const out = await sendSample({ event, settings: certSettings(event, templates), to, name: who?.name || "", origin: siteUrl(req) });
+    // Named from the board roster when the address is on it (the shared admin sign-in is called "Desk", which isn't a name).
+    const onRoster = ((await getRoster()) ?? []).find((m) => String(m.email ?? "").toLowerCase() === to.toLowerCase());
+    const name = onRoster?.name || (who?.key === true ? "" : who?.name || "");
+    const out = await sendSample({ event, settings: certSettings(event, templates), to, name, origin: siteUrl(req) });
     return out.skipped ? fail(`The sample wasn't sent: ${out.skipped}`, 503) : json(out);
   }
   if (req.method === "POST" && q("correct")) {
