@@ -16,7 +16,7 @@ const sent = [];
 globalThis.fetch = async (url, init) => {
   if (String(url).startsWith("https://api.resend.com/")) {
     const p = JSON.parse(init.body);
-    sent.push({ to: p.to, subject: p.subject, html: p.html, text: p.text, replyTo: p.reply_to });
+    sent.push({ to: p.to, subject: p.subject, html: p.html, text: p.text, replyTo: p.reply_to, from: p.from });
     return new Response(JSON.stringify({ id: "m" + sent.length }), { status: 200, headers: { "content-type": "application/json" } });
   }
   throw new Error("unexpected fetch " + url);
@@ -166,6 +166,9 @@ ok("no reminder on a day that isn't a reminder date (Eve, who registered late, g
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
 const wed = sent.slice(n0).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).map((m) => String(m.to)).sort();
 ok("Wednesday's reminder goes to those who haven't answered, once per address, and not to Ann who has", wed.join() === "b@example.ca,d@example.ca,e@example.ca", wed.join());
+// Reminders go through Resend from events@send.ongia.ca, and replies reach the ONGIA Events mailbox (Andrew 31 Oct 2026).
+const wedMail = sent.slice(n0).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject));
+ok("reminders come from ONGIA Events <events@send.ongia.ca> with replies to ongiaevents@ongia.ca", wedMail.length > 0 && wedMail.every((m) => m.from === "ONGIA Events <events@send.ongia.ca>" && m.replyTo === "ongiaevents@ongia.ca"), JSON.stringify(wedMail.map((m) => [m.from, m.replyTo])));
 const n1 = sent.length;
 await runLetterRounds([await getEvent("ngs")], { today: "2026-10-28", pace: async () => {} });
 ok("running again the same day sends nobody a second reminder", sent.slice(n1).filter((m) => /^Reminder( \/ Rappel)?:/.test(m.subject)).length === 0);

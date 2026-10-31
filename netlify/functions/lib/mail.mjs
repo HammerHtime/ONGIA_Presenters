@@ -9,7 +9,7 @@
  *
  *   Resend — RESEND_API_KEY, from MAIL_FROM on a verified sending domain.
  *
- * Mail to attendees in bulk (certificates first) goes through Resend whatever else is set (Andrew 31 Oct 2026):
+ * Mail to attendees in bulk (certificates, and the reminders) goes through Resend whatever else is set (Andrew 31 Oct 2026):
  * hundreds of messages from a Microsoft mailbox risk it being blocked as hijacked, and bounces and out-of-office
  * replies would land in a person's inbox. It sends from an address on send.ongia.ca and replies go to the shared
  * ONGIA Events mailbox. See sendAttendeeMail.
@@ -27,6 +27,8 @@ const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.on
 const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
 export const ATTENDEE_REPLY_TO = process.env.ATTENDEE_REPLY_TO || "ongiaevents@ongia.ca";
 export const CERT_FROM = process.env.CERT_MAIL_FROM || "ONGIA Certificates <certificates@send.ongia.ca>";
+// Reminders to attendees (the reply-form reminder, the hotel cut-off rounds) (Andrew 31 Oct 2026). Surveys stay a manual send.
+export const EVENTS_FROM = process.env.EVENTS_MAIL_FROM || "ONGIA Events <events@send.ongia.ca>";
 const GRAPH_DISPLAY = process.env.MS_MAIL_FROM_NAME || "ONGIA Training";
 
 export function mailTransport() {
