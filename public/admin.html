@@ -67,6 +67,29 @@
   .svparts{display:flex;gap:6px;margin:0 0 12px}
   .svparts button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 16px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink-mid)}
   .svparts button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .svwhich button{font-size:14.5px;padding:8px 18px}
+  /* Certificates (audit, 30 Oct 2026): four counts, the design and the ZIP, then everyone's row. */
+  .certtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 12px}
+  .certtile{background:#fff;border:1.5px solid var(--edge);border-radius:14px;padding:12px 16px;display:flex;align-items:baseline;gap:12px}
+  .certtile b{font:400 26px var(--fd);color:var(--navy-deep)} .certtile span{font-size:13px;color:var(--ink-mid)}
+  .certset{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(200px,auto);gap:18px;align-items:start;padding:16px 18px}
+  .certthumb img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block} .certthumb.wide img{aspect-ratio:11/8.5}
+  .certf{display:grid;gap:4px;font-size:14px;min-width:0} .certf input{margin:0;width:100%;max-width:240px;min-width:0;box-sizing:border-box}
+  .certk{font:600 11px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .certgo{display:grid;gap:8px;justify-items:stretch} .certgo .mini{padding:8px 16px;font-size:14px;text-align:center}
+  .certsaid{grid-column:1/-1;margin:0;font-size:13.5px;color:var(--ink-mid)} .certsaid:empty{display:none}
+  .certtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px} .certtools .pfind{flex:1 1 240px;margin:0}
+  .certseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff}
+  .certseg button{border:0;background:none;padding:8px 14px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink)} .certseg button.on{background:var(--navy);color:#fff}
+  .certl td .cnoph{display:none} .certl .certno{font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:nowrap}
+  .certl .certact{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+  .certmore{position:relative} .certmore > summary{list-style:none;padding:5px 10px;letter-spacing:.08em} .certmore > summary::-webkit-details-marker{display:none}
+  .certmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(14,26,53,.14);padding:6px;display:grid;min-width:210px}
+  .certmenu button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px} .certmenu button:hover{background:var(--sunk)}
+  .certmenu [data-certrevoke]{color:var(--late)}
+  @media (max-width:1100px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certgo{grid-column:1/-1;grid-template-columns:1fr 1fr}}
+  @media (max-width:760px){.certtiles{grid-template-columns:1fr 1fr}.certset{grid-template-columns:72px minmax(0,1fr)}.certset .certf:not(:nth-child(2)){grid-column:1/-1}
+    .certgo{grid-template-columns:1fr}.certl .certno{display:none}.certl td .cnoph{display:block}.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
   .svdl > div{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line, var(--hair))} .svdl > div:first-child{border-top:0} .svdl b{min-width:170px}
 
   /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
@@ -4107,7 +4130,7 @@ function eventScreen(data) {
   const showMoney = !!(sow || receipts || budget);
   const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
     // A board member on the event sees only its receipts there, so for them the tab says so.
-    ...(showMoney ? [["money", data.canCost ? "Money" : "Receipts"]] : []), ["communications", "Communications"], ["survey", "Survey"], ["settings", "Settings"]];
+    ...(showMoney ? [["money", data.canCost ? "Money" : "Receipts"]] : []), ["communications", "Communications"], ["survey", mayCertifyHere(ev) ? "Survey & certificates" : "Survey"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
@@ -4305,17 +4328,20 @@ function eventScreen(data) {
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
-      + pv("guests", attendeesCard(ev, guests) + (mayCertifyHere(ev) ? certsCard() : "")))
+      + pv("guests", attendeesCard(ev, guests)))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
-    + panel("survey", `<div class="svhead" id="svhead"><span class="dtag idle">Loading…</span></div>
+    // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
+    + panel("survey", (mayCertifyHere(ev) ? `<nav class="svparts svwhich" role="tablist">${[["survey", "Survey"], ["certs", "Certificates"]].map(([k, l]) => `<button type="button" role="tab" data-svgo="${k}" aria-selected="false">${l}</button>`).join("")}</nav>` : "")
+      + `<div data-svw="survey"><div class="svhead" id="svhead"><span class="dtag idle">Loading…</span></div>
       <nav class="svparts" role="tablist">${[["setup", "Setup"], ["delivery", "Delivery"], ["results", "Results"]].map(([k, l]) => `<button type="button" role="tab" data-svpart="${k}" aria-selected="false">${l}</button>`).join("")}</nav>
       <div data-svp="setup">${surveyCard()}</div><div data-svp="delivery" hidden><div class="card"><div class="card-body" id="svdel"><p class="porg">Loading…</p></div></div></div>
-      <div data-svp="results" hidden>${(ev.kind === "rbh" ? reportsCard() : "") + resultsCard()}</div>`)
+      <div data-svp="results" hidden>${(ev.kind === "rbh" ? reportsCard() : "") + resultsCard()}</div></div>`
+      + (mayCertifyHere(ev) ? `<div data-svw="certs" hidden>${certsCard()}</div>` : ""))
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -4407,6 +4433,8 @@ function eventScreen(data) {
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
+  svWhich(view.svw === "certs" && document.getElementById("certbox") ? "certs" : "survey", true);
+  document.querySelectorAll("[data-svgo]").forEach((b) => b.onclick = () => { svWhich(b.dataset.svgo); keepAddress(); });
   if (document.getElementById("rsbox")) loadResults(ev);
   if (document.getElementById("rpbox")) loadReports(ev);
   wireAttendees(ev);
@@ -4531,7 +4559,6 @@ function eventScreen(data) {
       const target = place === "waiting" ? [...ROOT.querySelectorAll(".roomgroup")].find((g) => /Waiting/i.test(g.querySelector(".rghead")?.textContent ?? ""))
         : place === "hotel" ? ROOT.querySelector('details[data-fold="sec-hotel"]')
         : place === "tasks" ? ROOT.querySelector('details[data-fold="sec-tasks"]')
-        : place === "certs" ? ROOT.querySelector('details[data-fold="sec-certs"]')
         : document.getElementById("evbody");
       (target ?? document.getElementById("evbody"))?.scrollIntoView({ block: "start", behavior: "smooth" });
     };
@@ -5858,10 +5885,11 @@ function agencyDialog(A, a, done) {
  * the event's lead.
  */
 const mayCertifyHere = (ev) => !WHO?.email || !!WHO?.canCost || (ev.board ?? []).some((m) => m.lead && String(m.email ?? "").toLowerCase() === String(WHO.email).toLowerCase());
+// Certificates sit beside the survey, on Survey & certificates (audit, 30 Oct 2026, from the mock-up Andrew picked).
 function certsCard() {
-  return secFold("certs", "Certificates", "Each person's certificate, from your design, ready to download", "", `<div class="card-body" id="certbox"><p class="porg">Loading…</p></div>`, { id: "certsfold", open: false });
+  return `<section class="certsec" id="certsfold"><div id="certbox"><p class="porg">Loading…</p></div></section>`;
 }
-let CERT_CUT = "in", CERT_FIND = "";
+let CERT_CUT = "in", CERT_FIND = "", CERT_PICK = false;
 async function loadCerts(ev) {
   const box = document.getElementById("certbox");
   try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`)); }
@@ -5880,36 +5908,100 @@ async function certFile(url) {
  */
 const certAct = (p) => !p.cert ? (p.checkedIn ? `<button class="mini gold" data-certpdf="${esc(p.key)}">Issue &amp; download</button>` : `<button class="mini" data-certpdf="${esc(p.key)}">Issue anyway…</button>`)
   : p.cert.revoked ? `<button class="mini" data-certpdf="${esc(p.key)}">Issue again…</button>`
-  : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><button class="linkish" data-certfix="${esc(p.key)}">Correct details</button><button class="linkish" data-certrevoke="${esc(p.key)}">Withdraw</button>`;
+  : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><details class="certmore"><summary class="mini" aria-label="More for ${esc(p.name)}">•••</summary><div class="certmenu">
+      <button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
+const certStatus = (p) => p.cert?.revoked ? `<span class="pill late">Withdrawn</span>`
+  : p.cert ? `<span class="pill done">Issued ${esc(fmtShort(p.cert.issuedAt))}</span>`
+  : p.checkedIn ? `<span class="pill near">Ready</span>` : `<span class="pill idle">Not checked in</span>`;
 const fmtShort = (iso) => { const d = new Date(iso ?? ""); return isNaN(d) ? "" : `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+/**
+ * Issue & download all (audit, 30 Oct 2026): everyone checked in without a certificate gets one, then every certificate in
+ * use comes down in one ZIP. Each PDF carries its design (about 440 KB), so a few hundred make a file too big for the server
+ * to send at once: the page fetches them a few at a time and packs the ZIP itself, saying how far it has got.
+ */
+async function certsAll(ev, C, ready) {
+  const b = document.getElementById("cert-all"), said = document.getElementById("cert-said");
+  if (ready && !confirm(`Issue certificates to the ${ready} ${ready === 1 ? "person" : "people"} checked in who don't have one yet, then download every certificate as a ZIP?\n\nEach gets its own number and QR code, kept for good.`)) return;
+  b.disabled = true; b.textContent = ready ? "Issuing…" : "Getting ready…";
+  try {
+    if (ready) C = await api(`/certificates?event=${encodeURIComponent(ev.id)}&issueAll=1`, { method: "POST", body: "{}" });
+    const live = C.people.filter((p) => p.cert && !p.cert.revoked), files = [], missed = [];
+    let done = 0, next = 0;
+    const one = async () => {
+      while (next < live.length) {
+        const p = live[next++];
+        try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(p.key)}`); files.push({ name: f.name, code: p.cert.code, bytes: new Uint8Array(await f.blob.arrayBuffer()) }); }
+        catch { missed.push(p.name); }
+        b.textContent = `Making ${++done} of ${live.length}…`;
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, one));
+    // Two people with the same name each keep their own file.
+    const seen = new Set();
+    for (const f of files.sort((x, y) => x.name.localeCompare(y.name))) { if (seen.has(f.name)) f.name = f.name.replace(/\.pdf$/, ` (${f.code}).pdf`); seen.add(f.name); }
+    if (files.length) Object.assign(document.createElement("a"), { href: URL.createObjectURL(zipBlob(files)), download: `${slugOf(ev.title)}-certificates.zip` }).click();
+    said.innerHTML = `${files.length} certificate${files.length === 1 ? "" : "s"} in the ZIP.${missed.length ? ` <b>${missed.length} couldn't be made:</b> ${esc(missed.join(", "))}. Press it again for those, or download them one at a time.` : ""}`;
+  } catch (x) { said.textContent = x.message; }
+  renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
+  const kept = document.getElementById("cert-said"); if (kept && said.innerHTML) kept.innerHTML = said.innerHTML;
+}
+const slugOf = (t) => String(t ?? "event").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "event";
+/** A plain ZIP of files stored as they are (PDFs are already compressed), which every unzip tool opens. */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (u) => { let c = 0xffffffff; for (let i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function zipBlob(files, now = new Date()) {
+  const parts = [], central = [], enc = new TextEncoder();
+  const time = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xffff, date = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xffff;
+  let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = crc32(f.bytes), n = f.bytes.length;
+    const h = new DataView(new ArrayBuffer(30));
+    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, time, 2], [12, date, 2], [14, crc, 4], [18, n, 4], [22, n, 4], [26, name.length, 2], [28, 0, 2]].forEach(([o, v, w]) => w === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true));
+    parts.push(h, name, f.bytes);
+    const c = new DataView(new ArrayBuffer(46));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, time, 2], [14, date, 2], [16, crc, 4], [20, n, 4], [24, n, 4], [28, name.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, off, 4]].forEach(([o, v, w]) => w === 4 ? c.setUint32(o, v, true) : c.setUint16(o, v, true));
+    central.push(c, name);
+    off += 30 + name.length + n;
+  }
+  const size = central.reduce((t, x) => t + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+  [[0, 0x06054b50, 4], [4, 0, 2], [6, 0, 2], [8, files.length, 2], [10, files.length, 2], [12, size, 4], [16, off, 4], [20, 0, 2]].forEach(([o, v, w]) => w === 4 ? e.setUint32(o, v, true) : e.setUint16(o, v, true));
+  return new Blob([...parts, ...central, e], { type: "application/zip" });
+}
 function renderCerts(ev, C) {
   const box = document.getElementById("certbox");
   if (!box) return;
   const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
   const shown = C.people.filter((p) => CERT_CUT === "all" || p.checkedIn);
+  const live = C.people.filter((p) => p.cert && !p.cert.revoked);
+  const ready = C.people.filter((p) => p.checkedIn && !p.cert).length, withdrawn = C.people.filter((p) => p.cert?.revoked).length;
   const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
       <td>${esc(p.agency || "")}${p.typed && p.typed !== p.agency ? `<span class="psub" title="As typed">${esc(p.typed)}</span>` : ""}</td>
-      <td>${p.checkedIn ? `<span class="pill done">Checked in</span>` : `<span class="pill idle">Not checked in</span>`}${p.cert ? `<span class="psub">${p.cert.revoked ? `Withdrawn · <s>${esc(p.cert.code)}</s>`
-        : `Issued ${esc(fmtShort(p.cert.issuedAt))} · No. ${esc(p.cert.code)}${p.cert.corrected ? " · corrected" : ""}`}</span>` : ""}</td>
-      <td class="certact">${certAct(p)}</td></tr>`;
-  box.innerHTML = `<div class="certgrid">
-      <div><h3 class="certh"><span class="certn">1</span>The design</h3>
-        <div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
+      <td>${certStatus(p)}${p.cert && !p.cert.revoked ? `<span class="psub cnoph">No. ${esc(p.cert.code)}</span>` : ""}${p.cert && p.checkedIn === false && !p.cert.revoked ? `<span class="psub">Not checked in</span>` : ""}</td>
+      <td class="certno">${!p.cert ? `<span class="porg">—</span>` : p.cert.revoked ? `<s>${esc(p.cert.code)}</s>` : `No. ${esc(p.cert.code)}${p.cert.corrected ? `<span class="psub">corrected</span>` : ""}`}</td>
+      <td><div class="certact">${certAct(p)}</div></td></tr>`;
+  const tile = (n, what) => `<div class="certtile"><b>${n}</b><span>${what}</span></div>`;
+  const thumb = !tpl ? "" : tpl.builtIn ? `<img src="${esc(tpl.thumb)}" alt="">` : `<img data-design="${esc(tpl.id)}" alt="">`;
+  box.innerHTML = `<div class="certtiles">${tile(C.counts.checkedIn, "Checked in")}${tile(live.length, "Issued")}${tile(ready, "Checked in, not issued yet")}${tile(withdrawn, "Withdrawn")}</div>
+    <div class="card certset"><div class="certthumb${tpl?.landscape ? " wide" : ""}">${thumb}</div>
+      <div class="certf"><span class="certk">Design</span><b>${esc(tpl?.name ?? "")}</b>
+        <span><button class="linkish" id="cert-change" aria-expanded="${CERT_PICK}">${CERT_PICK ? "Close the designs" : "Change"}</button>${WHO?.canCost ? ` · <button class="linkish" id="cert-manage">Manage designs ›</button>` : ""}</span></div>
+      <div class="certf"><label class="certk" for="cert-date">Date on it</label><input type="date" id="cert-date" value="${esc(s.date)}">
+        <span class="hint">Prints as <b>${esc(s.date.split("-").reverse().join("/"))}</b>. ${s.dateSet ? `Changed from the event's last day. <button class="linkish" id="cert-dateback">Use the last day</button>` : "The event's last day."}</span></div>
+      ${tpl?.course ? `<div class="certf"><label class="certk" for="cert-course">Course</label><input id="cert-course" value="${esc(s.course)}" maxlength="200"><span class="hint">Printed under "For their successful completion of the".</span></div>` : ""}
+      <div class="certgo"><button class="mini" id="cert-preview">Preview a sample</button>
+        <button class="mini gold certall" id="cert-all"${ready + live.length ? "" : " disabled"}>Issue &amp; download all (ZIP)</button></div>
+      <p class="certsaid" id="cert-said" aria-live="polite"></p></div>
+    <div class="card certpick"${CERT_PICK ? "" : " hidden"}><div class="card-body"><div class="certtpls">${C.templates.map((t) => `<label class="certtpl${t.id === s.template ? " on" : ""}"><input type="radio" name="certtpl" value="${esc(t.id)}"${t.id === s.template ? " checked" : ""}>
           ${t.builtIn ? `<img src="${esc(t.thumb)}" alt="" loading="lazy">` : `<img data-design="${esc(t.id)}" alt="">`}<b>${esc(t.name)}</b><span>${esc(t.note)}</span></label>`).join("")}
-          <button type="button" class="certtpl certup" id="cert-upload"><span class="certplus" aria-hidden="true">＋</span><b>Upload a new design</b><span>From your designer: a PDF or a picture. Claude places the words.</span></button></div></div>
-      <div><h3 class="certh"><span class="certn">2</span>What it says</h3>
-        <div class="field"><label for="cert-date">Date issued</label><input type="date" id="cert-date" value="${esc(s.date)}">
-          <p class="hint">Prints as <b>${esc(s.date.split("-").reverse().join("/"))}</b>. ${s.dateSet ? `Changed from the event's last day. <button class="linkish" id="cert-dateback">Use the last day</button>` : "The event's last day; change it here if it should read otherwise."}</p></div>
-        ${tpl?.course ? `<div class="field"><label for="cert-course">Course</label><input id="cert-course" value="${esc(s.course)}" maxlength="200"><p class="hint">Printed under "For their successful completion of the".</p></div>` : ""}
-        <button class="mini" id="cert-preview">Preview a PDF</button></div></div>
-    <h3 class="certh" style="margin-top:18px"><span class="certn">3</span>Everyone's certificate</h3>
-    <div class="filters" style="margin:6px 0 10px"><button class="fchip${CERT_CUT === "in" ? " on" : ""}" data-certcut="in">Checked in <b>${C.counts.checkedIn}</b></button>
-      <button class="fchip${CERT_CUT === "all" ? " on" : ""}" data-certcut="all">Everyone coming <b>${C.counts.coming}</b></button></div>
-    ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off" style="margin-bottom:10px">` : ""}
-    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix above. You can still issue anyone's certificate under Everyone coming.</div>` : ""}
+          <button type="button" class="certtpl certup" id="cert-upload"><span class="certplus" aria-hidden="true">＋</span><b>Upload a new design</b><span>From your designer: a PDF or a picture. Claude places the words.</span></button></div></div></div>
+    <div class="card"><div class="card-body">
+    <div class="certtools"><div class="certseg" role="group" aria-label="Who to show"><button class="${CERT_CUT === "in" ? "on" : ""}" data-certcut="in">Checked in ${C.counts.checkedIn}</button>
+      <button class="${CERT_CUT === "all" ? "on" : ""}" data-certcut="all">Everyone registered ${C.counts.coming}</button></div>
+    ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off">` : ""}</div>
+    ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix on Who's coming. You can still issue anyone's certificate under Everyone registered.</div>` : ""}
     <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
-    ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
-    <p class="hint" style="margin-top:12px">Issuing a certificate gives it its own number and QR code. From then on it stays exactly as issued, so it always verifies; if a name or date was wrong, <b>Correct details</b> puts the right ones on it and keeps the number. Emailing everyone their certificate, with tracking, is the next part of the build.</p>`;
+    ${shown.length ? `<div class="agtable"><table class="agl certl"><thead><tr><th>Name</th><th>Agency</th><th>Status</th><th>Certificate no.</th><th></th></tr></thead><tbody>${shown.map(row).join("")}</tbody></table></div>` : `<div class="empty">Nobody in this view.</div>`}
+    <p class="hint" style="margin-top:12px">Issuing a certificate gives it its own number and QR code. From then on it stays exactly as issued, so it always verifies; if a name or date was wrong, <b>Correct details</b> (under •••) puts the right ones on it and keeps the number. Emailing everyone their certificate, with tracking, is the next part of the build.</p></div></div>`;
   const save = async (body) => { try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(body) })); } catch (x) { toast(x.message); } };
   box.querySelectorAll('input[name="certtpl"]').forEach((r) => r.onchange = () => save({ template: r.value, date: s.dateSet ? s.date : "" }));
   designThumbs(box);
@@ -5919,6 +6011,14 @@ function renderCerts(ev, C) {
   const course = box.querySelector("#cert-course");
   if (course) course.onchange = () => save({ course: course.value, date: s.dateSet ? s.date : "" });
   box.querySelectorAll("[data-certcut]").forEach((b) => b.onclick = () => { CERT_CUT = b.dataset.certcut; renderCerts(ev, C); });
+  box.querySelector("#cert-change").onclick = () => { CERT_PICK = !CERT_PICK; renderCerts(ev, C); };
+  box.querySelector("#cert-manage")?.addEventListener("click", () => { view = { name: "admin", tab: "designs" }; keepAddress(); render(); });
+  box.querySelectorAll(".certmore").forEach((d) => d.ontoggle = () => { if (d.open) box.querySelectorAll(".certmore[open]").forEach((o) => { if (o !== d) o.open = false; }); });
+  box.querySelectorAll("[data-certcopy]").forEach((b) => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(`${location.origin}/verify.html?c=${b.dataset.certcopy}`); toast("Copied. Anyone with the link can check the certificate is genuine."); } catch { toast("Couldn't copy here."); }
+    b.closest("details").open = false;
+  });
+  box.querySelector("#cert-all").onclick = () => certsAll(ev, C, ready);
   // Andrew 30 Oct 2026: "I will need search capabilities to search for a name. 450 people is a lot to scroll through".
   const find = box.querySelector("#cert-find");
   const filter = () => { const q = CERT_FIND.trim().toLowerCase(); let n = 0;
@@ -5929,7 +6029,7 @@ function renderCerts(ev, C) {
     const b = e.target; b.disabled = true; b.textContent = "Making the preview…";
     try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); window.open(URL.createObjectURL(f.blob), "_blank", "noopener"); }
     catch (x) { toast(x.message); }
-    b.disabled = false; b.textContent = "Preview a PDF";
+    b.disabled = false; b.textContent = "Preview a sample";
   };
   box.querySelectorAll("[data-certpdf]").forEach((b) => b.onclick = async () => {
     const label = b.textContent, extra = [];
@@ -6383,6 +6483,11 @@ function surveyHead(ev, S) {
     ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}`;
   if (!view.svpart) svPart(S.responses ? "results" : "setup");
   else svPart(view.svpart, true);
+}
+function svWhich(k, quiet = false) {
+  document.querySelectorAll("[data-svw]").forEach((el) => { el.hidden = el.dataset.svw !== k; });
+  document.querySelectorAll("[data-svgo]").forEach((b) => { const on = b.dataset.svgo === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+  if (!quiet) view = { ...view, svw: k };
 }
 function svPart(k, quiet = false) {
   document.querySelectorAll("[data-svp]").forEach((el) => { el.hidden = el.dataset.svp !== k; });
@@ -10274,7 +10379,7 @@ async function fillDash(ev) {
       <p class="porg dsub">${esc(t?.name ?? "No design yet")} · dated ${esc(fmtDate(C.settings.date))}</p>
       <div class="dnums"><div><b>${n.checkedIn}</b><span>Checked in</span></div><div><b>${n.issued}</b><span>Issued</span></div><div><b>${n.coming}</b><span>Registered</span></div></div>
       <button class="mini gold dbtn" data-dgo="certs">Certificates</button>`;
-    ce.querySelector("[data-dgo]").onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); render().then(() => document.querySelector('details[data-fold="sec-certs"]')?.scrollIntoView({ block: "start", behavior: "smooth" })); };
+    ce.querySelector("[data-dgo]").onclick = () => { view = { ...view, tab: "survey", svw: "certs" }; keepAddress(); render(); };
   }).catch(() => { ce.querySelector(".porg").textContent = "The certificates couldn't load."; });
 }
 function roomFill(ev, att, pres) {

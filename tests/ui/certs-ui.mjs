@@ -1,6 +1,6 @@
-// Certificates and the attendee downloads on Who's coming (Andrew 30 Oct 2026): pick the design, the date (the event's
-// last day unless changed), preview, and download anyone's certificate; Download the list gives the registration list
-// and the certificate program's list. The lead sees it; another board member on the event does not.
+// Certificates (Andrew 30 Oct 2026), on Survey & certificates since the audit: pick the design, the date (the event's last
+// day unless changed), preview, and download anyone's certificate; Download the list on Who's coming gives the registration
+// list and the certificate program's list. The lead sees them; another board member on the event does not.
 const REPO = new URL("../../", import.meta.url).pathname;
 process.env.ADMIN_KEY = "testkey";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -21,17 +21,18 @@ await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers
   body: `First name,Last name,Email,Organization,Checked in\nJordan,Tremblay,jt.${T}@torontopolice.on.ca,TPS,Yes\nSam,Okafor,so.${T}@opp.ca,OPP - Gang Unit,Yes\nAlex,Martin,am.${T}@peelpolice.ca,Peel Police,\n` });
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-const open = async (email, w, h) => {
+const open = async (email, w, h, where = { tab: "people", pview: "guests" }) => {
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, acceptDownloads: true });
   const token = issueSession({ email, name: email });
   await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email, name: email }]);
   p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
-  await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "people", pview: "guests" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+  await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, ...where })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   return p;
 };
 
 const other = await open("member@ongia.ca", 1440, 1000);
-ok("another board member on the event sees no Certificates and no Download the list", await other.locator("#certsfold").count() === 0 && await other.locator(".dlmenu").count() === 0);
+ok("another board member on the event sees no Certificates and no Download the list", await other.locator("#certsfold").count() === 0 && await other.locator(".dlmenu").count() === 0
+  && (await other.locator('.etab[data-tab="survey"]').innerText()).trim() === "Survey" && await other.locator("[data-svgo]").count() === 0);
 await other.close();
 
 for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
@@ -48,10 +49,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const clText = fs.readFileSync(await cl.path(), "utf8");
   ok(`${tag}: the certificate program's list has only the two checked in, with the last day`, clText.trim().split("\n").length === 3 && /"Jordan","Tremblay","Toronto Police Service",.*"National Gang Summit","06\/05\/2031"/.test(clText) && !/Martin/.test(clText), clText);
 
-  // Certificates.
+  // Certificates: on Survey & certificates, beside the survey.
+  ok(`${tag}: no certificates on Who's coming any more`, await p.locator("#certsfold").count() === 0 || !(await p.locator("#certsfold").isVisible()));
+  await p.locator('.etab[data-tab="survey"]').click(); await p.waitForTimeout(600);
+  ok(`${tag}: the tab says Survey & certificates`, /Survey & certificates/i.test(await p.locator('.etab[data-tab="survey"]').innerText()));
+  await p.locator('[data-svgo="certs"]').click(); await p.waitForTimeout(1200);
   const fold = p.locator("#certsfold");
-  if (!(await fold.getAttribute("open"))) await fold.locator("summary").click();
-  await p.waitForTimeout(1200);
+  if (tag === "wide") ok(`${tag}: Certificates shows the counts: 2 checked in, none issued, 2 to go`, /2\s*Checked in\s*0\s*Issued\s*2\s*Checked in, not issued yet\s*0\s*Withdrawn/i.test(await p.locator(".certtiles").innerText()), await p.locator(".certtiles").innerText());
+  await p.locator("#cert-change").click(); await p.waitForTimeout(300);
   ok(`${tag}: the Summit's own design is picked, the date is the last day`, await p.locator('.certtpl.on input[value="national-gang-summit"]').count() === 1 && (await p.locator("#cert-date").inputValue()) === "2031-05-06");
   ok(`${tag}: the two checked in are listed with their official agencies`, await p.locator("[data-certkey]").count() === 2 && /Ontario Provincial Police/.test(await fold.innerText()) && /Toronto Police Service/.test(await fold.innerText()));
   if (tag === "wide") {
@@ -64,8 +69,11 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const words = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan.pdf", "-"]).toString();
     ok("Download PDF gives Jordan's certificate: name, official agency, the last day", dl.suggestedFilename() === "Jordan Tremblay - certificate.pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2031/.test(words), words.slice(0, 200));
     await p.waitForTimeout(1200);
-    ok("and it now shows when it was issued and its number", /Issued \d+ \w{3} · No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
-    ok("from then on the button is Download, with Correct details and Withdraw beside it", (await row.locator("[data-certpdf]").innerText()) === "Download" && await row.locator("[data-certfix]").isVisible() && await row.locator("[data-certrevoke]").isVisible());
+    ok("and it now shows when it was issued and its number", /Issued \d+ \w{3}/i.test(await row.innerText()) && /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await row.innerText()), await row.innerText());
+    await row.locator(".certmore summary").click();
+    ok("from then on the button is Download, with Copy verification link, Correct details and Withdraw under •••", (await row.locator("[data-certpdf]").innerText()) === "Download" && await row.locator("[data-certcopy]").isVisible() && await row.locator("[data-certfix]").isVisible() && await row.locator("[data-certrevoke]").isVisible());
+    await row.locator(".certmenu").screenshot({ path: D + "certs-menu.png" }).catch(() => {});
+    await row.locator(".certmore summary").click();
     // Change the date; then back.
     await p.locator("#cert-date").fill("2031-05-07"); await p.locator("#cert-date").dispatchEvent("change"); await p.waitForTimeout(1200);
     ok("the date can be changed, and says so", (await p.locator("#cert-date").inputValue()) === "2031-05-07" && await p.locator("#cert-dateback").isVisible());
@@ -88,7 +96,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     // Everyone coming.
     await p.locator('[data-certcut="all"]').click(); await p.waitForTimeout(500);
     const alex = p.locator("[data-certkey]", { hasText: "Alex Martin" });
-    ok("Everyone coming shows Alex too, not checked in, with Issue anyway…", await p.locator("[data-certkey]").count() === 3 && /Not checked in/i.test(await alex.innerText()) && (await alex.locator("[data-certpdf]").innerText()) === "Issue anyway…");
+    ok("Everyone registered shows Alex too, not checked in, with Issue anyway…", await p.locator("[data-certkey]").count() === 3 && /Not checked in/i.test(await alex.innerText()) && (await alex.locator("[data-certpdf]").innerText()) === "Issue anyway…");
     let asked = "";
     p.once("dialog", (d) => { asked = d.message(); d.dismiss(); });
     await alex.locator("[data-certpdf]").click(); await p.waitForTimeout(1200);
@@ -114,9 +122,10 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await vp.goto(`${S}/verify.html?c=${code}`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
     ok("changing the date doesn't change a certificate already issued", /May 6, 2031/.test(await vp.locator("#box").innerText()));
     p.once("dialog", (d) => d.accept());
+    await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).locator(".certmore summary").click();
     await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).locator("[data-certfix]").click(); await p.waitForTimeout(1500);
     await vp.goto(`${S}/verify.html?c=${code}`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
-    ok("Correct details puts the new date on it, keeping its number, marked corrected", /May 7, 2031/.test(await vp.locator("#box").innerText()) && new RegExp(`No\\. ${code} · corrected`).test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()));
+    ok("Correct details puts the new date on it, keeping its number, marked corrected", /May 7, 2031/.test(await vp.locator("#box").innerText()) && new RegExp(`No\\. ${code}\\s*corrected`).test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()), await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText());
     await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).screenshot({ path: D + "certs-row-issued.png" });
     await p.locator("#cert-dateback").click(); await p.waitForTimeout(1200);
     await vp.close();

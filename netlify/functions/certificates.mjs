@@ -3,7 +3,7 @@ import { getEvent, putEvent, getAttendees, putMeta, listEvents } from "./lib/sto
 import { mayCost } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { directory, agencyOf } from "./lib/agencies.mjs";
-import { templatesFor, certSettings, certIndex, certRecord, issue, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
+import { templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
 
 /**
@@ -15,6 +15,8 @@ import { randomBytes } from "node:crypto";
  *   GET  /api/certificates?event=…&pdf=<person key>    that person's certificate: issued the first time, then the same one every
  *                                                     time. Issuing to someone not checked in needs &anyway=1, and issuing a
  *                                                     withdrawn one again (a new number) needs &again=1; otherwise 409.
+ *   POST /api/certificates?event=…&issueAll=1         Issue & download all: a certificate for everyone checked in without one
+ *                                                     (withdrawn ones stay withdrawn); the page then downloads each PDF
  *   POST /api/certificates?event=…&correct=<key>      put the details as they are now on an issued certificate, same number
  *   GET  /api/certificates?event=…&preview=1           the design filled with the first person checked in, or a sample name
  *   POST /api/certificates?event=…&revoke=<key>        a certificate issued in error stops verifying
@@ -74,6 +76,10 @@ export default async (req) => {
     await putEvent(event);
     return json(await view(event, people, templates));
   }
+  if (req.method === "POST" && q("issueAll")) {
+    const issued = await issueMany(event, people.filter((p) => p.checkedIn), { settings: certSettings(event, templates), by: adminWho(req)?.email || "desk" });
+    return json({ ...(await view(event, people, templates)), issuedNow: issued });
+  }
   if (req.method === "POST" && q("correct")) {
     const p = people.find((x) => x.key === q("correct"));
     const had = p ? await certRecord((await certIndex(event.id))[p.key]) : null;
@@ -105,7 +111,11 @@ async function peopleOf(event) {
 async function view(event, people, templates) {
   const index = await certIndex(event.id);
   const issued = new Map();
-  for (const [k, code] of Object.entries(index)) { const r = await certRecord(code); if (r) issued.set(k, r); }
+  // A few at a time rather than one after another: a big event has hundreds once Issue & download all has run.
+  const pairs = Object.entries(index);
+  for (let i = 0; i < pairs.length; i += 25) {
+    await Promise.all(pairs.slice(i, i + 25).map(async ([k, code]) => { const r = await certRecord(code); if (r) issued.set(k, r); }));
+  }
   return {
     settings: certSettings(event, templates),
     lastDay: event.lastDay || event.dayOne || "",
