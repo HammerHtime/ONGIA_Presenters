@@ -62,6 +62,12 @@
   .chip.solid{background:var(--gold);border-color:var(--gold);color:#1c1608}
   .chip.here{border-color:var(--gold);color:var(--gold-light);background:rgba(255,255,255,.08)}
   .sharedbar{display:contents}
+  .svhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1.5px solid var(--edge);border-radius:16px;padding:12px 16px;margin:0 0 12px}
+  .svhead .svwhat{font-size:14px;color:var(--ink-mid);flex:1 1 300px} .svhead .mini{margin-left:auto}
+  .svparts{display:flex;gap:6px;margin:0 0 12px}
+  .svparts button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 16px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink-mid)}
+  .svparts button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .svdl > div{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line, var(--hair))} .svdl > div:first-child{border-top:0} .svdl b{min-width:170px}
 
   /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
   .k-ongia{--kc:var(--navy);--kt:#fff;--ki:#f1cf76} .k-rbh{--kc:var(--rbh);--kt:#fff;--ki:#f1cf76} .k-ext{--kc:var(--gold);--kt:#1c1608;--ki:var(--navy-deep)}
@@ -4298,7 +4304,11 @@ function eventScreen(data) {
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
-    + panel("survey", (ev.kind === "rbh" ? reportsCard() : "") + surveyCard() + resultsCard())
+    // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
+    + panel("survey", `<div class="svhead" id="svhead"><span class="dtag idle">Loading…</span></div>
+      <nav class="svparts" role="tablist">${[["setup", "Setup"], ["delivery", "Delivery"], ["results", "Results"]].map(([k, l]) => `<button type="button" role="tab" data-svpart="${k}" aria-selected="false">${l}</button>`).join("")}</nav>
+      <div data-svp="setup">${surveyCard()}</div><div data-svp="delivery" hidden><div class="card"><div class="card-body" id="svdel"><p class="porg">Loading…</p></div></div></div>
+      <div data-svp="results" hidden>${(ev.kind === "rbh" ? reportsCard() : "") + resultsCard()}</div>`)
     + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
@@ -5479,7 +5489,9 @@ function drawMailSum(ev) {
   }
   for (const [k, what, go] of [["welcome", "Welcome letter", "welcomefold"], ["reply", "Food allergies", "replyfold"], ["survey", "Survey", "survey"]])
     if (MAILSUM[k]?.failed) rows.push({ at: "", what, go, who: "", when: "", state: ["late", "Couldn't load: reload the page"] });
-  rows.sort((a, b) => (a.at || "9999").localeCompare(b.at || "9999"));
+  // Soonest first; on the same day, in the order they go out: the food question, then the welcome letter, then the survey.
+  const TIE = ["Food allergies", "Welcome letter", "Survey"];
+  rows.sort((a, b) => (a.at || "9999").localeCompare(b.at || "9999") || TIE.indexOf(a.what) - TIE.indexOf(b.what));
   const s = document.getElementById("mailsum-s");
   if (s) s.textContent = on ? "What goes, to whom and when, and whether it will actually go." : "Automatic emails are off, so the welcome letter, the survey and the reminders won't go on their own until you switch them on above.";
   box.innerHTML = `<div class="mstable" role="table" aria-label="Emails to attendees">
@@ -6345,22 +6357,50 @@ async function loadSurvey(ev) {
   try { renderSurveyCard(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}`)); }
   catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; noteMail(ev, "survey", { failed: true }); }
 }
+/** The state of the survey in a few words, and which part of the tab opens: Results once answers are in, Setup before. */
+function surveyHead(ev, S) {
+  const head = document.getElementById("svhead");
+  if (!head) return;
+  const x = S.survey, daily = x?.mode === "daily";
+  const sent = Object.values(S.sent ?? {}).reduce((n, v) => n + (Number(v) || 0), 0);
+  const noTime = daily ? (S.times ?? []).filter((t) => !t.at) : [];
+  const unplaced = (x?.sessions ?? []).filter((r) => !r.day).length;
+  const fixes = noTime.length + (daily ? unplaced : 0) || (S.problems?.length ?? 0);   // the held-back reasons repeat these, so they count only on their own
+  const st = !x ? ["idle", "Not set up"] : !x.open ? ["idle", "Closed"] : fixes ? ["wait", `${fixes} thing${fixes === 1 ? "" : "s"} to fix`] : sent ? ["good", daily && (ev.lastDay || ev.dayOne) >= todayIso() ? "Sending" : "Sent"] : ["good", "Ready"];
+  const first = daily ? (S.times ?? []).find((t) => t.at) : null;
+  const what = !x ? "One survey for the event, every presenter rated with stars, in English and French. Answers are anonymous."
+    : `${daily ? `Each day · ${S.days.length} day${S.days.length === 1 ? "" : "s"}` : "Once, after the event"} · ${x.sessions.length} session${x.sessions.length === 1 ? "" : "s"} · `
+      + (sent ? `sent to ${sent} · ${S.responses} answered` : daily ? (first ? `first goes ${fmtDate(first.day)} at ${fmt12(first.at)}` : "no day has an end time yet") : x.sendOn ? `goes ${fmtDate(x.sendOn)}` : "no send date yet")
+      + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · attendee emails are off");
+  head.innerHTML = `<span class="dtag ${st[0]}">${esc(st[1])}</span><span class="svwhat">${esc(what)}</span>
+    ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}`;
+  if (!view.svpart) svPart(S.responses ? "results" : "setup");
+  else svPart(view.svpart, true);
+}
+function svPart(k, quiet = false) {
+  document.querySelectorAll("[data-svp]").forEach((el) => { el.hidden = el.dataset.svp !== k; });
+  document.querySelectorAll("[data-svpart]").forEach((b) => { const on = b.dataset.svpart === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+  if (!quiet) view = { ...view, svpart: k };
+}
 function renderSurveyCard(ev, S) {
-  const box = document.getElementById("svbox");
+  const box = document.getElementById("svbox"), del = document.getElementById("svdel");
   if (!box) return;
   noteMail(ev, "survey", S);
+  surveyHead(ev, S);
+  document.querySelectorAll("[data-svpart]").forEach((b) => b.onclick = () => { svPart(b.dataset.svpart); try { history.replaceState(null, "", location.pathname + location.search + viewHash(view)); } catch {} });
   const q = `/survey?event=${encodeURIComponent(ev.id)}`;
   const dayLabel = (d) => { const i = S.days.indexOf(d); return `Day ${i + 1} · ${fmtDate(d)}`; };
   if (!S.survey) {
     box.innerHTML = `<p style="margin:0 0 12px">One survey for this event: every presenter rated with stars, in English and French, anonymous. Send it each day at the end of the day, or once after the event.</p>
       <button class="btn btn-gold" id="sv-start">Set up the survey</button>`;
     document.getElementById("sv-start").onclick = async (e) => { e.target.disabled = true; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: "{}" })); } catch (x) { toast(x.message); e.target.disabled = false; } };
+    if (del) del.innerHTML = `<p class="porg" style="margin:0">Set up the survey first; then this is where you try it, send yourself a test and get its link.</p>`;
     if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
     return;
   }
   const s = S.survey, daily = s.mode === "daily";
   const timeLine = (t) => `<div style="display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--line)"><b style="min-width:150px">${esc(dayLabel(t.day))}</b>
-      ${t.at ? `<span>goes at <b>${esc(fmt12(t.at))}</b>${S.sent[t.day] ? ` · sent to ${S.sent[t.day]}` : ""}${S.byPart[t.day] ? ` · ${S.byPart[t.day]} answered` : ""}</span>` : `<span class="late">no end time saved for this day, so it won't go. Add it under Program → Agenda and daily times.</span>`}</div>`;
+      ${t.at ? `<span>goes at <b>${esc(fmt12(t.at))}</b>${S.sent[t.day] ? ` · sent to ${S.sent[t.day]}` : ""}${S.byPart[t.day] ? ` · ${S.byPart[t.day]} answered` : ""}</span>` : `<span class="late">no end time for this day in the agenda, so it won't go. <button type="button" class="linkish" data-svfix="${esc(t.day)}">Set ${esc(DAYS[new Date(`${t.day}T12:00`).getDay()])}'s end time ›</button></span>`}</div>`;
   const row = (x, i) => `<div class="svrow" data-sv="${i}" style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px 10px;padding:10px 0;border-top:1px solid var(--line)">
       <select data-k="day" aria-label="Day"><option value="">Pick the day…</option>${S.days.map((d) => `<option value="${d}"${d === x.day ? " selected" : ""}>${esc(dayLabel(d))}</option>`).join("")}</select>
       <input data-k="title" value="${esc(x.title)}" placeholder="Session title" aria-label="Session title">
@@ -6370,7 +6410,6 @@ function renderSurveyCard(ev, S) {
       <input data-k="titleFr" value="${esc(x.titleFr || "")}" placeholder="Optional: shown in the French survey" aria-label="French title">
       <span></span><button class="mini ghost" data-svdel="${i}" style="justify-self:start">Remove this session</button></div>`;
   box.innerHTML = `
-    ${S.attendeeMail ? "" : `<div class="note" style="margin-bottom:10px">Attendee emails are <b>off</b>, so nothing goes on its own. Turn on the switch at the top of this tab when you're ready.</div>`}
     <div class="field" style="margin-top:0"><label>When it goes</label>
       <div class="pseg" role="tablist"><button type="button" data-svmode="daily" class="${daily ? "on" : ""}">Each day, 15 minutes after the last session</button><button type="button" data-svmode="end" class="${daily ? "" : "on"}">Once, after the event</button></div></div>
     ${daily ? `<div style="margin-top:6px">${S.times.map(timeLine).join("")}<p class="hint">Times are local to ${esc(ev.city || "the event")}. Each day's survey only asks about that day; "About you" comes once and "The event overall" on each person's last day.${S.group ? ` ${esc(S.group.name)} only get their days (${esc(fmtDate(S.group.dayOne))} to ${esc(fmtDate(S.group.lastDay))}).` : ""}</p></div>`
@@ -6381,14 +6420,20 @@ function renderSurveyCard(ev, S) {
     <div id="sv-rows">${s.sessions.map(row).join("")}</div>
     <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button></div>
     ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
-    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button><span class="svnote">Changes save as you type.</span>
-      <a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a></div>
+    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button></div>`;
+  if (del) del.innerHTML = `
+    ${S.attendeeMail ? "" : `<div class="note" style="margin:0 0 12px">Attendee emails are <b>off</b>, so nothing goes on its own. Turn on the switch on the Communications tab when you're ready.</div>`}
+    <div class="svdl">${daily ? S.times.map((t) => `<div><b>${esc(dayLabel(t.day))}</b><span>${t.at ? `${esc(fmt12(t.at))}${S.sent[t.day] ? ` · sent to ${S.sent[t.day]}` : ""}${S.byPart[t.day] ? ` · ${S.byPart[t.day]} answered` : ""}` : `<span class="late">no end time, so it won't go</span>`}</span></div>`).join("")
+      : `<div><b>Once, after the event</b><span>${s.sendOn ? `${esc(fmtDate(s.sendOn))} from 9 am` : "no date yet"}${S.sent.end ? ` · sent to ${S.sent.end}` : ""}${S.byPart.end ? ` · ${S.byPart.end} answered` : ""}</span></div>`}</div>
+    <div class="actions" style="margin-top:14px;flex-wrap:wrap"><a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a>
+      <span class="porg" style="font-size:13px">Nothing you enter there is kept.</span></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
       <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
     <div class="field" style="margin-top:14px"><label for="sv-share">The survey's link, to share by hand</label>
       <div style="display:flex;gap:8px"><input id="sv-share" readonly value="${esc(S.link)}"><button class="mini" id="sv-copy">Copy</button></div>
       <p class="hint" style="margin:6px 0 0">Anyone with it can answer, and their answers are kept (unlike <b>Try the survey</b>). Good for a trial run with the board; clear the answers afterwards, below the results.</p></div>
     <p class="hint">${S.responses} answer${S.responses === 1 ? "" : "s"} so far. Answers are anonymous: names and emails are never kept with them.</p>`;
+  if (ROOT.classList.contains("ro") && del) lockForView(del, VIEW_WHY);
   const $ = (id) => document.getElementById(id);
   const rows = () => [...box.querySelectorAll("[data-sv]")].map((el) => ({ id: s.sessions[Number(el.dataset.sv)]?.id, ...Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])) }));
   const body = () => ({ mode: s.mode, sessions: rows(), ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
@@ -6401,6 +6446,13 @@ function renderSurveyCard(ev, S) {
   $("sv-copy").onclick = async () => { const i = $("sv-share"); try { await navigator.clipboard.writeText(i.value); toast("Link copied."); } catch { i.select(); toast("Selected: press Ctrl+C (or Cmd+C) to copy."); } };
   $("sv-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderSurveyCard(ev, await save()); toast("Survey saved."); } catch (x) { toast(x.message); done(); } };
   autosave(box, $("sv-save"), save, { skip: "#sv-to, #sv-share, #sv-part" });
+  // A day with no end time: straight to that day's times on the Program tab.
+  box.querySelectorAll("[data-svfix]").forEach((b) => b.onclick = () => {
+    document.querySelector('.etab[data-tab="program"]')?.click();
+    const fold = document.querySelector('details[data-fold="sec-agenda"]'); if (fold) fold.open = true;
+    const row = document.querySelector(`.agrow[data-agday="${b.dataset.svfix}"]`);
+    row?.scrollIntoView({ block: "center", behavior: "smooth" }); row?.querySelector('[data-ag="end"]')?.focus({ preventScroll: true });
+  });
   $("sv-open").onclick = async () => { try { await save(); } catch {} };
   $("sv-test").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), part: $("sv-part")?.value || "end" }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
