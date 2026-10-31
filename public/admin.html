@@ -493,6 +493,13 @@
   .saved[data-saved="busy"]{background:var(--sunk);color:var(--muted)} .saved[data-saved="bad"]{background:var(--late-bg);color:var(--late)}
   /* Smaller than they were (Andrew 30 Oct 2026: "reduce the size of them. They don't need to be so big"). */
   .sbtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}
+  .sbkpi{grid-template-columns:repeat(5,minmax(0,1fr))!important} .sbkpi .sbt{padding:12px 14px} .sbkpi .sbt .v{font-size:27px}
+  .sbkpi .sbt:first-child{background:var(--navy-deep);border-color:var(--navy-deep);color:#fff} .sbkpi .sbt:first-child .k{color:var(--gold-light)} .sbkpi .sbt:first-child .sm{color:rgba(255,255,255,.75)}
+  .sbkpi .sbt.black:first-child .v{color:#9fe0b8} .sbkpi .sbt.red:first-child .v{color:#ffb4a8}
+  .sbstrip{grid-template-columns:repeat(4,minmax(0,1fr))!important;margin-top:8px} .sbstrip .sbt{background:var(--card)} .sbstrip .sbt .v{font-size:17px}
+  .sbmore{margin-top:8px} .sbmore summary{cursor:pointer;font-weight:700;font-size:13.5px;padding:6px 2px;color:var(--ink-mid)} .sbmore summary .porg{font-weight:400;font-size:12.5px}
+  @media (max-width:1100px){.sbkpi{grid-template-columns:repeat(3,minmax(0,1fr))!important}.sbstrip{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+  @media (max-width:560px){.sbkpi{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sbkpi .sbt:first-child{grid-column:1 / -1}.sbstrip{grid-template-columns:1fr 1fr!important}}
   .sbt{background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px 11px;display:flex;flex-direction:column;gap:1px;min-width:0}
   .sbt .k{font-family:var(--fu);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
   .sbt .v{font-family:var(--fd);font-size:21px;line-height:1.15}.sbt .v small{font-size:13px;color:var(--muted)}
@@ -9845,15 +9852,25 @@ function sbxDraw() {
   const pick = C.blockNights + C.pickup, metMin = pick >= C.minNights;
   const coming = B.dates.filter((d) => d.iso >= today).sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, 3);
   const above = C.breakEven === null ? null : C.inPerson - C.breakEven;
+  // The five numbers that matter most, then one strip of what needs watching, the rest folded away (audit, 30 Oct 2026,
+  // from the mock-up Andrew picked: fourteen tiles at once and none of them stands out).
   const tiles = [
     tile(`Profit · ${C.profit >= 0 ? "in the black" : "in the red"}`, money(C.profit), `as planned${B.pricesIncludeHst ? ", after HST" : ""}<br>revenue − expenses`, C.profit >= 0 ? "black" : "red"),
     tile("Revenue", money(C.revenue), `tickets ${money(C.tickets)}${B.pricesIncludeHst ? " after HST" : ""}<br>sponsors ${money(C.pledged)}${C.rebate ? ` · hotel rebate ${money(C.rebate)}` : ""}`),
     tile("Expenses", money(C.expenses), `meals ${money(C.meals)} · rooms ${money(C.rooms)}<br>everything else ${money(C.other + C.stipends)}`),
     tile("Break-even", above === null ? "–" : `${above >= 0 ? "+" : "−"}${Math.abs(above)}`, above === null ? "set an in-person price" : `registrations ${above >= 0 ? "above" : "short of"} break-even (${C.breakEven} needed)${C.toTarget !== null ? `<br><b>${C.toTarget}</b> more to reach ${money(B.target)}` : ""}`),
     tile("Registrations", `${C.sold} <small>of ${C.expected}</small>`, split || "nothing offered yet"),
+  ].join("");
+  const strip = [
     // No block typed in or read from a contract yet: say so, rather than "minimum met" against nothing.
     C.minNights ? tile("Room nights", `${pick} <small>of ${C.minNights} min.</small>`, `${metMin ? `<span class="okp">minimum met</span>` : `<span class="warnp">${C.minNights - pick} short</span>`} · ${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ", attendees not in yet"}`)
       : tile("Room nights", `${pick}`, `${C.blockNights} ours${C.pickup ? ` + ${C.pickup} attendees` : ""} · <span class="warnp">no room block yet</span><br>type it under Hotel rooms, or upload the contract`),
+    B.meals.fbMin ? tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`)
+      : tile("Food & beverage", money(C.fbBase), "before tax and service<br>no minimum set yet"),
+    tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
+    tile("Coming up with the hotel", "", coming.length ? coming.map((d) => `<b>${esc(sbxShort(d.iso))}</b> ${esc(d.what)}`).join("<br>") : "Nothing still to come"),
+  ].join("");
+  const more = [
     // The room (Andrew 30 Oct 2026): registered so far (from Wix) against the seats left for attendees.
     ...(SBX_EV ? [(() => { const Rm = C.room, reg = SBX_LIVE?.registered ?? Rm.soldAtt;
       if (!Rm.cap) return tile("Room seats", "–", "type the room's seats under <b>The room and its tables</b>");
@@ -9861,11 +9878,7 @@ function sbxDraw() {
       return tile(`Room seats${left <= 0 ? " · full" : cls ? " · nearly full" : ""}`, `${reg} <small>of ${Rm.maxAttendees}</small>`, `registered so far · ${left > 0 ? `${left} left` : left === 0 ? "none left" : `${-left} over`}<br>${Rm.cap} seats less ${Rm.notAttendees} presenters &amp; VIPs`, cls); })()] : []),
     tile("Cost per attendee", money(C.inPerson ? C.expenses / C.inPerson : 0), `each of ${C.inPerson} in person, as planned`),
     tile("In the room each day", `<span class="days">${C.days.map((d) => `<span><small>${esc(DAYS[new Date(`${d}T12:00:00Z`).getUTCDay()])}</small> ${C.everyone(d)}</span>`).join("")}</span>`, C.room.cap ? `everyone, for meals · room seats ${C.room.cap}${C.room.spare < 0 ? ` <span class="warnp">over</span>` : ""}` : "registrations, presenters, volunteers, board"),
-    tile("Still to pay", money(C.expenses - C.paid), `${money(C.paid)} in deposits paid`),
     tile("Sponsors", `${money(C.received)} <small>of ${money(C.pledged)}</small>`, `${B.sponsors.filter((s) => s.received).length} paid${B.sponsors.some((s) => !s.received) ? ` · ${esc(B.sponsors.filter((s) => !s.received).map((s) => s.name).join(", "))} owing` : ""}`),
-    B.meals.fbMin ? tile("Food & beverage minimum", `${money(C.fbBase)} <small>of ${money(B.meals.fbMin)}</small>`, `${C.fbBase >= B.meals.fbMin ? `<span class="okp">met</span>` : `<span class="warnp">not met</span>`} · before tax and service`)
-      : tile("Food & beverage", money(C.fbBase), "before tax and service<br>no minimum set yet"),
-    tile("Coming up with the hotel", "", coming.length ? coming.map((d) => `<b>${esc(sbxShort(d.iso))}</b> ${esc(d.what)}`).join("<br>") : "Nothing still to come"),
   ].join("");
 
   // 1. The numbers you set.
@@ -9997,8 +10010,9 @@ function sbxDraw() {
       <div class="sbxacts">${said}<button class="mini" id="sbx-walk">Walk me through it</button><button class="mini ghost" id="sbx-reset">Start over</button></div></div>`
     : `<div class="sbxhead"><div><div class="porg sbxtag">Sandbox · nothing here touches a real event</div><h1>${esc(B.event.title)}</h1><div class="porg">${esc(sbxShort(B.event.dayOne))} – ${esc(fmtDate(B.event.lastDay))} · ${esc(B.event.hotel)} · ${esc(B.event.city)}</div></div>
       <div class="sbxacts">${said}<button class="mini ghost" id="sbx-reset">Start over from the spreadsheet</button></div></div>`}
-    <div class="sbtiles">${tiles}</div>
-    <div class="card"><div class="card-head"><div><h2>The numbers you set</h2><div class="s">Type a number and press Tab: everything above and below works itself out.</div></div></div><div class="card-body">${numbers}</div></div>
+    <div class="sbtiles sbkpi">${tiles}</div><div class="sbtiles sbstrip">${strip}</div>
+    <details class="sbmore"><summary>More numbers <span class="porg">room seats, cost per attendee, the room each day, sponsors</span></summary><div class="sbtiles">${more}</div></details>
+    <div class="card"><div class="card-head"><div><h2>The numbers behind it</h2><div class="s">Yours to type, and what comes in on its own (marked Wix, contract or rooming list). Type a number and press Tab: everything above and below works itself out.</div></div></div><div class="card-body">${numbers}</div></div>
     <div class="card"><div class="card-head"><div><h2>Hotel nights</h2><div class="s">Tap a night to book it, tap again to take it off. + adds a night before or after. Everyone here is on the block; who pays decides what's in the budget.${SBX_EV ? " People from the rooming list keep the nights it has for them: change those on the rooming list, under Logistics." : ""}</div></div></div><div class="card-body">${grid}</div></div>
     <div class="card"><div class="card-head"><div><h2>Food &amp; beverage</h2><div class="s">The team (board, presenters, volunteers, others) always eats; attendees get the breaks, and lunch when you say so. Days before and after the event take set amounts.</div></div></div><div class="card-body">${food}</div></div>
     <div class="card"><div class="card-body">${others}</div></div></div>`;
