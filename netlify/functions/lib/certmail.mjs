@@ -121,6 +121,9 @@ export async function sendSample({ event, settings, to, name, origin }) {
     dl: randomBytes(12).toString("base64url"), sample: true, until: new Date(Date.now() + 30 * 86400000).toISOString() };
   await putMeta(`certs:sample:${rec.dl}`, rec);
   const msg = certMailMessage({ event, rec, first: String(name || "").split(" ")[0], origin });
-  const out = await sendAttendeeMail({ to, ...msg, subject: `[Sample] ${msg.subject}`, attachments: [{ filename: certFileName(rec), content: await certificatePdf(rec, { origin }) }] }, { from: CERT_FROM });
-  return out.skipped ? { skipped: out.reason } : { sent: true, to };
+  // A refusal from Resend (a domain not verified, a bad address) comes back as words, not as a crash.
+  try {
+    const out = await sendAttendeeMail({ to, ...msg, subject: `[Sample] ${msg.subject}`, attachments: [{ filename: certFileName(rec), content: await certificatePdf(rec, { origin }) }] }, { from: CERT_FROM });
+    return out.skipped ? { skipped: out.reason } : { sent: true, to };
+  } catch (e) { return { skipped: String(e.message || e).slice(0, 300) }; }
 }
