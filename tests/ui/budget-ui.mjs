@@ -53,7 +53,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.locator("#q-done").click(); await p.waitForTimeout(1800);
   let B = await saved(ev.id);
   ok(`${tag}: the answers are saved with the event`, B?.asked && B.reg.inPerson.price === 450 && B.reg.inPerson.expected === 100 && B.reg.virtual.on && B.reg.virtual.price === 199 && B.pricesIncludeHst === false && B.hst === 5, JSON.stringify(B?.reg));
-  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbt").count()) === 13);
+  ok(`${tag}: the budget is on the Money tab, with its tiles`, /What Budget Night/.test(await p.locator("#evbudget .sbxhead").innerText()) && (await p.locator("#evbudget .sbkpi .sbt").count()) === 5 && (await p.locator("#evbudget .sbstrip .sbt").count()) === 4 && (await p.locator("#evbudget .sbmore .sbt").count()) === 4);
   ok(`${tag}: registration shows only what was said yes to`, /Virtual/.test(await p.locator(".sbreg").innerText()) && !/Community|Memberships/.test(await p.locator(".sbreg").innerText()));
   ok(`${tag}: the hotel's rate is filled in from the event`, (await p.locator('[data-k="hotel.rate"]').inputValue()) === "189");
   const patRow = p.locator("tr.rl", { hasText: "Pat Example" });
@@ -74,7 +74,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await raj.locator(".c.on").first().click(); await p.waitForTimeout(1600);
   B = await saved(ev.id);
   ok(`${tag}: tapping a board night takes it off, and it saves on its own`, B.people.find((x) => x.name === "Raj Jaswal").nights.length === 5 && /Saved/.test(await p.locator("#sbx-said").innerText()));
-  await p.locator("#evbudget .sbtiles").screenshot({ path: D + `budget-tiles-${tag}.png` });
+  await p.locator("#evbudget .sbkpi").screenshot({ path: D + `budget-tiles-${tag}.png` });
   await p.locator("#evbudget .card").filter({ has: p.locator("table.ng") }).screenshot({ path: D + `budget-nights-${tag}.png` });
   if (tag === "wide") {
     // Andrew 30 Oct 2026: "a button ... that says add board members and with one click they all get added".
