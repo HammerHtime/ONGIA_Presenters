@@ -67,8 +67,9 @@ export default async (req) => {
       const p = people.find((x) => x.checkedIn) ?? { name: "Your Name", agency: "Toronto Police Service" };
       rec = { code: "SAMP-LE00", name: p.name, agency: p.agency, date: settings.date, course: settings.course, template: settings.template, eventTitle: event.title };
     }
-    return new Response(await certificatePdf(rec, { origin }), { headers: { "content-type": "application/pdf",
-      "content-disposition": `${q("pdf") ? "attachment" : "inline"}; filename="${encodeURIComponent(certFileName(rec))}"; filename*=UTF-8''${encodeURIComponent(certFileName(rec))}`, "cache-control": "no-store" } });
+    const lang = q("lang") === "fr" ? "fr" : "en";
+    return new Response(await certificatePdf(rec, { origin, lang }), { headers: { "content-type": "application/pdf",
+      "content-disposition": `${q("pdf") ? "attachment" : "inline"}; filename="${encodeURIComponent(certFileName(rec, lang))}"; filename*=UTF-8''${encodeURIComponent(certFileName(rec, lang))}`, "cache-control": "no-store" } });
   }
   if (req.method === "GET") return json(await view(event, people, templates));
   if (req.method === "PUT") {

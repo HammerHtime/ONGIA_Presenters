@@ -1,6 +1,6 @@
 import { siteUrl } from "./lib/site.mjs";
 import { putMeta, getMeta } from "./lib/store.mjs";
-import { certRecord, certificatePdf, certFileName } from "./lib/certs.mjs";
+import { certRecord, certificatePdf, certFileName, findTemplate, hasFrench } from "./lib/certs.mjs";
 import { timingSafeEqual } from "node:crypto";
 
 /**
@@ -22,8 +22,11 @@ export default async (req) => {
   if (rec.sample && rec.until < new Date().toISOString()) return page(410, fr ? "Ce lien d'exemple a expiré." : "This sample link has expired.");
   if (rec.revokedAt) return page(410, fr ? "Ce certificat a été retiré. Communiquez avec ONGIA." : "This certificate was withdrawn. Please contact ONGIA.");
   if (rec.code !== "SAMP-LE00" && rec.mail && !rec.mail.downloadedAt) await putMeta(`certs:code:${rec.code}`, { ...rec, mail: { ...rec.mail, downloadedAt: new Date().toISOString() } });
-  const name = certFileName(rec);
-  return new Response(await certificatePdf(rec, { origin: siteUrl(req) }), { headers: { "content-type": "application/pdf",
+  // The French button in the email gives the French certificate (Andrew 31 Oct 2026); a design without one stays English.
+  const tpl = await findTemplate(rec.template);
+  const lang = fr && (!tpl || hasFrench(tpl)) ? "fr" : "en";
+  const name = certFileName(rec, lang);
+  return new Response(await certificatePdf(rec, { origin: siteUrl(req), lang }), { headers: { "content-type": "application/pdf",
     "content-disposition": `attachment; filename="${encodeURIComponent(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`, "cache-control": "no-store" } });
 };
 
