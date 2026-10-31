@@ -138,7 +138,10 @@ Wix's MX screen wouldn't let us add a record for a sub-host. If it still won't, 
 Don't change the existing MX record (ongia-ca.mail.protection.outlook.com): that's ONGIA's Microsoft email.
 
 **After that.** Resend re-checks the domain; then "Email me a sample" on Survey & certificates sends a real sample,
-and Email everyone works. Separately, bounce tracking needs a Resend webhook pointed at /api/resend-webhook and its
-signing secret set in Netlify as RESEND_WEBHOOK_SECRET.
+and Email everyone works.
+
+**Bounce tracking: set up (31 Oct 2026).** A Resend webhook now sends delivered, bounced and spam-complaint events to
+https://events.ongia.org/api/resend-webhook (it's separate from the travel site's webhook), and its signing secret is
+set in Netlify as RESEND_WEBHOOK_SECRET for the live site. The endpoint refuses anything unsigned or replayed.
 
 **Also fixed.** The refusal surfaced as a raw 502 with a stack trace; it now comes back as a plain message.
