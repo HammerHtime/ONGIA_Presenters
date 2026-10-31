@@ -125,7 +125,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).locator(".certmore summary").click();
     await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).locator("[data-certfix]").click(); await p.waitForTimeout(1500);
     await vp.goto(`${S}/verify.html?c=${code}`, { waitUntil: "networkidle" }); await vp.waitForTimeout(600);
-    ok("Correct details puts the new date on it, keeping its number, marked corrected", /May 7, 2031/.test(await vp.locator("#box").innerText()) && new RegExp(`No\\. ${code}\\s*corrected`).test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()), await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText());
+    ok("Correct details puts the new date on it, keeping its number, marked corrected", /May 7, 2031/.test(await vp.locator("#box").innerText()) && new RegExp(`No\\. ${code}[\\s\\S]*corrected`).test(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText()), await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText());
     await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).screenshot({ path: D + "certs-row-issued.png" });
     await p.locator("#cert-dateback").click(); await p.waitForTimeout(1200);
     await vp.close();

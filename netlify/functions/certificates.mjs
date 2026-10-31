@@ -5,6 +5,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { directory, agencyOf } from "./lib/agencies.mjs";
 import { templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
+import { sendCertificate, sendSample, mailCard } from "./lib/certmail.mjs";
 
 /**
  * Certificates and the attendee downloads, on Who's coming (Andrew 30 Oct 2026). The president, the VP and the event's
@@ -17,6 +18,9 @@ import { randomBytes } from "node:crypto";
  *                                                     withdrawn one again (a new number) needs &again=1; otherwise 409.
  *   POST /api/certificates?event=…&issueAll=1         Issue & download all: a certificate for everyone checked in without one
  *                                                     (withdrawn ones stay withdrawn); the page then downloads each PDF
+ *   POST /api/certificates?event=…&mail=1             { keys: [up to 8 person keys] } email each their certificate (the page sends in
+ *                                                     batches and shows progress); one already emailed is sent again only with again: true
+ *   POST /api/certificates?event=…&sample=1           { to? } the real email with a sample certificate, to the signed-in board member
  *   POST /api/certificates?event=…&correct=<key>      put the details as they are now on an issued certificate, same number
  *   GET  /api/certificates?event=…&preview=1           the design filled with the first person checked in, or a sample name
  *   POST /api/certificates?event=…&revoke=<key>        a certificate issued in error stops verifying
@@ -80,6 +84,29 @@ export default async (req) => {
     const issued = await issueMany(event, people.filter((p) => p.checkedIn), { settings: certSettings(event, templates), by: adminWho(req)?.email || "desk" });
     return json({ ...(await view(event, people, templates)), issuedNow: issued });
   }
+  if (req.method === "POST" && q("mail")) {
+    const body = await req.json().catch(() => ({}));
+    const keys = (Array.isArray(body.keys) ? body.keys : []).map((k) => text(k, 120)).filter(Boolean).slice(0, 8);
+    if (!keys.length) return fail("Whose certificate?");
+    const index = await certIndex(event.id), origin = siteUrl(req), by = adminWho(req)?.email || "desk", results = [];
+    for (const key of keys) {
+      const p = people.find((x) => x.key === key);
+      const code = index[key];
+      if (!p || !code) { results.push({ key, error: "No certificate has been issued to this person." }); continue; }
+      const had = await certRecord(code);
+      if (had?.mail?.sentAt && !had.mail.bounced && !had.mail.failed && body.again !== true) { results.push({ key, mail: mailCard(had), skipped: "already emailed" }); continue; }
+      results.push({ key, ...(await sendCertificate({ event, person: p, code, origin, by })) });
+    }
+    return json({ results });
+  }
+  if (req.method === "POST" && q("sample")) {
+    const body = await req.json().catch(() => ({}));
+    const who = adminWho(req);
+    const to = text(body.to, 200) || who?.email || "";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return fail("Which address should the sample go to?");
+    const out = await sendSample({ event, settings: certSettings(event, templates), to, name: who?.name || "", origin: siteUrl(req) });
+    return out.skipped ? fail(`The sample wasn't sent: ${out.skipped}`, 503) : json(out);
+  }
   if (req.method === "POST" && q("correct")) {
     const p = people.find((x) => x.key === q("correct"));
     const had = p ? await certRecord((await certIndex(event.id))[p.key]) : null;
@@ -126,7 +153,7 @@ async function view(event, people, templates) {
 }
 
 /** An issued certificate as the list shows it: its number, when, and whether it's been corrected or withdrawn. */
-const certCard = (r) => ({ code: r.code, revoked: !!r.revokedAt, issuedAt: r.issuedAt, corrected: (r.history ?? []).length, notCheckedIn: !!r.notCheckedIn });
+const certCard = (r) => ({ code: r.code, revoked: !!r.revokedAt, issuedAt: r.issuedAt, corrected: (r.history ?? []).length, notCheckedIn: !!r.notCheckedIn, mail: mailCard(r) });
 
 /** The two downloads (Andrew 30 Oct 2026: "export the list for registration as well as … a list in csv to upload to the certificate program"). */
 /** A design as the screens show it. An uploaded one's picture needs signing in, so the page fetches it with the key. */
