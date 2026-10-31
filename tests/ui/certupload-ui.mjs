@@ -36,7 +36,13 @@ const open = async (email, w, h, hash) => {
   return p;
 };
 const guests = (id) => "#v=" + encodeURIComponent(JSON.stringify({ name: "event", eventId: id, tab: "people", pview: "guests" }));
-const openCerts = async (p) => { const fold = p.locator("#certsfold"); if (!(await fold.getAttribute("open"))) await fold.locator("summary").click(); await p.waitForTimeout(1200); return fold; };
+// Certificates are on Survey & certificates (audit, 30 Oct 2026); the designs open under Change.
+const openCerts = async (p) => {
+  await p.locator('.etab[data-tab="survey"]').click(); await p.waitForTimeout(400);
+  await p.locator('[data-svgo="certs"]').click(); await p.waitForTimeout(1200);
+  if (!(await p.locator(".certpick").isVisible())) { await p.locator("#cert-change").click(); await p.waitForTimeout(300); }
+  return p.locator("#certsfold");
+};
 
 // The lead uploads the Symposium's design from the event.
 let p = await open("treasurer@ongia.ca", 1440, 1000, guests(sym.id));

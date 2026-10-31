@@ -130,6 +130,30 @@ export async function issue(event, person, { name, agency, settings, by = null, 
   return rec;
 }
 
+/**
+ * Issue & download all (audit, 30 Oct 2026): everyone given who has no certificate yet gets one, in one go. The index is
+ * written once, at the end, so a few hundred names don't each rewrite it. Someone whose certificate was withdrawn is left
+ * out: issuing theirs again is a decision for one person at a time.
+ */
+export async function issueMany(event, people, { settings, by = null }) {
+  const index = await certIndex(event.id);
+  const todo = people.filter((p) => !index[p.key]);
+  if (!todo.length) return 0;
+  const codes = new Set();
+  const fresh = async () => { for (;;) { const c = newCode(); if (!codes.has(c) && !(await certRecord(c))) { codes.add(c); return c; } } };
+  const now = new Date().toISOString();
+  for (let i = 0; i < todo.length; i += 25) {
+    await Promise.all(todo.slice(i, i + 25).map(async (p) => {
+      const code = await fresh();
+      await putMeta(`certs:code:${code}`, { code, event: event.id, eventTitle: event.title, key: p.key, email: p.email ?? "", name: p.name, agency: p.agency,
+        date: settings.date, course: settings.course, template: settings.template, issuedAt: now, updatedAt: now, issuedBy: by, ...(p.checkedIn === false ? { notCheckedIn: true } : {}) });
+      index[p.key] = code;
+    }));
+  }
+  await putMeta(`certs:event:${event.id}`, { ...(await certIndex(event.id)), ...index });
+  return todo.length;
+}
+
 /** The certificate itself: the design, the words, and the QR code that verifies it. */
 export async function certificatePdf(rec, { origin = "" } = {}) {
   const tpl = (await findTemplate(rec.template)) ?? builtIn(templateOf("generic"));
