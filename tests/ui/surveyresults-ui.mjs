@@ -48,10 +48,11 @@ const p = await open({ width: 1440, height: 1000 });
 await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(500);
 ok("the survey is no longer on Communications", !(await p.locator("#svbox").isVisible().catch(() => false)));
 await p.locator('.etab[data-tab="survey"]').click(); await p.waitForTimeout(1500);
-ok("the event has a Survey tab with the set-up and the results", await p.locator("#svbox").isVisible() && await p.locator("#rsbox").isVisible());
+ok("the event has a Survey tab with the set-up and the results, the results open once answers are in", await p.locator("#rsbox").isVisible() && await p.locator('[data-svpart="setup"]').count() === 1 && await p.locator("#svbox").count() === 1);
 ok("the results say how many answered", /4 answers from 4 people/.test(await p.locator("#rsbox").innerText()), (await p.locator("#rsbox").innerText()).slice(0, 120));
 
 // A last-minute swap: rename the session and change the presenter; the answers already given stay with it.
+await p.locator('[data-svpart="setup"]').click(); await p.waitForTimeout(300);   // the sessions are under Setup
 await p.locator('[data-sv="1"] [data-k="title"]').fill("Ghost Guns and 3D Printers");
 await p.locator('[data-sv="1"] [data-k="presenters"]').fill("Riley Chen");
 await p.locator("#sv-save").click(); await p.waitForTimeout(1200);
@@ -60,6 +61,7 @@ ok("a session's title and presenter can be changed after answers are in", after.
 const R = (await api(`${q}&results=1`)).results;
 ok("and its answers stay with it under the new name", R.sessions.find((s) => s.id === "sb").n === 4 && R.sessions.find((s) => s.id === "sb").title === "Ghost Guns and 3D Printers");
 
+await p.locator('[data-svpart="results"]').click(); await p.waitForTimeout(300);   // the downloads are under Results
 const pdf = await bytesOf(p, () => p.locator('[data-rsdl="summary"]').click());
 ok("Download: the summary PDF", pdf.buf.slice(0, 5).toString() === "%PDF-" && /survey-summary\.pdf$/.test(pdf.name), pdf.name);
 const xl = await bytesOf(p, () => p.locator('[data-rsdl="answers"]').click());
@@ -100,6 +102,7 @@ await p.close();
 
 const ph = await open({ width: 390, height: 844 });
 await ph.locator('.etab[data-tab="survey"]').click(); await ph.waitForTimeout(1500);
+await ph.locator('[data-svpart="results"]').click(); await ph.waitForTimeout(300);
 await ph.locator("#resultsfold").scrollIntoViewIfNeeded();
 const wide = await ph.evaluate(() => document.documentElement.scrollWidth);
 ok("phone: the results fit the screen", wide <= 392, `${wide}`);
