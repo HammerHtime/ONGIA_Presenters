@@ -107,6 +107,11 @@ const slink = /href="(https:\/\/events\.ongia\.org\/api\/certfile\?c=SAMP-LE00&a
 f = await fileReq(slink);
 ok("and its download link works", f.status === 200 && (f.headers.get("content-type") ?? "").includes("pdf"));
 
+// Resend refusing the sample (as it did on 31 Oct 2026: "The send.ongia.ca domain is not verified") is said plainly, not a crash.
+failNext = true;
+r = await call("event=ngs31&sample=1", { method: "POST", body: {}, who: issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) });
+ok("a refused sample comes back as a plain message, not a crash", r.status === 503 && /The sample wasn't sent: Email failed \(422\): The to address is invalid/.test(r.body.error ?? ""), JSON.stringify(r));
+
 // Who may: not another board member.
 r = await call("event=ngs31&mail=1", { method: "POST", body: { keys: ["k1"] }, who: issueSession({ email: "member@ongia.ca", name: "Member" }) });
 ok("a board member who isn't the lead, president or VP can't send", r.status === 403);

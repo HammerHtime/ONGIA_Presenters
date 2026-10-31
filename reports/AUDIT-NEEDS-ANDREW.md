@@ -113,3 +113,32 @@ that; they would simply have been skipped.
 **To check it:** `/api/wix?count=<wix event id>` now breaks the figures down by
 registration type and says which types are missing an address, which should
 distinguish a form setting from a bare import.
+
+---
+
+## 8. Certificate emails can't send yet: send.ongia.ca isn't verified in Resend
+
+**Status (31 Oct 2026):** blocked on one DNS record. Nothing has been sent to any attendee.
+
+**What failed.** The first sample certificate email (to president@ongia.ca only), sent from the live site, was
+refused by Resend: *"Email failed (403): The send.ongia.ca domain is not verified."* The live site does have a
+Resend key, so this is the only thing missing.
+
+**Why.** Resend checks four DNS records for send.ongia.ca. Three are in place (the DKIM signing record, the SPF TXT
+on bounce.send, the rbounce CNAME). The fourth, an **MX record on bounce.send.ongia.ca**, is missing, and Resend
+won't send from a domain until all are verified. Earlier I said skipping it was safe; that was wrong.
+
+**The fix.** Add this record to ongia.ca's DNS (managed in Wix):
+
+| Type | Host | Points to | Priority |
+|---|---|---|---|
+| MX | bounce.send | feedback-smtp.us-east-1.amazonses.com | 10 |
+
+Wix's MX screen wouldn't let us add a record for a sub-host. If it still won't, Wix support can add it on their side.
+Don't change the existing MX record (ongia-ca.mail.protection.outlook.com): that's ONGIA's Microsoft email.
+
+**After that.** Resend re-checks the domain; then "Email me a sample" on Survey & certificates sends a real sample,
+and Email everyone works. Separately, bounce tracking needs a Resend webhook pointed at /api/resend-webhook and its
+signing secret set in Netlify as RESEND_WEBHOOK_SECRET.
+
+**Also fixed.** The refusal surfaced as a raw 502 with a stack trace; it now comes back as a plain message.
