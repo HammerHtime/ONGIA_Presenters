@@ -39,6 +39,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const tiles = await p.locator(".certtiles").innerText();
     ok("the counts: 5 checked in, 1 issued, 3 to go, 1 withdrawn", /5\s*Checked in\s*1\s*Issued\s*3\s*Checked in, not issued yet\s*1\s*Withdrawn/i.test(tiles), tiles);
     await p.locator("#certsfold").screenshot({ path: D + "certsall-wide.png" });
+    const zb = await p.locator("#cert-all").boundingBox();
+    ok("the ZIP button is one line at its own size", zb.height < 42 && zb.width < 240, JSON.stringify(zb));
     let asked = "";
     p.once("dialog", (d) => { asked = d.message(); d.accept(); });
     const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.locator("#cert-all").click()]);
@@ -65,7 +67,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await p.waitForTimeout(800);
   } else {
     await p.locator("#certsfold").screenshot({ path: D + "certsall-phone.png" });
-    ok("phone: the ZIP button fills the width", (await p.locator("#cert-all").boundingBox()).width > 300);
+    // Andrew 31 Oct 2026: "the pill is rather large. Try and avoid large pills" — one line, its own size.
+    ok("phone: the ZIP button is one line at its own size, not a wide pill", (await p.locator("#cert-all").boundingBox()).height < 42 && (await p.locator("#cert-all").boundingBox()).width < 240);
   }
   ok(`${tag}: no sideways scroll, no errors`, await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth) && !errs.length, errs.join(" | "));
   await p.close();

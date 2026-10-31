@@ -72,11 +72,11 @@
   .certtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 12px}
   .certtile{background:#fff;border:1.5px solid var(--edge);border-radius:14px;padding:12px 16px;display:flex;align-items:baseline;gap:12px}
   .certtile b{font:400 26px var(--fd);color:var(--navy-deep)} .certtile span{font-size:13px;color:var(--ink-mid)}
-  .certset{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(200px,auto);gap:18px;align-items:start;padding:16px 18px}
+  .certset{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;gap:18px;align-items:start;padding:16px 18px}
   .certthumb img{width:100%;aspect-ratio:8.5/11;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block} .certthumb.wide img{aspect-ratio:11/8.5}
   .certf{display:grid;gap:4px;font-size:14px;min-width:0} .certf input{margin:0;width:100%;max-width:240px;min-width:0;box-sizing:border-box}
   .certk{font:600 11px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-  .certgo{display:grid;gap:8px;justify-items:stretch} .certgo .mini{padding:8px 16px;font-size:14px;text-align:center}
+  .certgo{display:flex;flex-direction:column;gap:8px;align-items:flex-start} .certgo .mini{padding:7px 14px;font-size:13.5px;white-space:nowrap}
   .certsaid{grid-column:1/-1;margin:0;font-size:13.5px;color:var(--ink-mid)} .certsaid:empty{display:none}
   .certtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px} .certtools .pfind{flex:1 1 240px;margin:0}
   .certseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff}
@@ -87,9 +87,12 @@
   .certmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(14,26,53,.14);padding:6px;display:grid;min-width:210px}
   .certmenu button{border:0;background:none;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px} .certmenu button:hover{background:var(--sunk)}
   .certmenu [data-certrevoke]{color:var(--late)}
-  @media (max-width:1100px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certgo{grid-column:1/-1;grid-template-columns:1fr 1fr}}
-  @media (max-width:760px){.certtiles{grid-template-columns:1fr 1fr}.certset{grid-template-columns:72px minmax(0,1fr)}.certset .certf:not(:nth-child(2)){grid-column:1/-1}
-    .certgo{grid-template-columns:1fr}.certl .certno{display:none}.certl td .cnoph{display:block}.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
+  /* Sized to the room the section has, not the screen: beside an event's Getting ready column it is much narrower
+     than the window (seen on the live Summit page, 31 Oct 2026, where the ZIP button wrapped onto three lines). */
+  .certsec{container-type:inline-size}
+  @container (max-width:1000px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certgo{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}}
+  @container (max-width:620px){.certtiles{grid-template-columns:1fr 1fr}.certset{grid-template-columns:72px minmax(0,1fr)}.certset .certf:not(:nth-child(2)){grid-column:1/-1}}
+  @media (max-width:760px){.certl .certno{display:none}.certl td .cnoph{display:block}.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
   .svdl > div{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line, var(--hair))} .svdl > div:first-child{border-top:0} .svdl b{min-width:170px}
 
   /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
