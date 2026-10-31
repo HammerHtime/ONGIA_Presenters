@@ -1402,7 +1402,7 @@
   .rgb i{align-self:end;display:block;background:#c9d2e3;border-radius:4px 4px 0 0;min-height:2px} .rgb.now i{background:var(--gold)}
   .rgb b{font-size:11.5px;color:var(--ink);line-height:1.3;min-height:15px} .rgb span{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .regags,.regweeks{min-width:0} .regags ol{min-width:0;list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:3px;font-size:13px}
-  .regags li{display:flex;gap:10px;justify-content:space-between} .rgnote{display:block;font-size:12px;color:var(--muted);margin-top:6px} .regags li span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-mid)} .regags li b{color:var(--ink)}
+  .regags li{display:grid;grid-template-columns:minmax(0,1fr) auto 3.2em;gap:10px;align-items:baseline} .regags li em{font-style:normal;font-size:12px;color:var(--muted);text-align:right} .rgnote{display:block;font-size:12px;color:var(--muted);margin-top:6px} .regags li span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-mid)} .regags li b{color:var(--ink)}
   .dmore{margin-top:auto;align-self:flex-start;padding-top:10px}
   .qacts{display:flex;flex-direction:column;gap:7px}
   @media (max-width:760px){.qacts{display:grid;grid-template-columns:1fr 1fr} .qacts .qact.gold{grid-column:1 / -1}}
@@ -10333,8 +10333,10 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const top = Math.max(1, ...Object.values(perWeek));
   const bars = going.length ? `<div class="regweeks"><span class="rgk">Sign-ups by week</span><div class="rgbars">${weeks.map((w, i) => `<div class="rgb${w === thisWeek ? " now" : ""}" title="${perWeek[w]} in the week of ${esc(fmtShort(`${w}T12:00:00`))}"><i style="height:${Math.round((perWeek[w] / top) * 100)}%"></i><b>${perWeek[w] || ""}</b><span>${w === thisWeek ? "This wk" : esc(fmtShort(`${w}T12:00:00`))}</span></div>`).join("")}</div>${before ? `<span class="rgnote">Plus ${before} already registered when Wix was linked${linked ? ` on ${esc(fmtShort(`${linked}T12:00:00`))}` : ""}</span>` : ""}</div>` : "";
   const byAgency = {}; for (const p of going) { const a = String(p.agency || p.organization || "").trim(); if (a) byAgency[a] = (byAgency[a] ?? 0) + 1; }
-  const agencies = Object.entries(byAgency).sort((a, b) => b[1] - a[1]);
-  const topAg = agencies.length ? `<div class="regags"><span class="rgk">${agencies.length} agenc${agencies.length === 1 ? "y" : "ies"}</span><ol>${agencies.slice(0, 4).map(([a, n]) => `<li><span>${esc(a)}</span><b>${n}</b></li>`).join("")}</ol></div>` : "";
+  const agencies = Object.entries(byAgency).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  // Each agency's share of everyone coming (Andrew 31 Oct 2026), so it moves as registrations come in.
+  const pctOf = (n) => { const x = (100 * n) / (going.length || 1); return `${x < 1 ? "<1" : Math.round(x)}%`; };
+  const topAg = agencies.length ? `<div class="regags"><span class="rgk">${agencies.length} agenc${agencies.length === 1 ? "y" : "ies"}</span><ol>${agencies.slice(0, 6).map(([a, n]) => `<li><span title="${esc(a)}">${esc(a)}</span><b>${n}</b><em>${pctOf(n)}</em></li>`).join("")}</ol></div>` : "";
   const reg = `<section class="card dbcard regcard"><div class="dh"><h2>Registrations</h2>${tag ? `<span class="dtag ${tag[0]}">${tag[1]}</span>` : ""}</div>
     <div class="regrow">${ring}<ul class="dlines">${lines.map((l) => `<li>${l}</li>`).join("")}</ul></div>
     ${bars || topAg ? `<div class="regmore">${bars}${topAg}</div>` : ""}
