@@ -111,7 +111,11 @@ async function peopleOf(event) {
 async function view(event, people, templates) {
   const index = await certIndex(event.id);
   const issued = new Map();
-  for (const [k, code] of Object.entries(index)) { const r = await certRecord(code); if (r) issued.set(k, r); }
+  // A few at a time rather than one after another: a big event has hundreds once Issue & download all has run.
+  const pairs = Object.entries(index);
+  for (let i = 0; i < pairs.length; i += 25) {
+    await Promise.all(pairs.slice(i, i + 25).map(async ([k, code]) => { const r = await certRecord(code); if (r) issued.set(k, r); }));
+  }
   return {
     settings: certSettings(event, templates),
     lastDay: event.lastDay || event.dayOne || "",
