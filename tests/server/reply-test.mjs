@@ -7,6 +7,10 @@ import path from "node:path";
 const REPO = new URL("../../", import.meta.url).pathname;
 process.env.RESEND_API_KEY = "test-key";
 process.env.APP_URL = "https://events.example.org";
+// The story here is the week of 26 Oct 2026, reply-by Friday the 30th. Its own rounds pass their day, but Send on the
+// event page uses the clock, so the clock stays in that week: run on any later day, the server rightly refuses to send.
+const RealDate = Date, FIXED = new RealDate("2026-10-27T15:00:00Z").getTime();
+globalThis.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [FIXED])); } static now() { return FIXED; } };
 delete process.env.MS_MAIL_FROM;
 const sent = [];
 globalThis.fetch = async (url, init) => {
