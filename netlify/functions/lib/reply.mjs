@@ -4,7 +4,7 @@ import { token as newToken } from "./ids.mjs";
 import { getAttendees, putAttendees, getReplies, listPresenters } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeSignOf } from "./letters.mjs";
-import { sendMail } from "./mail.mjs";
+import { sendMail, sendAttendeeMail, EVENTS_FROM } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { xlsx } from "./xlsx.mjs";
 
@@ -412,7 +412,8 @@ export async function sendReminderRound(event, { deadline = null, pace = pacer()
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: replyToOf(event), ...renderReminder(event, person) });
+      // Reminders go through Resend from events@send.ongia.ca, replies to the ONGIA Events mailbox (Andrew 31 Oct 2026).
+      const out = await sendAttendeeMail({ to: person.email, ...renderReminder(event, person) }, { from: EVENTS_FROM });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) same.sent = [...new Set([...(same.sent ?? []), mark])];
       sent++;

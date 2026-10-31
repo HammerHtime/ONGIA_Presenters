@@ -1,7 +1,7 @@
 import { todayIso } from "./deadlines.mjs";
 import { getAttendees, putAttendees } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
-import { sendMail, hotelCutoffMail } from "./mail.mjs";
+import { sendAttendeeMail, hotelCutoffMail, EVENTS_FROM } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 
 /**
@@ -57,7 +57,8 @@ export async function sendHotelRound(event, days, { dry = false, today = todayIs
     await pace();
     const mail = hotelCutoffMail({ event, person, hotel: h, daysLeft });
     try {
-      const out = await sendMail({ to: person.email, ...mail });
+      // Through Resend from events@send.ongia.ca, replies to the ONGIA Events mailbox (Andrew 31 Oct 2026).
+      const out = await sendAttendeeMail({ to: person.email, ...mail }, { from: EVENTS_FROM });
       if (out.skipped) { problems.push({ email: person.email, why: out.reason ?? "no transport" }); failed++; continue; }
       person.sent = [...(person.sent ?? []), round];
       person.sentAt = { ...(person.sentAt ?? {}), [round]: new Date().toISOString() };
