@@ -29,25 +29,28 @@ export function certMailMessage({ event, rec, first, origin }) {
   const where = event.city ? String(event.city).split(",")[0].trim() : "";
   const p = (t) => `<p style="margin:0 0 14px;line-height:1.55">${t}</p>`;
   const small = (t) => `<p style="margin:0 0 14px;font-size:13px;color:#767f92;line-height:1.5">${t}</p>`;
-  const btn = (href, label) => `<p style="margin:18px 0 8px"><a href="${esc(href)}" style="background:#b8922a;color:#12161f;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px;display:inline-block">${esc(label)}</a></p>`;
+  const btn = (href, label) => `<p style="margin:18px 0 8px"><a href="${esc(href)}" style="background:#b8922a;color:#12161f;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px;display:inline-block;text-align:center;line-height:1.3;max-width:100%;box-sizing:border-box">${esc(label)}</a></p>`;
+  // Outlook on a phone underlines dates as calendar links and ignores the meta tags that stop Apple Mail doing it; an
+  // invisible zero-width non-joiner inside the year is enough to stop it matching (Andrew 31 Oct 2026). Text version untouched.
+  const noLink = (d) => esc(d).replace(/\b(\d{2})(\d{2})\b/g, "$1&zwnj;$2");
   const rule = (t) => `<p style="margin:26px 0 10px;padding-top:16px;border-top:1px solid #ddd7c8;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#767f92">${t}</p>`;
   const title = esc(event.title);
   const hi = first ? ` ${esc(first)}` : "";
   const bodyHtml = [
     p(`Hello${hi},`),
-    p(`Thank you for attending <b>${title}</b>${where ? ` in ${esc(where)}` : ""}, ${esc(dateRange(event.dayOne, event.lastDay, "en"))}. Your certificate of completion is attached as a PDF.`),
+    p(`Thank you for attending <b>${title}</b>${where ? ` in ${esc(where)}` : ""}, ${noLink(dateRange(event.dayOne, event.lastDay, "en"))}. Your certificate of completion is attached as a PDF.`),
     btn(downloadUrl(origin, rec), "Download your certificate"),
     small(`Certificate no. <b>${esc(rec.code)}</b>. Anyone can check it's genuine by scanning its QR code or at <a href="${esc(verify)}" style="color:#1a2f5e">events.ongia.org/verify</a>, where you can also add it to your LinkedIn profile.`),
     rule("Français"),
     p(`Bonjour${hi},`),
-    p(`Merci d'avoir participé à <b>${title}</b>${where ? ` à ${esc(where)}` : ""}, ${esc(dateRange(event.dayOne, event.lastDay, "fr"))}. Votre certificat de réussite est joint en format PDF.`),
+    p(`Merci d'avoir participé à <b>${title}</b>${where ? ` à ${esc(where)}` : ""}, ${noLink(dateRange(event.dayOne, event.lastDay, "fr"))}. Votre certificat de réussite est joint en format PDF.`),
     btn(downloadUrl(origin, rec, "fr"), "Télécharger votre certificat"),
     small(`Certificat n<sup>o</sup> <b>${esc(rec.code)}</b>. Toute personne peut en vérifier l'authenticité en balayant son code QR ou à <a href="${esc(verify)}" style="color:#1a2f5e">events.ongia.org/verify</a>, où vous pouvez aussi l'ajouter à votre profil LinkedIn.`),
     // Signed by the lead, but replies go to the shared mailbox, so the signature says so rather than "replies go to Raj".
     `<div style="margin:24px 0 0;padding-top:15px;border-top:1px solid #ddd7c8;font-size:13px;color:#4a5563;line-height:1.6">
       ${lead?.name ? `<div style="font-weight:700;color:#12161f;font-size:14px">${esc(lead.name)}</div><div>ONGIA — lead for ${title}</div>` : `<div style="font-weight:700;color:#12161f;font-size:14px">ONGIA</div>`}
       <div style="margin-top:6px;color:#767f92">Replies go to the ONGIA events team at <a href="mailto:${esc(ATTENDEE_REPLY_TO)}" style="color:#1a2f5e">${esc(ATTENDEE_REPLY_TO)}</a>.</div>
-      <div style="margin-top:6px;color:#767f92">Les réponses sont acheminées à l'équipe des événements d'ONGIA, à ${esc(ATTENDEE_REPLY_TO)}.</div></div>`,
+      <div style="margin-top:6px;color:#767f92">Les réponses sont acheminées à l'équipe des événements d'ONGIA, à <a href="mailto:${esc(ATTENDEE_REPLY_TO)}" style="color:#1a2f5e">${esc(ATTENDEE_REPLY_TO)}</a>.</div></div>`,
   ].join("");
   const subject = `Your certificate: ${event.title} / Votre certificat`;
   const text = [`Hello${first ? " " + first : ""},`, "",

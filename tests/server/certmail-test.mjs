@@ -49,7 +49,7 @@ ok("from ONGIA Certificates <certificates@send.ongia.ca>, replies to ongiaevents
 ok("subject in both languages", m.subject === "Your certificate: National Gang Summit 2031 / Votre certificat", m.subject);
 ok("the PDF is attached, named for the person", m.attachments?.length === 1 && m.attachments[0].filename === "Jordan Tremblay - certificate.pdf" && Buffer.from(m.attachments[0].content, "base64").subarray(0, 5).toString() === "%PDF-");
 const link = /href="(https:\/\/events\.ongia\.org\/api\/certfile\?c=[A-Z0-9-]+&amp;d=[A-Za-z0-9_-]+)"/.exec(m.html)?.[1]?.replace(/&amp;/g, "&");
-ok("English then French, greeting by first name, the dates, a download button in each language, the verify link", /Hello Jordan,/.test(m.html) && m.html.indexOf("Hello Jordan") < m.html.indexOf("Bonjour Jordan") && /November 10 to 13, 2031/.test(m.html) && /du 10 au 13 novembre 2031/.test(m.html)
+ok("English then French, greeting by first name, the dates, a download button in each language, the verify link", /Hello Jordan,/.test(m.html) && m.html.indexOf("Hello Jordan") < m.html.indexOf("Bonjour Jordan") && /November 10 to 13, 20&zwnj;31/.test(m.html) && /du 10 au 13 novembre 20&zwnj;31/.test(m.html) && /November 10 to 13, 2031/.test(m.text)
   && /Download your certificate/.test(m.html) && /Télécharger votre certificat/.test(m.html) && /verify\.html\?c=/.test(m.html) && !!link, m.html.slice(0, 300));
 ok("signed by the lead, and says replies go to the ONGIA events team", /Raj Jaswal/.test(m.html) && /Replies go to the ONGIA events team at/.test(m.html) && !/Replies to this email go straight to/.test(m.html));
 ok("a plain-text copy with the link", /Download your certificate: https:\/\/events\.ongia\.org\/api\/certfile/.test(m.text));
