@@ -151,10 +151,19 @@ export function tidyContact(c) {
 }
 
 /** One Wix event, cut down to what the desk needs to match and display. */
-function tidyEvent(e) {
+export function tidyEvent(e) {
   const start = e.dateAndTimeSettings?.startDate ?? null;
   const end = e.dateAndTimeSettings?.endDate ?? null;
-  const day = (iso) => (typeof iso === "string" && iso.length >= 10 ? iso.slice(0, 10) : null);
+  // Wix gives the times in UTC: an evening in Kingston ends after midnight UTC, which made a one-evening community event
+  // two days and Regina's Monday-Tuesday training three. The day is the event's own, in its own time zone.
+  const tz = e.dateAndTimeSettings?.timeZoneId || "America/Toronto";
+  const day = (iso) => {
+    if (typeof iso !== "string" || iso.length < 10) return null;
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t) || iso.length <= 10) return iso.slice(0, 10);
+    try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(t); }
+    catch { return iso.slice(0, 10); }
+  };
   return {
     id: e.id,
     title: e.title ?? "",

@@ -115,8 +115,9 @@ export function countPeople(parts, guestsOf) {
     attendeeDays += people.length * daysOf(p.dayOne, p.lastDay);
     const here = new Map();
     for (const g of people) {
-      if (!g.email) { if (virtual) noEmailVirtual++; else noEmailIn++; reps.push(g); continue; }
-      const a = here.get(g.email) ?? []; a.push(g); here.set(g.email, a);
+      const email = String(g.email ?? "").trim().toLowerCase();   // the same person typed Pat@ on one site and pat@ on the other
+      if (!email) { if (virtual) noEmailVirtual++; else noEmailIn++; reps.push(g); continue; }
+      const a = here.get(email) ?? []; a.push(g); here.set(email, a);
     }
     for (const [email, list] of here) {
       const c = perEmail.get(email) ?? { n: 0, inPersonN: 0, rep: [] };
