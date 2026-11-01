@@ -1,5 +1,7 @@
 import { json, fail, requireAdmin, editGuard, adminWho, text } from "./lib/http.mjs";
-import { getEvent } from "./lib/store.mjs";
+import { getEvent, listEvents } from "./lib/store.mjs";
+import { mayEditEvent } from "./lib/auth.mjs";
+import { yearFacts, yearState, yearReportsOf, putYearReports, yearVersionPdf, fileYearReport, yearFileName, inputsOf, putInputs, rbhYears, yearOf, YE_KINDS } from "./lib/yearend.mjs";
 import { KINDS, reportsOf, putReports, standingOf, putStanding, versionPdf, fileNameOf, factsFor, halfBack, fileReport } from "./lib/reports.mjs";
 import { randomBytes } from "node:crypto";
 
@@ -17,6 +19,12 @@ import { randomBytes } from "node:crypto";
  *   POST /api/reports?event=…&kind=…&final=1                 { final } stop (or restart) the nightly updates
  *   GET  /api/reports?standing=1                             the requests kept for every RBH report
  *   POST /api/reports?standing=1&kind=…&remove=<id>
+ * Admin › RBH reports (Andrew 31 Oct 2026): every RBH training's reports for a year, and the year-end pair.
+ *   GET  /api/reports?list=1[&year=Y]                       every RBH training that year with its reports, the year's figures, the two typed-in figures, the year-end reports
+ *   PUT  /api/reports?yearend=Y&inputs=1                    { members, campaigns } typed in once a year
+ *   GET  /api/reports?yearend=Y                              the year-end reports' state
+ *   GET  /api/reports?yearend=Y&kind=exec|info&lang=en|fr&pdf=1[&v=n]
+ *   POST /api/reports?yearend=Y&kind=…&build=1 | ask=1 { text, lang } | remove=<id> | revert=<n> | final=1 { final }
  * Making a report takes Claude a minute or two, so it runs in reports-build-background and the page watches for it.
  */
 export default async (req) => {
@@ -25,6 +33,8 @@ export default async (req) => {
   const url = new URL(req.url);
   const q = (k) => url.searchParams.get(k);
   if (q("standing")) return standing(req, q);
+  if (q("list")) return rbhList(q);
+  if (q("yearend")) return yearend(req, q);
   const event = await getEvent(q("event"));
   if (!event) return fail("No such event.", 404);
   if (event.kind !== "rbh") return fail("Executive summaries are made for RBH events.", 409);
@@ -102,4 +112,83 @@ async function standing(req, q) {
   if (req.method !== "POST" || !KINDS[kind] || !q("remove")) return fail("Which request?");
   await putStanding(kind, (await standingOf(kind)).filter((x) => x.id !== q("remove")));
   return json({ exec: await standingOf("exec"), info: await standingOf("info") });
+}
+
+/* ---------- Admin › RBH reports ---------- */
+
+const thisYear = () => new Date().toISOString().slice(0, 4);
+
+/** Every RBH training of a year with where its reports stand, the year's figures, and the year-end reports. */
+async function rbhList(q) {
+  const events = await listEvents();
+  const years = rbhYears(events);
+  const year = /^\d{4}$/.test(q("year") ?? "") ? q("year") : thisYear();
+  const today = new Date().toISOString().slice(0, 10);
+  const mine = events.filter((e) => e.kind === "rbh" && yearOf(e) === year).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
+  const rows = await Promise.all(mine.map(async (e) => ({
+    id: e.id, title: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "", lastDay: e.lastDay || e.dayOne || "", practice: !!e.practice,
+    held: (e.lastDay || e.dayOne || "9") < today, survey: !!e.survey, surveyOpen: !!e.survey?.open,
+    ...(await state(e).catch((x) => ({ error: x.message, answered: 0, invited: 0, reports: null }))),
+  })));
+  const facts = await yearFacts(year, { events });
+  return json({ year: Number(year), years, rows, facts: { ...facts, comments: undefined, topics: undefined, commentCount: facts.comments.length },
+    inputs: await inputsOf(year), yearend: await yearState(year, facts) });
+}
+
+/** The year-end Executive Summary and infographic: made, changed by asking, filed, as the event reports are. */
+async function yearend(req, q) {
+  const year = q("yearend");
+  if (!/^\d{4}$/.test(year)) return fail("Which year?");
+  const kind = q("kind");
+  if (req.method === "GET" && q("pdf")) {
+    if (!YE_KINDS[kind]) return fail("Which report?");
+    const lang = q("lang") === "fr" ? "fr" : "en";
+    const bytes = await yearVersionPdf(year, kind, lang, q("v") ? Number(q("v")) : null);
+    if (!bytes) return fail("That report hasn't been made yet.", 404);
+    const name = yearFileName(kind, lang, year);
+    return new Response(bytes, { headers: { "content-type": "application/pdf", "cache-control": "no-store",
+      "content-disposition": `inline; filename="${encodeURIComponent(name)}"; filename*=UTF-8''${encodeURIComponent(name)}` } });
+  }
+  if (req.method === "GET") return json(await yearState(year));
+  // The year end belongs to no one event: the desk key, the president and the VP of operations change it.
+  if (!mayEditEvent(adminWho(req), { board: [] })) return fail("Only the president and the VP of operations can change the year-end reports.", 403);
+  const body = await req.json().catch(() => ({}));
+  const who = adminWho(req).email || "desk";
+  if (req.method === "PUT" && q("inputs")) {
+    await putInputs(year, body, who);
+    return json({ inputs: await inputsOf(year), yearend: await yearState(year) });
+  }
+  if (req.method !== "POST" || !YE_KINDS[kind]) return fail("Which report?");
+  const all = await yearReportsOf(year);
+  const r = { versions: [], current: 0, requests: [], chat: [], final: false, ...(all[kind] ?? {}) };
+  const save = (next) => putYearReports(year, { ...all, [kind]: next });
+  const start = async (job) => {
+    await save({ ...r, building: { at: new Date().toISOString(), why: job.reason }, error: null, ...(job.patch ?? {}) });
+    await kick(req, { yearend: year, kind, ...job, patch: undefined });
+  };
+  if (q("build")) {
+    if (r.building && Date.now() - Date.parse(r.building.at) < 6 * 60000) return fail("It is being made now.", 409);
+    const f = await yearFacts(year);
+    if (!f.held) return fail(`No RBH training in ${year} has taken place yet.`, 409);
+    await start({ reason: "asked" });
+  } else if (q("ask")) {
+    const said = text(body.text, 1500);
+    if (!said) return fail("Say what to change.");
+    if (!r.versions.length) return fail("Make the report first; then ask for changes.", 409);
+    const lang = ["en", "fr"].includes(body.lang) ? body.lang : "both";
+    const id = randomBytes(4).toString("hex");
+    await start({ reason: "asked-change", ask: said, lang, patch: { requests: [...r.requests, { id, text: said, lang, at: new Date().toISOString(), by: who }],
+      chat: [...r.chat, { who: "me", text: said, lang, at: new Date().toISOString() }].slice(-80), final: false } });
+  } else if (q("remove")) {
+    if (!r.requests.some((x) => x.id === q("remove"))) return fail("No such change.", 404);
+    await start({ reason: "asked-change", lang: "both", patch: { requests: r.requests.filter((x) => x.id !== q("remove")), final: false } });
+  } else if (q("revert")) {
+    const n = Number(q("revert"));
+    if (!r.versions.some((v) => v.n === n)) return fail("No such version.", 404);
+    await save({ ...r, current: n, chat: [...r.chat, { who: "claude", text: `Back to version ${n}.`, at: new Date().toISOString(), version: n }] });
+    await fileYearReport(year, kind).catch(() => {});
+  } else if (q("final")) {
+    await save({ ...r, final: !!body.final, finalAt: body.final ? new Date().toISOString() : null });
+  } else return fail("Expected build, ask, remove, revert or final.");
+  return json(await yearState(year));
 }
