@@ -240,8 +240,9 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
 
 // The text copy of an email is read as text: "&amp;" in a title has to come back as "&".
 const unescapeText = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+// In the text copy a link is its address: "Filed to SharePoint: open the folder" has nothing to click.
 const plain = (heading, lines, href, contact) =>
-  [heading, "", ...lines.filter(Boolean).map((l) => unescapeText(l.replace(/<br\s*\/?>/g, "\n").replace(/<li[^>]*>/g, "\n• ").replace(/<[^>]+>/g, "").replace(/^\n/, ""))), href ? `\n${href}` : "",
+  [heading, "", ...lines.filter(Boolean).map((l) => unescapeText(l.replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g, (m, href) => href).replace(/<br\s*\/?>/g, "\n").replace(/<li[^>]*>/g, "\n• ").replace(/<[^>]+>/g, "").replace(/^\n/, ""))), href ? `\n${href}` : "",
     contact?.name ? `\n--\n${contact.name}\nONGIA${contact.email ? `\n${contact.email}` : ""}${contact.phone ? `\n${contact.phone}` : ""}` : ""].join("\n");
 
 /**
@@ -434,7 +435,7 @@ export function volunteerNoticeMail({ event, volunteer, filing }) {
     `${esc(volunteer.first)} ${esc(volunteer.last)}${volunteer.organization ? ` (${esc(volunteer.organization)})` : ""} signed the ONGIA Volunteer Agreement for <b>${esc(event.title)}</b>.`,
     hotelLine(volunteer, "en"),
     filing?.folderUrl
-      ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
+      ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}" style="color:#1a2f5e">open the folder</a>`
       : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,
   ];
   return { subject: heading, html: layout({ heading, lines, contact: volunteerContact(event), event, theme: "volunteer" }), text: plain(heading, lines, null, volunteerContact(event)) };
@@ -621,7 +622,7 @@ export function approvedNoticeMail({ event, presenter, approval, coverage, filin
   const lines = [
     `${esc(approval.name)} approved ${esc(presenter.first)} ${esc(presenter.last)}'s presenter agreement. ONGIA covers: <b>${esc(coverage.length ? coverage.join(", ") : "nothing")}</b>.`,
     filing?.folderUrl
-      ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}">${esc(filing.folderUrl)}</a>`
+      ? `Filed to SharePoint: <a href="${esc(filing.folderUrl)}" style="color:#1a2f5e">open the folder</a>`
       : `SharePoint filing: ${esc(filing?.error ?? filing?.reason ?? "not attempted")}. The PDF is attached.`,
   ];
   return { subject: heading, html: layout({ heading, lines, contact: coordinatorOf(event), event }), text: plain(heading, lines, null, coordinatorOf(event)) };

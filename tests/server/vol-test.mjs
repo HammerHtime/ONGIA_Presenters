@@ -110,6 +110,8 @@ const copyEn = volunteerSignedMail({ event: evd, volunteer: { ...v, language: "e
 ok("and in English for an English signer", /Thank you for signing/.test(copyEn.text));
 const note = volunteerNoticeMail({ event: evd, volunteer: v, filing: { folderUrl: "https://sp/folder" } });
 ok("the board notice names who, where from and where it is filed", /Signed: Vera Volunteer \(volunteer\)/.test(note.subject) && /Peel Regional Police/.test(note.text) && /https:\/\/sp\/folder/.test(note.text));
+ok("on a phone the folder is a short link, not a SharePoint address running off the screen; the text copy keeps the address",
+  /href="https:\/\/sp\/folder"[^>]*>open the folder<\/a>/.test(note.html) && !/>https:\/\/sp\/folder</.test(note.html) && /Filed to SharePoint: https:\/\/sp\/folder/.test(note.text));
 ok("without a SharePoint link, it says so and the PDF travels attached", /not attempted|No SharePoint|not set/i.test(volunteerNoticeMail({ event: evd, volunteer: v, filing: { skipped: true, reason: "No SharePoint folder is set on this event." } }).text));
 
 console.log("— corrections, retries, removal");
