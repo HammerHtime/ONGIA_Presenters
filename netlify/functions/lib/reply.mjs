@@ -393,9 +393,11 @@ export function toldUs(people, answers) {
 }
 
 /** Today's reminder, if today is one of the dates: to everyone still to answer who has not had today's already. */
-export async function sendReminderRound(event, { deadline = null, pace = pacer(), today = todayIso(), justSent = [] } = {}) {
+export async function sendReminderRound(event, { deadline = null, pace = pacer(), today = todayIso(), justSent = [], now = false } = {}) {
   if (!event.reply?.sentAt) return { skipped: "the email has not been sent yet" };
-  if (!remindersOf(event.reply).includes(today)) return { skipped: "no reminder today" };
+  // now: "Send a reminder now" on the event page (Andrew 1 Nov 2026), on any day and whether or not automatic emails are
+  // on. It is today's reminder all the same, so a scheduled one the same day doesn't send it twice.
+  if (!now && !remindersOf(event.reply).includes(today)) return { skipped: "no reminder today" };
   if (event.reply.replyBy && today > event.reply.replyBy) return { skipped: "past the reply-by date" };
   if (!event.reply.open) return { skipped: "the form is closed" };
   const problems = replyProblems(event);
@@ -532,5 +534,8 @@ export async function replyStatus(event) {
     toSend: (() => { const told = toldUs(people, answers); const had = new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
       return writeableTo(people).filter((p) => !had.has(p.email) && !told.has(p.email)).length; })(),
     reminders: remindersOf(event.reply).map((d) => ({ date: d, round: stored.letterRounds?.[`reply-reminder:${d}`] ?? null })),
+    // The latest reminder that went, scheduled or sent by hand: its date and how it went.
+    lastReminder: Object.entries(stored.letterRounds ?? {}).filter(([k]) => k.startsWith("reply-reminder:")).map(([k, v]) => ({ date: k.slice(15), ...v }))
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0] ?? null,
   };
 }

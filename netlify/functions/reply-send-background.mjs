@@ -1,6 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
 import { getEvent, putEvent } from "./lib/store.mjs";
-import { sendReplyRound, sendReplyToPresenters } from "./lib/reply.mjs";
+import { sendReplyRound, sendReplyToPresenters, sendReminderRound } from "./lib/reply.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 
@@ -12,6 +12,7 @@ import { reportSends } from "./lib/sendreport.mjs";
  *
  *   POST /api/reply-send-background?event=…[&hop=n]     (with the desk's own key; started by POST /api/reply?send=1)
  *   POST /api/reply-send-background?event=…&who=presenters   the event's presenters (Andrew 29 Oct 2026; one run is plenty)
+ *   POST /api/reply-send-background?event=…&who=remind[&hop=n]   "Send a reminder now" (Andrew 1 Nov 2026)
  */
 const BUDGET_MS = 13 * 60 * 1000;    // stop starting sends with two minutes to spare
 const MAX_HOPS = 5;                  // 6 runs × ~370 emails: far more than any guest list
@@ -24,13 +25,14 @@ export default async (req) => {
   if (!event?.reply) return new Response(null, { status: 202 });
   await primeRoster();
   if (url.searchParams.get("who") === "presenters") return presenters(event);
+  const remind = url.searchParams.get("who") === "remind";
   let out;
-  try { out = await sendReplyRound(event, { deadline: Date.now() + BUDGET_MS }); }
+  try { out = remind ? await sendReminderRound(event, { deadline: Date.now() + BUDGET_MS, now: true }) : await sendReplyRound(event, { deadline: Date.now() + BUDGET_MS }); }
   catch (e) { out = { error: e.message }; }
   let continued = false;
   if (out.left > 0 && hop < MAX_HOPS) {
     try {
-      const r = await fetch(`${url.origin}/api/reply-send-background?event=${encodeURIComponent(event.id)}&hop=${hop + 1}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+      const r = await fetch(`${url.origin}/api/reply-send-background?event=${encodeURIComponent(event.id)}${remind ? "&who=remind" : ""}&hop=${hop + 1}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
       continued = r.status < 400;
     } catch (e) { console.log(`reply send: could not start the follow-up run: ${e.message}`); }
   }
@@ -39,11 +41,11 @@ export default async (req) => {
   if (continued) fresh.replySending = { ...(fresh.replySending ?? {}), hop: hop + 1, at: new Date().toISOString() };
   else {
     delete fresh.replySending;
-    fresh.replyLastSend = { at: new Date().toISOString(), error: out.error ?? (out.blocked?.[0] ?? out.skipped ?? null), left: out.left ?? 0 };
+    fresh.replyLastSend = { at: new Date().toISOString(), kind: remind ? "remind" : "email", error: out.error ?? (out.blocked?.[0] ?? out.skipped ?? null), left: out.left ?? 0 };
   }
   await putEvent(fresh);
   // Any address it could not reach is emailed to the officers (each run reports its own).
-  await reportSends("the food-allergy email", [{ ...out, title: event.title, what: "The food-allergy email" }]);
+  await reportSends(remind ? "the food-allergy reminder" : "the food-allergy email", [{ ...out, title: event.title, what: remind ? "The food-allergy reminder" : "The food-allergy email" }]);
   console.log(`reply send ${event.id} run ${hop}: ${out.sent ?? 0} sent, ${out.failed ?? 0} failed, ${out.left ?? 0} left${continued ? ", follow-up started" : ""}${out.error ? `, error: ${out.error}` : ""}`);
   return new Response(null, { status: 202 });
 };
