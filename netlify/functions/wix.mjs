@@ -13,6 +13,7 @@ import { starterTasks } from "./lib/checklist.mjs";
  *   GET  /api/wix?events=1            the Wix events, with any desk event each is linked to
  *   GET  /api/wix?contacts=1[&site=n] what the site's contact list holds, in totals only: no names or addresses
  *   GET  /api/wix?archive=1           the old website's past events, each with how many registered: counts only
+ *   GET  /api/wix?unique=3:<id>,1:<id> how many different people across events (one training on two days or two sites): counts only
  *   PUT  /api/wix?event=…&link=…      point a desk event at a Wix event
  *   PUT  /api/wix?event=…&unlink=1    stop pointing at it
  *   PUT  /api/wix?event=…&link=…&also=1&group=…   also pull a second Wix event into this one, its people labelled with the group
@@ -31,7 +32,8 @@ export default async (req) => {
 
   const url = new URL(req.url);
   if (req.method === "GET") {
-    if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80));
+    if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80), text(url.searchParams.get("site"), 2) || "1");
+    if (url.searchParams.get("unique")) return uniquePeople(text(url.searchParams.get("unique"), 600));
     if (url.searchParams.get("events")) return showWixEvents();
     if (url.searchParams.get("contacts")) return contactSummary(text(url.searchParams.get("site"), 2) || "1");
     if (url.searchParams.get("archive")) return archiveSummary();
@@ -63,14 +65,16 @@ export default async (req) => {
  * A count proves the connection; the list itself belongs on the event screen,
  * behind the admin key, not in a diagnostic.
  */
-async function countGuests(wixEventId) {
+async function countGuests(wixEventId, site = "1") {
   if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
   if (!wixEventId) return fail("Which Wix event?");
-  const all = await listWixGuests({ eventId: wixEventId, type: null });
+  // The site matters: the Summit's community partners registered on the second site, and counting them on the first gave 0.
+  const all = await listWixGuests({ eventId: wixEventId, type: null, site });
   const of = (t) => all.filter((g) => g.guestType === t).length;
   const noEmail = all.filter((g) => !g.email);
   return json({
     eventId: wixEventId,
+    site,
     total: all.length,
     attending: all.filter((g) => g.status === "ATTENDING").length,
     notAttending: all.filter((g) => g.status === "NOT_ATTENDING").length,
@@ -86,6 +90,34 @@ async function countGuests(wixEventId) {
       TICKET_HOLDER: noEmail.filter((g) => g.guestType === "TICKET_HOLDER").length,
     },
   });
+}
+
+/**
+ * How many different people came to one training that Wix holds as several events: two days registered separately
+ * (Regina, Edmundston), or one event registered on two sites (Calgary 2025, on the Archive and the current site).
+ * GET ?unique=3:<id>,1:<id> — site:event pairs. People are matched by email address; anyone without one cannot be
+ * matched and is counted once per event they registered for. Counts only: no names or addresses leave this function.
+ */
+async function uniquePeople(spec) {
+  if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
+  const pairs = spec.split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [site, id] = x.includes(":") ? x.split(":") : ["1", x]; return { site, id }; });
+  if (pairs.length < 1 || pairs.length > 10) return fail("Give one to ten site:event pairs, comma-separated.");
+  const emails = new Set();
+  let noEmail = 0;
+  const events = [];
+  for (const { site, id } of pairs) {
+    let guests;
+    try { guests = await listWixGuests({ eventId: id, type: null, site }); }
+    catch (e) { return fail(`Wix would not list event ${id} on site ${site}: ${e.message}`, e.status === 401 || e.status === 403 ? 403 : 502); }
+    const people = attendeesOf(guests).filter((p) => p.status === "ATTENDING");
+    const withEmail = people.filter((p) => p.email);
+    noEmail += people.length - withEmail.length;
+    const before = emails.size;
+    for (const p of withEmail) emails.add(String(p.email).trim().toLowerCase());
+    events.push({ site, eventId: id, people: people.length, newPeople: emails.size - before + (people.length - withEmail.length) });
+  }
+  const added = events.reduce((n, e) => n + e.people, 0);
+  return json({ events, added, unique: emails.size + noEmail, inMoreThanOne: added - emails.size - noEmail, withoutEmail: noEmail });
 }
 
 /** Wix's events, each marked with the desk event it already belongs to. */
@@ -308,7 +340,7 @@ async function archiveSummary() {
     const people = attendeesOf(list).filter((p) => p.status === "ATTENDING");
     by.set(id, { attending: people.length, emails: new Set(people.map((p) => p.email).filter(Boolean)) });
   }
-  const rows = events.map((e) => { const r = by.get(e.id); return { title: e.title, dayOne: e.dayOne, city: e.city, status: e.status, registered: r?.attending ?? 0, addresses: r?.emails.size ?? 0 }; });
+  const rows = events.map((e) => { const r = by.get(e.id); return { id: e.id, title: e.title, dayOne: e.dayOne, city: e.city, status: e.status, registered: r?.attending ?? 0, addresses: r?.emails.size ?? 0 }; });
   const years = {};
   for (const r of rows) { const y = (r.dayOne || "").slice(0, 4) || "undated"; const Y = (years[y] ??= { events: 0, registered: 0, cities: new Set() }); Y.events++; Y.registered += r.registered; if (r.city) Y.cities.add(r.city); }
   return json({ site: site.name, events: rows.length, guests, years: Object.fromEntries(Object.entries(years).sort().map(([y, v]) => [y, { events: v.events, registered: v.registered, cities: [...v.cities].sort() }])), rows });
