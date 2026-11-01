@@ -263,6 +263,19 @@
   /* the housekeeping questions card */
   /* the answers at a glance: one line each, count and download on the same line */
   .rplist{border:1px solid var(--edge);border-radius:12px;margin:0 0 12px}
+  /* Survey › Results, tightened (Andrew 1 Nov 2026: "we can do a better job making this tighter"). */
+  .rsk{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+  .rsk div{background:var(--sunk);border-radius:12px;padding:8px 12px;min-width:92px}
+  .rsk b{display:block;font-size:20px;line-height:1.1}.rsk span{font-size:12px;color:var(--ink-mid)}
+  .rsg{display:grid;grid-template-columns:116px minmax(0,1fr);gap:10px 14px;align-items:center;border-top:1px solid var(--edge);padding-top:12px}
+  .rsg > .l{font:600 13px var(--fb);color:var(--ink-mid)}
+  .rsg > .r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .rsg .pseg{margin:0}.rsg .pseg button{padding:5px 11px;font-size:12.5px}
+  .rsread{grid-column:1/-1}
+  .rsfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--ink-mid)}
+  .rsfoot .linkbtn{background:none;border:0;padding:0;color:var(--late);font:600 12.5px var(--fb);cursor:pointer;text-decoration:underline}
+  .rsfoot .linkbtn:disabled{color:var(--ink-mid);cursor:default;text-decoration:none}
+  @media(max-width:560px){.rsk div{flex:1 1 calc(50% - 8px)}.rsg{grid-template-columns:1fr;gap:4px 0}.rsg > .r{margin-bottom:8px}}
   .rpans{display:grid;grid-template-columns:minmax(0,1fr) auto 118px;gap:6px 12px;align-items:center;padding:9px 12px;border-top:1px solid var(--edge)}
   .rpans:first-child{border-top:0}
   .rpans .rpnum{white-space:nowrap;font-size:14px}
@@ -6946,30 +6959,23 @@ function renderResults(ev, D) {
   const R = D.results, A = D.analysis;
   const q = `/survey?event=${encodeURIComponent(ev.id)}`;
   const list = (items, f) => items?.length ? `<ul style="margin:6px 0 12px;padding-left:20px">${items.map((x) => `<li style="margin:3px 0">${f(x)}</li>`).join("")}</ul>` : "";
+  const kpi = (big, small) => `<div><b>${big}</b><span>${small}</span></div>`;
   box.innerHTML = `
-    <p style="margin:0 0 12px"><b>${R.responses}</b> answer${R.responses === 1 ? "" : "s"} from <b>${R.respondents}</b> ${R.respondents === 1 ? "person" : "people"}${R.headline.n ? ` · overall <b>${R.headline.avg}/5</b>, <b>${R.headline.top2}%</b> rated 4 or 5` : ""}${R.overall.nps.n ? ` · recommend score <b>${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}</b>` : ""}.</p>
+    <div class="rsk">${kpi(R.responses, `answer${R.responses === 1 ? "" : "s"} · ${R.respondents} ${R.respondents === 1 ? "person" : "people"}`)}${R.headline.n ? kpi(`${R.headline.avg}<small style="font-size:12px">/5</small>`, "overall") + kpi(`${R.headline.top2}%`, "rated 4 or 5") : ""}${R.overall.nps.n ? kpi(`${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}`, "recommend score") : ""}</div>
     ${R.responses ? "" : `<div class="note">No answers yet. Everything below works as soon as the first ones come in; try it with <b>Try the survey</b> above (those answers aren't kept).</div>`}
-    <h3 class="wsh">Download</h3>
-    <div class="actions" style="flex-wrap:wrap;margin-top:6px">
-      <button class="btn btn-ghost" data-rsdl="summary">Summary with charts (PDF)</button>
-      <button class="btn btn-ghost" data-rsdl="answers">Every answer (Excel)</button>
-      ${D.presenters ? `<button class="btn btn-ghost" data-rsdl="presenters">${D.presenters} interested in presenting (Excel)</button>` : ""}</div>
-    <h3 class="wsh" style="margin-top:18px">Claude's read</h3>
-    ${A ? `<div class="note" style="margin-top:6px"><p style="margin:0 0 8px">${esc(A.summary)}</p>
+    <div class="rsg">
+      <div class="l">Download</div><div class="r"><button class="mini" data-rsdl="summary">Summary with charts · PDF</button><button class="mini" data-rsdl="answers">Every answer · Excel</button>${D.presenters ? `<button class="mini" data-rsdl="presenters">${D.presenters} ${D.presenters === 1 ? "wants" : "want"} to present · Excel</button>` : ""}</div>
+      <div class="l">Claude's read</div><div class="r"><button class="mini ${A ? "" : "gold"}" id="rs-analyse"${R.responses ? "" : " disabled"}>${A ? "Read them again" : "Ask Claude to read the results"}</button>${A ? `<span class="hint" style="margin:0">Read ${esc(fmtDate((A.at || "").slice(0, 10)))}.</span>` : `<span class="hint" style="margin:0">Do this first: it picks the comments for the infographic.</span>`}</div>
+      ${A ? `<div class="note rsread" style="margin:0"><p style="margin:0 0 8px">${esc(A.summary)}</p>
         ${A.liked?.length ? `<b>What attendees valued</b>${list(A.liked, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}
         ${A.improve?.length ? `<b>What to look at</b>${list(A.improve, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}
         ${A.presenters?.length ? `<b>Sessions that stood out</b>${list(A.presenters, (l) => `<b>${esc(l.session)}</b>: ${esc(l.note)}`)}` : ""}
         ${A.nextTime?.length ? `<b>For next time</b>${list(A.nextTime, (l) => esc(l))}` : ""}
         ${A.quotes?.length ? `<b>Comments picked for the infographic</b>${list(A.quotes, (l) => `“${esc(l.text)}” <span class="porg">(${esc(l.about)})</span>`)}` : ""}
-        <p class="hint" style="margin:0">Read ${esc(fmtDate((A.at || "").slice(0, 10)))}. Quotes are attendees' own words; anything Claude reworded is left out.</p></div>` : ""}
-    <button class="btn ${A ? "btn-ghost" : "btn-gold"}" id="rs-analyse" style="margin-top:8px"${R.responses ? "" : " disabled"}>${A ? "Ask Claude to read them again" : "Ask Claude to read the results"}</button>
-    <h3 class="wsh" style="margin-top:18px">Infographic</h3>
-    <div class="pseg" role="tablist" style="margin:6px 0 10px"><button type="button" data-rslang="en" class="${RS_LANG === "en" ? "on" : ""}">English</button><button type="button" data-rslang="fr" class="${RS_LANG === "fr" ? "on" : ""}">Français</button></div>
-    <div class="actions" style="flex-wrap:wrap"><button class="btn btn-gold" id="rs-info"${R.responses ? "" : " disabled"}>Show the infographic</button><button class="btn btn-ghost" id="rs-social"${R.responses ? "" : " disabled"}>Make social media images</button></div>
-    <p class="hint">${A ? "" : "Ask Claude to read the results first, so the infographic has its comments. "}The social media images are square, one per section, in the language picked, all in one .zip.</p>
-    <h3 class="wsh" style="margin-top:18px">Start fresh</h3>
-    <p class="hint" style="margin:0 0 8px">After a trial run, clear every answer so the results start from the real ones.</p>
-    <button class="btn btn-ghost" id="rs-clear"${R.responses ? "" : " disabled"}>Clear all answers</button>
+        <p class="hint" style="margin:0">Quotes are attendees' own words; anything Claude reworded is left out.</p></div>` : ""}
+      <div class="l">Infographic</div><div class="r"><div class="pseg" role="tablist"><button type="button" data-rslang="en" class="${RS_LANG === "en" ? "on" : ""}">English</button><button type="button" data-rslang="fr" class="${RS_LANG === "fr" ? "on" : ""}">Français</button></div><button class="mini gold" id="rs-info"${R.responses ? "" : " disabled"}>Show the infographic</button><button class="mini" id="rs-social"${R.responses ? "" : " disabled"}>Social media images · .zip</button></div>
+    </div>
+    <div class="rsfoot"><span>Social media images are square, one per section, in the language picked.</span><span>Trial answers in here? <button type="button" class="linkbtn" id="rs-clear"${R.responses ? "" : " disabled"}>Clear all answers</button></span></div>
     <dialog class="sheet rpdlg" id="rsdlg"><form method="dialog">
       <div class="sheet-head"><h2>The infographic</h2><p class="hint" style="margin-top:6px">Click any words on it to change them, then download. Changes here are only for this download.</p></div>
       <div class="sheet-body"><iframe id="rs-frame" title="The infographic" sandbox="allow-same-origin" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>

@@ -35,7 +35,7 @@ const client = { messages: { create: async (req) => {
   const extra = asks.filter((a) => /Akwesasne/.test(a)).map(() => ({ title: fr ? "La visite d'Akwesasne" : "The Akwesasne visit", paragraphs: [fr ? "Première fois au programme." : "First time on the program."] }));
   const body = exec
     ? { glance: [fr ? "Ce sommaire présente les résultats." : "This summary presents the results."], context: [], notes: [{ id: "quality", note: fr ? "Unanime" : "Unanimous" }, { id: "nope", note: "x" }], strengths: [fr ? "Les visites." : "The field visits."],
-        quotes: [{ commentId: real, about: "Field visits" }, { commentId: 999, about: "made up" }], areas: [{ title: "Vape identification", text: "Lowest score." }], topicsIntro: "", topics: ["Court testimony"], recommendations: ["Keep the tours."], extra, reply: /Just now ONGIA asked/.test(req.messages[0].content) ? (fr ? "J'ai ajouté une section." : "Added a section on the Akwesasne visit.") : "" }
+        quotes: [{ commentId: real, about: "Field visits" }, { commentId: 999, about: "made up" }], areas: [{ title: "Vape identification", text: "Lowest score." }], topicsIntro: "", topics: ["Court testimony", "Crown briefing", "Pipeline investigations", "Parcel interdiction"], recommendations: ["Keep the tours."], extra, reply: /Just now ONGIA asked/.test(req.messages[0].content) ? (fr ? "J'ai ajouté une section." : "Added a section on the Akwesasne visit.") : "" }
     : { tagline: fr ? "Un résultat unanime." : "A unanimous result.", lockIn: [{ head: "Tours.", text: "Keep." }], buildNext: [], quote: { commentId: real, about: "Field visits" }, wantNext: ["Court testimony"], reply: "" };
   return { stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(body) }] };
 } } };
@@ -65,6 +65,9 @@ for (const [kind, lang] of [["exec", "en"], ["exec", "fr"], ["info", "en"], ["in
   fs.writeFileSync(`/tmp/report-${kind}-${lang}.pdf`, pdf);
 }
 const t = (p) => execFileSync("pdftotext", [p, "-"]).toString().replace(/\s+/g, " ");
+// Requested topics sit in two columns (Andrew 30 Oct 2026): the first and third topics share a line in the laid-out text.
+const laid = execFileSync("pdftotext", ["-layout", "/tmp/report-exec-en.pdf", "-"]).toString();
+ok("the requested topics are in two columns", /Court testimony\s{3,}.*Pipeline investigations/.test(laid) && /Crown briefing\s{3,}.*Parcel interdiction/.test(laid), laid.slice(laid.indexOf("Requested"), laid.indexOf("Requested") + 300));
 ok("the English summary: its sections and the survey's figures", /Executive Summary/.test(t("/tmp/report-exec-en.pdf")) && /At a Glance/.test(t("/tmp/report-exec-en.pdf")) && /5 of 10 surveys returned \(50%\)/.test(t("/tmp/report-exec-en.pdf")) && /Both field tours closed the loop for me/.test(t("/tmp/report-exec-en.pdf")), t("/tmp/report-exec-en.pdf").slice(0, 300));
 ok("the French one: French headings and text", /Sommaire exécutif/.test(t("/tmp/report-exec-fr.pdf")) && /En un coup d'œil/.test(t("/tmp/report-exec-fr.pdf")) && /Ce sommaire présente les résultats/.test(t("/tmp/report-exec-fr.pdf")) && /5 sondages reçus sur 10/.test(t("/tmp/report-exec-fr.pdf")));
 ok("the infographic is one page, in each language", /Pages:\s+1\b/.test(execFileSync("pdfinfo", ["/tmp/report-info-fr.pdf"]).toString()) && /APERÇUEXÉCUTIF/.test(t("/tmp/report-info-fr.pdf").replace(/ /g, "")) && /EXECUTIVESNAPSHOT/.test(t("/tmp/report-info-en.pdf").replace(/ /g, "")));

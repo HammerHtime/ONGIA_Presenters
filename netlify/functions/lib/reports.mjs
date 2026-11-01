@@ -213,6 +213,21 @@ export async function execPdf(content, facts, lang, { date }) {
   const h2 = (t, need = 90) => { room(need); doc.moveDown(0.6); doc.font("b").fontSize(14).fillColor(NAVY).text(t, X); const y = doc.y + 2; doc.moveTo(X, y).lineTo(X + W, y).lineWidth(0.8).strokeColor(GOLD).stroke(); doc.y = y + 8; };
   const para = (t) => { room(30); doc.font("r").fontSize(10.5).fillColor(INK).text(t, X, doc.y, { width: W, lineGap: 2.5 }); doc.moveDown(0.5); };
   const bullets = (items) => { for (const t of items) { room(26); const y = doc.y; doc.font("r").fontSize(10.5).fillColor(INK).text("•", X + 6, y).text(t, X + 20, y, { width: W - 20, lineGap: 2.5 }); doc.moveDown(0.35); } };
+  // Short items in two columns, read down the left then the right (Andrew 30 Oct 2026: "future topics can be put into
+  // two columns to not take up so much space").
+  const bullets2 = (items) => {
+    const half = Math.ceil(items.length / 2), cw = W / 2 - 26, opts = { width: cw, lineGap: 2.5 };
+    doc.font("r").fontSize(10.5).fillColor(INK);
+    for (let i = 0; i < half; i++) {
+      const pair = [items[i], items[i + half]].filter((t) => t !== undefined);
+      const h = Math.max(...pair.map((t) => doc.heightOfString(t, opts)));
+      room(h + 6);
+      const y = doc.y;
+      pair.forEach((t, c) => { const x = X + c * (W / 2); doc.text("•", x + 6, y).text(t, x + 20, y, opts); });
+      doc.x = X; doc.y = y + h + 4;
+    }
+    doc.moveDown(0.2);
+  };
   // Title block.
   doc.font("b").fontSize(24).fillColor(NAVY).text(T.title, X, doc.y);
   doc.font("r").fontSize(13).fillColor(NAVY).text(facts.event.title);
@@ -274,7 +289,7 @@ export async function execPdf(content, facts, lang, { date }) {
     for (const q of content.quotes) { room(40); doc.font("i").fontSize(10.5).fillColor(INK).text(`“${q.text}”`, X + 14, doc.y, { width: W - 28, lineGap: 2 }); doc.font("r").fontSize(8.5).fillColor(MUTED).text(`— ${q.about}`, X + 14, doc.y, { width: W - 28 }); doc.moveDown(0.5); }
   }
   if (content.areas?.length) { h2(T.areas); for (const a of content.areas) { room(40); doc.font("b").fontSize(11).fillColor(NAVY).text(a.title, X, doc.y, { width: W }); para(a.text); } }
-  if (content.topics?.length) { h2(T.topics); if (content.topicsIntro) para(content.topicsIntro); bullets(content.topics); }
+  if (content.topics?.length) { h2(T.topics); if (content.topicsIntro) para(content.topicsIntro); (content.topics.length > 2 ? bullets2 : bullets)(content.topics); }
   for (const e of content.extra ?? []) { h2(e.title); for (const p of e.paragraphs ?? []) para(p); }
   if (content.recommendations?.length) { h2(T.recs); bullets(content.recommendations); }
   // Footers, now the pages are known.
