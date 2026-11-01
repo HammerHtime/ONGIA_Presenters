@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
-import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites, listWixContacts } from "./lib/wix.mjs";
+import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites, listWixContacts, archiveSite, listEveryWixEvent } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
 import { eventId as makeEventId } from "./lib/ids.mjs";
 import { deadlinesFor, offsetsOf } from "./lib/deadlines.mjs";
@@ -12,6 +12,7 @@ import { starterTasks } from "./lib/checklist.mjs";
  *   GET  /api/wix                     is it connected, and does the key work
  *   GET  /api/wix?events=1            the Wix events, with any desk event each is linked to
  *   GET  /api/wix?contacts=1[&site=n] what the site's contact list holds, in totals only: no names or addresses
+ *   GET  /api/wix?archive=1           the old website's past events, each with how many registered: counts only
  *   PUT  /api/wix?event=…&link=…      point a desk event at a Wix event
  *   PUT  /api/wix?event=…&unlink=1    stop pointing at it
  *   PUT  /api/wix?event=…&link=…&also=1&group=…   also pull a second Wix event into this one, its people labelled with the group
@@ -33,6 +34,7 @@ export default async (req) => {
     if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80));
     if (url.searchParams.get("events")) return showWixEvents();
     if (url.searchParams.get("contacts")) return contactSummary(text(url.searchParams.get("site"), 2) || "1");
+    if (url.searchParams.get("archive")) return archiveSummary();
     return json({ connected: wixConfigured(), sites: wixSites().map((x) => ({ n: x.n, name: x.name })), ...(await wixHealth()) });
   }
   if (req.method === "PUT") {
@@ -277,4 +279,32 @@ async function contactSummary(site) {
     topDomains: domains.filter(([d]) => !PERSONAL.test(d)).slice(0, 40),
     extendedFields: tally((c) => c.extended.join("|")).slice(0, 10).map(([k, n]) => [k.split("|").filter(Boolean), n]),
   });
+}
+
+/**
+ * What the Archive site holds (Andrew 1 Nov 2026: past events from before the 2025 change-over), in counts only: each
+ * event's title, date, city and how many registered, and the totals by year. Proves the key reaches it before anything
+ * is built on it. Read only; nothing is linked, copied or written.
+ */
+async function archiveSummary() {
+  const site = archiveSite();
+  if (!site) return fail("The Archive site isn't connected: set WIX_SITE_ID_3 in Netlify.", 409);
+  let events, guests;
+  try {
+    events = await listEveryWixEvent({ site: "3" });
+    guests = await listWixGuests({ type: null, site: "3" });
+  } catch (e) {
+    return fail(e.status === 401 || e.status === 403 ? `Wix refused the key for ${site.name}. In Wix: Account Settings, API Keys, open the key the desk uses, tick the Archive site (with Read Events and Read Guest List), save.` : e.message, e.status === 401 || e.status === 403 ? 403 : 502);
+  }
+  const by = new Map();
+  for (const g of guests) {
+    if (!g.eventId) continue;
+    const r = by.get(g.eventId) ?? { all: 0, attending: 0, emails: new Set() };
+    r.all++; if (g.status === "ATTENDING") { r.attending++; if (g.email) r.emails.add(g.email); }
+    by.set(g.eventId, r);
+  }
+  const rows = events.map((e) => { const r = by.get(e.id); return { title: e.title, dayOne: e.dayOne, city: e.city, status: e.status, registered: r?.attending ?? 0, addresses: r?.emails.size ?? 0 }; });
+  const years = {};
+  for (const r of rows) { const y = (r.dayOne || "").slice(0, 4) || "undated"; const Y = (years[y] ??= { events: 0, registered: 0, cities: new Set() }); Y.events++; Y.registered += r.registered; if (r.city) Y.cities.add(r.city); }
+  return json({ site: site.name, events: rows.length, guests: guests.length, years: Object.fromEntries(Object.entries(years).sort().map(([y, v]) => [y, { events: v.events, registered: v.registered, cities: [...v.cities].sort() }])), rows });
 }

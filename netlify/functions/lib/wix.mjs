@@ -42,7 +42,16 @@ export function wixSites() {
   if (process.env.WIX_SITE_ID_2) out.push({ n: "2", key: process.env.WIX_API_KEY_2 || process.env.WIX_API_KEY, id: process.env.WIX_SITE_ID_2.trim(), name: process.env.WIX_SITE_2_NAME || "the community partners' website" });
   return out.filter((s) => s.key && s.id);
 }
-const siteOf = (n = "1") => wixSites().find((s) => s.n === String(n || "1"));
+/**
+ * ONGIA's old website, from before the 2025 change-over (Andrew 1 Nov 2026: "our older site called Archive"): WIX_SITE_ID_3,
+ * with WIX_API_KEY_3 if it is on another Wix account. Read for history only (past events and who came, for year-over-year
+ * figures). It is not in wixSites(), so it is never offered for linking, never swept and never written to.
+ */
+export function archiveSite() {
+  const id = String(process.env.WIX_SITE_ID_3 ?? "").trim(), key = process.env.WIX_API_KEY_3 || process.env.WIX_API_KEY;
+  return id && key ? { n: "3", key, id, name: process.env.WIX_SITE_3_NAME || "the Archive website", archive: true } : null;
+}
+const siteOf = (n = "1") => [...wixSites(), archiveSite()].filter(Boolean).find((s) => s.n === String(n || "1"));
 
 /**
  * The WIX_* variable names this function can actually see. Names only, never
@@ -99,6 +108,18 @@ async function wix(path, body, site = "1") {
     throw err;
   }
   return json;
+}
+
+/** Every published event on a site, oldest pages included (the Archive holds years of them). Read only. */
+export async function listEveryWixEvent({ site = "3", max = 2000 } = {}) {
+  const out = [];
+  for (let offset = 0; offset < max; offset += 100) {
+    const got = await wix("/events/v3/events/query", { query: { filter: { status: { $in: ["UPCOMING", "STARTED", "ENDED"] } }, paging: { limit: 100, offset }, sort: [{ fieldName: "dateAndTimeSettings.startDate", order: "DESC" }] } }, site);
+    const page = got.events ?? [];
+    out.push(...page.map(tidyEvent));
+    if (page.length < 100) break;
+  }
+  return out;
 }
 
 /* ---------- Contacts (Andrew 1 Nov 2026: "you have access via api for contacts") ---------- */
