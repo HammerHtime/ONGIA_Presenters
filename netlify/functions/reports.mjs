@@ -4,6 +4,7 @@ import { mayEditEvent } from "./lib/auth.mjs";
 import { yearFacts, yearState, yearReportsOf, putYearReports, yearVersionPdf, fileYearReport, yearFileName, inputsOf, putInputs, rbhYears, yearOf, YE_KINDS } from "./lib/yearend.mjs";
 import { KINDS, reportsOf, putReports, standingOf, putStanding, versionPdf, fileNameOf, factsFor, halfBack, fileReport } from "./lib/reports.mjs";
 import { randomBytes } from "node:crypto";
+import { ongiaYearFacts, ongState, ongReportsOf, putOngReports, ongVersionPdf, fileOngReport, ongFileName, ongInputsOf, putOngInputs, ongYears, ONG_KINDS } from "./lib/ongiayear.mjs";
 
 /**
  * The survey's reports on an RBH event (Andrew 30 Oct 2026): the Executive Summary and the infographic, in English and
@@ -25,6 +26,12 @@ import { randomBytes } from "node:crypto";
  *   GET  /api/reports?yearend=Y                              the year-end reports' state
  *   GET  /api/reports?yearend=Y&kind=exec|info&lang=en|fr&pdf=1[&v=n]
  *   POST /api/reports?yearend=Y&kind=…&build=1 | ask=1 { text, lang } | remove=<id> | revert=<n> | final=1 { final }
+ * Reports › ONGIA (Andrew 1 Nov 2026): ONGIA's year in three reports and an infographic.
+ *   GET  /api/reports?ongia=Y                                the year's figures, contacts, and where the four reports stand
+ *   PUT  /api/reports?ongia=Y&inputs=1                       { contacts } typed in once a year
+ *   GET  /api/reports?ongia=Y&kind=impact|reach|program|info&lang=en|fr&pdf=1[&v=n]
+ *   POST /api/reports?ongia=Y&build=all                      make all four (sorting agencies and grouping topics first)
+ *   POST /api/reports?ongia=Y&kind=…&build=1 | ask=1 { text, lang } | remove=<id> | revert=<n> | final=1 { final }
  * Making a report takes Claude a minute or two, so it runs in reports-build-background and the page watches for it.
  */
 export default async (req) => {
@@ -35,6 +42,7 @@ export default async (req) => {
   if (q("standing")) return standing(req, q);
   if (q("list")) return rbhList(q);
   if (q("yearend")) return yearend(req, q);
+  if (q("ongia")) return ongia(req, q);
   const event = await getEvent(q("event"));
   if (!event) return fail("No such event.", 404);
   if (event.kind !== "rbh") return fail("Executive summaries are made for RBH events.", 409);
@@ -191,4 +199,83 @@ async function yearend(req, q) {
     await save({ ...r, final: !!body.final, finalAt: body.final ? new Date().toISOString() : null });
   } else return fail("Expected build, ask, remove, revert or final.");
   return json(await yearState(year));
+}
+
+/* ---------- Reports › ONGIA ---------- */
+
+/** ONGIA's year: the figures, contacts, the four reports; made, changed by asking and filed like the RBH year end. */
+async function ongia(req, q) {
+  const year = q("ongia");
+  if (!/^\d{4}$/.test(year)) return fail("Which year?");
+  const kind = q("kind");
+  if (req.method === "GET" && q("pdf")) {
+    if (!ONG_KINDS[kind]) return fail("Which report?");
+    const lang = q("lang") === "fr" ? "fr" : "en";
+    const bytes = await ongVersionPdf(year, kind, lang, q("v") ? Number(q("v")) : null);
+    if (!bytes) return fail("That report hasn't been made yet.", 404);
+    const name = ongFileName(kind, lang, year);
+    return new Response(bytes, { headers: { "content-type": "application/pdf", "cache-control": "no-store",
+      "content-disposition": `inline; filename="${encodeURIComponent(name)}"; filename*=UTF-8''${encodeURIComponent(name)}` } });
+  }
+  if (req.method === "GET" && kind) return json(await ongState(year));
+  if (req.method === "GET") {
+    const events = await listEvents();
+    const facts = await ongiaYearFacts(year, { events });
+    return json({ year: Number(year), years: ongYears(events), facts: { ...facts, comments: undefined, asked: undefined, commentCount: facts.comments.length },
+      inputs: await ongInputsOf(year), state: await ongState(year, facts), mayChange: mayEditEvent(adminWho(req), { board: [] }) });
+  }
+  // Any board member can read ONGIA's reports; the desk key, the president and the VP of operations change them.
+  if (!mayEditEvent(adminWho(req), { board: [] })) return fail("Only the president and the VP of operations can change ONGIA's reports.", 403);
+  const body = await req.json().catch(() => ({}));
+  const who = adminWho(req).email || "desk";
+  if (req.method === "PUT" && q("inputs")) {
+    await putOngInputs(year, body, who);
+    return json({ inputs: await ongInputsOf(year) });
+  }
+  if (req.method !== "POST") return fail("Method not allowed.", 405);
+  const all = await ongReportsOf(year);
+  const fresh = (k) => ({ versions: [], current: 0, requests: [], chat: [], final: false, ...(all[k] ?? {}) });
+  const going = (r) => r.building && Date.now() - Date.parse(r.building.at) < 12 * 60000;
+  if (q("build") === "all") {
+    const kinds = Object.keys(ONG_KINDS);
+    if (kinds.some((k) => going(fresh(k)))) return fail("They're being made now.", 409);
+    const f = await ongiaYearFacts(year);
+    if (!f.held) return fail(`No ONGIA event in ${year} has taken place yet.`, 409);
+    const at = new Date().toISOString();
+    await putOngReports(year, { ...all, ...Object.fromEntries(kinds.map((k) => [k, { ...fresh(k), building: { at, why: "asked" }, error: null }])) });
+    await kick(req, { ongia: year, kinds, reason: "asked", refresh: true });
+    return json(await ongState(year));
+  }
+  if (!ONG_KINDS[kind]) return fail("Which report?");
+  const r = fresh(kind);
+  const save = (next) => putOngReports(year, { ...all, [kind]: next });
+  const start = async (job) => {
+    await save({ ...r, building: { at: new Date().toISOString(), why: job.reason }, error: null, ...(job.patch ?? {}) });
+    await kick(req, { ongia: year, kinds: [kind], ...job, patch: undefined });
+  };
+  if (q("build")) {
+    if (going(r)) return fail("It is being made now.", 409);
+    const f = await ongiaYearFacts(year);
+    if (!f.held) return fail(`No ONGIA event in ${year} has taken place yet.`, 409);
+    await start({ reason: "asked", refresh: true });
+  } else if (q("ask")) {
+    const said = text(body.text, 1500);
+    if (!said) return fail("Say what to change.");
+    if (!r.versions.length) return fail("Make the report first; then ask for changes.", 409);
+    const lang = ["en", "fr"].includes(body.lang) ? body.lang : "both";
+    const id = randomBytes(4).toString("hex");
+    await start({ reason: "asked-change", ask: said, lang, patch: { requests: [...r.requests, { id, text: said, lang, at: new Date().toISOString(), by: who }],
+      chat: [...r.chat, { who: "me", text: said, lang, at: new Date().toISOString() }].slice(-80), final: false } });
+  } else if (q("remove")) {
+    if (!r.requests.some((x) => x.id === q("remove"))) return fail("No such change.", 404);
+    await start({ reason: "asked-change", lang: "both", patch: { requests: r.requests.filter((x) => x.id !== q("remove")), final: false } });
+  } else if (q("revert")) {
+    const n = Number(q("revert"));
+    if (!r.versions.some((v) => v.n === n)) return fail("No such version.", 404);
+    await save({ ...r, current: n, chat: [...r.chat, { who: "claude", text: `Back to version ${n}.`, at: new Date().toISOString(), version: n }] });
+    await fileOngReport(year, kind).catch(() => {});
+  } else if (q("final")) {
+    await save({ ...r, final: !!body.final, finalAt: body.final ? new Date().toISOString() : null });
+  } else return fail("Expected build, ask, remove, revert or final.");
+  return json(await ongState(year));
 }

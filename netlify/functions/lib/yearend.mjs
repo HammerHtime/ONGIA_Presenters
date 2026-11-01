@@ -6,6 +6,7 @@ import { directory, agencyOf, PROVINCES } from "./agencies.mjs";
 import { certIndex } from "./certs.mjs";
 import { factsFor, newDoc, PDF_LOOK } from "./reports.mjs";
 import { formatLong } from "./deadlines.mjs";
+import { SECTORS } from "./sectors.mjs";
 
 /**
  * The RBH year end (Andrew 31 Oct 2026): an Executive Summary and a one-page infographic for the whole calendar year,
@@ -64,7 +65,7 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
   for (const p of came) {
     const a = agencyOf(p, list);
     if (!a || a.name === SPONSOR) continue;
-    const g = agencies.get(a.name) ?? { agency: a.name, province: a.province || "", count: 0 };
+    const g = agencies.get(a.name) ?? { agency: a.name, province: a.province || "", sector: a.sector || "", count: 0 };
     g.count++; agencies.set(a.name, g);
   }
   const speakers = presenters.filter((p) => p.status !== "withdrawn");
@@ -106,12 +107,16 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
   // Agencies and provinces reached, from those who came to trainings that have happened.
   const agencies = new Map();
   for (const r of held) for (const a of r.agencies) {
-    const g = agencies.get(a.agency) ?? { agency: a.agency, province: a.province, count: 0, trainings: 0 };
+    const g = agencies.get(a.agency) ?? { agency: a.agency, province: a.province, sector: a.sector || "", count: 0, trainings: 0 };
     g.count += a.count; g.trainings++; agencies.set(a.agency, g);
   }
   const byProvince = new Map();
   for (const a of agencies.values()) if (PROVINCES[a.province]) byProvince.set(a.province, (byProvince.get(a.province) ?? 0) + a.count);
   const provinceCodes = [...byProvince.keys()].sort();
+  // Who attended, by sector (Andrew 1 Nov 2026: agencies sorted into sectors), from agencies that have one.
+  const bySector = new Map();
+  for (const a of agencies.values()) if (a.sector) bySector.set(a.sector, (bySector.get(a.sector) ?? 0) + a.count);
+  const inSector = [...bySector.values()].reduce((x, y) => x + y, 0);
 
   // The survey, weighted by how many answered each question at each training.
   // Only the measures of the training itself: venue, sound, registration and food are the event's, not the partnership's.
@@ -142,6 +147,7 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
     agencyCount: agencies.size, provinceCount: provinceCodes.length, provinces: provinceCodes.map((c) => ({ code: c, en: PROVINCES[c], count: byProvince.get(c) }))
       .sort((a, b) => b.count - a.count || a.en.localeCompare(b.en)),
     cities: [...new Map(held.filter((r) => r.city).map((r) => [cityKey(r.city), r.city])).values()],
+    sectors: SECTORS.map((s) => ({ id: s.id, en: s.en, fr: s.fr, count: bySector.get(s.id) ?? 0, pct: pctOf(bySector.get(s.id) ?? 0, inSector) })).filter((s) => s.count).sort((a, b) => b.count - a.count),
     topAgencies: [...agencies.values()].sort((a, b) => b.count - a.count || a.agency.localeCompare(b.agency)).slice(0, 12),
     newAgencies: earlier ? [...agencies.keys()].filter((a) => !earlier.has(a)).length : null,
     returningAgencies: earlier ? [...agencies.keys()].filter((a) => earlier.has(a)).length : null,
@@ -306,7 +312,7 @@ const T = {
     askedNext: "What attendees asked for next", strengths: "Strengths of the year", ahead: (y) => `Looking ahead to ${y}`, page: "Page", of: "of",
     colTraining: "Training", colCity: "City", colDates: "Dates", colAttended: "Attended", colSurvey: "Survey", colQuality: "Quality", total: "Total", toCome: "To come",
     note: "Survey: share of those sent the survey who answered. Quality: share who rated the overall quality 4 or 5 out of 5.",
-    colProvince: "Province", colAttendees: "Attendees", topAgencies: "Agencies sending the most people", colAgency: "Agency",
+    colProvince: "Province", colAttendees: "Attendees", topAgencies: "Agencies sending the most people", colAgency: "Agency", whoAttended: "Who attended, by sector", share: "Share",
     growing: "Growing reach.", growText: (n, r) => `${n} agencies attended an RBH training for the first time; ${r} had attended before.`,
     comm: (m, c, e, y) => [m != null && c != null ? `ONGIA promoted RBH trainings to its ${m} members in ${c} email campaigns, about ${e} emails in ${y} (an estimate: members × campaigns).`
       : m != null ? `ONGIA's member database holds ${m} members.` : c != null ? `ONGIA sent ${c} email campaigns about RBH trainings in ${y}.` : ""].join(""),
@@ -322,7 +328,7 @@ const T = {
     askedNext: "Ce que les participants souhaitent ensuite", strengths: "Points forts de l'année", ahead: (y) => `Perspectives pour ${y}`, page: "Page", of: "de",
     colTraining: "Formation", colCity: "Ville", colDates: "Dates", colAttended: "Présents", colSurvey: "Sondage", colQuality: "Qualité", total: "Total", toCome: "À venir",
     note: "Sondage : part des personnes sollicitées ayant répondu. Qualité : part ayant noté la qualité globale 4 ou 5 sur 5.",
-    colProvince: "Province", colAttendees: "Participants", topAgencies: "Principaux organismes", colAgency: "Organisme",
+    colProvince: "Province", colAttendees: "Participants", topAgencies: "Principaux organismes", colAgency: "Organisme", whoAttended: "Participants par secteur", share: "Part",
     growing: "Une portée qui s'élargit.", growText: (n, r) => `${n} organismes ont participé à une formation RBH pour la première fois; ${r} y avaient déjà participé.`,
     comm: (m, c, e, y) => (m != null && c != null ? `L'ONGIA a fait la promotion des formations RBH auprès de ses ${m} membres dans ${c} campagnes de courriels, soit environ ${e} courriels en ${y} (estimation : membres × campagnes).`
       : m != null ? `La base de données de l'ONGIA compte ${m} membres.` : c != null ? `L'ONGIA a envoyé ${c} campagnes de courriels sur les formations RBH en ${y}.` : ""),
@@ -469,6 +475,11 @@ export async function yearExecPdf(content, f, lang, { date }) {
       right = y + h;
     }
     doc.y = Math.max(left, right) + 6; doc.x = X;
+  }
+  if (f.sectors?.length) {
+    doc.moveDown(0.3);
+    table([{ label: L.whoAttended, w: 0.7 }, { label: L.colAttendees, w: 0.15, align: "right" }, { label: L.share, w: 0.15, align: "right" }], f.sectors.map((s) => [lang === "fr" ? s.fr : s.en, num(s.count, lang), pc(s.pct, lang)]));
+    doc.moveDown(0.4);
   }
   const c = f.communications, commText = L.comm(num(c.members, lang), num(c.campaigns, lang), num(c.estimatedEmails, lang), Y);
   if (commText) {
