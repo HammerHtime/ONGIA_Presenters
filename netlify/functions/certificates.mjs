@@ -3,7 +3,7 @@ import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from
 import { mayCost } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { directory, agencyOf } from "./lib/agencies.mjs";
-import { templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
+import { templateOf, findTemplate, hasFrench, templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
 import { sendCertificate, sendSample, mailCard } from "./lib/certmail.mjs";
 
@@ -67,8 +67,10 @@ export default async (req) => {
       const p = people.find((x) => x.checkedIn) ?? { name: "Your Name", agency: "Toronto Police Service" };
       rec = { code: "SAMP-LE00", name: p.name, agency: p.agency, date: settings.date, course: settings.course, template: settings.template, eventTitle: event.title };
     }
-    return new Response(await certificatePdf(rec, { origin }), { headers: { "content-type": "application/pdf",
-      "content-disposition": `${q("pdf") ? "attachment" : "inline"}; filename="${encodeURIComponent(certFileName(rec))}"; filename*=UTF-8''${encodeURIComponent(certFileName(rec))}`, "cache-control": "no-store" } });
+    // French where the design has a French version; otherwise the English one, named as such.
+    const lang = q("lang") === "fr" && hasFrench(await findTemplate(rec.template ?? "generic")) ? "fr" : "en";
+    return new Response(await certificatePdf(rec, { origin, lang }), { headers: { "content-type": "application/pdf",
+      "content-disposition": `${q("pdf") ? "attachment" : "inline"}; filename="${encodeURIComponent(certFileName(rec, lang))}"; filename*=UTF-8''${encodeURIComponent(certFileName(rec, lang))}`, "cache-control": "no-store" } });
   }
   if (req.method === "GET") return json(await view(event, people, templates));
   if (req.method === "PUT") {
@@ -156,7 +158,8 @@ async function view(event, people, templates) {
 }
 
 /** An issued certificate as the list shows it: its number, when, and whether it's been corrected or withdrawn. */
-const certCard = (r) => ({ code: r.code, revoked: !!r.revokedAt, issuedAt: r.issuedAt, corrected: (r.history ?? []).length, notCheckedIn: !!r.notCheckedIn, mail: mailCard(r) });
+// french: the design comes in French, so the desk offers "Download in French" (Andrew 31 Oct 2026).
+const certCard = (r) => ({ code: r.code, french: Boolean(templateOf(r.template ?? "generic")?.imageFr), revoked: !!r.revokedAt, issuedAt: r.issuedAt, corrected: (r.history ?? []).length, notCheckedIn: !!r.notCheckedIn, mail: mailCard(r) });
 
 /** The two downloads (Andrew 30 Oct 2026: "export the list for registration as well as … a list in csv to upload to the certificate program"). */
 /** A design as the screens show it. An uploaded one's picture needs signing in, so the page fetches it with the key. */

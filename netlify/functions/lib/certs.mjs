@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getMeta, putMeta, readRaw, writeRaw } from "./store.mjs";
 import { anthropicKey } from "./contract.mjs";
 import { formatLong } from "./deadlines.mjs";
+import { directory } from "./agencies.mjs";
 
 /**
  * Certificates of completion (Andrew 30 Oct 2026). The desk fills a certificate design with each person's name, their
@@ -32,7 +33,7 @@ const FONTS = { b: "Lato-Bold.woff", r: "Lato-Regular.woff", i: "Lato-Italic.wof
  */
 export const TEMPLATES = [
   {
-    id: "national-gang-summit", name: "National Gang Summit", note: "The Summit's own design", image: "certs/national-gang-summit.jpg", forTitle: /national gang summit/i,
+    id: "national-gang-summit", name: "National Gang Summit", note: "The Summit's own design", image: "certs/national-gang-summit.jpg", imageFr: "certs/national-gang-summit-fr.jpg", forTitle: /national gang summit/i,
     fields: {
       name: { font: "b", size: 28.83, x: 40, base: 572.5, max: 370 },
       agency: { font: "i", size: 17.08, x: 38, base: 604, max: 400 },
@@ -41,7 +42,7 @@ export const TEMPLATES = [
     qr: { x: 538, y: 468, size: 38 },
   },
   {
-    id: "generic", name: "Certificate of Completion", note: "Generic: webinars and general training", image: "certs/ongia-generic.jpg",
+    id: "generic", name: "Certificate of Completion", note: "Generic: webinars and general training", image: "certs/ongia-generic.jpg", imageFr: "certs/ongia-generic-fr.jpg",
     fields: {
       name: { font: "b", size: 41.57, x: 41, base: 344, max: 400 },
       agency: { font: "r", size: 18.2, x: 41.4, base: 378.9, max: 420 },
@@ -154,16 +155,30 @@ export async function issueMany(event, people, { settings, by = null }) {
   return todo.length;
 }
 
-/** The certificate itself: the design, the words, and the QR code that verifies it. */
-export async function certificatePdf(rec, { origin = "" } = {}) {
+/**
+ * Whether a design comes in French (Andrew 31 Oct 2026). The two built-in designs do: the same artwork with the English
+ * wording lifted off and the French set in its place (scripts/make-french-certs.py). An uploaded design is English
+ * until the designer's French version is uploaded as its own design.
+ */
+export const hasFrench = (tpl) => Boolean(tpl?.builtIn && tpl.imageFr);
+/** An agency's French name from the agency list, where it has one ("For French certificates"). */
+async function agencyFr(name) {
+  if (!name) return "";
+  return (await directory().catch(() => [])).find((a) => a.name === name)?.fr || "";
+}
+
+/** The certificate itself: the design, the words, and the QR code that verifies it. lang "fr" gives the French one. */
+export async function certificatePdf(rec, { origin = "", lang = "en" } = {}) {
   const tpl = (await findTemplate(rec.template)) ?? builtIn(templateOf("generic"));
+  const fr = lang === "fr" && hasFrench(tpl);
+  const agency = fr ? (await agencyFr(rec.agency)) || rec.agency : rec.agency;
   const W = tpl.w || 612, H = tpl.h || 792;
-  const doc = new PDFDocument({ size: [W, H], margin: 0, info: { Title: `Certificate of Completion: ${rec.name}`, Author: "ONGIA", Subject: rec.course || rec.eventTitle || "" } });
+  const doc = new PDFDocument({ size: [W, H], margin: 0, info: { Title: `${fr ? "Certificat de réussite : " : "Certificate of Completion: "}${rec.name}`, Author: "ONGIA", Subject: rec.course || rec.eventTitle || "" } });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
   const done = new Promise((r) => doc.on("end", r));
   for (const [k, f] of Object.entries(FONTS)) doc.registerFont(k, path.join(ASSETS, "fonts", f));
-  if (tpl.builtIn) doc.image(path.join(ASSETS, tpl.image), 0, 0, { width: W, height: H });
+  if (tpl.builtIn) doc.image(path.join(ASSETS, fr ? tpl.imageFr : tpl.image), 0, 0, { width: W, height: H });
   else {
     const img = await readRaw(`certdesign:${tpl.id}`);
     if (!img) throw new Error(`The design "${tpl.name}" has lost its picture. Upload it again.`);
@@ -180,7 +195,7 @@ export async function certificatePdf(rec, { origin = "" } = {}) {
       doc.fillColor("#111111").text(words, f.x, f.base - (doc._font.ascender / 1000) * size, { lineBreak: false });
     };
     line(tpl.fields.name, rec.name);
-    line(tpl.fields.agency, rec.agency);
+    line(tpl.fields.agency, agency);
     line(tpl.fields.date, date);
     const c = tpl.fields.course;
     if (c && rec.course) {
@@ -209,7 +224,7 @@ export async function certificatePdf(rec, { origin = "" } = {}) {
   if (origin && tpl.qr) {
     const png = await QRCode.toBuffer(`${origin}/verify.html?c=${rec.code}`, { margin: 0, width: 600, errorCorrectionLevel: "M", color: { dark: "#1a2f5e", light: "#ffffff" } });
     doc.image(png, tpl.qr.x, tpl.qr.y, { width: tpl.qr.size });
-    doc.font("r").fontSize(6).fillColor(tpl.qr.light ? "#ffffff" : "#8a90a0").text("Scan to verify", tpl.qr.x - 11, tpl.qr.y + tpl.qr.size + 3, { width: tpl.qr.size + 22, align: "center", lineBreak: false });
+    doc.font("r").fontSize(6).fillColor(tpl.qr.light ? "#ffffff" : "#8a90a0").text(fr ? "Balayer pour vérifier" : "Scan to verify", tpl.qr.x - 11, tpl.qr.y + tpl.qr.size + 3, { width: tpl.qr.size + 22, align: "center", lineBreak: false });
   }
   doc.end();
   await done;
@@ -217,7 +232,7 @@ export async function certificatePdf(rec, { origin = "" } = {}) {
 }
 
 /** "Jordan Tremblay certificate.pdf", safe as a file name. */
-export const certFileName = (rec) => `${String(rec.name || "Certificate").replace(/[^\p{L}\p{N} .'-]+/gu, "").trim() || "Certificate"} - certificate.pdf`;
+export const certFileName = (rec, lang = "en") => `${String(rec.name || "Certificate").replace(/[^\p{L}\p{N} .'-]+/gu, "").trim() || "Certificate"} - ${lang === "fr" ? "certificat" : "certificate"}.pdf`;
 
 /**
  * Add it to LinkedIn (Andrew 30 Oct 2026: "yes to add to linkedin"): LinkedIn's own add-a-certification link, filled in.
