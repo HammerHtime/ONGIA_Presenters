@@ -394,6 +394,21 @@ export async function checkFolder(folderPath) {
   return result;
 }
 
+/**
+ * A document in a folder of its own in the library, not inside an event's folder (the RBH year-end reports: "RBH/Year end
+ * 2027"). The folder path is made if it is missing. Returns { name, url, folderUrl }.
+ */
+export async function fileLibraryDocument({ folder, name, bytes, contentType }) {
+  if (!graphConfigured()) return { skipped: true, reason: "Microsoft credentials are not set on this site." };
+  const path = normaliseFolder(folder);
+  if (!path) return { skipped: true, reason: "No folder was given." };
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const dir = await ensureFolderPath(token, drive, path);
+  const item = await upload(token, drive, `${path}/${safeFileName(name, "document")}`, bytes, contentType);
+  return { name: item.name, url: item.webUrl, folderUrl: dir.webUrl, filedAt: new Date().toISOString() };
+}
+
 /* ---------- backups: one folder in the library, one zip a day ---------- */
 
 /** Make every folder on the path (the first one sits at the library's root). Returns the last folder's item. */

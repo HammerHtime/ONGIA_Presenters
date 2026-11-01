@@ -1806,6 +1806,23 @@
   .agl td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}.agl .psub{display:block}.agact{white-space:nowrap}
   @media (max-width:760px){.agtiles{grid-template-columns:repeat(2,minmax(0,1fr))}.agq{grid-template-columns:1fr}.agrun{align-items:flex-start}
     .agl thead{display:none}.agl tr{display:grid;grid-template-columns:1fr;padding:8px 0;border-bottom:1px solid var(--border)}.agl td{border:0;padding:2px 0}.agl td:empty{display:none}}
+  /* Admin › RBH reports: the year chips, the year-end card, the list of trainings. */
+  .rbhyr{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.rbhyr .chip.rbhoff{background:#fff;color:var(--ink);border:1px solid var(--edge)}
+  .ye{border:1px solid var(--edge);border-radius:18px;background:linear-gradient(180deg,#fffdf6,#fff);padding:18px 20px;margin:0 0 18px;min-width:0}
+  .ye h3{margin:0;font-size:18px;font-weight:800}.ye .s{color:var(--muted);font-size:13.5px;margin-top:4px}
+  .yegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+  .yegrid div{background:#f6f3ea;border-radius:12px;padding:10px 12px;min-width:0}.yegrid b{display:block;font-size:22px}.yegrid span{display:block;font-size:12.5px;color:var(--muted)}.yegrid small{display:block;font-size:11.5px;color:var(--muted)}
+  .yein{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:0 0 12px;padding:10px 12px;border:1px dashed var(--edge);border-radius:12px}
+  .yein > b{flex-basis:100%;font-size:13px}.yein label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}.yein input{width:150px;max-width:100%;padding:7px 9px;border:1px solid var(--edge);border-radius:9px;font:inherit;color:var(--ink)}
+  .yerow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .yedocs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .yedoc{border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;flex-direction:column;gap:5px;align-items:flex-start;min-width:0}.yedoc > b{margin-bottom:2px}
+  .yedoc .l,.rpcell .l{font-size:12.5px}.bad-t{color:#a3361d}
+  .rpcell{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+  .rbhl .rbhname{text-align:left;padding:0}
+  @media (max-width:640px){.yedocs{grid-template-columns:1fr}.ye{padding:14px}
+    .rbhl td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;font:500 10.5px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px}}
+
   .admintabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap} .atab{border:1px solid var(--border);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-weight:600;color:var(--ink-mid);cursor:pointer;min-height:36px} .atab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .pastrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer} .pastrow:first-child{border-top:0} .pastrow:hover b{text-decoration:underline} .pastrow .porg{white-space:nowrap} .pastrow .s{font-size:13px;color:var(--muted);margin-top:2px}
   #backupline{margin-top:8px} #backupline .hstrip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap} #backupline .bkact{display:flex;gap:8px;align-items:center}
@@ -6366,6 +6383,112 @@ async function editDesign(id, saved) {
   } catch (x) { toast(x.message); }
 }
 /** Admin › Certificate designs: every uploaded design, which event it is for or that it is a template, to edit, retire or add. */
+/**
+ * Admin › RBH reports (Andrew 31 Oct 2026, from the mock-up he approved): every RBH training's Executive Summary and
+ * infographic for a year in one list, and the year-end pair that sums up the year for RBH's senior people. The year is
+ * January to December. Two figures can't be known from the desk and are typed in here once a year.
+ */
+let RBH_POLL = null;
+function rbhReportsScreen(D) {
+  clearTimeout(RBH_POLL);
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const F = D.facts, Y = D.year, YE = D.yearend, I = D.inputs ?? {};
+  const n = (v) => (v == null ? "—" : Number(v).toLocaleString("en-CA"));
+  const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }); };
+  const dates = (r) => { const a = fmtDate(r.dayOne), b = r.lastDay && r.lastDay !== r.dayOne ? fmtDate(r.lastDay) : ""; return b ? `${a} – ${b}` : a; };
+  const tiles = [
+    [n(F.trainings), "RBH trainings", F.upcoming ? `${F.held} held, ${F.upcoming} to come` : F.trainings ? "all held" : ""],
+    [n(F.attendees), "people trained", F.attendanceBasis === "registered" ? "registered" : F.held ? "checked in" : ""],
+    [n(F.survey.answered), "survey answers", F.survey.invited ? `${F.survey.rate}% of ${n(F.survey.invited)}` : ""],
+    [F.survey.quality == null ? "—" : `${F.survey.quality}%`, "rated quality 4 or 5", ""],
+    [n(F.agencyCount), "agencies", F.newAgencies != null ? `${F.newAgencies} new this year` : ""],
+    [n(F.provinceCount), "provinces", ""],
+  ];
+  const est = I.members != null && I.campaigns != null ? I.members * I.campaigns : null;
+  const busy = Object.values(YE.reports).some((r) => r.building);
+  const made = Object.values(YE.reports).some((r) => r.version);
+  const doc = (kind) => {
+    const r = YE.reports[kind], v = r.version;
+    const filed = r.filed && ["en", "fr"].every((l) => r.filed[l]?.url);
+    return `<div class="yedoc"><b>${esc(r.name.en)} · year end</b>
+      ${r.building ? `<span class="rpstate wait"><span class="spin" aria-hidden="true"></span> Claude is writing it… two or three minutes</span>`
+        : v ? `<span class="pill done">Version ${v.n}</span>${r.final ? ` <span class="pill done">Final</span>` : ""}<span class="l">Updated ${esc(when(v.at))} · ${v.answered} survey answers</span>
+          <span class="l"><button class="linkish" data-yeopen="${kind}|en">English</button> · <button class="linkish" data-yeopen="${kind}|fr">Français</button> · <button class="linkish" data-yeopen="${kind}|en">Ask for a change</button>
+          · <button class="linkish" data-yefinal="${kind}|${r.final ? "0" : "1"}">${r.final ? "Not final" : "Mark as final"}</button></span>` : `<span class="pill idle">Not made yet</span>`}
+      ${filed ? `<span class="l">In OneDrive: <a href="${esc(r.filed.en.url)}" target="_blank" rel="noopener">English</a> · <a href="${esc(r.filed.fr.url)}" target="_blank" rel="noopener">Français</a></span>`
+        : r.filed && (r.filed.en?.skipped || r.filed.en?.error) ? `<span class="l bad-t">Not in OneDrive: ${esc(r.filed.en.skipped || r.filed.en.error)}</span>` : ""}
+      ${r.error && !r.building ? `<span class="l bad-t">The last try didn't work: ${esc(r.error)}</span>` : ""}</div>`;
+  };
+  const cell = (row, kind) => {
+    const rep = row.reports?.[kind];
+    if (!rep) return `<span class="l bad-t">${esc(row.error || "Couldn't read its reports.")}</span>`;
+    const v = rep.version;
+    if (rep.building) return `<span class="pill wait">Being made</span>`;
+    if (v) return `<span class="pill done">Version ${v.n}</span><span class="l">Updated ${esc(when(v.at))} · ${v.answered} answers</span>
+      <span class="l"><button class="linkish" data-rbhopen="${esc(row.id)}|${kind}|en">English</button> · <button class="linkish" data-rbhopen="${esc(row.id)}|${kind}|fr">Français</button></span>${rep.final ? `<span class="pill done">Final</span>` : ""}`;
+    if (!row.held) return `<span class="pill idle">Not yet held</span>`;
+    if (row.invited && !row.half) return `<span class="pill wait">Waiting</span><span class="l">Made when half have answered (${Math.ceil(row.invited / 2)})</span>`;
+    return `<span class="pill idle">Not made yet</span><span class="l"><button class="linkish" data-rbhev="${esc(row.id)}">Make it on its Survey tab</button></span>`;
+  };
+  const folder = (row) => { const f = ["exec", "info"].map((k) => row.reports?.[k]?.filed?.en?.folderUrl).find(Boolean); return f ? `<a href="${esc(f)}" target="_blank" rel="noopener">Survey folder</a>` : `<span class="hint" style="margin:0">Not filed yet</span>`; };
+  const rows = D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button>${r.practice ? ` <span class="pill grey">Practice</span>` : ""}<span class="psub">${esc(r.city)}</span></td>
+      <td data-l="Date">${esc(dates(r))}</td>
+      <td data-l="Survey">${r.invited ? `${r.answered} of ${r.invited}<span class="psub">${Math.round((100 * r.answered) / r.invited)}%</span>` : r.answered ? `${r.answered} answers` : `<span class="hint" style="margin:0">${r.survey ? "Not sent yet" : "No survey"}</span>`}</td>
+      <td data-l="Executive Summary"><div class="rpcell">${cell(r, "exec")}</div></td><td data-l="Infographic"><div class="rpcell">${cell(r, "info")}</div></td><td data-l="OneDrive">${folder(r)}</td></tr>`).join("");
+  ROOT.innerHTML = `${adminTabsHtml("rbh")}
+    <div class="agtop"><div><h2 class="agh">RBH reports</h2><p class="s">Every RBH training's Executive Summary and infographic, in English and French, and the year-end pair that sums up the year for RBH.</p></div></div>
+    <div class="rbhyr" role="tablist" aria-label="Year">${D.years.map((y) => `<button class="chip${String(y) === String(Y) ? " solid" : " rbhoff"}" data-rbhyear="${y}" aria-selected="${String(y) === String(Y)}">${y}</button>`).join("")}</div>
+    <section class="ye">
+      <h3>${Y} year end</h3>
+      <div class="s">An Executive Summary and an infographic for January to December ${Y}, in English and French, built from every RBH training's figures and surveys. Filed to OneDrive under ${esc(YE.folder)}.</div>
+      <div class="yegrid">${tiles.map(([b, l, sub]) => `<div><b>${b}</b><span>${esc(l)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+      <form class="yein" id="ye-in"><b>Typed in once a year</b>
+        <label>Members in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ye-members" value="${I.members ?? ""}"></label>
+        <label>Email campaigns about RBH trainings in ${Y}<input type="number" min="0" step="1" inputmode="numeric" id="ye-campaigns" value="${I.campaigns ?? ""}"></label>
+        <button class="mini" id="ye-save">Save</button>
+        <span class="hint" id="ye-est" style="margin:0">${est != null ? `About ${n(est)} emails (members × campaigns), shown as an estimate.` : "The reports leave communications out until both are filled in."}</span></form>
+      <div class="yerow">${F.held ? `<button class="mini gold" id="ye-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the year-end reports"}</button>
+        <span class="hint" style="margin:0">Claude takes two or three minutes. Change them afterwards by asking, as with a training's reports.</span>`
+        : `<span class="hint" style="margin:0">They can be made once an RBH training in ${Y} has taken place.</span>`}</div>
+      <div class="yedocs">${doc("exec")}${doc("info")}</div>
+    </section>
+    ${D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Training</th><th>Date</th><th>Survey</th><th>Executive Summary</th><th>Infographic</th><th>OneDrive</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="hint">A training's reports are made the night half its surveys are back, and each night after that until marked final. Practice trainings are listed here to try things on, but never count in the year end.</p>`
+      : `<p class="hint">No RBH trainings in ${Y}.</p>`}`;
+  wireAdminTabs();
+  ROOT.querySelectorAll("[data-rbhyear]").forEach((b) => b.onclick = () => { view = { name: "admin", tab: "rbh", year: b.dataset.rbhyear }; render(); });
+  ROOT.querySelectorAll("[data-rbhev]").forEach((b) => b.onclick = () => { view = { name: "event", eventId: b.dataset.rbhev, tab: "survey" }; render(); });
+  ROOT.querySelectorAll("[data-rbhopen]").forEach((b) => b.onclick = () => {
+    const [id, kind, lang] = b.dataset.rbhopen.split("|"), row = D.rows.find((r) => r.id === id);
+    reportViewer({ id, title: row.title }, kind, lang, { q: `/reports?event=${encodeURIComponent(id)}&kind=${kind}`, state: `/reports?event=${encodeURIComponent(id)}`, name: row.title, standing: true, refresh: () => {}, closed: () => render() });
+  });
+  ROOT.querySelectorAll("[data-yeopen]").forEach((b) => b.onclick = () => {
+    const [kind, lang] = b.dataset.yeopen.split("|");
+    reportViewer({ id: `yearend-${Y}`, title: `RBH ${Y}` }, kind, lang, { q: `/reports?yearend=${Y}&kind=${kind}`, state: `/reports?yearend=${Y}`, name: `RBH year end ${Y}`, standing: false, refresh: () => {}, closed: () => render() });
+  });
+  ROOT.querySelectorAll("[data-yefinal]").forEach((b) => b.onclick = async () => {
+    const [kind, on] = b.dataset.yefinal.split("|");
+    try { await api(`/reports?yearend=${Y}&kind=${kind}&final=1`, { method: "POST", body: JSON.stringify({ final: on === "1" }) }); toast(on === "1" ? "Marked final." : "No longer final."); render(); } catch (x) { toast(x.message); }
+  });
+  document.getElementById("ye-in").onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(`/reports?yearend=${Y}&inputs=1`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value }) });
+      toast("Saved. They're used the next time the year-end reports are made."); render();
+    } catch (x) { toast(x.message); }
+  };
+  const mk = document.getElementById("ye-make");
+  if (mk) mk.onclick = async () => {
+    if (made && !confirm(`Make both ${Y} year-end reports again with the latest figures? Each becomes a new version; the earlier ones are kept.`)) return;
+    mk.disabled = true;
+    try {
+      for (const kind of ["exec", "info"]) await api(`/reports?yearend=${Y}&kind=${kind}&build=1`, { method: "POST", body: "{}" });
+      render();
+    } catch (x) { toast(x.message); mk.disabled = false; }
+  };
+  if (busy) RBH_POLL = setTimeout(() => { if (view.name === "admin" && view.tab === "rbh") render(); }, 6000);
+}
 function designsScreen(D) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
@@ -6458,10 +6581,13 @@ async function drawPdfPages(host, blob) {
   }
 }
 /** The report on the left, Claude on the right: say what to change; it's rebuilt, filed again and shown. */
-function reportViewer(ev, kind, lang) {
+function reportViewer(ev, kind, lang, src = null) {
+  // `src` points the viewer at other reports (the RBH year end on Admin › RBH reports); by default, this event's.
+  src = src ?? { q: `/reports?event=${encodeURIComponent(ev.id)}&kind=${kind}`, state: `/reports?event=${encodeURIComponent(ev.id)}`, name: ev.title, standing: true,
+    refresh: (S) => renderReports(ev, S), closed: () => loadReports(ev) };
   const dlg = document.createElement("dialog"); dlg.className = "designdlg repdlg"; document.body.append(dlg);
   let S = null, L = lang, V = null, wait = null, standing = { exec: [], info: [] };
-  const q = `/reports?event=${encodeURIComponent(ev.id)}&kind=${kind}`;
+  const q = src.q;
   const pdfUrl = () => `/api${q}&lang=${L}&pdf=1${V ? `&v=${V}` : ""}`;
   const show = async () => {
     const host = dlg.querySelector("#rp-pages");
@@ -6471,7 +6597,7 @@ function reportViewer(ev, kind, lang) {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The report could not be opened.");
       const blob = await res.blob();
       // Made inside the dialog: behind an open dialog the page doesn't take clicks, and the file would lose its name.
-      dlg.querySelector("#rp-dl").onclick = () => { const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${ev.title} - ${S.reports[kind].name[L]}.pdf` }); dlg.append(a); a.click(); setTimeout(() => a.remove(), 1000); };
+      dlg.querySelector("#rp-dl").onclick = () => { const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${src.name} - ${S.reports[kind].name[L]}.pdf` }); dlg.append(a); a.click(); setTimeout(() => a.remove(), 1000); };
       await drawPdfPages(host, blob);
     } catch (x) { host.innerHTML = `<p class="bad">${esc(x.message)}</p>`; }
   };
@@ -6487,11 +6613,11 @@ function reportViewer(ev, kind, lang) {
         : `<p class="hint">Say what you want changed in plain words, in English or French. For example: “Add a section on the Akwesasne visit”, “Make the Key Strengths shorter”, or “Take out the follow-up recommendation”.</p>`)
       + (r.building ? `<div class="m cl wait"><span class="spin" aria-hidden="true"></span> Changing it… a minute or two</div>` : "")
       + (r.versions.length > 1 ? `<div class="ver">Versions: ${r.versions.map((v) => `<button class="linkish${v.n === cur ? " on" : ""}" data-rpv="${v.n}">${v.n}</button>`).join(" ")}${cur !== r.current ? ` · <button class="linkish" data-rprevert="${cur}">Make version ${cur} the current one</button>` : ""}</div>` : "");
-    const reqs = [...r.requests.map((x) => ({ ...x, scope: "event" })), ...standing[kind].map((x) => ({ ...x, scope: "all" }))];
+    const reqs = [...r.requests.map((x) => ({ ...x, scope: "event" })), ...(src.standing ? standing[kind] : []).map((x) => ({ ...x, scope: "all" }))];
     dlg.querySelector("#rp-reqs").innerHTML = reqs.length ? `<b>Your changes, kept on every rebuild</b>${reqs.map((x) => `<div class="rq"><span>${esc(x.text)}<small>${x.scope === "all" ? "Every RBH report" : "This report"}${x.lang && x.lang !== "both" ? ` · ${x.lang === "fr" ? "French only" : "English only"}` : ""}</small></span><button class="linkish" data-rqdel="${x.scope}|${esc(x.id)}">Remove</button></div>`).join("")}` : "";
     dlg.querySelector("#rp-send").disabled = !!r.building;
     dlg.querySelectorAll("[data-rpv]").forEach((b) => b.onclick = () => { V = Number(b.dataset.rpv) === r.current ? null : Number(b.dataset.rpv); draw(); show(); });
-    dlg.querySelectorAll("[data-rprevert]").forEach((b) => b.onclick = async () => { try { S = await api(`${q}&revert=${b.dataset.rprevert}`, { method: "POST", body: "{}" }); V = null; draw(); show(); renderReports(ev, S); } catch (x) { toast(x.message); } });
+    dlg.querySelectorAll("[data-rprevert]").forEach((b) => b.onclick = async () => { try { S = await api(`${q}&revert=${b.dataset.rprevert}`, { method: "POST", body: "{}" }); V = null; draw(); show(); src.refresh(S); } catch (x) { toast(x.message); } });
     dlg.querySelectorAll("[data-rqdel]").forEach((b) => b.onclick = async () => {
       const [scope, id] = b.dataset.rqdel.split("|");
       if (!confirm(scope === "all" ? "Stop applying this to every RBH report from now on? This one is rebuilt without it." : "Stop applying this change? The report is rebuilt without it.")) return;
@@ -6509,9 +6635,9 @@ function reportViewer(ev, kind, lang) {
     wait = setTimeout(async () => {
       if (!dlg.open) return;
       const was = S.reports[kind].current;
-      S = await api(`/reports?event=${encodeURIComponent(ev.id)}`).catch(() => S);
+      S = await api(src.state).catch(() => S);
       draw();
-      if (!S.reports[kind].building) { if (S.reports[kind].current !== was) { V = null; show(); } renderReports(ev, S); } else watch();
+      if (!S.reports[kind].building) { if (S.reports[kind].current !== was) { V = null; show(); } src.refresh(S); } else watch();
     }, 5000);
   };
   dlg.innerHTML = `<div class="dshead"><div><h2 id="rp-title"></h2><p class="s" id="rp-sub"></p></div>
@@ -6522,7 +6648,7 @@ function reportViewer(ev, kind, lang) {
         <div class="rpmsgs" id="rp-chat"></div><div class="rpreqs" id="rp-reqs"></div>
         <form class="rpask" id="rp-form"><textarea id="rp-text" rows="3" placeholder="e.g. Add a short section on the Akwesasne visit for RBH" aria-label="What to change"></textarea>
           <div class="rpopts"><select id="rp-lang" aria-label="Which language"><option value="both">Both languages</option><option value="en">English only</option><option value="fr">French only</option></select>
-            <label><input type="checkbox" id="rp-always"> Keep this for every RBH ${kind === "exec" ? "executive summary" : "infographic"}</label>
+            ${src.standing ? `<label><input type="checkbox" id="rp-always"> Keep this for every RBH ${kind === "exec" ? "executive summary" : "infographic"}</label>` : ""}
             <button class="btn btn-gold" id="rp-send">Send</button></div></form></div></div>`;
   dlg.querySelector("#rp-close").onclick = () => dlg.close();
   dlg.querySelectorAll("[data-rplang]").forEach((b) => b.onclick = () => { L = b.dataset.rplang; draw(); show(); });
@@ -6533,14 +6659,15 @@ function reportViewer(ev, kind, lang) {
     if (!text) { t.focus(); return; }
     const send = dlg.querySelector("#rp-send"); send.disabled = true;
     try {
-      S = await api(`${q}&ask=1`, { method: "POST", body: JSON.stringify({ text, lang: dlg.querySelector("#rp-lang").value, always: dlg.querySelector("#rp-always").checked }) });
-      if (dlg.querySelector("#rp-always").checked) standing = await api("/reports?standing=1").catch(() => standing);
-      t.value = ""; dlg.querySelector("#rp-always").checked = false; draw(); watch();
+      const always = !!dlg.querySelector("#rp-always")?.checked;
+      S = await api(`${q}&ask=1`, { method: "POST", body: JSON.stringify({ text, lang: dlg.querySelector("#rp-lang").value, always }) });
+      if (always) standing = await api("/reports?standing=1").catch(() => standing);
+      t.value = ""; if (dlg.querySelector("#rp-always")) dlg.querySelector("#rp-always").checked = false; draw(); watch();
     } catch (x) { toast(x.message); send.disabled = false; }
   };
-  dlg.addEventListener("close", () => { clearTimeout(wait); dlg.remove(); loadReports(ev); });
+  dlg.addEventListener("close", () => { clearTimeout(wait); dlg.remove(); src.closed(); });
   dlg.showModal();
-  (async () => { try { [S, standing] = await Promise.all([api(`/reports?event=${encodeURIComponent(ev.id)}`), api("/reports?standing=1")]); draw(); show(); watch(); } catch (x) { toast(x.message); dlg.close(); } })();
+  (async () => { try { [S, standing] = await Promise.all([api(src.state), src.standing ? api("/reports?standing=1") : standing]); draw(); show(); watch(); } catch (x) { toast(x.message); dlg.close(); } })();
 }
 
 /**
@@ -9642,7 +9769,7 @@ async function backupLine(host) {
 let ADMIN_BACKUP = false;
 function adminTabsHtml(active) {
   const tab = (k, label) => `<button class="atab${active === k ? " on" : ""}" data-atab="${k}" role="tab" aria-selected="${active === k}">${label}</button>`;
-  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${tab("designs", "Certificate designs")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
+  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${tab("designs", "Certificate designs")}${tab("rbh", "RBH reports")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
 }
 function wireAdminTabs() {
   ROOT.querySelectorAll("[data-atab]").forEach((b) => { b.onclick = () => { view = { name: "admin", tab: b.dataset.atab }; render(); }; });
@@ -11569,6 +11696,7 @@ async function drawScreen() {
       if (view.name === "admin" && view.tab === "backup" && B) return backupScreen(B);
       if (view.name === "admin" && view.tab === "agencies") return agenciesScreen(await api("/agencies?master=1"));
       if (view.name === "admin" && view.tab === "designs") return designsScreen(await api("/certificates?designs=1"));
+      if (view.name === "admin" && view.tab === "rbh") return rbhReportsScreen(await api(`/reports?list=1${view.year ? `&year=${encodeURIComponent(view.year)}` : ""}`));
       return rosterScreen(await loadRoster());
     }
     if (view.name === "sponsors" && SPONSORS_ON) {

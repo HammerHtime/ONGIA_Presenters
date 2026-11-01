@@ -180,10 +180,12 @@ const L = {
     rankHead: "CLASSEMENT DES SÉANCES SELON LA NOTE MAXIMALE", rankSub: "Part des participants ayant donné la note maximale à chaque séance (Top-1).", lock: "À CONSERVER", build: "À DÉVELOPPER", want: "LES PARTICIPANTS SOUHAITENT", wantSub: "SELON LES COMMENTAIRES",
     nps: "Indice de recommandation (NPS)", prepShort: (d) => `Préparé par l'ONGIA · ${d}`, title: "Sommaire exécutif" },
 };
+/** The look the year-end reports share with these. */
+export const PDF_LOOK = { NAVY, GOLD, INK, MUTED, LINE, PALE, LOGO };
 const longDate = (iso, lang) => formatLong(iso, lang, { weekday: false }) || iso;
 const whenText = (f, lang) => (f.event.dayOne && f.event.lastDay && f.event.dayOne !== f.event.lastDay ? `${longDate(f.event.dayOne, lang)} – ${longDate(f.event.lastDay, lang)}` : longDate(f.event.dayOne, lang));
 
-function newDoc(title) {
+export function newDoc(title) {
   const doc = new PDFDocument({ size: "LETTER", margins: { top: 64, bottom: 60, left: 54, right: 54 }, bufferPages: true, info: { Title: title, Author: "ONGIA" } });
   doc.registerFont("r", path.join(ASSETS, "fonts", "Lato-Regular.woff"));
   doc.registerFont("b", path.join(ASSETS, "fonts", "Lato-Bold.woff"));
