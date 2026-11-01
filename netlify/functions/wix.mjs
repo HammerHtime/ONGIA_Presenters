@@ -273,6 +273,8 @@ async function contactSummary(site) {
     personalEmail: all.filter((c) => PERSONAL.test(c.domain)).length,
     withCompany: all.filter((c) => c.company).length,
     withRegion: all.filter((c) => c.region).length,
+    withProvinceOfWork: all.filter((c) => c.provinceOfWork).length,
+    provinceOfWork: tally((c) => c.provinceOfWork).slice(0, 30),
     regions: tally((c) => c.region).slice(0, 20),
     countries: tally((c) => c.country).slice(0, 10),
     domainCount: domains.length,
