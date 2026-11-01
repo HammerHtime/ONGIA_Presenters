@@ -294,7 +294,9 @@ async function archiveSummary() {
   let events, guests;
   try {
     events = await listEveryWixEvent({ site: "3" });
-    guests = await listWixGuests({ type: null, site: "3" });
+    // One event at a time: Wix stops a site-wide guest query at 5,000, and the Archive has more than that.
+    guests = [];
+    for (const e of events) guests.push(...(await listWixGuests({ eventId: e.id, type: null, site: "3" })));
   } catch (e) {
     return fail(e.status === 401 || e.status === 403 ? `Wix refused the key for ${site.name}. In Wix: Account Settings, API Keys, open the key the desk uses, tick the Archive site (with Read Events and Read Guest List), save.` : e.message, e.status === 401 || e.status === 403 ? 403 : 502);
   }

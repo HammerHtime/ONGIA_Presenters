@@ -13,7 +13,13 @@ globalThis.fetch = async (url, init) => {
     const all = site === ARCH ? archEvents : liveEvents, { offset = 0, limit = 100 } = body.query?.paging ?? {};
     return Response.json({ events: all.slice(offset, offset + limit) });
   }
-  if (String(url).endsWith("/events/v2/guests/query")) return Response.json({ guests: site === ARCH ? [guest("a0", 1), guest("a0", 2), guest("a1", 3)] : [], pagingMetadata: {} });
+  if (String(url).endsWith("/events/v2/guests/query")) {
+    // Like Wix, a query with no event named stops short; asked one event at a time, every guest comes back.
+    const ev = body.query?.filter?.eventId;
+    if (!ev) return Response.json({ guests: [], pagingMetadata: {} });
+    const all = site === ARCH ? [guest("a0", 1), guest("a0", 2), guest("a1", 3)] : [];
+    return Response.json({ guests: all.filter((g) => g.eventId === ev), pagingMetadata: {} });
+  }
   throw new Error("unexpected fetch " + url);
 };
 const wix = (await import(REPO + "netlify/functions/wix.mjs")).default;
