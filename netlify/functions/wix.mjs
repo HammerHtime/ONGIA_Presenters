@@ -292,23 +292,24 @@ async function archiveSummary() {
   const site = archiveSite();
   if (!site) return fail("The Archive site isn't connected: set WIX_SITE_ID_3 in Netlify.", 409);
   let events, guests;
+  const byEvent = new Map();
   try {
     events = await listEveryWixEvent({ site: "3" });
     // One event at a time: Wix stops a site-wide guest query at 5,000, and the Archive has more than that.
-    guests = [];
-    for (const e of events) guests.push(...(await listWixGuests({ eventId: e.id, type: null, site: "3" })));
+    guests = 0;
+    for (const e of events) { const g = await listWixGuests({ eventId: e.id, type: null, site: "3" }); guests += g.length; byEvent.set(e.id, g); }
   } catch (e) {
     return fail(e.status === 401 || e.status === 403 ? `Wix refused the key for ${site.name}. In Wix: Account Settings, API Keys, open the key the desk uses, tick the Archive site (with Read Events and Read Guest List), save.` : e.message, e.status === 401 || e.status === 403 ? 403 : 502);
   }
+  // One row per person, the way an event's registrations are counted: a ticketed event lists each order's buyer and each
+  // ticket's holder, and counting both doubled every figure.
   const by = new Map();
-  for (const g of guests) {
-    if (!g.eventId) continue;
-    const r = by.get(g.eventId) ?? { all: 0, attending: 0, emails: new Set() };
-    r.all++; if (g.status === "ATTENDING") { r.attending++; if (g.email) r.emails.add(g.email); }
-    by.set(g.eventId, r);
+  for (const [id, list] of byEvent) {
+    const people = attendeesOf(list).filter((p) => p.status === "ATTENDING");
+    by.set(id, { attending: people.length, emails: new Set(people.map((p) => p.email).filter(Boolean)) });
   }
   const rows = events.map((e) => { const r = by.get(e.id); return { title: e.title, dayOne: e.dayOne, city: e.city, status: e.status, registered: r?.attending ?? 0, addresses: r?.emails.size ?? 0 }; });
   const years = {};
   for (const r of rows) { const y = (r.dayOne || "").slice(0, 4) || "undated"; const Y = (years[y] ??= { events: 0, registered: 0, cities: new Set() }); Y.events++; Y.registered += r.registered; if (r.city) Y.cities.add(r.city); }
-  return json({ site: site.name, events: rows.length, guests: guests.length, years: Object.fromEntries(Object.entries(years).sort().map(([y, v]) => [y, { events: v.events, registered: v.registered, cities: [...v.cities].sort() }])), rows });
+  return json({ site: site.name, events: rows.length, guests, years: Object.fromEntries(Object.entries(years).sort().map(([y, v]) => [y, { events: v.events, registered: v.registered, cities: [...v.cities].sort() }])), rows });
 }

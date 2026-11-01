@@ -17,7 +17,10 @@ globalThis.fetch = async (url, init) => {
     // Like Wix, a query with no event named stops short; asked one event at a time, every guest comes back.
     const ev = body.query?.filter?.eventId;
     if (!ev) return Response.json({ guests: [], pagingMetadata: {} });
-    const all = site === ARCH ? [guest("a0", 1), guest("a0", 2), guest("a1", 3)] : [];
+    // a2 is ticketed: one order (buyer) for two tickets, each with its holder. That is two people, not three.
+    const buyer = { id: "b1", eventId: "a2", guestType: "BUYER", attendanceStatus: "ATTENDING", orderNumber: "O1", tickets: [{ number: "T1" }, { number: "T2" }], guestDetails: { firstName: "Bo", lastName: "Buyer", email: "bo@rps.ca" } };
+    const holder = (n) => ({ id: "h" + n, eventId: "a2", guestType: "TICKET_HOLDER", attendanceStatus: "ATTENDING", orderNumber: "O1", ticketNumber: "T" + n, guestDetails: { firstName: "Hol" + n, lastName: "Der", email: `h${n}@rps.ca` } });
+    const all = site === ARCH ? [guest("a0", 1), guest("a0", 2), guest("a1", 3), buyer, holder(1), holder(2)] : [];
     return Response.json({ guests: all.filter((g) => g.eventId === ev), pagingMetadata: {} });
   }
   throw new Error("unexpected fetch " + url);
@@ -29,6 +32,7 @@ const get = async (qs) => (await wix(new Request(`http://x/api/wix?${qs}`, { hea
 const a = await get("archive=1");
 ok("reads every Archive event across pages (130)", a.events === 130, JSON.stringify({ events: a.events }));
 ok("counts who registered for each event", a.rows.find((r) => r.title === "Old training 0")?.registered === 2 && a.rows.find((r) => r.title === "Old training 1")?.registered === 1);
+ok("a ticketed event counts each ticket once, not the buyer as well", a.rows.find((r) => r.title === "Old training 2")?.registered === 2, JSON.stringify(a.rows.find((r) => r.title === "Old training 2")));
 ok("totals by year, with the cities", Object.keys(a.years).join() === "2022,2023,2024" && a.years["2022"].cities.includes("Regina"), JSON.stringify(a.years));
 ok("no names or email addresses in the answer", !/Sam\d|@rps\.ca/.test(JSON.stringify(a)));
 const ev = await get("events=1");
