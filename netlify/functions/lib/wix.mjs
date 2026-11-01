@@ -24,7 +24,7 @@
 import { directory, standardOf } from "./agencies.mjs";
 
 const API = "https://www.wixapis.com";
-const PAGE = 100;          // guests per request; Wix allows up to 1000
+const PAGE = 1000;         // guests per request, Wix's most (the Archive has more than 5,000: 50 pages of 100 cut it short)
 const MAX_PAGES = 50;      // a stop, so a bad cursor cannot loop for ever
 
 export function wixConfigured() {
@@ -144,7 +144,10 @@ export function tidyContact(c) {
   const addr = (info.addresses?.items ?? []).map((a) => a.address ?? a).find((a) => a?.subdivision || a?.city) ?? null;
   return { id: c.id, email, domain: email.includes("@") ? email.split("@")[1] : "", company: String(info.company ?? "").trim(), jobTitle: String(info.jobTitle ?? "").trim(),
     region: addr?.subdivision ? String(addr.subdivision) : "", city: addr?.city ? String(addr.city) : "", country: addr?.country ? String(addr.country) : "",
-    extended: Object.keys(info.extendedFields?.items ?? {}), labels: (info.labelKeys?.items ?? []).length, created: c.createdDate ?? "" };
+    extended: Object.keys(info.extendedFields?.items ?? {}),
+    // ONGIA's own "Province of work" field, filled in on some contacts already (two spellings of the key exist).
+    provinceOfWork: String(info.extendedFields?.items?.["custom.province-of-work"] ?? info.extendedFields?.items?.["custom.province-work"] ?? "").trim(),
+    labels: (info.labelKeys?.items ?? []).length, created: c.createdDate ?? "" };
 }
 
 /** One Wix event, cut down to what the desk needs to match and display. */
