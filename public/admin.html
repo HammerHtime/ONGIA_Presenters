@@ -263,12 +263,12 @@
   /* the housekeeping questions card */
   /* the answers at a glance: one line each, count and download on the same line */
   .rplist{border:1px solid var(--edge);border-radius:12px;margin:0 0 12px}
-  .rprow{display:grid;grid-template-columns:minmax(0,1fr) auto 118px;gap:6px 12px;align-items:center;padding:9px 12px;border-top:1px solid var(--edge)}
-  .rprow:first-child{border-top:0}
-  .rprow .rpnum{white-space:nowrap;font-size:14px}
-  .rprow .rpwhen{display:block;font-size:13px;color:var(--ink-mid);margin-top:2px}
-  .rprow .mini{justify-self:end}
-  @media(max-width:560px){.rprow{grid-template-columns:minmax(0,1fr) auto}.rprow .rpwhat{grid-column:1/-1}.rprow .rpbtn-gap{display:none}}
+  .rpans{display:grid;grid-template-columns:minmax(0,1fr) auto 118px;gap:6px 12px;align-items:center;padding:9px 12px;border-top:1px solid var(--edge)}
+  .rpans:first-child{border-top:0}
+  .rpans .rpnum{white-space:nowrap;font-size:14px}
+  .rpans .rpwhen{display:block;font-size:13px;color:var(--ink-mid);margin-top:2px}
+  .rpans .mini{justify-self:end}
+  @media(max-width:560px){.rpans{grid-template-columns:minmax(0,1fr) auto}.rpans .rpwhat{grid-column:1/-1}.rpans .rpbtn-gap{display:none}}
   .rpsoc{border:1px solid var(--edge);border-radius:12px;padding:12px;margin:12px 0 0}
   .rpall summary{cursor:pointer;margin:4px 0 10px}
   dialog.sheet.rpdlg{max-width:1100px;width:calc(100% - 24px)}
@@ -6900,9 +6900,9 @@ function renderReplyCard(ev, R) {
 
     <h3 class="wsh">Answers <span class="porg">· ${A.length}</span></h3>
     <div class="rplist">
-      <div class="rprow"><span class="rpwhat"><b>Food allergies and intolerances</b></span><span class="rpnum"><b>${food.length}</b> ${food.length === 1 ? "person" : "people"}</span>
+      <div class="rpans"><span class="rpwhat"><b>Food allergies and intolerances</b></span><span class="rpnum"><b>${food.length}</b> ${food.length === 1 ? "person" : "people"}</span>
         <button class="mini gold" data-rpsheet="dietary"${food.length ? "" : " disabled"}>Dietary list</button></div>
-      ${counts.map((c, i) => `<div class="rprow"><span class="rpwhat"><b>${esc(c.s.label)}</b>${c.s.date ? `<span class="rpwhen">${esc(longDayEn(c.s.date))}</span>` : ""}</span><span class="rpnum"><b>${c.yes}</b> coming · ${c.no} not</span>
+      ${counts.map((c, i) => `<div class="rpans"><span class="rpwhat"><b>${esc(c.s.label)}</b>${c.s.date ? `<span class="rpwhen">${esc(longDayEn(c.s.date))}</span>` : ""}</span><span class="rpnum"><b>${c.yes}</b> coming · ${c.no} not</span>
         ${i === counts.length - 1 ? `<button class="mini gold" data-rpsheet="socials"${fromForm.length ? "" : " disabled"}>Socials list</button>` : `<span class="rpbtn-gap"></span>`}</div>`).join("")}
     </div>
     <div class="actions" style="margin:0 0 6px;flex-wrap:wrap"><button class="mini" id="rp-addone">Add someone by hand</button>
