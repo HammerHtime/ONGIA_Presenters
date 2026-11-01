@@ -181,7 +181,7 @@ const L = {
     nps: "Indice de recommandation (NPS)", prepShort: (d) => `Préparé par l'ONGIA · ${d}`, title: "Sommaire exécutif" },
 };
 /** The look the year-end reports share with these. */
-export const PDF_LOOK = { NAVY, GOLD, INK, MUTED, LINE, PALE, LOGO };
+export const PDF_LOOK = { NAVY, GOLD, INK, MUTED, LINE, PALE, LOGO, MAPFILE: path.join(ASSETS, "canada-map.json") };
 const longDate = (iso, lang) => formatLong(iso, lang, { weekday: false }) || iso;
 const whenText = (f, lang) => (f.event.dayOne && f.event.lastDay && f.event.dayOne !== f.event.lastDay ? `${longDate(f.event.dayOne, lang)} – ${longDate(f.event.lastDay, lang)}` : longDate(f.event.dayOne, lang));
 

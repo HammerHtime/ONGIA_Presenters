@@ -4,6 +4,7 @@ import { buildReport, fileReport, reportsOf, putReports } from "./lib/reports.mj
 import { buildYearReport, fileYearReport, yearReportsOf, putYearReports } from "./lib/yearend.mjs";
 import { buildOngReport, fileOngReport, ongReportsOf, putOngReports } from "./lib/ongiayear.mjs";
 import { sortAgencies } from "./lib/sectors.mjs";
+import { refreshYear } from "./lib/history.mjs";
 import { putMeta } from "./lib/store.mjs";
 
 /** Make a report (both languages) and file it, in the background: Claude takes a minute or two. Started by /api/reports. */
@@ -52,6 +53,12 @@ async function yearEnd(job) {
  */
 async function ongiaYear(job) {
   const year = String(job.ongia);
+  // "Refresh from Wix" on the Reports page: read the year again and keep it; no report is made.
+  if (job.readOnly) {
+    try { await refreshYear(year); await putMeta(`ongia:year:${year}:reading`, { state: "done", at: new Date().toISOString() }); }
+    catch (e) { console.error("ONGIA year reading failed", year, e?.message); await putMeta(`ongia:year:${year}:reading`, { state: "failed", why: e.message, at: new Date().toISOString() }); }
+    return new Response(null, { status: 202 });
+  }
   let refresh = !!job.refresh;
   for (const kind of job.kinds ?? []) {
     const settle = async (patch) => { const all = await ongReportsOf(year); await putOngReports(year, { ...all, [kind]: { ...all[kind], building: null, ...patch } }); };
