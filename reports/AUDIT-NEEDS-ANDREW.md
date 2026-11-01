@@ -170,3 +170,22 @@ Make the year-end reports, then open both PDFs in each language and look for the
 **Also open:** on 30 Oct Andrew asked for the practice Executive Summary's "future topics" in two columns. Claude
 shortened the topics but said the two-column layout is a print setting it can't change. The layout itself hasn't been
 changed in the code yet.
+
+---
+
+## 10. Summit reminder (31 Oct 2026, evening): 7 of 230 didn't arrive
+
+**What happened.** Andrew moved the Summit form's reply-by date to 3 November and asked for a reminder. It went by
+hand ("Send a reminder now") to the 230 registered addresses that had the email and hadn't answered. All 230 were
+accepted by Resend: 223 were delivered, 6 bounced, and 1 has an address that can't exist.
+
+**Which, without names (the repository is public):**
+- Bounced: Toronto Police Service (2), Peel Regional Police (1), London Police Service (1), City of Winnipeg /
+  Winnipeg Police (2).
+- Mistyped at registration: one London Police address was entered as "ondonpolice.ca" (missing the L).
+
+**Why.** Old or mistyped addresses on the Wix registrations, or a mailbox that's full or closed. Nothing on our side.
+
+**The fix.** The addresses are listed in Resend (Emails, filter "bounced") and on the event's registration list.
+To reach these 7 people: correct the address on the registration (or ask their agency), then use
+Send a reminder now again the next day; it goes only to people who still haven't answered.
