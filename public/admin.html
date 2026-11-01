@@ -5924,7 +5924,7 @@ async function certFile(url) {
 const certAct = (p) => !p.cert ? (p.checkedIn ? `<button class="mini gold" data-certpdf="${esc(p.key)}">Issue &amp; download</button>` : `<button class="mini" data-certpdf="${esc(p.key)}">Issue anyway…</button>`)
   : p.cert.revoked ? `<button class="mini" data-certpdf="${esc(p.key)}">Issue again…</button>`
   : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><details class="certmore"><summary class="mini" aria-label="More for ${esc(p.name)}">•••</summary><div class="certmenu">
-      <button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}"${p.email ? "" : " disabled"}>${p.cert.mail?.sentAt ? "Email it again" : "Email it"}</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
+      ${p.cert.french ? `<button type="button" data-certpdf="${esc(p.key)}" data-lang="fr">Download in French</button>` : ""}<button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}"${p.email ? "" : " disabled"}>${p.cert.mail?.sentAt ? "Email it again" : "Email it"}</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
 /** What happened to each person's certificate email (Andrew 31 Oct 2026): sent, downloaded from the link in it, bounced, or couldn't send. */
 const mailBad = (m) => !!(m && (m.bounced || m.failed));
 const certMail = (p) => { const m = p.cert?.mail;
@@ -6124,7 +6124,7 @@ function renderCerts(ev, C) {
     b.disabled = true; b.textContent = "Making it…";
     for (;;) {
       try {
-        const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}${extra.join("")}`);
+        const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(b.dataset.certpdf)}${b.dataset.lang === "fr" ? "&lang=fr" : ""}${extra.join("")}`);
         Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
         loadCerts(ev);
       } catch (x) {
