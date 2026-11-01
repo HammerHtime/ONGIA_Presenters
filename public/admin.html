@@ -6576,8 +6576,8 @@ function ongiaReportsScreen(D) {
   const n = (v) => (v == null ? "—" : Number(v).toLocaleString("en-CA"));
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }); };
   const tiles = [
-    [n(F.attendees), "people trained", F.held ? (F.attendanceBasis === "registered" ? "registered for events held" : "at events held") : ""],
-    [n(F.events), "trainings and events", F.upcoming ? `${F.held} held, ${F.upcoming} to come` : F.events ? "all held" : ""],
+    [n(F.attendees), "people trained", F.held ? (F.inPerson != null && F.virtual != null ? `${n(F.inPerson)} in person, ${n(F.virtual)} virtual` : F.attendanceBasis === "registered" ? "registered for events held" : "at events held") : ""],
+    [n(F.events), "trainings and events", F.upcoming ? `${F.held} held, ${F.upcoming} to come${F.registeredToCome ? ` (${n(F.registeredToCome)} registered)` : ""}` : F.events ? "all held" : ""],
     [n(I.contacts ?? F.contacts), "contacts", "typed in below"],
     [n(F.agencyCount), "agencies", F.newAgencies != null ? `${F.newAgencies} new this year` : ""],
     [n(F.provinceCount), "provinces and territories", ""],
@@ -6585,6 +6585,8 @@ function ongiaReportsScreen(D) {
   ];
   const busy = Object.values(S.reports).some((r) => r.building);
   const made = Object.values(S.reports).some((r) => r.version);
+  const whenAt = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); };
+  const reading = D.reading?.state === "reading" && Date.now() - Date.parse(D.reading.at) < 10 * 60000;
   const card = (kind) => {
     const r = S.reports[kind], v = r.version;
     const filed = r.filed && ["en", "fr"].every((l) => r.filed[l]?.url);
@@ -6602,11 +6604,14 @@ function ongiaReportsScreen(D) {
     <div class="rbhyr" role="tablist" aria-label="Year">${D.years.map((y) => `<button class="chip${String(y) === String(Y) ? " solid" : " rbhoff"}" data-ongyear="${y}" aria-selected="${String(y) === String(Y)}">${y}</button>`).join("")}</div>
     <section class="ye">
       <h3>${Y} at a glance</h3>
-      <div class="s">Counted from the desk's records: every event in ${Y} except practice ones. People trained are those at events that have taken place.</div>
+      <div class="s">${F.source === "wix" ? `Counted from every Wix site and the desk, by ONGIA's counting rules: each training once, each person once per training. People trained are those registered for trainings that have taken place. Read from Wix ${esc(whenAt(F.readAt))}.`
+        : `These figures come from the desk alone, which misses trainings that are only on Wix. Press <b>Refresh from Wix</b> to count every training.`}
+        ${D.mayChange ? (reading ? ` <span class="rpstate wait"><span class="spin" aria-hidden="true"></span> Reading every Wix site…</span>` : ` <button class="linkish" id="ong-refresh">Refresh from Wix</button>`) : ""}
+        ${D.reading?.state === "failed" && !reading ? `<span class="bad-t">The last reading didn't work: ${esc(D.reading.why || "")}</span>` : ""}</div>
       <div class="yegrid">${tiles.map(([b, l, sub]) => `<div><b>${b}</b><span>${esc(l)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
       ${D.mayChange ? `<form class="yein" id="ong-in"><b>Typed in once a year</b>
         <label>Contacts in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ong-contacts" value="${I.contacts ?? ""}"></label>
-        <button class="mini" id="ong-save">Save</button><span class="hint" style="margin:0">Everything else is counted from the desk's records.</span></form>` : ""}
+        <button class="mini" id="ong-save">Save</button><span class="hint" style="margin:0">Everything else is counted from Wix and the desk.</span></form>` : ""}
       <div class="yerow">${!D.mayChange ? `<span class="hint" style="margin:0">The president and the VP of operations make and change these reports.</span>`
         : F.held ? `<button class="mini gold" id="ong-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the reports"}</button>
           <span class="hint" style="margin:0">Claude sorts the agencies into sectors, groups the year's topics, then writes all four: about ten minutes. Change any of them afterwards by asking.</span>`
@@ -6637,7 +6642,9 @@ function ongiaReportsScreen(D) {
     mk.disabled = true;
     try { await api(`/reports?ongia=${Y}&build=all`, { method: "POST", body: "{}" }); render(); } catch (x) { toast(x.message); mk.disabled = false; }
   };
-  if (busy) ONG_POLL = setTimeout(() => { if (view.name === "reports" && view.sub !== "rbh") render(); }, 8000);
+  const rf = document.getElementById("ong-refresh");
+  if (rf) rf.onclick = async () => { rf.disabled = true; try { await api(`/reports?ongia=${Y}&refresh=1`, { method: "POST", body: "{}" }); render(); } catch (x) { toast(x.message); rf.disabled = false; } };
+  if (busy || reading) ONG_POLL = setTimeout(() => { if (view.name === "reports" && view.sub !== "rbh") render(); }, 8000);
 }
 function designsScreen(D) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;

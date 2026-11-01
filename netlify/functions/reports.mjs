@@ -1,5 +1,5 @@
 import { json, fail, requireAdmin, editGuard, adminWho, text } from "./lib/http.mjs";
-import { getEvent, listEvents } from "./lib/store.mjs";
+import { getEvent, listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { mayEditEvent } from "./lib/auth.mjs";
 import { yearFacts, yearState, yearReportsOf, putYearReports, yearVersionPdf, fileYearReport, yearFileName, inputsOf, putInputs, rbhYears, yearOf, YE_KINDS } from "./lib/yearend.mjs";
 import { KINDS, reportsOf, putReports, standingOf, putStanding, versionPdf, fileNameOf, factsFor, halfBack, fileReport } from "./lib/reports.mjs";
@@ -222,7 +222,8 @@ async function ongia(req, q) {
     const events = await listEvents();
     const facts = await ongiaYearFacts(year, { events });
     return json({ year: Number(year), years: ongYears(events), facts: { ...facts, comments: undefined, asked: undefined, commentCount: facts.comments.length },
-      inputs: await ongInputsOf(year), state: await ongState(year, facts), mayChange: mayEditEvent(adminWho(req), { board: [] }) });
+      inputs: await ongInputsOf(year), state: await ongState(year, facts), mayChange: mayEditEvent(adminWho(req), { board: [] }),
+      reading: (await getMeta(`ongia:year:${year}:reading`)) ?? null });
   }
   // Any board member can read ONGIA's reports; the desk key, the president and the VP of operations change them.
   if (!mayEditEvent(adminWho(req), { board: [] })) return fail("Only the president and the VP of operations can change ONGIA's reports.", 403);
@@ -233,6 +234,16 @@ async function ongia(req, q) {
     return json({ inputs: await ongInputsOf(year) });
   }
   if (req.method !== "POST") return fail("Method not allowed.", 405);
+  // Read the year again from every Wix site (Andrew 1 Nov 2026: the figures must be the real ones). In the background:
+  // it reads every guest list, which takes a minute or two.
+  if (q("refresh")) {
+    const now = await getMeta(`ongia:year:${year}:reading`);
+    if (now?.state === "reading" && Date.now() - Date.parse(now.at) < 10 * 60000) return fail("It's being read now.", 409);
+    const reading = { state: "reading", at: new Date().toISOString(), by: who };
+    await putMeta(`ongia:year:${year}:reading`, reading);
+    await kick(req, { ongia: year, readOnly: true });
+    return json({ reading });
+  }
   const all = await ongReportsOf(year);
   const fresh = (k) => ({ versions: [], current: 0, requests: [], chat: [], final: false, ...(all[k] ?? {}) });
   const going = (r) => r.building && Date.now() - Date.parse(r.building.at) < 12 * 60000;

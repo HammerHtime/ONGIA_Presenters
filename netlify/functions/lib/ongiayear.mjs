@@ -5,6 +5,7 @@ import { writeableTo } from "./attendees.mjs";
 import { directory, agencyOf, PROVINCES } from "./agencies.mjs";
 import { SECTORS, sortAgencies } from "./sectors.mjs";
 import { factsFor } from "./reports.mjs";
+import { yearTrainings, refreshYear } from "./history.mjs";
 
 /**
  * ONGIA's year (Andrew 1 Nov 2026: "Add 3 different reports you think would be good for ONGIA to create each year as a
@@ -161,20 +162,59 @@ export async function groupTopics(year, rows, { client = null } = {}) {
 
 /* ---------- The year ---------- */
 
+/**
+ * The year's rows: every training on Wix and in the desk, counted by Andrew's rules (lib/history.mjs, read in the
+ * background and kept), with the desk's survey, presenters and sessions for the trainings that have them. Until a year
+ * has been read from Wix the rows come from the desk alone, and the figures say so (source "desk").
+ */
+export async function yearRows(year, { events = null, now = today(), list = null } = {}) {
+  const all = events ?? (await listEvents());
+  const dir = list ?? (await directory().catch(() => []));
+  const kept = await yearTrainings(year);
+  if (!kept) {
+    const mine = all.filter((e) => counts(e) && yearOf(e) === String(year)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
+    return { rows: await Promise.all(mine.map((e) => eventFacts(e, dir, { now }))), source: "desk", readAt: null, next: null };
+  }
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const rows = await Promise.all(kept.rows.map(async (r) => {
+    const desk = r.deskId ? byId.get(r.deskId) : null;
+    const ef = desk ? await eventFacts(desk, dir, { now }) : null;
+    const lastDay = r.lastDay || r.dayOne;
+    const fromWix = r.people !== null && r.people !== undefined;
+    return {
+      id: r.id, title: r.title, kind: r.kind || ef?.kind || "", city: String(r.city ?? "").split(",")[0].trim(), province: provinceOfEvent({ city: r.city }),
+      dayOne: r.dayOne, lastDay, days: r.days ?? ef?.days ?? 1, held: (lastDay || r.dayOne || "9") < now,
+      registered: fromWix ? r.people : ef?.registered ?? 0, attended: fromWix ? r.people : ef?.attended ?? 0, basis: fromWix ? "registered" : ef?.basis ?? "registered",
+      agencies: fromWix ? r.agencies : ef?.agencies ?? [], unmatched: fromWix ? r.unmatched : ef?.unmatched ?? 0,
+      inPerson: fromWix ? r.inPerson : null, virtual: fromWix ? r.virtual : null, attendeeDays: fromWix ? r.attendeeDays : null, format: r.format || "",
+      survey: ef?.survey ?? null, presenters: ef?.presenters ?? [], sessionTitles: ef?.sessionTitles ?? [], parts: r.parts ?? [],
+    };
+  }));
+  return { rows, source: "wix", readAt: kept.at, next: kept.next ?? null };
+}
+
 /** Every figure the ONGIA year reports may state, for one calendar year. */
 export async function ongiaYearFacts(year, { events = null, now = today() } = {}) {
   const all = events ?? (await listEvents());
   const list = await directory().catch(() => []);
-  const mine = all.filter((e) => counts(e) && yearOf(e) === String(year)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
-  const rows = await Promise.all(mine.map((e) => eventFacts(e, list, { now })));
-  const earlierEvents = all.filter((e) => counts(e) && yearOf(e) && yearOf(e) < String(year));
+  const { rows, source, readAt, next: keptNext } = await yearRows(year, { events: all, now, list });
+  // Agencies seen in earlier years, to tell the new ones from the returning: the kept readings of those years.
   let earlier = null;
-  if (earlierEvents.length) {
-    earlier = new Set();
-    for (const e of earlierEvents) for (const a of (await eventFacts(e, list, { now })).agencies) earlier.add(a.agency);
+  const firstYear = 2021;
+  for (let y = firstYear; y < Number(year); y++) {
+    const k = await yearTrainings(y);
+    if (!k) continue;
+    earlier ??= new Set();
+    for (const r of k.rows) for (const a of r.agencies ?? []) earlier.add(a.agency);
+  }
+  if (!earlier && source === "desk") {
+    const earlierEvents = all.filter((e) => counts(e) && yearOf(e) && yearOf(e) < String(year));
+    if (earlierEvents.length) { earlier = new Set(); for (const e of earlierEvents) for (const a of (await eventFacts(e, list, { now })).agencies) earlier.add(a.agency); }
   }
   const next = all.filter((e) => counts(e) && yearOf(e) === String(Number(year) + 1));
-  return combineOngia(year, rows, { earlier, next, inputs: await ongInputsOf(year), topics: await topicsOf(year) });
+  const out = combineOngia(year, rows, { earlier, next, inputs: await ongInputsOf(year), topics: await topicsOf(year) });
+  if (keptNext) out.nextYear = { count: keptNext.count, provinces: new Set((keptNext.cities ?? []).map((c) => provinceOfEvent({ city: c })).filter(Boolean)).size };
+  return { ...out, source, readAt };
 }
 
 /** The year from its events' figures (eventFacts), the agencies seen before, next year's events, contacts and topics. */
@@ -222,8 +262,11 @@ export function combineOngia(year, rows, { earlier = null, next = [], inputs = {
     year: Number(year),
     events: rows.length, held: held.length, upcoming: rows.length - held.length,
     attendees, registered: held.reduce((a, r) => a + r.registered, 0),
+    registeredToCome: rows.filter((r) => !r.held).reduce((a, r) => a + (r.registered ?? 0), 0),
     attendanceBasis: held.length && held.every((r) => r.basis === "checked in") ? "checked in" : held.every((r) => r.basis === "registered") ? "registered" : "mixed",
-    trainingDays: held.reduce((a, r) => a + r.days, 0), attendeeDays: held.reduce((a, r) => a + r.attended * r.days, 0),
+    trainingDays: held.reduce((a, r) => a + r.days, 0), attendeeDays: held.reduce((a, r) => a + (r.attendeeDays ?? r.attended * r.days), 0),
+    inPerson: held.every((r) => r.inPerson !== null && r.inPerson !== undefined) ? held.reduce((a, r) => a + r.inPerson, 0) : null,
+    virtual: held.every((r) => r.virtual !== null && r.virtual !== undefined) ? held.reduce((a, r) => a + r.virtual, 0) : null,
     contacts: inputs.contacts ?? null,
     agencyCount: agencies.size, unmatched: held.reduce((a, r) => a + r.unmatched, 0),
     provinceCount: byProvince.size,
@@ -245,7 +288,8 @@ export function combineOngia(year, rows, { earlier = null, next = [], inputs = {
     months,
     topics: topicRows, topicsBy: topics?.by ?? null,
     eventsList: rows.map((r) => ({ id: r.id, title: r.title, city: r.city, province: r.province, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held,
-      attended: r.held ? r.attended : null, registered: r.registered, rating: r.held && r.survey?.quality ? r.survey.quality.mean : null, kind: r.kind })),
+      attended: r.held ? r.attended : null, registered: r.registered, rating: r.held && r.survey?.quality ? r.survey.quality.mean : null, kind: r.kind,
+      format: r.format ?? "", inPerson: r.inPerson ?? null, virtual: r.virtual ?? null })),
     nextYear: { count: next.length, provinces: nextProvinces.size },
     comments: comments.slice(0, 300), asked: held.flatMap((r) => r.survey?.topics ?? []).slice(0, 150),
   };
@@ -332,8 +376,8 @@ export const putOngReports = (year, r) => putMeta(`reports:ongia:${year}`, r);
 export async function buildOngReport(year, kind, { reason = "asked", ask = "", lang = "both", client = null, facts = null, refresh = false, now = new Date() } = {}) {
   if (refresh) {
     await sortAgencies({ client }).catch((e) => console.log(`sectors: ${e.message}`));
-    const all = await listEvents(), list = await directory().catch(() => []);
-    const rows = await Promise.all(all.filter((e) => counts(e) && yearOf(e) === String(year)).map((e) => eventFacts(e, list)));
+    await refreshYear(year).catch((e) => console.log(`history: couldn't read ${year} from Wix (${e.message}); using the last reading`));
+    const { rows } = await yearRows(year);
     await groupTopics(year, rows, { client }).catch((e) => console.log(`topics: ${e.message}`));
   }
   const reports = await ongReportsOf(year);
