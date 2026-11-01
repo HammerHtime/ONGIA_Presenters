@@ -101,6 +101,31 @@ async function wix(path, body, site = "1") {
   return json;
 }
 
+/* ---------- Contacts (Andrew 1 Nov 2026: "you have access via api for contacts") ---------- */
+
+/**
+ * Every contact on a Wix site (Customers & Leads, Contacts: members and everyone else), read in pages of 1,000. Read only.
+ * Each is cut down to what working out a province needs; the rest of the card stays in Wix.
+ */
+export async function listWixContacts({ site = "1", max = 50000 } = {}) {
+  const out = [];
+  for (let offset = 0; offset < max; offset += 1000) {
+    const got = await wix("/contacts/v4/contacts/query", { query: { paging: { limit: 1000, offset } }, fieldsets: ["FULL"] }, site);
+    const page = got.contacts ?? [];
+    out.push(...page.map(tidyContact));
+    if (page.length < 1000) break;
+  }
+  return out;
+}
+export function tidyContact(c) {
+  const info = c.info ?? {};
+  const email = String(c.primaryInfo?.email || info.emails?.items?.[0]?.email || "").trim().toLowerCase();
+  const addr = (info.addresses?.items ?? []).map((a) => a.address ?? a).find((a) => a?.subdivision || a?.city) ?? null;
+  return { id: c.id, email, domain: email.includes("@") ? email.split("@")[1] : "", company: String(info.company ?? "").trim(), jobTitle: String(info.jobTitle ?? "").trim(),
+    region: addr?.subdivision ? String(addr.subdivision) : "", city: addr?.city ? String(addr.city) : "", country: addr?.country ? String(addr.country) : "",
+    extended: Object.keys(info.extendedFields?.items ?? {}), labels: (info.labelKeys?.items ?? []).length, created: c.createdDate ?? "" };
+}
+
 /** One Wix event, cut down to what the desk needs to match and display. */
 function tidyEvent(e) {
   const start = e.dateAndTimeSettings?.startDate ?? null;

@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
-import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites } from "./lib/wix.mjs";
+import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites, listWixContacts } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
 import { eventId as makeEventId } from "./lib/ids.mjs";
 import { deadlinesFor, offsetsOf } from "./lib/deadlines.mjs";
@@ -11,6 +11,7 @@ import { starterTasks } from "./lib/checklist.mjs";
  *
  *   GET  /api/wix                     is it connected, and does the key work
  *   GET  /api/wix?events=1            the Wix events, with any desk event each is linked to
+ *   GET  /api/wix?contacts=1[&site=n] what the site's contact list holds, in totals only: no names or addresses
  *   PUT  /api/wix?event=…&link=…      point a desk event at a Wix event
  *   PUT  /api/wix?event=…&unlink=1    stop pointing at it
  *   PUT  /api/wix?event=…&link=…&also=1&group=…   also pull a second Wix event into this one, its people labelled with the group
@@ -31,6 +32,7 @@ export default async (req) => {
   if (req.method === "GET") {
     if (url.searchParams.get("count")) return countGuests(text(url.searchParams.get("count"), 80));
     if (url.searchParams.get("events")) return showWixEvents();
+    if (url.searchParams.get("contacts")) return contactSummary(text(url.searchParams.get("site"), 2) || "1");
     return json({ connected: wixConfigured(), sites: wixSites().map((x) => ({ n: x.n, name: x.name })), ...(await wixHealth()) });
   }
   if (req.method === "PUT") {
@@ -248,4 +250,31 @@ async function importEvent(wixEventId) {
   const out = await absorb(event.id, guests);
   return json({ ok: true, event, ...out,
     next: "Open the event and pick a board member as the lead — nothing is sent until there is one." }, 201);
+}
+
+/**
+ * The contact list in totals (Andrew 1 Nov 2026: working out each contact's province). Proves the key can read contacts
+ * and shows what there is to work from: how many have an email, a company, an address with a province, and which email
+ * domains are most common. No names, no addresses, no individual records.
+ */
+const PERSONAL = /^(gmail|hotmail|outlook|live|yahoo|icloud|me|msn|aol|shaw|rogers|bell|sympatico|telus|videotron|cogeco|protonmail)\./i;
+async function contactSummary(site) {
+  if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
+  let all;
+  try { all = await listWixContacts({ site }); }
+  catch (e) { return fail(e.status === 401 || e.status === 403 ? "Wix refused to show contacts with this key. In Wix: Account Settings, API Keys, open the key the desk uses, tick Read Contacts for this site, save." : e.message, e.status === 403 || e.status === 401 ? 403 : 502); }
+  const tally = (f) => { const m = new Map(); for (const c of all) { const k = f(c); if (k) m.set(k, (m.get(k) ?? 0) + 1); } return [...m].sort((a, b) => b[1] - a[1]); };
+  const domains = tally((c) => c.domain);
+  return json({
+    site, total: all.length,
+    withEmail: all.filter((c) => c.email).length,
+    personalEmail: all.filter((c) => PERSONAL.test(c.domain)).length,
+    withCompany: all.filter((c) => c.company).length,
+    withRegion: all.filter((c) => c.region).length,
+    regions: tally((c) => c.region).slice(0, 20),
+    countries: tally((c) => c.country).slice(0, 10),
+    domainCount: domains.length,
+    topDomains: domains.filter(([d]) => !PERSONAL.test(d)).slice(0, 40),
+    extendedFields: tally((c) => c.extended.join("|")).slice(0, 10).map(([k, n]) => [k.split("|").filter(Boolean), n]),
+  });
 }
