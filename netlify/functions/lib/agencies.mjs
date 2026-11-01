@@ -179,6 +179,8 @@ const SEED = [
   ["PwC", "", ["Price Waterhouse Coopers", "PricewaterhouseCoopers"]],
 ].map(([name, province, aliases]) => ({ name, province, aliases, fr: EXTRA[name]?.fr ?? "", domains: EXTRA[name]?.domains ?? [] }));
 
+// The sectors an agency can be in (names and sorting in lib/sectors.mjs).
+export const SECTOR_IDS = ["police", "education", "corrections", "social", "community", "justice", "federal", "health", "other"];
 export const PROVINCES = { ON: "Ontario", QC: "Quebec", MB: "Manitoba", SK: "Saskatchewan", AB: "Alberta", BC: "British Columbia",
   NS: "Nova Scotia", NB: "New Brunswick", NL: "Newfoundland and Labrador", PE: "Prince Edward Island", YT: "Yukon", NT: "Northwest Territories", NU: "Nunavut" };
 
@@ -367,8 +369,8 @@ export async function forget(raw) {
   return had.name;
 }
 
-/** Edit an agency: its official name, province, French name, and work email domains (Andrew 30 Oct 2026). */
-export async function editAgency(name, { newName, province, fr, domains } = {}) {
+/** Edit an agency: its official name, province, French name, work email domains (Andrew 30 Oct 2026) and sector (1 Nov 2026). */
+export async function editAgency(name, { newName, province, fr, domains, sector } = {}) {
   const saved = (await getAgencyList()) ?? [];
   const list = await directory();
   const had = list.find((a) => a.name === name);
@@ -378,6 +380,8 @@ export async function editAgency(name, { newName, province, fr, domains } = {}) 
   const row = { ...(saved.find((a) => a.name === had.name) ?? { name: had.name, aliases: [] }) };
   if (province !== undefined) row.province = PROVINCES[province] ? province : "";
   if (fr !== undefined) row.fr = String(fr).trim().slice(0, 160);
+  // A sector set here is Andrew's: no later sorting pass changes it.
+  if (sector !== undefined) { if (SECTOR_IDS.includes(sector)) { row.sector = sector; row.sectorBy = "desk"; } else { delete row.sector; delete row.sectorBy; } }
   if (domains !== undefined) {
     const want = new Set(domains.map((d) => domainOf(`x@${String(d).replace(/^@/, "")}`)).filter(Boolean));
     row.domains = [...want];
@@ -386,9 +390,28 @@ export async function editAgency(name, { newName, province, fr, domains } = {}) 
   let rows = saved.filter((a) => a.name !== had.name);
   if (to === had.name) rows.push(row);
   else rows.push({ ...had, ...row, hidden: true },
-    { name: to, province: row.province ?? had.province, fr: row.fr ?? had.fr, aliases: [...new Set([had.name, ...had.aliases])], domains: row.domains ?? had.domains });
+    { name: to, province: row.province ?? had.province, fr: row.fr ?? had.fr, aliases: [...new Set([had.name, ...had.aliases])], domains: row.domains ?? had.domains,
+      ...((row.sector ?? had.sector) ? { sector: row.sector ?? had.sector, sectorBy: row.sectorBy ?? had.sectorBy } : {}) });
   await putAgencyList(rows);
   return to;
+}
+
+/**
+ * Sectors from a sorting pass (lib/sectors.mjs): [{ name, sector, by }]. An agency whose sector Andrew set is left alone.
+ * Written as small rows on the stored list, so nothing else about the agency changes.
+ */
+export async function setSectors(entries) {
+  // Rows are updated where they are (the stored list can hold more than one row under a name, e.g. a renamed agency's
+  // hidden one), and a row is added only for an agency that has none.
+  const rows = [...((await getAgencyList()) ?? [])];
+  for (const e of entries) {
+    if (!SECTOR_IDS.includes(e.sector)) continue;
+    const at = rows.map((r, i) => (r.name === e.name && !r.hidden ? i : -1)).filter((i) => i >= 0);
+    if (at.some((i) => rows[i].sectorBy === "desk")) continue;
+    if (!at.length) { rows.push({ name: e.name, aliases: [], sector: e.sector, sectorBy: e.by || "claude" }); continue; }
+    for (const i of at) rows[i] = { ...rows[i], sector: e.sector, sectorBy: e.by || "claude" };
+  }
+  await putAgencyList(rows);
 }
 
 /** Two agencies that are one (Andrew 30 Oct 2026: "Merge"): the first's name, spellings and domains go to the second. */

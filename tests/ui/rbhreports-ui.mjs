@@ -31,7 +31,8 @@ const open = async (w, h, fake) => {
 };
 
 let p = await open(1280, 1000);
-ok("Admin has an RBH reports tab, selected", /RBH reports/.test(await p.locator(".atab.on").innerText()));
+// RBH reports moved from Admin to Reports (Andrew 1 Nov 2026); the old Admin link lands there.
+ok("the old Admin › RBH reports link opens Reports › RBH, with Reports lit in the menu", (await p.locator(".rptabs .atab.on").innerText()).trim() === "RBH" && await p.locator("#reportsnav.on").count() === 1 && !(await p.locator(".admintabs").count()));
 ok("the year chips include this year's trainings' year, selected", await p.locator(`[data-rbhyear="${YEAR}"].solid`).count() === 1);
 const body = await p.locator("#root").innerText();
 ok("the list holds the two RBH trainings, not the other kind", body.includes(`RBH ITP Week ${T}`) && body.includes(`RBH Halifax ${T}`) && !body.includes(`Ontario Symposium ${T}`));

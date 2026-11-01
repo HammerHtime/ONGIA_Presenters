@@ -111,7 +111,7 @@ ok("merged: one agency, the other's name now a spelling of it", !list.some((a) =
 ok("adding one already on the list is refused", (await call("master=1&add=1", { name: "toronto police service" })).status === 400);
 
 const csv = (await call("master=1&download=1")).body;
-ok("the master list downloads as a spreadsheet, French names and domains included", /^\ufeff?Agency,Province,French name,Work email domains,Also typed as/.test(csv) && csv.includes('"Gendarmerie royale du Canada"') && csv.includes("brampton.ca"), csv.slice(0, 200));
+ok("the master list downloads as a spreadsheet, French names and domains included", /^\ufeff?Agency,Province,French name,Sector,Work email domains,Also typed as/.test(csv) && csv.includes('"Gendarmerie royale du Canada"') && csv.includes("brampton.ca"), csv.slice(0, 200));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

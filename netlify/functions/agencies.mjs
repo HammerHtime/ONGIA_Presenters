@@ -1,5 +1,6 @@
 import { json, fail, requireAdmin, editGuard, text } from "./lib/http.mjs";
 import { getEvent, getAttendees, getMeta, putMeta } from "./lib/store.mjs";
+import { SECTORS, sectorName } from "./lib/sectors.mjs";
 import { directory, agenciesOf, agencyOf, teach, suggest, forget, editAgency, mergeAgencies, key, agencyLog, agencyWaiting, agencyBlank, everyone, PROVINCES } from "./lib/agencies.mjs";
 import { wixConfigured, wixSites, listWixGuests, listWixEvents } from "./lib/wix.mjs";
 
@@ -113,8 +114,11 @@ async function masterView() {
   for (const p of people) { if (p.status === "WITHDRAWN") continue; const a = agencyOf(p, list); if (a) counts.set(a.name, (counts.get(a.name) ?? 0) + 1); }
   const week = Date.now() - 7 * 86400000;
   return json({
-    agencies: list.map((a) => ({ name: a.name, province: a.province || "", fr: a.fr || "", domains: a.domains ?? [], aliases: a.aliases ?? [], people: counts.get(a.name) ?? 0 })),
+    agencies: list.map((a) => ({ name: a.name, province: a.province || "", fr: a.fr || "", domains: a.domains ?? [], aliases: a.aliases ?? [], people: counts.get(a.name) ?? 0,
+      sector: a.sector || "", sectorBy: a.sectorBy || "" })),
     matched: log, waiting, blank, run: run ?? null, provinces: PROVINCES,
+    // Sectors (Andrew 1 Nov 2026): Claude's best guess for each agency, and any Andrew corrected.
+    sectors: SECTORS.map(({ id, en }) => ({ id, en })), sectorRun: (await getMeta("agencies:sectorrun")) ?? null,
     stats: { agencies: list.length, spellings: list.reduce((n, a) => n + (a.aliases?.length ?? 0), 0), domains: list.reduce((n, a) => n + (a.domains?.length ?? 0), 0),
       week: log.filter((m) => Date.parse(m.at) > week).length },
   });
@@ -165,7 +169,13 @@ async function master(req, url) {
       await putMeta("agencies:log", []);
     } else if (q("edit")) {
       await editAgency(text(body.name, 160), { newName: body.newName === undefined ? undefined : text(body.newName, 160), province: body.province === undefined ? undefined : text(body.province, 2).toUpperCase(),
-        fr: body.fr === undefined ? undefined : text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : undefined });
+        fr: body.fr === undefined ? undefined : text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : undefined,
+        sector: body.sector === undefined ? undefined : text(body.sector, 20) });
+    } else if (q("sortsectors")) {
+      // Claude sorts every agency without a sector (or, with all, every one not set by hand), in the background.
+      await putMeta("agencies:sectorrun", { at: new Date().toISOString(), state: "running", all: !!body.all });
+      await fetch(`${url.origin}/api/reports-build-background`, { method: "POST", headers: { "x-admin-key": req.headers.get("x-admin-key") ?? "", "content-type": "application/json" },
+        body: JSON.stringify({ sectors: true, all: !!body.all }) }).catch(() => {});
     } else if (q("merge")) {
       await mergeAgencies(text(body.from, 160), text(body.into, 160));
     } else if (q("add")) {
@@ -173,7 +183,7 @@ async function master(req, url) {
       if (!name) return fail("What is the agency called?");
       if ((await directory()).some((a) => a.name.toLowerCase() === name.toLowerCase())) return fail(`${name} is already on the list.`);
       await teach(name, name, text(body.province, 2).toUpperCase(), { fr: text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : [] });
-    } else return fail("Expected fix, undo, blank, unblank, clear, edit, merge or add.");
+    } else return fail("Expected fix, undo, blank, unblank, clear, edit, sortsectors, merge or add.");
   } catch (e) { return fail(e.message); }
   return masterView();
 }
@@ -181,7 +191,7 @@ async function master(req, url) {
 /** The master list as a spreadsheet (Andrew 30 Oct 2026: "a running list of all confirmed agencies in a dataset"). */
 async function masterCsv() {
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const rows = (await directory()).map((a) => [a.name, a.province ? PROVINCES[a.province] ?? a.province : "Federal / national", a.fr, (a.domains ?? []).join(" "), (a.aliases ?? []).join(" | ")].map(cell).join(","));
-  return new Response(`\ufeffAgency,Province,French name,Work email domains,Also typed as\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
+  const rows = (await directory()).map((a) => [a.name, a.province ? PROVINCES[a.province] ?? a.province : "Federal / national", a.fr, a.sector ? sectorName(a.sector) : "", (a.domains ?? []).join(" "), (a.aliases ?? []).join(" | ")].map(cell).join(","));
+  return new Response(`\ufeffAgency,Province,French name,Sector,Work email domains,Also typed as\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
     "content-disposition": 'attachment; filename="ongia-agencies-master-list.csv"', "cache-control": "no-store" } });
 }
