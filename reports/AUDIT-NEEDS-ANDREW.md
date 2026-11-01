@@ -149,3 +149,24 @@ https://events.ongia.org/api/resend-webhook (it's separate from the travel site'
 set in Netlify as RESEND_WEBHOOK_SECRET for the live site. The endpoint refuses anything unsigned or replayed.
 
 **Also fixed.** The refusal surfaced as a raw 502 with a stack trace; it now comes back as a plain message.
+
+---
+
+## 9. RBH year-end reports: two checks have to wait for the first real RBH training
+
+**Status (1 Nov 2026):** Admin › RBH reports is live and shows real records. Two parts can't be checked on the live
+site yet, because the year-end reports can only be made once a real (not practice) RBH training that year has been
+held. The first is the RBH VIP Event, 15–16 November 2026.
+
+**Still to check after 16 November:**
+1. **Claude writing the year-end text on the live site.** The sample Andrew approved was written to the same rules
+   inside a test setup, because there's no Claude key there. The live build hasn't run yet.
+2. **Filing to OneDrive under RBH › Year end 2026.** This filing route is new and hasn't run against SharePoint yet.
+   The folder can be changed with the RBH_YEAREND_FOLDER setting in Netlify.
+
+**How:** after the VIP event, open Admin › RBH reports › 2026, type in members and email campaigns, press
+Make the year-end reports, then open both PDFs in each language and look for them in OneDrive.
+
+**Also open:** on 30 Oct Andrew asked for the practice Executive Summary's "future topics" in two columns. Claude
+shortened the topics but said the two-column layout is a print setting it can't change. The layout itself hasn't been
+changed in the code yet.
