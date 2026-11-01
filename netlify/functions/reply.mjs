@@ -10,6 +10,7 @@ import { renderReminder, summitSocialLabels, replyToOf, signOf, freshenedReply }
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, addressesSheet, presenterReplyStatus, sendReplyToPresenters, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
+import { todayIso } from "./lib/deadlines.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 
 /**
@@ -31,6 +32,7 @@ import { reportSends } from "./lib/sendreport.mjs";
  *   POST /api/reply?event=…&add=1        add someone's allergy by hand (they told us another way)
  *   POST /api/reply?event=…&upload=1     add everyone on a dietary sheet laid out like the hotel's (.xlsx)
  *   POST /api/reply?event=…&wording=1    put the suggested email back
+ *   POST /api/reply?event=…&remind=1     send the reminder now to everyone who hasn't answered (on the server)
  *   DELETE /api/reply?event=…&answer=…   remove one answer (a test, or someone who asked)
  */
 export default async (req) => {
@@ -70,6 +72,7 @@ export default async (req) => {
     }
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), adminWho(req));
     if (url.searchParams.get("send")) return sendNow(event, adminWho(req), url.origin);
+    if (url.searchParams.get("remind")) return remindNow(event, adminWho(req), url.origin);
     if (url.searchParams.get("presenters")) return sendToPresenters(event, adminWho(req), url.origin);
   }
   return fail("Method not allowed.", 405);
@@ -147,6 +150,33 @@ async function testSend(event, to, who) {
     sentTo.push(person.email);
   }
   return json({ ok: true, to: sentTo.join(", ") });
+}
+
+/**
+ * "Send a reminder now" (Andrew 1 Nov 2026: "Push the date to Nov 3 … and send out a reminder"): the reminder to everyone
+ * who had the email and hasn't answered, at once, on the server, whether or not automatic emails to attendees are on.
+ * Through Resend from events@send.ongia.ca like the scheduled reminders. Once a day: a second press the same day finds
+ * nobody left to remind.
+ */
+async function remindNow(event, who, origin) {
+  const problems = replyProblems(event);
+  if (problems.length) return fail(`Not sent: ${problems[0]}`, 409);
+  if (!event.reply.sentAt) return fail("Send the email first; a reminder goes to people who had it.", 409);
+  if (!event.reply.open) return fail("The form is closed, so a reminder would point at nothing. Open it first.", 409);
+  if (event.reply.replyBy && todayIso() > event.reply.replyBy) return fail("The reply-by date has passed. Move it later first, so the reminder doesn't ask for answers by a day gone by.", 409);
+  const going = event.replySending && Date.now() - Date.parse(event.replySending.at) < 20 * 60 * 1000;
+  if (going) return json({ started: true, already: true, status: await replyStatus(event) });
+  event.replySending = { at: new Date().toISOString(), by: who?.name || who?.email || "the desk key", hop: 0, kind: "remind" };
+  await putEvent(event);
+  try {
+    const r = await fetch(`${origin}/api/reply-send-background?event=${encodeURIComponent(event.id)}&who=remind`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+    if (r.status >= 400) throw new Error(`the server run answered ${r.status}`);
+    return json({ started: true, status: await replyStatus(event) });
+  } catch (e) {
+    delete event.replySending;
+    await putEvent(event);
+    return fail(`The reminder didn't start: ${e.message}. Nothing was sent; try again in a minute.`, 503);
+  }
 }
 
 async function sendNow(event, who, origin) {

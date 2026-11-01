@@ -7077,7 +7077,16 @@ function renderReplyCard(ev, R) {
     <p class="hint" style="margin:0 0 8px">At about 10 AM Eastern on each date, the same email goes again, marked as a reminder, to everyone who had it and hasn't answered yet. Leave a date empty to skip it.</p>
     <div class="row2">${[0, 1].map((i) => { const d = (st.reminders ?? [])[i]; return `<div class="field" style="margin:0"><label for="rp-rem${i}">Reminder ${i + 1}</label><input type="date" id="rp-rem${i}" value="${esc(d?.date ?? "")}">${d?.round ? `<p class="hint" style="margin:6px 0 0">Sent to ${d.round.sent}${d.round.failed ? `, ${d.round.failed} could not be sent` : ""}.</p>` : ""}</div>`; }).join("")}</div>
     ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
-    ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications.</div>` : ""}
+    ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders on these dates won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications, or use Send a reminder now.</div>` : ""}
+    ${sent ? (() => {
+      // Andrew 1 Nov 2026: a reminder by hand, whatever the dates and the automatic-emails switch say.
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+      const past = r.replyBy && today > r.replyBy, last = st.lastReminder;
+      const why = !r.open ? "The form is closed." : past ? "The reply-by date has passed: move it later first." : "";
+      const reminding = R.sending?.kind === "remind";
+      return `<div class="actions" style="margin-top:10px;flex-wrap:wrap;align-items:center"><button class="btn btn-ghost" id="rp-remindnow"${why || !st.stillToAnswer || R.problems.length || R.sending ? " disabled" : ""}>${reminding ? "Sending the reminder…" : st.stillToAnswer ? `Send a reminder now to ${st.stillToAnswer}` : "Nobody left to remind"}</button>
+        <span class="hint" style="margin:0">${why ? `${esc(why)} ` : ""}${last ? `Last reminder ${esc(fmtDate(last.date))}: ${last.sent} sent${last.failed ? `, ${last.failed} couldn't be sent` : ""}${last.left ? `, ${last.left} still to go` : ""}.` : "Goes now, only to people who had the email and haven't answered."}</span></div>`;
+    })() : ""}
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend || R.sending ? " disabled" : ""}>${R.sending ? `Sending… ${st.had} of ${st.reaches}` : st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first. It sends on the server, so you can close the page, and if any can't be sent the president and VP get an email saying which.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
@@ -7201,6 +7210,17 @@ function renderReplyCard(ev, R) {
     try {
       const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&presenters=1`, { method: "POST" });
       toast(out.started ? (out.already ? "It's already sending to the presenters." : "Sending to the presenters, on the server. You can close this page.") : `Sent to ${out.sent} ${out.sent === 1 ? "presenter" : "presenters"}${out.failed ? `; ${out.failed} could not be sent` : ""}.`);
+      loadReply(ev);
+    } catch (x) { toast(x.message); done(); }
+  };
+  if ($("rp-remindnow")) $("rp-remindnow").onclick = async (e) => {
+    const n = st.stillToAnswer;
+    if (!confirm(`Send the reminder now to ${n} ${n === 1 ? "person who hasn't" : "people who haven't"} answered?\n\nIt asks for answers by ${longDayEn($("rp-by")?.value || r.replyBy)}. Each address gets it once today.`)) return;
+    const done = busy(e.target, "Starting…");
+    try {
+      await save();
+      const out = await api(`/reply?event=${encodeURIComponent(ev.id)}&remind=1`, { method: "POST", body: "{}" });
+      toast(out.already ? "Something is already sending for this event; try again when it's done." : "Sending the reminder now, on the server. You can close this page.");
       loadReply(ev);
     } catch (x) { toast(x.message); done(); }
   };
