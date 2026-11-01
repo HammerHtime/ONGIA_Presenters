@@ -469,8 +469,10 @@ async function infoPdf(c, f, lang, { date }) {
   else { ry = h3(n++, L.topAgencies, rx, y, half); ry = hbars(doc, f.topAgencies.slice(0, 9).map((a) => ({ label: a.agency, value: a.count })), rx, ry, half, { labelW: 150, rowH: 16, lang }); }
   y = Math.max(ly, ry) + 16;
   // Row 2: topics (or each event's people), and the months with the growing network under them.
-  if (f.topics.length) { ly = h3(n++, L.topics, X, y, half); ly = hbars(doc, topicRows(f, lang).slice(0, 8), X, ly, half, { labelW: 156, rowH: 16, lang }); }
-  else { ly = h3(n++, L.eventsHead, X, y, half); ly = hbars(doc, f.eventsList.filter((r) => r.held).slice(0, 8).map((r) => ({ label: r.title, value: r.attended })), X, ly, half, { labelW: 140, rowH: 16, lang }); }
+  // As many rows as fit above the "Looking ahead" box: the eighth topic ran into it on the 2026 infographic.
+  const fits = Math.max(3, Math.min(8, Math.floor((BOTTOM - (f.nextYear.count ? 44 : 6) - y - 22) / 16)));
+  if (f.topics.length) { ly = h3(n++, L.topics, X, y, half); ly = hbars(doc, topicRows(f, lang).slice(0, fits), X, ly, half, { labelW: 156, rowH: 16, lang }); }
+  else { ly = h3(n++, L.eventsHead, X, y, half); ly = hbars(doc, f.eventsList.filter((r) => r.held).slice(0, fits).map((r) => ({ label: r.title, value: r.attended })), X, ly, half, { labelW: 140, rowH: 16, lang }); }
   ry = h3(n++, L.byMonth, rx, y, half);
   ry = monthColumns(doc, f.months, rx, ry, half, 74, lang);
   ry = monthKey(doc, rx, ry, lang) + 8;

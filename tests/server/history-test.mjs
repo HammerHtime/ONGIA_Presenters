@@ -71,6 +71,7 @@ ok("Winnipeg's training is in Winnipeg (Wix says Kingston)", t(y26, /Crossroads 
 const edm = y26.find((r) => r.deskId === "d-edm");
 ok("Edmundston: the desk event and its French day are one training, 4 people (one came both days)", edm.people === 4 && edm.parts.length === 2, JSON.stringify(edm));
 ok("Edmundston's days are 13 and 15 October: 2 training days, not 3", edm.days === 2, String(edm.days));
+ok("Edmundston runs 13 to 15 October: the French day is its last day, not the desk event's", edm.dayOne === "2026-10-13" && edm.lastDay === "2026-10-15", edm.dayOne + " " + edm.lastDay);
 const ngs = y26.find((r) => r.deskId === "d-ngs");
 ok("the Summit: in person, its community partners on the second site, and its virtual registrations are one event (2 + 2 + 1)", ngs.people === 5 && ngs.virtual === 1 && ngs.parts.length === 3, JSON.stringify(ngs));
 ok("the Summit is still to come", ngs.held === false);
