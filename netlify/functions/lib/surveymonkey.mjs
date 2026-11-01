@@ -9,10 +9,18 @@
 const HOSTS = ["https://api.surveymonkey.com", "https://api.surveymonkey.ca", "https://api.eu.surveymonkey.com"];
 let found = null;
 
-export const surveyMonkeyConfigured = () => Boolean(process.env.SURVEYMONKEY_TOKEN);
+// What gets pasted is not always just the token: a space or line break either side, "Bearer " in front, quotes.
+export const cleanToken = (raw) => String(raw ?? "").trim().replace(/^["']|["']$/g, "").replace(/^bearer\s+/i, "").trim();
+// What a refused token looks like, never what it is: enough to tell a Client ID or a masked "•••" copy from a real token.
+export function tokenShape(raw) {
+  const t = cleanToken(raw);
+  const odd = [...t].filter((c) => !/[A-Za-z0-9._\-]/.test(c)).length;
+  return `${t.length} characters${odd ? `, ${odd} of them not letters, digits, dots or dashes` : ""}${t.length !== String(raw ?? "").length ? ", after removing spaces or quotes around it" : ""}`;
+}
+export const surveyMonkeyConfigured = () => Boolean(cleanToken(process.env.SURVEYMONKEY_TOKEN));
 
 async function sm(path) {
-  const token = process.env.SURVEYMONKEY_TOKEN;
+  const token = cleanToken(process.env.SURVEYMONKEY_TOKEN);
   if (!token) { const e = new Error("SurveyMonkey isn't connected: SURVEYMONKEY_TOKEN isn't set in Netlify."); e.status = 409; throw e; }
   const hosts = found ? [found] : (process.env.SURVEYMONKEY_API ? [process.env.SURVEYMONKEY_API] : HOSTS);
   let last = null;
@@ -25,7 +33,7 @@ async function sm(path) {
     if (res.status !== 401 && res.status !== 403) break;
   }
   const e = new Error(last.status === 401 || last.status === 403
-    ? `SurveyMonkey refused the token (${last.why}). Check the app has View Surveys, View Responses and View Response Details, and that the token in Netlify is the app's current one.`
+    ? `SurveyMonkey refused the token (${last.why}). The token in Netlify is ${tokenShape(process.env.SURVEYMONKEY_TOKEN)}; a SurveyMonkey access token is a long run of letters, digits and dashes. Copy the Access Token from the app's Settings page (not the Client ID or Secret) and check the app has View Surveys, View Responses and View Response Details.`
     : `SurveyMonkey: ${last.why}`);
   e.status = last.status;
   throw e;

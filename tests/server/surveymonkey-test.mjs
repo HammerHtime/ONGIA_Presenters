@@ -24,5 +24,17 @@ ok("reads every page of surveys (130)", j.surveys === 130 && j.list.length === 1
 ok("totals responses, and by year", j.responses === surveys.reduce((n, s) => n + s.response_count, 0) && Object.keys(j.years).length === 5, JSON.stringify(j.years));
 ok("newest first", j.list[0].created >= j.list.at(-1).created);
 ok("needs the admin key", (await fn(new Request("http://x/api/surveymonkey"))).status === 401);
+
+// What gets pasted is not always just the token (1 Nov 2026: a masked "•••" copy, then a refused one).
+const { cleanToken, tokenShape } = await import(REPO + "netlify/functions/lib/surveymonkey.mjs");
+ok("spaces, a line break, quotes or 'Bearer ' around the token are dropped", cleanToken('  "Bearer abc-123"\n') === "abc-123" && cleanToken("bearer   xyz") === "xyz");
+ok("a masked copy is described, not shown: it says how many characters are not letters or digits", /8 characters, 8 of them not letters/.test(tokenShape("••••••••")) && !tokenShape("••••••••").includes("•"));
+ok("a token with spaces round it says so", /after removing spaces/.test(tokenShape(" abc ")) && /^3 characters/.test(tokenShape(" abc ")));
+process.env.SURVEYMONKEY_TOKEN = "secret-value-0123";
+const { listSurveys } = await import(REPO + "netlify/functions/lib/surveymonkey.mjs?fresh=1");
+globalThis.fetch = async () => Response.json({ error: { message: "The authorization token provided was invalid." } }, { status: 401 });
+const err = await listSurveys().then(() => null, (e) => e);
+ok("a refused token's message gives its shape and where to copy it from, and never the token itself",
+  err && /17 characters/.test(err.message) && /Access Token/.test(err.message) && !err.message.includes("secret-value-0123"), err?.message);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
