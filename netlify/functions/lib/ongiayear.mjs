@@ -45,7 +45,7 @@ const cityKey = (c) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").
 // An event has a city, not a province: "Montreal, QC" says so; otherwise the cities ONGIA trains in.
 const CITY_PROVINCE = {
   toronto: "ON", ottawa: "ON", mississauga: "ON", brampton: "ON", hamilton: "ON", london: "ON", windsor: "ON", "niagara falls": "ON", kingston: "ON", cornwall: "ON",
-  barrie: "ON", sudbury: "ON", "thunder bay": "ON", oshawa: "ON", kitchener: "ON", waterloo: "ON", guelph: "ON", markham: "ON", vaughan: "ON", "sault ste marie": "ON",
+  barrie: "ON", sudbury: "ON", peterborough: "ON", aurora: "ON", belleville: "ON", "north bay": "ON", "thunder bay": "ON", oshawa: "ON", kitchener: "ON", waterloo: "ON", guelph: "ON", markham: "ON", vaughan: "ON", "sault ste marie": "ON",
   montreal: "QC", "quebec city": "QC", quebec: "QC", laval: "QC", gatineau: "QC", sherbrooke: "QC", "trois rivieres": "QC", longueuil: "QC",
   vancouver: "BC", victoria: "BC", surrey: "BC", kelowna: "BC", burnaby: "BC", richmond: "BC", "prince george": "BC", kamloops: "BC", nanaimo: "BC",
   calgary: "AB", edmonton: "AB", "red deer": "AB", lethbridge: "AB", banff: "AB", winnipeg: "MB", brandon: "MB", regina: "SK", saskatoon: "SK",
@@ -214,6 +214,17 @@ export async function ongiaYearFacts(year, { events = null, now = today() } = {}
   const next = all.filter((e) => counts(e) && yearOf(e) === String(Number(year) + 1));
   const out = combineOngia(year, rows, { earlier, next, inputs: await ongInputsOf(year), topics: await topicsOf(year) });
   if (keptNext) out.nextYear = { count: keptNext.count, provinces: new Set((keptNext.cities ?? []).map((c) => provinceOfEvent({ city: c })).filter(Boolean)).size };
+  // People trained each year since 2021, from the kept readings: for this year, those at trainings held so far, and apart
+  // from them the people registered for the trainings still to come.
+  const history = [];
+  for (let y = 2021; y <= Number(year); y++) {
+    const k = await yearTrainings(y);
+    if (!k) continue;
+    const done = k.rows.filter((r) => (r.lastDay || r.dayOne || "9") < now), ahead = k.rows.filter((r) => !((r.lastDay || r.dayOne || "9") < now));
+    const sum = (rows, key) => rows.reduce((a, r) => a + (r[key] ?? 0), 0);
+    history.push({ year: y, people: sum(done, "people"), inPerson: sum(done, "inPerson"), virtual: sum(done, "virtual"), events: done.length, toCome: y === Number(year) ? sum(ahead, "people") : 0 });
+  }
+  out.history = history;
   return { ...out, source, readAt };
 }
 
@@ -329,7 +340,7 @@ const LANG = { en: "English", fr: "Canadian French (natural and formal, not tran
 const WHAT = { impact: "Annual Impact Report", reach: "Reach and Network Report", program: "Training Program Report", info: "one-page year-end infographic" };
 export const ONG_SYSTEM = (kind, lang) => `You write ONGIA's ${WHAT[kind]} for one calendar year. ONGIA (Organization for National Gang Information & Awareness) is Canada's non-profit for training and education on street gangs, youth violence, organized crime and human trafficking. It trains law enforcement, corrections, educators, social workers, community partners, parents and youth. The readers are funders, sponsors, partners and ONGIA's board, and the document shows them what ONGIA achieved.
 
-Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support.
+Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support. Plain text only: no markdown, no asterisks, no headings inside the text.
 
 The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. "People trained" counts those who came to events that have taken place. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
 

@@ -1,6 +1,7 @@
 import { newDoc, PDF_LOOK } from "./reports.mjs";
 import { PROVINCES } from "./agencies.mjs";
 import { ONG_KINDS } from "./ongiayear.mjs";
+import { readFileSync } from "node:fs";
 
 /**
  * The ONGIA year's PDFs, laid out like the mock-ups Andrew approved on 1 Nov 2026: the navy and gold of ONGIA's other
@@ -8,9 +9,14 @@ import { ONG_KINDS } from "./ongiayear.mjs";
  * nothing rests on colour alone. Sections with no figures are left out rather than printed empty.
  */
 
-const { NAVY, GOLD, INK, MUTED, LINE, PALE, LOGO } = PDF_LOOK;
+const { NAVY, GOLD, INK, MUTED, LINE, PALE, LOGO, MAPFILE } = PDF_LOOK;
 const RAMP = ["#eef1f7", "#cdd6e8", "#97a8cc", "#5a73a6", "#1a2f5e"];
-const TRACK = "#eceae3";
+const TRACK = "#eeebe3", SOFT_GOLD = "#e6c875", PALE_NAVY = "#e8ecf5";
+// Canada's provinces and territories, projected once (Lambert conformal conic) and simplified: { w, h, paths, anchors }.
+let MAP = null;
+const canada = () => (MAP ??= JSON.parse(readFileSync(MAPFILE, "utf8")));
+// Claude is asked for plain text; a stray **bold** is taken off rather than printed.
+const plain = (t) => String(t ?? "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
 
 const T = {
   en: { colon: ": ", prepared: "Prepared for", forWho: "Funders, partners and ONGIA's board", by: "Prepared by", byWho: "ONGIA | Andrew Hammond, President", date: "Date",
@@ -30,7 +36,9 @@ const T = {
     booked: (n, p, y) => `${n} event${n === 1 ? "" : "s"} already on the ${y} calendar${p ? `, in ${p} province${p === 1 ? "" : "s"}` : ""}.`, lookingAhead: "Looking ahead:",
     growText: (n, r) => `${n} agencies came to an ONGIA event for the first time this year; ${r} had come before.`, contactsText: (c) => `ONGIA's contact list holds ${c} people.`,
     presentersText: (p, o) => `${p} presenters from ${o} organizations.`, presenterOrgs: "Presenters by organization", ratingText: (m, t, n) => `Average rating ${m} out of 5; ${t}% rated the training 4 or 5 (${n} answers).`,
-    held: (h, u) => (u ? `${h} held, ${u} to come` : `${h} held`), outOf5: "/5", more: (n) => `+ ${n} more`, unknownTopics: "Topics are grouped from the events' session titles." },
+    held: (h, u) => (u ? `${h} held, ${u} to come` : `${h} held`), outOf5: "/5", more: (n) => `+ ${n} more`, unknownTopics: "Topics are grouped from the events' session titles.",
+    byYear: "People trained each year", provShortCard: "Provinces", trainingsCard: "Trainings", inPerson: "in person", virtual: "virtual", toDate: "to date", registered: "registered, still to come", fewer: "fewer", more2: "more people trained",
+    subSplit: (a, b) => `${a} in person · ${b} virtual`, subHeld: (h, u, r) => (u ? `${h} held · ${u} to come${r ? ` (${r} registered)` : ""}` : `all ${h} held`), subNew: (n) => `${n} new this year`, subNetwork: "ONGIA's network", subAnswers: (n) => `${n} survey answers`, subDays: (n) => `${n} attendee-days`, subCities: (c) => c, subOrgs: (n) => `from ${n} organizations` },
   fr: { colon: " : ", prepared: "Préparé pour", forWho: "Bailleurs de fonds, partenaires et conseil d'administration de l'ONGIA", by: "Préparé par", byWho: "ONGIA | Andrew Hammond, président", date: "Date",
     review: (y) => `Bilan de l'année · ${y}`, org: "Organization for National Gang Information & Awareness", kicker: "Notre année en chiffres", page: "Page", of: "de",
     foot: (k, y) => `${k} ${y} · ONGIA`, footInfo: "ONGIA · WWW.ONGIA.ORG", prep: (d) => `Préparé par l'ONGIA · ${d}`,
@@ -48,7 +56,9 @@ const T = {
     booked: (n, p, y) => `${n} événement${n === 1 ? "" : "s"} déjà au calendrier ${y}${p ? `, dans ${p} province${p === 1 ? "" : "s"}` : ""}.`, lookingAhead: "Perspectives :",
     growText: (n, r) => `${n} organismes ont participé à un événement de l'ONGIA pour la première fois cette année; ${r} y avaient déjà participé.`, contactsText: (c) => `La liste de contacts de l'ONGIA compte ${c} personnes.`,
     presentersText: (p, o) => `${p} conférenciers provenant de ${o} organisations.`, presenterOrgs: "Conférenciers par organisation", ratingText: (m, t, n) => `Note moyenne de ${m} sur 5; ${t} % ont noté la formation 4 ou 5 (${n} réponses).`,
-    held: (h, u) => (u ? `${h} tenus, ${u} à venir` : `${h} tenus`), outOf5: "/5", more: (n) => `+ ${n} autres`, unknownTopics: "Les sujets sont regroupés à partir des titres des séances." },
+    held: (h, u) => (u ? `${h} tenus, ${u} à venir` : `${h} tenus`), outOf5: "/5", more: (n) => `+ ${n} autres`, unknownTopics: "Les sujets sont regroupés à partir des titres des séances.",
+    byYear: "Personnes formées chaque année", provShortCard: "Provinces", trainingsCard: "Formations", inPerson: "en personne", virtual: "virtuel", toDate: "à ce jour", registered: "inscrits, à venir", fewer: "moins", more2: "plus de personnes formées",
+    subSplit: (a, b) => `${a} en personne · ${b} en virtuel`, subHeld: (h, u, r) => (u ? `${h} tenus · ${u} à venir${r ? ` (${r} inscrits)` : ""}` : `les ${h} tenus`), subNew: (n) => `${n} nouveaux cette année`, subNetwork: "Le réseau de l'ONGIA", subAnswers: (n) => `${n} réponses au sondage`, subDays: (n) => `${n} jours-participants`, subCities: (c) => c, subOrgs: (n) => `de ${n} organisations` },
 };
 const PROV_FR = { ON: "Ontario", QC: "Québec", MB: "Manitoba", SK: "Saskatchewan", AB: "Alberta", BC: "Colombie-Britannique", NS: "Nouvelle-Écosse", NB: "Nouveau-Brunswick",
   NL: "Terre-Neuve-et-Labrador", PE: "Île-du-Prince-Édouard", YT: "Yukon", NT: "Territoires du Nord-Ouest", NU: "Nunavut" };
@@ -68,93 +78,152 @@ function span(a, b, lang) {
 const lead = (t) => { const m = /^(.{3,90}?[.:])\s+(.+)$/s.exec(String(t)); return m ? [m[1], m[2]] : ["", String(t)]; };
 const sectorLabel = (s, lang) => (lang === "fr" ? s.fr : s.en);
 
-/* ---------- The headline tiles ---------- */
+/* ---------- The headline cards ---------- */
 
-/** The year's tiles: four navy (people, events, agencies, provinces), then gold for whichever of contacts, rating, presenters, days exist. */
+// Small glyphs drawn in a 14 x 14 box, for the cards.
+const ICONS = {
+  people: (d, c) => { d.circle(5, 4, 2.4).circle(10, 4.6, 2).fill(c); d.path("M1,13 C1,8.5 9,8.5 9,13 Z").fill(c); d.path("M7.5,13 C7.8,9.6 13.6,9.2 13.6,13 Z").fill(c); },
+  calendar: (d, c) => { d.roundedRect(1, 2.5, 12, 10.5, 1.6).lineWidth(1.3).stroke(c); d.rect(1, 2.5, 12, 3).fill(c); d.rect(3.5, 0.8, 1.4, 3).rect(9.1, 0.8, 1.4, 3).fill(c); for (const [a, b] of [[3.5, 7.5], [6.4, 7.5], [9.3, 7.5], [3.5, 10], [6.4, 10]]) d.rect(a, b, 1.6, 1.4).fill(c); },
+  building: (d, c) => { d.path("M1,5 L7,1.2 L13,5 Z").fill(c); for (const a of [2.2, 5.6, 9]) d.rect(a, 6, 2, 5.4).fill(c); d.rect(1, 12, 12, 1.6).fill(c); },
+  pin: (d, c) => { d.path("M7,13.6 C3,9 2,7 2,5.6 A5,5 0 0 1 12,5.6 C12,7 11,9 7,13.6 Z").fill(c); d.circle(7, 5.6, 1.9).fill("#ffffff"); },
+  network: (d, c) => { d.lineWidth(1.1).moveTo(3, 3.5).lineTo(7, 8).lineTo(11.5, 3).moveTo(7, 8).lineTo(7, 12).moveTo(3, 3.5).lineTo(11.5, 3).stroke(c); for (const [a, b, r] of [[3, 3.5, 2], [11.5, 3, 2], [7, 8, 2.3], [7, 12, 1.7]]) d.circle(a, b, r).fill(c); },
+  star: (d, c) => { d.polygon(...Array.from({ length: 10 }, (_, i) => { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 2.7 : 6.4; return [7 + r * Math.cos(a), 7.4 + r * Math.sin(a)]; })).fill(c); },
+  clock: (d, c) => { d.circle(7, 7, 5.8).lineWidth(1.4).stroke(c); d.lineWidth(1.4).moveTo(7, 3.6).lineTo(7, 7.2).lineTo(9.6, 8.8).stroke(c); },
+  mic: (d, c) => { d.roundedRect(5, 1, 4, 7.4, 2).fill(c); d.lineWidth(1.2).moveTo(3, 6.4).bezierCurveTo(3, 11.2, 11, 11.2, 11, 6.4).moveTo(7, 10.6).lineTo(7, 13).moveTo(4.6, 13).lineTo(9.4, 13).stroke(c); },
+  city: (d, c) => { d.rect(1, 6, 4, 7.6).rect(5.6, 2, 4, 11.6).rect(10.2, 8, 3, 5.6).fill(c); },
+  plus: (d, c) => { d.circle(7, 7, 6).fill(c); d.rect(6.1, 3.6, 1.8, 6.8).rect(3.6, 6.1, 6.8, 1.8).fill("#ffffff"); },
+};
+
+/** The year's cards: people, trainings, agencies, provinces in navy; contacts and the rating (or training days) in gold. */
 function tilesOf(f, lang) {
   const L = T[lang];
   const navy = [
-    { big: num(f.attendees, lang), label: L.trained },
-    { big: num(f.events, lang), label: L.events },
-    { big: num(f.agencyCount, lang), label: L.agencies },
-    { big: num(f.provinceCount, lang), label: L.provinces },
+    { big: num(f.attendees, lang), label: L.trained, icon: "people", sub: f.inPerson != null && f.virtual != null && f.virtual ? L.subSplit(num(f.inPerson, lang), num(f.virtual, lang)) : "" },
+    { big: num(f.events, lang), label: L.trainingsCard, icon: "calendar", sub: f.events ? L.subHeld(num(f.held, lang), f.upcoming ? num(f.upcoming, lang) : "", "") : "" },
+    { big: num(f.agencyCount, lang), label: L.agencies, icon: "building", sub: f.newAgencies != null ? L.subNew(num(f.newAgencies, lang)) : "" },
+    { big: num(f.provinceCount, lang), label: L.provShortCard, icon: "pin", sub: (f.provinces ?? []).slice(0, 7).map((p) => p.code).join(" · ") },
   ];
   const gold = [
-    f.contacts != null ? { big: num(f.contacts, lang), label: L.contacts } : null,
-    f.rating ? { big: `${dec(f.rating.mean, lang)}${L.outOf5}`, label: L.rating } : null,
-    f.presenters ? { big: num(f.presenters, lang), label: L.presenters } : null,
-    { big: num(f.trainingDays, lang), label: L.days },
-  ].filter(Boolean);
+    f.contacts != null ? { big: num(f.contacts, lang), label: L.contacts, icon: "network", sub: L.subNetwork } : null,
+    f.rating ? { big: `${dec(f.rating.mean, lang)}${L.outOf5}`, label: L.rating, icon: "star", sub: L.subAnswers(num(f.rating.n, lang)) } : null,
+    f.presenters ? { big: num(f.presenters, lang), label: L.presenters, icon: "mic", sub: f.presenterOrgs ? L.subOrgs(num(f.presenterOrgs, lang)) : "" } : null,
+    { big: num(f.trainingDays, lang), label: L.days, icon: "clock", sub: f.attendeeDays ? L.subDays(num(f.attendeeDays, lang)) : "" },
+  ].filter(Boolean).map((t) => ({ ...t, accent: "gold" }));
   return { navy, gold };
 }
-function tile(doc, t, x, y, w, h, gold, big = 22) {
-  doc.rect(x, y, w, h).fill(gold ? GOLD : NAVY);
-  doc.font("b").fontSize(big).fillColor("#fff").text(t.big, x, y + h * 0.18, { width: w, align: "center", lineBreak: false });
-  doc.font("b").fontSize(6.6).fillColor(gold ? "#fff" : "#e6c875").text(t.label.toUpperCase(), x + 3, y + h * 0.18 + big + 3, { width: w - 6, align: "center", characterSpacing: 0.8, height: 18 });
+/** One card: white, a thin edge and a faint shadow, a coloured edge on the left, the icon in a soft disc, the number, its label, a supporting line. */
+function card(doc, t, x, y, w, h) {
+  const band = t.accent === "gold" ? GOLD : NAVY, disc = t.accent === "gold" ? "#f6edd6" : PALE_NAVY;
+  doc.save(); doc.fillOpacity(0.07); doc.roundedRect(x + 0.6, y + 1.8, w, h, 8).fill(NAVY); doc.restore();
+  doc.roundedRect(x, y, w, h, 8).fillAndStroke("#ffffff", LINE);
+  doc.save(); doc.roundedRect(x, y, w, h, 8).clip(); doc.rect(x, y, 4, h).fill(band); doc.restore();
+  const r = Math.min(15, h / 2 - 8), cx = x + 12 + r;
+  doc.circle(cx, y + h / 2, r).fill(disc);
+  doc.save(); doc.translate(cx - r * 0.7, y + h / 2 - r * 0.7).scale((r * 1.4) / 14); ICONS[t.icon ?? "people"]?.(doc, band); doc.restore();
+  const tx = cx + r + 10, tw = x + w - tx - 8, big = String(t.big), size = big.length > 6 ? 20 : 23;
+  doc.font("b").fontSize(size).fillColor(NAVY).text(big, tx, y + h / 2 - size / 2 - 9, { width: tw, lineBreak: false });
+  doc.font("b").fontSize(6.8).fillColor(INK).text(String(t.label).toUpperCase(), tx, y + h / 2 + size / 2 - 7, { width: tw, characterSpacing: 0.7, lineBreak: false, height: 9, ellipsis: true });
+  if (t.sub) doc.font("r").fontSize(7.4).fillColor(band === GOLD ? "#8a6a12" : "#3f557f").text(t.sub, tx, y + h / 2 + size / 2 + 3, { width: tw, lineBreak: false, height: 10, ellipsis: true });
 }
-function tileRow(doc, items, x, y, w, h, { goldFrom = 99, big = 22, gap = 6 } = {}) {
-  const tw = (w - gap * (items.length - 1)) / items.length;
-  items.forEach((t, i) => tile(doc, t, x + i * (tw + gap), y, tw, h, i >= goldFrom, big));
-  return y + h;
+/** Cards in rows of `per`, each row the full width; returns the y after the last row. */
+function tileRow(doc, items, x, y, w, h = 62, { per = 3, gap = 8 } = {}) {
+  const cw = (w - gap * (per - 1)) / per;
+  items.forEach((t, i) => card(doc, t, x + (i % per) * (cw + gap), y + Math.floor(i / per) * (h + gap), cw, h));
+  return y + Math.ceil(items.length / per) * (h + gap) - gap;
 }
 
 /* ---------- Charts ---------- */
 
-/** Horizontal bars, one hue, the value printed at the end. Returns the y after the last row. */
-function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 15, color = NAVY, lang = "en", max = null, size = 8.5 } = {}) {
+/** Horizontal bars: the label, a rounded bar on a soft track, the value just past the bar's end; the leading row in gold. */
+function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 17, color = NAVY, lang = "en", max = null, size = 8.5, lead = true } = {}) {
   const mx = max ?? Math.max(1, ...rows.map((r) => r.value));
-  const valW = 38, barX = x + labelW + 6, barW = w - labelW - 6 - valW - 4;
-  for (const r of rows) {
-    doc.font("r").fontSize(size).fillColor(INK).text(r.label, x, y + 1, { width: labelW, lineBreak: false, height: size + 3, ellipsis: true });
-    doc.rect(barX, y + 1.5, barW, rowH - 6).fill(TRACK);
-    doc.rect(barX, y + 1.5, Math.max(1.5, (barW * r.value) / mx), rowH - 6).fill(color);
-    doc.font("b").fontSize(size).fillColor(INK).text(num(r.value, lang), x + w - valW, y + 1, { width: valW, align: "right", lineBreak: false });
+  const barX = x + labelW + 8, barW = w - labelW - 8 - 36, bh = Math.min(8, rowH - 8);
+  rows.forEach((r, i) => {
+    const len = Math.max(bh, (barW * r.value) / mx), top = lead && rows.length > 1 && r.value === mx && rows.findIndex((q) => q.value === mx) === i;
+    doc.font(top ? "b" : "r").fontSize(size).fillColor(INK).text(plain(r.label), x, y + (rowH - size) / 2 - 1, { width: labelW, lineBreak: false, height: size + 3, ellipsis: true });
+    doc.roundedRect(barX, y + (rowH - bh) / 2, barW, bh, bh / 2).fill(TRACK);
+    doc.roundedRect(barX, y + (rowH - bh) / 2, len, bh, bh / 2).fill(top ? GOLD : color);
+    doc.font("b").fontSize(size).fillColor(INK).text(num(r.value, lang), barX + len + 5, y + (rowH - size) / 2 - 1, { width: 40, lineBreak: false });
     y += rowH;
-  }
+  });
   return y;
 }
 
-// Canada as tiles, roughly where each province and territory sits: [code, column, row].
-const GRID = [["YT", 1, 0], ["NT", 2, 0], ["NU", 3, 0], ["NL", 7, 0], ["BC", 0, 1], ["AB", 1, 1], ["SK", 2, 1], ["MB", 3, 1], ["ON", 4, 1], ["QC", 5, 1], ["PE", 7, 1], ["NB", 6, 2], ["NS", 7, 2]];
-/** The province tile map, shaded light to dark by people trained (log scale), each tile with its code and count. */
+/** The map of Canada, each province and territory shaded by people trained (light to dark), the number on those with any. */
 function tileMap(doc, provinces, x, y, w, lang) {
-  const by = new Map(provinces.map((p) => [p.code, p.count]));
+  const M = canada(), by = new Map(provinces.map((p) => [p.code, p.count]));
   const mx = Math.max(1, ...provinces.map((p) => p.count));
   const step = (v) => (v ? Math.min(4, 1 + Math.floor((Math.log10(v + 1) / Math.log10(mx + 1)) * 3.999)) : 0);
-  const gap = 3, t = (w - gap * 7) / 8;
-  for (const [code, c, r] of GRID) {
-    const v = by.get(code) ?? 0, i = step(v), tx = x + c * (t + gap), ty = y + r * (t + gap);
-    doc.roundedRect(tx, ty, t, t, 3).fill(RAMP[i]);
-    const ink = i >= 3 ? "#ffffff" : INK;
-    doc.font("b").fontSize(t > 40 ? 10 : 8.5).fillColor(ink).text(code, tx, ty + t * 0.22, { width: t, align: "center", lineBreak: false });
-    doc.font("r").fontSize(t > 40 ? 8.5 : 7.5).fillColor(i ? ink : MUTED).text(v ? num(v, lang) : "–", tx, ty + t * 0.56, { width: t, align: "center", lineBreak: false });
+  const s = w / M.w, h = M.h * s;
+  for (const [code, d] of Object.entries(M.paths)) { doc.save(); doc.translate(x, y).scale(s); doc.path(d).lineWidth(1.5 / s).lineJoin("round").fillAndStroke(RAMP[step(by.get(code) ?? 0)], "#ffffff"); doc.restore(); }
+  // The three small Maritime provinces carry their number on a short leader.
+  const OUT = { NB: [-0.035, 0.03], NS: [0.025, 0.034], PE: [0.026, -0.022] };
+  for (const [code, [ax, ay]] of Object.entries(M.anchors)) {
+    const v = by.get(code); if (!v) continue;
+    let px = x + ax * s, py = y + ay * s;
+    if (OUT[code]) { const dx = OUT[code][0] * M.w * s * 1.0, dy = OUT[code][1] * M.h * s * 1.0; doc.moveTo(px, py).lineTo(px + dx, py + dy).lineWidth(0.6).stroke(MUTED); doc.circle(px, py, 1.4).fill(NAVY); px += dx; py += dy; }
+    const t = num(v, lang), fs = w > 220 ? 8 : 7, tw = doc.font("b").fontSize(fs).widthOfString(t) + 9, light = step(v) >= 3 && !OUT[code];
+    doc.roundedRect(px - tw / 2, py - fs + 1, tw, fs + 6, (fs + 6) / 2).fill(light ? "#ffffff" : NAVY);
+    doc.font("b").fontSize(fs).fillColor(light ? NAVY : "#ffffff").text(t, px - tw / 2, py - fs + 3.4, { width: tw, align: "center", lineBreak: false });
   }
-  const ly = y + 3 * (t + gap) + 6;
-  RAMP.forEach((c, i) => doc.roundedRect(x + i * 24, ly, 22, 7, 1.5).fill(c));
-  doc.font("r").fontSize(7).fillColor(MUTED).text(T[lang].mapLegend, x + 5 * 24 + 6, ly - 0.5, { lineBreak: false });
+  const ly = y + h + 5, L = T[lang];
+  doc.font("r").fontSize(7).fillColor(MUTED).text(L.fewer, x, ly - 1, { lineBreak: false });
+  const lx = x + doc.widthOfString(L.fewer) + 5;
+  RAMP.forEach((c, i) => doc.roundedRect(lx + i * 21, ly, 19, 6, 1.5).fill(c));
+  doc.font("r").fontSize(7).fillColor(MUTED).text(L.more2, lx + 5 * 21 + 4, ly - 1, { lineBreak: false });
   return ly + 12;
 }
 
-/** Columns for the twelve months: held in navy, still to come in pale navy, the count above. */
+/** Twelve months: held in navy, still to come outlined; the count above. */
 function monthColumns(doc, months, x, y, w, h, lang) {
-  const mx = Math.max(1, ...months.map((m) => m.held + m.upcoming));
-  const cw = w / 12, top = y + 12, base = top + h;
+  const mx = Math.max(1, ...months.map((m) => m.held + m.upcoming)), cw = w / 12, top = y + 12, base = top + h;
   months.forEach((m, i) => {
-    const total = m.held + m.upcoming, cx = x + i * cw + cw * 0.18, bw = cw * 0.64;
+    const total = m.held + m.upcoming, bw = cw * 0.56, bx = x + i * cw + (cw - bw) / 2;
     const hh = (h * m.held) / mx, hu = (h * m.upcoming) / mx;
-    if (!total) doc.rect(cx, base - 1, bw, 1).fill(LINE);
-    if (m.held) doc.roundedRect(cx, base - hh, bw, hh, Math.min(2.5, hh / 2)).fill(NAVY);
-    if (m.upcoming) doc.roundedRect(cx, base - hh - hu, bw, hu, Math.min(2.5, hu / 2)).fill(RAMP[2]);
+    if (m.held) doc.roundedRect(bx, base - hh, bw, hh, Math.min(3, hh / 2)).fill(NAVY);
+    if (m.upcoming) { doc.roundedRect(bx + 0.5, base - hh - hu + 0.5, bw - 1, hu - 1, Math.min(3, hu / 2)).lineWidth(1).dash(2, { space: 1.5 }).stroke(NAVY); doc.undash(); }
     if (total) doc.font("b").fontSize(7.5).fillColor(INK).text(String(total), x + i * cw, base - hh - hu - 10, { width: cw, align: "center", lineBreak: false });
     doc.font("r").fontSize(7.5).fillColor(MUTED).text(INITIAL[lang][i], x + i * cw, base + 3, { width: cw, align: "center", lineBreak: false });
   });
+  doc.moveTo(x, base).lineTo(x + w, base).lineWidth(0.7).stroke("#c9c3b4");
   return base + 14;
 }
-/** "■ held  ■ to come" under the month columns, so the two shades are named, not just coloured. */
+/** "■ held  ⬚ to come" under the month columns, so the two are named, not just drawn differently. */
 function monthKey(doc, x, y, lang) {
   doc.rect(x, y + 1, 7, 7).fill(NAVY); doc.font("r").fontSize(7).fillColor(MUTED).text(lang === "fr" ? "tenus" : "held", x + 10, y, { lineBreak: false });
-  doc.rect(x + 46, y + 1, 7, 7).fill(RAMP[2]); doc.text(lang === "fr" ? "à venir" : "to come", x + 56, y, { lineBreak: false });
+  doc.roundedRect(x + 46, y + 1, 7, 7, 1).lineWidth(0.9).dash(1.5, { space: 1 }).stroke(NAVY); doc.undash();
+  doc.font("r").fontSize(7).fillColor(MUTED).text(lang === "fr" ? "à venir" : "to come", x + 56, y, { lineBreak: false });
   return y + 12;
+}
+
+/**
+ * People trained each year: in person (navy) and virtual (soft gold) stacked, the total above. The current year is "to
+ * date", with the people registered for its trainings still to come as an outlined block on top.
+ */
+function yearColumns(doc, years, x, y, w, h, { lang = "en", current = null } = {}) {
+  const L = T[lang];
+  const mx = Math.max(1, ...years.map((r) => r.people + (r.toCome ?? 0))) * 1.15, cw = w / years.length, top = y + 14, base = top + h;
+  for (let g = 1; g <= 3; g++) { const gy = base - (h * g) / 3.45; doc.moveTo(x, gy).lineTo(x + w, gy).lineWidth(0.4).dash(2, { space: 2 }).stroke(LINE); doc.undash(); }
+  years.forEach((r, i) => {
+    const bw = Math.min(36, cw * 0.56), bx = x + i * cw + (cw - bw) / 2;
+    const ip = r.inPerson ?? r.people, vi = r.virtual ?? 0, hi = (h * ip) / mx, hv = (h * vi) / mx, hc = (h * (r.toCome ?? 0)) / mx;
+    if (hi) doc.roundedRect(bx, base - hi, bw, hi, hv || hc ? 0 : Math.min(3, hi / 2)).fill(NAVY);
+    if (hv) doc.roundedRect(bx, base - hi - hv, bw, hv, hc ? 0 : Math.min(3, hv / 2)).fill(SOFT_GOLD);
+    if (hi && hv) doc.rect(bx, base - hi - 0.6, bw, 1.2).fill("#ffffff");
+    if (hc) { doc.roundedRect(bx + 0.5, base - hi - hv - hc + 0.5, bw - 1, hc - 1, Math.min(3, hc / 2)).lineWidth(1).dash(2, { space: 1.5 }).stroke(NAVY); doc.undash(); }
+    doc.font("b").fontSize(8.6).fillColor(INK).text(num(r.people, lang), x + i * cw, base - hi - hv - 12, { width: cw, align: "center", lineBreak: false });
+    if (hc) doc.font("b").fontSize(7.4).fillColor(NAVY).text(`+${num(r.toCome, lang)}`, x + i * cw, base - hi - hv - hc - 11, { width: cw, align: "center", lineBreak: false });
+    const now = String(r.year) === String(current);
+    doc.font(now ? "b" : "r").fontSize(8).fillColor(now ? NAVY : MUTED).text(String(r.year), x + i * cw, base + 4, { width: cw, align: "center", lineBreak: false });
+    if (now) doc.font("r").fontSize(6.5).fillColor(MUTED).text(L.toDate, x + i * cw, base + 13, { width: cw, align: "center", lineBreak: false });
+  });
+  doc.moveTo(x, base).lineTo(x + w, base).lineWidth(0.7).stroke("#c9c3b4");
+  const ky = base + 25;
+  doc.rect(x, ky + 1, 7, 7).fill(NAVY); doc.font("r").fontSize(7).fillColor(MUTED).text(L.inPerson, x + 10, ky, { lineBreak: false });
+  let kx = x + 10 + doc.widthOfString(L.inPerson) + 12;
+  doc.rect(kx, ky + 1, 7, 7).fill(SOFT_GOLD); doc.font("r").fontSize(7).fillColor(MUTED).text(L.virtual, kx + 10, ky, { lineBreak: false });
+  if (years.some((r) => r.toCome)) { kx += 10 + doc.widthOfString(L.virtual) + 12; doc.roundedRect(kx, ky + 1, 7, 7, 1).lineWidth(0.9).dash(1.5, { space: 1 }).stroke(NAVY); doc.undash(); doc.font("r").fontSize(7).fillColor(MUTED).text(L.registered, kx + 10, ky, { lineBreak: false }); }
+  return ky + 12;
 }
 
 /* ---------- A flowing document: header, headings, paragraphs, tables, quotes, footer ---------- */
@@ -171,10 +240,10 @@ function flow(doc, lang, title, year) {
   const room = (h) => { if (doc.y + h > doc.page.height - 70) doc.addPage(); };
   const h2 = (t, need = 80) => { room(need); doc.moveDown(0.5); doc.font("b").fontSize(15).fillColor(NAVY).text(t, X, doc.y, { width: W }); doc.moveDown(0.25); };
   const h3 = (t, need = 60) => { room(need); doc.moveDown(0.3); doc.font("b").fontSize(9.5).fillColor(NAVY).text(t.toUpperCase(), X, doc.y, { width: W, characterSpacing: 1 }); doc.moveDown(0.35); };
-  const para = (t, opts = {}) => { if (!t) return; room(28); doc.font(opts.font ?? "r").fontSize(opts.size ?? 10.5).fillColor(opts.color ?? INK).text(t, X, doc.y, { width: W, lineGap: 2.5 }); doc.moveDown(0.45); };
+  const para = (t0, opts = {}) => { const t = plain(t0); if (!t) return; room(28); doc.font(opts.font ?? "r").fontSize(opts.size ?? 10.5).fillColor(opts.color ?? INK).text(t, X, doc.y, { width: W, lineGap: 2.5 }); doc.moveDown(0.45); };
   const bullets = (items) => {
     for (const t of items ?? []) {
-      room(28); const y = doc.y, [b, rest] = lead(t);
+      room(28); const y = doc.y, [b, rest] = lead(plain(t));
       doc.font("r").fontSize(10.5).fillColor(INK).text("•", X + 4, y);
       if (b) doc.font("b").text(`${b} `, X + 18, y, { width: W - 18, continued: true, lineGap: 2.5 }).font("r").text(rest, { lineGap: 2.5 });
       else doc.text(rest, X + 18, y, { width: W - 18, lineGap: 2.5 });
@@ -205,7 +274,8 @@ function flow(doc, lang, title, year) {
     doc.font("r").fontSize(10).fillColor(INK).text(t, X + 12, y + 9, { width: W - 24, lineGap: 2 });
     doc.y = y + h + 8; doc.x = X;
   };
-  const quote = (q) => {
+  const quote = (q0) => {
+    const q = { ...q0, text: plain(q0.text) };
     const h = doc.font("b").fontSize(11).heightOfString(`“${q.text}”`, { width: W - 32 }) + 30;
     room(h + 8); const y = doc.y;
     doc.rect(X, y, W, h).fill(PALE); doc.rect(X, y, 3.5, h).fill(NAVY);
@@ -258,7 +328,8 @@ async function impactPdf(c, f, lang, { date }) {
   F.h2(L.glance);
   for (const p of c.glance ?? []) F.para(p);
   const { navy, gold } = tilesOf(f, lang);
-  F.chart(70, (x, y, w) => tileRow(doc, [...navy, ...gold.slice(0, 2)], x, y + 2, w, 58, { goldFrom: 4, big: 18 }) + 4);
+  F.chart(140, (x, y, w) => tileRow(doc, [...navy, ...gold.slice(0, 2)], x, y + 4, w, 60) + 6);
+  if ((f.history ?? []).length > 1) { F.h3(L.byYear, 170); F.chart(160, (x, y, w) => yearColumns(doc, f.history, x, y, w, 110, { lang, current: Y })); }
   F.h2(L.eventsHead, 120);
   eventsTable(F, f, lang);
 
@@ -267,7 +338,7 @@ async function impactPdf(c, f, lang, { date }) {
   if (f.sectors.length) { F.h3(L.bySector, 30 + f.sectors.length * 16); F.chart(f.sectors.length * 16, (x, y, w) => hbars(doc, sectorRows(f, lang), x, y, w, { labelW: 200, rowH: 16, lang })); }
   if (f.provinces.length) {
     F.h3(L.byProvince, 150);
-    F.chart(140, (x, y, w) => { const end = tileMap(doc, f.provinces, x, y, w * 0.55, lang); hbars(doc, provinceRows(f, lang).slice(0, 8), x + w * 0.6, y, w * 0.4, { labelW: 110, rowH: 15, lang, color: GOLD }); return end; });
+    F.chart(230, (x, y, w) => { const end = tileMap(doc, f.provinces, x, y, w * 0.56, lang); hbars(doc, provinceRows(f, lang).slice(0, 9), x + w * 0.6, y + 6, w * 0.4, { labelW: 104, rowH: 17, lang }); return end; });
     if (federal(f)) F.para(L.federalNote(num(federal(f), lang)), { size: 8.5, color: MUTED, font: "i" });
   }
   if (c.quotes?.length) { F.h2(L.said, 70); for (const q of c.quotes) F.quote(q); }
@@ -290,13 +361,16 @@ async function reachPdf(c, f, lang, { date }) {
   F.titleBlock(date);
   F.h2(L.reach);
   for (const p of c.intro ?? []) F.para(p);
-  const tiles = [{ big: num(f.attendees, lang), label: L.trained }, { big: num(f.agencyCount, lang), label: L.agencies }, { big: num(f.provinceCount, lang), label: L.provinces },
-    ...(f.contacts != null ? [{ big: num(f.contacts, lang), label: L.contacts }] : []), ...(f.newAgencies != null ? [{ big: num(f.newAgencies, lang), label: L.newAg }] : [])];
-  F.chart(70, (x, y, w) => tileRow(doc, tiles, x, y + 2, w, 58, { goldFrom: 3, big: 19 }) + 4);
+  const { navy: rn } = tilesOf(f, lang);
+  const tiles = [rn[0], rn[2], rn[3],
+    ...(f.contacts != null ? [{ big: num(f.contacts, lang), label: L.contacts, icon: "network", sub: L.subNetwork, accent: "gold" }] : []),
+    ...(f.newAgencies != null ? [{ big: num(f.newAgencies, lang), label: L.newAg, icon: "plus", sub: f.returningAgencies != null ? (lang === "fr" ? `${num(f.returningAgencies, lang)} déjà venus` : `${num(f.returningAgencies, lang)} returning`) : "", accent: "gold" }] : []),
+    { big: num(f.cities.length, lang), label: L.cities, icon: "city", sub: f.cities.slice(0, 4).join(" · "), accent: "gold" }];
+  F.chart(140, (x, y, w) => tileRow(doc, tiles.slice(0, 6), x, y + 4, w, 60) + 6);
   if (f.provinces.length) {
     F.h3(L.byProvince, 220);
     F.para(c.provinces);
-    F.chart(190, (x, y, w) => { const end = tileMap(doc, f.provinces, x, y, w * 0.6, lang); hbars(doc, provinceRows(f, lang), x + w * 0.64, y, w * 0.36, { labelW: 100, rowH: 15, lang, color: GOLD }); return end; });
+    F.chart(250, (x, y, w) => { const end = tileMap(doc, f.provinces, x, y, w * 0.6, lang); hbars(doc, provinceRows(f, lang), x + w * 0.63, y + 6, w * 0.37, { labelW: 98, rowH: 17, lang }); return end; });
     if (federal(f)) F.para(L.federalNote(num(federal(f), lang)), { size: 8.5, color: MUTED, font: "i" });
   }
   if (f.sectors.length) {
@@ -313,6 +387,7 @@ async function reachPdf(c, f, lang, { date }) {
   if (c.growth || f.newAgencies != null || f.contacts != null) {
     F.h2(L.growth, 70);
     F.para(c.growth);
+    if ((f.history ?? []).length > 1) { F.h3(L.byYear, 170); F.chart(160, (x, y, w) => yearColumns(doc, f.history, x, y, w, 110, { lang, current: Y })); }
     const t = [f.newAgencies != null ? L.growText(num(f.newAgencies, lang), num(f.returningAgencies, lang)) : "", f.contacts != null ? L.contactsText(num(f.contacts, lang)) : ""].filter(Boolean).join(" ");
     if (t) F.box(t);
   }
@@ -328,9 +403,12 @@ async function programPdf(c, f, lang, { date }) {
   F.titleBlock(date);
   F.h2(L.program);
   for (const p of c.intro ?? []) F.para(p);
-  const tiles = [{ big: num(f.events, lang), label: L.events }, { big: num(f.trainingDays, lang), label: L.days }, { big: num(f.presenters, lang), label: L.presenters },
-    ...(f.rating ? [{ big: `${dec(f.rating.mean, lang)}${L.outOf5}`, label: L.rating }] : []), { big: num(f.cities.length, lang), label: L.cities }];
-  F.chart(70, (x, y, w) => tileRow(doc, tiles, x, y + 2, w, 58, { goldFrom: 3, big: 19 }) + 4);
+  const { navy: pn, gold: pg } = tilesOf(f, lang);
+  const tiles = [pn[1], { ...pg.find((t) => t.icon === "clock"), accent: "navy" }, { big: num(f.cities.length, lang), label: L.cities, icon: "city", sub: f.cities.slice(0, 4).join(" · ") },
+    ...(f.presenters ? [{ big: num(f.presenters, lang), label: L.presenters, icon: "mic", sub: f.presenterOrgs ? L.subOrgs(num(f.presenterOrgs, lang)) : "", accent: "gold" }] : []),
+    ...(f.rating ? [{ big: `${dec(f.rating.mean, lang)}${L.outOf5}`, label: L.rating, icon: "star", sub: L.subAnswers(num(f.rating.n, lang)), accent: "gold" }] : []),
+    pn[0] && { ...pn[0], accent: "gold" }, pn[2] && { ...pn[2], accent: "gold" }, pn[3] && { ...pn[3], accent: "gold" }].filter(Boolean).slice(0, 6);
+  F.chart(140, (x, y, w) => tileRow(doc, tiles, x, y + 4, w, 60) + 6);
   if (f.topics.length) {
     F.h3(L.topics, 40 + f.topics.length * 17);
     F.para(c.topics);
@@ -338,7 +416,7 @@ async function programPdf(c, f, lang, { date }) {
     F.para(L.topicNote, { size: 8.5, color: MUTED, font: "i" });
   }
   F.h3(L.byMonth, 130);
-  F.chart(110, (x, y, w) => monthKey(doc, x, monthColumns(doc, f.months, x, y, w, 80, lang), lang));
+  F.chart(120, (x, y, w) => monthKey(doc, x, monthColumns(doc, f.months, x, y, w, 80, lang) + 2, lang));
   if (f.presenters) {
     F.h2(L.presentersHead, 120);
     F.para(c.presenters);
@@ -375,7 +453,7 @@ async function infoPdf(c, f, lang, { date }) {
   doc.font("b").fontSize(24).fillColor(NAVY).text(c.headline || L.review(Y), X, 92, { width: W, lineGap: -2 });
   if (c.tagline) doc.font("i").fontSize(10.5).fillColor(MUTED).text(c.tagline, X, doc.y + 1, { width: W });
   const { navy, gold } = tilesOf(f, lang);
-  let y = tileRow(doc, [...navy, ...gold.slice(0, 2)], X, doc.y + 10, W, 62, { goldFrom: 4, big: 20, gap: 5 }) + 18;
+  let y = tileRow(doc, [...navy, ...gold.slice(0, 2)], X, doc.y + 10, W, 56) + 16;
   const h3 = (n, t, x, yy, w) => {
     doc.circle(x + 7, yy + 6, 7).fill(GOLD); doc.font("b").fontSize(8).fillColor("#fff").text(String(n), x, yy + 2.6, { width: 14, align: "center", lineBreak: false });
     doc.font("b").fontSize(8.5).fillColor(NAVY).text(t.toUpperCase(), x + 20, yy + 1.8, { width: w - 20, characterSpacing: 1, lineBreak: false, height: 11, ellipsis: true });
@@ -396,17 +474,7 @@ async function infoPdf(c, f, lang, { date }) {
   ry = h3(n++, L.byMonth, rx, y, half);
   ry = monthColumns(doc, f.months, rx, ry, half, 74, lang);
   ry = monthKey(doc, rx, ry, lang) + 8;
-  ry = h3(n++, L.growing, rx, ry, half);
-  // A figure of nought says nothing here (a year mostly still ahead), so only those with something to show.
-  const grow = [f.newAgencies ? [num(f.newAgencies, lang), L.newAg] : null, f.presenters ? [num(f.presenters, lang), L.presenters] : null, f.cities.length ? [num(f.cities.length, lang), L.cities] : null, [num(f.trainingDays, lang), L.days]].filter(Boolean).slice(0, 3);
-  const gw = (half - 6 * (grow.length - 1)) / grow.length;
-  grow.forEach(([big, label], i) => {
-    const gx = rx + i * (gw + 6);
-    doc.roundedRect(gx, ry, gw, 40, 3).fill("#f6f3ea");
-    doc.font("b").fontSize(15).fillColor(NAVY).text(big, gx, ry + 6, { width: gw, align: "center", lineBreak: false });
-    doc.font("r").fontSize(7.5).fillColor(MUTED).text(label, gx + 2, ry + 25, { width: gw - 4, align: "center", lineBreak: false, height: 10, ellipsis: true });
-  });
-  ry += 40;
+  // (The cards above already carry new agencies, cities and training days, so they aren't repeated here.)
   y = Math.max(ly, ry) + 18;
   if (c.quote?.text) {
     const qh = Math.min(76, doc.font("b").fontSize(12.5).heightOfString(`“${c.quote.text}”`, { width: W - 40 }) + 32);
