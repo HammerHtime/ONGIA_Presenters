@@ -89,7 +89,28 @@ async function countGuests(wixEventId, site = "1") {
       BUYER: noEmail.filter((g) => g.guestType === "BUYER").length,
       TICKET_HOLDER: noEmail.filter((g) => g.guestType === "TICKET_HOLDER").length,
     },
+    orders: orderShape(all),
+    people: attendeesOf(all).filter((p) => p.status === "ATTENDING").length,
   });
+}
+
+/**
+ * How the orders' tickets line up with the ticket holders, in counts only: where the people count goes above the
+ * holders, this says which orders add the rows (Andrew 1 Nov 2026: the year reports must not carry a wrong number).
+ */
+function orderShape(all) {
+  const buyers = all.filter((g) => g.guestType === "BUYER"), holders = all.filter((g) => g.guestType === "TICKET_HOLDER");
+  const out = { buyers: buyers.length, ticketsOnOrders: 0, noHolders: 0, noHoldersTickets: 0, partly: 0, partlyMissing: 0, holderTicketNumbers: holders.filter((h) => h.ticketNumber).length,
+    holdersWithoutOrder: holders.filter((h) => !h.orderNumber || !buyers.some((b) => b.orderNumber === h.orderNumber)).length, buyersNotAttending: buyers.filter((b) => b.status !== "ATTENDING").length,
+    holdersNotAttending: holders.filter((h) => h.status !== "ATTENDING").length };
+  for (const b of buyers) {
+    const n = b.tickets?.length || Math.max(1, Number(b.totalGuests) || 1);
+    out.ticketsOnOrders += n;
+    const hs = holders.filter((h) => b.orderNumber && h.orderNumber === b.orderNumber);
+    if (!hs.length) { out.noHolders++; out.noHoldersTickets += n; }
+    else if (hs.length < n) { out.partly++; out.partlyMissing += n - hs.length; }
+  }
+  return out;
 }
 
 /**

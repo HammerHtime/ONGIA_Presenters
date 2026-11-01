@@ -94,5 +94,14 @@ ok("in person and virtual are totalled", f.inPerson === 7 && f.virtual === 0);
 ok("the people registered for trainings still to come are counted apart (the Summit's 5)", f.registeredToCome === 5, String(f.registeredToCome));
 ok("next year's trainings come from Wix too", f.nextYear.count === 1 && f.nextYear.provinces === 1, JSON.stringify(f.nextYear));
 ok("the reading's time is given", typeof f.readAt === "string" && f.readAt.length > 10);
+
+// Wix's times are UTC: an evening event in Kingston ended "the next day", and Regina's two days read as three.
+const { tidyEvent } = await import(REPO + "netlify/functions/lib/wix.mjs");
+const evening = tidyEvent({ id: "x", dateAndTimeSettings: { startDate: "2025-11-18T23:00:00Z", endDate: "2025-11-19T02:00:00Z", timeZoneId: "America/Toronto" } });
+ok("an evening event is one day in its own time zone", evening.dayOne === "2025-11-18" && evening.lastDay === "2025-11-18", JSON.stringify(evening));
+const sask = tidyEvent({ id: "y", dateAndTimeSettings: { startDate: "2025-10-07T15:00:00Z", endDate: "2025-10-08T00:30:00Z", timeZoneId: "America/Regina" } });
+ok("a Regina day ending after 6 pm is still that day", sask.lastDay === "2025-10-07");
+const caseOnly = countPeople([{ title: "a", city: "Calgary", dayOne: "2025-07-15" }, { title: "b", city: "Calgary", dayOne: "2025-07-15" }], (p) => [person(p.title === "a" ? "Pat@CPS.ca" : "pat@cps.ca ")]);
+ok("the same address typed in another case counts once", caseOnly.people === 1, String(caseOnly.people));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
