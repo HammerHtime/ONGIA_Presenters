@@ -162,7 +162,10 @@ export async function readYearTrainings(year, { now = new Date().toISOString().s
     // Training days: each part's own days, so Edmundston's 13 and 15 October are two days, not three.
     const days = g.parts.length ? new Set(g.parts.filter((p) => !isVirtualPart(p.title, cityOfPart(p)) || g.parts.every((q) => isVirtualPart(q.title, cityOfPart(q))))
       .flatMap((p) => Array.from({ length: daysOf(p.dayOne, p.lastDay) }, (_, i) => new Date(Date.parse(p.dayOne) + i * 86400000).toISOString().slice(0, 10)))).size || 1 : null;
-    const dayOne = g.desk?.dayOne || first?.dayOne || "", lastDay = g.desk?.lastDay || last?.lastDay || last?.dayOne || dayOne;
+    // The training runs from its first part to its last: Edmundston's desk event ends on the 14th, its French day is the 15th.
+    const ends = [g.desk?.lastDay, g.desk?.dayOne, last?.lastDay, last?.dayOne].filter(Boolean).sort();
+    const starts = [g.desk?.dayOne, first?.dayOne].filter(Boolean).sort();
+    const dayOne = starts[0] || "", lastDay = ends.at(-1) || dayOne;
     rows.push({
       id: g.desk?.id || `wix:${main.site}:${main.id}`, deskId: g.desk?.id || null, kind: g.desk?.kind || "",
       title: g.desk?.title || g.name || main.title.replace(PART_WORDS, "").replace(/\s*[-–:]\s*$/, "").replace(/^\s*[-–:]\s*/, "").trim(),
