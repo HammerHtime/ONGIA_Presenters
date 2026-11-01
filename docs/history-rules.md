@@ -18,11 +18,9 @@ current site (mid-2025 on), and events run on the Briefing Room. Decided by Andr
   attendance and webinars count as virtual (no city or province of delivery).
 - **Meal add-ons are not training.** The 2022 conference lunch buffets are left out.
 - **Edmundston, October 2026, is one training** (the 13 Oct and 15 Oct Wix events together).
+- **Calgary symposium, July 2025, is one event** (Andrew, 1 Nov 2026). It is on both sites (64 on the Archive, 91 on
+  the current site); people are matched by email so nobody counts twice.
 
 ## Places (Wix has these wrong)
 - "Crime at the Crossroads (Winnipeg)", March 2026: **Winnipeg** (Wix says Kingston).
 - "Street Gang Training Symposium – Montreal", April 2025: **Montreal** (Wix says Calgary).
-
-## Still to settle
-- Calgary symposium, July 2025, is on both sites (64 on the Archive, 91 on the current site): treat as one event and
-  match people by email so nobody counts twice, unless Andrew says otherwise.
