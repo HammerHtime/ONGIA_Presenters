@@ -73,7 +73,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     await row.locator(".certmore summary").click();
     ok("from then on the button is Download, with Copy verification link, Correct details and Withdraw under •••", (await row.locator("[data-certpdf]").innerText()) === "Download" && await row.locator("[data-certcopy]").isVisible() && await row.locator("[data-certfix]").isVisible() && await row.locator("[data-certrevoke]").isVisible());
     await row.locator(".certmenu").screenshot({ path: D + "certs-menu.png" }).catch(() => {});
-    await row.locator(".certmore summary").click();
+    // The Summit design comes in French (Andrew 31 Oct 2026): "Download in French" is under •••.
+    const [dlfr] = await Promise.all([p.waitForEvent("download"), row.locator("[data-certfr]").click()]);
+    fs.copyFileSync(await dlfr.path(), "/tmp/certs-jordan-fr.pdf");
+    const frWords = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan-fr.pdf", "-"]).toString();
+    const frInfo = execFileSync("pdfinfo", ["/tmp/certs-jordan-fr.pdf"]).toString();
+    ok("Download in French gives the French certificate, named so", dlfr.suggestedFilename() === "Jordan Tremblay - certificat.pdf" && /Certificat de r.ussite/.test(frInfo) && /Balayer pour v.rifier/.test(frWords), dlfr.suggestedFilename());
+    await p.waitForTimeout(800);
+    if (await row.locator(".certmore").getAttribute("open") !== null) await row.locator(".certmore summary").click();
     // Change the date; then back.
     await p.locator("#cert-date").fill("2031-05-07"); await p.locator("#cert-date").dispatchEvent("change"); await p.waitForTimeout(1200);
     ok("the date can be changed, and says so", (await p.locator("#cert-date").inputValue()) === "2031-05-07" && await p.locator("#cert-dateback").isVisible());
