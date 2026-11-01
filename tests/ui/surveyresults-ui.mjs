@@ -49,7 +49,7 @@ await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTime
 ok("the survey is no longer on Communications", !(await p.locator("#svbox").isVisible().catch(() => false)));
 await p.locator('.etab[data-tab="survey"]').click(); await p.waitForTimeout(1500);
 ok("the event has a Survey tab with the set-up and the results, the results open once answers are in", await p.locator("#rsbox").isVisible() && await p.locator('[data-svpart="setup"]').count() === 1 && await p.locator("#svbox").count() === 1);
-ok("the results say how many answered", /4 answers from 4 people/.test(await p.locator("#rsbox").innerText()), (await p.locator("#rsbox").innerText()).slice(0, 120));
+ok("the results say how many answered", /4\s+answers · 4 people/.test(await p.locator("#rsbox").innerText()), (await p.locator("#rsbox").innerText()).slice(0, 120));
 
 // A last-minute swap: rename the session and change the presenter; the answers already given stay with it.
 await p.locator('[data-svpart="setup"]').click(); await p.waitForTimeout(300);   // the sessions are under Setup
@@ -66,7 +66,7 @@ const pdf = await bytesOf(p, () => p.locator('[data-rsdl="summary"]').click());
 ok("Download: the summary PDF", pdf.buf.slice(0, 5).toString() === "%PDF-" && /survey-summary\.pdf$/.test(pdf.name), pdf.name);
 const xl = await bytesOf(p, () => p.locator('[data-rsdl="answers"]').click());
 ok("Download: every answer as Excel", xl.buf.slice(0, 2).toString() === "PK" && /\.xlsx$/.test(xl.name));
-ok("the would-be presenter's list is offered apart", /1 interested in presenting/.test(await p.locator('[data-rsdl="presenters"]').innerText()));
+ok("the would-be presenter's list is offered apart", /1 wants to present/.test(await p.locator('[data-rsdl="presenters"]').innerText()));
 
 await p.locator("#rs-analyse").click(); await p.waitForTimeout(2500);
 const read = await p.locator("#rsbox").innerText();
@@ -96,7 +96,7 @@ await p.evaluate(() => { window.prompt = () => "clear"; });
 await p.locator("#rs-clear").click(); await p.waitForTimeout(1500);
 const cleared = (await api(`${q}&results=1`)).results;
 ok("Clear all answers empties the results, and keeps the sessions", cleared.responses === 0 && (await api(q)).survey.sessions.length === 2 && !(await api(`${q}&results=1`)).analysis, JSON.stringify(cleared).slice(0, 100));
-ok("and the card says there are none", /0 answers/.test(await p.locator("#rsbox").innerText()));
+ok("and the card says there are none", /0\s+answers/.test(await p.locator("#rsbox").innerText()));
 ok("no page errors", p.errs.length === 0, p.errs.join(" | "));
 await p.close();
 
