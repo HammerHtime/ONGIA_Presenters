@@ -24,3 +24,6 @@ current site (mid-2025 on), and events run on the Briefing Room. Decided by Andr
 ## Places (Wix has these wrong)
 - "Crime at the Crossroads (Winnipeg)", March 2026: **Winnipeg** (Wix says Kingston).
 - "Street Gang Training Symposium – Montreal", April 2025: **Montreal** (Wix says Calgary).
+- "Expert Witness Workshop" and "Criminal Convergence", 6–7 October 2025: **Regina** (Wix says Kingston). Counted as one
+  Regina training, as with Edmundston.
+- "Mapping the Threat: Gang Structures, Drug Flows & Violence", 6 October 2026: **Regina** (Wix says Kingston).
