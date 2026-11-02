@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, putAttendees, getMeta, putMeta } from "./lib/store.mjs";
-import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, wixGuestsByEvent, attendeesOf, wixSites, listWixContacts, archiveSite, listEveryWixEvent } from "./lib/wix.mjs";
+import { wixConfigured, wixHealth, listAllWixEvents, listWixGuests, rawWixGuests, wixGuestsByEvent, attendeesOf, wixSites, listWixContacts, archiveSite, listEveryWixEvent } from "./lib/wix.mjs";
 import { merge, tally } from "./lib/attendees.mjs";
 import { eventId as makeEventId } from "./lib/ids.mjs";
 import { deadlinesFor, offsetsOf } from "./lib/deadlines.mjs";
@@ -70,6 +70,8 @@ async function countGuests(wixEventId, site = "1") {
   if (!wixEventId) return fail("Which Wix event?");
   // The site matters: the Summit's community partners registered on the second site, and counting them on the first gave 0.
   const all = await listWixGuests({ eventId: wixEventId, type: null, site });
+  // The raw records too, for which fields a nameless ticket holder does carry (their names, never their values).
+  const raw = await rawWixGuests({ eventId: wixEventId, site }).catch(() => []);
   const of = (t) => all.filter((g) => g.guestType === t).length;
   const noEmail = all.filter((g) => !g.email);
   return json({
@@ -90,8 +92,34 @@ async function countGuests(wixEventId, site = "1") {
       TICKET_HOLDER: noEmail.filter((g) => g.guestType === "TICKET_HOLDER").length,
     },
     orders: orderShape(all),
+    nameless: namelessShape(all, raw),
     people: attendeesOf(all).filter((p) => p.status === "ATTENDING").length,
   });
+}
+
+/**
+ * Ticket holders Wix gives no name (Andrew 3 Nov 2026: "all of these email addresses are in the Wix guest list with full
+ * names and full agencies"): how many, whether their order is one ticket, whether its buyer is named, and which fields
+ * the raw record has filled. Counts and field names only.
+ */
+function namelessShape(all, raw) {
+  const holders = all.filter((g) => g.guestType === "TICKET_HOLDER"), buyers = all.filter((g) => g.guestType === "BUYER");
+  const bare = holders.filter((h) => !h.first && !h.last);
+  const out = { holdersWithoutName: bare.length, oneTicketOrder: 0, buyerNamed: 0, buyerHasOrg: 0, ownEmail: 0, fields: {} };
+  for (const h of bare) {
+    const b = buyers.find((x) => x.orderNumber && x.orderNumber === h.orderNumber);
+    const n = b ? (b.tickets?.length || Number(b.totalGuests) || 1) : 0;
+    if (n === 1) out.oneTicketOrder++;
+    if (b && (b.first || b.last)) out.buyerNamed++;
+    if (b?.organization) out.buyerHasOrg++;
+    if (h.email) out.ownEmail++;
+    const r = raw.find((x) => x.id === h.id);
+    const walk = (o, path) => { for (const [k, v] of Object.entries(o ?? {})) {
+      if (v && typeof v === "object") walk(v, `${path}${k}${Array.isArray(v) ? "[]" : ""}.`);
+      else if (v !== "" && v !== null && v !== undefined) out.fields[`${path}${k}`] = (out.fields[`${path}${k}`] ?? 0) + 1; } };
+    if (r) walk(r, "");
+  }
+  return out;
 }
 
 /**
