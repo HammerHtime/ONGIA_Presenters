@@ -236,8 +236,14 @@ function csv(event, people, which) {
     rows = people.filter((p) => p.checkedIn).map((p) => [p.first, p.last, p.agency, p.email, s.course, certDate(s.date)]);
     name = `${slug}-certificates.csv`;
   } else if (which === "registration") {
-    head = ["Last name", "First name", "Agency", "Agency as typed", "Email", "Phone", "Status", "Checked in", "Group", "Registered"];
-    rows = people.filter((p) => p.status === "ATTENDING").map((p) => [p.last, p.first, p.agency, p.typed, p.email, p.phone, "Coming", p.checkedIn ? "Yes" : "", p.group, p.source === "wix" ? "Wix" : "By hand"]);
+    // For the door (Andrew 3 Nov 2026): the agency to use comes third. What they typed on Wix is only for reference, so it
+    // goes last and says when they typed nothing (109 empty cells there read as gaps in the agencies); a phone column
+    // nobody has a number in is left out.
+    const coming = people.filter((p) => p.status === "ATTENDING");
+    const phones = coming.some((p) => String(p.phone ?? "").trim());
+    head = ["Last name", "First name", "Agency", "Email", ...(phones ? ["Phone"] : []), "Status", "Checked in", "Group", "Registered", "Typed on Wix"];
+    rows = coming.map((p) => [p.last, p.first, p.agency, p.email, ...(phones ? [p.phone] : []), "Coming", p.checkedIn ? "Yes" : "", p.group, p.source === "wix" ? "Wix" : "By hand",
+      String(p.typed ?? "").trim() || "(nothing typed)"]);
     name = `${slug}-registration-list.csv`;
   } else return fail("Which list: registration or certificate?");
   return new Response(`﻿${head.map(cell).join(",")}\n${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",

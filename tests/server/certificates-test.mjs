@@ -111,7 +111,8 @@ ok("the generic design carries the course, wrapped, and the RCMP's official name
 const reg = await call("event=ngs27&csv=registration");
 const regRows = reg.body.replace(/^﻿/, "").trim().split("\n");
 ok("the registration list: everyone coming, by last name, official agency and what they typed", reg.type.startsWith("text/csv") && /national-gang-summit-registration-list\.csv/.test(reg.disp)
-  && regRows.length === 4 && /^"Martin","Alex","Peel Regional Police","Peel Police"/.test(regRows[1]) && /^"Okafor"/.test(regRows[2]) && /^"Tremblay"/.test(regRows[3]), reg.body);
+  && regRows.length === 4 && /^"Martin","Alex","Peel Regional Police",/.test(regRows[1]) && /"Peel Police"$/.test(regRows[1]) && /^"Okafor"/.test(regRows[2]) && /^"Tremblay"/.test(regRows[3])
+  && /"Registered","Typed on Wix"$/.test(regRows[0]) && !/Phone/.test(regRows[0]), reg.body);
 const cert = await call("event=ngs27&csv=certificate");
 const certRows = cert.body.replace(/^﻿/, "").trim().split("\n");
 ok("the certificate list: only people checked in, with the event and date", certRows[0] === '"First name","Last name","Agency","Email","Event","Date"' && certRows.length === 3 && certRows[2] === '"Jordan","Tremblay","Toronto Police Service","jt@torontopolice.on.ca","National Gang Summit","06/05/2027"', cert.body);
