@@ -17,9 +17,9 @@ const guests = [
   g("b2", "BUYER", "Solo", "Buyer", "solo@example.ca", { orderNumber: "O2", tickets: ["T4", "T5", "T6"] }),  // three tickets, no holder records at all
 ];
 const rows = attendeesOf(guests);
-ok("every registration is a row: 3 for the RSVP with two guests, 1 more RSVP, and all 6 tickets from two orders", rows.length === 10, rows.map((r) => r.key).join(" "));
+ok("every registration is a row: 3 for the RSVP with two guests, 1 more RSVP, the order's 2 holders, and the 3 tickets of the order kept as its buyer", rows.length === 9, rows.map((r) => r.key).join(" "));
 ok("an order kept as the buyer only counts every ticket on it: the buyer and two guests of theirs", rows.filter((r) => r.id === "b2").length === 3 && rows.filter((r) => r.guestOf === "Solo Buyer").length === 2);
-ok("a ticket with no holder record is a guest of the buyer", rows.some((r) => r.key === "wix:b1:tT3" && r.guestOf === "Sam Buyer" && r.email === "buyer@example.ca"));
+ok("a ticket number on an order nobody holds is not a person: Wix's own guest list leaves it out", !rows.some((r) => r.key === "wix:b1:tT3"));
 ok("an RSVP's named guest takes the name given", rows.some((r) => r.key === "wix:r1:2" && r.first === "Pat" && r.last === "Two"));
 ok("an unnamed guest is the guest of whoever registered them", rows.some((r) => r.key === "wix:r1:3" && !r.first && r.guestOf === "Dana Sample"));
 ok("two people sharing one email are both there", rows.filter((r) => r.email === "coord@example.ca").length === 4);
@@ -43,11 +43,11 @@ ok("the buyer isn't counted again on top of the tickets", !solo.some((r) => r.ke
 
 const toIncoming = (list) => list.map((x) => ({ key: x.key, first: x.first, last: x.last, email: x.email, phone: x.phone, organization: "", status: x.status, source: "wix", wixGuestId: x.id, ...(x.guestOf ? { guestOf: x.guestOf } : {}) }));
 let out = merge([], toIncoming(rows), { source: "wix", authoritative: true });
-ok("a first pull adds all ten, and ten are coming", out.added === 10 && tally(out.people).attending === 10);
+ok("a first pull adds all nine, and nine are coming", out.added === 9 && tally(out.people).attending === 9);
 ok("letters go once per address (4 addresses)", writeableTo(out.people).length === 4, writeableTo(out.people).map((p) => p.email).join(","));
 
 const again = merge(out.people, toIncoming(rows), { source: "wix", authoritative: true });
-ok("pulling again changes nothing", again.added === 0 && again.changed === 0 && again.withdrawn === 0 && again.people.length === 10);
+ok("pulling again changes nothing", again.added === 0 && again.changed === 0 && again.withdrawn === 0 && again.people.length === 9);
 const less = merge(out.people, toIncoming(rows.filter((r) => r.key !== "wix:r2")), { source: "wix", authoritative: true });
 ok("someone Wix stops listing has withdrawn, and only them", less.withdrawn === 1 && less.people.find((p) => p.key === "wix:r2")?.status === "WITHDRAWN");
 
@@ -63,7 +63,7 @@ ok("the RSVP keeps its letter history and date", moved.people.find((p) => p.key 
 ok("the buyer's history goes to the ticket that uses their address", moved.people.find((p) => p.key === "wix:h2")?.sent?.includes("welcome"));
 ok("so no address that had the letter is owed it again", writeableTo(moved.people).filter((p) => !moved.people.some((q) => q.email === p.email && (q.sent ?? []).includes("welcome"))).map((p) => p.email).sort().join(",") === "ann@example.ca,hand@example.ca,solo@example.ca");
 ok("the person typed in by hand stays", moved.people.some((p) => p.email === "hand@example.ca" && p.source === "csv"));
-ok("eleven rows in all (ten from Wix and one by hand)", moved.people.length === 11, String(moved.people.length));
+ok("ten rows in all (nine from Wix and one by hand)", moved.people.length === 10, String(moved.people.length));
 
 // A spreadsheet adds detail to a Wix row without making a second one.
 const sheet = merge(out.people, [{ first: "Ann", last: "Holder", email: "ann@example.ca", organization: "Sample Police Service", status: "ATTENDING", source: "csv" }], { source: "csv" });
