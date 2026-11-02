@@ -421,9 +421,16 @@ export function attendeesOf(guests) {
       out.push({ ...g, key: `wix:${g.id}:${n + 1}`, first: given.first, last: given.last, phone: "", guestOf: name(g) });
     }
   }
+  // A ticket holder's record can come back with nothing on it but its ticket (the Summit, 3 Nov 2026: 6 on the main event
+  // and 14 of the community partners, every one a single-ticket order). The name and agency the form required are on the
+  // buyer's record: on a one-ticket order the buyer is the holder, so the row is theirs; on a bigger order the holder's
+  // name is unknown but their agency is the buyer's, who booked for them.
   for (const h of holders) {
     const b = h.orderNumber ? buyerOf.get(h.orderNumber) : null;
-    out.push({ ...h, key: `wix:${h.id}`, email: h.email || b?.email || "", ...(!h.first && !h.last && b ? { guestOf: name(b) } : {}) });
+    const bare = !h.first && !h.last;
+    const one = b && (b.tickets?.length || Math.max(1, Number(b.totalGuests) || 1)) === 1;
+    out.push({ ...h, key: `wix:${h.id}`, email: h.email || b?.email || "", organization: h.organization || b?.organization || "",
+      ...(bare && one ? { first: b.first, last: b.last, phone: h.phone || b.phone || "" } : bare && b ? { guestOf: name(b) } : {}) });
   }
   // Wix often keeps only the buyer's record for an order, with every ticket listed on it (Andrew 21 Oct 2026: 43 orders,
   // 65 tickets). Every ticket counts: one with no holder of its own is a row "guest of" the buyer, and when the order

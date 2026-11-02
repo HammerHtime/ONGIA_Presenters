@@ -26,6 +26,21 @@ ok("two people sharing one email are both there", rows.filter((r) => r.email ===
 ok("a ticket with no email uses the buyer's, and says whose guest it is", rows.some((r) => r.key === "wix:h2" && r.email === "buyer@example.ca" && r.guestOf === "Sam Buyer"));
 ok("a buyer whose order has ticket holders is not counted again on top of the tickets", !rows.some((r) => r.key === "wix:b1"));
 
+// The Summit, 3 Nov 2026: a one-ticket order whose ticket holder came back with nothing but its ticket. The name and
+// agency the form required are on the buyer: the row is the buyer's. On a bigger order the holder takes only the agency.
+const solo = attendeesOf([
+  g("b9", "BUYER", "Nicole", "Sample", "nicole@example.ca", { orderNumber: "O9", tickets: ["T9"], organization: "Example Youth Services" }),
+  g("h9", "TICKET_HOLDER", "", "", "", { orderNumber: "O9", ticketNumber: "T9", organization: "" }),
+  g("b8", "BUYER", "Group", "Lead", "lead@example.ca", { orderNumber: "O8", tickets: ["T81", "T82"], organization: "Example Police" }),
+  g("h8", "TICKET_HOLDER", "Kim", "Named", "kim@example.ca", { orderNumber: "O8", ticketNumber: "T81", organization: "" }),
+  g("h7", "TICKET_HOLDER", "", "", "", { orderNumber: "O8", ticketNumber: "T82", organization: "" }),
+]);
+const r9 = solo.find((r) => r.key === "wix:h9"), r8 = solo.find((r) => r.key === "wix:h8"), r7 = solo.find((r) => r.key === "wix:h7");
+ok("an empty ticket holder on a one-ticket order is the buyer: their name, address and agency", r9.first === "Nicole" && r9.last === "Sample" && r9.email === "nicole@example.ca" && r9.organization === "Example Youth Services" && !r9.guestOf, JSON.stringify(r9));
+ok("a named holder with no agency of their own takes the buyer's, who booked for them", r8.first === "Kim" && r8.organization === "Example Police");
+ok("an empty holder on a bigger order is still the buyer's guest, with the buyer's agency, never the buyer's name", !r7.first && r7.guestOf === "Group Lead" && r7.organization === "Example Police");
+ok("the buyer isn't counted again on top of the tickets", !solo.some((r) => r.key === "wix:b9" || r.key === "wix:b8"));
+
 const toIncoming = (list) => list.map((x) => ({ key: x.key, first: x.first, last: x.last, email: x.email, phone: x.phone, organization: "", status: x.status, source: "wix", wixGuestId: x.id, ...(x.guestOf ? { guestOf: x.guestOf } : {}) }));
 let out = merge([], toIncoming(rows), { source: "wix", authoritative: true });
 ok("a first pull adds all ten, and ten are coming", out.added === 10 && tally(out.people).attending === 10);
