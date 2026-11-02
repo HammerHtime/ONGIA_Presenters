@@ -391,6 +391,9 @@ export async function teach(raw, agencyName, province = "", { domains = [], fr =
   const row = saved.find((a) => a.name === target) ?? { name: target, province: existing?.province || (PROVINCES[province] ? province : ""), aliases: [] };
   // Taught again after an Undo: the spelling counts once more.
   row.dropped = (row.dropped ?? []).filter((s) => key(s) !== key(spelling));
+  // Named by hand after it was hidden (merged away, or emptied by an Undo): it is on the list again. Left hidden, the
+  // John Howard Society of London and District could not be set at all (Andrew 3 Nov 2026).
+  if (exact && row.hidden) delete row.hidden;
   // "@peacebuilders.ca": nothing was typed, only the work email said where they work; the domain is what is learned.
   const byEmail = spelling.startsWith("@");
   if (byEmail) domains = [...domains, spelling.slice(1)];

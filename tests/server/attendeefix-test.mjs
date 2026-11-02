@@ -94,5 +94,11 @@ ok("a branch added by hand is its own agency, with its own domain", branches.som
 ok("someone who typed the branch gets the branch", A.agencyOf({ organization: "Helpers Society of Niagara", email: "x@gmail.com" }, branches)?.name === "Helpers Society of Niagara");
 await post("fix=1", { raw: "Helpers Ottawa", agency: "Helpers Society of Ottawa", province: "ON" });
 ok("'this spelling is that agency' with a new name makes that agency, not the one its name starts with", (await A.directory()).some((a) => a.name === "Helpers Society of Ottawa" && a.aliases.includes("Helpers Ottawa")));
+// A branch's own name, once filed as a spelling of the general agency, made its own agency with "this spelling is that agency".
+await putAgencyList([{ name: "Kind Society", province: "ON", aliases: ["Kind Society", "Kind Society of London and District"], domains: [] },
+  { name: "Kind Society of London and District", province: "ON", aliases: [], hidden: true }]);   // hidden earlier, by a merge or an Undo
+await post("fix=1", { raw: "Kind Society of London and District", agency: "Kind Society of London and District", province: "ON" });
+const kind = await A.directory();
+ok("a spelling set to an agency of the same name makes that agency", kind.some((a) => a.name === "Kind Society of London and District"), JSON.stringify(kind.filter((a) => /Kind/.test(a.name))));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
