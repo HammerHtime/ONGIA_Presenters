@@ -1,6 +1,6 @@
 import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
-import { readCsv, merge, tally, writeableTo, keyOf } from "./lib/attendees.mjs";
+import { readCsv, merge, tally, writeableTo, keyOf, correct } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
 import { letterProblems, eventProblems } from "./lib/letters.mjs";
 import { directory, agencyOf } from "./lib/agencies.mjs";
@@ -10,6 +10,7 @@ import { directory, agencyOf } from "./lib/agencies.mjs";
  *
  *   GET    /api/attendees?event=…           the list, with a tally
  *   POST   /api/attendees?event=…&csv=1     a CSV, as the raw request body
+ *   POST   /api/attendees?event=…&correct=1 a CSV of corrections: names and organizations for people already on the list
  *   DELETE /api/attendees?event=…&email=…   take one person off
  *   DELETE /api/attendees?event=…&all=1     clear the list
  *
@@ -33,6 +34,7 @@ export default async (req) => {
 
   if (req.method === "GET") return json(await show(event));
   if (req.method === "POST") {
+    if (url.searchParams.get("correct")) return takeCorrections(req, event);
     if (!url.searchParams.get("csv")) return fail("Expected ?csv=1.");
     return takeCsv(req, event);
   }
@@ -102,6 +104,21 @@ async function takeCsv(req, event) {
     lastImport: { at: new Date().toISOString(), read: people.length, added: out.added, changed: out.changed, skipped: skipped.length },
   });
   return json({ ok: true, added: out.added, changed: out.changed, skipped, counts: tally(out.people) });
+}
+
+/** Names and organizations from a sheet, for people already on the list; kept through every later pull from Wix. */
+async function takeCorrections(req, event) {
+  const body = await req.text();
+  if (!body.trim()) return fail("That file was empty.");
+  if (body.length > MAX_CSV) return fail("That file is over 2 MB.", 413);
+  const { people, skipped, problem } = readCsv(body);
+  if (problem) return fail(problem);
+  if (!people.length) return fail("No rows in that file had a usable email address.");
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const out = correct(stored.people ?? [], people);
+  await putAttendees(event.id, { ...stored, people: out.people,
+    lastCorrection: { at: new Date().toISOString(), read: people.length, named: out.named, organizations: out.organizations, notFound: out.notFound.length } });
+  return json({ ok: true, read: people.length, named: out.named, organizations: out.organizations, same: out.same, notFound: out.notFound, differs: out.differs, several: out.several, skipped: skipped.length, counts: tally(out.people) });
 }
 
 async function removeOne(event, email, key) {

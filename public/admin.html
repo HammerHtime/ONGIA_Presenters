@@ -5276,7 +5276,7 @@ const noRoom = (ev, R) => {
  * logistics headings as rows of text. Only that sheet's cells leave the browser; the server keeps
  * just the name, agency and night columns.
  */
-async function readLogisticsXlsx(file) {
+async function readLogisticsXlsx(file, { anySheet = false } = {}) {
   const buf = new Uint8Array(await file.arrayBuffer());
   const dv = new DataView(buf.buffer);
   let eocd = -1;
@@ -5323,6 +5323,8 @@ async function readLogisticsXlsx(file) {
       }
     }
     const grid = Array.from(rows, (r) => Array.from(r ?? [], (c) => c ?? ""));
+    // Any sheet at all (corrections for the attendee list): the first one with something on it.
+    if (anySheet) { if (grid.some((r) => r.some((c) => String(c).trim()))) return grid; continue; }
     const headed = grid.slice(0, 12).some((r) => r.some((c) => /^presenter\b/i.test(c)) && r.filter((c) => /sunday|monday|tuesday|wednesday|thursday/i.test(c)).length >= 3);
     if (headed) {
       // Keep only what is compared: the heading row's Presenter and Agency columns and the
@@ -9092,7 +9094,7 @@ function attendeesCard(ev, guests) {
     const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
     return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""} ${p.agency ?? ""}`.toLowerCase())}">
       <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span></td>
-      <td class="go"${p.agency && p.organization && p.agency !== p.organization ? ` title="Typed as: ${esc(p.organization)}"` : ""}>${esc(p.agency || p.organization || "")}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
+      <td class="go"${p.agency && p.organization && p.agency !== p.organization ? ` title="Typed as: ${esc(p.organization)}"` : ""}>${esc(p.agency || p.organization || "")}${p.fixed ? ` <span class="pill" title="Corrected on the desk, and kept through every pull. Wix has: ${esc([[p.asWix?.first, p.asWix?.last].filter(Boolean).join(" ") || "no name", p.asWix?.organization || "no organization"].join(" · "))}">corrected</span>` : ""}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
       <td class="gs" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</td></tr>`;
   }).join("");
@@ -9126,7 +9128,7 @@ function attendeesCard(ev, guests) {
         ${counts.total ? `<span class="chipstat"><b>${counts.fromWix}</b>from the website</span>` : ""}
         ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
       </div></div>
-      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
+      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button><button class="mini" id="g-fix" title="A sheet with people's names and the organization they work for (a registration form, say): only people already on this list are changed, and the changes stay through every pull from Wix.">Correct names and agencies</button><input type="file" id="g-fixfile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
           <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, phone, checked in.</span></button>
           <button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button></div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
@@ -9261,6 +9263,34 @@ function wireAttendees(ev) {
       Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
     } catch (x) { toast(x.message); }
   });
+
+  // Corrections (Andrew 3 Nov 2026): the community partners' form had the organization Wix never asked for. An .xlsx is
+  // read here and sent as CSV; only people already on the list change, and what they're given stays through every pull.
+  const fixPick = document.getElementById("g-fix"), fixFile = document.getElementById("g-fixfile");
+  if (fixPick && fixFile) {
+    fixPick.onclick = () => fixFile.click();
+    fixFile.onchange = async () => {
+      const f = fixFile.files?.[0];
+      if (!f) return;
+      note(`Reading ${f.name}…`);
+      try {
+        let body = await f.text();
+        if (/\.xlsx$/i.test(f.name)) {
+          const grid = await readLogisticsXlsx(f, { anySheet: true });
+          body = grid.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+        }
+        const out = await api(`/attendees?event=${encodeURIComponent(ev.id)}&correct=1`, { method: "POST", headers: { "content-type": "text/csv" }, body });
+        const bits = [`${out.organizations} agenc${out.organizations === 1 ? "y" : "ies"} and ${out.named} name${out.named === 1 ? "" : "s"} corrected`];
+        if (out.same) bits.push(`${out.same} already right`);
+        if (out.notFound?.length) bits.push(`not on this list: ${out.notFound.map((x) => x.name || x.email).join(", ")}`);
+        if (out.differs?.length) bits.push(`spelled differently here, left as Wix has them: ${out.differs.map((x) => `${x.list} / ${x.sheet}`).join("; ")}`);
+        if (out.several?.length) bits.push(`several tickets under one address, so not changed: ${out.several.join(", ")}`);
+        note(bits.join(". ") + ".");
+        setTimeout(render, 2500);
+      } catch (e) { note(e.message, true); }
+      fixFile.value = "";
+    };
+  }
 
   // A spreadsheet goes up as plain text; the desk works out the columns.
   const pick = document.getElementById("g-csv"), file = document.getElementById("g-file");

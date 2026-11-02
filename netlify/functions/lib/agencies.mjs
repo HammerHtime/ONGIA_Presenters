@@ -213,19 +213,50 @@ export async function directory() {
   return [...byName.values()].filter((a) => !a.hidden).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Every spelling that leads to each agency. */
+/**
+ * Every spelling that leads to each agency. A spelling two agencies share ("Corrections", "Ministry of Community Safety
+ * and Correctional Services") is kept with all of them in `list._shared`: it used to go to whichever came first in the
+ * alphabet, which filed Ontario corrections staff under Correctional Service Canada (Andrew 3 Nov 2026).
+ */
 function lookup(list) {
-  const map = new Map();
-  for (const a of list) for (const s of [a.name, ...(a.aliases ?? [])]) { const k = key(s); if (k && !map.has(k)) map.set(k, a); }
+  const map = new Map(), shared = new Map();
+  for (const a of list) for (const s of [a.name, ...(a.aliases ?? [])]) {
+    const k = key(s);
+    if (!k) continue;
+    if (!map.has(k)) map.set(k, a);
+    else if (map.get(k) !== a) shared.set(k, [...new Set([...(shared.get(k) ?? [map.get(k)]), a])]);
+  }
+  list._shared = shared;
   return map;
 }
 
-/** The spelling as typed, or the words before a unit ("Toronto Police Service Gang Unit" with no dash). */
+/** The spelling as typed, or the words before a unit ("Toronto Police Service Gang Unit" with no dash): the agency and the words that found it. */
 function exactOf(k, map) {
-  if (map.has(k)) return map.get(k);
+  if (map.has(k)) return { a: map.get(k), k };
   const words = k.split(" ");
-  for (let n = words.length - 1; n >= 1; n--) { const p = words.slice(0, n).join(" "); if (map.has(p)) return map.get(p); }
+  for (let n = words.length - 1; n >= 1; n--) { const p = words.slice(0, n).join(" "); if (map.has(p)) return { a: map.get(p), k: p }; }
   return null;
+}
+
+// A government's own email domain, and the province it belongs to ("" for the federal government).
+const GOV_DOMAINS = { "ontario.ca": "ON", "gov.bc.ca": "BC", "alberta.ca": "AB", "gov.ab.ca": "AB", "gov.sk.ca": "SK", "gov.mb.ca": "MB", "gouv.qc.ca": "QC", "gnb.ca": "NB",
+  "novascotia.ca": "NS", "gov.ns.ca": "NS", "gov.nl.ca": "NL", "gov.pe.ca": "PE", "yukon.ca": "YT", "gov.yk.ca": "YT", "gov.nt.ca": "NT", "gov.nu.ca": "NU", "gc.ca": "", "canada.ca": "" };
+/** Whose government an address belongs to: a province's code, "" for the federal government, null for anyone else. */
+export function governmentOf(email) {
+  const d = String(email ?? "").trim().toLowerCase().split("@")[1] ?? "";
+  for (const [g, prov] of Object.entries(GOV_DOMAINS)) if (d === g || d.endsWith(`.${g}`)) return prov;
+  return null;
+}
+/** Of the agencies a shared spelling could mean, the one this person's email settles, or null. */
+function settleShared(cands, email, list) {
+  const own = byDomain(email, list);
+  if (own && cands.includes(own)) return own;
+  // The same agency twice over (one learned beside the one on the list, as the Solicitor General was): either will do.
+  const one = (xs) => (xs.length && xs.every((c) => key(c.name.replace(/\(.*\)/, "")) === key(xs[0].name.replace(/\(.*\)/, ""))) ? xs[0] : null);
+  const gov = governmentOf(email);
+  if (gov === null) return one(cands);
+  const fit = cands.filter((c) => (c.province ?? "") === gov);
+  return fit.length === 1 ? fit[0] : one(fit) ?? one(cands);
 }
 
 /** Edits between two spellings (a swapped pair counts once), or more than `max` as soon as that is certain. */
@@ -261,21 +292,30 @@ function nearOf(k, map) {
   return best && at <= max && !tie ? best : null;
 }
 
-/** How what someone wrote is placed: "known" (on the list), "near" (a misspelling of one on it), or null. */
-export function placeOf(raw, list) {
+/**
+ * How what someone wrote is placed: "known" (on the list), "near" (a misspelling of one on it), "shared" (a spelling more
+ * than one agency has, which their email didn't settle: agency is null), or null. With their email, a shared spelling
+ * goes to the agency whose government the address belongs to.
+ */
+export function placeOf(raw, list, email = "") {
   const k = key(raw);
   if (!k) return null;
   const map = list._lookup ?? (list._lookup = lookup(list));
   const near = list._near ?? (list._near = new Map());
-  const a = exactOf(k, map);
-  if (a) return { agency: a, how: "known" };
+  const hit = exactOf(k, map);
+  if (hit) {
+    const cands = list._shared.get(hit.k);
+    if (!cands) return { agency: hit.a, how: "known" };
+    const one = settleShared(cands, email, list);
+    return one ? { agency: one, how: "known" } : { agency: null, how: "shared", candidates: cands };
+  }
   if (!near.has(k)) near.set(k, nearOf(k, map));
   return near.get(k) ? { agency: near.get(k), how: "near" } : null;
 }
 
 /** The standard agency for what someone wrote, or null when the desk cannot place it. */
-export function standardOf(raw, list) {
-  return placeOf(raw, list)?.agency ?? null;
+export function standardOf(raw, list, email = "") {
+  return placeOf(raw, list, email)?.agency ?? null;
 }
 
 // Addresses that say nothing about where someone works.
@@ -303,9 +343,16 @@ export function byDomain(email, list) {
   return null;
 }
 
-/** Someone's agency: what they typed, or failing that, their work email. */
+/**
+ * Someone's agency: what they typed, or failing that, their work email. What they typed doesn't win against their
+ * address: a federal agency for someone writing from a provincial government's address (or the other way round) is
+ * left for their email to settle.
+ */
 export function agencyOf(person, list) {
-  return standardOf(person?.organization, list) ?? byDomain(person?.email, list);
+  const typed = standardOf(person?.organization, list, person?.email);
+  const gov = governmentOf(person?.email);
+  if (typed && gov !== null && (typed.province ?? "") !== gov && !(typed.domains ?? []).some((d) => String(person.email).toLowerCase().endsWith(d))) return byDomain(person?.email, list);
+  return typed ?? byDomain(person?.email, list);
 }
 
 /** An event's registrations grouped by standard agency, and the spellings still to place. */
@@ -314,7 +361,7 @@ export function agenciesOf(people, list) {
   for (const p of people.filter((x) => x.status !== "WITHDRAWN")) {
     const raw = String(p.organization ?? "").trim();
     if (!raw) continue;
-    const a = standardOf(raw, list);
+    const a = agencyOf(p, list);
     if (a) {
       const g = known.get(a.name) ?? { agency: a.name, province: a.province || "", count: 0, spellings: new Set() };
       g.count++; g.spellings.add(raw); known.set(a.name, g);
@@ -341,7 +388,10 @@ export async function teach(raw, agencyName, province = "", { domains = [], fr =
   const row = saved.find((a) => a.name === target) ?? { name: target, province: existing?.province || (PROVINCES[province] ? province : ""), aliases: [] };
   // Taught again after an Undo: the spelling counts once more.
   row.dropped = (row.dropped ?? []).filter((s) => key(s) !== key(spelling));
-  if (key(spelling) !== key(target) && !row.aliases.includes(spelling)) row.aliases.push(spelling);
+  // "@peacebuilders.ca": nothing was typed, only the work email said where they work; the domain is what is learned.
+  const byEmail = spelling.startsWith("@");
+  if (byEmail) domains = [...domains, spelling.slice(1)];
+  else if (key(spelling) !== key(target) && !row.aliases.includes(spelling)) row.aliases.push(spelling);
   if (!existing && PROVINCES[province]) row.province = province;
   if (!existing && by) row.addedBy = by;
   if (fr && !existing?.fr) row.fr = String(fr).trim().slice(0, 160);
@@ -497,6 +547,23 @@ export function spellingsOf(people) {
   return [...out.values()].map((g) => ({ key: g.key, raw: [...g.ways].sort((a, b) => b[1] - a[1])[0][0], count: g.count, events: [...g.events].slice(0, 4), domains: [...g.domains].slice(0, 6) }));
 }
 
+/**
+ * People who typed no organization, by the work email domain no agency on the list owns yet: "@peacebuilders.ca" for
+ * the three Peacebuilders staff at the Summit, whose community-partner form on Wix never asked (Andrew 3 Nov 2026).
+ */
+export function unknownDomainsOf(people, list) {
+  const out = new Map();
+  for (const p of people) {
+    if (p.status === "WITHDRAWN" || String(p.organization ?? "").trim()) continue;
+    const d = domainOf(p.email);
+    if (!d || byDomain(p.email, list)) continue;
+    const g = out.get(d) ?? { key: `@${d}`, raw: `@${d}`, count: 0, events: new Set(), domains: [d], byEmail: true };
+    g.count++; if (p.eventTitle) g.events.add(p.eventTitle);
+    out.set(d, g);
+  }
+  return [...out.values()].map((g) => ({ ...g, events: [...g.events].slice(0, 4) })).sort((a, b) => b.count - a.count);
+}
+
 const RESOLVE = {
   type: "object", additionalProperties: false, required: ["answers"],
   properties: { answers: { type: "array", items: { type: "object", additionalProperties: false,
@@ -504,7 +571,7 @@ const RESOLVE = {
     properties: { raw: { type: "string" }, agency: { type: "string" }, isNew: { type: "boolean" }, province: { type: "string" }, fr: { type: "string" },
       reason: { type: "string" }, lookUp: { type: "boolean" } } } } },
 };
-const RESOLVE_SYSTEM = "You keep ONGIA's master list of agency names. ONGIA trains Canadian police, corrections, border, justice, social service and education staff on gangs and organized crime. People type their agency on a registration form however they like. For each spelling you get what was typed, how many people typed it, and the domains of their work email addresses (personal addresses are left out). Give the agency it means: a name from the master list exactly when it is that agency (units, divisions and detachments don't matter: 'OPP - Gang Unit' is Ontario Provincial Police; an old name of an agency is that agency), or, when it is plainly an agency not on the list, its full official name with isNew set. Use the email domain: a domain that belongs to one agency settles it. Province is the two-letter code for a provincial or municipal agency, empty for a federal, national or foreign one. fr is the agency's official French name when it has one, otherwise empty. reason is one plain sentence for ONGIA's president on why, e.g. 'Their email is @haltonpolice.ca, which is Halton Regional Police Service.' Leave agency empty when there is nothing to go on (e.g. 'Retired' with no work email) or it is not an agency, and say why in reason. Set lookUp when you could tell with a web search but cannot without one; then leave agency empty.";
+const RESOLVE_SYSTEM = "You keep ONGIA's master list of agency names. ONGIA trains Canadian police, corrections, border, justice, social service and education staff on gangs and organized crime. People type their agency on a registration form however they like. For each spelling you get what was typed, how many people typed it, and the domains of their work email addresses (personal addresses are left out). Give the agency it means: a name from the master list exactly when it is that agency (units, divisions and detachments don't matter: 'OPP - Gang Unit' is Ontario Provincial Police; an old name of an agency is that agency), or, when it is plainly an agency not on the list, its full official name with isNew set. Use the email domain: a domain that belongs to one agency settles it, and a government address settles the level: someone with an Ontario government address who typed \"Corrections\" works for Ontario (the Ministry of the Solicitor General), not Correctional Service Canada. A spelling that is only an email domain (it starts with @) means the person typed nothing: give the organization that domain belongs to, whatever kind it is (a community agency, school board, hospital, university or non-profit counts; set isNew when it is not on the list), and give raw exactly as it was given. Province is the two-letter code for a provincial or municipal agency, empty for a federal, national or foreign one. fr is the agency's official French name when it has one, otherwise empty. reason is one plain sentence for ONGIA's president on why, e.g. 'Their email is @haltonpolice.ca, which is Halton Regional Police Service.' Leave agency empty when there is nothing to go on (e.g. 'Retired' with no work email) or it is not an agency, and say why in reason. Set lookUp when you could tell with a web search but cannot without one; then leave agency empty.";
 
 async function resolveRound(api, batch, list, notes = "") {
   const message = await api.messages.create({
@@ -513,7 +580,8 @@ async function resolveRound(api, batch, list, notes = "") {
     output_config: { effort: "low", format: { type: "json_schema", schema: RESOLVE } },
     system: RESOLVE_SYSTEM,
     messages: [{ role: "user", content: `The master list:\n${list.map((a) => a.name).join("\n")}\n\nThe spellings:\n${batch.map((b) =>
-      `- "${b.raw}" (typed by ${b.count}${b.domains.length ? `; work email ${b.domains.map((d) => "@" + d).join(", ")}` : "; no work email"})`).join("\n")}${notes ? `\n\nWhat a web search found:\n${notes}` : ""}` }],
+      b.byEmail ? `- "${b.raw}" (nothing typed by ${b.count}: only their work email ${b.raw} says where they work)`
+        : `- "${b.raw}" (typed by ${b.count}${b.domains.length ? `; work email ${b.domains.map((d) => "@" + d).join(", ")}` : "; no work email"})`).join("\n")}${notes ? `\n\nWhat a web search found:\n${notes}` : ""}` }],
   });
   if (message.stop_reason === "refusal") return [];
   const text = message.content.filter((b) => b.type === "text").map((b) => b.text).join("");
@@ -551,6 +619,8 @@ export async function settle(people, { client = null, at = new Date().toISOStrin
     if (blank.has(g.key) || waitingKeys.has(g.key)) continue;
     const placed = placeOf(g.raw, list);
     if (placed?.how === "known") { out.known++; continue; }
+    // A spelling several agencies have: each person's email settles it (agencyOf), so there's nothing to ask.
+    if (placed?.how === "shared") { out.known++; continue; }
     if (placed?.how === "near") {
       await teach(g.raw, placed.agency.name, "", { domains: g.domains });
       note(g, placed.agency.name, "spelling", `A misspelling of ${placed.agency.name}, which is on the list.`); out.near++; continue;
@@ -562,6 +632,8 @@ export async function settle(people, { client = null, at = new Date().toISOStrin
     }
     ask.push(g);
   }
+  // Nothing typed, but a work email no agency owns yet: Claude says whose domain it is, and the domain is learned.
+  for (const g of unknownDomainsOf(people, list).slice(0, 60)) if (!blank.has(g.key) && !waitingKeys.has(g.key)) ask.push(g);
   if (ask.length) {
     if (!client && !anthropicKey()) {
       for (const g of ask) { waiting.unshift({ raw: g.raw, count: g.count, events: g.events, reason: "The desk has no Anthropic API key, so Claude could not look at it.", at }); out.waiting++; }
