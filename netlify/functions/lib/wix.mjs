@@ -435,8 +435,12 @@ export function attendeesOf(guests) {
   // Wix often keeps only the buyer's record for an order, with every ticket listed on it (Andrew 21 Oct 2026: 43 orders,
   // 65 tickets). Every ticket counts: one with no holder of its own is a row "guest of" the buyer, and when the order
   // has no holders at all the buyer is the first ticket.
+  // An order with ticket holders is those holders and no more: a ticket number left on the order with nobody holding it
+  // isn't on Wix's own guest list (the Summit, 3 Nov 2026: Wix's export lists 377 tickets, its 377 holders; counting the
+  // stray number made one person two). An order with no holder records at all is the buyer and a guest per ticket.
   for (const b of buyers) {
     const hs = holders.filter((h) => b.orderNumber && h.orderNumber === b.orderNumber);
+    if (hs.length) continue;
     const covered = new Set(hs.map((h) => h.ticketNumber).filter(Boolean));
     const count = b.tickets?.length || Math.max(1, Number(b.totalGuests) || 1);
     let left = b.tickets?.length ? b.tickets.filter((n) => !covered.has(n)) : Array.from({ length: Math.max(0, count - hs.length) }, (_, i) => String(i + 1));
