@@ -253,7 +253,7 @@ async function absorb(eventId, guests, event = null, l = null) {
   const stored = (await getAttendees(eventId)) ?? { people: [] };
   // Every registration is a row, keyed by its Wix guest (and place in an RSVP), even one with no email of its own.
   const incoming = guests.map((g) => ({
-    key: g.key ?? `wix:${g.id}`, first: g.first, last: g.last, email: g.email, phone: g.phone,
+    key: g.key ?? `wix:${g.id}`, first: g.first, last: g.last, email: g.email, phone: g.phone, orderNumber: g.orderNumber || "",
     organization: g.organization || "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id,
     // Always said, so a row that was someone's guest stops being one when Wix's record shows whose ticket it is.
     guestOf: g.guestOf ?? "",

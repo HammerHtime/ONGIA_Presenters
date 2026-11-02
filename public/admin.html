@@ -9279,9 +9279,11 @@ function wireAttendees(ev) {
         bits.push(`Downloaded ${c.people} ${c.people === 1 ? "person" : "people"}.`);
         bits.push(c.noName ? `${c.noName} ${c.noName === 1 ? "has" : "have"} no name: tickets bought for someone not yet named.` : "Everyone has a name.");
         bits.push(c.noAgency ? `${c.noAgency} ${c.noAgency === 1 ? "has" : "have"} no agency${c.noAgencyPersonal === c.noAgency ? ": they typed none and used a personal email" : ""}; use Correct on their row to add it.` : "Everyone has an agency.");
-        bits.push(c.twice ? `${c.twice} ${c.twice === 1 ? "person is" : "people are"} listed twice with the same name and email: check Wix for a duplicate ticket.` : "Nobody is listed twice.");
+        const tw = c.twice ?? [], gr = c.groups ?? [];
+        if (gr.length) bits.push(`Bought under one name for colleagues, names still to get: ${gr.map((g) => `${g.name} (${g.tickets} tickets)`).join(", ")}.`);
+        bits.push(tw.length ? `Possibly registered twice (two separate orders, same name and email): ${tw.join(", ")}. Check Wix for a ticket to refund.` : "Nobody is registered twice.");
       }
-      note(bits.filter(Boolean).join(" "), !!(c && (c.twice || c.noName)));
+      note(bits.filter(Boolean).join(" "), !!(c && ((c.twice ?? []).length || c.noName)));
       // The table redrawn only when the pull changed someone; the note stays (GUEST_NOTE).
       if (moved) setTimeout(render, 2500);
     } catch (x) { note(x.message, true); }
