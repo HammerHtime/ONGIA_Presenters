@@ -9209,7 +9209,7 @@ function wireAttendees(ev) {
   if (sync) sync.onclick = () => {
     sync.disabled = true; sync.textContent = "Pulling…";
     run(`/wix?event=${encodeURIComponent(ev.id)}`, { method: "POST" },
-      (o) => `Pulled ${o.read} from the website — ${o.added} new, ${o.changed} changed${o.withdrawn ? `, ${o.withdrawn} withdrew` : ""}.`);
+      (o) => `Pulled ${o.read} from the website — ${o.added} new, ${o.changed} changed${o.withdrawn ? `, ${o.withdrawn} withdrew` : ""}.${o.matching ? " Matching any new agencies now; reload in a minute or two." : ""}`);
   };
 
   const unlink = document.getElementById("g-unlink");

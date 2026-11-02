@@ -351,8 +351,19 @@ export function byDomain(email, list) {
 export function agencyOf(person, list) {
   const typed = standardOf(person?.organization, list, person?.email);
   const gov = governmentOf(person?.email);
-  if (typed && gov !== null && (typed.province ?? "") !== gov && !(typed.domains ?? []).some((d) => String(person.email).toLowerCase().endsWith(d))) return byDomain(person?.email, list);
-  return typed ?? byDomain(person?.email, list);
+  if (typed && gov !== null && (typed.province ?? "") !== gov && !(typed.domains ?? []).some((d) => String(person.email).toLowerCase().endsWith(d))) return byDomain(person?.email, list) ?? governmentAgency(gov, list);
+  if (typed) return typed;
+  const own = byDomain(person?.email, list);
+  if (own) return own;
+  // Nothing typed and a government address every ministry shares (@ontario.ca): which ministry can't be told, but whose
+  // government can, and that beats a blank on a check-in list (Andrew 3 Nov 2026). Correct on their row says which.
+  return gov !== null && !String(person?.organization ?? "").trim() ? governmentAgency(gov, list) : null;
+}
+
+/** "Government of Ontario", or "Government of Canada" for the federal government: from the list when it's there. */
+function governmentAgency(prov, list) {
+  const name = prov ? `Government of ${PROVINCES[prov] ?? prov}` : "Government of Canada";
+  return list.find((a) => a.name === name) ?? { name, province: prov, fr: prov ? "" : "Gouvernement du Canada", aliases: [], domains: [], sector: "other" };
 }
 
 /** An event's registrations grouped by standard agency, and the spellings still to place. */
