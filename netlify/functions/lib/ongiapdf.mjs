@@ -453,7 +453,7 @@ async function programPdf(c, f, lang, { date }) {
     if (f.rating) F.para(L.ratingText(dec(f.rating.mean, lang), f.rating.top2, num(f.rating.n, lang)), { font: "b", color: NAVY });
     const rateYears = (f.history ?? []).filter((h) => h.rating != null);
     if (rateYears.length > 1) { F.h3(L.ratingYears, 90); F.chart(56, (x, y, w) => yearRatings(doc, f.history, x, y, w, { lang, current: Y })); }
-    if (f.scoring.length) F.table([{ label: L.measure, w: 0.6 }, { label: L.colTop2, w: 0.2, align: "right" }, { label: L.colAnswers, w: 0.2, align: "right" }], f.scoring.map((s) => [lang === "fr" ? s.fr : s.en, `${s.top2}${lang === "fr" ? " %" : "%"}`, num(s.n, lang)]));
+    if (f.scoring.length) F.table([{ label: L.measure, w: 0.6 }, { label: L.colTop2, w: 0.2, align: "right" }, { label: L.colAnswers, w: 0.2, align: "right" }], f.scoring.filter((s) => !(s.id === "quality" && f.rating?.fromStatements)).map((s) => [lang === "fr" ? s.fr : s.en, `${s.top2}${lang === "fr" ? " %" : "%"}`, num(s.n, lang)]));
   }
   if (f.sessions.length) {
     F.h2(L.bestSessions, 110);
