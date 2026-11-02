@@ -1,6 +1,10 @@
 // The Overview's registrations card, filled in (Andrew 31 Oct 2026: "a lot of wasted space in the registration section"):
 // sign-ups week by week, and the top six agencies, each with how many are coming and their share of everyone coming.
 // People added by CSV count in their week; the note about Wix only appears for people who came from Wix.
+// The clock is pinned, so this gives the same answer on any day and at any hour: the browser's "now" is fixed, and the
+// sign-up times the server stamped are replaced with a fixed moment. The moment is 8:30 p.m. on a Sunday in Toronto, which
+// is already Monday in UTC. That is where the card once lost every sign-up (2 Nov 2026), and it shows the week is Toronto's.
+// The two windows also run in different time zones, so the computer running the test can't move a date either.
 const REPO = new URL("../../", import.meta.url).pathname;   // the repository root
 process.env.ADMIN_KEY = "testkey";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -21,15 +25,27 @@ for (const [a, n] of ags) for (let k = 0; k < n; k++) { i++; rows += `Pat${i},Le
 await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "text/csv" }, body: rows });
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
-  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
-  await p.addInitScript(([t, x]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(x)); } catch {} }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond", canCost: true }]);
+const SIGNED_UP = "2026-11-02T01:30:00.000Z";   // Sunday 1 Nov 2026, 8:30 p.m. in Toronto
+const SUNDAY_NIGHT = "2026-11-02T01:45:00.000Z", MONDAY_MORNING = "2026-11-02T14:00:00.000Z";   // 8:45 p.m. Sun, 9 a.m. Mon, Toronto
+const pinned = async (p, now) => {
+  await p.clock.setFixedTime(new Date(now));
+  await p.route((u) => u.pathname === "/api/attendees", async (route) => {
+    const r = await route.fetch(), j = await r.json();
+    for (const x of j.people ?? []) if (x.addedAt) x.addedAt = SIGNED_UP;
+    await route.fulfill({ response: r, json: j });
+  });
+};
+for (const [w, h, tag, tz] of [[1440, 1000, "wide", "UTC"], [390, 844, "phone", "Pacific/Kiritimati"]]) {
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, timezoneId: tz });
+  const p = await ctx.newPage();
+  await pinned(p, SUNDAY_NIGHT);
+  await ctx.addInitScript(([t, x]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(x)); } catch {} }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond", canCost: true }]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "overview" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   if (await p.locator("dialog.walk[open]").count()) { await p.locator("#wclose").click(); await p.waitForTimeout(400); }
   const card = p.locator(".regcard");
   const bars = await card.locator(".rgb b").allInnerTexts();
-  ok(`${tag}: six weeks of sign-ups, this week's in gold with all 20 (added by CSV, so counted in their week)`, bars.length === 6 && bars[5] === "20" && await card.locator(".rgb.now").count() === 1 && /This wk/.test(await card.locator(".rgb.now").innerText()), JSON.stringify(bars));
+  ok(`${tag}: six weeks of sign-ups, this week's in gold with all 20 (added by CSV, so counted in their week; Sunday night in Toronto, already Monday in UTC)`, bars.length === 6 && bars[5] === "20" && await card.locator(".rgb.now").count() === 1 && /This wk/.test(await card.locator(".rgb.now").innerText()), JSON.stringify(bars));
   ok(`${tag}: no note about Wix, since nobody came from Wix`, await card.locator(".rgnote").count() === 0);
   const list = await card.locator(".regags li").evaluateAll((els) => els.map((li) => [...li.children].map((c) => c.textContent.trim())));
   ok(`${tag}: "8 agencies", and the top six, most first, each with its count and share of the 20`, /8 agencies/i.test(await card.locator(".regags .rgk").innerText()) && list.length === 6
@@ -43,6 +59,14 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     ok("phone: Quick actions sit in two even columns, not a zig-zag", new Set(tops.slice(1).map(([l]) => l)).size === 2 && tops.slice(1).every(([, t], k, a) => k % 2 === 0 || t === a[k - 1][1]), JSON.stringify(tops));
   }
   await p.close();
+  // The next morning a new week has started: Sunday's 20 move to last week's bar, and this week's bar is empty until someone signs up.
+  const m = await ctx.newPage();
+  await pinned(m, MONDAY_MORNING);
+  await m.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "overview" })), { waitUntil: "networkidle" }); await m.waitForTimeout(1500);
+  if (await m.locator("dialog.walk[open]").count()) { await m.locator("#wclose").click(); await m.waitForTimeout(400); }
+  const mc = m.locator(".regcard"), mbars = await mc.locator(".rgb b").allInnerTexts();
+  ok(`${tag}: Monday morning, Sunday night's 20 are last week's, and this week starts empty`, mbars.length === 6 && mbars[4] === "20" && mbars[5] === "" && await mc.locator(".rgb").nth(5).evaluate((e) => e.classList.contains("now")) && /This wk/.test(await mc.locator(".rgb.now").innerText()) && await mc.locator(".rgnote").count() === 0, JSON.stringify(mbars));
+  await ctx.close();
 }
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);
