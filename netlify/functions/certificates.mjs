@@ -134,7 +134,7 @@ async function peopleOf(event) {
   const list = await directory().catch(() => []);
   return (((await getAttendees(event.id)) ?? {}).people ?? [])
     .filter((p) => p.status === "ATTENDING" || p.checkedIn)
-    .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", typed: p.organization ?? "",
+    .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", typed: p.asWix?.organization ?? p.organization ?? "",
       agency: agencyOf(p, list)?.name || String(p.organization ?? "").trim(), checkedIn: !!p.checkedIn, status: p.status, group: p.group ?? "", source: p.source ?? "",
       name: [p.first, p.last].filter(Boolean).join(" ").trim() || (p.guestOf ? `Guest of ${p.guestOf}` : p.email) }))
     .sort((a, b) => (a.last || a.name).localeCompare(b.last || b.name) || a.first.localeCompare(b.first));
