@@ -34,6 +34,16 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   const reg = await (await fetch(`${S}/api/certificates?event=${ev.id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).text();
   ok(`${tag}: the registration download carries them`, /"Field","Rowan","Example DSB"/.test(reg) && /"Stone","Avery","Helpers Youth Services"/.test(reg), reg.slice(0, 300));
   ok(`${tag}: nobody from the sheet was added`, !/Vale/.test(reg));
+  // One person, on their row.
+  const row = p.locator("tr.grow", { hasText: "Avery" });
+  await row.locator("[data-gfixone]").click(); await p.waitForTimeout(300);
+  const form = row.locator(".gfxform");
+  ok(`${tag}: Correct on a row opens their name and organization`, await form.locator("input").count() === 3 && (await form.locator("input").nth(2).inputValue()) === "Helpers Youth Services");
+  await form.locator("input").nth(2).fill("Helpers Youth Services of Niagara");
+  await form.locator("button", { hasText: "Save" }).click(); await p.waitForTimeout(2500);
+  ok(`${tag}: saving shows it on the list`, /Helpers Youth Services of Niagara/.test(await p.locator("body").innerText()));
+  const reg2 = await (await fetch(`${S}/api/certificates?event=${ev.id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).text();
+  ok(`${tag}: and in the download`, /"Stone","Avery","Helpers Youth Services of Niagara"/.test(reg2));
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));
   const card = p.locator("#g-fix").locator("xpath=ancestor::div[contains(@class,\"card\")][1]");
   await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: D + `guestfix-${tag}.png` });

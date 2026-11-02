@@ -1042,6 +1042,9 @@
   .rck .top b{font-size:16px} .rck .amt{font-weight:700;white-space:nowrap}
   .rck .sub{font-size:13.5px;color:var(--ink-mid);margin-top:2px}
   .rck .rclinks{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center}
+  button.gfx{background:none;border:0;padding:4px 0;color:var(--navy);text-decoration:underline;font:inherit;font-size:13px;cursor:pointer;min-height:32px}
+  .gfxform{display:grid;gap:6px;margin-top:6px;min-width:200px}.gfxform label{display:grid;gap:2px;font-size:12px;color:var(--muted, #66757F)}.gfxform input{font:inherit;font-size:15px;color:var(--ink, #1c2433);padding:6px 8px;border:1px solid var(--line);border-radius:6px;width:100%;box-sizing:border-box}
+  .gfxform .acts{display:flex;gap:8px;flex-wrap:wrap}
   .rck .rclinks button.lnk{background:none;border:0;padding:6px 0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;min-height:36px}
   .rck .rclinks .rcprob{color:#8a5a00}
   .rctools{display:flex;gap:8px;margin:0 0 10px}
@@ -9088,12 +9091,13 @@ function attendeesCard(ev, guests) {
 
   // A table like the presenters' (Andrew 20 Oct 2026): everyone, with a find box and the coming / waitlist / withdrew cuts.
   const GCUT = { ATTENDING: "coming", IN_WAITLIST: "waitlist", NOT_ATTENDING: "notcoming", WITHDRAWN: "withdrew" };
+  const mayEdit = ev.canEdit !== false;
   const rows = people.map((p) => {
     const [cls, word] = GUEST_WORDS[p.status] ?? ["idle", String(p.status ?? "").toLowerCase()];
     const named = [p.first, p.last].filter(Boolean).join(" ");
     const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
     return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""} ${p.agency ?? ""}`.toLowerCase())}">
-      <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span></td>
+      <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span>${mayEdit ? `<br><button type="button" class="gfx" data-gfixone="${esc(p.key || (p.source === "wix" && p.wixGuestId ? `wix:${p.wixGuestId}` : p.email))}" data-gf="${esc(p.first ?? "")}" data-gl="${esc(p.last ?? "")}" data-go="${esc(p.organization ?? "")}">Correct</button>` : ""}</td>
       <td class="go"${p.agency && p.organization && p.agency !== p.organization ? ` title="Typed as: ${esc(p.organization)}"` : ""}>${esc(p.agency || p.organization || "")}${p.fixed ? ` <span class="pill" title="Corrected on the desk, and kept through every pull. Wix has: ${esc([[p.asWix?.first, p.asWix?.last].filter(Boolean).join(" ") || "no name", p.asWix?.organization || "no organization"].join(" · "))}">corrected</span>` : ""}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
       <td class="gs" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</td></tr>`;
@@ -9262,6 +9266,30 @@ function wireAttendees(ev) {
       const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
       Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
     } catch (x) { toast(x.message); }
+  });
+
+  // One person at a time (Andrew 3 Nov 2026: "when I click Correct names and agencies it wants me to upload a file"):
+  // Correct on their row opens their name and organization; what is saved stays through every pull from Wix.
+  document.querySelectorAll("[data-gfixone]").forEach((btn) => btn.onclick = () => {
+    const cell = btn.closest("td");
+    if (cell.querySelector(".gfxform")) return;
+    const box = document.createElement("div");
+    box.className = "gfxform";
+    box.innerHTML = `<label>First name<input value="${esc(btn.dataset.gf)}"></label><label>Last name<input value="${esc(btn.dataset.gl)}"></label>
+      <label>Agency or organization<input value="${esc(btn.dataset.go)}"></label>
+      <div class="acts"><button type="button" class="mini gold">Save</button><button type="button" class="mini ghost">Cancel</button></div>`;
+    cell.append(box); btn.hidden = true;
+    const [f, l, o] = box.querySelectorAll("input"), [save, cancel] = box.querySelectorAll("button");
+    o.focus();
+    cancel.onclick = () => { box.remove(); btn.hidden = false; };
+    save.onclick = async () => {
+      save.disabled = true;
+      try {
+        await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(btn.dataset.gfixone)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: f.value.trim(), last: l.value.trim(), organization: o.value.trim() }) });
+        toast("Saved. It stays through every pull from Wix.");
+        render();
+      } catch (e) { save.disabled = false; toast(e.message); }
+    };
   });
 
   // Corrections (Andrew 3 Nov 2026): the community partners' form had the organization Wix never asked for. An .xlsx is

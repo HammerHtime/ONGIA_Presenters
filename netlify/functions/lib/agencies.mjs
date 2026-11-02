@@ -377,13 +377,16 @@ export function agenciesOf(people, list) {
 }
 
 /** Remember that a spelling means an agency (new to the list if needed), with the work email domains of the people who typed it. */
-export async function teach(raw, agencyName, province = "", { domains = [], fr = "", by = "" } = {}) {
+export async function teach(raw, agencyName, province = "", { domains = [], fr = "", by = "", exact = false } = {}) {
   const name = String(agencyName ?? "").trim().slice(0, 160);
   const spelling = String(raw ?? "").trim().slice(0, 160);
   if (!name || !spelling) throw new Error("Which agency?");
   const saved = (await getAgencyList()) ?? [];
   const list = await directory();
-  const existing = list.find((a) => a.name.toLowerCase() === name.toLowerCase()) ?? standardOf(name, list);
+  // `exact`: a name Andrew typed (Add an agency, or "this spelling is that agency") is that agency, new if need be. Read
+  // as a spelling, "John Howard Society of Niagara" matched the start of "John Howard Society" and went into it, its
+  // domain with it (Andrew 3 Nov 2026), so only Claude's answers are read that way.
+  const existing = list.find((a) => a.name.toLowerCase() === name.toLowerCase()) ?? (exact ? null : standardOf(name, list));
   const target = existing?.name ?? name;
   const row = saved.find((a) => a.name === target) ?? { name: target, province: existing?.province || (PROVINCES[province] ? province : ""), aliases: [] };
   // Taught again after an Undo: the spelling counts once more.

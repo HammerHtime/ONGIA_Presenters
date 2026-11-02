@@ -11,6 +11,7 @@ import { directory, agencyOf } from "./lib/agencies.mjs";
  *   GET    /api/attendees?event=…           the list, with a tally
  *   POST   /api/attendees?event=…&csv=1     a CSV, as the raw request body
  *   POST   /api/attendees?event=…&correct=1 a CSV of corrections: names and organizations for people already on the list
+ *   PUT    /api/attendees?event=…&key=…     { first, last, organization } one person's correction, kept through every pull
  *   DELETE /api/attendees?event=…&email=…   take one person off
  *   DELETE /api/attendees?event=…&all=1     clear the list
  *
@@ -38,6 +39,7 @@ export default async (req) => {
     if (!url.searchParams.get("csv")) return fail("Expected ?csv=1.");
     return takeCsv(req, event);
   }
+  if (req.method === "PUT") return correctOne(req, event, url.searchParams.get("key"));
   if (req.method === "DELETE") {
     if (url.searchParams.get("all")) return clear(event);
     return removeOne(event, url.searchParams.get("email"), url.searchParams.get("key"));
@@ -119,6 +121,26 @@ async function takeCorrections(req, event) {
   await putAttendees(event.id, { ...stored, people: out.people,
     lastCorrection: { at: new Date().toISOString(), read: people.length, named: out.named, organizations: out.organizations, notFound: out.notFound.length } });
   return json({ ok: true, read: people.length, named: out.named, organizations: out.organizations, same: out.same, notFound: out.notFound, differs: out.differs, several: out.several, skipped: skipped.length, counts: tally(out.people) });
+}
+
+/** One person, corrected on the Guests list (Andrew 3 Nov 2026): name and organization, kept through every pull from Wix. */
+async function correctOne(req, event, rowKey) {
+  const row = text(rowKey, 200);
+  if (!row) return fail("Which person?");
+  const body = await req.json().catch(() => ({}));
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const p = (stored.people ?? []).find((x) => keyOf(x) === row);
+  if (!p) return fail("That person isn't on this list.", 404);
+  const fixed = { ...(p.fixed ?? {}) };
+  for (const f of ["first", "last", "organization"]) if (body[f] !== undefined) fixed[f] = text(body[f], 160);
+  p.asWix = p.asWix ?? { first: p.first ?? "", last: p.last ?? "", organization: p.organization ?? "" };
+  // Put back exactly what Wix has: the correction goes.
+  const same = ["first", "last", "organization"].every((f) => (fixed[f] ?? p.asWix[f] ?? "") === (p.asWix[f] ?? ""));
+  if (same) { Object.assign(p, p.asWix); delete p.fixed; delete p.asWix; }
+  else Object.assign(p, fixed, { fixed, correctedAt: new Date().toISOString() });
+  await putAttendees(event.id, { ...stored, people: stored.people });
+  const list = await directory().catch(() => []);
+  return json({ ok: true, person: { ...p, agency: agencyOf(p, list)?.name ?? "" } });
 }
 
 async function removeOne(event, email, key) {
