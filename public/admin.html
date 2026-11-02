@@ -9133,7 +9133,7 @@ function attendeesCard(ev, guests) {
         ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
       </div></div>
       <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button><button class="mini" id="g-fix" title="A sheet with people's names and the organization they work for (a registration form, say): only people already on this list are changed, and the changes stay through every pull from Wix.">Correct names and agencies</button><input type="file" id="g-fixfile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
-          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, phone, checked in.</span></button>
+          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, checked in. Pulls the latest from Wix first.</span></button>
           <button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button></div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
@@ -9258,14 +9258,33 @@ function wireAttendees(ev) {
   };
 
   // The two downloads (Andrew 30 Oct 2026), with each agency under its official name.
+  // A list that goes to someone else (Andrew 3 Nov 2026): the latest from Wix is pulled first, and what the file holds is
+  // said beside it in plain words, so a gap is seen before it is sent.
   document.querySelectorAll("[data-glist]").forEach((b) => b.onclick = async () => {
     b.closest("details").open = false;
+    let pulled = "", moved = false;
+    if (ev.wix?.eventId && ev.canEdit !== false) {
+      note("Pulling the latest registrations from Wix first…");
+      try { const o = await api(`/wix?event=${encodeURIComponent(ev.id)}`, { method: "POST" }); pulled = `Pulled from Wix just now${o.added ? ` (${o.added} new)` : ""}.`; moved = !!(o.added || o.changed || o.withdrawn); }
+      catch (e) { pulled = `Couldn't reach Wix (${e.message}), so this is the list as it was last pulled; anyone who registered since isn't on it.`; }
+    }
     try {
       const res = await apiFetch(`/api/certificates?event=${encodeURIComponent(ev.id)}&csv=${b.dataset.glist}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The download failed.");
       const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
       Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
-    } catch (x) { toast(x.message); }
+      let c = null; try { c = JSON.parse(res.headers.get("x-list-check") ?? "null"); } catch {}
+      const bits = [pulled];
+      if (c) {
+        bits.push(`Downloaded ${c.people} ${c.people === 1 ? "person" : "people"}.`);
+        bits.push(c.noName ? `${c.noName} ${c.noName === 1 ? "has" : "have"} no name: tickets bought for someone not yet named.` : "Everyone has a name.");
+        bits.push(c.noAgency ? `${c.noAgency} ${c.noAgency === 1 ? "has" : "have"} no agency${c.noAgencyPersonal === c.noAgency ? ": they typed none and used a personal email" : ""}; use Correct on their row to add it.` : "Everyone has an agency.");
+        bits.push(c.twice ? `${c.twice} ${c.twice === 1 ? "person is" : "people are"} listed twice with the same name and email: check Wix for a duplicate ticket.` : "Nobody is listed twice.");
+      }
+      note(bits.filter(Boolean).join(" "), !!(c && (c.twice || c.noName)));
+      // The table redrawn only when the pull changed someone; the note stays (GUEST_NOTE).
+      if (moved) setTimeout(render, 2500);
+    } catch (x) { note(x.message, true); }
   });
 
   // One person at a time (Andrew 3 Nov 2026: "when I click Correct names and agencies it wants me to upload a file"):
