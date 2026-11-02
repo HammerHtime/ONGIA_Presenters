@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from "./lib/store.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { siteUrl } from "./lib/site.mjs";
-import { directory, agencyOf } from "./lib/agencies.mjs";
+import { directory, agencyOf, domainOf } from "./lib/agencies.mjs";
 import { templateOf, findTemplate, hasFrench, templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
 import { sendCertificate, sendSample, mailCard } from "./lib/certmail.mjs";
@@ -246,6 +246,16 @@ function csv(event, people, which) {
       String(p.typed ?? "").trim() || "(nothing typed)"]);
     name = `${slug}-registration-list.csv`;
   } else return fail("Which list: registration or certificate?");
+  // What the list holds, said with every download (Andrew 3 Nov 2026: "I need to have confidence ... if I pull the new list
+  // ... because I have to send it to somebody"): how many, anyone without a name, anyone without an agency and why, and
+  // anyone on it twice. The page shows it beside the download.
+  const listed = which === "certificate" ? people.filter((p) => p.checkedIn) : people.filter((p) => p.status === "ATTENDING");
+  const pair = (p) => `${String(p.first ?? "").trim().toLowerCase()} ${String(p.last ?? "").trim().toLowerCase()}|${String(p.email ?? "").toLowerCase()}`;
+  const seen = new Map();
+  for (const p of listed) if (p.first || p.last) seen.set(pair(p), (seen.get(pair(p)) ?? 0) + 1);
+  const noAgency = listed.filter((p) => !String(p.agency ?? "").trim());
+  const check = { people: listed.length, noName: listed.filter((p) => !p.first && !p.last).length, noAgency: noAgency.length,
+    noAgencyPersonal: noAgency.filter((p) => !domainOf(p.email)).length, twice: [...seen.values()].filter((n) => n > 1).length };
   return new Response(`﻿${head.map(cell).join(",")}\n${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store", "x-list-check": JSON.stringify(check) } });
 }

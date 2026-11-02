@@ -17,7 +17,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   // As Wix left them: one partner with no organization, one with no name either.
   await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "text/csv" },
     body: `First name,Last name,Email,Organization\nAvery,Stone,avery.stone@helpers.example.org,\n,,rfield@schools.example.ca,\n` });
-  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, acceptDownloads: true });
   const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
   await p.addInitScript(([t]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify({ email: "president@ongia.ca", name: "Andrew Hammond" })); } catch {} }, [token]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
@@ -44,6 +44,12 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   ok(`${tag}: saving shows it on the list`, /Helpers Youth Services of Niagara/.test(await p.locator("body").innerText()));
   const reg2 = await (await fetch(`${S}/api/certificates?event=${ev.id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).text();
   ok(`${tag}: and in the download`, /"Stone","Avery","Helpers Youth Services of Niagara"/.test(reg2));
+  // The download says what it holds, beside the button.
+  await p.locator("details.dlmenu summary").click(); await p.waitForTimeout(200);
+  const [dl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);
+  await p.waitForTimeout(800);
+  const said2 = await p.locator("#g-said").innerText();
+  ok(`${tag}: the registration list downloads and says what it holds`, /registration-list\.csv$/.test(dl.suggestedFilename()) && /Downloaded 2 people\. Everyone has a name\. Everyone has an agency\. Nobody is listed twice\./.test(said2), said2);
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));
   const card = p.locator("#g-fix").locator("xpath=ancestor::div[contains(@class,\"card\")][1]");
   await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: D + `guestfix-${tag}.png` });

@@ -19,7 +19,7 @@ const as = (email) => issueSession({ email, name: email });
 const call = async (qs, { method = "GET", body, who = "testkey" } = {}) => {
   const r = await certificates(new Request(`http://x/api/certificates?${qs}`, { method, headers: { "x-admin-key": who, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }));
   const type = r.headers.get("content-type") ?? "";
-  return { status: r.status, type, disp: r.headers.get("content-disposition") ?? "", body: type.includes("json") ? await r.json() : type.includes("pdf") ? Buffer.from(await r.arrayBuffer()) : await r.text() };
+  return { status: r.status, type, disp: r.headers.get("content-disposition") ?? "", check: JSON.parse(r.headers.get("x-list-check") ?? "null"), body: type.includes("json") ? await r.json() : type.includes("pdf") ? Buffer.from(await r.arrayBuffer()) : await r.text() };
 };
 
 await putEvent({ id: "ngs27", title: "National Gang Summit", city: "Toronto", dayOne: "2027-05-04", lastDay: "2027-05-06",
@@ -113,6 +113,7 @@ const regRows = reg.body.replace(/^﻿/, "").trim().split("\n");
 ok("the registration list: everyone coming, by last name, official agency and what they typed", reg.type.startsWith("text/csv") && /national-gang-summit-registration-list\.csv/.test(reg.disp)
   && regRows.length === 4 && /^"Martin","Alex","Peel Regional Police",/.test(regRows[1]) && /"Peel Police"$/.test(regRows[1]) && /^"Okafor"/.test(regRows[2]) && /^"Tremblay"/.test(regRows[3])
   && /"Registered","Typed on Wix"$/.test(regRows[0]) && !/Phone/.test(regRows[0]), reg.body);
+ok("the download says what it holds: how many, and nobody nameless, without an agency or listed twice", reg.check?.people === 3 && reg.check.noName === 0 && reg.check.twice === 0, JSON.stringify(reg.check));
 const cert = await call("event=ngs27&csv=certificate");
 const certRows = cert.body.replace(/^﻿/, "").trim().split("\n");
 ok("the certificate list: only people checked in, with the event and date", certRows[0] === '"First name","Last name","Agency","Email","Event","Date"' && certRows.length === 3 && certRows[2] === '"Jordan","Tremblay","Toronto Police Service","jt@torontopolice.on.ca","National Gang Summit","06/05/2027"', cert.body);
