@@ -134,7 +134,7 @@ async function peopleOf(event) {
   const list = await directory().catch(() => []);
   return (((await getAttendees(event.id)) ?? {}).people ?? [])
     .filter((p) => p.status === "ATTENDING" || p.checkedIn)
-    .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", typed: p.asWix?.organization ?? p.organization ?? "",
+    .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", order: p.orderNumber ?? "", typed: p.asWix?.organization ?? p.organization ?? "",
       agency: agencyOf(p, list)?.name || String(p.organization ?? "").trim(), checkedIn: !!p.checkedIn, status: p.status, group: p.group ?? "", source: p.source ?? "",
       name: [p.first, p.last].filter(Boolean).join(" ").trim() || (p.guestOf ? `Guest of ${p.guestOf}` : p.email) }))
     .sort((a, b) => (a.last || a.name).localeCompare(b.last || b.name) || a.first.localeCompare(b.first));
@@ -252,10 +252,17 @@ function csv(event, people, which) {
   const listed = which === "certificate" ? people.filter((p) => p.checkedIn) : people.filter((p) => p.status === "ATTENDING");
   const pair = (p) => `${String(p.first ?? "").trim().toLowerCase()} ${String(p.last ?? "").trim().toLowerCase()}|${String(p.email ?? "").toLowerCase()}`;
   const seen = new Map();
-  for (const p of listed) if (p.first || p.last) seen.set(pair(p), (seen.get(pair(p)) ?? 0) + 1);
+  for (const p of listed) if (p.first || p.last) seen.set(pair(p), [...(seen.get(pair(p)) ?? []), p]);
+  // The same name and email more than once is one of two things: tickets one buyer bought for colleagues under their own
+  // name (one order: real people, names still to get), or the same person registered twice (separate orders).
+  const repeats = [...seen.values()].filter((g) => g.length > 1);
+  const oneOrder = (g) => new Set(g.map((p) => p.order || "?")).size === 1 && g[0].order;
+  const groups = repeats.filter(oneOrder), twice = repeats.filter((g) => !oneOrder(g));
   const noAgency = listed.filter((p) => !String(p.agency ?? "").trim());
   const check = { people: listed.length, noName: listed.filter((p) => !p.first && !p.last).length, noAgency: noAgency.length,
-    noAgencyPersonal: noAgency.filter((p) => !domainOf(p.email)).length, twice: [...seen.values()].filter((n) => n > 1).length };
+    noAgencyPersonal: noAgency.filter((p) => !domainOf(p.email)).length,
+    groups: groups.map((g) => ({ name: [g[0].first, g[0].last].filter(Boolean).join(" "), tickets: g.length })),
+    twice: twice.map((g) => [g[0].first, g[0].last].filter(Boolean).join(" ")) };
   return new Response(`﻿${head.map(cell).join(",")}\n${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
     "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store", "x-list-check": JSON.stringify(check) } });
 }

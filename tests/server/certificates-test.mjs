@@ -113,7 +113,14 @@ const regRows = reg.body.replace(/^﻿/, "").trim().split("\n");
 ok("the registration list: everyone coming, by last name, official agency and what they typed", reg.type.startsWith("text/csv") && /national-gang-summit-registration-list\.csv/.test(reg.disp)
   && regRows.length === 4 && /^"Martin","Alex","Peel Regional Police",/.test(regRows[1]) && /"Peel Police"$/.test(regRows[1]) && /^"Okafor"/.test(regRows[2]) && /^"Tremblay"/.test(regRows[3])
   && /"Registered","Typed on Wix"$/.test(regRows[0]) && !/Phone/.test(regRows[0]), reg.body);
-ok("the download says what it holds: how many, and nobody nameless, without an agency or listed twice", reg.check?.people === 3 && reg.check.noName === 0 && reg.check.twice === 0, JSON.stringify(reg.check));
+ok("the download says what it holds: how many, and nobody nameless, without an agency or listed twice", reg.check?.people === 3 && reg.check.noName === 0 && reg.check.twice.length === 0 && reg.check.groups.length === 0, JSON.stringify(reg.check));
+// Tickets bought under one name for colleagues (one order) aren't a double registration (two orders).
+await putEvent({ id: "ngs28", title: "Summit dup test", city: "Toronto", dayOne: "2028-05-04", lastDay: "2028-05-06", board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] });
+const P = (key, first, last, email, orderNumber) => ({ key, first, last, email, orderNumber, organization: "Example Police", status: "ATTENDING", source: "wix" });
+await putAttendees("ngs28", { people: [P("a1", "Tara", "Sample", "lead@example-police.ca", "O1"), P("a2", "Tara", "Sample", "lead@example-police.ca", "O1"), P("a3", "Tara", "Sample", "lead@example-police.ca", "O1"),
+  P("b1", "Glen", "Twice", "glen@example-police.ca", "O2"), P("b2", "Glen", "Twice", "glen@example-police.ca", "O3"), P("c1", "Solo", "Person", "solo@example-police.ca", "O4")] });
+const dup = await call("event=ngs28&csv=registration");
+ok("one buyer's tickets under their own name are a group still to name; the same person on two orders is a double registration", dup.check.groups.length === 1 && dup.check.groups[0].tickets === 3 && JSON.stringify(dup.check.twice) === JSON.stringify(["Glen Twice"]), JSON.stringify(dup.check));
 const cert = await call("event=ngs27&csv=certificate");
 const certRows = cert.body.replace(/^﻿/, "").trim().split("\n");
 ok("the certificate list: only people checked in, with the event and date", certRows[0] === '"First name","Last name","Agency","Email","Event","Date"' && certRows.length === 3 && certRows[2] === '"Jordan","Tremblay","Toronto Police Service","jt@torontopolice.on.ca","National Gang Summit","06/05/2027"', cert.body);
