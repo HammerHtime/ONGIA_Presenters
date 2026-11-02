@@ -52,3 +52,28 @@ export async function listSurveys({ max = 2000 } = {}) {
 }
 
 export const surveyMonkeyHost = () => found;
+
+/** One survey's questions: heading, family and subtype, and the answer choices or rating labels. No answers. */
+export async function surveyDetails(id) {
+  const d = await sm(`/surveys/${encodeURIComponent(id)}/details`);
+  const questions = [];
+  for (const page of d.pages ?? []) for (const q of page.questions ?? []) {
+    questions.push({ id: q.id, heading: plainHeading(q.headings?.[0]?.heading), family: q.family, subtype: q.subtype,
+      rows: (q.answers?.rows ?? []).map((r) => ({ id: r.id, text: plainHeading(r.text) })),
+      choices: (q.answers?.choices ?? []).map((c) => ({ id: c.id, text: plainHeading(c.text), weight: c.weight ?? null, position: c.position ?? null })) });
+  }
+  return { id: d.id, title: d.title ?? "", responses: d.response_count ?? null, questions };
+}
+
+/** The survey's answers added up per question and choice (SurveyMonkey's rollups): counts only, never a response. */
+export async function surveyRollups(id) {
+  const out = [];
+  for (let page = 1; page < 20; page++) {
+    const got = await sm(`/surveys/${encodeURIComponent(id)}/rollups?per_page=100&page=${page}`);
+    out.push(...(got.data ?? []));
+    if ((got.data ?? []).length < 100) break;
+  }
+  return out;
+}
+
+export const plainHeading = (h) => String(h ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
