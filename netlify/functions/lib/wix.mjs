@@ -332,6 +332,20 @@ function tidyGuestFields(g) {
  * identifiers and no names or emails at all, which looks like an empty result
  * rather than the refusal it is.
  */
+/** One event's guests exactly as Wix sends them, for the count check's field survey. Admin only, never stored. */
+export async function rawWixGuests({ eventId, site = "1" }) {
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const query = cursor ? { cursorPaging: { limit: PAGE, cursor } } : { filter: { eventId }, cursorPaging: { limit: PAGE } };
+    const got = await wix("/events/v2/guests/query", { fields: ["GUEST_DETAILS"], query }, site);
+    out.push(...(got.guests ?? []));
+    cursor = got.pagingMetadata?.cursors?.next || null;
+    if (!cursor || !(got.guests ?? []).length) break;
+  }
+  return out;
+}
+
 export async function listWixGuests({ eventId = null, type = "RSVP", since = null, site = "1" } = {}) {
   const filter = {};
   if (eventId) filter.eventId = eventId;
