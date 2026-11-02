@@ -142,7 +142,7 @@ async function master(req, url) {
       const agency = text(body.agency, 160);
       if (!raw || !agency) return fail("Which spelling, and which agency?");
       await forget(raw);
-      const name = await teach(raw, agency, text(body.province, 2).toUpperCase());
+      const name = await teach(raw, agency, text(body.province, 2).toUpperCase(), { exact: true });
       const was = (await agencyWaiting()).find((w) => key(w.raw) === key(raw));
       await unwait(); await relog({ agency: name, by: "you", reason: "You set this one.", corrected: true }, was);
     } else if (q("undo")) {
@@ -182,7 +182,7 @@ async function master(req, url) {
       const name = text(body.name, 160);
       if (!name) return fail("What is the agency called?");
       if ((await directory()).some((a) => a.name.toLowerCase() === name.toLowerCase())) return fail(`${name} is already on the list.`);
-      await teach(name, name, text(body.province, 2).toUpperCase(), { fr: text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : [] });
+      await teach(name, name, text(body.province, 2).toUpperCase(), { exact: true, fr: text(body.fr, 160), domains: Array.isArray(body.domains) ? body.domains.map((d) => text(d, 120)) : [] });
     } else return fail("Expected fix, undo, blank, unblank, clear, edit, sortsectors, merge or add.");
   } catch (e) { return fail(e.message); }
   return masterView();

@@ -84,5 +84,15 @@ const learned = await A.directory();
 ok("the domain is learned with the organization, not as a spelling", (learned.find((a) => a.name === "Helpers Youth Services")?.domains ?? []).includes("helpers.example.org") && !(learned.find((a) => a.name === "Helpers Youth Services")?.aliases ?? []).some((s) => s.startsWith("@")));
 ok("so the next person from there needs nothing typed", A.agencyOf({ organization: "", email: "new@helpers.example.org" }, learned)?.name === "Helpers Youth Services");
 
+// Add an agency whose name starts with one already on the list: it is its own agency, not folded into that one.
+const agencies = (await import(F + "agencies.mjs")).default;
+const post = (qs, body) => agencies(new Request(`http://x/api/agencies?master=1&${qs}`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "application/json" }, body: JSON.stringify(body) }));
+await post("add=1", { name: "Helpers Society", province: "ON" });
+await post("add=1", { name: "Helpers Society of Niagara", province: "ON", domains: ["niagara.helpers.example.org"] });
+const branches = await A.directory();
+ok("a branch added by hand is its own agency, with its own domain", branches.some((a) => a.name === "Helpers Society of Niagara" && a.domains.includes("niagara.helpers.example.org")) && !(branches.find((a) => a.name === "Helpers Society")?.domains ?? []).length);
+ok("someone who typed the branch gets the branch", A.agencyOf({ organization: "Helpers Society of Niagara", email: "x@gmail.com" }, branches)?.name === "Helpers Society of Niagara");
+await post("fix=1", { raw: "Helpers Ottawa", agency: "Helpers Society of Ottawa", province: "ON" });
+ok("'this spelling is that agency' with a new name makes that agency, not the one its name starts with", (await A.directory()).some((a) => a.name === "Helpers Society of Ottawa" && a.aliases.includes("Helpers Ottawa")));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
