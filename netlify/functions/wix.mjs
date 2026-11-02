@@ -205,7 +205,15 @@ async function syncOne(event) {
     for (const k of Object.keys(total)) total[k] += out[k];
     counts = out.counts;
   }
-  return json({ ok: true, ...total, counts });
+  // New people or changed details: their agencies are matched now, not at the next morning's run (Andrew 3 Nov 2026:
+  // "when do the names from Wix match up with the correct agency?"). In the background; a pull never waits on it.
+  let matching = false;
+  const origin = process.env.APP_URL || process.env.URL;
+  if ((total.added || total.changed) && origin && process.env.ADMIN_KEY) {
+    try { matching = (await fetch(`${origin}/api/agencies-settle-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY } })).status === 202; }
+    catch (e) { console.log(`agency matching not started after the pull: ${e.message}`); }
+  }
+  return json({ ok: true, ...total, counts, matching });
 }
 
 /**

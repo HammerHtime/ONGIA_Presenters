@@ -71,7 +71,7 @@ ok("'Corrections' from an Ontario address is Ontario's", of("Corrections", "pat@
 ok("a shared spelling with nothing to settle it is not guessed", of("Corrections", "pat@gmail.com") === "");
 ok("the same ministry listed twice still reads as the ministry", of("Ministry of the Solicitor General", "pat@ontario.ca").startsWith("Ministry of the Solicitor General"));
 ok("a spelling only one agency has is unchanged", of("CSC", "pat@csc-scc.gc.ca") === "Correctional Service Canada" && of("Toronto Police Service", "x@tps.ca") === "Toronto Police Service");
-ok("a federal agency typed by someone at a provincial government address isn't taken on trust", of("Correctional Service Canada", "pat@ontario.ca") === "");
+ok("a federal agency typed by someone at a provincial government address isn't taken on trust: their government is", of("Correctional Service Canada", "pat@ontario.ca") === "Government of Ontario");
 
 const people = [{ email: "a@helpers.example.org", organization: "", status: "ATTENDING" }, { email: "b@helpers.example.org", organization: "", status: "ATTENDING" }, { email: "c@gmail.com", organization: "" }, { email: "d@csc-scc.gc.ca", organization: "" }];
 const doms = A.unknownDomainsOf(people, list);
@@ -100,5 +100,11 @@ await putAgencyList([{ name: "Kind Society", province: "ON", aliases: ["Kind Soc
 await post("fix=1", { raw: "Kind Society of London and District", agency: "Kind Society of London and District", province: "ON" });
 const kind = await A.directory();
 ok("a spelling set to an agency of the same name makes that agency", kind.some((a) => a.name === "Kind Society of London and District"), JSON.stringify(kind.filter((a) => /Kind/.test(a.name))));
+// Nothing typed, at a government address every ministry shares: the government, not a blank.
+const govList = await A.directory();
+ok("nothing typed at @ontario.ca reads Government of Ontario", A.agencyOf({ organization: "", email: "pat.lee@ontario.ca" }, govList)?.name === "Government of Ontario");
+ok("nothing typed at a federal address reads Government of Canada", A.agencyOf({ organization: "", email: "pat.lee@tbs-sct.gc.ca" }, govList)?.name === "Government of Canada");
+ok("but what they typed still wins when it's on the list", A.agencyOf({ organization: "Ontario Corrections", email: "pat.lee@ontario.ca" }, govList)?.name.startsWith("Ministry of the Solicitor General"));
+ok("and a personal address with nothing typed stays blank", A.agencyOf({ organization: "", email: "pat@gmail.com" }, govList) === null);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
