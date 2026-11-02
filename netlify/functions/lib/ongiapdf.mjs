@@ -37,7 +37,7 @@ const T = {
     growText: (n, r) => `${n} agencies came to an ONGIA event for the first time this year; ${r} had come before.`, contactsText: (c) => `ONGIA's contact list holds ${c} people.`,
     presentersText: (p, o) => `${p} presenters from ${o} organizations.`, presenterOrgs: "Presenters by organization", ratingText: (m, t, n) => `Average rating ${m} out of 5; ${t}% rated the training 4 or 5 (${n} answers).`,
     held: (h, u) => (u ? `${h} held, ${u} to come` : `${h} held`), outOf5: "/5", more: (n) => `+ ${n} more`, unknownTopics: "Topics are grouped from the events' session titles.",
-    byYear: "People trained each year", provShortCard: "Provinces", trainingsCard: "Trainings", inPerson: "in person", virtual: "virtual", toDate: "to date", registered: "registered, still to come", fewer: "fewer", more2: "more people trained",
+    byYear: "People trained each year", provShortCard: "Provinces", trainingsCard: "Trainings", inPerson: "in person", virtual: "virtual", toDate: "to date", ratingYears: "Average rating each year (out of 5)", ratingNote: (n) => `From ${n} attendee survey answers on SurveyMonkey; years without a survey are left blank.`, registered: "registered, still to come", fewer: "fewer", more2: "more people trained",
     subSplit: (a, b) => `${a} in person · ${b} virtual`, subHeld: (h, u, r) => (u ? `${h} held · ${u} to come${r ? ` (${r} registered)` : ""}` : `all ${h} held`), subNew: (n) => `${n} new this year`, subNetwork: "ONGIA's network", subAnswers: (n) => `${n} survey answers`, subDays: (n) => `${n} attendee-days`, subCities: (c) => c, subOrgs: (n) => `from ${n} organizations` },
   fr: { colon: " : ", prepared: "Préparé pour", forWho: "Bailleurs de fonds, partenaires et conseil d'administration de l'ONGIA", by: "Préparé par", byWho: "ONGIA | Andrew Hammond, président", date: "Date",
     review: (y) => `Bilan de l'année · ${y}`, org: "Organization for National Gang Information & Awareness", kicker: "Notre année en chiffres", page: "Page", of: "de",
@@ -57,7 +57,7 @@ const T = {
     growText: (n, r) => `${n} organismes ont participé à un événement de l'ONGIA pour la première fois cette année; ${r} y avaient déjà participé.`, contactsText: (c) => `La liste de contacts de l'ONGIA compte ${c} personnes.`,
     presentersText: (p, o) => `${p} conférenciers provenant de ${o} organisations.`, presenterOrgs: "Conférenciers par organisation", ratingText: (m, t, n) => `Note moyenne de ${m} sur 5; ${t} % ont noté la formation 4 ou 5 (${n} réponses).`,
     held: (h, u) => (u ? `${h} tenus, ${u} à venir` : `${h} tenus`), outOf5: "/5", more: (n) => `+ ${n} autres`, unknownTopics: "Les sujets sont regroupés à partir des titres des séances.",
-    byYear: "Personnes formées chaque année", provShortCard: "Provinces", trainingsCard: "Formations", inPerson: "en personne", virtual: "virtuel", toDate: "à ce jour", registered: "inscrits, à venir", fewer: "moins", more2: "plus de personnes formées",
+    byYear: "Personnes formées chaque année", provShortCard: "Provinces", trainingsCard: "Formations", inPerson: "en personne", virtual: "virtuel", toDate: "à ce jour", ratingYears: "Note moyenne chaque année (sur 5)", ratingNote: (n) => `D'après ${n} réponses aux sondages SurveyMonkey; les années sans sondage restent vides.`, registered: "inscrits, à venir", fewer: "moins", more2: "plus de personnes formées",
     subSplit: (a, b) => `${a} en personne · ${b} en virtuel`, subHeld: (h, u, r) => (u ? `${h} tenus · ${u} à venir${r ? ` (${r} inscrits)` : ""}` : `les ${h} tenus`), subNew: (n) => `${n} nouveaux cette année`, subNetwork: "Le réseau de l'ONGIA", subAnswers: (n) => `${n} réponses au sondage`, subDays: (n) => `${n} jours-participants`, subCities: (c) => c, subOrgs: (n) => `de ${n} organisations` },
 };
 const PROV_FR = { ON: "Ontario", QC: "Québec", MB: "Manitoba", SK: "Saskatchewan", AB: "Alberta", BC: "Colombie-Britannique", NS: "Nouvelle-Écosse", NB: "Nouveau-Brunswick",
@@ -226,6 +226,28 @@ function yearColumns(doc, years, x, y, w, h, { lang = "en", current = null } = {
   return ky + 12;
 }
 
+/** One star, filled to `part` (0 to 1): a gold fill clipped to the star's width, over a pale one. */
+function star(doc, cx, cy, r, part) {
+  const pts = Array.from({ length: 10 }, (_, i) => { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r; return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)]; });
+  const path = () => { doc.moveTo(...pts[0]); for (const p of pts.slice(1)) doc.lineTo(...p); doc.closePath(); };
+  path(); doc.fill(TRACK);
+  if (part > 0) { doc.save(); doc.rect(cx - r, cy - r, 2 * r * Math.min(1, part), 2 * r).clip(); path(); doc.fill(GOLD); doc.restore(); }
+}
+/** Each year's average rating as five stars filled to the score, with the number under them; blank where no survey was read. */
+function yearRatings(doc, years, x, y, w, { lang = "en", current = null } = {}) {
+  const cw = w / years.length, r = Math.min(6.2, cw / 13);
+  years.forEach((yr, i) => {
+    const cx0 = x + i * cw + cw / 2 - 4 * r * 1.05;
+    if (yr.rating != null) {
+      for (let k = 0; k < 5; k++) star(doc, cx0 + k * r * 2.1, y + r, r, Math.max(0, Math.min(1, yr.rating - k)));
+      doc.font("b").fontSize(9).fillColor(NAVY).text(dec(yr.rating, lang), x + i * cw, y + 2 * r + 4, { width: cw, align: "center", lineBreak: false });
+    } else doc.font("r").fontSize(8).fillColor("#b9b3a5").text("—", x + i * cw, y + r - 3, { width: cw, align: "center", lineBreak: false });
+    const now = String(yr.year) === String(current);
+    doc.font(now ? "b" : "r").fontSize(8).fillColor(now ? NAVY : MUTED).text(String(yr.year), x + i * cw, y + 2 * r + 17, { width: cw, align: "center", lineBreak: false });
+  });
+  return y + 2 * r + 30;
+}
+
 /* ---------- A flowing document: header, headings, paragraphs, tables, quotes, footer ---------- */
 
 function flow(doc, lang, title, year) {
@@ -330,6 +352,8 @@ async function impactPdf(c, f, lang, { date }) {
   const { navy, gold } = tilesOf(f, lang);
   F.chart(140, (x, y, w) => tileRow(doc, [...navy, ...gold.slice(0, 2)], x, y + 4, w, 60) + 6);
   if ((f.history ?? []).length > 1) { F.h3(L.byYear, 170); F.chart(160, (x, y, w) => yearColumns(doc, f.history, x, y, w, 110, { lang, current: Y })); }
+  const rateYears = (f.history ?? []).filter((h) => h.rating != null);
+  if (rateYears.length > 1) { F.h3(L.ratingYears, 90); F.chart(56, (x, y, w) => yearRatings(doc, f.history, x, y, w, { lang, current: Y })); F.para(L.ratingNote(num(rateYears.reduce((a, h) => a + (h.answered ?? 0), 0), lang)), { size: 8.5, color: MUTED, font: "i" }); }
   F.h2(L.eventsHead, 120);
   eventsTable(F, f, lang);
 
@@ -427,6 +451,8 @@ async function programPdf(c, f, lang, { date }) {
     F.h2(L.ratings, 110);
     F.para(c.ratings);
     if (f.rating) F.para(L.ratingText(dec(f.rating.mean, lang), f.rating.top2, num(f.rating.n, lang)), { font: "b", color: NAVY });
+    const rateYears = (f.history ?? []).filter((h) => h.rating != null);
+    if (rateYears.length > 1) { F.h3(L.ratingYears, 90); F.chart(56, (x, y, w) => yearRatings(doc, f.history, x, y, w, { lang, current: Y })); }
     if (f.scoring.length) F.table([{ label: L.measure, w: 0.6 }, { label: L.colTop2, w: 0.2, align: "right" }, { label: L.colAnswers, w: 0.2, align: "right" }], f.scoring.map((s) => [lang === "fr" ? s.fr : s.en, `${s.top2}${lang === "fr" ? " %" : "%"}`, num(s.n, lang)]));
   }
   if (f.sessions.length) {

@@ -19,6 +19,7 @@
 import { listEveryWixEvent, listWixGuests, attendeesOf, wixConfigured, wixSites, archiveSite } from "./wix.mjs";
 import { getMeta, putMeta, listEvents } from "./store.mjs";
 import { directory, agencyOf } from "./agencies.mjs";
+import { surveysForRows } from "./smsurveys.mjs";
 
 const SPONSOR = "Rothmans, Benson & Hedges";
 const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -196,7 +197,14 @@ export async function refreshYear(year, opts = {}) {
     const groups = groupTrainings(Number(year) + 1, wixNext, deskNext);
     next = { count: groups.length, cities: groups.map((g) => g.desk?.city || (g.parts[0] ? cityOfPart(g.parts[0]) : "")).filter(Boolean) };
   } catch (e) { console.log(`history: next year not read (${e.message})`); }
-  const out = { year: Number(year), at: new Date().toISOString(), rows, next };
+  // Each training's SurveyMonkey surveys, added up (lib/smsurveys.mjs). A failure here never stops the reading.
+  let surveys = null;
+  try {
+    const got = await surveysForRows(rows, { list: opts.surveyList ?? null, fetchOne: opts.surveyFetch ?? null });
+    for (const r of rows) r.survey = got.byRow.get(r.id) ?? null;
+    surveys = { matched: got.byRow.size, fetched: got.fetched ?? 0, note: got.note || "" };
+  } catch (e) { console.log(`history: SurveyMonkey not read for ${year} (${e.message})`); surveys = { error: e.message }; }
+  const out = { year: Number(year), at: new Date().toISOString(), rows, next, surveys };
   await putMeta(KEY(year), out);
   if (opts.earlier !== false) for (let y = 2021; y < Number(year); y++) {
     if (await yearTrainings(y)) continue;

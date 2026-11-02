@@ -104,5 +104,14 @@ const sask = tidyEvent({ id: "y", dateAndTimeSettings: { startDate: "2025-10-07T
 ok("a Regina day ending after 6 pm is still that day", sask.lastDay === "2025-10-07");
 const caseOnly = countPeople([{ title: "a", city: "Calgary", dayOne: "2025-07-15" }, { title: "b", city: "Calgary", dayOne: "2025-07-15" }], (p) => [person(p.title === "a" ? "Pat@CPS.ca" : "pat@cps.ca ")]);
 ok("the same address typed in another case counts once", caseOnly.people === 1, String(caseOnly.people));
+// SurveyMonkey: a training's survey is read with the year and becomes its rating, and the year's.
+const surveyList = [{ id: "s-wpg", title: "Crime at the Crossroads Training Symposium", created: "2026-03-11", responses: 3 }, { id: "s-edm", title: "Edmundston Training Symposium", created: "2026-10-14", responses: 4 }];
+const surveyFetch = async (sv) => ({ id: sv.id, title: sv.title, responses: sv.responses, quality: sv.id === "s-wpg" ? { n: 3, mean: 4.0, top2: 67, basis: "overall" } : { n: 4, mean: 5.0, top2: 100, basis: "all" }, scoring: [], sessions: [], asked: [] });
+await refreshYear(2026, { wix, list, events: desk, now: "2026-11-01", earlier: false, surveyList, surveyFetch });
+const rated = await ongiaYearFacts(2026, { events: desk, now: "2026-11-01" });
+ok("each training's SurveyMonkey survey is its rating", rated.eventsList.find((r) => /Winnipeg/.test(r.title))?.rating === 4 && rated.eventsList.find((r) => r.city === "Edmundston")?.rating === 5, JSON.stringify(rated.eventsList.map((r) => [r.title, r.rating])));
+ok("the year's rating is weighted by answers: (3×4 + 4×5) / 7 = 4.6, one of two from statements", rated.rating?.mean === 4.6 && rated.rating.n === 7 && rated.rating.trainings === 2 && rated.rating.fromStatements === 1, JSON.stringify(rated.rating));
+ok("answered against the people trained (7 of 7)", rated.survey.answered === 7 && rated.survey.invited === 7, JSON.stringify(rated.survey));
+ok("the year's history carries its rating", rated.history.at(-1)?.rating === 4.6, JSON.stringify(rated.history));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

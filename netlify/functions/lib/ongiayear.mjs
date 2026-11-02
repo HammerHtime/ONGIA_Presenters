@@ -187,7 +187,8 @@ export async function yearRows(year, { events = null, now = today(), list = null
       registered: fromWix ? r.people : ef?.registered ?? 0, attended: fromWix ? r.people : ef?.attended ?? 0, basis: fromWix ? "registered" : ef?.basis ?? "registered",
       agencies: fromWix ? r.agencies : ef?.agencies ?? [], unmatched: fromWix ? r.unmatched : ef?.unmatched ?? 0,
       inPerson: fromWix ? r.inPerson : null, virtual: fromWix ? r.virtual : null, attendeeDays: fromWix ? r.attendeeDays : null, format: r.format || "",
-      survey: ef?.survey ?? null, presenters: ef?.presenters ?? [], sessionTitles: ef?.sessionTitles ?? [], parts: r.parts ?? [],
+      // The desk's own survey where the event had one; otherwise its SurveyMonkey surveys, measured against the people trained.
+      survey: ef?.survey?.answered ? ef.survey : r.survey ? { ...r.survey, invited: fromWix ? r.people : ef?.attended ?? 0 } : ef?.survey ?? null, presenters: ef?.presenters ?? [], sessionTitles: ef?.sessionTitles ?? [], parts: r.parts ?? [],
     };
   }));
   return { rows, source: "wix", readAt: kept.at, next: kept.next ?? null };
@@ -222,7 +223,12 @@ export async function ongiaYearFacts(year, { events = null, now = today() } = {}
     if (!k) continue;
     const done = k.rows.filter((r) => (r.lastDay || r.dayOne || "9") < now), ahead = k.rows.filter((r) => !((r.lastDay || r.dayOne || "9") < now));
     const sum = (rows, key) => rows.reduce((a, r) => a + (r[key] ?? 0), 0);
-    history.push({ year: y, people: sum(done, "people"), inPerson: sum(done, "inPerson"), virtual: sum(done, "virtual"), events: done.length, toCome: y === Number(year) ? sum(ahead, "people") : 0 });
+    // The year's rating: each training's, weighted by the people who answered (SurveyMonkey, kept with the reading).
+    const rated = done.filter((r) => r.survey?.quality?.n);
+    const qn = rated.reduce((a, r) => a + r.survey.quality.n, 0);
+    const rating = qn ? Math.round((rated.reduce((a, r) => a + r.survey.quality.mean * r.survey.quality.n, 0) / qn) * 10) / 10 : null;
+    history.push({ year: y, people: sum(done, "people"), inPerson: sum(done, "inPerson"), virtual: sum(done, "virtual"), events: done.length, toCome: y === Number(year) ? sum(ahead, "people") : 0,
+      rating, answered: done.reduce((a, r) => a + (r.survey?.answered ?? 0), 0), rated: rated.length });
   }
   out.history = history;
   return { ...out, source, readAt };
@@ -290,7 +296,10 @@ export function combineOngia(year, rows, { earlier = null, next = [], inputs = {
     returningAgencies: earlier ? [...agencies.keys()].filter((a) => earlier.has(a)).length : null,
     cities: [...new Map(held.filter((r) => r.city).map((r) => [cityKey(r.city), r.city])).values()],
     eventProvinces: [...new Set(held.map((r) => r.province).filter(Boolean))],
-    rating: qn ? { mean: Math.round((qsum / qn) * 10) / 10, top2: Math.round(top2n / qn), n: qn } : null,
+    // trainings: how many were rated; fromStatements: of those, how many asked no overall question, so their rating is
+    // the average of every rated statement on the survey (Regina's and Edmundston's 2026 surveys).
+    rating: qn ? { mean: Math.round((qsum / qn) * 10) / 10, top2: Math.round(top2n / qn), n: qn, trainings: held.filter((r) => r.survey?.quality?.n).length,
+      fromStatements: held.filter((r) => r.survey?.quality?.basis === "all").length } : null,
     survey: { answered, invited, rate: pctOf(answered, invited) },
     scoring, sessions,
     presenters: presenters.size, presenterOrgs: new Set([...presenters.values()].filter(Boolean)).size,
@@ -342,7 +351,7 @@ export const ONG_SYSTEM = (kind, lang) => `You write ONGIA's ${WHAT[kind]} for o
 
 Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support. Plain text only: no markdown, no asterisks, no headings inside the text.
 
-The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. "People trained" counts those who came to events that have taken place. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
+The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. "People trained" counts those who came to events that have taken place. Ratings come from attendee surveys (ONGIA's own, or SurveyMonkey for past years): "rating.n" is how many answered, "survey.rate" the share of people trained who answered, and "rating.fromStatements" how many of the rated trainings asked agree/disagree statements instead of one overall question. "history" gives each year's people and rating; you may compare years from it. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
 
 ONGIA's requests for this document come last. Follow every one of them. They may add sections, change wording or emphasis, or leave things out; they can't change a figure or a quote's words.`;
 
