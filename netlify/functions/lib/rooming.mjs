@@ -70,7 +70,8 @@ export function roomingRows(event, presenters, guests = event.roomingGuests ?? [
   for (const p of presenters) {
     const name = `${p.first ?? ""} ${p.last ?? ""}`.trim() || p.email;
     const s = p.submission ?? {};
-    if (p.status === "approved") {
+    // Finalized without an agreement (arranged directly) carry the nights and who pays in the same shape.
+    if (p.status === "approved" || p.status === "arranged") {
       const h = p.review?.hotel;
       if (!h) continue;                                       // approved, no room needed
       rows.push({ key: p.id, who: "presenter", type: listedAs(event, p.id), name, organization: p.organization ?? "",

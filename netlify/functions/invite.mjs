@@ -46,7 +46,7 @@ export default async (req) => {
   const ev = describeEvent(event);
 
   const people = (await listPresenters(event.id)).filter((p) =>
-    wanted ? wanted.has(p.id) : p.status !== "submitted" && p.status !== "approved" && p.status !== "paper"
+    wanted ? wanted.has(p.id) : p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged"
   );
 
   const sent = [];
