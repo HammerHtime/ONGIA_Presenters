@@ -573,7 +573,10 @@ export async function claimView(claim, { me, aways, today, names }) {
   };
 }
 
-const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, ...extra });
+// A claim in a list. Paid claims carry the day they were paid and what is on them (Andrew 3 Nov 2026: "the date and the
+// amount obviously will show the day it was paid out"); an approved one, the day it was approved.
+const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test,
+  approvedAt: c.approvedAt ?? null, paidOn: c.paid?.date ?? null, sums: c.sums ? { receipts: c.sums.receipts ?? 0, mileage: c.sums.mileage ?? 0, noreceipt: c.sums.noreceipt ?? 0 } : null, ...extra });
 
 async function home(ctx, test = false) {
   const { me, aways, today, names } = ctx;

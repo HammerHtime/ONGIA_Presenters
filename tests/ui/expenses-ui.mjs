@@ -38,7 +38,7 @@ console.log("— an empty claim, on a phone");
 const phone = await open("j.johal@ongia.ca", "Jessy Johal", { width: 390, height: 844 });
 ok("it opens on My claim at $0.00, saying what to do first", (await total(phone)) === "$0.00" && /Take a photo of your first receipt/.test(await phone.textContent("#running")));
 ok("the photo button leads; mileage and no receipt sit under it", await phone.isVisible("#addcam") && await phone.isVisible("#addmile") && await phone.isVisible("#addnone"));
-ok("a board member has My claim and Past claims, no To approve", (await phone.locator("#tabs button").allInnerTexts()).join("|") === "My claim|Past claims");
+ok("a board member has My claim and Paid claims, no To approve", (await phone.locator("#tabs button").allInnerTexts()).join("|") === "My claim|Paid claims");
 await phone.screenshot({ path: D + "exp-empty-phone.png" });
 
 console.log("— a receipt, photographed");
@@ -159,14 +159,14 @@ ok("removed: back to $981.62", (await total(phone)) === "$981.62" && (await phon
 
 console.log("— the other tabs");
 await phone.click('[data-tab="past"]');
-ok("Past claims: nothing sent yet, in words", /Nothing sent yet/.test(await phone.textContent("#root")));
+ok("Paid claims (Andrew 3 Nov 2026, was Past claims): nothing paid yet, in words", /Nothing paid yet/.test(await phone.textContent("#root")));
 await phone.click('[data-tab="claim"]');
 ok("no script errors on the phone", phone.errs.length === 0, phone.errs.join("; "));
 
 console.log("— the President, on a laptop");
 const wide = await open("president@ongia.ca", "Andrew Hammond", { width: 1280, height: 860 });
 const tabsSeen = (await wide.locator("#tabs button").allInnerTexts()).map((t) => t.replace(/\d+$/, "").trim()).join("|");
-ok("the President has To approve and All as well", tabsSeen === "My claim|Past|To approve|All", tabsSeen);
+ok("the President has To approve and All as well", tabsSeen === "My claim|Paid|To approve|All", tabsSeen);
 ok("Jessy's claim stays with Jessy: the President's claim is empty", (await total(wide)) === "$0.00");
 await wide.click('[data-tab="approve"]');
 // The President is shared with expenseflow-ui, which may leave claims waiting on this server: say what the server says.

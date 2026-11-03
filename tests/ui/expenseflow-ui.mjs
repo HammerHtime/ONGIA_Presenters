@@ -191,10 +191,10 @@ await andrew.click("#submit"); await andrew.waitForSelector(".slot");
 ok("the sent test claim is marked so", /TEST CLAIM/.test(await andrew.textContent("#root")));
 await andrew.goBack(); await andrew.waitForSelector("#running");
 await andrew.click('[data-tab="all"]');
-ok("All claims: chips with counts, the test claim marked", /Paid \d/.test(await andrew.textContent(".chips")) && (await andrew.locator(".rowbtn .pill.test").count()) >= 1);
+ok("All claims: chips with counts, the test claim marked", /Paid \d/.test(await andrew.textContent(".chips")) && (await andrew.locator(".tile .pill.test").count()) >= 1);
 await andrew.screenshot({ path: D + "exp-all-phone.png", fullPage: true });
 await andrew.click("#purge"); await andrew.waitForFunction(() => /Deleted \d+ test claim/.test(document.querySelector(".toast")?.textContent ?? ""));
-ok("Delete all test claims: gone, the real ones stay", (await andrew.locator(".rowbtn .pill.test").count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1);
+ok("Delete all test claims: gone, the real ones stay", (await andrew.locator(".tile .pill.test").count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1);
 await andrew.click("#me"); await andrew.uncheck("#testmode"); await andrew.waitForSelector("#running");
 ok("test mode off: the bar is gone", (await andrew.locator(".testbar").count()) === 0);
 

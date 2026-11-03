@@ -1810,6 +1810,8 @@
   /* Admin › Agencies (Andrew 30 Oct 2026) */
   /* The red count of what's waiting (Andrew 3 Nov 2026: "a round circle"). Its own name: it used to share "nb" with the
      hotel nights grid, whose flex:1 stretched it into a long pill in the sidebar. One digit is a circle; two, a short oval. */
+  /* Expenses in the main area: the app itself, laid out for a computer, as tall as the window (Andrew 3 Nov 2026). */
+  .expframe{display:block;width:100%;min-height:480px;border:0;background:transparent}
   .attnb{display:inline-grid;place-items:center;flex:none;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px;box-sizing:border-box}
   .attnb[hidden]{display:none}
   .agtop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px}.agh{font-family:var(--fd);font-size:28px}
@@ -2262,9 +2264,11 @@ const SIDE_ICON = {
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
 /**
- * ONGIA Expenses from the desk (Andrew 3 Nov 2026). It opens in a tab of its own, so the Briefing Room stays where it
- * was; the desk's sign-in is handed to it (it accepts a Briefing Room session), unless it already holds this person's.
- * The badge counts what waits on you there: claims to approve, to pay, or your own sent back.
+ * ONGIA Expenses from the desk (Andrew 3 Nov 2026: "when I click the expense tab, it doesn't open up a new window.
+ * Instead, it's all in the main screen"). On a computer it opens in the main area, beside the sidebar, with its tabs
+ * across the top as on an event; on a phone, the Expenses app opens as before. The desk's sign-in is handed to it (it
+ * accepts a Briefing Room session), unless it already holds this person's. The badge counts what waits on you there:
+ * claims to approve, to pay, or your own sent back.
  */
 let EXPN = 0, EXPN_AT = 0;
 const expBadge = () => `<span class="attnb" data-expn title="Waiting for you in Expenses"${EXPN ? "" : " hidden"}>${EXPN}</span>`;
@@ -2281,7 +2285,7 @@ async function expAttention(force = false) {
   }
   document.querySelectorAll("[data-expn]").forEach((el) => { el.textContent = EXPN; el.hidden = !EXPN; });
 }
-function openExpenses() {
+function handExpensesSession() {
   try {
     const had = JSON.parse(localStorage.getItem("ongia-exp-me") || "null");
     if (WHO?.email && KEY && !(had?.email === WHO.email && localStorage.getItem("ongia-exp-session"))) {
@@ -2289,8 +2293,28 @@ function openExpenses() {
       localStorage.setItem("ongia-exp-me", JSON.stringify({ email: WHO.email, name: WHO.name || WHO.email }));
     }
   } catch { /* no storage: the app asks them to sign in */ }
-  window.open("/expenses", "_blank", "noopener");
 }
+function openExpenses() { handExpensesSession(); window.open("/expenses", "_blank", "noopener"); }
+const expensesHere = () => window.matchMedia("(min-width: 900px)").matches;
+function expensesScreen() {
+  BARRIGHT.innerHTML = barChips();
+  handExpensesSession();
+  ROOT.innerHTML = `<iframe id="expframe" class="expframe" src="/expenses?desk=1" title="ONGIA Expenses"></iframe>`;
+  sizeExpFrame();
+}
+// As tall as what's left of the window, so the claims scroll inside it and a receipt opened full size covers what you see.
+function sizeExpFrame() {
+  const f = document.getElementById("expframe");
+  if (f) f.style.height = `${Math.max(480, Math.round(window.innerHeight - (f.getBoundingClientRect().top + window.scrollY) - 12))}px`;
+}
+window.addEventListener("resize", sizeExpFrame);
+// The app says how many wait on you whenever it looks; the sidebar's count follows at once.
+window.addEventListener("message", (e) => {
+  const m = e.origin === location.origin ? e.data?.ongiaExpenses : null;
+  if (!m || typeof m.count !== "number") return;
+  EXPN = m.count; EXPN_AT = Date.now();
+  document.querySelectorAll("[data-expn]").forEach((el) => { el.textContent = EXPN; el.hidden = !EXPN; });
+});
 const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email) ? "President" : /^vp_/i.test(WHO.email) ? "VP of operations" : "Board";
 function drawSide() {
   const el = document.getElementById("side");
@@ -2302,7 +2326,7 @@ function drawSide() {
   // reload too? It shouldn't), so the logo and the buttons stay put while the page beside them changes.
   const built = `${WHO?.email ?? "key"}|${!!WHO?.canCost}|${SPONSORS_ON}`;
   if (el.dataset.built === built) {
-    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors" };
+    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors", expensesnav: "expenses" };
     el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
     attention(); expAttention();
@@ -2311,7 +2335,7 @@ function drawSide() {
   el.dataset.built = built;
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
-  // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, opened in their own tab, signed in as you.
+  // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, signed in as you; in the main area on a computer.
   const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -2324,7 +2348,7 @@ function drawSide() {
   go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
   const xb = document.getElementById("expensesnav");
-  if (xb) xb.onclick = openExpenses;
+  if (xb) xb.onclick = () => { if (expensesHere()) { view = { name: "expenses" }; render(); } else openExpenses(); };
   const mb = document.getElementById("snmore");
   if (mb) mb.onclick = (e) => { e.stopPropagation(); const open = el.classList.toggle("open"); mb.setAttribute("aria-expanded", String(open)); };
   attention(); expAttention();
@@ -12136,6 +12160,7 @@ async function drawScreen() {
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
     if (view.name === "sandbox") return sandboxScreen();
+    if (view.name === "expenses") { if (WHO?.email && expensesHere()) return expensesScreen(); view = { name: "list" }; return render(); }
     if (view.name === "letters") {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
       return lettersScreen(data, events, view.pick ?? null);
