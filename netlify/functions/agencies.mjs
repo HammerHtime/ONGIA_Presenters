@@ -113,10 +113,21 @@ async function masterView() {
   const counts = new Map();
   for (const p of people) { if (p.status === "WITHDRAWN") continue; const a = agencyOf(p, list); if (a) counts.set(a.name, (counts.get(a.name) ?? 0) + 1); }
   const week = Date.now() - 7 * 86400000;
+  // Who typed each spelling (Andrew 3 Nov 2026: "it would be very helpful for me to understand the name of the person
+  // that typed that"): read from the attendee lists as the screen opens, so the stored records still hold no names.
+  const typedBy = new Map();
+  for (const p of people) {
+    if (p.status === "WITHDRAWN") continue;
+    const k = key(String(p.organization ?? "").trim());
+    if (!k) continue;
+    if (!typedBy.has(k)) typedBy.set(k, []);
+    typedBy.get(k).push({ name: [p.first, p.last].filter(Boolean).join(" ").trim() || p.email || "Someone", email: p.email || "", event: p.eventTitle || "", eventId: p.eventId || "" });
+  }
+  const withWho = (m) => { const all = typedBy.get(key(m.raw)) ?? []; return { ...m, who: all.slice(0, 12), whoCount: all.length }; };
   return json({
     agencies: list.map((a) => ({ name: a.name, province: a.province || "", fr: a.fr || "", domains: a.domains ?? [], aliases: a.aliases ?? [], people: counts.get(a.name) ?? 0,
       sector: a.sector || "", sectorBy: a.sectorBy || "" })),
-    matched: log, waiting, blank, run: run ?? null, provinces: PROVINCES,
+    matched: log.map(withWho), waiting: waiting.map(withWho), blank, run: run ?? null, provinces: PROVINCES,
     // Sectors (Andrew 1 Nov 2026): Claude's best guess for each agency, and any Andrew corrected.
     sectors: SECTORS.map(({ id, en }) => ({ id, en })), sectorRun: (await getMeta("agencies:sectorrun")) ?? null,
     stats: { agencies: list.length, spellings: list.reduce((n, a) => n + (a.aliases?.length ?? 0), 0), domains: list.reduce((n, a) => n + (a.domains?.length ?? 0), 0),

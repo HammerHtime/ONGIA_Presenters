@@ -52,11 +52,28 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   }
   const row = (raw) => p.locator(`.agq[data-agraw="${raw}"]`);
   if (tag === "wide") {
-    ok("the misspelling was put right on its own, with why", /Now\s+Toronto Police Service/.test(await row("Toronto Polcie Service").innerText()) && /misspelling of Toronto Police Service/i.test(await row("Toronto Polcie Service").innerText()) && /2 people/.test(await row("Toronto Polcie Service").innerText()), await row("Toronto Polcie Service").innerText());
+    ok("the misspelling was put right on its own, with why", /Now\s+Toronto Police Service/.test(await row("Toronto Polcie Service").innerText()) && /misspelling of Toronto Police Service/i.test(await row("Toronto Polcie Service").innerText()) && /Guest 0, Guest 1/.test(await row("Toronto Polcie Service").innerText()), await row("Toronto Polcie Service").innerText());
     ok("a work email placed another: Peel, by @peelpolice.ca", /Now\s+Peel Regional Police/.test(await row(`Brampton Division ${T}`).innerText()) && /@peelpolice\.ca/.test(await row(`Brampton Division ${T}`).innerText()));
     ok("Claude's new agency is applied and marked as added to the list", /Now\s+City of Brampton Enforcement/.test(await row(`Bylaw - Brampton ${T}`).innerText()) && /Added to the list/i.test(await row(`Bylaw - Brampton ${T}`).innerText()));
     ok("only the one with nothing to go on waits, with Claude's reason", /personal Gmail/.test(await row(`Retired ${T}`).innerText()) && await p.locator(".agwait").count() === 1);
+    // Who typed it (Andrew 3 Nov 2026: "it would be very helpful for me to understand the name of the person that typed that").
+    ok("the one waiting names who typed it, with their email and the event", /Guest 4 · e@gmail\.com · Agency Desk/.test(await row(`Retired ${T}`).innerText()), await row(`Retired ${T}`).innerText());
+    // Each row lines up (Andrew: "a box on the left-hand side is lower, and then the box on the right side is higher").
+    const tops = await p.evaluate(() => [...document.querySelectorAll(".agq")].filter((q) => q.querySelector(".aga input")).map((q) => {
+      const t = q.querySelector(".agt").getBoundingClientRect(), i = q.querySelector(".aga input").getBoundingClientRect();
+      return { t: Math.round(t.top), i: Math.round(i.top), boxedLeft: [...q.querySelectorAll(".agw *")].some((e) => { const cs = getComputedStyle(e); return e.tagName !== "SPAN" && cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent"; }) };
+    }));
+    ok("every row: the field starts level with the first line, and nothing on the left is a grey box", tops.length >= 4 && tops.every((x) => Math.abs(x.t - x.i) <= 4 && !x.boxedLeft), JSON.stringify(tops));
     await p.screenshot({ path: D + "agencies-wide.png", fullPage: true });
+    await p.locator(".agwait").screenshot({ path: D + "agencies-waiting.png" });
+    // The event beside a name opens on its Who's coming list, with that person on it.
+    const lp = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+    await lp.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond" }]);
+    await lp.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "admin", tab: "agencies" })), { waitUntil: "networkidle" }); await lp.waitForTimeout(1500);
+    await lp.locator(`.agwait .agq[data-agraw="Retired ${T}"] [data-agev]`).click(); await lp.waitForTimeout(1500);
+    const guests = lp.locator('.pview[data-pview="guests"]');
+    ok("the event beside the name opens that event on Who's coming, with them on it", await guests.isVisible() && /e@gmail\.com|Guest\s*4/.test(await guests.innerText()), (await lp.locator("#root").innerText()).slice(0, 300));
+    await lp.close();
 
     // Who's coming on the event shows the official name, what was typed on hover; no Agencies section there any more.
     const ep = await b.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -105,6 +122,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     ok("Looks right, clear the list", await p.locator(".agq:not(.agwait .agq)").count() === 0 || !(await p.locator("#ag-clear").count()));
   } else {
     await p.screenshot({ path: D + "agencies-phone.png", fullPage: true });
+    const ptops = await p.evaluate(() => [...document.querySelectorAll(".agq")].filter((q) => q.querySelector(".aga input")).map((q) => { const w = q.querySelector(".agw").getBoundingClientRect(), i = q.querySelector(".aga input").getBoundingClientRect(); return i.top >= w.bottom - 1; }));
+    ok(`${tag}: one column, the field under what was typed`, ptops.every(Boolean), JSON.stringify(ptops));
   }
   ok(`${tag}: fits, no errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
   await p.close();

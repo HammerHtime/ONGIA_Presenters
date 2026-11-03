@@ -1813,16 +1813,20 @@
   .agtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
   .agtile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}.agtile b{display:block;font-size:22px}.agtile span{font-size:12.5px;color:var(--muted)}
   .agtile.hot{background:var(--wait-bg);border-color:#e6cf9f}
-  .agq{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:8px 16px;padding:12px 0;border-top:1px solid var(--border)}.agq:first-child{border-top:0;padding-top:0}
-  .agt{font-size:13px;color:var(--muted)}.agt q{font-weight:600;color:var(--ink)}
+  /* A row: what was typed, who typed it and why on the left; the field and its buttons on the right, both starting at the
+     row's first line (Andrew 3 Nov 2026: the grey boxes on each side sat at different heights). Only the field is boxed. */
+  .agq{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:8px 24px;align-items:start;padding:14px 0;border-top:1px solid var(--border)}.agq:first-child{border-top:0;padding-top:0}
+  .agt{font-size:14px;color:var(--ink-mid);line-height:1.4}.agt q{font-weight:600;color:var(--ink)}
+  .agwho{list-style:none;margin:6px 0 0;padding:0;font-size:13.5px;line-height:1.5}.agwho b{font-weight:600}
+  .agem{color:var(--ink-mid)} .agwho .agev{font:500 13.5px var(--fb);padding:0;text-align:left;text-decoration:none;color:var(--navy)} .agwho .agev:hover{text-decoration:underline}
   .ags{font-size:15px;margin-top:2px}.ags b{color:var(--navy)}
   .agok{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:var(--done);color:#fff;font-size:11px;margin-right:6px;vertical-align:1px}
   .agnew{margin-left:6px;background:var(--gold-pale);color:var(--wait)}
-  .agwhy{font-size:13px;color:var(--ink-mid);background:var(--sunk);border-radius:8px;padding:6px 10px;margin-top:6px}
-  .agby{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .agwhy{font-size:13px;color:var(--ink-mid);line-height:1.5;margin-top:6px}
+  .agby{display:block;font-size:12px;color:var(--muted);margin-top:4px}
   .dom{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--sunk);border-radius:4px;padding:1px 5px;white-space:nowrap}
-  .agwhy .dom{background:#fff}
-  .aga input{width:100%}.agb{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px}
+  .agwait .dom{background:#fff}
+  .aga input{width:100%;margin:0}.agb{display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:8px}.agb:empty{display:none}
   .linkish{background:none;border:0;padding:4px 2px;font:600 13px var(--fb);color:var(--navy);text-decoration:underline;cursor:pointer}
   .agwait{border-color:#e6cf9f;background:#fffaf0}
   .agblank>summary{list-style:none;cursor:pointer}.agblank>summary::-webkit-details-marker{display:none}.agblank[open] .ibcaret{transform:rotate(180deg)}
@@ -5839,17 +5843,28 @@ function agenciesScreen(A) {
   ATTN = A.waiting.length; ATTN_AT = Date.now();
   const names = A.agencies.map((a) => a.name);
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toDateString() === new Date().toDateString() ? `Today, ${d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}` : d.toLocaleDateString("en-CA", { day: "numeric", month: "short" }); };
-  const typed = (m) => `<div class="agt">Typed <q>${esc(m.raw)}</q> · ${m.count || 0} ${m.count === 1 ? "person" : "people"}${m.events?.length ? ` · ${esc(m.events.join(", "))}` : ""}</div>`;
+  // Who typed it, by name (Andrew 3 Nov 2026: "then I can go back in and try to find that person"). A spelling waiting
+  // for him lists each person with their email and the event, which opens on its Who's coming list; one already matched
+  // names the first few on one line.
+  const n = (m) => m.whoCount ?? m.count ?? 0;
+  const evLink = (w) => w.eventId ? `<button type="button" class="linkish agev" data-agev="${esc(w.eventId)}">${esc(w.event)}</button>` : esc(w.event || "");
+  const typed = (m) => `<div class="agt">Typed <q>${esc(m.raw)}</q></div>`;
+  const whoList = (m) => (m.who?.length ? `<ul class="agwho">${m.who.map((w) => `<li><b>${esc(w.name)}</b>${w.email && w.email !== w.name ? ` · <span class="agem">${esc(w.email)}</span>` : ""}${w.event ? ` · ${evLink(w)}` : ""}</li>`).join("")}${n(m) > m.who.length ? `<li class="porg">and ${n(m) - m.who.length} more</li>` : ""}</ul>`
+    : `<div class="agby">${n(m) ? `${n(m)} ${n(m) === 1 ? "person" : "people"}` : "Nobody on a list types it this way now"}${m.events?.length ? ` · ${esc(m.events.join(", "))}` : ""}</div>`);
+  const whoLine = (m) => { const w = m.who ?? []; if (!w.length) return n(m) ? `${n(m)} ${n(m) === 1 ? "person" : "people"}` : "";
+    const shown = w.slice(0, 3).map((x) => esc(x.name)); const more = n(m) - shown.length;
+    return `${shown.join(", ")}${more > 0 ? ` and ${more} more` : ""}`; };
   const dom = (s) => esc(s).replace(/@([a-z0-9.-]+)/gi, '<span class="dom">@$1</span>');
   const run = A.run;
   const runLine = run?.state === "running" ? "Checking now…" : run?.state === "failed" ? `The last check failed: ${esc(run.why || "")}` : run?.at ? `Last checked ${esc(when(run.at))}` : "Checked each night after the Wix sweep";
   const matched = A.matched.map((m, i) => `<div class="agq" data-agraw="${esc(m.raw)}">
       <div class="agw">${typed(m)}<div class="ags"><span class="agok" aria-hidden="true">✓</span>Now <b>${esc(m.agency)}</b>${m.isNew ? `<span class="pill agnew">Added to the list</span>` : ""}</div>
-        <div class="agwhy">${dom(m.reason || "")}<span class="agby">${esc(AG_BY[m.by] ?? "")}${m.looked ? " · looked up on the web" : ""} · ${esc(when(m.at))}</span></div></div>
+        <div class="agwhy">${dom(m.reason || "")}</div>
+        <div class="agby">${[whoLine(m), m.who?.length || n(m) ? esc((m.events ?? []).join(", ")) : "", `${esc(AG_BY[m.by] ?? "")}${m.looked ? ", looked up on the web" : ""}, ${esc(when(m.at))}`].filter(Boolean).join(" · ")}</div></div>
       <div class="aga"><input list="ag-names" data-agfix="${i}" placeholder="Wrong? Type the agency…" aria-label="The right agency for ${esc(m.raw)}">
         <div class="agb"><button class="mini" data-agsave="${i}" hidden>Save</button>${m.by === "you" ? "" : `<button class="linkish" data-agundo="${i}">Undo</button>`}</div></div></div>`).join("");
   const waiting = A.waiting.map((w, i) => `<div class="agq" data-agraw="${esc(w.raw)}">
-      <div class="agw">${typed(w)}<div class="agwhy">${dom(w.reason || "")}</div></div>
+      <div class="agw">${typed(w)}${whoList(w)}<div class="agwhy">${dom(w.reason || "")}</div></div>
       <div class="aga"><input list="ag-names" data-agwait="${i}" placeholder="Type the agency…" aria-label="The agency for ${esc(w.raw)}">
         <div class="agb"><button class="mini gold" data-agwsave="${i}">Save</button><button class="linkish" data-agblank="${i}">Leave blank</button></div></div></div>`).join("");
   const row = (a) => `<tr data-agrow="${esc(a.name)}" data-find="${esc([a.name, a.fr, ...a.aliases, ...a.domains].join(" ").toLowerCase())}">
@@ -5898,6 +5913,8 @@ function agenciesScreen(A) {
     save.onclick = () => ask(w.raw, inp, (a) => `"${w.raw}" is now ${a}.`);
   });
   ROOT.querySelectorAll("[data-agblank]").forEach((b) => b.onclick = () => { const w = A.waiting[+b.dataset.agblank]; redo("blank=1", { raw: w.raw }, `"${w.raw}" will be left blank.`); });
+  // The event beside a name opens on its Who's coming list, where that person is.
+  ROOT.querySelectorAll("[data-agev]").forEach((b) => b.onclick = () => { view = { name: "event", eventId: b.dataset.agev, tab: "people", pview: "guests" }; render(); });
   ROOT.querySelectorAll("[data-agunblank]").forEach((b) => b.onclick = () => { const x = A.blank[+b.dataset.agunblank]; redo("unblank=1", { raw: x.raw }, `"${x.raw}" is back, waiting for an agency.`); });
   document.getElementById("ag-clear")?.addEventListener("click", () => redo("clear=1", {}, "Cleared."));
   const find = document.getElementById("ag-find");
