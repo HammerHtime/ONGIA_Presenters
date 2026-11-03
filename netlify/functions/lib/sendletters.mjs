@@ -6,7 +6,7 @@ import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeRe
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
-import { welcomeLetters, splitByGroup } from "./welcome.mjs";
+import { welcomeLetters, splitByGroup, extrasOf } from "./welcome.mjs";
 import { primeRoster } from "./signature.mjs";
 
 /** An event whose welcome letter is written on the event itself (the event page's Welcome letter card). */
@@ -95,11 +95,29 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   if (own?.group) {
     const wrong = [...letterProblems(own.group), ...eventProblems(own.group, event)];
     if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${own.group.name}: ${w}`) };
-    const split = splitByGroup(stored.people ?? [], owed);
+    const split = splitByGroup(stored.people ?? [], owed, event);
     batches.splice(0, 1, { letter, people: split.main }, { letter: own.group, people: split.group });
   }
+  // Further groups (the Summit's virtual attendees): each gets its own version. One not written yet holds back only its
+  // own people, who stay owed and get it the morning after it is saved; anything wrong in it holds back only them too,
+  // and is reported, so the others' letters still go.
+  const held = [];
+  if (own && extrasOf(event).length) {
+    const split = splitByGroup(stored.people ?? [], owed, event);
+    for (const x of extrasOf(event)) {
+      const people = split[x.key] ?? [];
+      const mine = own[x.key];
+      if (!people.length) continue;
+      if (!mine?.body?.trim()) { held.push({ people: people.length, why: `${x.label}: ${people.length} waiting, their letter isn't written yet` }); continue; }
+      const wrong = [...letterProblems(mine), ...eventProblems(mine, event)];
+      if (wrong.length) { held.push({ people: people.length, why: `${mine.name}: ${wrong[0]}` }); continue; }
+      batches.push({ letter: mine, people });
+    }
+  }
+  const waiting = held.reduce((n, h) => n + h.people, 0);
+  const heldNote = held.length ? { held: held.map((h) => h.why) } : {};
   const names = batches.filter((b) => b.people.length).map((b) => b.letter.name).join(" + ") || letter.name;
-  if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: names };
+  if (dry) return { event: event.id, title: event.title, kind, would: owed.length - waiting, letter: names, ...heldNote };
   if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
 
   // The agenda each letter carries: fetched once per letter for the whole round.
@@ -117,7 +135,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   const trouble = [];
   outer: for (const b of batches) {
     for (const person of b.people) {
-      if (!timeLeft(deadline)) { left = owed.length - sent - failed; break outer; }
+      if (!timeLeft(deadline)) { left = owed.length - waiting - sent - failed; break outer; }
       await pace();
       const mail = renderLetter(b.letter, event, person);
       try {
@@ -136,6 +154,8 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       }
     }
   }
+  // Those held back are still to go: the job stays open until they have had it.
+  left += waiting;
   await putAttendees(event.id, {
     ...stored,
     letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: names } },
@@ -153,7 +173,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       await putEvent(fresh);
     }
   }
-  return { event: event.id, title: event.title, kind, letter: names, sent, failed, left, trouble: trouble.slice(0, 10) };
+  return { event: event.id, title: event.title, kind, letter: names, sent, failed, left, trouble: trouble.slice(0, 10), ...heldNote };
 }
 
 /** Every event, both letters. Called by the nightly job. */
