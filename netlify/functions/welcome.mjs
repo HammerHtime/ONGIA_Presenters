@@ -111,7 +111,7 @@ const problemsOf = (letter, event) => [...new Set([...letterProblems(letter), ..
 async function sampleFor(event, which) {
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
   const all = writeableTo(people);
-  const split = groupsOf(event).group ? splitByGroup(people, all) : { main: all, group: [] };
+  const split = groupsOf(event).group ? splitByGroup(people, all, groupsOf(event).group) : { main: all, group: [] };
   return split[which][0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca" };
 }
 

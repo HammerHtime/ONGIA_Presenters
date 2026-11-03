@@ -91,17 +91,24 @@ export function cleanWelcome(given, had = {}) {
   return out;
 }
 
-/** Who gets which: an address whose every registration came from the second Wix event is the group's. */
-export function splitByGroup(people, owed) {
+/**
+ * Who gets which: an address with a registration in the event's own Wix event gets the main letter; one whose every
+ * registration came from the second Wix event (`group`, the community partners) gets the group's; anyone else, neither.
+ */
+export function splitByGroup(people, owed, group = null) {
   const rows = people.filter((p) => p.status !== "WITHDRAWN");
-  const groupOnly = (email) => rows.filter((p) => p.email === email).every((p) => p.group);
-  return { main: owed.filter((p) => !groupOnly(p.email)), group: owed.filter((p) => groupOnly(p.email)) };
+  const groups = (email) => rows.filter((p) => p.email === email).map((p) => p.group || "");
+  const inMain = (email) => groups(email).some((g) => !g);
+  // Someone only in another linked Wix event with no letter of its own (the Summit's VIRTUAL one, linked 3 Nov 2026) gets
+  // neither, rather than a letter written for partners who are there in person: `none`, until that letter exists.
+  const inGroup = (email) => group === null || groups(email).includes(group);
+  return { main: owed.filter((p) => inMain(p.email)), group: owed.filter((p) => !inMain(p.email) && inGroup(p.email)), none: owed.filter((p) => !inMain(p.email) && !inGroup(p.email)) };
 }
 
 /** How many each version reaches, and how many have had it. */
 export function welcomeReach(event, people = []) {
   const all = writeableTo(people);
-  const split = groupsOf(event).group ? splitByGroup(people, all) : { main: all, group: [] };
+  const split = groupsOf(event).group ? splitByGroup(people, all, groupsOf(event).group) : { main: all, group: [] };
   const had = (list) => list.filter((p) => people.some((q) => q.email === p.email && (q.sent ?? []).includes("welcome"))).length;
   return { main: { reaches: split.main.length, had: had(split.main) }, group: { reaches: split.group.length, had: had(split.group) } };
 }

@@ -75,6 +75,27 @@ await S.putMeta(C.CATCHUP_LOCK, { at: null });
 out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
 ok("the one who registered meanwhile gets it", sent.slice(k).map((m) => m.to).join() === "f@example.ca", JSON.stringify(sent.slice(k)));
 
+console.log("— a linked Wix event with no letter of its own (the Summit's VIRTUAL one, 3 Nov 2026)");
+{
+  const e2 = await S.getEvent("ngs");
+  e2.wixMore = [{ eventId: "w2", title: "Community", group: "Community partners" }, { eventId: "w3", title: "VIRTUAL", group: "Virtual" }];
+  await S.putEvent(e2);
+  const fresh = (await call("")).body;
+  await call("", { method: "PUT", body: { group: { subject: "Welcome, community partners", body: "Hello {first},\n\nYou're with us {dates}." } } });
+  ok("the letter's second version is the community partners'", fresh.versions?.[1]?.label === "Community partners", JSON.stringify(fresh.versions?.map((v) => v.label)));
+  k = sent.length;
+  st = await S.getAttendees("ngs");
+  st.people.push({ ...person("v", "v@example.ca"), group: "Virtual" }, { ...person("cp", "cp@example.ca"), group: "Community partners" });
+  await S.putAttendees("ngs", st);
+  out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
+  const got = sent.slice(k);
+  ok("a community partner gets the community partners' letter", got.some((m) => m.to === "cp@example.ca" && /community partners/i.test(m.subject)), JSON.stringify(got));
+  ok("someone registered only in the VIRTUAL event gets nothing (no in-person letter), until a letter of their own exists", !got.some((m) => m.to === "v@example.ca"), JSON.stringify(got));
+  ok("…and is counted as held back, not lost", out.events?.[0]?.held === 1, JSON.stringify(out.events?.[0]));
+  const card = (await call("")).body;
+  ok("the welcome card no longer counts them among the community partners", card.versions?.[1]?.reaches === 1, JSON.stringify(card.versions?.map((v) => [v.label, v.reaches])));
+}
+
 console.log("— a Wix outage, the event started, emails off");
 k = sent.length;
 st = await S.getAttendees("ngs"); st.people.push(person("g", "g@example.ca")); await S.putAttendees("ngs", st);
@@ -87,7 +108,7 @@ ok("the morning the event starts, it stops: nothing more goes", sent.length === 
 const ev = await S.getEvent("ngs"); ev.attendeeMail = false; await S.putEvent(ev);
 out = await C.catchUpWelcome({ today: "2026-11-06", ...quiet });
 ok("emails to attendees turned off: nothing goes", sent.length === k && (out.events ?? []).length === 0);
-ok("every letter that went was the welcome letter, once to each address", new Set(sent.map((m) => m.to)).size === sent.length && sent.every((m) => m.subject === sent[0].subject));
+ok("every address was sent one welcome letter, never two", new Set(sent.map((m) => m.to)).size === sent.length, JSON.stringify(sent.map((m) => m.to)));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

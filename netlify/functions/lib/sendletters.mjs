@@ -6,7 +6,7 @@ import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeRe
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
-import { welcomeLetters, splitByGroup } from "./welcome.mjs";
+import { welcomeLetters, splitByGroup, groupsOf } from "./welcome.mjs";
 import { primeRoster } from "./signature.mjs";
 
 /** An event whose welcome letter is written on the event itself (the event page's Welcome letter card). */
@@ -92,15 +92,18 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   // with a two-day agenda, and get a different letter from the justice partners there all four days). An address
   // whose every registration came from the second Wix event gets it; anyone also on the first gets the main one.
   const batches = [{ letter, people: owed }];
+  let held = 0;   // registered only through a linked Wix event that has no letter of its own: kept back, and counted
   if (own?.group) {
     const wrong = [...letterProblems(own.group), ...eventProblems(own.group, event)];
     if (wrong.length) return { event: event.id, title: event.title, kind, blocked: wrong.map((w) => `${own.group.name}: ${w}`) };
-    const split = splitByGroup(stored.people ?? [], owed);
+    const split = splitByGroup(stored.people ?? [], owed, groupsOf(event).group);
     batches.splice(0, 1, { letter, people: split.main }, { letter: own.group, people: split.group });
+    held = split.none.length;
   }
   const names = batches.filter((b) => b.people.length).map((b) => b.letter.name).join(" + ") || letter.name;
-  if (dry) return { event: event.id, title: event.title, kind, would: owed.length, letter: names };
-  if (!owed.length) return { event: event.id, title: event.title, kind, sent: 0, skipped: "everyone has had it" };
+  const toSend = batches.reduce((n, b) => n + b.people.length, 0);
+  if (dry) return { event: event.id, title: event.title, kind, would: toSend, letter: names, ...(held ? { held } : {}) };
+  if (!batches.some((b) => b.people.length)) return { event: event.id, title: event.title, kind, sent: 0, skipped: held ? `${held} registered in a Wix event with no letter of its own yet` : "everyone has had it", ...(held ? { held } : {}) };
 
   // The agenda each letter carries: fetched once per letter for the whole round.
   for (const b of batches) {
@@ -117,7 +120,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   const trouble = [];
   outer: for (const b of batches) {
     for (const person of b.people) {
-      if (!timeLeft(deadline)) { left = owed.length - sent - failed; break outer; }
+      if (!timeLeft(deadline)) { left = toSend - sent - failed; break outer; }
       await pace();
       const mail = renderLetter(b.letter, event, person);
       try {
@@ -138,7 +141,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   }
   await putAttendees(event.id, {
     ...stored,
-    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: names } },
+    letterRounds: { ...(stored.letterRounds ?? {}), [kind]: { at: new Date().toISOString(), sent, failed, left, letter: names, ...(held ? { held } : {}) } },
   });
 
   // The checklist job ticks itself once everyone owed has had it. A round with
@@ -153,7 +156,7 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       await putEvent(fresh);
     }
   }
-  return { event: event.id, title: event.title, kind, letter: names, sent, failed, left, trouble: trouble.slice(0, 10) };
+  return { event: event.id, title: event.title, kind, letter: names, sent, failed, left, ...(held ? { held } : {}), trouble: trouble.slice(0, 10) };
 }
 
 /** Every event, both letters. Called by the nightly job. */
