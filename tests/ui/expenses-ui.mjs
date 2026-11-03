@@ -51,6 +51,11 @@ await phone.waitForFunction(() => document.getElementById("f-paidTo")?.value ===
 ok("the boxes fill themselves: vendor, date, total, category, what", (await phone.inputValue("#f-paidTo")) === "Delta Hotels" && (await phone.inputValue("#f-date")) === day(-2) && (await phone.inputValue("#f-amount")) === "$658.12" && (await phone.inputValue("#f-category")) === "8" && (await phone.inputValue("#f-purpose")) === "Hotel, 3 nights");
 ok("each filled box is marked read", (await phone.locator("[data-readmark]").count()) === 5);
 ok("and it shows the green tick: matches the receipt", /Matches the receipt/.test(await phone.textContent("#matchrow")));
+// Andrew, 3 Nov 2026: the receipt viewer. Your own receipt opens in it too, and ✕ brings you back to checking it.
+await phone.click("#pic"); await phone.locator(".viewer").waitFor({ timeout: 5000 });
+ok("tapping your own receipt opens it full screen, in the viewer", /Delta Hotels/.test(await phone.textContent("#vcap")));
+await phone.click("#vclose"); await phone.waitForTimeout(300);
+ok("…and ✕ brings you back to the receipt you were checking", (await phone.locator(".viewer").count()) === 0 && (await phone.inputValue("#f-paidTo")) === "Delta Hotels");
 ok("the photo shows beside it", await phone.locator("#pic img").count() === 1);
 await phone.selectOption("#f-event", ev.id);
 await phone.fill("#f-purpose", "Hotel for the Summit");
