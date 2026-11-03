@@ -27,6 +27,12 @@ export const CATEGORIES = [
 ];
 export const categoryName = (n) => CATEGORIES.find(([k]) => k === Number(n))?.[1] ?? "";
 export const TRAVEL = 8;
+/**
+ * A speaker stipend is paid by ONGIA, not spent by the member: there is no receipt, card charge or reason to show
+ * (Andrew, 3 Nov 2026: "Any receipt line for stipend, does not need a reason nor an upload or screenshot").
+ */
+export const STIPEND = 10;
+export const isStipend = (l) => Number(l?.category) === STIPEND;
 
 /** Dollars per kilometre. EXPENSE_MILEAGE_RATE replaces it if the board changes the rate. */
 export function mileageRate() {
@@ -167,6 +173,7 @@ export function viewLine(line, read) {
  */
 export function receiptCheck(line, read) {
   if (line.kind === "mileage") return { state: "mileage" };
+  if (line.kind === "noreceipt" && isStipend(line)) return { state: "stipend" };
   if (line.kind === "noreceipt") return { state: line.shot && String(line.statement ?? "").trim().length >= MIN_REASON ? "statement" : "statement-missing" };
   if (!line.file) return { state: "nofile" };
   if (!read || read.state === "reading") return { state: "reading" };
@@ -200,7 +207,7 @@ export function lineProblems(v) {
   } else if (!(v.amount > 0)) p.push("the amount");
   if (!v.category) p.push("a category");
   if (!v.purpose && !v.eventId) p.push("what it was for");
-  if (v.kind === "noreceipt") {
+  if (v.kind === "noreceipt" && !isStipend(v)) {
     if (String(v.statement ?? "").trim().length < MIN_REASON) p.push("a reason there's no receipt");
     if (!v.shot) p.push("a screenshot of the card statement");
   }
@@ -476,7 +483,7 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
   // A card statement isn't read, so a no-receipt line's amount is unconfirmed: flagged for the approvers to look at, never
   // a reason to refuse the claim (Andrew, 3 Nov 2026: "don't reject it ... flag it as unverified amount"). Without this the
   // check said "everything checks out" though no one had compared the amount.
-  for (const l of lines) if (l.kind === "noreceipt") notes.push(`${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`);
+  for (const l of lines) if (l.kind === "noreceipt" && !isStipend(l)) notes.push(`${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`);
   for (const l of lines) if (earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
   const [mName, mYear] = String(month).split(" ");
   const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
@@ -485,13 +492,15 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
     const start = Date.parse(`${mYear}-${String(mIdx + 1).padStart(2, "0")}-01`);
     for (const l of lines) if (l.date && Date.parse(l.date) < start - 62 * 86400e3) notes.push(`${l.paidTo || "A line"} is dated ${shortDate(l.date)} ${l.date.slice(0, 4)}, more than two months before ${month}.`);
   }
-  const noRec = lines.filter((l) => l.kind === "noreceipt");
+  const noRec = lines.filter((l) => l.kind === "noreceipt" && !isStipend(l));
+  const stipends = lines.filter((l) => l.kind === "noreceipt" && isStipend(l));
   const miles = lines.filter((l) => l.kind === "mileage");
   const rate = miles[0]?.rate ?? mileageRate();
   const summary = [
     receipts.length ? (matched === receipts.length ? (receipts.length === 1 ? "The receipt matches what's claimed" : `All ${receipts.length} receipts match what's claimed`) : `${matched} of ${receipts.length} receipts match what's claimed`) : "",
     miles.length ? `Mileage is at ${dollars(rate)} a kilometre` : "",
     noRec.length ? (noRec.length === 1 ? "The line with no receipt has a reason and the card statement" : `The ${noRec.length} lines with no receipt each have a reason and the card statement`) : "",
+    stipends.length ? (stipends.length === 1 ? "The speaker stipend needs no receipt" : `The ${stipends.length} speaker stipends need no receipt`) : "",
   ].filter(Boolean);
   return { ok: notes.length === 0, notes, summary };
 }

@@ -191,6 +191,11 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const money = (n) => (Number(n) || 0).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
 // The year shows when it isn't this year, so a receipt dated January 2023 doesn't read as this January.
+// A speaker stipend is paid by ONGIA: no receipt, reason or card statement (Andrew, 3 Nov 2026). Category 10, as on the server.
+const STIPEND = 10;
+const stipendLine = (l) => Number(l?.category) === STIPEND;
+const NR_INTRO = ["For something you paid for without getting a receipt. Say why, and add a screenshot of the charge on your card statement. A speaker stipend needs neither: pick Speaker Stipend as the category.",
+  "A speaker stipend needs no receipt, no reason and no card statement. Fill in who it was paid to, the amount and the event."];
 const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) }); };
 // "12,50" is twelve fifty; "1,250.00" is twelve hundred and fifty.
 const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); return Number(/^\d+,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "")); };
@@ -532,6 +537,7 @@ function checkRow(l) {
     case "nototal": return `<div class="check wt">No total on the receipt. Type the amount.</div>`;
     case "mileage": return `<div class="check mu">${esc(l.km ?? 0)} km × ${money(l.rate)}</div>`;
     case "statement": return `<div class="check mu">No receipt: reason and card statement added</div>`;
+    case "stipend": return `<div class="check mu">Speaker stipend: no receipt needed</div>`;
     case "statement-missing": return "";
     default: return "";
   }
@@ -670,7 +676,7 @@ function editorScreen() {
   ROOT.innerHTML = `
     ${k === "receipt" ? `<div class="preview"><button class="pic" id="pic" type="button" aria-label="See the whole receipt">${isPdf ? ICON.pdf : ICON.receipt}</button><div id="readsay">${readSay}</div></div>` : ""}
     ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">Kilometres you drove your own car for ONGIA, paid to you at ${money(HOME.rate)} a kilometre.</p>` : ""}
-    ${k === "noreceipt" ? `<p class="note" style="margin:0 0 12px">For something you paid for without getting a receipt. Say why, and add a screenshot of the charge on your card statement.</p>` : ""}
+    ${k === "noreceipt" ? `<p class="note" id="nrintro" style="margin:0 0 12px">${NR_INTRO[stipendLine(l) ? 1 : 0]}</p>` : ""}
     <div id="sayslot"></div>
     ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
     <div class="two">
@@ -686,8 +692,8 @@ function editorScreen() {
     <div class="field"><label for="f-category"><span>Category</span>${readMark(l, "category")}</label><select id="f-category">${catOptions(l.category ?? (k === "mileage" ? 8 : ""))}</select></div>
     <div class="field"><label for="f-event">For which event?</label><select id="f-event">${eventOptions(l.eventId ?? "", l.eventTitle)}</select></div>
     <div class="field"><label for="f-purpose"><span>What it was for</span>${readMark(l, "purpose")}</label><input id="f-purpose" autocomplete="off" value="${esc(l.purpose ?? "")}" placeholder="${k === "mileage" ? "Drive to the training" : "Hotel for the presenters"}"></div>
-    ${k === "noreceipt" ? `<div class="field"><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
-      <div class="field"><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
+    ${k === "noreceipt" ? `<div class="field" id="nrwhy"${stipendLine(l) ? " hidden" : ""}><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
+      <div class="field" id="nrshot"${stipendLine(l) ? " hidden" : ""}><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
     <button class="btn gold" id="save" type="button" style="margin-top:6px">${EDIT.lineId ? "Save" : "Add to my claim"}</button>
     <p class="tiny" style="text-align:center;margin:8px 0 0">Saved as you go. Nothing is sent until you submit.</p>
     ${EDIT.lineId ? `<button class="btn danger" id="remove" type="button" style="margin-top:14px">Remove this line</button>` : ""}`;
@@ -702,7 +708,14 @@ function editorScreen() {
   if ($("again")) $("again").onclick = readAgain;
   // Your own receipt opens in the viewer too, once it has reached the claim (a photo still on the phone opens as before).
   if ($("pic")) { $("pic").onclick = () => (HOME?.current?.lines?.some((x) => x.id === EDIT?.lineId && x.file) ? openViewer(HOME.current, EDIT.lineId) : showWhole()); showPic(); }
-  if (k === "noreceipt") drawShot();
+  if (k === "noreceipt") {
+    drawShot();
+    // A speaker stipend needs no reason and no card statement: picking it puts those two away (Andrew, 3 Nov 2026).
+    $("f-category").addEventListener("change", () => {
+      const st = stipendLine({ category: $("f-category").value });
+      $("nrwhy").hidden = st; $("nrshot").hidden = st; $("nrintro").textContent = NR_INTRO[st ? 1 : 0];
+    });
+  }
   liveChecks();
 }
 function liveChecks() {
@@ -1062,7 +1075,8 @@ async function lineSheet(c, l) {
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("What it was for", l.purpose)}</div>
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
-    ${l.kind === "noreceipt" ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
+    ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Speaker stipend: no receipt needed</div></div>` : ""}
+    ${l.kind === "noreceipt" && !stipendLine(l) ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
       <div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
   document.body.append(el);
   history.pushState({ sheet: true }, "");

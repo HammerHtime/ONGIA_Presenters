@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { isStipend } from "./expenses.mjs";
 
 /**
  * A claim as a PDF, to sit beside the Excel in the member's folder: the same facts as the template (who, when, the
@@ -79,7 +80,7 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
   head();
   let sum = 0;
   lines.forEach((l, i) => {
-    const purpose = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "", l.kind === "mileage" ? `${l.km} km × ${money(l.rate)}${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "", l.kind === "noreceipt" ? "No receipt: reason and card statement attached" : ""].filter(Boolean).join(" · ");
+    const purpose = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "", l.kind === "mileage" ? `${l.km} km × ${money(l.rate)}${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "", l.kind === "noreceipt" ? (isStipend(l) ? "Speaker stipend: no receipt needed" : "No receipt: reason and card statement attached") : ""].filter(Boolean).join(" · ");
     doc.font("Helvetica").fontSize(8.5);
     const rh = Math.max(22, doc.heightOfString(purpose, { width: cols[7][1] * scale - 8 }) + 10, doc.heightOfString(l.paidTo ?? "", { width: cols[1][1] * scale - 8 }) + 10);
     if (y + rh > H - M - 40) { footer(); doc.addPage(); band("ONGIA Expense Reimbursement Submission (continued)"); y = 72; head(); }
