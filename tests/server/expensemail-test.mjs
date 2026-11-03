@@ -51,7 +51,7 @@ ok("subject: Expense claim for John Healy", ask.every((x) => x.subject === "Expe
 ok("a reply goes to John, not to the sending address", ask.every((x) => x.replyTo === "j.healy@ongia.ca"));
 const a = ask[0]?.text ?? "";
 ok("John Healy has submitted an expense claim for the following: each item on its own line with its amount, oldest first, and the total", /John Healy has submitted an expense claim for the following:\n\nMileage: Barrie to Toronto   \$62\.00\nSpeaker Stipend   \$250\.00\nGreen P   \$18\.00   \?\nTotal   \$330\.00/.test(a), a);
-ok("…mileage and the stipend have no receipt to check, so no mark; the card statement's amount isn't confirmed: ? in amber, with a key", /<td[^>]*>\?<\/td>|>\?<\/span>/.test(ask[0].html) && /#8a5d0c/.test(ask[0].html) && /\? not confirmed/.test(a) && !/#a33328|#2f6b4f/.test(ask[0].html));
+ok("…mileage and the stipend have no receipt to check, so no mark; the card statement's amount isn't confirmed: ? in amber, with a key", /<td[^>]*>\?<\/td>|>\?<\/span>/.test(ask[0].html) && /#8a5d0c/.test(ask[0].html) && /\? couldn't be verified/.test(a) && !/#a33328|#2f6b4f/.test(ask[0].html));
 ok("Waiting on approval from President Andrew Hammond and Treasurer Raj Jaswal", /Waiting on approval from President Andrew Hammond and Treasurer Raj Jaswal\./.test(a), a);
 ok("Review, straight to the claim", new RegExp(`Review: https://events\\.example\\.org/expenses#claim=${C}`).test(a) && />Review</.test(ask[0].html));
 ok("the claim keeps that both went", (await S.getClaim(C)).mail.filter((x) => x.what === "to approve" && x.ok).length === 2);
@@ -65,7 +65,7 @@ console.log("— the marks beside each amount (Andrew, 3 Nov 2026: a green check
   ok("the same number but in US dollars, a card statement, an unread receipt: ? (not confirmed, never a red x)", ["open", "open", "open"].join() === [M.markOf(L("Delta", 100, { state: "match", total: 100, currency: "USD" })), M.markOf({ kind: "noreceipt", amount: 9, check: { state: "statement" } }), M.markOf(L("Esso", 52, { state: "unread" }))].join());
   ok("mileage and a stipend: no mark", M.markOf({ kind: "mileage", check: { state: "mileage" } }) === "" && M.markOf({ kind: "noreceipt", check: { state: "stipend" } }) === "");
   const e = M.needsApprovalMail({ claim: { id: "m-1", owner: { name: "John Healy" }, month: "November 2026", total: 77 }, lines: [L("Esso", 52, { state: "match", total: 52 }), L("Staples", 25, { state: "differs", total: 52 })], waitingOn: ["President Andrew Hammond"] });
-  ok("in the email: ✓ in green beside the match, ✗ in red beside the other, and a key saying what each means", /Esso   \$52\.00   ✓\uFE0E\nStaples   \$25\.00   ✗\uFE0E\nTotal   \$77\.00/.test(e.text) && /background:#2f6b4f;color:#ffffff[^>]*>✓/.test(e.html) && /background:#a33328;color:#ffffff[^>]*>✗/.test(e.html) && /matches the receipt/.test(e.text) && /doesn't match/.test(e.text) && !/not confirmed/.test(e.text), e.text);
+  ok("in the email: ✓ in green beside the match, ✗ in red beside the other, and a key saying what each means", /Esso   \$52\.00   ✓\uFE0E\nStaples   \$25\.00   ✗\uFE0E\nTotal   \$77\.00/.test(e.text) && /background:#2f6b4f;color:#ffffff[^>]*>✓/.test(e.html) && /background:#a33328;color:#ffffff[^>]*>✗/.test(e.html) && /Claude verified the amount against the receipt/.test(e.text) && /doesn't match the receipt/.test(e.text) && !/couldn't be verified/.test(e.text), e.text);
 }
 
 console.log("— the first approval: no email");

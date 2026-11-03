@@ -42,7 +42,8 @@ const CELL = "padding:7px 0;border-bottom:1px solid #e6e1d5;vertical-align:middl
 // an amount, so it gets an amber "?", as the app flags it, not a red x. Mileage and a stipend have no receipt: no mark.
 // Each is a small filled circle, white on green, red or amber, big enough to read at a glance on a phone; U+FE0E keeps
 // a phone from drawing ✓ and ✗ as emoji.
-const MARKS = { ok: ["\u2713\uFE0E", "#2f6b4f", "matches the receipt"], bad: ["\u2717\uFE0E", "#a33328", "doesn't match"], open: ["?", "#8a5d0c", "not confirmed"] };
+// The key's words are Andrew's: "amount verified against receipt" (3 Nov 2026).
+const MARKS = { ok: ["\u2713\uFE0E", "#2f6b4f", "Claude verified the amount against the receipt"], bad: ["\u2717\uFE0E", "#a33328", "doesn't match the receipt"], open: ["?", "#8a5d0c", "couldn't be verified"] };
 export const markOf = (l) => {
   const st = l.check?.state;
   if (!st || st === "mileage" || st === "stipend") return "";
@@ -60,7 +61,9 @@ function itemsTable(lines, total) {
   const table = `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px;line-height:1.35;margin:0 0 16px">${rows.join("")}</table>`;
   // What the marks mean, only those that show.
   const used = Object.keys(MARKS).filter((m) => sorted.slice(0, ITEMS_SHOWN).some((l) => markOf(l) === m));
-  const key = used.map((m) => `<span style="white-space:nowrap">${badge(m)}&nbsp;${MARKS[m][2]}</span>`).join(" &nbsp; ");
+  // One to a line: "Claude verified the amount against the receipt" is wider than the narrowest phone, so it may wrap,
+  // its circle kept with its first word.
+  const key = used.map((m) => `${badge(m)}&nbsp;${MARKS[m][2].replace(" ", "&nbsp;")}`).join("<br>");
   return [table, key ? `<span style="font-size:13px;color:#767f92">${key}</span>` : ""];
 }
 
