@@ -150,6 +150,20 @@
   .btn.small{width:auto;min-height:44px;padding:8px 18px;font-size:15px;flex:none}
   .say .acts{display:flex;align-items:center;gap:6px;margin-top:10px}.say .acts .linkish{margin:0}
   .sheet{position:fixed;inset:0;background:var(--paper);z-index:20;overflow:auto;padding-bottom:30px}
+  /* The receipt viewer: full screen, the receipt alone zooms (Andrew, 3 Nov 2026). */
+  .viewer{position:fixed;inset:0;z-index:40;background:#0b1222;color:#fff;display:flex;flex-direction:column;touch-action:none;overscroll-behavior:contain}
+  .viewer .vtop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(8px + var(--safe-top)) 12px 6px 16px;font-size:15px;font-weight:600}
+  .viewer .vclose{width:46px;height:46px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font-size:20px;line-height:1;cursor:pointer;flex:none}
+  .viewer .vstage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none}
+  .viewer .vimg{max-width:calc(100% - 16px);max-height:calc(100% - 8px);transform-origin:center center;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none;border-radius:4px;background:#fff}
+  .viewer .vimg.settle{transition:transform .18s ease-out}
+  .viewer .vmsg{color:#c9d3e6;font-size:15px;text-align:center;padding:20px}
+  .viewer .vpdf{background:#fff;color:var(--ink);border-radius:12px;padding:22px;text-align:center;max-width:280px}
+  .viewer .vnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:30px;cursor:pointer}
+  .viewer .vnav[hidden]{display:none}.viewer .vprev{left:8px}.viewer .vnext{right:8px}
+  .viewer .vcap{padding:10px 16px calc(12px + var(--safe-bottom));text-align:center;font-size:15px;line-height:1.4}
+  .viewer .vcap .flag{color:#f2c46d;font-weight:600}.viewer .vcap .tiny{color:#9fb0cc;margin-top:4px}
+  .zoomin{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
   .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}.kv:first-child{border-top:0}.kv .k2{color:var(--muted);flex:none}
   .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
   .preview-rows{margin:4px 0 12px;padding:0;list-style:none}.preview-rows li{font-size:14px;padding:5px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}.preview-rows li:first-child{border-top:0}
@@ -344,7 +358,7 @@ document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.c
   document.body.append(pill);
   // Nor while anything has been typed on the screen: a reason for sending a claim back, a payment reference, away dates.
   const typed = () => [...ROOT.querySelectorAll("input, textarea")].some((x) => !/^(hidden|checkbox|radio|file|button|submit)$/.test(x.type) && x.value !== x.defaultValue);
-  const can = () => !EDIT && !document.querySelector(".sheet") && $("menu").hidden && window.scrollY <= 0 && !typed();
+  const can = () => !EDIT && !document.querySelector(".sheet, .viewer") && $("menu").hidden && window.scrollY <= 0 && !typed();
   let y0 = null, pulled = 0;
   const hide = () => { pill.classList.add("fading"); pill.classList.remove("on"); pill.style.transform = ""; };
   addEventListener("touchstart", (e) => { y0 = e.touches.length === 1 && can() ? e.touches[0].clientY : null; pulled = 0; }, { passive: true });
@@ -366,6 +380,7 @@ document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.c
 })();
 $("back").onclick = () => history.back();
 window.addEventListener("popstate", () => {
+  if (document.querySelector(".viewer")) { document.querySelector(".viewer").remove(); return; }
   if (document.querySelector(".sheet")) { document.querySelector(".sheet").remove(); return; }
   if (EDIT) leaveEditor(); else { VIEW = { name: TAB }; OPEN = null; render(); }
 });
@@ -685,7 +700,8 @@ function editorScreen() {
   $("save").onclick = () => saveLine({ leave: true });
   if ($("remove")) $("remove").onclick = removeLine;
   if ($("again")) $("again").onclick = readAgain;
-  if ($("pic")) { $("pic").onclick = showWhole; showPic(); }
+  // Your own receipt opens in the viewer too, once it has reached the claim (a photo still on the phone opens as before).
+  if ($("pic")) { $("pic").onclick = () => (HOME?.current?.lines?.some((x) => x.id === EDIT?.lineId && x.file) ? openViewer(HOME.current, EDIT.lineId) : showWhole()); showPic(); }
   if (k === "noreceipt") drawShot();
   liveChecks();
 }
@@ -794,6 +810,7 @@ async function drawShot() {
   // this did) meant the tap did nothing but make the line (Andrew, 3 Nov 2026: two lines, one never got its screenshot).
   // The line is saved once a picture has been chosen, below.
   $("shotadd").onclick = () => $("shotpick").click();
+  if ($("shotthumb")) { const t = $("shotthumb"); t.setAttribute("role", "button"); t.tabIndex = 0; t.setAttribute("aria-label", "Look closer at the card statement"); t.style.cursor = "zoom-in"; t.onclick = () => openViewer(HOME.current, EDIT.lineId); }
   if (l?.shot && !/pdf/.test(l.shot.type)) { const f = await fullFile("shot"); if (f && $("shotthumb")) $("shotthumb").innerHTML = `<img src="${f.url}" alt="">`; }
 }
 $("shotpick").onchange = async (e) => {
@@ -852,6 +869,9 @@ function viewScreen() {
   if (c.status === "rejected" && c.rejected) h += `<div class="sentback"><b>Sent back by ${esc(c.rejected.by?.name)}${c.rejected.for ? ` for the ${esc(c.rejected.for)}` : ""} · ${esc(when(c.rejected.at))}</b><div class="note quote">"${esc(c.rejected.comment)}"</div></div>`;
   if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · e-transfer <b>${esc(c.paid.ref)}</b>. Locked.</div></div>`;
   if (c.status !== "draft") h += checksBox(c);
+  // Every receipt and card statement on the claim, one after another, zoomable: what an approver checks before Approve.
+  const pics = viewItems(c).length;
+  if (pics) h += `<button class="btn ghost" id="seepics" type="button" style="margin:0 0 14px">${ICON.receipt}<span>${pics === 1 ? "See the receipt" : `See the receipts (${pics})`}</span></button>`;
   if (myDone && c.status !== "rejected") h += `<div class="stamp">${ICON.tick}<div>Approved by you${myDone.for ? `, for the ${esc(myDone.for)}` : `, ${esc(myDone.title)}`}<br><span>${esc(when(myDone.at))}</span></div></div>`;
   if (c.can.decide) h += `<div class="bigbtns"><button class="btn green" id="approve" type="button">${ICON.tick}<span>Approve</span></button><button class="btn red" id="reject" type="button">✕<span>Send back</span></button></div>
     <div id="rejectbox" hidden><div class="field"><label for="why" style="color:var(--late);font-weight:600">Why are you sending it back? (needed)</label><textarea id="why" placeholder="What needs changing, so ${esc(first)} can fix it."></textarea></div>
@@ -880,6 +900,7 @@ function viewScreen() {
   if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
   ROOT.innerHTML = h;
   ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
+  if ($("seepics")) $("seepics").onclick = () => openViewer(c, viewItems(c)[0]?.l.id);
   fillThumbs();
   const act = async (btn, path, body, done) => {
     btn.disabled = true;
@@ -913,6 +934,123 @@ function filedCard(c) {
     ${f.folderUrl ? `<a class="linkish" href="${esc(f.folderUrl)}" target="_blank" rel="noopener" style="margin:6px 0 0;padding:0;display:inline-block">Open the folder</a>` : ""}${c.can.refile ? ` · ${again}` : ""}</div>`;
 }
 /** One line of a sent claim, read-only: the receipt itself and what was claimed. */
+/*
+ * The receipt viewer (Andrew, 3 Nov 2026: "click on the image and a little pop-up opens with the actual receipt that I
+ * could zoom in and look at the amount, then go back to the app and click ... approved"). Full screen: a pinch or a
+ * double tap zooms the receipt alone, a drag moves it about once zoomed, a swipe goes to the claim's next or last
+ * receipt, and ✕, the phone's back gesture or Escape closes it.
+ */
+async function fileUrl(claimId, lineId, kind) {
+  const key = `${claimId}:${lineId}:${kind}`;
+  if (FULL.has(key)) return FULL.get(key);
+  const r = await fetch(`/api/expenses?claim=${encodeURIComponent(claimId)}&file=${encodeURIComponent(lineId)}${kind === "shot" ? "&kind=shot" : ""}`, { headers: { "x-expense-key": SESSION } });
+  if (!r.ok) return null;
+  const b = await r.blob(); const out = { url: URL.createObjectURL(b), type: b.type };
+  FULL.set(key, out); return out;
+}
+const viewItems = (c) => (c?.lines ?? []).filter((l) => (l.kind === "receipt" && l.file) || (l.kind === "noreceipt" && l.shot)).map((l) => ({ l, kind: l.kind === "noreceipt" ? "shot" : "file" }));
+function openViewer(c, lineId) {
+  const items = viewItems(c);
+  if (!items.length) return;
+  let i = Math.max(0, items.findIndex((x) => x.l.id === lineId));
+  let s = 1, x = 0, y = 0;
+  const el = document.createElement("div");
+  el.className = "viewer"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "Receipt");
+  el.innerHTML = `<div class="vtop"><span id="vcount"></span><button class="vclose" id="vclose" type="button" aria-label="Close">✕</button></div>
+    <div class="vstage" id="vstage"></div>
+    <button class="vnav vprev" id="vprev" type="button" aria-label="The receipt before">‹</button><button class="vnav vnext" id="vnext" type="button" aria-label="The next receipt">›</button>
+    <div class="vcap" id="vcap"></div>`;
+  document.body.append(el);
+  history.pushState({ viewer: true }, "");
+  const stage = el.querySelector("#vstage");
+  let img = null;
+  const apply = (settle = false) => { if (!img) return; img.classList.toggle("settle", settle); img.style.transform = `translate(${x}px, ${y}px) scale(${s})`; };
+  const clamp = () => {
+    if (!img || s <= 1.01) { s = 1; x = 0; y = 0; return; }
+    const r = stage.getBoundingClientRect();
+    const mx = Math.max(0, (img.offsetWidth * s - r.width) / 2), my = Math.max(0, (img.offsetHeight * s - r.height) / 2);
+    x = Math.min(mx, Math.max(-mx, x)); y = Math.min(my, Math.max(-my, y));
+  };
+  const show = async () => {
+    const it = items[i];
+    s = 1; x = 0; y = 0; img = null;
+    el.querySelector("#vcount").textContent = items.length > 1 ? `${i + 1} of ${items.length}` : "";
+    el.querySelector("#vprev").hidden = i === 0; el.querySelector("#vnext").hidden = i === items.length - 1;
+    const l = it.l;
+    el.querySelector("#vcap").innerHTML = `<b>${esc(l.paidTo || "Receipt")}</b> · ${esc(money(l.amount ?? 0))}${l.date ? ` · ${esc(longDate(l.date))}` : ""}
+      ${it.kind === "shot" ? `<div class="flag">Card statement · amount not confirmed</div>` : ""}
+      <div class="tiny">Pinch or double-tap to zoom${items.length > 1 ? " · swipe for the next" : ""}</div>`;
+    stage.innerHTML = `<div class="vmsg">Loading…</div>`;
+    const f = await fileUrl(c.id, l.id, it.kind);
+    if (items[i] !== it || !el.isConnected) return;
+    if (!f) { stage.innerHTML = `<div class="vmsg">Couldn't load it. Check the signal and try again.</div>`; return; }
+    if (/pdf/.test(f.type)) { stage.innerHTML = `<div class="vpdf"><div style="font-weight:700;margin-bottom:10px">A PDF</div><a class="btn navy" href="${f.url}" target="_blank" rel="noopener">Open the PDF</a></div>`; return; }
+    stage.innerHTML = `<img class="vimg" id="vimg" alt="${it.kind === "shot" ? "The card statement" : "The receipt"} from ${esc(l.paidTo || "this line")}" draggable="false">`;
+    img = stage.querySelector("#vimg"); img.src = f.url; apply();
+    for (const n of [items[i + 1], items[i - 1]]) if (n) fileUrl(c.id, n.l.id, n.kind);   // the next ones are ready when swiped to
+  };
+  const go = (d) => { const j = i + d; if (j < 0 || j >= items.length) { apply(true); return; } i = j; show(); };
+  const close = () => history.back();
+  el.querySelector("#vclose").onclick = close;
+  el.querySelector("#vprev").onclick = () => go(-1);
+  el.querySelector("#vnext").onclick = () => go(1);
+  const onKey = (e) => { if (!el.isConnected) return removeEventListener("keydown", onKey); if (e.key === "Escape") close(); else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1); };
+  addEventListener("keydown", onKey);
+
+  // Touch, mouse and pen alike, through pointer events: two fingers pinch, one drags (zoomed) or swipes (not zoomed).
+  const pts = new Map();
+  let pinch = null, drag = null, lastTap = 0;
+  const mid = () => { const [a, b] = [...pts.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) }; };
+  const fromCentre = (p) => { const r = stage.getBoundingClientRect(); return { x: p.x - (r.left + r.width / 2), y: p.y - (r.top + r.height / 2) }; };
+  stage.addEventListener("pointerdown", (e) => {
+    if (!img) return;
+    stage.setPointerCapture?.(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { const m = mid(); const c0 = fromCentre(m); pinch = { d: m.d || 1, s, qx: (c0.x - x) / s, qy: (c0.y - y) / s }; drag = null; }
+    else if (pts.size === 1) drag = { sx: e.clientX, sy: e.clientY, x, y };
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId) || !img) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) {
+      const m = mid(), c1 = fromCentre(m);
+      s = Math.min(6, Math.max(1, pinch.s * m.d / pinch.d));
+      x = c1.x - pinch.qx * s; y = c1.y - pinch.qy * s;   // the point between the fingers stays under them
+      apply();
+    } else if (drag) {
+      const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (s > 1) { x = drag.x + dx; y = drag.y + dy; clamp(); apply(); }
+      else if (items.length > 1) { img.classList.remove("settle"); img.style.transform = `translateX(${dx}px)`; }
+    }
+  });
+  const up = (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pinch) {
+      if (pts.size < 2) { pinch = null; clamp(); apply(true); if (pts.size === 1) { const p = [...pts.values()][0]; drag = { sx: p.x, sy: p.y, x, y }; } }
+      return;
+    }
+    if (!drag || pts.size) return;
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    drag = null;
+    if (s === 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.2) { go(dx < 0 ? 1 : -1); return; }
+    if (Math.hypot(dx, dy) < 10) {
+      const now = Date.now();
+      if (now - lastTap < 320) {
+        lastTap = 0;
+        if (s > 1) { s = 1; x = 0; y = 0; }
+        else { const p = fromCentre({ x: e.clientX, y: e.clientY }); s = 2.5; x = p.x * (1 - s); y = p.y * (1 - s); clamp(); }
+        apply(true); return;
+      }
+      lastTap = now;
+    }
+    if (s === 1) { x = 0; y = 0; apply(true); }
+  };
+  stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+  show();
+  el.querySelector("#vclose").focus({ preventScroll: true });
+}
+
 async function lineSheet(c, l) {
   if (!l) return;
   const cat = HOME?.categories?.find((x) => x.n === Number(l.category));
@@ -935,7 +1073,9 @@ async function lineSheet(c, l) {
     const r = await fetch(`/api/expenses?claim=${encodeURIComponent(c.id)}&file=${encodeURIComponent(l.id)}${kind === "shot" ? "&kind=shot" : ""}`, { headers: { "x-expense-key": SESSION } });
     if (!r.ok) throw new Error();
     const b = await r.blob(); const u = URL.createObjectURL(b);
-    el.querySelector("#sheetpic").innerHTML = /pdf/.test(b.type) ? `<a class="btn ghost" href="${u}" target="_blank" rel="noopener">Open the PDF</a>` : `<img src="${u}" alt="The ${kind === "shot" ? "card statement" : "receipt"}" style="max-width:100%;border-radius:8px">${kind === "shot" ? `<div class="tiny" style="margin-top:6px">The card statement</div>` : ""}`;
+    FULL.set(`${c.id}:${l.id}:${kind}`, { url: u, type: b.type });
+    el.querySelector("#sheetpic").innerHTML = /pdf/.test(b.type) ? `<a class="btn ghost" href="${u}" target="_blank" rel="noopener">Open the PDF</a>` : `<button class="zoomin" id="zoomin" type="button" aria-label="Look closer at the ${kind === "shot" ? "card statement" : "receipt"}"><img src="${u}" alt="The ${kind === "shot" ? "card statement" : "receipt"}" style="max-width:100%;border-radius:8px"></button><div class="tiny" style="margin-top:6px">${kind === "shot" ? "The card statement. " : ""}Tap it to zoom in.</div>`;
+    const z = el.querySelector("#zoomin"); if (z) z.onclick = () => openViewer(c, l.id);
   } catch { el.querySelector("#sheetpic").innerHTML = `<div class="note">Couldn't load the picture.</div>`; }
 }
 
