@@ -48,7 +48,7 @@ await phone.waitForSelector("#readsay .spin", { timeout: 8000 });
 ok("the check screen opens at once, Claude reading it", (await phone.textContent("#title")) === "Check the receipt" && /Claude is reading your receipt/.test(await phone.textContent("#readsay")));
 await phone.screenshot({ path: D + "exp-reading-phone.png" });
 await phone.waitForFunction(() => document.getElementById("f-paidTo")?.value === "Delta Hotels", null, { timeout: 15000 });
-ok("the boxes fill themselves: vendor, date, total, category, what", (await phone.inputValue("#f-paidTo")) === "Delta Hotels" && (await phone.inputValue("#f-date")) === day(-2) && (await phone.inputValue("#f-amount")) === "658.12" && (await phone.inputValue("#f-category")) === "8" && (await phone.inputValue("#f-purpose")) === "Hotel, 3 nights");
+ok("the boxes fill themselves: vendor, date, total, category, what", (await phone.inputValue("#f-paidTo")) === "Delta Hotels" && (await phone.inputValue("#f-date")) === day(-2) && (await phone.inputValue("#f-amount")) === "$658.12" && (await phone.inputValue("#f-category")) === "8" && (await phone.inputValue("#f-purpose")) === "Hotel, 3 nights");
 ok("each filled box is marked read", (await phone.locator("[data-readmark]").count()) === 5);
 ok("and it shows the green tick: matches the receipt", /Matches the receipt/.test(await phone.textContent("#matchrow")));
 ok("the photo shows beside it", await phone.locator("#pic img").count() === 1);
@@ -69,12 +69,17 @@ await mock({ isReceipt: true, vendor: "Staples", date: day(-1), total: 112.06, t
 await phone.click("#addpick").catch(() => {});
 await phone.locator("#pick").setInputFiles(D + "receipt1.jpg");
 await phone.waitForSelector("#f-amount", { timeout: 8000 });
-await phone.fill("#f-amount", "100");
+await phone.locator("#f-amount").pressSequentially("10000");   // typed as on a till: $100.00
 await phone.waitForFunction(() => document.getElementById("f-paidTo")?.value === "Staples", null, { timeout: 15000 });
-ok("the amount they typed stays; the rest fills in round it", (await phone.inputValue("#f-amount")) === "100" && (await phone.inputValue("#f-date")) === day(-1));
+ok("the amount they typed stays; the rest fills in round it", (await phone.inputValue("#f-amount")) === "$100.00" && (await phone.inputValue("#f-date")) === day(-1));
 ok("and it says what the receipt shows instead of a tick", /The receipt says \$112\.06/.test(await phone.textContent("#matchrow")));
-await phone.fill("#f-amount", "112,06");
-ok("typed as 112,06 it is $112.06, and the tick comes back", /Matches the receipt/.test(await phone.textContent("#matchrow")));
+// Andrew, 3 Nov 2026: no decimal to type. Backspace takes digits off the end; the digits fill in from the cents.
+for (let i = 0; i < 5; i++) await phone.locator("#f-amount").press("Backspace");
+ok("backspace takes it back down to nothing", (await phone.inputValue("#f-amount")) === "");
+await phone.locator("#f-amount").pressSequentially("11206");
+ok("typed 1 1 2 0 6, with no decimal, it shows $112.06", (await phone.inputValue("#f-amount")) === "$112.06", await phone.inputValue("#f-amount"));
+ok("…and the tick comes back", /Matches the receipt/.test(await phone.textContent("#matchrow")));
+ok("the phone shows its number pad for it", (await phone.getAttribute("#f-amount", "inputmode")) === "numeric");
 await phone.click("#save"); await phone.waitForSelector("#running");
 ok("the running total: $770.18", (await total(phone)) === "$770.18");
 
@@ -98,7 +103,7 @@ await phone.goBack(); await phone.waitForSelector("#running");
 
 console.log("— no receipt");
 await phone.click("#addnone");
-await phone.fill("#f-paidTo", "Green P parking"); await phone.fill("#f-date", day(-1)); await phone.fill("#f-amount", "18");
+await phone.fill("#f-paidTo", "Green P parking"); await phone.fill("#f-date", day(-1)); await phone.locator("#f-amount").pressSequentially("1800");
 await phone.selectOption("#f-category", "8"); await phone.fill("#f-purpose", "Parking at the venue");
 await phone.fill("#f-statement", "The machine didn't print a receipt. The charge is on my Visa.");
 await phone.click("#shotadd");

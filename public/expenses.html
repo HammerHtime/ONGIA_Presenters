@@ -36,6 +36,9 @@
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;-webkit-text-size-adjust:100%}
   body{min-height:100vh;padding-bottom:calc(64px + var(--safe-bottom))}
+  html{overscroll-behavior-y:none}   /* the app's own pull to refresh, below, instead of the page bouncing */
+  .ptr{position:fixed;left:50%;top:calc(var(--safe-top) + 60px);z-index:4;transform:translate(-50%,-56px);display:flex;align-items:center;gap:8px;background:#fff;color:var(--navy);border:1px solid var(--edge);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;box-shadow:0 6px 18px rgba(14,26,53,.16);opacity:0;pointer-events:none;white-space:nowrap}
+  .ptr.on{opacity:1}.ptr.fading{transition:transform .2s ease,opacity .2s ease}.ptr .spin{margin:0}
   button{font:inherit;color:inherit}
   [hidden]{display:none!important}
   .top{position:sticky;top:0;z-index:5;background:var(--navy-deep);color:#fff;border-bottom:3px solid var(--gold);padding:calc(10px + var(--safe-top)) 14px 10px;display:flex;align-items:center;gap:8px;min-height:54px}
@@ -176,6 +179,22 @@ const store = { get: (k) => { try { return localStorage.getItem(k); } catch { re
 const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }); };
 // "12,50" is twelve fifty; "1,250.00" is twelve hundred and fifty.
 const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); return Number(/^\d+,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "")); };
+/*
+ * A money box works like a till (Andrew, 3 Nov 2026: "when I manually type an amount in, I don't want to enter the
+ * decimal ... and it should show as a $"). The digits fill in from the cents: 4 2 5 0 reads $42.50, and backspace takes
+ * the last digit off. The phone shows its number pad. A pasted amount with its own decimal point is read as written.
+ */
+const tillText = (n) => (n === null || n === undefined || n === "" || !Number.isFinite(Number(n)) ? "" : "$" + Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+function tillBox(el) {
+  if (!el) return;
+  el.addEventListener("input", (e) => {
+    let n = null;
+    if (/^insertFrom(Paste|Drop)$|^insertReplacementText$/.test(e.inputType ?? "") && /[.,]\d{1,2}\s*$/.test(el.value)) n = parseMoney(el.value);
+    else { const d = el.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 9); n = d ? Number(d) / 100 : null; }
+    el.value = tillText(Number.isFinite(n) ? n : null);
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* not every box takes a caret */ }
+  });
+}
 const longDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
 const ICON = {
   camera: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
@@ -309,6 +328,41 @@ $("me").onclick = (e) => {
   $("testmode").onchange = async (ev) => { if (ev.target.checked) store.set("ongia-exp-test", "1"); else store.del("ongia-exp-test"); $("menu").hidden = true; TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = null; render(); await loadHome().catch((er) => toast(er.message, true)); };
 };
 document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.closest("#menu")) $("menu").hidden = true; });
+
+/*
+ * Pull down to refresh (Andrew, 3 Nov 2026): a home-screen app has no reload button. At the top of a screen, pulling
+ * down past the mark and letting go loads the app again: the newest version, and everything fresh. Never in a form
+ * (a receipt, mileage, no receipt), a full-screen view or a screen with something typed in, where a reload would lose
+ * it. Photos waiting to
+ * go are kept on the phone and still go after it.
+ */
+(() => {
+  const MARK = 72;
+  const pill = document.createElement("div");
+  pill.className = "ptr"; pill.setAttribute("aria-hidden", "true");
+  document.body.append(pill);
+  // Nor while anything has been typed on the screen: a reason for sending a claim back, a payment reference, away dates.
+  const typed = () => [...ROOT.querySelectorAll("input, textarea")].some((x) => !/^(hidden|checkbox|radio|file|button|submit)$/.test(x.type) && x.value !== x.defaultValue);
+  const can = () => !EDIT && !document.querySelector(".sheet") && $("menu").hidden && window.scrollY <= 0 && !typed();
+  let y0 = null, pulled = 0;
+  const hide = () => { pill.classList.add("fading"); pill.classList.remove("on"); pill.style.transform = ""; };
+  addEventListener("touchstart", (e) => { y0 = e.touches.length === 1 && can() ? e.touches[0].clientY : null; pulled = 0; }, { passive: true });
+  addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    pulled = e.touches[0].clientY - y0;
+    if (pulled <= 8 || window.scrollY > 0) { hide(); return; }
+    pill.classList.remove("fading"); pill.classList.add("on");
+    pill.style.transform = `translate(-50%, ${Math.min(pulled, MARK * 1.5) * 0.7 - 56}px)`;
+    pill.textContent = pulled >= MARK ? "Let go to refresh" : "Pull down to refresh";
+  }, { passive: true });
+  const end = () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (pulled >= MARK && can()) { pill.innerHTML = `<span class="spin"></span><span>Refreshing…</span>`; location.reload(); }
+    else hide();
+  };
+  addEventListener("touchend", end); addEventListener("touchcancel", () => { y0 = null; hide(); });
+})();
 $("back").onclick = () => history.back();
 window.addEventListener("popstate", () => {
   if (document.querySelector(".sheet")) { document.querySelector(".sheet").remove(); return; }
@@ -607,7 +661,7 @@ function editorScreen() {
       <div class="field"><label for="f-date"><span>Date</span>${readMark(l, "date")}</label><input id="f-date" type="date" value="${esc(l.date ?? (k === "mileage" && !EDIT.lineId ? todayHere() : ""))}"></div>
       ${k === "mileage"
         ? `<div class="field"><label for="f-km"><span>Kilometres</span></label><input id="f-km" inputmode="decimal" autocomplete="off" value="${esc(l.km ?? "")}" placeholder="0"></div>`
-        : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="decimal" autocomplete="off" value="${l.amount === null || l.amount === undefined ? "" : esc(Number(l.amount).toFixed(2))}" placeholder="0.00"></div>`}
+        : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="numeric" autocomplete="off" value="${esc(tillText(l.amount))}" placeholder="$0.00"></div>`}
     </div>
     ${k === "receipt" ? `<div id="matchrow" style="margin:-4px 0 10px"></div>${foreign}` : ""}
     ${k === "mileage" ? `<div class="two"><div class="field"><label for="f-from">From</label><input id="f-from" autocomplete="off" value="${esc(l.from ?? "")}" placeholder="Barrie"></div>
@@ -621,6 +675,7 @@ function editorScreen() {
     <button class="btn gold" id="save" type="button" style="margin-top:6px">${EDIT.lineId ? "Save" : "Add to my claim"}</button>
     <p class="tiny" style="text-align:center;margin:8px 0 0">Saved as you go. Nothing is sent until you submit.</p>
     ${EDIT.lineId ? `<button class="btn danger" id="remove" type="button" style="margin-top:14px">Remove this line</button>` : ""}`;
+  tillBox($("f-amount"));   // first, so everything listening after it reads the amount as shown
   for (const id of ["paidTo", "date", "amount", "km", "from", "to", "category", "event", "purpose", "statement"]) {
     const el = $(`f-${id}`); if (!el) continue;
     el.addEventListener("input", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); document.querySelector(`[data-readmark="${id}"]`)?.remove(); liveChecks(); });
@@ -654,7 +709,7 @@ function refreshEditor() {
   for (const k of l.fromRead ?? []) {
     const el = $(`f-${k}`);
     if (!el || EDIT.touched.has(k) || el.value) continue;
-    el.value = k === "amount" ? Number(l[k]).toFixed(2) : l[k];
+    el.value = k === "amount" ? tillText(l[k]) : l[k];
     const lab = el.closest(".field")?.querySelector("label");
     if (lab && !lab.querySelector(".read")) lab.insertAdjacentHTML("beforeend", `<span class="read" data-readmark="${k}">read</span>`);
   }

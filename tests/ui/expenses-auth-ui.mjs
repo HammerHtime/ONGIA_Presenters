@@ -56,6 +56,8 @@ for (const [w, hgt, tag] of [[390, 844, "phone"], [1280, 860, "wide"]]) {
   await page.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await page.waitForSelector("#ms");
   await page.click("#ms");
   await page.waitForSelector(".evcard, .empty", { timeout: 10000 });
+  // The "Signed in as" line can fill in just after the events do: wait for it rather than read it the same moment.
+  await page.waitForFunction(() => /Signed in as/.test(document.getElementById("whoami")?.textContent ?? ""), null, { timeout: 5000 }).catch(() => {});
   ok(`${tag}: the desk's own sign-in still lands on the desk`, new URL(page.url()).pathname === "/admin.html" && /Signed in as Andrew Hammond/.test(await page.textContent("#whoami")));
   ok(`${tag}: no script errors`, errs.length === 0, errs.join("; "));
   await page.close();
