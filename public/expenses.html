@@ -172,6 +172,52 @@
   .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
   .preview-rows{margin:4px 0 12px;padding:0;list-style:none}.preview-rows li{font-size:14px;padding:5px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}.preview-rows li:first-child{border-top:0}
   .center{text-align:center}
+  /* Inside the Briefing Room (/expenses?desk=1, Andrew 3 Nov 2026): the desk's band and tabs across the top, as on an
+     event, and the claims as separate tiles beside the one they open. The phone app is unchanged. */
+  #dhead{display:none}
+  html.desk body{padding-bottom:0}
+  html.desk .top,html.desk .tabs{display:none!important}
+  html.desk main{max-width:none;margin:0;padding:0 2px 28px}
+  html.desk main[data-screen="editor"],html.desk main[data-screen="view"],html.desk main[data-screen="away"]{max-width:860px}
+  html.desk .toast{bottom:24px}
+  html.desk #dhead{display:block;margin:0 2px 14px}
+  .dband{background:#fff;border:1.5px solid var(--edge);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 24px 14px;display:flex;gap:12px 16px;align-items:flex-start;flex-wrap:wrap}
+  .dband.alone{border-bottom:1.5px solid var(--edge);border-radius:20px;box-shadow:0 10px 30px rgba(14,26,53,.09),0 2px 6px rgba(14,26,53,.05)}
+  .dband>div:first-child{flex:1 1 360px;min-width:0}
+  .dband h2{font-family:var(--fd);font-weight:400;font-size:30px;line-height:1.15;color:var(--navy-deep);margin:0}
+  .dband .sub{margin-top:6px;font-size:14px;color:var(--muted)}
+  .dacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+  .mini{border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--ink);font:600 12.5px var(--fb);padding:6px 12px;cursor:pointer}
+  .mini:hover{border-color:var(--navy);color:var(--navy)}
+  .mini.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}.mini.gold:hover{color:#1c1608}
+  .mini.on{background:#2c3448;border-color:#2c3448;color:#fff}
+  .dback{appearance:none;background:none;border:0;padding:0 0 6px;font:600 13.5px var(--fb);color:var(--navy);cursor:pointer}
+  .dtabs{display:flex;gap:2px;overflow-x:auto;padding:0 12px;background:#fff;border:1.5px solid var(--edge);border-top:1px solid var(--border);border-radius:0 0 20px 20px;box-shadow:0 10px 30px rgba(14,26,53,.09),0 2px 6px rgba(14,26,53,.05);scrollbar-width:none}
+  .dtab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px 10px;font:700 14px var(--fb);color:var(--ink-mid);white-space:nowrap;cursor:pointer}
+  .dtab:hover{color:var(--navy)}.dtab.on{color:var(--navy);border-bottom-color:var(--gold)}
+  .dtab .n{background:var(--late-bg);color:var(--late);border-radius:999px;font-size:11px;padding:1px 7px;margin-left:4px}
+  .xh{font-family:var(--fu);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 2px 0}
+  .tile{appearance:none;text-align:left;width:100%;background:var(--card);border:1.5px solid var(--edge);border-radius:14px;padding:10px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;cursor:pointer;font:inherit;color:inherit}
+  .tile:hover{border-color:var(--navy)}
+  .tile.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(184,146,42,.25);background:#fffdf6}
+  .tile .tw{font-weight:600;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tile .ta{font-weight:700;font-size:14.5px;text-align:right;font-variant-numeric:tabular-nums}
+  .tile .ts{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tile .pill{justify-self:end;align-self:center;font-size:10px;padding:1px 8px}
+  .dsplit{display:grid;grid-template-columns:minmax(290px,360px) minmax(0,1fr);gap:16px;align-items:start}
+  .dlist{position:sticky;top:10px;display:grid;gap:8px;max-height:calc(100vh - 20px);overflow-y:auto;padding:2px}
+  .dlist .chips{margin:0;gap:5px}.dlist .chips button{padding:5px 10px;font-size:13px;min-height:32px}
+  .tlist{display:grid;gap:8px;margin:0 0 10px}
+  .dtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;margin-top:6px}
+  .dclaim{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+  .dclaim .day:first-of-type{margin-top:10px}
+  .dclaim #submit{width:auto;padding:12px 30px}
+  .dadd .dh{font-family:var(--fd);font-size:19px;color:var(--navy-deep);margin:2px 0 10px}
+  .drop{border:2px dashed var(--edge);border-radius:16px;padding:20px 14px;text-align:center;color:var(--ink-mid);background:#fff}
+  .drop.over{border-color:var(--gold);background:#fffdf6}
+  .drop .btn{margin:10px auto 0}
+  .dpane .card:first-child{margin-top:0}
+  @media (max-width:820px){.dsplit,.dclaim{grid-template-columns:1fr}.dlist{position:static;max-height:none}}
 </style>
 </head>
 <body>
@@ -181,6 +227,7 @@
   <button class="me" id="me" type="button" hidden aria-haspopup="true" aria-expanded="false"></button>
   <div class="menu" id="menu" hidden></div>
 </header>
+<div id="dhead"></div>
 <main id="root" aria-live="polite"></main>
 <nav class="tabs" id="tabs" hidden></nav>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
@@ -239,6 +286,15 @@ let TAB = "claim";
 let OPEN = null;          // a claim being looked at (sent, to approve, to pay)
 // Test mode: what you add goes on a test claim, marked TEST, that the President can delete with the others.
 const TESTMODE = () => store.get("ongia-exp-test") === "1";
+/*
+ * Inside the Briefing Room (Andrew 3 Nov 2026: "when I click the expense tab, it doesn't open up a new window. Instead,
+ * it's all in the main screen ... take the tabs off the bottom and make it look like the rest of the app"): the desk
+ * shows this page in its main area as /expenses?desk=1. The same claims, the same buttons; laid out for a computer.
+ */
+const DESK = new URLSearchParams(location.search).get("desk") === "1" && window.parent !== window;
+if (DESK) { document.documentElement.classList.add("desk"); $("pick").multiple = true; }
+const tellDesk = (what) => { if (!DESK) return; try { parent.postMessage({ ongiaExpenses: what }, location.origin); } catch { /* the desk isn't listening */ } };
+const shortDay = (d) => (d ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00` : d).toLocaleDateString("en-CA", { month: "short", day: "numeric" }) : "");
 
 /* ---------- talking to the Briefing Room ---------- */
 async function api(path, { method = "GET", json, body, headers = {} } = {}) {
@@ -310,6 +366,12 @@ function signOut(pick = true) {
   if (pick) store.set("ongia-xms-pick", "1");
 }
 function signInScreen(message) {
+  if (DESK) {
+    $("dhead").innerHTML = "";
+    ROOT.innerHTML = `<div class="signin"><h2>Sign in again</h2><p>${esc(message || "Your Briefing Room sign-in has run out.")}</p><button class="btn navy" id="deskagain" type="button">Sign in again</button></div>`;
+    $("deskagain").onclick = () => { try { top.location.reload(); } catch { location.reload(); } };
+    return;
+  }
   chrome({ title: "ONGIA Expenses", back: false, tabs: false, me: false });
   ROOT.innerHTML = `<div class="signin">
     <img class="icon" src="/assets/expenses-icon-180.png" alt="" width="96" height="96">
@@ -322,7 +384,36 @@ function signInScreen(message) {
 }
 
 /* ---------- the frame: title, back, who, tabs ---------- */
+// In the Briefing Room, To approve comes first, as on the mock-ups Andrew picked (3 Nov 2026).
+const deskTabs = () => { const t = HOME?.tabs ?? ["claim", "past"]; return t.includes("approve") ? ["approve", ...t.filter((k) => k !== "approve")] : t; };
+let DESK_LANDED = false;
+// In the Briefing Room: what each officer does, under the title.
+const ROLE_LINE = { president: "You approve claims as the President", treasurer: "You approve claims as the Treasurer", vp: "You record the payments, and approve some claims, as the VP of Operations" };
+function deskHead({ title, back, tabs }) {
+  ROOT.dataset.screen = tabs ? "tab" : EDIT ? "editor" : VIEW.name === "away" ? "away" : "view";
+  const keys = deskTabs();
+  const vp = HOME?.me?.role === "vp";
+  // The VP's first job is paying claims, so her tab says so (approvals that wait on her show there too).
+  const LABEL = { claim: "My claim", past: "Paid claims", approve: vp ? "To pay" : "To approve", all: "All claims" };
+  const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0);
+  const sub = HOME ? [HOME.month, ROLE_LINE[HOME.me?.role] || "Your expense claims", ...(HOME.standingIn ?? []).map((x) => `${x.backup ? "Second person" : "Standing in"} for the ${x.title} until ${longDate(x.until)}`)].filter(Boolean).join(" · ") : "";
+  const acts = HOME ? `${HOME.away && tabs ? `<button class="mini" id="dAway" type="button">Going away?</button>` : ""}
+    <button class="mini${TESTMODE() ? " on" : ""}" id="dTest" type="button" aria-pressed="${TESTMODE()}" title="What you add goes on a separate claim marked TEST, which can be deleted. Sent, it comes back to you to try every step.">Test mode ${TESTMODE() ? "on" : "off"}</button>
+    ${tabs ? `<button class="mini gold" id="dAdd" type="button">Add receipts</button>` : ""}` : "";
+  $("dhead").innerHTML = `<div class="dband${tabs ? "" : " alone"}"><div>${back ? `<button class="dback" id="dBack" type="button">‹ Back</button>` : ""}<h2>${esc(tabs ? "Expenses" : title)}</h2><div class="sub">${esc(tabs ? sub : "Expenses")}</div></div><div class="dacts">${acts}</div></div>
+    ${tabs ? `<nav class="dtabs" role="tablist" aria-label="Expenses">${keys.map((k) => `<button type="button" class="dtab${TAB === k ? " on" : ""}" data-tab="${k}"${TAB === k ? ' aria-current="page"' : ""}>${LABEL[k]}${k === "approve" && n ? `<span class="n" aria-label="${n} waiting">${n}</span>` : ""}</button>`).join("")}</nav>` : ""}`;
+  $("dhead").querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => { TAB = b.dataset.tab; VIEW = { name: TAB }; EDIT = null; OPEN = null; render(); window.scrollTo(0, 0); }; });
+  if ($("dBack")) $("dBack").onclick = () => history.back();
+  if ($("dAway")) $("dAway").onclick = openAway;
+  if ($("dAdd")) $("dAdd").onclick = () => { if (TAB !== "claim" || VIEW.name !== "claim") { TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; render(); } $("pick").click(); };
+  if ($("dTest")) $("dTest").onclick = async () => {
+    if (TESTMODE()) store.del("ongia-exp-test"); else store.set("ongia-exp-test", "1");
+    TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = null; render();
+    await loadHome().catch((er) => toast(er.message, true));
+  };
+}
 function chrome({ title, back, tabs = true, me = true }) {
+  if (DESK) return deskHead({ title, back, tabs });
   $("title").textContent = title;
   $("back").hidden = !back;
   $("me").hidden = !me || !ME;
@@ -333,7 +424,7 @@ function chrome({ title, back, tabs = true, me = true }) {
   if (tabs) {
     const tabs = HOME?.tabs ?? ["claim", "past"];
     const short = tabs.length > 3;
-    const LABEL = { claim: "My claim", past: short ? "Past" : "Past claims", approve: "To approve", all: short ? "All" : "All claims" };
+    const LABEL = { claim: "My claim", past: short ? "Paid" : "Paid claims", approve: "To approve", all: short ? "All" : "All claims" };
     const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0);
     t.innerHTML = tabs.map((k) => `<button type="button" data-tab="${k}" class="${TAB === k ? "on" : ""}" ${TAB === k ? 'aria-current="page"' : ""}>${LABEL[k]}${k === "approve" && n ? `<span class="n" aria-label="${n} waiting">${n}</span>` : ""}</button>`).join("");
     t.querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => { TAB = b.dataset.tab; VIEW = { name: TAB }; EDIT = null; OPEN = null; render(); window.scrollTo(0, 0); }; });
@@ -464,7 +555,12 @@ async function flushOutbox() {
 }
 window.addEventListener("online", () => flushOutbox());
 $("cam").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; addReceipt(f); };
-$("pick").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; addReceipt(f); };
+$("pick").onchange = async (e) => {
+  const files = [...(e.target.files ?? [])]; e.target.value = "";
+  if (files.length <= 1) return addReceipt(files[0]);
+  // Several at once (the desk): one after another, so they all land on the same claim; each is read as it arrives.
+  for (const f of files) await addReceipt(f, { open: false });
+};
 
 /* ---------- small pictures of receipts, fetched with the sign-in ---------- */
 const THUMBS = new Map();   // "claim:line" → object URL, or "" when there is none
@@ -485,6 +581,8 @@ async function loadHome() {
   HOME = await api(TESTMODE() ? "?test=1" : "");
   ME = HOME.me; store.set("ongia-exp-me", JSON.stringify(ME));
   paintBadge();
+  // The desk opens on what waits for you, when something does; otherwise on your own claim.
+  if (DESK && !DESK_LANDED) { DESK_LANDED = true; if (VIEW.name === "claim" && !EDIT && HOME.tabs.includes("approve") && (HOME.toApprove.length || HOME.toPay.length)) { TAB = "approve"; VIEW = { name: "approve" }; } }
   if (!EDIT) render();
 }
 /*
@@ -529,6 +627,7 @@ function badgeRow() {
 function paintBadge() {
   const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0) + (HOME?.current?.status === "rejected" ? 1 : 0);
   document.title = n ? `(${n}) ONGIA Expenses` : "ONGIA Expenses";
+  tellDesk({ count: n });
   try { if ("setAppBadge" in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* not offered here */ }
 }
 function checkRow(l) {
@@ -562,7 +661,21 @@ function lineRow(l, claimId) {
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
 const firstName = (n) => String(n ?? "").split(" ")[0];
 const when = (iso) => new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim, and every step comes back to you to try. Turn it off in the menu (your initials, top right).</div>` : "");
+const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim, and every step comes back to you to try. Turn it off ${DESK ? "with Test mode, top right" : "in the menu (your initials, top right)"}.</div>` : "");
+/* A claim as a tile (the desk): who or which month, the amount, a line under, and where it stands. */
+function tile(c, name, sub, pill = "") {
+  return `<button type="button" class="tile${VIEW.sel === c.id ? " on" : ""}" data-open="${esc(c.id)}"><span class="tw">${esc(name)}${c.test ? ' <span class="pill test">Test</span>' : ""}</span><span class="ta">${c.total === null || c.total === undefined ? "" : money(c.total)}</span>
+    <span class="ts">${esc(sub)}</span>${pill ? `<span class="pill ${PILL[c.status] ?? "mu"}">${esc(pill)}</span>` : "<span></span>"}</button>`;
+}
+const sentWords = (c) => (c.status === "approved" ? `Approved ${shortDay(c.approvedAt)} · waiting for the e-transfer` : `Sent ${shortDay(c.sentAt)} · waiting for approval`);
+const paidWords = (c) => [`Paid ${shortDay(c.paidOn)}`, "e-transfer", countsOf(c.sums)].filter(Boolean).join(" · ");
+/* My claims sent and not yet paid: on My claim, under the one being built (paid ones are on Paid claims). */
+function sentList() {
+  const sent = (HOME?.past ?? []).filter((c) => c.status === "submitted" || c.status === "approved");
+  if (!sent.length) return "";
+  return DESK ? `<div class="xh" style="margin-top:22px">Sent, not paid yet</div><div class="dtiles">${sent.map((c) => tile(c, c.month, sentWords(c), c.status === "approved" ? "Approved" : "Waiting")).join("")}</div>`
+    : `<div class="day">Sent, not paid yet</div>${tiles(sent.map((c) => tile(c, c.month, sentWords(c), c.status === "approved" ? "Approved" : "Waiting")).join(""))}`;
+}
 function claimScreen() {
   TAB = "claim";
   chrome({ title: "My claim", back: false });
@@ -572,29 +685,38 @@ function claimScreen() {
   const evs = [...new Set(lines.map((l) => l.eventTitle).filter(Boolean))];
   const groups = new Map();
   for (const l of lines) { const k = l.date || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(l); }
-  ROOT.innerHTML = `${testBar()}${badgeCard()}
-    ${back ? `<div class="sentback"><b>Sent back by ${esc(back.by?.name)}${back.for ? ` for the ${esc(back.for)}` : ""} · ${esc(when(back.at))}</b>
-      <div class="note quote">"${esc(back.comment)}"</div><div class="tiny" style="margin-top:6px">Change what's needed below, then send it again.</div></div>` : ""}
-    <div class="run" id="running">
+  const sentBack = back ? `<div class="sentback"><b>Sent back by ${esc(back.by?.name)}${back.for ? ` for the ${esc(back.for)}` : ""} · ${esc(when(back.at))}</b>
+      <div class="note quote">"${esc(back.comment)}"</div><div class="tiny" style="margin-top:6px">Change what's needed below, then send it again.</div></div>` : "";
+  const run = `<div class="run" id="running">
       <div class="k">${esc((c?.month || HOME?.month || "").split(" ")[0])} · ${back ? "sent back" : "not sent yet"}${c?.test ? " · test" : ""}</div>
       <div class="big">${money(c?.sums.total ?? 0)}</div>
-      <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : "Nothing added yet. Take a photo of your first receipt."}</div>
-    </div>
-    ${WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : ""}
+      <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : DESK ? "Nothing added yet. Drop your first receipt on the right." : "Nothing added yet. Take a photo of your first receipt."}</div>
+    </div>`;
+  const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
+  const list = [...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => lineRow(l, c.id)).join("")}</div>`).join("");
+  const send = lines.length ? `<div id="submitsay" style="margin-top:16px"></div>
+      <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
+      <p class="tiny${DESK ? "" : " center"}" style="margin:8px 4px 0">${c?.test ? `A test claim comes back to you: approve it as the ${esc((c?.approvers ?? HOME.approvers).join(" and as the "))}, then record a pretend payment.` : `It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.`}</p>` : "";
+  const others = (HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : "";
+  const del = c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px${DESK ? ";width:auto" : ""}">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : "";
+  ROOT.innerHTML = DESK
+    ? `${testBar()}${sentBack}<div class="dclaim"><div>${run}${waiting}${list}${send}${others}${del}${sentList()}</div>
+      <div class="card dadd"><div class="dh">Add to this claim</div>
+        <div class="drop" id="drop"><b>Drop receipts here</b><div class="tiny">Photos or PDFs, several at once. Claude reads each one.</div><button class="btn gold small" id="addpick" type="button">Choose files</button></div>
+        <div class="row2"><button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button><button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button></div></div></div>`
+    : `${testBar()}${badgeCard()}
+    ${sentBack}${run}${waiting}
     <button class="btn gold" id="addcam" type="button">${ICON.camera}<span>Take a photo of a receipt</span></button>
     <div class="row2">
       <button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button>
       <button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button>
     </div>
     <button class="linkish" id="addpick" type="button">or choose a photo or PDF you already have</button>
-    ${[...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => lineRow(l, c.id)).join("")}</div>`).join("")}
-    ${lines.length ? `<div id="submitsay" style="margin-top:16px"></div>
-      <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
-      <p class="tiny center" style="margin:8px 4px 0">${c?.test ? `A test claim comes back to you: approve it as the ${esc((c?.approvers ?? HOME.approvers).join(" and as the "))}, then record a pretend payment.` : `It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.`}</p>` : ""}
-    ${(HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : ""}
-    ${c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : ""}`;
+    ${list}${send}${others}${sentList()}${del}`;
   wireBadgeCard();
-  $("addcam").onclick = () => $("cam").click();
+  if ($("addcam")) $("addcam").onclick = () => $("cam").click();
+  if ($("drop")) wireDrop($("drop"));
+  wireRows();
   $("addpick").onclick = () => $("pick").click();
   $("addmile").onclick = () => openNew("mileage");
   $("addnone").onclick = () => openNew("noreceipt");
@@ -603,6 +725,19 @@ function claimScreen() {
   if ($("delclaim")) $("delclaim").onclick = deleteClaim;
   ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => openLine(b.dataset.line); });
   fillThumbs();
+}
+/* The desk's drop box: photos and PDFs dropped on it go on the claim, one after another. */
+function wireDrop(box) {
+  const ok = (f) => /^image\//.test(f.type) || f.type === "application/pdf";
+  box.ondragover = (e) => { e.preventDefault(); box.classList.add("over"); };
+  box.ondragleave = () => box.classList.remove("over");
+  box.ondrop = async (e) => {
+    e.preventDefault(); box.classList.remove("over");
+    const files = [...(e.dataTransfer?.files ?? [])];
+    const good = files.filter(ok);
+    if (files.length > good.length) toast(`${files.length - good.length === 1 ? "One file isn't" : `${files.length - good.length} files aren't`} a photo or a PDF, so ${files.length - good.length === 1 ? "it was" : "they were"} left out.`, true);
+    for (const f of good) await addReceipt(f, { open: good.length === 1 });
+  };
 }
 async function submitClaim() {
   const c = HOME.current, btn = $("submit");
@@ -848,13 +983,13 @@ $("shotpick").onchange = async (e) => {
 const PILL = { draft: "mu", submitted: "wt", rejected: "bad", approved: "ok", paid: "ok" };
 const ICON_LOCK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const todayHere = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
-function claimRow(c, extra = "") {
-  return `<button type="button" class="rowbtn" data-open="${esc(c.id)}"><div style="min-width:0"><div class="w">${esc(c.owner?.name ?? "")}${c.test ? ' <span class="pill test">Test</span>' : ""}</div>
-    <div class="s">${esc([c.month, extra || c.words].filter(Boolean).join(" · "))}</div></div>
-    <div style="text-align:right"><div class="amt">${c.total === null || c.total === undefined ? "" : money(c.total)}</div><span class="pill ${PILL[c.status] ?? "mu"}" style="margin-top:4px">${esc(c.status === "approved" ? "Approved" : c.status === "submitted" ? "Waiting" : c.words)}</span></div></button>`;
-}
+/* Someone's claim in a list, as its own tile: who, the amount, the month and a word on where it stands. */
+const pillWord = (c) => (c.status === "approved" ? "Approved" : c.status === "submitted" ? "Waiting" : c.words);
+const claimRow = (c, extra = "") => tile(c, c.owner?.name ?? "", [c.month, extra || c.words].filter(Boolean).join(" · "), pillWord(c));
+const tiles = (html) => `<div class="tlist">${html}</div>`;
 function wireRows() { ROOT.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openClaim(b.dataset.open); }); }
 async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
+  if (DESK && ["approve", "past", "all"].includes(TAB) && VIEW.name === TAB) { VIEW = { name: TAB, sel: id, id, fresh }; EDIT = null; if (claim) OPEN = claim; return render(); }
   VIEW = { name: "view", id, from: TAB, fresh }; EDIT = null;
   if (push) history.pushState({ view: id }, "");
   if (claim) { OPEN = claim; return render(); }
@@ -875,11 +1010,12 @@ function checksBox(c) {
   if (k.ok) return `<div class="allok"><div class="tick">${ICON.tick}</div><div><b>Everything checks out.</b>${summary}<div class="note">Nothing is claimed twice.</div></div></div>`;
   return `<div class="looks"><b>${k.notes.length === 1 ? "One thing to look at" : `${k.notes.length} things to look at`}</b>${summary}<ul>${k.notes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
 }
-function viewScreen() {
+function viewScreen(target = ROOT) {
   const c = OPEN; if (!c) return;
   const mine = c.owner?.email === ME?.email;
   const myDone = c.slots.find((s) => s.me && s.done);
-  chrome({ title: c.can.decide || myDone && c.status === "submitted" ? "Approve a claim" : c.can.pay ? "Pay a claim" : `${(c.month || "").split(" ")[0]} claim`, back: true, tabs: false });
+  // In the desk's lists the claim opens beside them, under the tabs; anywhere else it has the screen to itself.
+  if (target === ROOT) chrome({ title: c.can.decide || myDone && c.status === "submitted" ? "Approve a claim" : c.can.pay ? "Pay a claim" : `${(c.month || "").split(" ")[0]} claim`, back: true, tabs: false });
   const first = firstName(c.owner?.name);
   const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
   let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>` : "";
@@ -921,8 +1057,8 @@ function viewScreen() {
   h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
   if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, transaction number ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
   if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
-  ROOT.innerHTML = h;
-  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
+  target.innerHTML = h;
+  target.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
   if ($("seepics")) $("seepics").onclick = () => openViewer(c, viewItems(c)[0]?.l.id);
   fillThumbs();
   const act = async (btn, path, body, done) => {
@@ -938,17 +1074,23 @@ function viewScreen() {
   // transaction number field"). Once, as it opens; an iPhone won't raise its keyboard on its own, so the field is lit too.
   if (VIEW.fresh && VIEW.id === c.id) {
     VIEW.fresh = false;
-    if ($("ref")) { const r = $("ref"); r.classList.add("hl"); r.addEventListener("input", () => r.classList.remove("hl"), { once: true }); r.closest(".card").scrollIntoView({ block: "center" }); r.focus({ preventScroll: true }); }
+    if ($("ref")) {
+      const r = $("ref"); r.classList.add("hl"); r.addEventListener("input", () => r.classList.remove("hl"), { once: true });
+      // scrollIntoView would move the Briefing Room around Expenses too; inside the desk only this page scrolls.
+      if (DESK) { const box = r.closest(".card").getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + box.top + box.height / 2 - window.innerHeight / 2) }); }
+      else r.closest(".card").scrollIntoView({ block: "center" });
+      r.focus({ preventScroll: true });
+    }
   }
   if ($("dounlock")) $("dounlock").onclick = (e) => act(e.currentTarget, `?unlock=${c.id}`, { reason: $("unwhy").value }, "Unlocked.");
   if ($("dosb")) $("dosb").onclick = (e) => act(e.currentTarget, `?sendback=${c.id}`, { comment: $("sbwhy").value }, `Sent back to ${first}.`);
   if ($("marktest")) $("marktest").onclick = (e) => act(e.currentTarget, `?marktest=${c.id}`, { on: !c.test }, c.test ? "Marked as a real claim." : "Marked as a test claim.");
   if ($("refile")) $("refile").onclick = async (e) => {
     e.currentTarget.disabled = true;
-    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if (VIEW.name === "view" && OPEN?.id === c.id) openClaim(c.id, { push: false, fresh: false }); }, 6000); }
+    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if ((VIEW.name === "view" || VIEW.sel === c.id) && OPEN?.id === c.id) openClaim(c.id, { push: false, fresh: false }); }, 6000); }
     catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
   };
-  if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); await loadHome(); history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
+  if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); if (target !== ROOT) { OPEN = null; VIEW = { name: TAB }; } await loadHome(); if (target === ROOT) history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
 }
 /** Where the claim is filed in the Treasurer's folders on SharePoint, or why it isn't. */
 function filedCard(c) {
@@ -1109,12 +1251,14 @@ async function lineSheet(c, l) {
   } catch { el.querySelector("#sheetpic").innerHTML = `<div class="note">Couldn't load the picture.</div>`; }
 }
 
+/* Paid claims (Andrew 3 Nov 2026: "Instead of saying past claims, how about paid claims? And all the claims that have been
+   paid go under that tab"): only the paid ones, each with the day it was paid. Sent and not yet paid is on My claim. */
+const PAID_EMPTY = `<div class="empty"><div class="big">Nothing paid yet</div>Once a claim of yours is paid, it shows here with the day it was paid. Claims sent and not paid yet are on My claim.</div>`;
 function pastScreen() {
-  chrome({ title: "Past claims", back: false });
-  const past = HOME?.past ?? [];
-  ROOT.innerHTML = testBar() + (past.length
-    ? `<div class="card" style="padding:2px 14px">${past.map((c) => claimRow(c, c.sentAt ? `sent ${new Date(c.sentAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : "")).join("")}</div>`
-    : `<div class="empty"><div class="big">Nothing sent yet</div>Claims you send show up here, each with where it stands: waiting for approval, approved or paid.</div>`);
+  if (DESK) return splitScreen("past");
+  chrome({ title: "Paid claims", back: false });
+  const paid = (HOME?.past ?? []).filter((c) => c.status === "paid");
+  ROOT.innerHTML = testBar() + (paid.length ? tiles(paid.map((c) => tile(c, c.month, paidWords(c))).join("")) : PAID_EMPTY);
   wireRows();
 }
 
@@ -1127,9 +1271,9 @@ function approveScreen() {
   // nothing else"). Going away, and the notes about standing in, have their own screen, from the menu. The VP's claims
   // to pay stay here, for whoever records the payments.
   let h = testBar();
-  h += `<div class="day">Waiting for you</div>` + (HOME.toApprove.length ? `<div class="card" style="padding:2px 14px">${HOME.toApprove.map((c) => claimRow(c, c.as && /^for /.test(c.as) ? c.as : "")).join("")}</div>`
+  h += `<div class="day">Waiting for you</div>` + (HOME.toApprove.length ? tiles(HOME.toApprove.map((c) => claimRow(c, c.as && /^for /.test(c.as) ? c.as : "")).join(""))
     : `<div class="card"><div class="note">Nothing waiting for you. When a claim needs your approval, it shows here and you get an email.</div></div>`);
-  if (HOME.toPay.length || HOME.me.role === "vp") h += `<div class="day">To pay</div>` + (HOME.toPay.length ? `<div class="card" style="padding:2px 14px">${HOME.toPay.map((c) => claimRow(c, "approved, send the e-transfer")).join("")}</div>` : `<div class="card"><div class="note">No approved claims waiting to be paid.</div></div>`);
+  if (HOME.toPay.length || HOME.me.role === "vp") h += `<div class="day">To pay</div>` + (HOME.toPay.length ? tiles(HOME.toPay.map((c) => claimRow(c, "approved, send the e-transfer")).join("")) : `<div class="card"><div class="note">No approved claims waiting to be paid.</div></div>`);
   ROOT.innerHTML = h;
   wireRows();
 }
@@ -1192,24 +1336,72 @@ function wireAway(r) {
   };
 }
 
+/*
+ * The desk's To approve, Paid claims and All claims: the claims as tiles on the left, the one picked open on the right
+ * (the first, to start), with everything the phone shows for it: sign-offs, receipts, Approve, Send back, the payment.
+ */
+function splitScreen(kind) {
+  TAB = kind;
+  chrome({ title: "", back: false });
+  let list = "", items = [];
+  const sec = (label, cs, name, sub, pill) => { items.push(...cs); return `<div class="xh">${esc(label)}</div>${cs.map((c) => tile(c, name(c), sub(c), pill(c))).join("")}`; };
+  const who = (c) => c.owner?.name ?? "";
+  const sentOn = (c) => [c.month, c.as && /^for /.test(c.as) ? c.as : "", c.sentAt ? `sent ${shortDay(c.sentAt)}` : ""].filter(Boolean).join(" · ");
+  if (kind === "approve") {
+    const ap = HOME.toApprove ?? [], pay = HOME.toPay ?? [], vp = HOME.me.role === "vp";
+    const approveSec = ap.length ? sec("Waiting for your approval", ap, who, sentOn, () => "Waiting") : "";
+    const paySec = pay.length ? sec("To pay", pay, who, (c) => [c.month, c.approvedAt ? `approved ${shortDay(c.approvedAt)}` : ""].filter(Boolean).join(" · "), () => "Approved") : "";
+    list = vp ? paySec + approveSec : approveSec + paySec;
+    if (!items.length) list = `<div class="card"><div class="note">${vp ? "No approved claims waiting to be paid, and nothing waiting for your approval." : "Nothing waiting for you. When a claim needs your approval, it shows here and you get an email."}</div></div>`;
+  } else if (kind === "past") {
+    const paid = (HOME.past ?? []).filter((c) => c.status === "paid");
+    list = paid.length ? sec("Paid · newest first", paid, (c) => c.month, paidWords, () => "") : PAID_EMPTY;
+  } else {
+    const all = HOME.all ?? [];
+    const F = ALL_FILTERS;
+    const shown = all.filter(F[ALLF][1]);
+    const tests = all.filter((c) => c.test).length;
+    // A filter with nothing in it is left out, so they fit on one line beside the claims.
+    list = `<div class="chips">${Object.entries(F).filter(([k, [, fn]]) => k === "all" || ALLF === k || all.some(fn)).map(([k, [label, fn]]) => `<button type="button" data-f="${k}" class="${ALLF === k ? "on" : ""}">${label} ${all.filter(fn).length}</button>`).join("")}</div>`
+      + (shown.length ? sec("Newest first", shown, who, (c) => (c.status === "paid" ? [c.month, `paid ${shortDay(c.paidOn)}`].join(" · ") : sentOn(c)), (c) => (c.status === "approved" ? "To pay" : c.status === "submitted" ? "Waiting" : c.words)) : `<div class="card"><div class="note">No claims here.</div></div>`)
+      + (HOME.me.role === "president" ? `<div class="card" style="margin-top:10px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
+        <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : "");
+  }
+  // The first one opens to start, without jumping to its payment box: that's for a claim picked, or a link followed.
+  if (!VIEW.sel && items.length) VIEW = { ...VIEW, name: kind, sel: items[0].id, id: items[0].id, fresh: false };
+  ROOT.innerHTML = `${testBar()}<div class="dsplit"><div class="dlist">${list}</div><div class="dpane" id="dpane"></div></div>`;
+  ROOT.querySelectorAll(".dlist .tile").forEach((t) => t.classList.toggle("on", t.dataset.open === VIEW.sel));   // the one open, lit (picked at the start too)
+  ROOT.querySelectorAll(".dlist [data-open]").forEach((b) => { b.onclick = () => { VIEW = { name: kind, sel: b.dataset.open, id: b.dataset.open, fresh: true }; render(); }; });
+  ROOT.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { ALLF = b.dataset.f; VIEW = { name: kind }; OPEN = null; render(); }; });
+  if ($("purge")) $("purge").onclick = purgeTests;
+  const pane = $("dpane");
+  if (!VIEW.sel) { pane.innerHTML = ""; return; }
+  if (OPEN?.id === VIEW.sel) return viewScreen(pane);
+  pane.innerHTML = `<div class="empty"><span class="spin" style="display:inline-block"></span></div>`;
+  const want = VIEW.sel;
+  api(`?claim=${encodeURIComponent(want)}`).then((o) => { if (VIEW.sel !== want || !$("dpane")) return; OPEN = o.claim; viewScreen($("dpane")); })
+    .catch((e) => { if (!e.quiet && $("dpane")) $("dpane").innerHTML = `<div class="say bad">${esc(e.message)}</div>`; });
+}
+async function purgeTests() {
+  if (!confirm("Delete every test claim, from everyone, with its receipts? Real claims aren't touched. This can't be undone.")) return;
+  try { const out = await api(`?purge=tests${TESTMODE() ? "&test=1" : ""}`, { method: "POST" }); HOME = out; OPEN = null; VIEW = { name: TAB }; toast(`Deleted ${out.purged.claims} test claim${out.purged.claims === 1 ? "" : "s"}.`); render(); }
+  catch (e) { if (!e.quiet) toast(e.message, true); }
+}
+const ALL_FILTERS = { all: ["All", () => true], waiting: ["Waiting", (c) => c.status === "submitted"], approved: ["To pay", (c) => c.status === "approved"], paid: ["Paid", (c) => c.status === "paid"], back: ["Sent back", (c) => c.status === "rejected"] };
 let ALLF = "all";
 function allScreen() {
   chrome({ title: "All claims", back: false });
   const all = HOME.all ?? [];
-  const F = { all: ["All", () => true], waiting: ["Waiting", (c) => c.status === "submitted"], approved: ["To pay", (c) => c.status === "approved"], paid: ["Paid", (c) => c.status === "paid"], back: ["Sent back", (c) => c.status === "rejected"] };
+  const F = ALL_FILTERS;
   const shown = all.filter(F[ALLF][1]);
   const tests = all.filter((c) => c.test).length;
   ROOT.innerHTML = `${testBar()}<div class="chips">${Object.entries(F).map(([k, [label, fn]]) => `<button type="button" data-f="${k}" class="${ALLF === k ? "on" : ""}">${label} ${all.filter(fn).length}</button>`).join("")}</div>
-    ${shown.length ? `<div class="card" style="padding:2px 14px">${shown.map((c) => claimRow(c, c.sentAt ? `sent ${new Date(c.sentAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : "")).join("")}</div>` : `<div class="card"><div class="note">No claims here.</div></div>`}
+    ${shown.length ? tiles(shown.map((c) => claimRow(c, c.status === "paid" ? `paid ${shortDay(c.paidOn)}` : c.sentAt ? `sent ${shortDay(c.sentAt)}` : "")).join("")) : `<div class="card"><div class="note">No claims here.</div></div>`}
     ${HOME.me.role === "president" ? `<div class="card" style="margin-top:18px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
       <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : ""}`;
   ROOT.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { ALLF = b.dataset.f; allScreen(); }; });
   wireRows();
-  if ($("purge")) $("purge").onclick = async () => {
-    if (!confirm("Delete every test claim, from everyone, with its receipts? Real claims aren't touched. This can't be undone.")) return;
-    try { const out = await api(`?purge=tests${TESTMODE() ? "&test=1" : ""}`, { method: "POST" }); HOME = out; toast(`Deleted ${out.purged.claims} test claim${out.purged.claims === 1 ? "" : "s"}.`); render(); }
-    catch (e) { if (!e.quiet) toast(e.message, true); }
-  };
+  if ($("purge")) $("purge").onclick = purgeTests;
 }
 
 function render() {
@@ -1217,6 +1409,7 @@ function render() {
   if (!HOME) { chrome({ title: "ONGIA Expenses", back: false, tabs: false }); ROOT.innerHTML = `<div class="empty"><span class="spin" style="display:inline-block"></span></div>`; return; }
   if (EDIT) return editorScreen();
   if (VIEW.name === "view" && OPEN) return viewScreen();
+  if (DESK && (VIEW.name === "approve" && HOME.tabs.includes("approve") || VIEW.name === "all" && HOME.tabs.includes("all"))) return splitScreen(VIEW.name);
   if (VIEW.name === "past") return pastScreen();
   if (VIEW.name === "approve" && HOME.tabs.includes("approve")) return approveScreen();
   if (VIEW.name === "away" && HOME.away) return awayScreen();
@@ -1242,7 +1435,7 @@ function render() {
 })();
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || !SESSION || !HOME || EDIT) return;
-  if (VIEW.name === "view" && OPEN) api(`?claim=${OPEN.id}`).then((o) => { OPEN = o.claim; loadHome().catch(() => {}); }).catch(() => {});
+  if ((VIEW.name === "view" || VIEW.sel) && OPEN) api(`?claim=${OPEN.id}`).then((o) => { OPEN = o.claim; loadHome().catch(() => {}); }).catch(() => {});
   else loadHome().then(flushOutbox).catch(() => {});
 });
 // The app was open when an email link was tapped: open that claim.
