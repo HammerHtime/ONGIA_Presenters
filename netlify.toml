@@ -66,6 +66,19 @@
   [headers.values]
     Content-Type = "application/manifest+json"
 
+# Expenses opens inside the Briefing Room's main area on a computer (Andrew 3 Nov 2026), in a frame on the site's own
+# page. Every other page stays unframeable (DENY above); for Expenses, frame-ancestors 'self' allows this site's own
+# pages only, and browsers follow it in place of X-Frame-Options. Without it the desk showed a blank screen.
+[[headers]]
+  for = "/expenses"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'self'"
+
+[[headers]]
+  for = "/expenses.html"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'self'"
+
 [[headers]]
   for = "/expenses.webmanifest"
   [headers.values]
