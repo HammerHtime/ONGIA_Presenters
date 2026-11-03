@@ -473,6 +473,10 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
     else if (c.state !== "match") notes.push(`${l.paidTo || "A receipt"}: Claude couldn't check it against the receipt. Look at the photo.`);
     if (c.currency) notes.push(`${l.paidTo}: the receipt is in ${c.currency}. Check that ${dollars(l.amount)} is what the card was charged in Canadian dollars.`);
   }
+  // A card statement isn't read, so a no-receipt line's amount is unconfirmed: flagged for the approvers to look at, never
+  // a reason to refuse the claim (Andrew, 3 Nov 2026: "don't reject it ... flag it as unverified amount"). Without this the
+  // check said "everything checks out" though no one had compared the amount.
+  for (const l of lines) if (l.kind === "noreceipt") notes.push(`${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`);
   for (const l of lines) if (earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
   const [mName, mYear] = String(month).split(" ");
   const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
