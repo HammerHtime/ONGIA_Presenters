@@ -2494,7 +2494,7 @@ function eventsTable(upcoming) {
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const rows = upcoming.map((ev) => {
     const c = ev.counts ?? {}, a = ev.attention ?? {};
-    const total = c.total ?? 0, signed = c.approved ?? 0, mf = ev.materials?.final ?? 0;
+    const total = c.total ?? 0, signed = (c.approved ?? 0) + (c.paper ?? 0), mf = ev.materials?.final ?? 0;
     const pct = total ? Math.round((signed / total) * 100) : 0;
     const pills = [], open = !hotelLocked(ev);
     if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
@@ -3331,7 +3331,7 @@ function yearScreen(events, year, confs = []) {
   const trainingDays = mine.reduce((n, e) => n + (isDate(e.lastDay) ? daysBetween(e.dayOne, e.lastDay) + 1 : 1), 0);
   const cities = new Set(mine.map((e) => (e.city ?? "").trim()).filter(Boolean)).size;
   const presenters = mine.reduce((n, e) => n + (e.counts?.total ?? 0), 0);
-  const outstanding = mine.reduce((n, e) => n + ((e.counts?.total ?? 0) - (e.counts?.approved ?? 0)), 0);
+  const outstanding = mine.reduce((n, e) => n + ((e.counts?.total ?? 0) - (e.counts?.approved ?? 0) - (e.counts?.paper ?? 0)), 0);
   const inYear = (i) => i.to >= `${year}-01-01` && i.from <= `${year}-12-31`;
   const people = [...new Map(all.flatMap((i) => i.people).map((p) => [p.email, p])).values()].sort((a, b) => a.name.localeCompare(b.name));
   const coming = calComing(all.filter(calShown), today);
@@ -3641,7 +3641,7 @@ function listForYear(mine, today, year) {
         ${lead ? `<div class="ptalk">Lead: ${esc(lead)}</div>` : ""}</div></div>
       <div class="cell"><div class="cl">When</div><div style="font-weight:600">${esc(when)}</div>
         <div class="ydates" style="margin-top:5px">${dates}</div></div>
-      <div class="act"><span class="chipstat"><b>${c.approved}<small>/${c.total}</small></b>signed</span>
+      <div class="act"><span class="chipstat"><b>${(c.approved ?? 0) + (c.paper ?? 0)}<small>/${c.total}</small></b>signed</span>
         ${jobsChip(ev)}
         <button class="mini" data-goev="${esc(ev.id)}">Open</button></div></div>`;
   }).join("");
@@ -3937,7 +3937,7 @@ function eventScreen(data) {
     document.getElementById("p-rows").focus();
   };
   const mailAll = async () => {
-    const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper");
     if (!presenters.length) return toast("No presenters yet.");
     if (!outstanding.length) return toast("Everyone has submitted.");
     if (!confirm(`Email their link to ${outstanding.length} presenter${outstanding.length === 1 ? "" : "s"} who haven't submitted?`)) return;
@@ -3954,7 +3954,7 @@ function eventScreen(data) {
   const overdueDay = (off) => off > 0 && (off <= 14 ? off % 3 === 0 : off % 7 === 0);
   const addDays = (iso, n) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
   const nextReminder = (p) => {
-    if (p.status === "submitted" || p.status === "approved") return null;
+    if (p.status === "submitted" || p.status === "approved" || p.status === "paper") return null;
     if (!(p.mail ?? []).some((m) => m.type !== "called")) return null;   // never invited: nothing is scheduled
     const due = ev.noDeadlines ? null : ev.deadlines?.agreement;          // undated: nothing chases them
     if (!due) return null;
@@ -3985,6 +3985,9 @@ function eventScreen(data) {
       return { bucket: "final", pill: `<span class="pill done">Final</span>`, sub: `approved ${short(p.approvedAt)}${filing?.ok ? " · filed" : ""}` };
     }
     if (p.status === "submitted") return { bucket: "review", pill: `<span class="pill you">Needs review</span>`, sub: `submitted ${short(p.submittedAt)} · waiting on ONGIA` };
+    // Signed on paper and filed by hand (Andrew 3 Nov 2026): done, nothing chases them.
+    if (p.status === "paper") return { bucket: "final", pill: `<span class="pill done">Signed on paper</span>`,
+      sub: `marked ${short(p.paper?.at)}${p.paper?.by ? ` by ${esc(p.paper.by)}` : ""} · filed by hand` };
     // Nobody has ever sent this person their link: no reminder will ever chase them.
     if (!n) return { bucket: "uninvited", pill: `<span class="pill late">Never sent</span>`,
       sub: p.lastSendError ? `could not be emailed — ${esc(p.lastSendError.why)}` : "no link sent yet · no reminder will chase them" };
@@ -4020,12 +4023,14 @@ function eventScreen(data) {
   const stepFacts = (p) => {
     const m = mstat[p.id] ?? {};
     const sentMail = (p.mail ?? []).filter((x) => x.type !== "called");
-    const inHand = p.status === "submitted" || p.status === "approved";
+    const paper = p.status === "paper";
+    const inHand = p.status === "submitted" || p.status === "approved" || paper;
     return { inHand, at: {
       link: sentMail.length ? sentMail[0].at : null,
-      agreement: inHand ? p.submittedAt : null,
-      photo: inHand && p.submission?.headshotName ? p.submittedAt : null,
-      approved: p.status === "approved" ? p.approvedAt : null,
+      agreement: paper ? p.paper?.at ?? null : inHand ? p.submittedAt : null,
+      // A paper agreement's photo came with it, in the Training Director's folder.
+      photo: paper ? p.paper?.at ?? null : inHand && p.submission?.headshotName ? p.submittedAt : null,
+      approved: p.status === "approved" ? p.approvedAt : paper ? p.paper?.at ?? null : null,
       room: p.avAt ?? null,
       draft: m.draft ?? null,
       final: m.final ?? null,
@@ -4141,11 +4146,15 @@ function eventScreen(data) {
     } else if (p.status === "submitted" || p.status === "returned") {
       main = b(`data-review="${id}"`, "Review", "gold");
       if (p.status === "returned") rest.push(...chase());
+    } else if (p.status === "paper") {
+      rest.push(b(`data-paper="${id}" data-on="0" title="They are not on paper after all: back to waiting for their agreement"`, "Undo signed on paper"));
     } else if (mailed) {
       rest.push(...chase());
     } else {
       main = b(`data-invite="${id}"`, "Email link", "gold");
     }
+    // An agreement that came by email and is filed by hand: marks it done, so nothing chases them.
+    if (p.status !== "approved" && p.status !== "submitted" && p.status !== "paper") rest.push(b(`data-paper="${id}" data-on="1" title="Their agreement came by email and is filed by hand"`, "Signed on paper"));
     rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them from the event"`, "Correct or remove"));
     return { main, rest };
   };
@@ -4155,7 +4164,7 @@ function eventScreen(data) {
   const billWord = (r) => (r.billing === "ONGIA" ? "ONGIA pays" : r.billing === "Guest" ? "they pay" : "to confirm");
   const matChips = (p) => stepsOf(p).filter((st) => st.key === "draft" || st.key === "final").map((st) =>
     `<button type="button" class="mchip ${st.state}" data-mat="${esc(p.id)}" data-key="${st.key}" data-on="${st.done ? "0" : "1"}" title="${esc(stepTitle(st, p))}">${st.key === "draft" ? "Draft" : "Final"}</button>`).join("");
-  const nextCell = (p, a, A) => A.main || (a.bucket === "notstarted" || a.bucket === "progress" ? A.rest[0] : `<span class="porg">${p.status === "approved" ? "Nothing to do" : "—"}</span>`);
+  const nextCell = (p, a, A) => A.main || (a.bucket === "notstarted" || a.bucket === "progress" ? A.rest[0] : `<span class="porg">${p.status === "approved" || p.status === "paper" ? "Nothing to do" : "—"}</span>`);
   const sel = PSEL.get(ev.id) ?? new Set();
   PSEL.set(ev.id, sel);
   for (const id of [...sel]) if (!presenters.some((p) => p.id === id)) sel.delete(id);
@@ -4197,7 +4206,7 @@ function eventScreen(data) {
       <div class="porg">${[esc(p.email), esc(phone)].filter(Boolean).join(" · ")}${p.organization ? `<br>${esc(p.organization)}` : ""}${p.submission?.talk ? ` · “${esc(p.submission.talk)}”` : ""}</div>
       <ol class="ptl">${stepsOf(p).map(step).join("")}</ol>
       <dl class="pkv"><dt>Agreement</dt><dd>${a.pill}<div class="porg">${a.sub}</div></dd>
-        <dt>Room</dt><dd>${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))} · ${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}` : inHand ? "No room" : "Known once they sign"}</dd>
+        <dt>Room</dt><dd>${r ? `${esc(shortDate(r.checkIn))} – ${esc(shortDate(r.checkOut))} · ${r.nights} night${r.nights === 1 ? "" : "s"} · ${billWord(r)}` : p.status === "paper" ? "On their paper agreement" : inHand ? "No room" : "Known once they sign"}</dd>
         <dt>Emails</dt><dd>${mails.length ? `${mails.length} sent · last ${esc(short(mails.at(-1).at))}` : "None sent"}</dd>
         <dt>Calls</dt><dd>${calls.length ? `${calls.length} logged · last ${esc(short(calls.at(-1).at))}` : "None logged"}</dd></dl>
       <div class="pacts">${A.main}${A.rest.join("")}</div></aside>`;
@@ -4216,7 +4225,7 @@ function eventScreen(data) {
   // agreement line counts anyone who has not submitted — including one that was
   // sent back — which is the same set "Email all outstanding" writes to.
   const stillOut = (label) => label.startsWith("Agreements")
-    ? presenters.filter((p) => p.status !== "submitted" && p.status !== "approved").length
+    ? presenters.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper").length
     : label.startsWith("Draft") ? presenters.length - draftGot : presenters.length - finalGot;
   const overdue = nextDl.filter((x) => x.d < 0 && x.l !== "Training starts" && stillOut(x.l) > 0)
     .map((x) => ({ ...x, out: stillOut(x.l) }));
@@ -4346,7 +4355,7 @@ function eventScreen(data) {
   // The key numbers as tiles (Andrew 21 Oct 2026). A tile turns red at the edge only when something is behind.
   const reviewN = count("review");
   const dueA = ev.noDeadlines ? null : ev.deadlines?.agreement;
-  const outA = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved").length;
+  const outA = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper").length;
   const lateA = !!dueA && daysTo(dueA) < 0 && outA > 0;
   const dueF = ev.deadlines?.final;
   const lateF = !!dueF && daysTo(dueF) < 0 && finalGot < presenters.length;
@@ -4635,7 +4644,7 @@ function eventScreen(data) {
   const bulkMail = document.getElementById("pbulk-mail");
   if (bulkMail) bulkMail.onclick = async () => {
     const chosen = presenters.filter((p) => sel.has(p.id));
-    const due = chosen.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    const due = chosen.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper");
     if (!due.length) return toast("Everyone ticked has already signed.");
     const skip = chosen.length - due.length;
     if (!confirm(`Email their agreement link to ${due.length} presenter${due.length === 1 ? "" : "s"}?${skip ? `\n\n${skip} who already signed will be left out.` : ""}`)) return;
@@ -4851,6 +4860,19 @@ function eventScreen(data) {
   // The presenter buttons, on the table and in the side panel: wired for the whole page, and again for the panel alone
   // when it opens (it is redrawn on its own, not with the page).
   function wireActs(root) {
+    root.querySelectorAll("[data-paper]").forEach((b) => {
+      b.onclick = async () => {
+        const on = b.dataset.on === "1";
+        const who = presenters.find((p) => p.id === b.dataset.paper);
+        if (on && !confirm(`Mark ${who ? `${who.first} ${who.last}` : "them"} as signed on paper? Their agreement came by email and is filed by hand. Nothing will chase them, and their link still works if they sign online later.`)) return;
+        const was = b.textContent; b.disabled = true; b.textContent = "Saving…";
+        try {
+          await api(`/events?id=${encodeURIComponent(ev.id)}&presenter=${encodeURIComponent(b.dataset.paper)}&paper=1`, { method: "PUT", body: JSON.stringify({ on }) });
+          toast(on ? "Marked as signed on paper." : "Back to waiting for their agreement.");
+          render();
+        } catch (e) { toast(e.message); b.disabled = false; b.textContent = was; }
+      };
+    });
     root.querySelectorAll("[data-called]").forEach((b) => {
       b.onclick = async () => {
         b.disabled = true; b.textContent = "Saving…";
