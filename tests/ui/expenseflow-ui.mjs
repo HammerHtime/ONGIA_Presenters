@@ -43,7 +43,7 @@ await john.click("#addmile");
 await john.fill("#f-date", day(-2)); await john.fill("#f-km", "312"); await john.fill("#f-from", "Barrie"); await john.fill("#f-to", "Toronto");
 await john.fill("#f-purpose", "Drive to the Summit"); await john.click("#save"); await john.waitForSelector("#running");
 await john.click("#addnone");
-await john.fill("#f-paidTo", "Green P parking"); await john.fill("#f-date", day(-1)); await john.fill("#f-amount", "18"); await john.selectOption("#f-category", "8"); await john.fill("#f-purpose", "Parking at the venue");
+await john.fill("#f-paidTo", "Green P parking"); await john.fill("#f-date", day(-1)); await john.locator("#f-amount").pressSequentially("1800"); await john.selectOption("#f-category", "8"); await john.fill("#f-purpose", "Parking at the venue");
 await john.click("#save"); await john.waitForSelector("#running");
 await john.click("#submit");
 await john.waitForSelector("#submitsay .say.bad");
