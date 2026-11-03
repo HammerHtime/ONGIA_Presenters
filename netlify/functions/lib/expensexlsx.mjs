@@ -14,8 +14,9 @@ import { readZip, makeZip } from "./zip.mjs";
  *
  * The template has eight line rows (12–19). A longer claim gets more, in the same alternating blue and white, and
  * everything below them (the total, the category table, the instructions) moves down with every reference to it.
- * HST and the category name stay the template's own formulas; their results are filled in too, so a viewer that
- * doesn't recalculate still shows them.
+ * The category name stays the template's own formula; HST is the tax inside the amount, ROUND(E×13/113, 2), and 0 on
+ * mileage and a speaker stipend (a line given `noHst`), Andrew's choice on 3 Nov 2026 over the template's E×0.13. The
+ * results are filled in too, so a viewer that doesn't recalculate still shows them.
  */
 const FIRST = 12, TEMPLATE_ROWS = 8, TOTAL_ROW = 20;
 const COLS = "ABCDEFGHI";
@@ -104,7 +105,8 @@ export function claimWorkbook(template, d) {
       blank(`C${r}`, st.C),
       l?.date ? num(`D${r}`, st.D, serial(l.date)) : blank(`D${r}`, st.D),
       amount !== null ? num(`E${r}`, st.E, amount) : blank(`E${r}`, st.E),
-      fml(`F${r}`, st.F, `IF(E${r}="","",E${r}*0.13)`, amount !== null ? Math.round(amount * 0.13 * 10000) / 10000 : ""),
+      l?.noHst ? num(`F${r}`, st.F, 0)
+        : fml(`F${r}`, st.F, `IF(E${r}="","",ROUND(E${r}*13/113,2))`, amount !== null ? Math.round(amount * 13 / 113 * 100) / 100 : ""),
       l?.category ? num(`G${r}`, st.G, Number(l.category)) : blank(`G${r}`, st.G),
       fml(`H${r}`, st.H, `IFERROR(VLOOKUP(G${r},$A$${tableFrom}:$B$${tableTo},2,FALSE),"")`, l?.category ? CATEGORY[Number(l.category)] ?? "" : "", true),
       l?.purpose ? str(`I${r}`, st.I, l.purpose) : blank(`I${r}`, st.I),

@@ -48,7 +48,7 @@ let xml = sheetOf(wb);
 ok("the name, the reference, the dates go in their cells", xml.includes('<c r="C3" s="73" t="inlineStr"><is><t xml:space="preserve">Dana Reyes</t>') && xml.includes(">CA7Kx2Pq9TmR<") && /<c r="G3" s="\d+"><v>46339<\/v>/.test(xml));
 ok("three lines, the rest of the eight left blank, the total of all eight", (xml.match(/<row r="1[2-9]"/g) ?? []).length === 8 && xml.includes("<f>SUM(E12:E19)</f><v>60</v>") && /<c r="B13" s="61" t="inlineStr"><is><t xml:space="preserve">Vendor 2</);
 // (The quotation marks inside a formula are written as &quot;, which Excel reads as the same formula.)
-ok("HST and the category are the template's own formulas, with their results", xml.includes('<f>IF(E12=&quot;&quot;,&quot;&quot;,E12*0.13)</f><v>1.3</v>') && xml.includes('<f>IFERROR(VLOOKUP(G12,$A$24:$B$33,2,FALSE),&quot;&quot;)</f><v>Advertising &amp; Promotion</v>'));
+ok("HST is the tax inside the amount, and the category the template's formula, with their results", xml.includes('<f>IF(E12=&quot;&quot;,&quot;&quot;,ROUND(E12*13/113,2))</f><v>1.15</v>') && xml.includes('<f>IFERROR(VLOOKUP(G12,$A$24:$B$33,2,FALSE),&quot;&quot;)</f><v>Advertising &amp; Promotion</v>'));
 ok("it prints one page wide, landscape", xml.includes('<pageSetUpPr fitToPage="1"/>') && xml.includes('fitToWidth="1" fitToHeight="0"'));
 ok("the instructions say the VP fills in the payment", xml.includes("Filled in by the VP at time of payment."));
 const rowsWellFormed = (s) => (s.match(/<row\b(?:[^>/]|\/(?!>))*\/>/g) ?? []).length + (s.match(/<\/row>/g) ?? []).length === (s.match(/<row\b/g) ?? []).length;
@@ -82,6 +82,13 @@ const ptxt = tool("pdftotext", ["-layout", path.join(dir, "claim.pdf"), "-"]);
 if (ptxt !== null) {
   ok("the PDF: the claim, the lines in date order, the total", /ONGIA Expense Reimbursement Submission/.test(ptxt) && ptxt.indexOf("Dana Reyes") < ptxt.indexOf("Delta Hotels") && /\$869\.56/.test(ptxt), ptxt.slice(0, 600));
   ok("…then a page for the receipt and one for the card statement, numbered as on the claim", (tool("pdfinfo", [path.join(dir, "claim.pdf")]) ?? "").includes("Pages:           3") && /Line 2: receipt/.test(ptxt) && /Line 3: card statement/.test(ptxt));
+}
+// Andrew, 3 Nov 2026: no HST on mileage or a stipend; on anything bought, the tax inside the total (× 13 ÷ 113).
+if (ptxt !== null) ok("the PDF's HST: $75.71 inside the hotel's $658.12, $2.07 inside the $18 parking, $0.00 on the mileage", /\$658\.12\s+\$75\.71/.test(ptxt) && /\$18\.00\s+\$2\.07/.test(ptxt) && /\$193\.44\s+\$0\.00/.test(ptxt), ptxt.slice(0, 900));
+{
+  const sx = sheetOf(docs.xlsx);
+  ok("the Excel sheet: the mileage line's HST is 0, the others the formula", /<c r="F12" s="\d+"><v>0<\/v><\/c>/.test(sx) && sx.includes('ROUND(E13*13/113,2))</f><v>75.71</v>') && sx.includes('ROUND(E14*13/113,2))</f><v>2.07</v>'), sx.match(/<c r="F1[2-4]"[^]*?<\/c>/g)?.join(" "));
+  ok("a speaker stipend has no HST either, and Food Basics' $61.77 has $7.11 in it", X.hstOf({ kind: "noreceipt", category: 10, amount: 1000 }) === 0 && X.hstOf({ kind: "mileage", amount: 279 }) === 0 && X.hstOf({ kind: "receipt", category: 5, amount: 61.77 }) === 7.11 && X.hstOf({ kind: "noreceipt", category: 5, amount: 458.74 }) === 52.78);
 }
 ok("the receipts to file, named by their line on the form", docs.receipts.map((r) => r.name).join("|") === "02 2026-11-09 Delta Hotels $658.12.jpg|03 2026-11-11 Green P card statement.png");
 

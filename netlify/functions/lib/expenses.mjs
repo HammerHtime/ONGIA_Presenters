@@ -33,6 +33,14 @@ export const TRAVEL = 8;
  */
 export const STIPEND = 10;
 export const isStipend = (l) => Number(l?.category) === STIPEND;
+/**
+ * The HST in a line (Andrew, 3 Nov 2026, over the template's 13% of every amount, which put $130 of HST on a $1,000
+ * stipend and overstated every receipt): none on mileage or a speaker stipend, and on anything bought, the tax already
+ * inside the total, amount × 13 ÷ 113.
+ */
+export const HST_RATE = 13;
+export const noHst = (l) => l?.kind === "mileage" || isStipend(l);
+export const hstOf = (l) => (noHst(l) || !Number.isFinite(Number(l?.amount)) ? 0 : Math.round(Number(l.amount) * HST_RATE / (100 + HST_RATE) * 100) / 100);
 
 /** Dollars per kilometre. EXPENSE_MILEAGE_RATE replaces it if the board changes the rate. */
 export function mileageRate() {
