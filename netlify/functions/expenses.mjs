@@ -15,6 +15,7 @@ import {
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers,
 } from "./lib/expenses.mjs";
+import { shownLines, checksFor } from "./lib/expenseview.mjs";
 import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
 
 /**
@@ -98,15 +99,17 @@ export default async (req) => {
   if (req.method === "POST" && q("purge")) {
     if (me.role !== "president") return fail("Only the President can delete the test claims.", 403);
     let claims = 0, lines = 0;
+    const filed = [];
     for (const id of await listClaimIds()) {
       const c = await getClaim(id);
-      if (c?.test) { lines += await deleteClaimAll(id, whoKey(c.owner?.email)); claims++; }
+      if (c?.test) { if (c.filed?.folder) filed.push(c.filed); lines += await deleteClaimAll(id, whoKey(c.owner?.email)); claims++; }
     }
+    await dropFiled(url.origin, filed);
     return json({ ...(await home(ctx, test)), purged: { claims, lines } });
   }
 
   // A claim named in the request, or the one being built.
-  const named = q("claim") || q("submit") || q("decide") || q("sendback") || q("pay") || q("unlock") || q("marktest");
+  const named = q("claim") || q("submit") || q("decide") || q("sendback") || q("pay") || q("unlock") || q("marktest") || q("refile");
   const loadNamed = async () => {
     const c = named && /^[a-z0-9-]{4,40}$/.test(named) ? await getClaim(named) : null;
     if (!c) return { problem: fail("That claim isn't on record. It may have been deleted.", 404) };
@@ -178,6 +181,7 @@ export default async (req) => {
     const mineToDelete = claim.owner?.email === me.email && EDITABLE.includes(claim.status);
     if (!mineToDelete && !(me.role === "president" && claim.test)) return fail(claim.test ? "Only the person claiming, or the President, can delete a test claim." : "You can delete a claim of yours that hasn't been approved. Once it's sent, ask the person approving to send it back first.", 403);
     await deleteClaimAll(claim.id, whoKey(claim.owner?.email));
+    if (claim.filed?.folder) await dropFiled(url.origin, [claim.filed]);
     return json({ ...(await home(ctx, test)), deleted: claim.id });
   }
 
@@ -188,6 +192,13 @@ export default async (req) => {
     claim.history = [...(claim.history ?? []), { at: now(), what: claim.test ? "marked as a test" : "no longer a test", by: me.name }];
     await putClaim(claim);
     return json({ claim: await claimView(claim, ctx) });
+  }
+
+  if (req.method === "POST" && q("refile")) {
+    if (!OFFICER_ROLES.includes(me.role)) return fail("The President, the VP or the Treasurer can file a claim again.", 403);
+    if (claim.status === "draft") return fail("A claim is filed once it's sent.", 409);
+    await startFiling(url.origin, claim.id);
+    return json({ claim: await claimView(await getClaim(claim.id), ctx) }, 202);
   }
 
   if (req.method === "POST" && q("submit")) {
@@ -214,6 +225,7 @@ export default async (req) => {
     await putClaim(claim);
     await markWaiting(claim.id, true);
     await askApprovers(claim, ctx);
+    await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
 
@@ -239,6 +251,7 @@ export default async (req) => {
       const payer = payerOf(fresh.owner?.email, aways, today);
       await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvers, payer: names(payer.email) })));
       await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvers, acting: payer.for ? ROLE_TITLE[PAYER] : "" })));
+      await startFiling(url.origin, claim.id);
     }
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
@@ -266,6 +279,7 @@ export default async (req) => {
     await putClaim(claim);
     await markWaiting(claim.id, false);
     await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid })));
+    await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
 
@@ -282,6 +296,7 @@ export default async (req) => {
     await markWaiting(claim.id, true);
     const tellTo = [...new Set([payerOf(claim.owner?.email, aways, today).email, officers().president].filter((e) => e !== me.email))];
     for (const e of tellTo) await note(claim, "unlocked", await tell(e, unlockedMail({ claim, by: me.name, reason })));
+    await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
 
@@ -435,6 +450,28 @@ async function startRead(origin, claimId, id) {
   }
 }
 
+/**
+ * Start filing the claim in the Treasurer's folders (expense-file-background). A start that fails is kept on the
+ * claim, in words, for the officers to see and retry.
+ */
+async function startFiling(origin, claimId) {
+  try {
+    const r = await fetch(`${origin}/api/expense-file-background?claim=${encodeURIComponent(claimId)}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+    if (r.status >= 400) throw new Error(`the filing job answered ${r.status}`);
+  } catch (e) {
+    console.error("expense filing did not start", claimId, e?.message);
+    const c = await getClaim(claimId);
+    if (c) { c.filed = { ...(c.filed ?? {}), problem: "Filing to SharePoint didn't start. Press File it again.", failedAt: now() }; await putClaim(c); }
+  }
+}
+/** Take filed copies out of SharePoint (deleted test claims, a withdrawn claim): only files the desk put there. */
+async function dropFiled(origin, records) {
+  if (!records.length) return;
+  try {
+    await fetch(`${origin}/api/expense-file-background?drop=1`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "", "content-type": "application/json" }, body: JSON.stringify(records) });
+  } catch (e) { console.error("expense unfiling did not start", e?.message); }
+}
+
 /** Send one email and say what happened; a failure is kept, never thrown. */
 async function tell(to, message) {
   if (!to) return { to: "", ok: false, why: "Nobody to send it to." };
@@ -481,31 +518,13 @@ async function sendBack(claim, { me, aways, today, names }, role, acting, commen
   return json({ claim: await claimView(await getClaim(claim.id), { me, aways, today, names }) });
 }
 
-/** Claude's check, with the person's other sent claims to look for the same thing claimed twice. */
-async function checksFor(claim, lines) {
-  const earlier = [];
-  for (const id of await listMineIds(whoKey(claim.owner?.email))) {
-    if (id === claim.id) continue;
-    const c = await getClaim(id);
-    // The last 13 months is enough to catch a receipt sent twice; older claims are paid and filed.
-    if (c && c.status !== "draft" && !c.test && Date.now() - Date.parse(c.sentAt ?? c.createdAt) < 400 * 86400e3) earlier.push(...(await listClaimLines(id)));
-  }
-  return claimChecks(lines, { month: claim.month || monthLabel(todayIso()), earlier });
-}
-
 async function waitingClaims() {
   return (await Promise.all((await listWaitingIds()).map(getClaim))).filter(Boolean);
 }
 
 /** A claim as the app shows it: every line with what Claude read folded in, the total, what's missing, who signs off. */
 export async function claimView(claim, { me, aways, today, names }) {
-  const lines = await listClaimLines(claim.id);
-  const reads = await Promise.all(lines.map((l) => (l.kind === "receipt" && l.file ? getClaimRead(claim.id, l.id) : null)));
-  const shown = lines.map((l, i) => {
-    let r = reads[i];
-    if (r?.state === "reading" && Date.now() - Date.parse(r.startedAt) > STALE_MS) r = { state: "failed", why: "Reading took too long. Press Read it again, or type the details in." };
-    return { ...viewLine(l, r), read: r ? { state: r.state, why: r.why ?? "", ...(r.state === "done" ? { found: r.found } : {}) } : null };
-  });
+  const shown = await shownLines(claim);
   // Newest receipt first; a line with no date yet (one still being read) at the top.
   shown.sort((a, b) => (!a.date && b.date ? -1 : a.date && !b.date ? 1 : String(b.date).localeCompare(String(a.date))) || String(b.addedAt).localeCompare(String(a.addedAt)));
   const sums = claimSums(shown);
@@ -526,6 +545,8 @@ export async function claimView(claim, { me, aways, today, names }) {
     approvers: approversFor(claim.owner?.email).map((r) => ROLE_TITLE[r]),
     slots, payer: { email: payer.email, name: names(payer.email), for: payer.for ? ROLE_TITLE[PAYER] : "" },
     rejected: claim.rejected ?? null, paid: claim.paid ?? null,
+    // Where it is filed on SharePoint, or why it isn't. Ids and the receipt list stay on the server.
+    filed: claim.filed ? { at: claim.filed.at ?? null, folderUrl: claim.filed.folderUrl ?? "", folder: claim.filed.folder ?? "", status: claim.filed.status ?? "", problem: claim.filed.problem ?? "", failedAt: claim.filed.failedAt ?? null, skipped: !!claim.filed.skipped, reason: claim.filed.reason ?? "" } : null,
     history: claim.history ?? [],
     // A send that failed shows to the people running the claim, not only in a log.
     mailFailed: OFFICER_ROLES.includes(me.role) ? (claim.mail ?? []).filter((m) => !m.ok).map((m) => ({ what: m.what, to: names(m.to), why: m.why, at: m.at })) : [],
@@ -540,6 +561,7 @@ export async function claimView(claim, { me, aways, today, names }) {
       unlock: claim.status === "paid" && ["president", "vp"].includes(me.role),
       del: (editableNow) || (me.role === "president" && !!claim.test),
       markTest: me.role === "president",
+      refile: OFFICER_ROLES.includes(me.role) && claim.status !== "draft",
     },
   };
 }

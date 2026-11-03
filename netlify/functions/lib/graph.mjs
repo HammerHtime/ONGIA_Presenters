@@ -461,3 +461,36 @@ export async function deleteBackupFile(id) {
   const drive = await driveId(token);
   await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+/* ---------- ONGIA Expenses: the Treasurer's folders (see expensefile.mjs) ---------- */
+
+/**
+ * What filing an expense claim needs, signed in once: list a folder, make a folder path, put a file (replacing one of
+ * the same name), and delete a file the desk put there itself (by its id; nothing else is ever deleted). Null when
+ * Microsoft isn't set up on this site.
+ */
+export async function expenseDrive() {
+  if (!graphConfigured()) return null;
+  const token = await accessToken();
+  const drive = await driveId(token);
+  return {
+    async children(folder) {
+      const out = [];
+      let next = `/drives/${drive}/root:/${encodePath(normaliseFolder(folder))}:/children?$select=id,name,webUrl,folder,file&$top=200`;
+      try {
+        while (next) {
+          const page = await graph(token, next);
+          out.push(...(page.value ?? []));
+          next = page["@odata.nextLink"] ? page["@odata.nextLink"].replace(GRAPH, "") : null;
+        }
+      } catch (e) { if (e.status === 404) return null; throw e; }
+      return out;
+    },
+    ensure: (folder) => ensureFolderPath(token, drive, normaliseFolder(folder)),
+    put: (file, bytes, contentType) => upload(token, drive, normaliseFolder(file), bytes, contentType),
+    async remove(id) {
+      try { await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+      catch (e) { if (e.status !== 404) throw e; }
+    },
+  };
+}

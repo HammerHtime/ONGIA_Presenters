@@ -762,6 +762,7 @@ function viewScreen() {
   if (fails.length) h += `<div class="say wt"><b>${fails.length === 1 ? "An email about this claim didn't go." : `${fails.length} emails about this claim didn't go.`}</b> The people below may not know about it.
     <details class="more" style="margin:6px 0 0"><summary>Which ones</summary><ul class="hist" style="padding-left:18px;margin:0">${fails.map((m) => `<li>${esc(m.to)} (${esc(m.what)}), ${esc(when(m.at))}: ${esc(m.why)}</li>`).join("")}</ul></details></div>`;
   h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
+  if (c.status !== "draft") h += filedCard(c);
   h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
   if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, reference ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
   if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
@@ -780,7 +781,24 @@ function viewScreen() {
   if ($("dounlock")) $("dounlock").onclick = (e) => act(e.currentTarget, `?unlock=${c.id}`, { reason: $("unwhy").value }, "Unlocked.");
   if ($("dosb")) $("dosb").onclick = (e) => act(e.currentTarget, `?sendback=${c.id}`, { comment: $("sbwhy").value }, `Sent back to ${first}.`);
   if ($("marktest")) $("marktest").onclick = (e) => act(e.currentTarget, `?marktest=${c.id}`, { on: !c.test }, c.test ? "Marked as a real claim." : "Marked as a test claim.");
+  if ($("refile")) $("refile").onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if (VIEW.name === "view" && OPEN?.id === c.id) openClaim(c.id, { push: false }); }, 6000); }
+    catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
+  };
   if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); await loadHome(); history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
+}
+/** Where the claim is filed in the Treasurer's folders on SharePoint, or why it isn't. */
+function filedCard(c) {
+  const f = c.filed;
+  const again = c.can.refile ? `<button class="linkish" id="refile" type="button" style="display:inline;margin:0 0 0 4px;padding:0">File it again</button>` : "";
+  if (!f) return c.can.refile ? `<div class="card"><div class="k">SharePoint</div><div class="note" style="margin-top:2px">Being filed in the Treasurer's folders. ${again}</div></div>` : "";
+  if (f.problem) return `<div class="say wt"><b>Filing to SharePoint didn't work.</b> ${esc(f.problem)} ${again}</div>`;
+  if (f.skipped) return c.can.refile ? `<div class="say mu">Not filed: ${esc(f.reason)}</div>` : "";
+  const where = String(f.folder || "").split("/").slice(-3).join(" › ");
+  const behind = f.status && f.status !== c.status;
+  return `<div class="card"><div class="k">Filed in SharePoint</div><div class="note" style="margin-top:2px">${esc(where)}<br><span class="tiny">The Excel and the PDF, with the receipts in a Receipts folder. ${behind ? "Being updated now." : `Last filed ${esc(when(f.at)).replace(/\.?$/, ".")}`}</span></div>
+    ${f.folderUrl ? `<a class="linkish" href="${esc(f.folderUrl)}" target="_blank" rel="noopener" style="margin:6px 0 0;padding:0;display:inline-block">Open the folder</a>` : ""}${c.can.refile ? ` · ${again}` : ""}</div>`;
 }
 /** One line of a sent claim, read-only: the receipt itself and what was claimed. */
 async function lineSheet(c, l) {

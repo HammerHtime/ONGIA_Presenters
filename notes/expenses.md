@@ -49,6 +49,19 @@ any claim as a test, and delete all test claims at once (All claims tab). Real c
 `expshot:` the receipt, its small picture, the card statement · `expmine:<who>:<id>` whose · `expq:<id>` waiting on
 someone · `meta:expenses:away:<role>` a hand-off. Each line is its own record so receipts sent together never overwrite.
 
+## Filing (SharePoint)
+When a claim is sent, and again when it is approved, paid or unlocked, `expense-file-background` files it:
+`ONGIA Board › Treasurer (2025-2026) (New) › Board Members Expenses › 2026 › <member> › <Month 2026>` holds
+`<Last>_<Month>_Expense_Claim.xlsx` (ONGIA's template, `public/assets/expense-claim-template.xlsx`, filled in) and the
+same as a PDF with each receipt on a page; the receipts and card statements go in `Receipts`, named
+`01 2026-11-09 Delta Hotels $658.12.jpg` (the number is the line's on the claim). Missing folders are made; an existing
+member or month folder is used as named ("Steve Hammond", "11. Nov 2026"). A second claim the same month is `_2`.
+Filing again replaces the two files and keeps the Receipts folder in step (the desk deletes only files it put there,
+by id). Test claims go to `Board Members Expenses › Test claims (safe to delete)` and deleting them deletes their files.
+`EXPENSE_FOLDER` replaces the base folder when the Treasurer's folder moves to a new year. What happened is on the
+claim (`claim.filed`): the officers see the folder, or why it didn't file, with File it again.
+
+The template's HST column is the template's own formula (13% of the amount), kept as ONGIA has it.
+
 ## Still to come
-Filing to SharePoint (Treasurer (2025-2026) (New) › Board Members Expenses › year › member › Month YYYY, with a Receipts
-folder; the Excel from ONGIA's template and a PDF), and per-person badges on the app icon.
+Per-person badges on the app icon.

@@ -73,6 +73,8 @@ await andrew.click("#approve");
 await andrew.waitForSelector(".stamp");
 ok("the button turns green, Approved, with the date and time filled in", /Approved by you, President/.test(await andrew.textContent(".stamp")) && /\d{4}/.test(await andrew.textContent(".stamp")) && (await andrew.locator(".bigbtns .btn.green[disabled]").count()) === 1);
 ok("next: waiting for Raj", /Waiting for Raj Jaswal/.test(await andrew.textContent("#root")));
+// Locally there is no Microsoft, so the filing job says so; on the site this card says where it's filed.
+ok("the officers see where it stands in SharePoint (here: not filed, and why)", /Not filed: Microsoft isn't set up on this site/.test(await andrew.textContent("#root")));
 await andrew.screenshot({ path: D + "exp-approved-phone.png", fullPage: true });
 const line = andrew.locator(".line", { hasText: "Green P" }); await line.click();
 await andrew.waitForSelector(".sheet img", { timeout: 8000 });
