@@ -30,6 +30,9 @@ export const CERT_FROM = process.env.CERT_MAIL_FROM || "ONGIA Certificates <cert
 // Reminders to attendees (the reply-form reminder, the hotel cut-off rounds) (Andrew 31 Oct 2026). Surveys stay a manual send.
 export const EVENTS_FROM = process.env.EVENTS_MAIL_FROM || "ONGIA Events <events@send.ongia.ca>";
 const GRAPH_DISPLAY = process.env.MS_MAIL_FROM_NAME || "ONGIA Training";
+// ONGIA Expenses: the board's claims (Andrew 3 Nov 2026: they came from "Conference Speakers"; Microsoft shows the
+// speakers' mailbox under its own name, whatever name the app gives). See sendExpenseMail.
+export const EXPENSES_FROM = process.env.EXPENSES_MAIL_FROM || "ONGIA Expenses <expenses@send.ongia.ca>";
 
 export function mailTransport() {
   if (GRAPH_MAILBOX && graphConfigured()) return { kind: "microsoft", from: `${GRAPH_DISPLAY} <${GRAPH_MAILBOX}>` };
@@ -91,6 +94,18 @@ async function sendViaGraph({ to, cc, replyTo, subject, html, text, attachments 
     throw new Error(`Email failed (${code}): ${body.error?.message ?? "Graph sendMail refused"}${hint}`);
   }
   return { id: res.headers.get("request-id") ?? "sent", transport: "microsoft" };
+}
+
+/**
+ * Mail from ONGIA Expenses: through Resend as "ONGIA Expenses", so a board member sees who it's from. Replies go to the
+ * person it names (`replyTo`), never to the sending address, which takes no mail. Without a Resend key it goes the
+ * usual way instead (the Microsoft mailbox), so a claim's emails still go.
+ */
+export async function sendExpenseMail(message) {
+  const to = realOnly(message.to);
+  if (!to.length) return { skipped: true, reason: "A practice event's made-up address." };
+  if (!process.env.RESEND_API_KEY) return sendMail({ ...message, to });
+  return sendViaResend({ ...message, to }, EXPENSES_FROM);
 }
 
 /**
@@ -202,8 +217,8 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   // bodyHtml is for letters that carry their own structure — headings, lists —
   // and must not be wrapped paragraph by paragraph.
   // A line left empty (a date this event does not have) leaves no gap.
-  // A list or a rule stands on its own; everything else is a paragraph.
-  const paras = bodyHtml ?? lines.filter(Boolean).map((l) => (/^<(ul|hr)\b/.test(l) ? l : `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`)).join("");
+  // A list, a table or a rule stands on its own; everything else is a paragraph.
+  const paras = bodyHtml ?? lines.filter(Boolean).map((l) => (/^<(ul|hr|table)\b/.test(l) ? l : `<p style="margin:0 0 14px;line-height:1.55">${l}</p>`)).join("");
   // The primary button keeps its raw URL underneath for mail clients that strip
   // buttons; secondary ones (file uploads) are just a button — the address is
   // long, ugly and nobody types it.

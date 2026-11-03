@@ -90,6 +90,7 @@
   input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;height:46px;line-height:22px;text-align:left}
   input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
   input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-offset:1px;border-color:var(--navy)}
+  input.hl{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,146,42,.5)}
   .two{display:flex;gap:10px}.two .field{flex:1;min-width:0}
   .preview{display:flex;gap:12px;align-items:center;margin:0 0 14px}
   .preview .pic{width:96px;height:124px;border-radius:8px;background:#fff;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.14);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--fu);letter-spacing:.1em;cursor:pointer;padding:0}
@@ -853,8 +854,8 @@ function claimRow(c, extra = "") {
     <div style="text-align:right"><div class="amt">${c.total === null || c.total === undefined ? "" : money(c.total)}</div><span class="pill ${PILL[c.status] ?? "mu"}" style="margin-top:4px">${esc(c.status === "approved" ? "Approved" : c.status === "submitted" ? "Waiting" : c.words)}</span></div></button>`;
 }
 function wireRows() { ROOT.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openClaim(b.dataset.open); }); }
-async function openClaim(id, { push = true, claim = null } = {}) {
-  VIEW = { name: "view", id, from: TAB }; EDIT = null;
+async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
+  VIEW = { name: "view", id, from: TAB, fresh }; EDIT = null;
   if (push) history.pushState({ view: id }, "");
   if (claim) { OPEN = claim; return render(); }
   chrome({ title: "Expense claim", back: true, tabs: false }); ROOT.innerHTML = `<div class="empty"><span class="spin" style="display:inline-block"></span></div>`;
@@ -863,10 +864,10 @@ async function openClaim(id, { push = true, claim = null } = {}) {
 }
 function slotRow(s, c) {
   // Only the one who sent it back is red; the other sign-off simply hasn't happened.
-  const right = s.done ? `<span class="r ok">✓ Approved ${esc(new Date(s.at).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}</span>`
+  const right = s.done ? `<span class="r ok">✓ Approved</span>`
     : c.status === "submitted" ? `<span class="r wait">${s.me ? "Waiting for you" : "Waiting"}</span>`
     : c.status === "rejected" && c.rejected?.role === s.role ? `<span class="r bad">✕ Sent back</span>` : `<span class="r">Not yet</span>`;
-  return `<div class="slot"><div>${esc(s.title)} · ${s.practice ? "you, for practice" : esc(s.name)}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
+  return `<div class="slot"><div>${esc(s.title)} · ${s.practice ? "you, for practice" : esc(s.name)}${s.done && s.at ? `<div class="tiny">Approved ${esc(when(s.at))}</div>` : ""}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
 }
 function checksBox(c) {
   const k = c.checks; if (!k) return "";
@@ -903,14 +904,14 @@ function viewScreen() {
     <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. When both have approved, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
       <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
-      ${c.payer.practice ? `<div class="say mu" style="margin:0 0 10px">Practice: nothing is sent. Type any reference, like TEST123, and it locks as a paid claim does.</div>` : ""}
-      <div class="field"><label for="ref">E-transfer reference</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${c.payer.practice ? "TEST123" : "As the bank shows it"}"></div>
+      ${c.payer.practice ? `<div class="say mu" style="margin:0 0 10px">Practice: nothing is sent. Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
+      <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice ? "TEST123" : "As the bank shows it"}"></div>
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
-      <button class="btn gold" id="paybtn" type="button">Mark paid and lock</button>
+      <button class="btn gold" id="paybtn" type="button">Confirm payment</button>
       ${c.payer.for ? `<p class="tiny center" style="margin-top:6px">You're standing in for the ${esc(c.payer.for)}.</p>` : ""}</div>
     <div class="lock">${ICON_LOCK}<div><b>Locked when paid.</b> Only the President or the VP can unlock it, with a reason.</div></div>`;
   else if (c.status === "approved") h += `<div class="card"><div class="k">Next</div><div class="note">${esc(c.payer.name)} sends the e-transfer and records it here${c.payer.for ? `, standing in for the ${esc(c.payer.for)}` : ""}.</div></div>`;
-  if (c.can.unlock) h += `<details class="more"><summary>Unlock this claim</summary><div class="field"><label for="unwhy">Why it's being unlocked (needed)</label><textarea id="unwhy" placeholder="The reference number was typed wrong."></textarea></div><button class="btn ghost" id="dounlock" type="button">Unlock it</button><p class="tiny center" style="margin-top:6px">It goes back to approved, so the payment can be recorded again. The VP is told.</p></details>`;
+  if (c.can.unlock) h += `<details class="more"><summary>Unlock this claim</summary><div class="field"><label for="unwhy">Why it's being unlocked (needed)</label><textarea id="unwhy" placeholder="The transaction number was typed wrong."></textarea></div><button class="btn ghost" id="dounlock" type="button">Unlock it</button><p class="tiny center" style="margin-top:6px">It goes back to approved, so the payment can be recorded again. The VP is told.</p></details>`;
   if (c.can.sendBack) h += `<details class="more"><summary>Send it back to ${esc(first)}</summary><div class="field"><label for="sbwhy">Why (needed)</label><textarea id="sbwhy"></textarea></div><button class="btn red" id="dosb" type="button">Send back to ${esc(first)}</button></details>`;
   // Emails that didn't go: one box, so a run of failures can't bury the claim. Officers only.
   const fails = c.mailFailed ?? [];
@@ -918,7 +919,7 @@ function viewScreen() {
     <details class="more" style="margin:6px 0 0"><summary>Which ones</summary><ul class="hist" style="padding-left:18px;margin:0">${fails.map((m) => `<li>${esc(m.to)} (${esc(m.what)}), ${esc(when(m.at))}: ${esc(m.why)}</li>`).join("")}</ul></details></div>`;
   if (c.status !== "draft") h += filedCard(c);
   h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
-  if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, reference ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
+  if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, transaction number ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
   if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
   ROOT.innerHTML = h;
   ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
@@ -933,12 +934,18 @@ function viewScreen() {
   if ($("reject")) $("reject").onclick = () => { $("approve").classList.add("dim"); $("rejectbox").hidden = false; $("why").focus(); };
   if ($("dosendback")) $("dosendback").onclick = (e) => { if ($("why").value.trim().length < 3) { toast("Say why, so they know what to change.", true); return $("why").focus(); } act(e.currentTarget, `?decide=${c.id}`, { decision: "reject", comment: $("why").value }, `Sent back to ${first}.`); };
   if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { ref: $("ref").value, date: $("paydate").value }, "Paid and locked.");
+  // A claim opened to pay goes straight to the transaction number (Andrew, 3 Nov 2026: "Cursor defaults right to the
+  // transaction number field"). Once, as it opens; an iPhone won't raise its keyboard on its own, so the field is lit too.
+  if (VIEW.fresh && VIEW.id === c.id) {
+    VIEW.fresh = false;
+    if ($("ref")) { const r = $("ref"); r.classList.add("hl"); r.addEventListener("input", () => r.classList.remove("hl"), { once: true }); r.closest(".card").scrollIntoView({ block: "center" }); r.focus({ preventScroll: true }); }
+  }
   if ($("dounlock")) $("dounlock").onclick = (e) => act(e.currentTarget, `?unlock=${c.id}`, { reason: $("unwhy").value }, "Unlocked.");
   if ($("dosb")) $("dosb").onclick = (e) => act(e.currentTarget, `?sendback=${c.id}`, { comment: $("sbwhy").value }, `Sent back to ${first}.`);
   if ($("marktest")) $("marktest").onclick = (e) => act(e.currentTarget, `?marktest=${c.id}`, { on: !c.test }, c.test ? "Marked as a real claim." : "Marked as a test claim.");
   if ($("refile")) $("refile").onclick = async (e) => {
     e.currentTarget.disabled = true;
-    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if (VIEW.name === "view" && OPEN?.id === c.id) openClaim(c.id, { push: false }); }, 6000); }
+    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if (VIEW.name === "view" && OPEN?.id === c.id) openClaim(c.id, { push: false, fresh: false }); }, 6000); }
     catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
   };
   if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); await loadHome(); history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };

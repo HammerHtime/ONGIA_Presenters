@@ -4,7 +4,7 @@ import { signinConfig, verifyIdToken } from "./lib/auth.mjs";
 import { token } from "./lib/ids.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 import { todayIso } from "./lib/deadlines.mjs";
-import { sendMail } from "./lib/mail.mjs";
+import { sendExpenseMail } from "./lib/mail.mjs";
 import {
   getRoster, putRoster, listEvents, getClaim, putClaim, listClaimLines, getClaimLine, putClaimLine, deleteClaimLine,
   getClaimRead, putClaimRead, putClaimFile, getClaimFile, markMine, listMineIds, markWaiting, listWaitingIds, listClaimIds,
@@ -90,8 +90,8 @@ export default async (req) => {
     const after = { ...aways, [role]: d };
     const waiting = inForce(d, today) ? (await waitingClaims()).filter((cl) => cl.status === "submitted" && slotsOf(cl, after, today).some((s) => !s.done && s.role === role && s.email === d.to)).length : 0;
     d.mail = [];
-    d.mail.push(await tell(d.to, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, waiting, pays: role === PAYER })));
-    if (d.backup) d.mail.push(await tell(d.backup, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, isBackup: true, standIn: names(d.to) })));
+    d.mail.push(await tell(d.to, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, waiting, pays: role === PAYER }), me.email));
+    if (d.backup) d.mail.push(await tell(d.backup, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, isBackup: true, standIn: names(d.to) }), me.email));
     await putAway(role, d);
     return json(await home({ ...ctx, aways: after }, test));
   }
@@ -248,10 +248,11 @@ export default async (req) => {
       fresh.status = "approved"; fresh.approvedAt = now();
       await putClaim(fresh);
       const practice = !!fresh.test;
-      const approvers = practice ? after.map((s) => `the ${ROLE_TITLE[s.role]}`) : after.map((s) => signedName(fresh[`signed_${s.role}`]));
+      // "Approved by the President and the Treasurer" (Andrew, 3 Nov 2026); a stand-in is named.
+      const approvedBy = after.map((s) => { const g = fresh[`signed_${s.role}`]; return g?.for && !practice ? `${g.name} for the ${g.for}` : `the ${ROLE_TITLE[s.role]}`; });
       const payer = payerFor(fresh, aways, today);
-      await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvers, payer: names(payer.email), practice })));
-      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvers, acting: payer.for ? ROLE_TITLE[PAYER] : "", practice })));
+      await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvedBy, payer: names(payer.email), practice }), payer.email));
+      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvedBy, acting: payer.for ? ROLE_TITLE[PAYER] : "", practice }), fresh.owner?.email));
       await startFiling(url.origin, claim.id);
     }
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -270,7 +271,7 @@ export default async (req) => {
     if (payer.email !== me.email) return fail(`${names(payer.email)} records the payments${payer.for ? `, standing in for the ${ROLE_TITLE[PAYER]}` : ""}.`, 403);
     const body = await req.json().catch(() => ({}));
     const ref = String(body.ref ?? "").trim().replace(/\s+/g, "");
-    if (!/^[A-Za-z0-9-]{4,40}$/.test(ref)) return fail("Type the e-transfer's reference number, as the bank shows it.");
+    if (!/^[A-Za-z0-9-]{4,40}$/.test(ref)) return fail("Type the e-transfer's transaction number, as the bank shows it.");
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body.date ?? "")) ? body.date : today;
     // A day's grace past Toronto's date: late in the evening it is already tomorrow further east.
     if (date > new Date(Date.parse(`${today}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10)) return fail("The payment date can't be in the future.");
@@ -279,7 +280,7 @@ export default async (req) => {
     claim.history = [...(claim.history ?? []), { at: now(), what: "paid and locked", by: me.name, ref }];
     await putClaim(claim);
     await markWaiting(claim.id, false);
-    await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid })));
+    await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
@@ -296,7 +297,7 @@ export default async (req) => {
     await putClaim(claim);
     await markWaiting(claim.id, true);
     const tellTo = [...new Set([payerFor(claim, aways, today).email, officers().president].filter((e) => e !== me.email))];
-    for (const e of tellTo) await note(claim, "unlocked", await tell(e, unlockedMail({ claim, by: me.name, reason })));
+    for (const e of tellTo) await note(claim, "unlocked", await tell(e, unlockedMail({ claim, by: me.name, reason }), me.email));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
@@ -380,8 +381,6 @@ async function loadAways() {
 /** That officer themselves, or the President for any of them (if someone forgets before leaving). */
 const mayHandOff = (me, role) => OFFICER_ROLES.includes(role) && (me.role === role || me.role === "president");
 const decidedOf = (c) => Object.fromEntries(OFFICER_ROLES.filter((r) => c[`signed_${r}`]).map((r) => [r, c[`signed_${r}`]]));
-/** "J. Taylor", or "J. Taylor for the President". */
-const signedName = (s) => (s ? `${s.name}${s.for ? ` for the ${s.for}` : ""}` : "");
 // Who signs and who pays a claim: a test claim is practice, and every step goes back to the person who made it.
 const slotsOf = (c, aways, today) => holders(c.owner?.email, aways, today, decidedOf(c), { practice: !!c.test });
 const payerFor = (c, aways, today) => payerOf(c.owner?.email, aways, today, { practice: !!c.test });
@@ -476,11 +475,11 @@ async function dropFiled(origin, records) {
   } catch (e) { console.error("expense unfiling did not start", e?.message); }
 }
 
-/** Send one email and say what happened; a failure is kept, never thrown. */
-async function tell(to, message) {
+/** Send one email and say what happened; a failure is kept, never thrown. A reply goes to `replyTo`, a person. */
+async function tell(to, message, replyTo = "") {
   if (!to) return { to: "", ok: false, why: "Nobody to send it to." };
   try {
-    const out = await sendMail({ to, ...message });
+    const out = await sendExpenseMail({ to, ...message, ...(replyTo && replyTo !== to ? { replyTo } : {}) });
     if (out?.skipped) return { to, ok: false, why: out.reason, at: now() };
     return { to, ok: true, at: now() };
   } catch (e) {
@@ -500,11 +499,14 @@ async function note(claim, what, outcome) {
 async function askApprovers(claim, { aways, today, names }) {
   const view = { ...claim, lines: await listClaimLines(claim.id) };
   const checks = await checksFor(claim, view.lines);
-  const slots = slotsOf(claim, aways, today);
-  for (const s of slots.filter((x) => !x.done)) {
-    const other = slots.find((x) => x !== s);
+  const open = slotsOf(claim, aways, today).filter((x) => !x.done);
+  // "Waiting on approval from President Andrew Hammond and Treasurer Raj Jaswal" (Andrew, 3 Nov 2026).
+  const waitingOn = open.map((s) => s.practice ? `the ${ROLE_TITLE[s.role]}` : s.for ? `${names(s.email)} for the ${ROLE_TITLE[s.role]}` : `${ROLE_TITLE[s.role]} ${names(s.email)}`);
+  // One email each: a test claim's two sign-offs are the same person, who gets one.
+  for (const email of [...new Set(open.map((s) => s.email))]) {
+    const s = open.find((x) => x.email === email);
     const d = s.for ? aways[s.role] : null;
-    await note(claim, "to approve", await tell(s.email, needsApprovalMail({ claim, checks, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", others: s.practice ? "" : other ? `${names(other.email)}` : "", practice: s.practice ? ROLE_TITLE[s.role] : "" })));
+    await note(claim, "to approve", await tell(email, needsApprovalMail({ claim, lines: view.lines, checks, waitingOn, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", practice: !!s.practice }), claim.owner?.email));
   }
 }
 
@@ -518,7 +520,7 @@ async function sendBack(claim, { me, aways, today, names }, role, acting, commen
   await putClaim(claim);
   await markWaiting(claim.id, false);
   const by = acting ? `${me.name}, standing in for the ${ROLE_TITLE[role]},` : `${me.name} (${ROLE_TITLE[role] ?? "approving"})`;
-  await note(claim, "sent back", await tell(claim.owner?.email, sentBackMail({ claim, by, comment: why })));
+  await note(claim, "sent back", await tell(claim.owner?.email, sentBackMail({ claim, by, comment: why }), me.email));
   return json({ claim: await claimView(await getClaim(claim.id), { me, aways, today, names }) });
 }
 
