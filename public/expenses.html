@@ -176,7 +176,8 @@ const ROOT = $("root");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const money = (n) => (Number(n) || 0).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
-const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }); };
+// The year shows when it isn't this year, so a receipt dated January 2023 doesn't read as this January.
+const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) }); };
 // "12,50" is twelve fifty; "1,250.00" is twelve hundred and fifty.
 const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); return Number(/^\d+,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "")); };
 /*
@@ -526,7 +527,7 @@ function lineRow(l, claimId) {
     : `<div class="thumb kind">${l.kind === "mileage" ? ICON.car : ICON.note}</div>`;
   const title = l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${esc(l.from || "?")} to ${esc(l.to || "?")}` : ""}` : esc(l.paidTo || (l.check?.state === "reading" ? "New receipt" : l.kind === "noreceipt" ? "No receipt" : "Receipt"));
   const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
-  const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.join(", "))}</div>` : "";
+  const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.length < 2 ? l.problems.join("") : `${l.problems.slice(0, -1).join(", ")} and ${l.problems.at(-1)}`)}</div>` : "";
   return `<button type="button" class="line" data-line="${esc(l.id)}">${pic}
     <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${checkRow(l)}${needs}</div>
     <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
@@ -789,15 +790,16 @@ async function drawShot() {
   box.innerHTML = l?.shot
     ? `<div class="thumb" id="shotthumb">${/pdf/.test(l.shot.type) ? ICON.pdf : ICON.note}</div><div style="flex:1"><div class="check ok">${ICON.tick} Added</div><div class="tiny">${esc(l.shot.name)}</div></div><button class="btn ghost" id="shotadd" type="button" style="width:auto;padding:9px 14px;min-height:40px;font-size:14px">Replace</button>`
     : `<button class="btn ghost" id="shotadd" type="button">${ICON.camera}<span>Add a screenshot of the charge</span></button>`;
-  $("shotadd").onclick = async () => {
-    if (!EDIT.lineId) { if (!(await saveLine())) return; editorScreen(); }
-    $("shotpick").click();
-  };
+  // The picker opens from the tap itself: an iPhone opens it only straight from a tap, so saving a new line first (as
+  // this did) meant the tap did nothing but make the line (Andrew, 3 Nov 2026: two lines, one never got its screenshot).
+  // The line is saved once a picture has been chosen, below.
+  $("shotadd").onclick = () => $("shotpick").click();
   if (l?.shot && !/pdf/.test(l.shot.type)) { const f = await fullFile("shot"); if (f && $("shotthumb")) $("shotthumb").innerHTML = `<img src="${f.url}" alt="">`; }
 }
 $("shotpick").onchange = async (e) => {
-  const file = e.target.files?.[0]; e.target.value = ""; if (!file || !EDIT?.lineId) return;
-  if (EDIT.dirty) await saveLine();
+  const file = e.target.files?.[0]; e.target.value = ""; if (!file || !EDIT) return;
+  if (!EDIT.lineId) { if (!(await saveLine())) return; editorScreen(); }
+  else if (EDIT.dirty) await saveLine();
   toast("Adding the card statement…");
   const s = await shrink(file);
   try {

@@ -106,11 +106,15 @@ await phone.click("#addnone");
 await phone.fill("#f-paidTo", "Green P parking"); await phone.fill("#f-date", day(-1)); await phone.locator("#f-amount").pressSequentially("1800");
 await phone.selectOption("#f-category", "8"); await phone.fill("#f-purpose", "Parking at the venue");
 await phone.fill("#f-statement", "The machine didn't print a receipt. The charge is on my Visa.");
-await phone.click("#shotadd");
-await phone.waitForFunction(() => document.getElementById("remove"), null, { timeout: 8000 });
-ok("adding the card statement keeps the line first, so nothing typed is lost", (await phone.inputValue("#f-statement")).startsWith("The machine"));
-await phone.locator("#shotpick").setInputFiles(D + "receipt1.jpg");
+// Andrew, 3 Nov 2026: an iPhone opens the picker only straight from a tap, so nothing may be saved before it opens (saving
+// first made the tap do nothing but create the line). The line is saved once the picture is chosen.
+const adds = []; const onReq = (r) => { if (r.method() === "POST" && /add=noreceipt/.test(r.url())) adds.push(r.url()); }; phone.on("request", onReq);
+const [chooser] = await Promise.all([phone.waitForEvent("filechooser", { timeout: 4000 }), phone.click("#shotadd")]);
+ok("Add a screenshot opens the picker straight from the tap, with nothing saved first", !!chooser && adds.length === 0, `${adds.length} saves first`);
+await chooser.setFiles(D + "receipt1.jpg");
 await phone.waitForFunction(() => /Added/.test(document.getElementById("shotbox")?.textContent ?? ""), null, { timeout: 8000 });
+phone.off("request", onReq);
+ok("once it's chosen, the line is saved once, with what was typed, and the statement goes on it", adds.length === 1 && (await phone.inputValue("#f-statement")).startsWith("The machine") && await phone.isVisible("#remove"));
 ok("the card statement shows as added", /Added/.test(await phone.textContent("#shotbox")));
 await phone.screenshot({ path: D + "exp-noreceipt-phone.png" });
 await phone.click("#save"); await phone.waitForSelector("#running");

@@ -47,7 +47,7 @@ await john.fill("#f-paidTo", "Green P parking"); await john.fill("#f-date", day(
 await john.click("#save"); await john.waitForSelector("#running");
 await john.click("#submit");
 await john.waitForSelector("#submitsay .say.bad");
-ok("sending with a line still missing things says exactly what", /Green P parking .* still needs why there is no receipt, a screenshot of the card statement/.test(await john.textContent("#submitsay")));
+ok("sending with a line still missing things says exactly what", /Green P parking .* still needs a reason there's no receipt and a screenshot of the card statement/.test(await john.textContent("#submitsay")));
 await john.screenshot({ path: D + "exp-submit-problems-phone.png", fullPage: true });
 await john.locator(".line", { hasText: "Green P" }).click();
 await john.fill("#f-statement", "The machine didn't print a receipt. The charge is on my Visa.");
