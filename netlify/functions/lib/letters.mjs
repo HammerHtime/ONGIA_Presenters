@@ -142,6 +142,8 @@ export function datesOf(e) {
 // A letter then letters or digits: {day3} has to match as well as {event}.
 const BLANK = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g;
 const NOTE = /^\s*\[[^\]]*\]\s*$/;
+// A placeholder left in a sentence, in capitals ("… through Wordly. [WORDLY ACCESS DETAILS]", Andrew 3 Nov 2026).
+const PLACEHOLDER = /\[[A-Z][A-Z0-9 &/'’.,:()-]{2,}\]/;
 
 /** Everything wrong with a letter on its own, before any event is involved. */
 export function letterProblems(letter) {
@@ -151,7 +153,7 @@ export function letterProblems(letter) {
     if (!BLANKS[name]) out.push(`{${name}} is not a blank the desk knows. Check the spelling against the list.`);
   }
   for (const line of String(letter.body ?? "").split("\n")) {
-    if (NOTE.test(line)) out.push(`Still has a note to fill in: ${line.trim()}`);
+    if (NOTE.test(line) || PLACEHOLDER.test(line)) out.push(`Still has a note to fill in: ${(NOTE.test(line) ? line : line.match(PLACEHOLDER)[0]).trim()}`);
   }
   if (!String(letter.subject ?? "").trim()) out.push("It needs a subject line.");
   if (!String(letter.body ?? "").trim()) out.push("It has no words in it.");
@@ -331,7 +333,7 @@ export async function attachmentsFor(letter, event, getAgenda, getFile = null) {
   }
   // The event's own welcome letter also carries the PDFs ticked for its version (event.welcomeFiles).
   if (getFile && /^event-welcome/.test(letter?.id ?? "")) {
-    for (const f of filesFor(event, letter.audience === "group" ? "group" : "main")) {
+    for (const f of filesFor(event, letter.audience || "main")) {
       const doc = await getFile(event.id, f.id);
       if (!doc) throw new Error(`The attachment ${f.name} could not be found. Upload it again.`);
       out.push({ filename: f.name, content: Buffer.from(doc.bytes), contentType: "application/pdf" });
@@ -345,7 +347,8 @@ export const filesFor = (event, key) => (event?.welcomeFiles ?? []).filter((f) =
 /** What a version's email carries in all, in bytes: its agenda and its ticked PDFs. Email takes up to 3 MB. */
 export const ATTACH_LIMIT = 3 * 1024 * 1024;
 export function attachedBytes(event, key) {
-  const agenda = key === "group" ? event?.agendaGroupFile : event?.agendaFile;
+  // A further group (the Summit's virtual attendees) has no agenda slot: theirs goes as a ticked PDF.
+  const agenda = key === "group" ? event?.agendaGroupFile : key === "main" ? event?.agendaFile : null;
   return (agenda?.size ?? 0) + filesFor(event, key).reduce((n, f) => n + (f.size ?? 0), 0);
 }
 
@@ -394,7 +397,13 @@ export function groupDaysOf(event) {
   return null;
 }
 /** The event as a letter sees it: a letter for the second group fills {dates}, {schedule} and the days with theirs. */
-const asSeenBy = (letter, event) => (letter?.audience === "group" && groupDaysOf(event) ? { ...event, ...groupDaysOf(event) } : event);
+const asSeenBy = (letter, event) => {
+  if (letter?.audience === "group" && groupDaysOf(event)) return { ...event, ...groupDaysOf(event) };
+  // A further group's own Wix dates, when Wix gave them.
+  const x = letter?.audience && letter.audience !== "main" && letter.audience !== "group"
+    ? (event?.wixMore ?? []).slice(1).find((l) => `x${String(l?.eventId ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 10)}` === letter.audience) : null;
+  return x?.dayOne ? { ...event, dayOne: x.dayOne, lastDay: x.lastDay || x.dayOne } : event;
+};
 
 /**
  * Which of the event's agendas a letter carries: a letter for the second group (the Summit's community partners) carries
