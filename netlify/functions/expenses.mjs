@@ -88,7 +88,7 @@ export default async (req) => {
     const d = { ...c.ok, by: { email: me.email, name: me.name }, at: now() };
     // Who is told: the stand-in, with how many are waiting for them now, and the second person.
     const after = { ...aways, [role]: d };
-    const waiting = inForce(d, today) ? (await waitingClaims()).filter((cl) => cl.status === "submitted" && holders(cl.owner?.email, after, today, decidedOf(cl)).some((s) => !s.done && s.role === role && s.email === d.to)).length : 0;
+    const waiting = inForce(d, today) ? (await waitingClaims()).filter((cl) => cl.status === "submitted" && slotsOf(cl, after, today).some((s) => !s.done && s.role === role && s.email === d.to)).length : 0;
     d.mail = [];
     d.mail.push(await tell(d.to, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, waiting, pays: role === PAYER })));
     if (d.backup) d.mail.push(await tell(d.backup, handoffMail({ from: names(officers()[role]), title: ROLE_TITLE[role], d, isBackup: true, standIn: names(d.to) })));
@@ -234,23 +234,24 @@ export default async (req) => {
     const decision = body.decision;
     if (!["approve", "reject"].includes(decision)) return fail("Approve it, or send it back.");
     if (claim.status !== "submitted") return fail(claim.status === "rejected" ? "This claim has already been sent back." : claim.status === "draft" ? "This claim hasn't been sent." : "This claim has already been approved.", 409);
-    const slots = holders(claim.owner?.email, aways, today, decidedOf(claim));
+    const slots = slotsOf(claim, aways, today);
     const slot = slots.find((s) => !s.done && s.email === me.email);
     if (!slot) return fail(slots.some((s) => s.done && s.email === me.email) ? "You've already approved this one." : "This claim isn't waiting on you.", 403);
     if (decision === "reject") return sendBack(claim, ctx, slot.role, slot.for, body.comment);
     claim[`signed_${slot.role}`] = { email: me.email, name: me.name, ...(slot.for ? { for: ROLE_TITLE[slot.role] } : {}), at: now() };
-    claim.history = [...(claim.history ?? []), { at: now(), what: "approved", by: me.name, as: slot.for ? `for the ${ROLE_TITLE[slot.role]}` : ROLE_TITLE[slot.role] }];
+    claim.history = [...(claim.history ?? []), { at: now(), what: "approved", by: me.name, as: slot.practice ? `${ROLE_TITLE[slot.role]}, for practice` : slot.for ? `for the ${ROLE_TITLE[slot.role]}` : ROLE_TITLE[slot.role] }];
     await putClaim(claim);
     // Both sign-offs: approved, and the VP is asked to pay. Read again first, so two approvals at the same moment both count.
     const fresh = await getClaim(claim.id);
-    const after = holders(fresh.owner?.email, aways, today, decidedOf(fresh));
+    const after = slotsOf(fresh, aways, today);
     if (fresh.status === "submitted" && after.every((s) => s.done)) {
       fresh.status = "approved"; fresh.approvedAt = now();
       await putClaim(fresh);
-      const approvers = after.map((s) => signedName(fresh[`signed_${s.role}`]));
-      const payer = payerOf(fresh.owner?.email, aways, today);
-      await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvers, payer: names(payer.email) })));
-      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvers, acting: payer.for ? ROLE_TITLE[PAYER] : "" })));
+      const practice = !!fresh.test;
+      const approvers = practice ? after.map((s) => `the ${ROLE_TITLE[s.role]}`) : after.map((s) => signedName(fresh[`signed_${s.role}`]));
+      const payer = payerFor(fresh, aways, today);
+      await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvers, payer: names(payer.email), practice })));
+      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvers, acting: payer.for ? ROLE_TITLE[PAYER] : "", practice })));
       await startFiling(url.origin, claim.id);
     }
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -265,7 +266,7 @@ export default async (req) => {
 
   if (req.method === "POST" && q("pay")) {
     if (claim.status !== "approved") return fail(claim.status === "paid" ? "This claim is already paid." : "This claim isn't approved yet.", 409);
-    const payer = payerOf(claim.owner?.email, aways, today);
+    const payer = payerFor(claim, aways, today);
     if (payer.email !== me.email) return fail(`${names(payer.email)} records the payments${payer.for ? `, standing in for the ${ROLE_TITLE[PAYER]}` : ""}.`, 403);
     const body = await req.json().catch(() => ({}));
     const ref = String(body.ref ?? "").trim().replace(/\s+/g, "");
@@ -294,7 +295,7 @@ export default async (req) => {
     claim.status = "approved";
     await putClaim(claim);
     await markWaiting(claim.id, true);
-    const tellTo = [...new Set([payerOf(claim.owner?.email, aways, today).email, officers().president].filter((e) => e !== me.email))];
+    const tellTo = [...new Set([payerFor(claim, aways, today).email, officers().president].filter((e) => e !== me.email))];
     for (const e of tellTo) await note(claim, "unlocked", await tell(e, unlockedMail({ claim, by: me.name, reason })));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -381,6 +382,9 @@ const mayHandOff = (me, role) => OFFICER_ROLES.includes(role) && (me.role === ro
 const decidedOf = (c) => Object.fromEntries(OFFICER_ROLES.filter((r) => c[`signed_${r}`]).map((r) => [r, c[`signed_${r}`]]));
 /** "J. Taylor", or "J. Taylor for the President". */
 const signedName = (s) => (s ? `${s.name}${s.for ? ` for the ${s.for}` : ""}` : "");
+// Who signs and who pays a claim: a test claim is practice, and every step goes back to the person who made it.
+const slotsOf = (c, aways, today) => holders(c.owner?.email, aways, today, decidedOf(c), { practice: !!c.test });
+const payerFor = (c, aways, today) => payerOf(c.owner?.email, aways, today, { practice: !!c.test });
 
 /**
  * Who may open a claim: the person claiming; the President, the VP and the Treasurer once it's sent (the VP sees every
@@ -391,8 +395,8 @@ function mayOpen(c, { me, aways, today }) {
   if (c.status === "draft") return false;
   if (OFFICER_ROLES.includes(me.role)) return true;
   if (OFFICER_ROLES.some((r) => c[`signed_${r}`]?.email === me.email) || c.paid?.by?.email === me.email) return true;
-  if (c.status === "submitted" && holders(c.owner?.email, aways, today, decidedOf(c)).some((s) => s.email === me.email)) return true;
-  if (c.status === "approved" && payerOf(c.owner?.email, aways, today).email === me.email) return true;
+  if (c.status === "submitted" && slotsOf(c, aways, today).some((s) => s.email === me.email)) return true;
+  if (c.status === "approved" && payerFor(c, aways, today).email === me.email) return true;
   return false;
 }
 
@@ -496,11 +500,11 @@ async function note(claim, what, outcome) {
 async function askApprovers(claim, { aways, today, names }) {
   const view = { ...claim, lines: await listClaimLines(claim.id) };
   const checks = await checksFor(claim, view.lines);
-  const slots = holders(claim.owner?.email, aways, today, decidedOf(claim));
+  const slots = slotsOf(claim, aways, today);
   for (const s of slots.filter((x) => !x.done)) {
     const other = slots.find((x) => x !== s);
     const d = s.for ? aways[s.role] : null;
-    await note(claim, "to approve", await tell(s.email, needsApprovalMail({ claim, checks, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", others: other ? `${names(other.email)}` : "" })));
+    await note(claim, "to approve", await tell(s.email, needsApprovalMail({ claim, checks, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", others: s.practice ? "" : other ? `${names(other.email)}` : "", practice: s.practice ? ROLE_TITLE[s.role] : "" })));
   }
 }
 
@@ -530,11 +534,11 @@ export async function claimView(claim, { me, aways, today, names }) {
   const sums = claimSums(shown);
   const mine = claim.owner?.email === me.email;
   const sent = claim.status !== "draft";
-  const slots = holders(claim.owner?.email, aways, today, decidedOf(claim)).map((s) => {
+  const slots = slotsOf(claim, aways, today).map((s) => {
     const signed = claim[`signed_${s.role}`];
-    return { role: s.role, title: ROLE_TITLE[s.role], email: s.email, name: names(s.email), for: s.for ? ROLE_TITLE[s.role] : "", done: !!s.done, at: signed?.at ?? null, stuck: !!s.stuck, me: s.email === me.email };
+    return { role: s.role, title: ROLE_TITLE[s.role], email: s.email, name: names(s.email), for: s.for ? ROLE_TITLE[s.role] : "", done: !!s.done, at: signed?.at ?? null, stuck: !!s.stuck, me: s.email === me.email, practice: !!s.practice };
   });
-  const payer = payerOf(claim.owner?.email, aways, today);
+  const payer = payerFor(claim, aways, today);
   const myslot = claim.status === "submitted" ? slots.find((s) => !s.done && s.me) : null;
   const editableNow = mine && EDITABLE.includes(claim.status);
   return {
@@ -543,7 +547,7 @@ export async function claimView(claim, { me, aways, today, names }) {
     month: claim.month || monthLabel(todayIso()),
     sums, lines: shown, missing: shown.filter((l) => l.problems.length).length,
     approvers: approversFor(claim.owner?.email).map((r) => ROLE_TITLE[r]),
-    slots, payer: { email: payer.email, name: names(payer.email), for: payer.for ? ROLE_TITLE[PAYER] : "" },
+    slots, payer: { email: payer.email, name: names(payer.email), for: payer.for ? ROLE_TITLE[PAYER] : "", practice: !!payer.practice },
     rejected: claim.rejected ?? null, paid: claim.paid ?? null,
     // Where it is filed on SharePoint, or why it isn't. Ids and the receipt list stay on the server.
     filed: claim.filed ? { at: claim.filed.at ?? null, folderUrl: claim.filed.folderUrl ?? "", folder: claim.filed.folder ?? "", status: claim.filed.status ?? "", problem: claim.filed.problem ?? "", failedAt: claim.filed.failedAt ?? null, skipped: !!claim.filed.skipped, reason: claim.filed.reason ?? "" } : null,
@@ -555,7 +559,7 @@ export async function claimView(claim, { me, aways, today, names }) {
     reading: shown.some((l) => l.check?.state === "reading"),
     can: {
       submit: editableNow && shown.length > 0,
-      decide: myslot ? { role: myslot.role, title: myslot.title, for: myslot.for } : null,
+      decide: myslot ? { role: myslot.role, title: myslot.title, for: myslot.for, practice: myslot.practice } : null,
       pay: claim.status === "approved" && payer.email === me.email,
       sendBack: claim.status === "approved" && ["president", "vp"].includes(me.role),
       unlock: claim.status === "paid" && ["president", "vp"].includes(me.role),
@@ -581,9 +585,9 @@ async function home(ctx, test = false) {
   const toApprove = [], toPay = [];
   for (const c of await waitingClaims()) {
     if (c.status === "submitted") {
-      const s = holders(c.owner?.email, aways, today, decidedOf(c)).find((x) => !x.done && x.email === me.email);
+      const s = slotsOf(c, aways, today).find((x) => !x.done && x.email === me.email);
       if (s) toApprove.push(summary(c, names, { as: s.for ? `for the ${ROLE_TITLE[s.role]}` : ROLE_TITLE[s.role] }));
-    } else if (c.status === "approved" && payerOf(c.owner?.email, aways, today).email === me.email) toPay.push(summary(c, names));
+    } else if (c.status === "approved" && payerFor(c, aways, today).email === me.email) toPay.push(summary(c, names));
   }
   const officer = OFFICER_ROLES.includes(me.role);
   let all = null;

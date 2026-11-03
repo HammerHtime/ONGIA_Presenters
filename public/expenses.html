@@ -343,7 +343,7 @@ $("me").onclick = (e) => {
   const m = $("menu");
   m.hidden = !m.hidden; $("me").setAttribute("aria-expanded", String(!m.hidden));
   m.innerHTML = `<p class="who">Signed in as <b>${esc(ME?.name)}</b><br>${esc(ME?.email)}${ME?.title && ME.title !== "Board member" ? `<br>${esc(ME.title)}` : ""}</p>
-    <label class="switch" for="testmode"><span><b>Test mode</b><br><span class="tiny">What you add goes on a separate claim marked TEST, which can be deleted.</span></span><input type="checkbox" id="testmode" ${TESTMODE() ? "checked" : ""}></label>
+    <label class="switch" for="testmode"><span><b>Test mode</b><br><span class="tiny">What you add goes on a separate claim marked TEST, which can be deleted. Sent, it comes back to you to try every step: approving, sending back, paying.</span></span><input type="checkbox" id="testmode" ${TESTMODE() ? "checked" : ""}></label>
     ${badgeRow()}
     <button class="btn ghost" id="signout" type="button">Sign out</button>`;
   if ($("badgemenu")) $("badgemenu").onclick = async (ev) => { ev.stopPropagation(); ev.currentTarget.disabled = true; await allowBadge(); $("badgerow").outerHTML = badgeRow(); };
@@ -559,7 +559,7 @@ function lineRow(l, claimId) {
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
 const firstName = (n) => String(n ?? "").split(" ")[0];
 const when = (iso) => new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim. Turn it off in the menu (your initials, top right).</div>` : "");
+const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim, and every step comes back to you to try. Turn it off in the menu (your initials, top right).</div>` : "");
 function claimScreen() {
   TAB = "claim";
   chrome({ title: "My claim", back: false });
@@ -587,7 +587,7 @@ function claimScreen() {
     ${[...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => lineRow(l, c.id)).join("")}</div>`).join("")}
     ${lines.length ? `<div id="submitsay" style="margin-top:16px"></div>
       <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
-      <p class="tiny center" style="margin:8px 4px 0">It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.</p>` : ""}
+      <p class="tiny center" style="margin:8px 4px 0">${c?.test ? `A test claim comes back to you: approve it as the ${esc((c?.approvers ?? HOME.approvers).join(" and as the "))}, then record a pretend payment.` : `It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.`}</p>` : ""}
     ${(HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : ""}
     ${c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : ""}`;
   wireBadgeCard();
@@ -607,7 +607,7 @@ async function submitClaim() {
   try {
     const out = await api(`?submit=${c.id}`, { method: "POST" });
     await loadHome();
-    toast(`Sent to ${out.claim.slots.map((s) => s.name).join(" and ")}.`);
+    toast(out.claim.test ? "Sent. It's waiting for you under To approve, to try each step." : `Sent to ${out.claim.slots.map((s) => s.name).join(" and ")}.`);
     openClaim(out.claim.id, { claim: out.claim });
   } catch (e) {
     if (e.quiet) return;
@@ -864,7 +864,7 @@ function slotRow(s, c) {
   const right = s.done ? `<span class="r ok">✓ Approved ${esc(new Date(s.at).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}</span>`
     : c.status === "submitted" ? `<span class="r wait">${s.me ? "Waiting for you" : "Waiting"}</span>`
     : c.status === "rejected" && c.rejected?.role === s.role ? `<span class="r bad">✕ Sent back</span>` : `<span class="r">Not yet</span>`;
-  return `<div class="slot"><div>${esc(s.title)} · ${esc(s.name)}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
+  return `<div class="slot"><div>${esc(s.title)} · ${s.practice ? "you, for practice" : esc(s.name)}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
 }
 function checksBox(c) {
   const k = c.checks; if (!k) return "";
@@ -879,7 +879,7 @@ function viewScreen() {
   chrome({ title: c.can.decide || myDone && c.status === "submitted" ? "Approve a claim" : c.can.pay ? "Pay a claim" : `${(c.month || "").split(" ")[0]} claim`, back: true, tabs: false });
   const first = firstName(c.owner?.name);
   const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
-  let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Nothing is paid or filed, and it can be deleted.</div>` : "";
+  let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>` : "";
   h += `<div class="card"><div class="k">From</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
@@ -896,12 +896,13 @@ function viewScreen() {
   if (c.can.decide) h += `<div class="bigbtns"><button class="btn green" id="approve" type="button">${ICON.tick}<span>Approve</span></button><button class="btn red" id="reject" type="button">✕<span>Send back</span></button></div>
     <div id="rejectbox" hidden><div class="field"><label for="why" style="color:var(--late);font-weight:600">Why are you sending it back? (needed)</label><textarea id="why" placeholder="What needs changing, so ${esc(first)} can fix it."></textarea></div>
       <button class="btn red" id="dosendback" type="button">Send back to ${esc(first)}</button><p class="tiny center" style="margin-top:6px">${esc(first)} gets an email and sees your note on the claim.</p></div>
-    ${c.can.decide.for ? `<p class="tiny center">You're standing in for the ${esc(c.can.decide.for)}.</p>` : ""}`;
+    ${c.can.decide.practice ? `<p class="tiny center">Practice: you're approving it as the ${esc(c.can.decide.title)}.</p>` : c.can.decide.for ? `<p class="tiny center">You're standing in for the ${esc(c.can.decide.for)}.</p>` : ""}`;
   else if (myDone && c.status === "submitted") h += `<div class="bigbtns"><button class="btn green" type="button" disabled>${ICON.tick}<span>Approved</span></button><button class="btn dim" type="button" disabled>✕<span>Send back</span></button></div>
     <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. When both have approved, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
       <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
-      <div class="field"><label for="ref">E-transfer reference</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="As the bank shows it"></div>
+      ${c.payer.practice ? `<div class="say mu" style="margin:0 0 10px">Practice: nothing is sent. Type any reference, like TEST123, and it locks as a paid claim does.</div>` : ""}
+      <div class="field"><label for="ref">E-transfer reference</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="${c.payer.practice ? "TEST123" : "As the bank shows it"}"></div>
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
       <button class="btn gold" id="paybtn" type="button">Mark paid and lock</button>
       ${c.payer.for ? `<p class="tiny center" style="margin-top:6px">You're standing in for the ${esc(c.payer.for)}.</p>` : ""}</div>
