@@ -136,5 +136,6 @@ ok("the job ran: here, with no Microsoft set up, the claim says it wasn't filed 
 ok("John can't press File it again; an officer can", (await call(`/api/expenses?refile=${m.claim.id}`, "POST", {})).status === 403 && (await call(`/api/expenses?refile=${m.claim.id}`, "POST", {}, PRES)).status === 202);
 ok("the job refuses anyone without the desk key", (await bg(new Request(`http://localhost/api/expense-file-background?claim=${m.claim.id}`, { method: "POST" }))).status === 401);
 
+ok("on the claim form a stipend says it needs no receipt", E.purposeOf({ kind: "noreceipt", category: 10, purpose: "Speaker stipend" }) === "Speaker stipend (speaker stipend: no receipt needed)" && /reason and card statement attached/.test(E.purposeOf({ kind: "noreceipt", category: 8, purpose: "Parking" })));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

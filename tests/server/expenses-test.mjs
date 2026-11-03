@@ -139,6 +139,15 @@ const reasonNeeded = async (statement) => (await call(`/api/expenses?claim=${C}&
 ok("a short reason counts: \"Lost it\"", !(await reasonNeeded("Lost it")));
 ok("but two letters, or spaces, don't", (await reasonNeeded("ok")) && (await reasonNeeded("     ")));
 ok("what's missing reads as a sentence: \"…, a and b\"", X.andList(["the date", "a reason there's no receipt", "a screenshot"]) === "the date, a reason there's no receipt and a screenshot" && X.andList(["the date"]) === "the date" && X.andList(["a", "b"]) === "a and b");
+// Andrew, 3 Nov 2026: "Any receipt line for stipend, does not need a reason nor an upload or screenshot."
+{
+  const st = { kind: "noreceipt", paidTo: "A. Presenter", date: "2026-11-11", amount: 500, category: 10, purpose: "Speaker stipend", statement: "", shot: null };
+  ok("a speaker stipend with no reason and no card statement needs nothing more", X.lineProblems(st).length === 0 && X.receiptCheck(st).state === "stipend", JSON.stringify(X.lineProblems(st)));
+  ok("…but it still needs who, the amount and the date", X.lineProblems({ ...st, paidTo: "", amount: null, date: "" }).join("|") === "who it was paid to|the date|the amount");
+  const ck = X.claimChecks([st], { month: "November 2026" });
+  ok("Claude's check doesn't flag a stipend's amount, and says it needs no receipt", ck.ok === true && ck.summary.includes("The speaker stipend needs no receipt"), JSON.stringify(ck));
+  ok("any other no-receipt line still needs its reason and statement", X.lineProblems({ ...st, category: 8 }).join("|") === "a reason there's no receipt|a screenshot of the card statement");
+}
 await call(`/api/expenses?claim=${C}&line=${L4}`, "PUT", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue", statement: "The machine printed no receipt. It is on my Visa statement." }, MEMBER);
 const sh = await call(`/api/expenses?claim=${C}&shot=${L4}`, "POST", PNG, { "x-expense-key": MEMBER["x-expense-key"], "x-file-name": "visa.png" });
 l = sh.claim.lines.find((x) => x.id === L4);

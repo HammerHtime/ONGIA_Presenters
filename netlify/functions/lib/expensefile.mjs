@@ -7,7 +7,7 @@ import { safeFileName } from "./ids.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { claimWorkbook } from "./expensexlsx.mjs";
 import { claimPdf } from "./expensepdf.mjs";
-import { officers, approversFor, roleOf, OFFICER_ROLES, ROLE_TITLE } from "./expenses.mjs";
+import { officers, approversFor, roleOf, OFFICER_ROLES, ROLE_TITLE, isStipend } from "./expenses.mjs";
 
 /**
  * Filing a claim in the Treasurer's folders on SharePoint (Andrew, 2 Nov 2026):
@@ -114,7 +114,7 @@ export async function claimDocuments({ claim, lines, names, checks, getFile }) {
 export function purposeOf(l) {
   return [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "",
     l.kind === "mileage" ? `${l.km} km at $${Number(l.rate).toFixed(2)}/km${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "",
-    l.kind === "noreceipt" ? "(no receipt: reason and card statement attached)" : ""].filter(Boolean).join(" ");
+    l.kind === "noreceipt" ? (isStipend(l) ? "(speaker stipend: no receipt needed)" : "(no receipt: reason and card statement attached)") : ""].filter(Boolean).join(" ");
 }
 
 /**
