@@ -95,7 +95,7 @@ const nightsBetween = (from, to) => {
 };
 function deskSide(p) {
   const s = p.submission ?? {};
-  if (p.status === "approved") {
+  if (p.status === "approved" || p.status === "arranged") {
     const h = p.review?.hotel;
     return { state: "approved", at: p.approvedAt, room: Boolean(h), checkIn: h?.from ?? null, checkOut: h?.to ?? null, nights: h ? nightsBetween(h.from, h.to) : [],
       block: h ? (p.review?.hotel?.block ?? (p.review?.ongiaCovers?.hotel ? "master" : "own")) : null };

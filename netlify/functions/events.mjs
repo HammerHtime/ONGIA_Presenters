@@ -10,7 +10,7 @@ import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
-import { describeEvent } from "./lib/deadlines.mjs";
+import { describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { PROVINCES, cleanPrefix, redactEvent, withoutOffers, guessProvince, defaultPrefix } from "./lib/sow.mjs";
 import { materialsStatus } from "./lib/materials.mjs";
@@ -30,7 +30,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
  *   PUT    /api/events?id=…&room=1          the main room's seats and the VIPs seated in it ({ seats, vips })
- *   PUT    /api/events?id=…&presenter=…&paper=1  { on: true|false, note? } signed on paper, filed by hand (or undo it)
+ *   PUT    /api/events?id=…&presenter=…&arranged=1  finalize without an agreement: { on, note, hotel, covers } (or undo)
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -63,7 +63,7 @@ export default async (req) => {
     if (url.searchParams.get("lead")) return setLead(id, body);
     if (url.searchParams.get("room")) return setRoom(id, body);
     const presenterId = url.searchParams.get("presenter");
-    if (presenterId && url.searchParams.get("paper")) return setPaper(id, presenterId, body, who);
+    if (presenterId && url.searchParams.get("arranged")) return setArranged(id, presenterId, body, who);
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
   if (req.method === "DELETE") {
@@ -413,22 +413,46 @@ async function updatePresenter(id, presenterId, body) {
 }
 
 /**
- * Signed on paper (Andrew 3 Nov 2026): the agreement came by email and is filed by hand, so the desk stops treating them
- * as outstanding. Undo puts them back as they were. An agreement signed here is never overwritten by this; and someone
- * marked as on paper can still sign online with their link, which then takes over.
+ * Finalized without an agreement (Andrew 3 Nov 2026): someone arranged by phone or through their office (a paid keynote
+ * whose office signed its own contract, the Joy Smith Foundation) is never sent the presenter agreement. Andrew finalizes
+ * them with a note saying how it was arranged, and the hotel nights and costs as agreed, so the rooming list and the
+ * hotel still know. Nothing is emailed, filed or chased. Saving again changes it; undo puts them back as they were.
+ * Someone who has already signed here is never overwritten.
+ *
+ * Body: { on: true, note, hotel: { from, to, block: "master" | "own" } | null, covers: { transport, hotel, meals, other } }
+ *       { on: false }
  */
-async function setPaper(id, presenterId, body, who) {
+const ARRANGED_COSTS = ["transport", "hotel", "meals", "other"];
+async function setArranged(id, presenterId, body, who) {
   const presenter = await getPresenter(id, presenterId);
   if (!presenter) return fail("No such presenter.", 404);
-  if (body.on === true) {
-    if (presenter.status === "submitted" || presenter.status === "approved") return fail("They have already signed here, so there is nothing to mark.", 409);
-    if (presenter.status !== "paper") presenter.paper = { was: presenter.status || "invited" };
-    presenter.paper = { ...(presenter.paper ?? {}), at: new Date().toISOString(), by: who?.name || who?.email || "", note: text(body.note, 300) };
-    presenter.status = "paper";
-  } else if (body.on === false) {
-    if (presenter.status !== "paper") return fail("They are not marked as signed on paper.", 409);
-    presenter.status = presenter.paper?.was || "invited";
-    delete presenter.paper;
+  if (body.on === false) {
+    if (presenter.status !== "arranged") return fail("They are not finalized without an agreement.", 409);
+    presenter.status = presenter.arranged?.was || "invited";
+    delete presenter.arranged;
+    if (presenter.review?.arranged) delete presenter.review;
+  } else if (body.on === true) {
+    if (presenter.status === "submitted" || presenter.status === "approved") return fail("They have already signed their agreement here, so it is finalized through Review.", 409);
+    const note = text(body.note, 1000);
+    if (note.length < 3) return fail("Say in a few words how it was arranged, for example: spoke to them on the phone, everything is booked.");
+    const event = await getEvent(id);
+    let hotel = null;
+    if (body.hotel) {
+      const block = body.hotel.block === "master" || body.hotel.block === "own" ? body.hotel.block : null;
+      if (!block) return fail("Say who pays for the room: ONGIA, or they pay their own.");
+      const from = text(body.hotel.from, 10), to = text(body.hotel.to, 10);
+      const problem = rangeProblem(from, to, travelWindow(event), "Hotel");
+      if (problem) return fail(problem);
+      hotel = { from, to, block, changed: false };
+    }
+    const covers = Object.fromEntries(ARRANGED_COSTS.map((k) => [k, body.covers?.[k] === true]));
+    if (hotel) covers.hotel = hotel.block === "master";
+    const now = new Date().toISOString();
+    const was = presenter.status === "arranged" ? presenter.arranged?.was : presenter.status || "invited";
+    presenter.arranged = { was, note, at: presenter.arranged?.at ?? now, by: who?.name || who?.email || "", updatedAt: now };
+    // The same shape an approval leaves, so the rooming list and the hotel sheet read it the same way.
+    presenter.review = { arranged: true, ongiaCovers: covers, travel: null, hotel, note };
+    presenter.status = "arranged";
   } else return fail("Say on: true or on: false.");
   presenter.updatedAt = new Date().toISOString();
   await putPresenter(presenter);
@@ -584,17 +608,17 @@ export function attentionOf(people) {
 }
 
 /**
- * Whether ONGIA has this presenter's agreement: signed here (submitted or approved), or signed on paper and filed by
- * hand (Andrew 3 Nov 2026: the Summit's agreements gathered by email over the summer, in the Training Director's
- * folders). A paper one is not chased, not counted as never sent, and not in "email everyone".
+ * Whether this presenter is settled: their agreement signed here (submitted or approved), or finalized without one
+ * (arranged directly, Andrew 3 Nov 2026). An arranged one is not chased, not counted as never sent, and not in
+ * "email everyone".
  */
-export const HAS_AGREEMENT = (p) => p.status === "approved" || p.status === "submitted" || p.status === "paper";
+export const HAS_AGREEMENT = (p) => p.status === "approved" || p.status === "submitted" || p.status === "arranged";
 
 export function countStatuses(presenters) {
-  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0, paper: 0, uninvited: 0, failed: 0 };
+  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0, arranged: 0, uninvited: 0, failed: 0 };
   for (const p of presenters) {
     if (p.status === "approved") counts.approved++;
-    else if (p.status === "paper") counts.paper++;
+    else if (p.status === "arranged") counts.arranged++;
     else if (p.status === "submitted") counts.submitted++;
     else if (p.openedAt) counts.opened++;
     else counts.invited++;
