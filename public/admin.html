@@ -168,7 +168,7 @@
   .sn:hover{background:rgba(255,255,255,.07)}
   .sn.on{background:var(--gold);color:#1c1608}
   .sn.rbh:not(.on){color:#9fd8d2}
-  .sn .nb{margin-left:auto}
+  .sn .attnb{margin-left:auto}
   .slogo{height:46px;width:auto;display:block;margin:0 8px}
   .sroom{font-size:12px;color:rgba(255,255,255,.55);margin:2px 10px 18px}
   .snav{display:flex;flex-direction:column;gap:3px}
@@ -196,7 +196,7 @@
     .withside .sroom{display:none}
     .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
     .withside .sn svg{width:21px;height:21px}
-    .withside .sn .nb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
+    .withside .sn .attnb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
     .withside .sme{justify-content:center;padding:12px 0 0} .withside .sme div{display:none}
   }
   @media (max-width:899px){
@@ -208,7 +208,7 @@
     .withside .snav > .sn{flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;color:var(--muted);text-align:center;border-radius:10px;justify-content:center;min-height:50px}
     .withside .snav > .sn svg{width:22px;height:22px}
     .withside .snav > .sn.on{background:none;color:var(--navy-deep)} .withside .snav > .sn.on svg{color:var(--gold)}
-    .withside .snav > .sn .nb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
+    .withside .snav > .sn .attnb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
     .withside .snmore{display:flex}
     .withside .smore{display:none;position:fixed;right:8px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-width:220px;margin:0;padding:6px;
       background:#fff;border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow)}
@@ -1804,8 +1804,10 @@
   .certl .certact{white-space:nowrap;text-align:right}.certl .certact .linkish{margin-left:8px}
   @media (max-width:760px){.certgrid{grid-template-columns:1fr}.certl .certact{text-align:left}}
   /* Admin › Agencies (Andrew 30 Oct 2026) */
-  .nb{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px}
-  .nb[hidden]{display:none}
+  /* The red count of what's waiting (Andrew 3 Nov 2026: "a round circle"). Its own name: it used to share "nb" with the
+     hotel nights grid, whose flex:1 stretched it into a long pill in the sidebar. One digit is a circle; two, a short oval. */
+  .attnb{display:inline-grid;place-items:center;flex:none;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px;box-sizing:border-box}
+  .attnb[hidden]{display:none}
   .agtop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px}.agh{font-family:var(--fd);font-size:28px}
   .agrun{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.agrun .porg{font-size:12.5px}
   .agtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -5820,7 +5822,7 @@ function renderWelcomeCard(ev, W) {
  * French name, work email domains and every way it has been typed, to edit, merge or download.
  */
 let ATTN = 0, ATTN_AT = 0;
-const attnBadge = () => `<span class="nb" data-attn title="Waiting for you"${ATTN ? "" : " hidden"}>${ATTN}</span>`;
+const attnBadge = () => `<span class="attnb" data-attn title="Waiting for you"${ATTN ? "" : " hidden"}>${ATTN}</span>`;
 function paintAttention() { document.querySelectorAll("[data-attn]").forEach((el) => { el.textContent = ATTN; el.hidden = !ATTN; }); }
 async function attention(force = false) {
   if (force || Date.now() - ATTN_AT > 60000) {
