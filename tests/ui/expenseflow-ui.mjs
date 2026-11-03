@@ -60,6 +60,10 @@ await john.click("#submit");
 await john.waitForSelector(".slot", { timeout: 8000 });
 ok("sent: John sees it waiting for Andrew and Raj", /Waiting for approval/.test(await john.textContent("#root")) && /President · Andrew Hammond/.test(await john.textContent("#root")) && /Treasurer · Raj Jaswal/.test(await john.textContent("#root")));
 ok("and the message names them", /Sent to Andrew Hammond and Raj Jaswal/.test(await john.textContent(".toast")));
+// Andrew, 3 Nov 2026: where each sign-off stands, in colour, at the top of the claim.
+const chip = (pg, who) => pg.locator(".slot", { hasText: who }).locator(".r").evaluate((e) => [e.className.replace(/^r\s*/, ""), e.textContent.trim()]);
+ok("each sign-off waiting shows in yellow", JSON.stringify(await chip(john, "Andrew Hammond")) === '["wait","Waiting"]' && JSON.stringify(await chip(john, "Raj Jaswal")) === '["wait","Waiting"]');
+ok("…at the top: the sign-offs come before Claude's check", await john.evaluate(() => { const so = [...document.querySelectorAll(".card .k")].find((k) => k.textContent === "Sign-offs"); const ck = document.querySelector(".allok, .looks"); return !!so && !!ck && (so.compareDocumentPosition(ck) & Node.DOCUMENT_POSITION_FOLLOWING) > 0; }));
 await john.screenshot({ path: D + "exp-sent-phone.png", fullPage: true });
 const CID = (await api("john", "")).past[0].id;
 
@@ -77,6 +81,7 @@ await andrew.click("#approve");
 await andrew.waitForSelector(".stamp");
 ok("the button turns green, Approved, with the date and time filled in", /Approved by you, President/.test(await andrew.textContent(".stamp")) && /\d{4}/.test(await andrew.textContent(".stamp")) && (await andrew.locator(".bigbtns .btn.green[disabled]").count()) === 1);
 ok("next: waiting for Raj", /Waiting for Raj Jaswal/.test(await andrew.textContent("#root")));
+ok("Andrew's sign-off turns green, Raj's stays yellow", (await chip(andrew, "Andrew Hammond"))[0] === "ok" && /✓ Approved/.test((await chip(andrew, "Andrew Hammond"))[1]) && (await chip(andrew, "Raj Jaswal"))[0] === "wait");
 // Locally there is no Microsoft, so the filing job says so; on the site this card says where it's filed.
 ok("the officers see where it stands in SharePoint (here: not filed, and why)", /Not filed: Microsoft isn't set up on this site/.test(await andrew.textContent("#root")));
 await andrew.screenshot({ path: D + "exp-approved-phone.png", fullPage: true });
@@ -101,6 +106,9 @@ await raj.screenshot({ path: D + "exp-reject-phone.png", fullPage: true });
 await raj.click("#dosendback");
 await raj.waitForSelector(".sentback");
 ok("sent back: it says so, with Raj's note", /Sent back by Raj Jaswal/.test(await raj.textContent(".sentback")) && /covered by the venue/.test(await raj.textContent(".sentback")));
+ok("Raj's sign-off is red, Sent back, and only his", JSON.stringify(await chip(raj, "Raj Jaswal")) === '["bad","✕ Sent back"]' && (await chip(raj, "Andrew Hammond"))[0] !== "bad", JSON.stringify([await chip(raj, "Raj Jaswal"), await chip(raj, "Andrew Hammond")]));
+await raj.locator(".slot").first().evaluate((e) => e.closest(".card").scrollIntoView());
+await raj.screenshot({ path: D + "exp-signoffs-sentback-phone.png" });
 
 console.log("— John fixes it and sends it again");
 await john.goto(S + "/expenses", { waitUntil: "networkidle" }); await john.waitForSelector("#running");

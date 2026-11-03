@@ -136,7 +136,10 @@
   .sentback b{color:var(--late)}
   .quote{white-space:pre-wrap;margin-top:4px}
   .slot{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:14.5px}.slot:first-of-type{border-top:0}
-  .slot>div:first-child{min-width:0;flex:1}.slot .r{flex:none;font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right}.slot .r.ok{color:var(--done);font-weight:600}.slot .r.you{color:var(--wait);font-weight:600}
+  .slot>div:first-child{min-width:0;flex:1}.slot .r{flex:none;font-size:12.5px;white-space:nowrap;text-align:right;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--border);background:var(--sunk);color:var(--muted)}
+  /* Where each sign-off stands, in colour (Andrew, 3 Nov 2026): yellow waiting, green approved, red sent back. */
+  .slot{align-items:center}.slot .r.wait{background:var(--wait-bg);color:var(--wait);border-color:#e5c98c}
+  .slot .r.ok{background:var(--done-bg);color:var(--done);border-color:#9cc7b0}.slot .r.bad{background:var(--late-bg);color:var(--late);border-color:#e2a79f}
   .lock{display:flex;gap:10px;align-items:center;background:var(--sunk);border-radius:12px;padding:11px 13px;font-size:13.5px;margin:0 0 10px;line-height:1.4}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.chips button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:7px 12px;font-size:13.5px;min-height:38px;cursor:pointer}.chips button.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .testbar{background:repeating-linear-gradient(135deg,#2c3448 0 10px,#39425a 10px 20px);color:#fff;font-size:13px;padding:8px 14px;text-align:center;border-radius:10px;margin:0 0 12px}
@@ -857,8 +860,10 @@ async function openClaim(id, { push = true, claim = null } = {}) {
   catch (e) { if (!e.quiet) { ROOT.innerHTML = `<div class="say bad">${esc(e.message)}</div>`; } }
 }
 function slotRow(s, c) {
-  const right = s.done ? `<span class="r ok">Approved ${esc(new Date(s.at).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}</span>`
-    : c.status === "submitted" ? `<span class="r${s.me ? " you" : ""}">${s.me ? "Waiting for you" : "Waiting"}</span>` : `<span class="r">${c.status === "rejected" ? "Sent back" : "Not yet"}</span>`;
+  // Only the one who sent it back is red; the other sign-off simply hasn't happened.
+  const right = s.done ? `<span class="r ok">✓ Approved ${esc(new Date(s.at).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}</span>`
+    : c.status === "submitted" ? `<span class="r wait">${s.me ? "Waiting for you" : "Waiting"}</span>`
+    : c.status === "rejected" && c.rejected?.role === s.role ? `<span class="r bad">✕ Sent back</span>` : `<span class="r">Not yet</span>`;
   return `<div class="slot"><div>${esc(s.title)} · ${esc(s.name)}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
 }
 function checksBox(c) {
@@ -879,6 +884,8 @@ function viewScreen() {
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
     <div style="margin-top:4px"><span class="pill ${PILL[c.status] ?? "mu"}">${esc(c.words)}</span></div></div>`;
+  // Where it stands, at the top: who has signed, who it waits on, who sent it back.
+  h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
   if (c.status === "rejected" && c.rejected) h += `<div class="sentback"><b>Sent back by ${esc(c.rejected.by?.name)}${c.rejected.for ? ` for the ${esc(c.rejected.for)}` : ""} · ${esc(when(c.rejected.at))}</b><div class="note quote">"${esc(c.rejected.comment)}"</div></div>`;
   if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · e-transfer <b>${esc(c.paid.ref)}</b>. Locked.</div></div>`;
   if (c.status !== "draft") h += checksBox(c);
@@ -906,7 +913,6 @@ function viewScreen() {
   const fails = c.mailFailed ?? [];
   if (fails.length) h += `<div class="say wt"><b>${fails.length === 1 ? "An email about this claim didn't go." : `${fails.length} emails about this claim didn't go.`}</b> The people below may not know about it.
     <details class="more" style="margin:6px 0 0"><summary>Which ones</summary><ul class="hist" style="padding-left:18px;margin:0">${fails.map((m) => `<li>${esc(m.to)} (${esc(m.what)}), ${esc(when(m.at))}: ${esc(m.why)}</li>`).join("")}</ul></details></div>`;
-  h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
   if (c.status !== "draft") h += filedCard(c);
   h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
   if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, reference ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
