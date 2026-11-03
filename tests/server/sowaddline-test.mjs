@@ -48,5 +48,44 @@ for (const doc of ["sow", "invoice"]) {
 }
 r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: r.sow.lines.filter((l) => !l.added), taxes: r.sow.taxes });
 ok("and it can be taken out again", r.status === 200 && !r.sow.lines.some((l) => l.added));
+
+// RBH asks for the SOW again with the added line on it (Andrew 3 Nov 2026, the VIP event), after receipts are in.
+// The SOW carries estimates only: the receipts stay on the invoice.
+const { putReceipts } = await import(F + "lib/store.mjs");
+r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: [...r.sow.lines, { id: "new2", name: "Entertainment: hockey tickets", type: "cost", estimate: 0, actual: null }], taxes: r.sow.taxes });
+const hockey = r.sow.lines.find((l) => l.added);
+const agreedCost = r.sow.lines.find((l) => !l.added && l.type === "cost") ?? r.sow.lines[0];
+await putReceipts(ev.id, { drafts: [], items: [
+  { id: "rc1", lineId: hockey.id, vendor: "Ticketmaster", date: "2026-11-24", amount: 777.77, total: 777.77 },
+  { id: "rc2", lineId: agreedCost.id, vendor: "Taxi Montréal", date: "2026-11-24", amount: 333.33, total: 333.33 } ] });
+const subBefore = (await call(sowFn, `/api/sow?event=${ev.id}`)).estimate.subtotal;
+const stale = r.sow.lines;   // the page's copy, still saying "added"
+r = await call(sowFn, `/api/sow?event=${ev.id}&unlock=1`, "PUT", { word: "EDIT" });
+ok("unlocked with EDIT", r.status === 200 && r.locked === false);
+r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: stale.map((l) => (l.id === hockey.id ? { ...l, estimate: 0 } : l)), taxes: r.sow.taxes });
+ok("left at nil, it is still on the invoice only", r.sow.lines.find((l) => l.id === hockey.id)?.added === true && r.estimate.subtotal === subBefore);
+r = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: stale.map((l) => (l.id === hockey.id ? { ...l, estimate: 1500 } : l)), taxes: r.sow.taxes });
+const onIt = r.sow.lines.find((l) => l.id === hockey.id);
+ok("given an estimate, it is on the SOW (even though the page's copy still said added)", r.status === 200 && onIt && !onIt.added && onIt.estimate === 1500, JSON.stringify(onIt));
+ok("the SOW subtotal grows by its estimate, not by its receipts", r.estimate.subtotal === Math.round((subBefore + 1500) * 100) / 100, `${r.estimate.subtotal} vs ${subBefore} + 1500`);
+ok("and RBH's copy is flagged as missing it", (r.changedSinceSent ?? []).some((c) => c.what === "added" && c.now === 1500));
+{
+  const res = await call(sowFn, `/api/sow?event=${ev.id}&doc=sow`);
+  const text = pdfText(Buffer.from(await res.res.arrayBuffer()));
+  ok("the SOW PDF lists it at its estimate", /hockey/i.test(text) && /1,500\.00/.test(text), text.slice(0, 400));
+  ok("and shows no receipt amounts", !/777\.77|333\.33/.test(text), text);
+}
+r = await call(sowFn, `/api/sow?event=${ev.id}&status=submitted`, "PUT");
+ok("sent again: locked, and RBH's copy matches", r.locked === true && !(r.changedSinceSent ?? []).length && r.estimate.subtotal === Math.round((subBefore + 1500) * 100) / 100);
+r = await call(sowFn, `/api/sow?event=${ev.id}&status=approved`, "PUT");
+const again = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: stale.map((l) => (l.id === hockey.id ? { ...l, estimate: 1500 } : l)), taxes: r.sow.taxes });
+ok("approved: a save from a page that still says added changes nothing", again.status === 200 && !again.sow.lines.find((l) => l.id === hockey.id)?.added && again.sow.lines.find((l) => l.id === hockey.id)?.estimate === 1500, JSON.stringify(again).slice(0, 300));
+const moved = await call(sowFn, `/api/sow?event=${ev.id}`, "PUT", { lines: again.sow.lines.map((l) => (l.id === hockey.id ? { ...l, estimate: 2000 } : l)), taxes: r.sow.taxes });
+ok("and its amount is now agreed, so locked like the others", moved.status === 409);
+{
+  const res = await call(sowFn, `/api/sow?event=${ev.id}&doc=invoice`);
+  const text = pdfText(Buffer.from(await res.res.arrayBuffer()));
+  ok("the invoice bills the at-cost line from its receipts", /hockey/i.test(text) && /777\.77/.test(text), text.slice(0, 400));
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -215,6 +215,9 @@ export default async (req) => {
     const kept = new Set(lines.map((l) => l.id));
     const stranded = sow.lines.filter((l) => !kept.has(l.id) && (receipts.items ?? []).some((r) => r.lineId === l.id));
     if (stranded.length) return fail(`There are receipts against ${stranded.map((l) => `"${l.name}"`).join(", ")}. Move or remove them on the Receipts screen before deleting the line.`, 409);
+    // Whether a line was added after approval is the server's to say, never the page's (a page's old copy would put it back).
+    const had = new Map(sow.lines.map((l) => [l.id, l]));
+    for (const l of lines) { if (had.get(l.id)?.added) l.added = true; else delete l.added; }
     if (isLocked(sow)) {
       // After approval the estimates are what RBH agreed to: those lines' names, types and amounts stay, and only
       // descriptions and the actuals (the invoice) change until it is unlocked. A new line can still be added (Andrew
@@ -224,6 +227,10 @@ export default async (req) => {
       const same = kept.length === agreed.length && kept.every((l, i) => l.id === agreed[i].id && l.name === agreed[i].name && l.type === agreed[i].type && l.estimate === agreed[i].estimate);
       if (!same) return fail("This was sent to RBH, so the amounts are locked. Click Edit amounts and type EDIT if RBH has agreed to a change.", 409);
       for (const l of lines) if (!agreedIds.has(l.id)) { l.added = true; l.estimate = 0; }
+    } else {
+      // Unlocked to send RBH a new SOW (Andrew 3 Nov 2026, the VIP event): a line added after approval that is given an
+      // estimate goes on the SOW from now on, like any other line. One left at nil stays on the invoice only.
+      for (const l of lines) if (l.added && l.estimate > 0) delete l.added;
     }
     const next = {
       ...sow,

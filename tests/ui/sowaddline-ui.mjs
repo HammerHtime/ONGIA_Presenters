@@ -42,6 +42,37 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
   ok(`${tag}: fits, no page errors`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
   await p.close();
 }
+
+// RBH asks for the SOW again with the added line on it (Andrew 3 Nov 2026): unlock, give it an estimate, and it is on the SOW.
+for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+  const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
+  await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true }]);
+  const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+  await p.locator('.etab[data-tab="money"]').click(); await p.waitForTimeout(1200);
+  const fold = p.locator("#sowcard"); if (!(await fold.evaluate((d) => d.open))) await fold.locator("summary").first().click();
+  if (tag === "laptop") {
+    await p.locator("#sw-unlock").click(); await p.locator("#sw-word").fill("EDIT"); await p.locator("#sw-unlockgo").click(); await p.waitForTimeout(1200);
+  }
+  const row = p.locator("#sw-table tr.added").first();
+  if (tag === "laptop") {
+    ok(`${tag}: unlocked, the added line says an estimate puts it on the SOW`, /type an estimate to put it on the SOW/.test(await row.innerText()) && await row.locator(".ln-est").isEnabled(), await row.innerText());
+    await p.locator("#sw-table").screenshot({ path: D + `sow-addline-unlocked-${tag}.png` });
+    await row.locator(".ln-est").fill("1500"); await row.locator(".ln-est").blur(); await p.waitForTimeout(2800);
+    const saved = (await api(`/api/sow?event=${ev.id}`)).sow.lines.find((l) => /sporting event tickets/.test(l.name));
+    ok(`${tag}: typed in, it saves as a SOW line at $1,500`, saved && !saved.added && saved.estimate === 1500, JSON.stringify(saved));
+    ok(`${tag}: the "added after approval" tag goes without a reload`, !(await p.locator("#sw-table tr.added").count()) && !(await p.locator("#sw-table .addtag").count()));
+  } else {
+    ok(`${tag}: after a reload it is an ordinary line on the SOW`, !(await p.locator("#sw-table tr.added").count()) && (await p.locator("#sw-table .ln-name").evaluateAll((a) => a.map((i) => i.value))).some((v) => /sporting event tickets/.test(v)));
+    const said = await p.locator("#sw-body").innerText();
+    ok(`${tag}: and the page says RBH's copy doesn't have it yet`, /Changed since you sent it to RBH/.test(said) && /sporting event tickets[^\n]*added → \$1,500\.00/.test(said), said.slice(0, 600));
+    await p.locator("#sw-body").screenshot({ path: D + `sow-addline-changed-${tag}.png` });
+  }
+  await p.locator("#sw-table").screenshot({ path: D + `sow-addline-onsow-${tag}.png` });
+  ok(`${tag}: fits, no page errors (unlocked)`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
+  await p.close();
+}
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -7575,9 +7575,9 @@ function wireSow(ev, S, { onSums = null } = {}) {
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
       <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}${locked ? " locked" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate${locked ? ` <span class="swlock" title="Agreed with RBH. Click Edit amounts and type EDIT if RBH agrees to a change.">🔒 agreed with RBH</span>` : ""}</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
         ${sow.lines.map((l, i) => `<tr data-i="${i}"${l.added ? ` class="added"` : ""}><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked && !l.added ? " disabled" : ""}>
-            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description">${l.added ? `<div class="addtag">Added after approval · no agreed amount · on the invoice only</div>` : ""}</td>
+            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description">${l.added ? `<div class="addtag">${locked ? "Added after approval · no agreed amount · on the invoice only" : "Added after approval · type an estimate to put it on the SOW"}</div>` : ""}</td>
           <td class="t" data-l="Type"><select class="ln-type"${locked && !l.added ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
-          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="${l.added ? "not in the SOW" : "$0.00"}" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
+          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="${l.added && locked ? "not in the SOW" : "$0.00"}" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
           ${rcCell(l)}
           <td class="n act inv" data-l="Invoice amount"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
           <td class="v act" data-l="vs estimate"></td>
@@ -7712,7 +7712,12 @@ function wireSow(ev, S, { onSums = null } = {}) {
       const ids = (mine, theirs) => { const named = (mine ?? []).filter((l) => String(l.name ?? "").trim()); (theirs ?? []).forEach((l, i) => { if (named[i]) named[i].id = l.id; }); };
       ids(sow.lines, out.sow.lines); ids(sow.internal, out.sow.internal);
       const { lines, taxes, internal, program, ...rest } = out.sow;
-      Object.assign(sow, rest, { lines: sow.lines.map((l) => ({ ...(lines ?? []).find((x) => x.id === l.id), ...l })) });
+      Object.assign(sow, rest, { lines: sow.lines.map((l) => {
+        const s = (lines ?? []).find((x) => x.id === l.id), m = { ...s, ...l };
+        if (s && !s.added) delete m.added;   // given an estimate while unlocked: on the SOW now (the server says so)
+        return m;
+      }) });
+      document.querySelectorAll("#sw-table tr.added").forEach((tr) => { if (!sow.lines[+tr.dataset.i]?.added) { tr.classList.remove("added"); tr.querySelector(".addtag")?.remove(); } });
       if (document.getElementById("sw-table")) read();   // what was typed while it saved stays as typed
     } else Object.assign(sow, out.sow);
     locked = out.locked; changes = out.changedSinceSent ?? changes;
