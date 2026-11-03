@@ -256,6 +256,7 @@ async function finishMicrosoft() {
 }
 function signOut(pick = true) {
   SESSION = ""; ME = null; HOME = null;
+  try { navigator.clearAppBadge?.().catch(() => {}); } catch {} document.title = "ONGIA Expenses";
   store.del("ongia-exp-session"); store.del("ongia-exp-me");
   if (pick) store.set("ongia-xms-pick", "1");
 }
@@ -394,7 +395,19 @@ async function fillThumbs() {
 async function loadHome() {
   HOME = await api(TESTMODE() ? "?test=1" : "");
   ME = HOME.me; store.set("ongia-exp-me", JSON.stringify(ME));
+  paintBadge();
   if (!EDIT) render();
+}
+/**
+ * The count on the app's icon, this person's own (Andrew, 2 Nov 2026: "John Healy doesn't get a badge notification if
+ * Andrew Hammond has a few things"): claims waiting for their approval, payments for them to record, and a claim of
+ * theirs sent back. On a computer an installed app shows it as it is; a phone shows it once notifications are allowed.
+ * The window's title carries it too, for a browser tab.
+ */
+function paintBadge() {
+  const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0) + (HOME?.current?.status === "rejected" ? 1 : 0);
+  document.title = n ? `(${n}) ONGIA Expenses` : "ONGIA Expenses";
+  try { if ("setAppBadge" in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* not offered here */ }
 }
 function checkRow(l) {
   const c = l.check ?? {};

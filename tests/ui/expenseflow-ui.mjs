@@ -23,7 +23,9 @@ const open = async (who, vp = { width: 390, height: 844 }, path = "/expenses") =
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 2, isMobile: vp.width < 500, hasTouch: vp.width < 500, timezoneId: "America/Toronto" });
   const page = await ctx.newPage();
   const [email, name] = people[who];
-  await page.addInitScript(([t, me]) => { localStorage.setItem("ongia-exp-session", t); localStorage.setItem("ongia-exp-me", JSON.stringify(me)); }, [issueExpenseSession({ email, name }), { email, name }]);
+  await page.addInitScript(([t, me]) => { localStorage.setItem("ongia-exp-session", t); localStorage.setItem("ongia-exp-me", JSON.stringify(me));
+    // The app's icon badge, recorded: what an installed app would show.
+    window.__badge = null; navigator.setAppBadge = (n) => { window.__badge = n; return Promise.resolve(); }; navigator.clearAppBadge = () => { window.__badge = 0; return Promise.resolve(); }; }, [issueExpenseSession({ email, name }), { email, name }]);
   page.on("dialog", (d) => d.accept());
   page.errs = []; page.on("pageerror", (e) => page.errs.push(String(e)));
   await page.goto(S + path, { waitUntil: "networkidle" });
@@ -64,6 +66,8 @@ const CID = (await api("john", "")).past[0].id;
 console.log("— Andrew approves in one tap");
 const andrew = await open("andrew"); errsOf.push(andrew);
 ok("To approve shows a count", /To approve1/.test(await andrew.textContent("#tabs")));
+ok("…and so does the app's icon, and the window's title: Andrew's own count", (await andrew.evaluate(() => window.__badge)) === 1 && (await andrew.title()) === "(1) ONGIA Expenses");
+ok("John has nothing waiting on him: no badge", (await john.evaluate(() => window.__badge)) === 0);
 await andrew.click('[data-tab="approve"]');
 await andrew.locator(`[data-open="${CID}"]`).click();
 await andrew.waitForSelector("#approve");
@@ -99,6 +103,7 @@ ok("sent back: it says so, with Raj's note", /Sent back by Raj Jaswal/.test(awai
 
 console.log("— John fixes it and sends it again");
 await john.goto(S + "/expenses", { waitUntil: "networkidle" }); await john.waitForSelector("#running");
+ok("a claim sent back to John puts 1 on his icon", (await john.evaluate(() => window.__badge)) === 1);
 ok("My claim: the reason at the top, the total, Send it again", /Sent back by Raj Jaswal/.test(await john.textContent(".sentback")) && /covered by the venue/.test(await john.textContent(".sentback")) && (await john.textContent("#submit")) === "Send it again" && /sent back/.test(await john.textContent("#running .k")));
 await john.screenshot({ path: D + "exp-sentback-phone.png", fullPage: true });
 await john.locator(".line", { hasText: "Green P" }).click(); await john.click("#remove"); await john.waitForSelector("#running");
