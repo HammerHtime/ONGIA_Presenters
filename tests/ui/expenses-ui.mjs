@@ -81,6 +81,9 @@ ok("the running total: $770.18", (await total(phone)) === "$770.18");
 console.log("— mileage");
 await phone.click("#addmile");
 ok("the mileage screen says what it pays", (await phone.textContent("#title")) === "Mileage" && /paid to you at \$0\.62 a kilometre/.test(await phone.textContent("#root")));
+// Andrew, 3 Nov 2026: a new mileage line starts on today's date (the phone's own day), and can still be changed.
+const phoneToday = await phone.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+ok("a new mileage line starts on today's date", (await phone.inputValue("#f-date")) === phoneToday, `${await phone.inputValue("#f-date")} vs ${phoneToday}`);
 await phone.fill("#f-date", day(-1)); await phone.fill("#f-km", "312"); await phone.fill("#f-from", "Barrie"); await phone.fill("#f-to", "Toronto");
 ok("312 km works out on the screen as $193.44", /312 km × \$0\.62 = \$193\.44/.test(await phone.textContent("#calc")));
 ok("its category starts as Travel", (await phone.inputValue("#f-category")) === "8");
@@ -89,6 +92,9 @@ await phone.screenshot({ path: D + "exp-mileage-phone.png" });
 await phone.click("#save"); await phone.waitForSelector("#running");
 ok("added: $963.62", (await total(phone)) === "$963.62");
 ok("its line says the sum", /Mileage: Barrie to Toronto/.test(await phone.textContent("#root")) && /312 km × \$0\.62/.test(await phone.textContent("#root")));
+await phone.locator(".line", { hasText: "Barrie to Toronto" }).click(); await phone.waitForSelector("#f-date");
+ok("opened again, it keeps the date that was chosen, not today's", (await phone.inputValue("#f-date")) === day(-1), await phone.inputValue("#f-date"));
+await phone.goBack(); await phone.waitForSelector("#running");
 
 console.log("— no receipt");
 await phone.click("#addnone");
