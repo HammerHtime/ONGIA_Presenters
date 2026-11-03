@@ -133,7 +133,12 @@ console.log("— no receipt");
 let n = await call("/api/expenses?add=noreceipt", "POST", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue" }, MEMBER);
 const L4 = n.line;
 l = n.claim.lines.find((x) => x.id === L4);
-ok("it needs a statement and a card screenshot before it can go", l.problems.join("|") === "why there is no receipt|a screenshot of the card statement" && l.check.state === "statement-missing");
+ok("it needs a statement and a card screenshot before it can go", l.problems.join("|") === "a reason there's no receipt|a screenshot of the card statement" && l.check.state === "statement-missing");
+// Andrew, 3 Nov 2026: a short reason was taken as none ("Lost it" is 7 characters; the bar was 10).
+const reasonNeeded = async (statement) => (await call(`/api/expenses?claim=${C}&line=${L4}`, "PUT", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue", statement }, MEMBER)).claim.lines.find((x) => x.id === L4).problems.includes("a reason there's no receipt");
+ok("a short reason counts: \"Lost it\"", !(await reasonNeeded("Lost it")));
+ok("but two letters, or spaces, don't", (await reasonNeeded("ok")) && (await reasonNeeded("     ")));
+ok("what's missing reads as a sentence: \"…, a and b\"", X.andList(["the date", "a reason there's no receipt", "a screenshot"]) === "the date, a reason there's no receipt and a screenshot" && X.andList(["the date"]) === "the date" && X.andList(["a", "b"]) === "a and b");
 await call(`/api/expenses?claim=${C}&line=${L4}`, "PUT", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue", statement: "The machine printed no receipt. It is on my Visa statement." }, MEMBER);
 const sh = await call(`/api/expenses?claim=${C}&shot=${L4}`, "POST", PNG, { "x-expense-key": MEMBER["x-expense-key"], "x-file-name": "visa.png" });
 l = sh.claim.lines.find((x) => x.id === L4);

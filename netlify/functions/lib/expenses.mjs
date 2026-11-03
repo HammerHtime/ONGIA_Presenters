@@ -167,7 +167,7 @@ export function viewLine(line, read) {
  */
 export function receiptCheck(line, read) {
   if (line.kind === "mileage") return { state: "mileage" };
-  if (line.kind === "noreceipt") return { state: line.shot && String(line.statement ?? "").length >= 10 ? "statement" : "statement-missing" };
+  if (line.kind === "noreceipt") return { state: line.shot && String(line.statement ?? "").trim().length >= MIN_REASON ? "statement" : "statement-missing" };
   if (!line.file) return { state: "nofile" };
   if (!read || read.state === "reading") return { state: "reading" };
   if (read.state === "failed") return { state: "unread", why: read.why };
@@ -179,6 +179,14 @@ export function receiptCheck(line, read) {
   if (Math.abs(money(line.amount) - money(f.total)) < 0.005) return { state: "match", total: f.total, ...(foreign ? { currency: foreign } : {}) };
   return { state: "differs", total: f.total, ...(foreign ? { currency: foreign } : {}) };
 }
+
+/**
+ * A reason for no receipt counts from 3 characters: "Lost it" was taken as no reason at all at 10, with nothing saying
+ * why (Andrew, 3 Nov 2026). The approvers judge whether it is enough, as they do a reason for sending a claim back.
+ */
+export const MIN_REASON = 3;
+/** "a, b and c": a list a person reads as a sentence. */
+export const andList = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /** What a line still needs before the claim can go for approval, in words the person can act on. */
 export function lineProblems(v) {
@@ -193,7 +201,7 @@ export function lineProblems(v) {
   if (!v.category) p.push("a category");
   if (!v.purpose && !v.eventId) p.push("what it was for");
   if (v.kind === "noreceipt") {
-    if (String(v.statement ?? "").length < 10) p.push("why there is no receipt");
+    if (String(v.statement ?? "").trim().length < MIN_REASON) p.push("a reason there's no receipt");
     if (!v.shot) p.push("a screenshot of the card statement");
   }
   return p;
@@ -444,7 +452,7 @@ export function submitProblems(lines, today = todayIso()) {
   const latest = new Date(Date.parse(`${today}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
   for (const l of lines) if (l.date && l.date > latest) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")} is dated ${shortDate(l.date)}, which hasn't come yet. Check the date.`);
   if (lines.some((l) => l.check?.state === "reading")) p.push("Claude is still reading a receipt. Give it a moment.");
-  for (const l of lines) if (l.problems?.length) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")}${l.date ? ` (${shortDate(l.date)})` : ""} still needs ${l.problems.join(", ")}.`);
+  for (const l of lines) if (l.problems?.length) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")}${l.date ? ` (${shortDate(l.date)})` : ""} still needs ${andList(l.problems)}.`);
   const seen = [];
   for (const l of lines) { if (seen.some((s) => sameLine(s, l))) p.push(`${l.paidTo}, ${shortDate(l.date)}, ${dollars(l.amount)} is on this claim twice.`); seen.push(l); }
   return p;

@@ -33,7 +33,7 @@ const C = m.claim.id;
 let n = await call(`/api/expenses?add=noreceipt&claim=${C}`, "POST", { paidTo: "Green P", date: day(-1), amount: 18, category: 8, purpose: "Parking" }, JOHN);
 const NL = n.line;
 let s = await call(`/api/expenses?submit=${C}`, "POST", {}, JOHN);
-ok("a line still missing things stops it, and says which", s.status === 409 && s.problems.some((p) => /Green P .* still needs why there is no receipt, a screenshot of the card statement/.test(p)), JSON.stringify(s));
+ok("a line still missing things stops it, and says which", s.status === 409 && s.problems.some((p) => /Green P .* still needs a reason there's no receipt and a screenshot of the card statement/.test(p)), JSON.stringify(s));
 await call(`/api/expenses?claim=${C}&line=${NL}`, "PUT", { paidTo: "Green P", date: day(3), amount: 18, category: 8, purpose: "Parking", statement: "No receipt from the machine; it is on my Visa." }, JOHN);
 await call(`/api/expenses?claim=${C}&shot=${NL}`, "POST", PNG, { "x-expense-key": JOHN["x-expense-key"] });
 s = await call(`/api/expenses?submit=${C}`, "POST", {}, JOHN);
