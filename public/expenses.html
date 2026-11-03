@@ -140,6 +140,8 @@
   .hist li{font-size:13px;color:var(--ink-mid);margin:4px 0;line-height:1.4}
   .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;font-size:14px;line-height:1.35;cursor:pointer}
   .switch input{width:22px;height:22px;min-height:0;flex:none}
+  .btn.small{width:auto;min-height:44px;padding:8px 18px;font-size:15px;flex:none}
+  .say .acts{display:flex;align-items:center;gap:6px;margin-top:10px}.say .acts .linkish{margin:0}
   .sheet{position:fixed;inset:0;background:var(--paper);z-index:20;overflow:auto;padding-bottom:30px}
   .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}.kv:first-child{border-top:0}.kv .k2{color:var(--muted);flex:none}
   .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
@@ -296,7 +298,9 @@ $("me").onclick = (e) => {
   m.hidden = !m.hidden; $("me").setAttribute("aria-expanded", String(!m.hidden));
   m.innerHTML = `<p class="who">Signed in as <b>${esc(ME?.name)}</b><br>${esc(ME?.email)}${ME?.title && ME.title !== "Board member" ? `<br>${esc(ME.title)}` : ""}</p>
     <label class="switch" for="testmode"><span><b>Test mode</b><br><span class="tiny">What you add goes on a separate claim marked TEST, which can be deleted.</span></span><input type="checkbox" id="testmode" ${TESTMODE() ? "checked" : ""}></label>
+    ${badgeRow()}
     <button class="btn ghost" id="signout" type="button">Sign out</button>`;
+  if ($("badgemenu")) $("badgemenu").onclick = async (ev) => { ev.stopPropagation(); ev.currentTarget.disabled = true; await allowBadge(); $("badgerow").outerHTML = badgeRow(); };
   $("signout").onclick = () => { signOut(); signInScreen(); };
   $("testmode").onchange = async (ev) => { if (ev.target.checked) store.set("ongia-exp-test", "1"); else store.del("ongia-exp-test"); $("menu").hidden = true; TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = null; render(); await loadHome().catch((er) => toast(er.message, true)); };
 };
@@ -398,6 +402,39 @@ async function loadHome() {
   paintBadge();
   if (!EDIT) render();
 }
+/*
+ * The count on the icon on an iPhone (Andrew, 3 Nov 2026: "add the allow button for the badge"). An iPhone shows a
+ * number on a home-screen app only once the person has allowed that app's notifications, and it asks only after a tap,
+ * so the app offers a button: once on My claim, and always in the menu. The app sends no notifications.
+ */
+function badgeState() {
+  // Only a home-screen app on an iPhone or iPad needs this (navigator.standalone is Apple's). Elsewhere the icon count
+  // needs no permission, or isn't offered at all.
+  if (navigator.standalone !== true || !("setAppBadge" in navigator) || typeof Notification === "undefined") return "none";
+  return { granted: "on", denied: "off" }[Notification.permission] ?? "ask";
+}
+async function allowBadge() {
+  let said = "default";
+  try { said = await Notification.requestPermission(); } catch { /* an older phone: nothing to ask */ }
+  if (said === "granted") { paintBadge(); toast("Done. The count shows on the app icon."); }
+  else if (said === "denied") toast("Your phone said no. You can turn it on in Settings, Notifications, ONGIA Expenses.", true);
+  $("badgeask")?.remove();
+  return said;
+}
+const badgeCard = () => (badgeState() === "ask" && !store.get("ongia-exp-badge-later") ? `<div class="say mu" id="badgeask"><b>Show the count on the app icon?</b>
+  Then your home screen shows a number when a claim needs you. Your phone asks about notifications first: tap Allow there too. The app doesn't send notifications; this is only for the number.
+  <div class="acts"><button class="btn navy small" id="badgeyes" type="button">Allow</button><button class="linkish" id="badgeno" type="button">Not now</button></div></div>` : "");
+function wireBadgeCard() {
+  if (!$("badgeyes")) return;
+  $("badgeyes").onclick = (ev) => { ev.currentTarget.disabled = true; allowBadge(); };
+  $("badgeno").onclick = () => { store.set("ongia-exp-badge-later", "1"); $("badgeask").remove(); };
+}
+function badgeRow() {
+  const st = badgeState();
+  if (st === "none") return "";
+  const words = { ask: "Off until you allow it.", on: "On.", off: "Off. Your phone has notifications turned off for this app: Settings, Notifications, ONGIA Expenses." }[st];
+  return `<div class="switch" id="badgerow"><span><b>Count on the app icon</b><br><span class="tiny">${words}</span></span>${st === "ask" ? `<button class="btn navy small" id="badgemenu" type="button">Allow</button>` : ""}</div>`;
+}
 /**
  * The count on the app's icon, this person's own (Andrew, 2 Nov 2026: "John Healy doesn't get a badge notification if
  * Andrew Hammond has a few things"): claims waiting for their approval, payments for them to record, and a claim of
@@ -449,7 +486,7 @@ function claimScreen() {
   const evs = [...new Set(lines.map((l) => l.eventTitle).filter(Boolean))];
   const groups = new Map();
   for (const l of lines) { const k = l.date || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(l); }
-  ROOT.innerHTML = `${testBar()}
+  ROOT.innerHTML = `${testBar()}${badgeCard()}
     ${back ? `<div class="sentback"><b>Sent back by ${esc(back.by?.name)}${back.for ? ` for the ${esc(back.for)}` : ""} · ${esc(when(back.at))}</b>
       <div class="note quote">"${esc(back.comment)}"</div><div class="tiny" style="margin-top:6px">Change what's needed below, then send it again.</div></div>` : ""}
     <div class="run" id="running">
@@ -470,6 +507,7 @@ function claimScreen() {
       <p class="tiny center" style="margin:8px 4px 0">It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.</p>` : ""}
     ${(HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : ""}
     ${c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : ""}`;
+  wireBadgeCard();
   $("addcam").onclick = () => $("cam").click();
   $("addpick").onclick = () => $("pick").click();
   $("addmile").onclick = () => openNew("mileage");
