@@ -6,7 +6,7 @@ process.env.ADMIN_KEY = "testkey";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const { issueExpenseSession } = await import(REPO + "netlify/functions/lib/expenses.mjs");
 const D = new URL(".", import.meta.url).pathname;
-const S = "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
+const S = process.env.DESK_URL || "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
 const mock = (reply, delay = 0) => fetch("http://127.0.0.1:8799/__set", { method: "POST", body: JSON.stringify({ reply, delay }) });
 let pass = 0, fail = 0;
@@ -34,7 +34,8 @@ const total = (p) => p.textContent("#running .big");
 const fits = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
 
 console.log("— an empty claim, on a phone");
-const phone = await open("j.healy@ongia.ca", "John Healy", { width: 390, height: 844 });
+// Jessy: a member expenseflow-ui (run before this on the same server) never uses, so "nothing sent yet" is true.
+const phone = await open("j.johal@ongia.ca", "Jessy Johal", { width: 390, height: 844 });
 ok("it opens on My claim at $0.00, saying what to do first", (await total(phone)) === "$0.00" && /Take a photo of your first receipt/.test(await phone.textContent("#running")));
 ok("the photo button leads; mileage and no receipt sit under it", await phone.isVisible("#addcam") && await phone.isVisible("#addmile") && await phone.isVisible("#addnone"));
 ok("a board member has My claim and Past claims, no To approve", (await phone.locator("#tabs button").allInnerTexts()).join("|") === "My claim|Past claims");
@@ -144,10 +145,13 @@ ok("no script errors on the phone", phone.errs.length === 0, phone.errs.join("; 
 
 console.log("— the President, on a laptop");
 const wide = await open("president@ongia.ca", "Andrew Hammond", { width: 1280, height: 860 });
-ok("the President has To approve as well", (await wide.locator("#tabs button").allInnerTexts()).join("|") === "My claim|Past claims|To approve");
-ok("John's claim is his own: the President's claim is empty", (await total(wide)) === "$0.00");
+const tabsSeen = (await wide.locator("#tabs button").allInnerTexts()).map((t) => t.replace(/\d+$/, "").trim()).join("|");
+ok("the President has To approve and All as well", tabsSeen === "My claim|Past|To approve|All", tabsSeen);
+ok("Jessy's claim stays with Jessy: the President's claim is empty", (await total(wide)) === "$0.00");
 await wide.click('[data-tab="approve"]');
-ok("To approve says nothing is waiting yet", /Nothing waiting for you/.test(await wide.textContent("#root")));
+// The President is shared with expenseflow-ui, which may leave claims waiting on this server: say what the server says.
+const waiting = (await (await fetch(S + "/api/expenses", { headers: { "x-expense-key": issueExpenseSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) } })).json()).toApprove?.length ?? 0;
+ok(waiting ? "To approve lists what is waiting" : "To approve says nothing is waiting yet", waiting ? !/Nothing waiting for you/.test(await wide.textContent("#root")) : /Nothing waiting for you/.test(await wide.textContent("#root")), `${waiting} waiting`);
 await wide.click('[data-tab="claim"]');
 await wide.screenshot({ path: D + "exp-empty-wide.png" });
 await mock({ isReceipt: true, vendor: "Air Canada", date: day(-3), total: 476.86, tax: 40.1, currency: "CAD", category: 8, what: "Flight change", confidence: "high", notes: null });
