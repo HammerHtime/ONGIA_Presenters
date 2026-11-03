@@ -60,7 +60,9 @@ export default async (req) => {
       // The Marriott Bonvoy number goes on the rooming list beside their name (Andrew 29 Oct 2026).
       members.push({ name, email, phone: formatPhone(text(row.phone, 60)), bonvoy: text(row.bonvoy, 40).replace(/[^0-9A-Za-z]/g, "").slice(0, 20), sponsorLead: row.sponsorLead === true,
         desk: canGrant ? row.desk === true : was?.desk === true,
-        ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}) });
+        ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}),
+        // When they last opened ONGIA Expenses (see expenses.mjs): kept through a save here, as the desk sign-in is.
+        ...(was?.lastExpenseSignIn ? { lastExpenseSignIn: was.lastExpenseSignIn } : {}) });
     }
     const seen = new Set();
     for (const m of members) {

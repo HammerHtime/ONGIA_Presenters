@@ -1,0 +1,329 @@
+import { createHmac, createHash } from "node:crypto";
+import Anthropic from "@anthropic-ai/sdk";
+import { anthropicKey } from "./contract.mjs";
+import { tokensMatch } from "./ids.mjs";
+import { readSession } from "./auth.mjs";
+import { todayIso } from "./deadlines.mjs";
+
+/**
+ * ONGIA Expenses (Andrew, Nov 2026): a board member's expense claims, in an app of its own on the phone. Receipts are
+ * kept the moment they are photographed, a claim builds over days with a running total, and nothing is sent until
+ * Submit. Claude reads the vendor, the date and the total off each receipt and the person checks them; a line is
+ * green when what is claimed matches the receipt.
+ *
+ * Three kinds of line:
+ *   receipt    a photo or a PDF of the receipt
+ *   mileage    typed in by hand: kilometres at the mileage rate ($0.62/km), paid to the board member
+ *   noreceipt  a written statement of why there is no receipt, with a screenshot of the card statement
+ *
+ * Who signs off (Andrew, 2 Nov 2026): a board member's claim, and the VP's, go to the President and the Treasurer; the
+ * President's to the VP and the Treasurer; the Treasurer's to the President and the VP. Nobody approves their own.
+ */
+
+/** The ten categories on ONGIA's expense claim template, in its order and its words. */
+export const CATEGORIES = [
+  [1, "Advertising & Promotion"], [2, "Donations"], [3, "Insurance"], [4, "Memberships"], [5, "Officer & General"],
+  [6, "Professional Fees"], [7, "Training & Development"], [8, "Travel"], [9, "Interest & Bank Charges"], [10, "Speaker Stipend"],
+];
+export const categoryName = (n) => CATEGORIES.find(([k]) => k === Number(n))?.[1] ?? "";
+export const TRAVEL = 8;
+
+/** Dollars per kilometre. EXPENSE_MILEAGE_RATE replaces it if the board changes the rate. */
+export function mileageRate() {
+  const r = Number(process.env.EXPENSE_MILEAGE_RATE);
+  return Number.isFinite(r) && r > 0 && r < 5 ? r : 0.62;
+}
+
+export const money = (n) => Math.round(Number(n) * 100) / 100;
+const lc = (v) => String(v ?? "").trim().toLowerCase();
+
+/* ---------- who is who ---------- */
+
+const first = (v, fallback) => String(v || fallback).split(/[,\s]+/).map(lc).filter(Boolean)[0];
+/**
+ * The three officers who sign off, by ONGIA's role mailboxes, which pass from one officer to the next. Each can be
+ * replaced by its own setting if a mailbox ever changes. (Deliberately not DESK_OWNERS: that is a list, and which of
+ * its addresses is the President would depend on the order someone typed them in.)
+ */
+export function officers() {
+  return {
+    president: first(process.env.EXPENSE_PRESIDENT, "president@ongia.ca"),
+    vp: first(process.env.EXPENSE_VP, "vp_operations@ongia.ca"),
+    treasurer: first(process.env.EXPENSE_TREASURER, "treasurer@ongia.ca"),
+  };
+}
+export const ROLE_TITLE = { president: "President", vp: "VP of Operations", treasurer: "Treasurer", member: "Board member" };
+export function roleOf(email) {
+  const e = lc(email), o = officers();
+  return e === o.president ? "president" : e === o.vp ? "vp" : e === o.treasurer ? "treasurer" : "member";
+}
+/** The two officers a claim goes to, by role. Never the person claiming. */
+export function approversFor(email) {
+  const role = roleOf(email);
+  if (role === "president") return ["vp", "treasurer"];
+  if (role === "treasurer") return ["president", "vp"];
+  return ["president", "treasurer"];
+}
+/** Anyone on the board roster may claim, and the three officers always may. */
+export function mayClaim(email, roster) {
+  const e = lc(email);
+  if (!e) return false;
+  if (roleOf(e) !== "member") return true;
+  return (roster ?? []).some((m) => lc(m.email) === e);
+}
+/** The name the board roster gives someone, else what Microsoft said. */
+export const rosterName = (email, roster, fallback = "") => (roster ?? []).find((m) => lc(m.email) === lc(email))?.name || fallback || email;
+
+/** A short, stable stand-in for an address, for record keys (an address is not a good key: it has dots, @ and case). */
+export const whoKey = (email) => createHash("sha256").update(lc(email)).digest("hex").slice(0, 16);
+
+/* ---------- sign-in ---------- */
+
+/**
+ * The expense app keeps its own session: 30 days, so a phone app opened at a hotel counter does not ask for a Microsoft
+ * sign-in every time. It is NOT a desk session: requireAdmin refuses it, so it opens expense claims and nothing else.
+ * Every request still checks the person is on the board roster, so taking someone off the roster ends it at once.
+ */
+const SESSION_DAYS = 30;
+const b64u = (buf) => Buffer.from(buf).toString("base64url");
+const sessionKey = () => createHmac("sha256", String(process.env.ADMIN_KEY ?? "")).update("expense-session-v1").digest();
+const sign = (body) => createHmac("sha256", sessionKey()).update(body).digest("base64url");
+
+export function issueExpenseSession({ email, name }, now = Date.now()) {
+  const body = b64u(JSON.stringify({ e: lc(email), n: String(name ?? ""), x: now + SESSION_DAYS * 86400e3 }));
+  return `x1.${body}.${sign(body)}`;
+}
+export function readExpenseSession(value, now = Date.now()) {
+  if (!process.env.ADMIN_KEY) return null;
+  const [tag, body, mac] = String(value ?? "").split(".");
+  if (tag !== "x1" || !body || !mac || !tokensMatch(mac, sign(body))) return null;
+  let p;
+  try { p = JSON.parse(Buffer.from(body, "base64url").toString("utf8")); } catch { return null; }
+  if (!p?.e || !(p.x > now)) return null;
+  return { email: p.e, name: p.n, expires: p.x };
+}
+/** The person behind a request: an expense session, or a Briefing Room session. The shared desk key is nobody, so it gets nothing. */
+export function expenseWho(req) {
+  const v = req.headers.get("x-expense-key") ?? "";
+  if (v.startsWith("x1.")) return readExpenseSession(v);
+  if (v.startsWith("s1.")) { const s = readSession(v); return s ? { email: s.email, name: s.name, expires: s.expires } : null; }
+  return null;
+}
+
+/* ---------- lines ---------- */
+
+export const KINDS = ["receipt", "mileage", "noreceipt"];
+const str = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+const isoDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) && !Number.isNaN(Date.parse(v)) ? String(v) : "");
+const amountOf = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : money(Number(v)));
+
+/**
+ * What a person typed into a line, tidied. Lenient on purpose: a claim is saved as it is built, so a line can be kept
+ * half-filled and finished later. What is still missing is listed by lineProblems, and only Submit insists.
+ * `events` are the ones a line may name (id → title).
+ */
+export function cleanLine(kind, body, { events = [], rate = mileageRate() } = {}) {
+  const ev = events.find((e) => e.id === String(body?.eventId ?? ""));
+  const out = {
+    date: isoDate(body?.date),
+    category: CATEGORIES.some(([k]) => k === Number(body?.category)) ? Number(body.category) : null,
+    eventId: ev ? ev.id : "", eventTitle: ev ? ev.title : "",
+    purpose: str(body?.purpose, 240),
+  };
+  if (kind === "mileage") {
+    const km = Number(body?.km);
+    out.km = Number.isFinite(km) && km > 0 ? Math.min(Math.round(km * 10) / 10, 10000) : null;
+    out.from = str(body?.from, 120); out.to = str(body?.to, 120);
+    out.rate = Number(body?.rate) > 0 ? Number(body.rate) : rate;
+    out.amount = out.km ? money(out.km * out.rate) : null;
+    if (out.category === null) out.category = TRAVEL;
+  } else {
+    out.paidTo = str(body?.paidTo, 120);
+    out.amount = amountOf(body?.amount);
+  }
+  if (kind === "noreceipt") out.statement = String(body?.statement ?? "").replace(/[ \t]+/g, " ").trim().slice(0, 1500);
+  return out;
+}
+
+/**
+ * A line as the app shows it: what the person saved, with any box they have left empty filled from what Claude read
+ * off the receipt (`fromRead` names those boxes). Nothing Claude read ever replaces something a person typed.
+ */
+export function viewLine(line, read) {
+  const v = { ...line, fromRead: [] };
+  const f = read?.state === "done" ? read.found : null;
+  if (line.kind === "receipt" && f?.isReceipt !== false && f) {
+    const fill = (k, val) => { if ((v[k] === "" || v[k] === null || v[k] === undefined) && val !== "" && val !== null && val !== undefined) { v[k] = val; v.fromRead.push(k); } };
+    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what);
+  }
+  v.check = receiptCheck(v, read);
+  v.problems = lineProblems(v);
+  return v;
+}
+
+/**
+ * Does the amount claimed match the receipt? "match" is the green tick. "differs" says what the receipt shows.
+ * Mileage and no-receipt lines have nothing to match, and say what stands in for a receipt instead.
+ */
+export function receiptCheck(line, read) {
+  if (line.kind === "mileage") return { state: "mileage" };
+  if (line.kind === "noreceipt") return { state: line.shot && String(line.statement ?? "").length >= 10 ? "statement" : "statement-missing" };
+  if (!line.file) return { state: "nofile" };
+  if (!read || read.state === "reading") return { state: "reading" };
+  if (read.state === "failed") return { state: "unread", why: read.why };
+  const f = read.found;
+  if (f?.isReceipt === false) return { state: "notreceipt" };
+  if (f?.total === null || f?.total === undefined) return { state: "nototal" };
+  if (line.amount === null || line.amount === undefined) return { state: "noamount", total: f.total };
+  const foreign = f.currency && f.currency !== "CAD" ? f.currency : "";
+  if (Math.abs(money(line.amount) - money(f.total)) < 0.005) return { state: "match", total: f.total, ...(foreign ? { currency: foreign } : {}) };
+  return { state: "differs", total: f.total, ...(foreign ? { currency: foreign } : {}) };
+}
+
+/** What a line still needs before the claim can go for approval, in words the person can act on. */
+export function lineProblems(v) {
+  const p = [];
+  if (v.kind === "receipt" && !v.file) p.push("the receipt");
+  if (v.kind !== "mileage" && !v.paidTo) p.push("who it was paid to");
+  if (!v.date) p.push("the date");
+  if (v.kind === "mileage") {
+    if (!v.km) p.push("the kilometres");
+    if (!v.from || !v.to) p.push("where from and to");
+  } else if (!(v.amount > 0)) p.push("the amount");
+  if (!v.category) p.push("a category");
+  if (!v.purpose && !v.eventId) p.push("what it was for");
+  if (v.kind === "noreceipt") {
+    if (String(v.statement ?? "").length < 10) p.push("why there is no receipt");
+    if (!v.shot) p.push("a screenshot of the card statement");
+  }
+  return p;
+}
+
+/** The claim's total and counts, from its lines as shown. */
+export function claimSums(lines) {
+  const total = money((lines ?? []).reduce((n, l) => n + (Number(l.amount) || 0), 0));
+  const count = (k) => (lines ?? []).filter((l) => l.kind === k).length;
+  return { total, lines: (lines ?? []).length, receipts: count("receipt"), mileage: count("mileage"), noreceipt: count("noreceipt") };
+}
+
+/** "November 2026" for a date, in Toronto time: the month a claim is filed under. */
+export function monthLabel(iso = todayIso()) {
+  const [y, m] = String(iso).split("-").map(Number);
+  return `${new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-CA", { month: "long", timeZone: "UTC" })} ${y}`;
+}
+
+/** Events a line can name: recent and coming ones, never a practice event. Newest first. */
+export function eventChoices(events, today = todayIso()) {
+  const day = (d) => Date.parse(`${d}T12:00:00Z`);
+  const t = day(today);
+  return (events ?? [])
+    .filter((e) => !e.practice && e.dayOne && day(e.dayOne) >= t - 200 * 86400e3 && day(e.dayOne) <= t + 120 * 86400e3)
+    .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)))
+    .map((e) => ({ id: e.id, title: String(e.title ?? "").trim() || e.id, date: e.dayOne, city: e.city ?? "" }));
+}
+
+/* ---------- reading a receipt ---------- */
+
+export const MAX_BYTES = 5 * 1024 * 1024;
+export const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf" };
+export const SHOT_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf" };
+
+const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
+const SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["isReceipt", "vendor", "date", "total", "tax", "currency", "category", "what", "confidence", "notes"],
+  properties: {
+    isReceipt: { type: "boolean" },
+    vendor: nullable({ type: "string" }),
+    date: nullable({ type: "string", format: "date" }),
+    total: nullable({ type: "number" }),
+    tax: nullable({ type: "number" }),
+    currency: nullable({ type: "string" }),
+    category: nullable({ type: "integer", enum: CATEGORIES.map(([k]) => k) }),
+    what: nullable({ type: "string" }),
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+    notes: nullable({ type: "string" }),
+  },
+};
+
+const SYSTEM = `You read one receipt or invoice, shown as a photo or a PDF, for a board member's expense claim at ONGIA, a Canadian non-profit.
+Report only what is printed on it. If something is not there, say null rather than guessing.
+- vendor: the business's name as a person would write it (e.g. "Delta Hotels", not the legal entity).
+- date: the purchase date (the invoice date for an invoice; the check-out date for a hotel folio), as YYYY-MM-DD.
+- total: the amount actually charged, with tax and any tip. On a hotel folio, the balance charged to the card.
+- tax: all sales tax together (HST, GST, QST, PST), or null.
+- currency: the three-letter code if printed or clear from the symbol (CAD, USD...), else null. A Canadian address with $ is CAD.
+- category: the best fit from ONGIA's list, by number:
+  1 Advertising & Promotion (promotional items, ads, gifts and gift cards)
+  2 Donations
+  3 Insurance
+  4 Memberships
+  5 Officer & General (office supplies, printing, postage, meeting refreshments)
+  6 Professional Fees (accounting, legal)
+  7 Training & Development (courses, conference registrations)
+  8 Travel (hotels, flights, trains, taxis and rideshare, parking, car rental, fuel, meals while travelling)
+  9 Interest & Bank Charges
+  10 Speaker Stipend (payment to a presenter)
+- what: what was bought, in four words or fewer, plain and lower-key ("Hotel, 3 nights", "Airport parking", "Taxi").
+- confidence: "high" when the figures are sharp and clear; "low" when the picture is blurry, cut off, faded or handwritten.
+- notes: one short sentence if anything is odd (a tip written in by hand, a refund, two receipts in one photo, a foreign currency, a date that is hard to read). Otherwise null.
+If this is not a receipt or an invoice at all, set isReceipt to false and leave the rest null.`;
+
+/** A reason a person can act on, not an SDK error. */
+export function whyItFailed(e) {
+  if (e instanceof Anthropic.AuthenticationError) return "Claude couldn't read it this time (the reading service refused the desk's key). Type the details in yourself.";
+  if (e instanceof Anthropic.RateLimitError) return "Claude is busy right now. Type the details in, or press Read it again in a minute.";
+  if (e instanceof Anthropic.BadRequestError) return "Claude couldn't read that file. Type the details in, or take the photo again.";
+  if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude. Type the details in, or press Read it again in a minute.";
+  return "Claude couldn't read it. Type the details in, or press Read it again.";
+}
+
+/** Tidy what Claude said into what a line shows. */
+export function tidyRead(raw) {
+  const num = (v) => (v === null || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : money(Number(v)));
+  return {
+    isReceipt: raw?.isReceipt !== false,
+    vendor: str(raw?.vendor, 120),
+    date: isoDate(raw?.date),
+    total: num(raw?.total), tax: num(raw?.tax),
+    currency: /^[A-Za-z]{3}$/.test(String(raw?.currency ?? "")) ? String(raw.currency).toUpperCase() : "",
+    category: CATEGORIES.some(([k]) => k === Number(raw?.category)) ? Number(raw.category) : null,
+    what: str(raw?.what, 60),
+    confidence: ["high", "medium", "low"].includes(raw?.confidence) ? raw.confidence : "low",
+    notes: str(raw?.notes, 240),
+  };
+}
+
+/** Read one receipt. `client` is only passed by tests. Throws; whyItFailed turns that into words. */
+export async function readExpenseReceipt(bytes, type, { client = null } = {}) {
+  if (!TYPES[type]) throw new Error("That kind of file can't be read.");
+  const api = client ?? new Anthropic({ apiKey: anthropicKey() });
+  const data = Buffer.from(bytes).toString("base64");
+  const file = type === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: type, data } }
+    : { type: "image", source: { type: "base64", media_type: type, data } };
+  const message = await api.beta.messages.create({
+    model: "claude-sonnet-5-5",
+    max_tokens: 1500,
+    output_config: { format: { type: "json_schema", schema: SCHEMA } },
+    system: SYSTEM,
+    messages: [{ role: "user", content: [file, { type: "text", text: "Read this receipt." }] }],
+  });
+  if (message.stop_reason === "refusal") throw new Error("Claude declined to read this one.");
+  const text = message.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  let raw;
+  try { raw = JSON.parse(text); } catch { throw new Error("Claude's answer could not be read."); }
+  return tidyRead(raw);
+}
+
+/** What the file really is, from its first bytes, whatever the browser called it. */
+export function sniff(b) {
+  const s = (from, to) => String.fromCharCode(...b.slice(from, to));
+  if (s(0, 5) === "%PDF-") return "application/pdf";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x89 && s(1, 4) === "PNG") return "image/png";
+  if (s(0, 4) === "GIF8") return "image/gif";
+  if (s(0, 4) === "RIFF" && s(8, 12) === "WEBP") return "image/webp";
+  return null;
+}

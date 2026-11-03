@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ONGIA Briefing Room</title>
+<script>
+// ONGIA Expenses signs in through this page, the return address Microsoft already knows for the desk's sign-in. Its
+// reply goes straight back to the expense app, before the desk can read it as one of its own.
+(function () { try {
+  var h = location.hash; if (!/[#&](code|error)=/.test(h)) return;
+  var saved = JSON.parse(localStorage.getItem("ongia-xms") || "null"), state = new URLSearchParams(h.slice(1)).get("state");
+  if (saved && state && saved.state === state) { window.ONGIA_EXPENSES_REPLY = true; location.replace("/expenses" + h); }
+} catch (e) { /* no storage: the desk carries on */ } })();
+</script>
 <!-- The tab: ONGIA's leaf, which reads at 16 px; the Dock icon carries the words. -->
 <link rel="icon" href="/assets/desk-favicon-32.png" sizes="32x32">
 <link rel="icon" href="/assets/desk-favicon-16.png" sizes="16x16">
@@ -12022,7 +12031,8 @@ window.addEventListener("hashchange", () => {
   const e = location.hash.match(/^#event\/([^/]+)$/);
   if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); render(); }
 });
-finishMicrosoft().catch((e) => e.message).then((done) => {
+// A sign-in reply for ONGIA Expenses is already on its way back there (see the top of this page): leave it alone.
+if (!window.ONGIA_EXPENSES_REPLY) finishMicrosoft().catch((e) => e.message).then((done) => {
   if (typeof done !== "string") return render();
   try { localStorage.setItem("ongia-ms-pick", "1"); } catch {} // a wrong account gets the account picker next time
   signInScreen(done);
