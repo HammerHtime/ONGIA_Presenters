@@ -2256,10 +2256,39 @@ const SIDE_ICON = {
   letters: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   sows: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/>',
+  expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
   sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
+/**
+ * ONGIA Expenses from the desk (Andrew 3 Nov 2026). It opens in a tab of its own, so the Briefing Room stays where it
+ * was; the desk's sign-in is handed to it (it accepts a Briefing Room session), unless it already holds this person's.
+ * The badge counts what waits on you there: claims to approve, to pay, or your own sent back.
+ */
+let EXPN = 0, EXPN_AT = 0;
+const expBadge = () => `<span class="attnb" data-expn title="Waiting for you in Expenses"${EXPN ? "" : " hidden"}>${EXPN}</span>`;
+async function expAttention(force = false) {
+  if (!WHO?.email || !KEY) return;
+  if (force || Date.now() - EXPN_AT > 60000) {
+    EXPN_AT = Date.now();
+    try {
+      const r = await fetch("/api/expenses", { headers: { "x-expense-key": KEY } });
+      if (r.ok) { const h = await r.json(); EXPN = (h.toApprove?.length ?? 0) + (h.toPay?.length ?? 0) + (h.current?.status === "rejected" ? 1 : 0); }
+    } catch { /* the badge waits for the next look */ }
+  }
+  document.querySelectorAll("[data-expn]").forEach((el) => { el.textContent = EXPN; el.hidden = !EXPN; });
+}
+function openExpenses() {
+  try {
+    const had = JSON.parse(localStorage.getItem("ongia-exp-me") || "null");
+    if (WHO?.email && KEY && !(had?.email === WHO.email && localStorage.getItem("ongia-exp-session"))) {
+      localStorage.setItem("ongia-exp-session", KEY);
+      localStorage.setItem("ongia-exp-me", JSON.stringify({ email: WHO.email, name: WHO.name || WHO.email }));
+    }
+  } catch { /* no storage: the app asks them to sign in */ }
+  window.open("/expenses", "_blank", "noopener");
+}
 const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email) ? "President" : /^vp_/i.test(WHO.email) ? "VP of operations" : "Board";
 function drawSide() {
   const el = document.getElementById("side");
@@ -2274,13 +2303,14 @@ function drawSide() {
     const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors" };
     el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
-    attention();
+    attention(); expAttention();
     return;
   }
   el.dataset.built = built;
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
-  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
+  // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, opened in their own tab, signed in as you.
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
@@ -2291,9 +2321,11 @@ function drawSide() {
   go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("letters", { name: "letters" });
   go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
+  const xb = document.getElementById("expensesnav");
+  if (xb) xb.onclick = openExpenses;
   const mb = document.getElementById("snmore");
   if (mb) mb.onclick = (e) => { e.stopPropagation(); const open = el.classList.toggle("open"); mb.setAttribute("aria-expanded", String(open)); };
-  attention();
+  attention(); expAttention();
 }
 document.addEventListener("click", (e) => { const el = document.getElementById("side"); if (el?.classList.contains("open") && !el.contains(e.target)) { el.classList.remove("open"); document.getElementById("snmore")?.setAttribute("aria-expanded", "false"); } });
 function listScreen(events, inbox = null) {
