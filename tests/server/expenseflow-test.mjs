@@ -169,8 +169,8 @@ ok("in test mode, a separate claim marked TEST", m.claim.test === true && /-t\d+
 await mileage(JOHN, 20);
 ok("John's real claim and test claim stay apart", (await home(JOHN)).current.test === false && (await home(JOHN, "?test=1")).current.id === TC);
 await call(`/api/expenses?submit=${TC}`, "POST", {}, JOHN);
-const mail = M.needsApprovalMail({ claim: { ...(await S.getClaim(TC)), sums: { mileage: 1 } }, checks: { ok: true } });
-ok("its emails say [TEST] and say it's a test", mail.subject.startsWith("[TEST] Expense claim to approve: John Healy, $6.20") && /This is a test claim/.test(mail.text));
+const mail = M.needsApprovalMail({ claim: { ...(await S.getClaim(TC)), sums: { mileage: 1 } }, lines: await S.listClaimLines(TC), checks: { ok: true } });
+ok("its emails say [TEST] and say it's a test", mail.subject === "[TEST] Expense claim for John Healy" && /Test claim\. Every step comes back to you/.test(mail.text), mail.subject);
 ok("only the President can delete the test claims", (await call(`/api/expenses?purge=tests`, "POST", {}, TRES)).status === 403);
 ok("only the President can mark one", (await call(`/api/expenses?marktest=${DC}`, "POST", { on: true }, TRES)).status === 403);
 await call(`/api/expenses?marktest=${DC}`, "POST", { on: true }, PRES);
@@ -195,12 +195,17 @@ ok("US dollars are named", /in USD/.test(ch.notes[0]));
 
 console.log("— the emails say what happened");
 const cl = { id: "abc-1", owner: { name: "John Healy", email: J }, month: "November 2026", total: 193.44, sums: { receipts: 2, mileage: 1 } };
-let e = M.needsApprovalMail({ claim: cl, checks: { ok: true }, acting: "Treasurer", until: day(14), others: "Andrew Hammond" });
-ok("to approve: who (in the heading), how much, Claude's check, standing in, the other approver, a button to the claim", /^John Healy sent an expense claim\n\n\$193\.44 for November 2026 \(2 receipts, 1 mileage\)/.test(e.text) && /standing in for the Treasurer until/.test(e.text) && /your approval and Andrew Hammond's/.test(e.text) && /\/expenses#claim=abc-1/.test(e.html));
+const items = [{ kind: "receipt", paidTo: "Staples", date: "2026-11-04", amount: 63.06 }, { kind: "mileage", from: "Barrie", to: "Toronto", date: "2026-11-01", amount: 117.18 }, { kind: "receipt", paidTo: "Delta Hotels Toronto Airport & Conference Centre", date: "2026-11-02", amount: 13.2 }];
+let e = M.needsApprovalMail({ claim: cl, lines: items, checks: { ok: false, notes: ["x", "y"] }, waitingOn: ["President Andrew Hammond", "Jacqulyn Taylor for the Treasurer"], acting: "Treasurer", until: day(14) });
+ok("to approve (Andrew, 3 Nov 2026): subject Expense claim for John Healy, who sent it, the items by date, one line each with the amount, the total", e.subject === "Expense claim for John Healy" && /John Healy has submitted an expense claim for the following:\n\nMileage: Barrie to Toronto   \$117\.18\nDelta Hotels Toronto Airport…   \$13\.20\nStaples   \$63\.06\nTotal   \$193\.44/.test(e.text), e.text);
+ok("…what's flagged, who it waits on, standing in, and Review to the claim", /Two things are flagged to check/.test(e.text) && /Waiting on approval from President Andrew Hammond and Jacqulyn Taylor for the Treasurer\./.test(e.text) && /standing in for the Treasurer until/.test(e.text) && /Review: \S*\/expenses#claim=abc-1/.test(e.text) && />Review</.test(e.html));
+ok("…and in the HTML the items are a table, not a paragraph", /<table role="presentation"[^>]*table-layout:fixed/.test(e.html) && !/<p[^>]*><table/.test(e.html));
+e = M.toPayMail({ claim: cl, approvedBy: ["the President", "the Treasurer"] });
+ok("to pay: Expense claim for John Healy, approved by the President and the Treasurer, ready to be paid, how much to whom", e.subject === "Expense claim for John Healy" && /The expense claim for John Healy has been approved by the President and the Treasurer and is ready to be paid\./.test(e.text) && /\$193\.44 by e-transfer to j\.healy@ongia\.ca/.test(e.text) && /Record the payment: /.test(e.text));
 e = M.sentBackMail({ claim: cl, by: "Raj Jaswal (Treasurer)", comment: "Parking was covered." });
 ok("sent back: by whom, the note, what to do", /Raj Jaswal \(Treasurer\) sent back/.test(e.text) && /Parking was covered/.test(e.text) && e.subject === "Your November 2026 expense claim was sent back");
 e = M.paidMail({ claim: cl, payer: "Jacqulyn Taylor", paid: { ref: "C1Ag4Yqu34yB", date: "2026-11-06" } });
-ok("paid: who, when, the reference", /Jacqulyn Taylor paid your November 2026 expense claim by e-transfer on Fri 6 Nov 2026: \$193\.44/.test(e.text) && /reference is C1Ag4Yqu34yB/.test(e.text));
+ok("paid: who, when, the transaction number", /Jacqulyn Taylor paid your November 2026 expense claim, \$193\.44, by e-transfer on Fri 6 Nov 2026/.test(e.text) && /Transaction number: C1Ag4Yqu34yB/.test(e.text), e.text);
 e = M.handoffMail({ from: "Raj Jaswal", title: "Treasurer", d: { from: "2026-11-05", until: "2026-11-19" }, waiting: 2 });
 ok("hand-off: who, what, the dates, how many are waiting", /Raj Jaswal is away from Thu 5 Nov 2026 to Thu 19 Nov 2026 and has handed you the Treasurer's expense approvals/.test(e.text) && /Two claims are waiting/.test(e.text));
 e = M.handoffMail({ from: "Raj Jaswal", title: "Treasurer", d: { from: "2026-11-05", until: "2026-11-19" }, isBackup: true, standIn: "Jacqulyn Taylor" });
@@ -231,8 +236,9 @@ console.log("— practice: a test claim comes back to the one who made it (Andre
   const real = await call("/api/expenses?add=noreceipt", "POST", { paidTo: "Barb Konkle", date: yday, amount: 250, category: 10, purpose: "Real stipend" }, BK);
   const rs = await call(`/api/expenses?submit=${real.claim.id}`, "POST", {}, BK);
   ok("a real claim from her still goes to two real approvers, never to her", rs.claim?.status === "submitted" && rs.claim.slots.every((x) => x.email !== me && !x.practice), JSON.stringify(rs.claim?.slots));
-  const am = M.needsApprovalMail({ claim: { ...made.claim, test: true, owner: { name: "Barb Konkle" }, total: 250 }, checks: null, practice: "Treasurer" });
-  ok("the practice email says which role you're approving as, and that every step comes back to you", /Practice: you're approving it as the Treasurer/.test(am.text) && /Every step comes back to you to try/.test(am.text) && !/needs your approval and/.test(am.text));
+  ok("one 'to approve' email, not one per role: both sign-offs are hers", (await S.getClaim(TC)).mail.filter((x) => x.what === "to approve").length === 1);
+  const am = M.needsApprovalMail({ claim: { ...made.claim, test: true, owner: { name: "Barb Konkle" }, total: 250 }, lines: [], checks: null, waitingOn: ["the President", "the Treasurer"], practice: true });
+  ok("the practice email says it waits on the President and the Treasurer, both her, and that every step comes back to her", /Waiting on approval from the President and the Treasurer \(both you, for practice\)/.test(am.text) && /Every step comes back to you/.test(am.text), am.text);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
