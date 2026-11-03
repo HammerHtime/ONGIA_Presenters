@@ -72,5 +72,19 @@ ok("undo puts Dunlap back as he was: his emails kept, note and room gone", undon
 ok("undo on someone not finalized is refused", (await put("rd", { on: false })).status === 409);
 ok("a body without on is refused", (await put("jc", {})).status === 400);
 
+// Listed with no email (Andrew 3 Nov 2026: "put him in with no email just so we have a list of presenters").
+const add = async (body) => { const r = await events(new Request("http://x/api/events?id=ngs&add=1", { method: "POST", headers: H, body: JSON.stringify(body) })); return { status: r.status, body: await r.json() }; };
+sent.length = 0;
+const nk = await add({ invite: true, presenters: [{ first: "Ryan", last: "Keynote", email: "", organization: "Keynote" }] });
+const nkId = nk.body.added?.[0]?.id;
+ok("a presenter can be added with no email, even with 'email their link' on, and nothing is sent", nk.status === 201 && nkId && nk.body.added[0].invited === false && sent.length === 0, JSON.stringify(nk.body));
+ok("a typed address that isn't one is still refused", (await add({ presenters: [{ first: "A", last: "B", email: "not-an-address" }] })).body.rejected?.length === 1);
+people = await listPresenters("ngs");
+ok("they show as no email, not as 'never sent'", attentionOf(people).noEmail.some((p) => p.id === nkId) && !attentionOf(people).uninvited.some((p) => p.id === nkId) && countStatuses(people).uninvited === 0);
+await invite(new Request("http://x/api/invite?id=ngs", { method: "POST", headers: H, body: JSON.stringify({ presenterIds: [nkId] }) }));
+ok("emailing them by name sends nothing", sent.length === 0);
+ok("and they can be finalized without an agreement", (await put(nkId, { on: true, note: "Contract through his office.", hotel: null, covers: {} })).body.presenter?.status === "arranged");
+ok("which takes them off the no-email list", !attentionOf(await listPresenters("ngs")).noEmail.some((p) => p.id === nkId));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -45,8 +45,10 @@ export default async (req) => {
   const origin = siteUrl(req);
   const ev = describeEvent(event);
 
-  const people = (await listPresenters(event.id)).filter((p) =>
-    wanted ? wanted.has(p.id) : p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged"
+  // Someone on the list with no email (Andrew 3 Nov 2026: a keynote arranged through his office, listed "just so we
+  // have a list of presenters") is never written to.
+  const people = (await listPresenters(event.id)).filter((p) => p.email &&
+    (wanted ? wanted.has(p.id) : p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged")
   );
 
   const sent = [];

@@ -388,7 +388,8 @@ async function updatePresenter(id, presenterId, body) {
   const last = text(body.last, 80);
   const email = text(body.email, 200);
   if (!first || !last) return fail("A presenter needs a first and last name.");
-  if (!isEmail(email)) return fail(`"${email}" is not an email address.`);
+  // Blank is allowed for someone listed without one (never emailed); a typed address must be real.
+  if (email && !isEmail(email)) return fail(`"${email}" is not an email address.`);
 
   const before = { first: presenter.first, last: presenter.last, email: presenter.email };
   presenter.first = first;
@@ -600,7 +601,8 @@ export function attentionOf(people) {
   const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
   return {
     review: who((p) => p.status === "submitted"),
-    uninvited: who((p) => !HAS_AGREEMENT(p) && !p.mail?.length),
+    uninvited: who((p) => !HAS_AGREEMENT(p) && !p.mail?.length && !!p.email),
+    noEmail: who((p) => !HAS_AGREEMENT(p) && !p.email),
     failed: who((p) => p.status === "approved" && p.delivery?.filing && p.delivery.filing.ok === false),
     sendFailed: who((p) => !!p.lastSendError),
     outstanding: who((p) => !HAS_AGREEMENT(p)),
@@ -624,7 +626,7 @@ export function countStatuses(presenters) {
     else counts.invited++;
     // Nobody has ever sent this person their link, so no reminder will ever chase
     // them: only a person can fix it.
-    if (!HAS_AGREEMENT(p) && !p.mail?.length) counts.uninvited++;
+    if (!HAS_AGREEMENT(p) && !p.mail?.length && p.email) counts.uninvited++;
     // Signed and approved, but the copy never reached SharePoint.
     if (p.status === "approved" && p.delivery && p.delivery.filing && p.delivery.filing.ok === false) counts.failed++;
   }
@@ -747,7 +749,9 @@ async function addPeople(event, rows, { invite = true, origin = "" } = {}) {
       rejected.push({ row, why: "Needs a first and last name." });
       continue;
     }
-    if (!isEmail(email)) {
+    // No email at all is allowed (Andrew 3 Nov 2026: "put him in with no email just so we have a list of presenters"):
+    // such a presenter is never emailed and is finalized without an agreement. A typed address must be a real one.
+    if (email && !isEmail(email)) {
       rejected.push({ row, why: `"${email}" is not an email address.` });
       continue;
     }
@@ -777,9 +781,9 @@ async function addPeople(event, rows, { invite = true, origin = "" } = {}) {
 
   const invited = [];
   const notSent = [];
-  if (invite && origin) {
+  if (invite && origin && added.some((x) => x.email)) {
     const ev = describeEvent(event);
-    for (const p of added) {
+    for (const p of added.filter((x) => x.email)) {
       const mail = invitationMail({ event: ev, presenter: p, link: `${origin}/a/${p.token}`, remind: false });
       try {
         const out = await sendMail({ to: p.email, replyTo: coordinatorOf(event).email || undefined, ...mail });

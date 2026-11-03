@@ -3961,7 +3961,7 @@ function eventScreen(data) {
     document.getElementById("p-rows").focus();
   };
   const mailAll = async () => {
-    const outstanding = presenters.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged");
+    const outstanding = presenters.filter((p) => p.email && p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged");
     if (!presenters.length) return toast("No presenters yet.");
     if (!outstanding.length) return toast("Everyone has submitted.");
     if (!confirm(`Email their link to ${outstanding.length} presenter${outstanding.length === 1 ? "" : "s"} who haven't submitted?`)) return;
@@ -4013,6 +4013,8 @@ function eventScreen(data) {
     if (p.status === "arranged") return { bucket: "final", pill: `<span class="pill done">Arranged directly</span>`,
       sub: `finalized ${short(p.arranged?.at)}${p.arranged?.by ? ` by ${esc(p.arranged.by)}` : ""} · no agreement sent` };
     // Nobody has ever sent this person their link: no reminder will ever chase them.
+    // Listed with no email (Andrew 3 Nov 2026): nothing can be sent; they are finalized without an agreement.
+    if (!p.email) return { bucket: "uninvited", pill: `<span class="pill late">No email</span>`, sub: "never emailed · finalize them without an agreement" };
     if (!n) return { bucket: "uninvited", pill: `<span class="pill late">Never sent</span>`,
       sub: p.lastSendError ? `could not be emailed — ${esc(p.lastSendError.why)}` : "no link sent yet · no reminder will chase them" };
     const hard = n >= 4;
@@ -4173,13 +4175,15 @@ function eventScreen(data) {
     } else if (p.status === "arranged") {
       rest.push(b(`data-arrange="${id}" title="Change the note, the hotel nights or what ONGIA covers"`, "Change arrangements"),
         b(`data-unarrange="${id}" title="Back to waiting for their agreement"`, "Undo finalize"));
+    } else if (!p.email) {
+      main = b(`data-arrange="${id}" title="Arranged directly with them: finalize with a note, no agreement sent"`, "Finalize", "gold");
     } else if (mailed) {
       rest.push(...chase());
     } else {
       main = b(`data-invite="${id}"`, "Email link", "gold");
     }
     // Arranged directly, by phone or through their office: finalize with a note, the hotel and costs, and no emails.
-    if (p.status !== "approved" && p.status !== "submitted" && p.status !== "arranged" && p.status !== "returned") rest.push(b(`data-arrange="${id}" title="Arranged directly with them: finalize with a note, no agreement sent"`, "Finalize without an agreement"));
+    if (p.email && p.status !== "approved" && p.status !== "submitted" && p.status !== "arranged" && p.status !== "returned") rest.push(b(`data-arrange="${id}" title="Arranged directly with them: finalize with a note, no agreement sent"`, "Finalize without an agreement"));
     rest.push(b(`data-copy="${esc(link)}"`, "Copy link"), b(`data-edit="${id}" title="Correct their name or email, or remove them from the event"`, "Correct or remove"));
     return { main, rest };
   };
@@ -4700,7 +4704,7 @@ function eventScreen(data) {
   const bulkMail = document.getElementById("pbulk-mail");
   if (bulkMail) bulkMail.onclick = async () => {
     const chosen = presenters.filter((p) => sel.has(p.id));
-    const due = chosen.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged");
+    const due = chosen.filter((p) => p.email && p.status !== "submitted" && p.status !== "approved" && p.status !== "arranged");
     if (!due.length) return toast("Everyone ticked has already signed.");
     const skip = chosen.length - due.length;
     if (!confirm(`Email their agreement link to ${due.length} presenter${due.length === 1 ? "" : "s"}?${skip ? `\n\n${skip} who already signed will be left out.` : ""}`)) return;
