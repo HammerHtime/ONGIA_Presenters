@@ -1,6 +1,9 @@
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from "./lib/store.mjs";
-import { mayCost } from "./lib/auth.mjs";
+import { mayCost, mayEditEvent } from "./lib/auth.mjs";
+import { xlsxBook } from "./lib/xlsx.mjs";
+import { groupsOf } from "./lib/welcome.mjs";
+import { DESK_TZ } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { directory, agencyOf, domainOf } from "./lib/agencies.mjs";
 import { templateOf, findTemplate, hasFrench, templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
@@ -46,6 +49,11 @@ export default async (req) => {
   if (q("place") || q("design") || q("designs")) return designs(req, url, q);
   const event = await getEvent(q("event"));
   if (!event) return fail("No such event.", 404);
+  // The registration list goes with the event's own list of who's coming (Andrew 3 Nov 2026: "Inis Artinian doesn't have
+  // access to download the list of registrations. She is the one printing ID cards"): anyone on the event's board can
+  // download it, as the president and the VP can, the same people who can change that list. Certificates and the
+  // certificate program's list stay with the president, the VP and the event's lead.
+  if (req.method === "GET" && q("csv") === "registration" && mayEditEvent(adminWho(req), event)) return csv(event, await peopleOf(event), "registration");
   if (!mayCertify(adminWho(req), event)) return fail("Certificates are for the president, the VP and the event's lead.", 403);
   const people = await peopleOf(event);
 
@@ -235,17 +243,7 @@ function csv(event, people, which) {
     head = ["First name", "Last name", "Agency", "Email", "Event", "Date"];
     rows = people.filter((p) => p.checkedIn).map((p) => [p.first, p.last, p.agency, p.email, s.course, certDate(s.date)]);
     name = `${slug}-certificates.csv`;
-  } else if (which === "registration") {
-    // For the door (Andrew 3 Nov 2026): the agency to use comes third. What they typed on Wix is only for reference, so it
-    // goes last and says when they typed nothing (109 empty cells there read as gaps in the agencies); a phone column
-    // nobody has a number in is left out.
-    const coming = people.filter((p) => p.status === "ATTENDING");
-    const phones = coming.some((p) => String(p.phone ?? "").trim());
-    head = ["Last name", "First name", "Agency", "Email", ...(phones ? ["Phone"] : []), "Status", "Checked in", "Group", "Registered", "Typed on Wix"];
-    rows = coming.map((p) => [p.last, p.first, p.agency, p.email, ...(phones ? [p.phone] : []), "Coming", p.checkedIn ? "Yes" : "", p.group, p.source === "wix" ? "Wix" : "By hand",
-      String(p.typed ?? "").trim() || "(nothing typed)"]);
-    name = `${slug}-registration-list.csv`;
-  } else return fail("Which list: registration or certificate?");
+  } else if (which !== "registration") return fail("Which list: registration or certificate?");
   // What the list holds, said with every download (Andrew 3 Nov 2026: "I need to have confidence ... if I pull the new list
   // ... because I have to send it to somebody"): how many, anyone without a name, anyone without an agency and why, and
   // anyone on it twice. The page shows it beside the download.
@@ -263,6 +261,41 @@ function csv(event, people, which) {
     noAgencyPersonal: noAgency.filter((p) => !domainOf(p.email)).length,
     groups: groups.map((g) => ({ name: [g[0].first, g[0].last].filter(Boolean).join(" "), tickets: g.length })),
     twice: twice.map((g) => [g[0].first, g[0].last].filter(Boolean).join(" ")) };
+  // A header carries only plain characters: a name like Łukasz is sent as \u0141ukasz, which the page reads back as
+  // Łukasz (sent as it was, it stopped the download altogether).
+  const asHeader = (o) => JSON.stringify(o).replace(/[\u007f-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  if (which === "registration") {
+    const { book, tabs } = registrationBook(event, listed);
+    return new Response(book, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug}-registration-list.xlsx"`, "cache-control": "no-store", "x-list-check": asHeader({ ...check, tabs }) } });
+  }
   return new Response(`﻿${head.map(cell).join(",")}\n${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store", "x-list-check": JSON.stringify(check) } });
+    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store", "x-list-check": asHeader(check) } });
+}
+
+/**
+ * The registration list as one Excel file, a tab for each group (Andrew 3 Nov 2026: "can you include virtual and put all
+ * three in separate tabs in the same excel sheet"): the event's own registrations first (the Summit's justice partners),
+ * then each linked Wix event's group in the order it was linked (community partners, virtual). A tab with nobody on it
+ * yet is still there, saying so. For the door: the agency to use comes third; what they typed on Wix is only for
+ * reference, so it goes last and says when they typed nothing; a phone column nobody has a number in is left out.
+ */
+function registrationBook(event, coming) {
+  const { main } = groupsOf(event);
+  const names = [main];
+  for (const l of event.wixMore ?? []) if (l?.group && !names.includes(l.group)) names.push(l.group);
+  for (const p of coming) if (p.group && !names.includes(p.group)) names.push(p.group);
+  const tabOf = (p) => (p.group && p.group !== main ? p.group : main);
+  const phones = coming.some((p) => String(p.phone ?? "").trim());
+  const asOf = new Intl.DateTimeFormat("en-CA", { timeZone: DESK_TZ, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date());
+  const columns = [{ head: "Last name", width: 16 }, { head: "First name", width: 14 }, { head: "Agency", width: 34 }, { head: "Email", width: 32 },
+    ...(phones ? [{ head: "Phone", width: 15 }] : []), { head: "Checked in", width: 11.5, center: true }, { head: "Registered", width: 11, center: true }, { head: "Typed on Wix", width: 30 }];
+  const tabs = names.map((name) => ({ name, people: coming.filter((p) => tabOf(p) === name) }));
+  const book = xlsxBook(tabs.map(({ name, people }) => ({
+    sheet: name, title: event.title, landscape: true, columns,
+    subtitle: `${name}: ${people.length ? `${people.length} coming` : "nobody registered yet"} · list as of ${asOf}`,
+    rows: people.map((p) => [p.last, p.first, p.agency, p.email, ...(phones ? [p.phone] : []), p.checkedIn ? "Yes" : "", p.source === "wix" ? "Wix" : "By hand",
+      String(p.typed ?? "").trim() || "(nothing typed)"]),
+  })));
+  return { book, tabs: tabs.map(({ name, people }) => ({ name, people: people.length })) };
 }

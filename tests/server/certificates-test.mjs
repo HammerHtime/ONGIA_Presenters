@@ -11,6 +11,14 @@ const { issueSession } = await import(F + "lib/auth.mjs");
 const certificates = (await import(F + "certificates.mjs")).default;
 const verify = (await import(F + "verify.mjs")).default;
 const { readCsv } = await import(F + "lib/attendees.mjs");
+const { readZip } = await import(F + "lib/zip.mjs");
+// Every tab of an Excel file: its name and its rows of text, as Excel would show them.
+const tabsOf = (buf) => {
+  const files = new Map(readZip(buf).map((f) => [f.name, f.data.toString("utf8")]));
+  const un = (t) => t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+  return [...files.get("xl/workbook.xml").matchAll(/<sheet name="([^"]+)" sheetId="(\d+)"/g)].map(([, name, n]) => ({ name: un(name),
+    rows: [...files.get(`xl/worksheets/sheet${n}.xml`).matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)].map(([, r]) => [...r.matchAll(/<c\b[^>]*?(?:\/>|>([\s\S]*?)<\/c>)/g)].map(([, c]) => un(c?.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1] ?? ""))) }));
+};
 const { execFileSync } = await import("node:child_process");
 const fs = await import("node:fs");
 let pass = 0, fail = 0;
@@ -19,7 +27,7 @@ const as = (email) => issueSession({ email, name: email });
 const call = async (qs, { method = "GET", body, who = "testkey" } = {}) => {
   const r = await certificates(new Request(`http://x/api/certificates?${qs}`, { method, headers: { "x-admin-key": who, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }));
   const type = r.headers.get("content-type") ?? "";
-  return { status: r.status, type, disp: r.headers.get("content-disposition") ?? "", check: JSON.parse(r.headers.get("x-list-check") ?? "null"), body: type.includes("json") ? await r.json() : type.includes("pdf") ? Buffer.from(await r.arrayBuffer()) : await r.text() };
+  return { status: r.status, type, disp: r.headers.get("content-disposition") ?? "", check: JSON.parse(r.headers.get("x-list-check") ?? "null"), body: type.includes("json") ? await r.json() : type.includes("pdf") || type.includes("spreadsheet") ? Buffer.from(await r.arrayBuffer()) : await r.text() };
 };
 
 await putEvent({ id: "ngs27", title: "National Gang Summit", city: "Toronto", dayOne: "2027-05-04", lastDay: "2027-05-06",
@@ -40,6 +48,10 @@ ok("and who checked in is counted", C.counts.checkedIn === 2 && C.counts.coming 
 ok("the event's lead may", (await call("event=ngs27", { who: as("treasurer@ongia.ca") })).status === 200);
 ok("the VP may", (await call("event=ngs27", { who: as("vp_operations@ongia.ca") })).status === 200);
 ok("another board member on the event may not", (await call("event=ngs27", { who: as("member@ongia.ca") })).status === 403);
+// The registration list goes with the list of who's coming (Andrew 3 Nov 2026: Inis Artinian prints the ID cards).
+ok("but any board member on the event may download the registration list", (await call("event=ngs27&csv=registration", { who: as("member@ongia.ca") })).status === 200);
+ok("…not the certificate program's list", (await call("event=ngs27&csv=certificate", { who: as("member@ongia.ca") })).status === 403);
+ok("…and a board member who isn't on the event may not", (await call("event=ngs27&csv=registration", { who: as("elsewhere@ongia.ca") })).status === 403);
 
 // The date can change, and go back.
 C = (await call("event=ngs27", { method: "PUT", body: { date: "2027-05-07" } })).body;
@@ -109,10 +121,22 @@ ok("the generic design carries the course, wrapped, and the RCMP's official name
 
 // The two downloads.
 const reg = await call("event=ngs27&csv=registration");
-const regRows = reg.body.replace(/^﻿/, "").trim().split("\n");
-ok("the registration list: everyone coming, by last name, official agency and what they typed", reg.type.startsWith("text/csv") && /national-gang-summit-registration-list\.csv/.test(reg.disp)
-  && regRows.length === 4 && /^"Martin","Alex","Peel Regional Police",/.test(regRows[1]) && /"Peel Police"$/.test(regRows[1]) && /^"Okafor"/.test(regRows[2]) && /^"Tremblay"/.test(regRows[3])
-  && /"Registered","Typed on Wix"$/.test(regRows[0]) && !/Phone/.test(regRows[0]), reg.body);
+const regTabs = tabsOf(reg.body), regRows = regTabs[0].rows.slice(3);
+ok("the registration list is one Excel file; an event with one group has one tab", reg.type.includes("spreadsheetml") && /national-gang-summit-registration-list\.xlsx/.test(reg.disp) && regTabs.length === 1 && regTabs[0].name === "Everyone", JSON.stringify(regTabs.map((t) => t.name)));
+ok("everyone coming, by last name, official agency third and what they typed last", regRows.length === 3 && regRows[0].slice(0, 3).join() === "Martin,Alex,Peel Regional Police" && regRows[0].at(-1) === "Peel Police"
+  && regRows[1][0] === "Okafor" && regRows[2][0] === "Tremblay" && regTabs[0].rows[2].join() === "Last name,First name,Agency,Email,Checked in,Registered,Typed on Wix"
+  && /^Everyone: 3 coming · list as of /.test(regTabs[0].rows[1][0]), JSON.stringify(regTabs[0].rows));
+// The Summit (Andrew 3 Nov 2026): "include virtual and put all three in separate tabs in the same excel sheet".
+await putEvent({ id: "ngs29", title: "National Gang Summit", city: "Toronto", dayOne: "2029-11-09", lastDay: "2029-11-12", board: [],
+  wix: { eventId: "w1" }, wixMore: [{ eventId: "w2", title: "Community", group: "Community partners" }, { eventId: "w3", title: "VIRTUAL", group: "Virtual", online: true }, { eventId: "w4", title: "Youth", group: "Youth day" }] });
+await putAttendees("ngs29", { people: [p("s1", "Ada", "Zed", "TPS", "az@torontopolice.on.ca"), p("s2", "Bo", "Young", "Helpers", "by@helpers.ca", { group: "Community partners", wixEventId: "w2" }),
+  p("s3", "Cy", "Xu", "OPP", "cx@opp.ca", { group: "Virtual", wixEventId: "w3" }), p("s4", "Di", "Abe", "Peel Police", "da@peelpolice.ca", { group: "Virtual", wixEventId: "w3" }),
+  p("s5", "Ed", "Ito", "OPP", "ei@opp.ca", { group: "Virtual", status: "WITHDRAWN" })] });
+const three = await call("event=ngs29&csv=registration"), t3 = tabsOf(three.body);
+ok("the Summit's list: a tab each for the justice partners, the community partners and virtual, in that order, and one for a group with nobody yet", t3.map((t) => t.name).join() === "Justice partners,Community partners,Virtual,Youth day", JSON.stringify(t3.map((t) => t.name)));
+ok("each person is on their own group's tab, by last name; someone withdrawn is on none", t3[0].rows.slice(3).map((r) => r[0]).join() === "Zed" && t3[1].rows.slice(3).map((r) => r[0]).join() === "Young" && t3[2].rows.slice(3).map((r) => r[0]).join() === "Abe,Xu" && t3[3].rows.length === 3, JSON.stringify(t3.map((t) => t.rows.slice(3).map((r) => r[0]))));
+ok("each tab says which group and how many; an empty one says so", /^Virtual: 2 coming/.test(t3[2].rows[1][0]) && /^Youth day: nobody registered yet/.test(t3[3].rows[1][0]), JSON.stringify(t3.map((t) => t.rows[1][0])));
+ok("the page is told the tabs and their counts", JSON.stringify(three.check.tabs) === JSON.stringify([{ name: "Justice partners", people: 1 }, { name: "Community partners", people: 1 }, { name: "Virtual", people: 2 }, { name: "Youth day", people: 0 }]) && three.check.people === 4, JSON.stringify(three.check));
 ok("the download says what it holds: how many, and nobody nameless, without an agency or listed twice", reg.check?.people === 3 && reg.check.noName === 0 && reg.check.twice.length === 0 && reg.check.groups.length === 0, JSON.stringify(reg.check));
 // Tickets bought under one name for colleagues (one order) aren't a double registration (two orders).
 await putEvent({ id: "ngs28", title: "Summit dup test", city: "Toronto", dayOne: "2028-05-04", lastDay: "2028-05-06", board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] });
@@ -121,6 +145,10 @@ await putAttendees("ngs28", { people: [P("a1", "Tara", "Sample", "lead@example-p
   P("b1", "Glen", "Twice", "glen@example-police.ca", "O2"), P("b2", "Glen", "Twice", "glen@example-police.ca", "O3"), P("c1", "Solo", "Person", "solo@example-police.ca", "O4")] });
 const dup = await call("event=ngs28&csv=registration");
 ok("one buyer's tickets under their own name are a group still to name; the same person on two orders is a double registration", dup.check.groups.length === 1 && dup.check.groups[0].tickets === 3 && JSON.stringify(dup.check.twice) === JSON.stringify(["Glen Twice"]), JSON.stringify(dup.check));
+// A name past the plain letters (Ł) used to stop the download: the line saying what the list holds couldn't carry it.
+await putAttendees("ngs28", { people: [P("l1", "Łukasz", "Nowak", "ln@example-police.ca", "O7"), P("l2", "Łukasz", "Nowak", "ln@example-police.ca", "O8")] });
+const pl = await call("event=ngs28&csv=registration");
+ok("a name like Łukasz downloads, and the list's summary gives the name as written", pl.status === 200 && JSON.stringify(pl.check?.twice) === JSON.stringify(["Łukasz Nowak"]), `${pl.status} ${JSON.stringify(pl.check)}`);
 const cert = await call("event=ngs27&csv=certificate");
 const certRows = cert.body.replace(/^﻿/, "").trim().split("\n");
 ok("the certificate list: only people checked in, with the event and date", certRows[0] === '"First name","Last name","Agency","Email","Event","Date"' && certRows.length === 3 && certRows[2] === '"Jordan","Tremblay","Toronto Police Service","jt@torontopolice.on.ca","National Gang Summit","06/05/2027"', cert.body);

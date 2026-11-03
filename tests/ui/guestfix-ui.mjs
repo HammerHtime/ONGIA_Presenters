@@ -7,6 +7,13 @@ const { issueSession } = await import(REPO + "netlify/functions/lib/auth.mjs");
 const D = new URL(".", import.meta.url).pathname;
 const S = "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
+const { readZip } = await import(REPO + "netlify/functions/lib/zip.mjs");
+// The registration list (an Excel file, a tab per group): every row of every tab, cells joined by "|".
+const regList = async (id) => {
+  const buf = Buffer.from(await (await fetch(`${S}/api/certificates?event=${id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).arrayBuffer());
+  return readZip(buf).filter((f) => /^xl\/worksheets\/sheet\d+\.xml$/.test(f.name)).flatMap((f) => [...f.data.toString("utf8").matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)]
+    .map(([, r]) => [...r.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((m) => m[1].replace(/&amp;/g, "&")).join("|"))).join("\n");
+};
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 await api("/api/roster");
@@ -31,8 +38,8 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   const list = await p.locator("body").innerText();
   ok(`${tag}: the list shows the organization and the name`, /Helpers Youth Services/.test(list) && /Example DSB/.test(list) && /Rowan/.test(list));
   ok(`${tag}: corrected rows are marked`, await p.locator(".pill", { hasText: "corrected" }).count() === 2);
-  const reg = await (await fetch(`${S}/api/certificates?event=${ev.id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).text();
-  ok(`${tag}: the registration download carries them`, /"Field","Rowan","Example DSB"/.test(reg) && /"Stone","Avery","Helpers Youth Services"/.test(reg), reg.slice(0, 300));
+  const reg = await regList(ev.id);
+  ok(`${tag}: the registration download carries them`, /Field\|Rowan\|Example DSB/.test(reg) && /Stone\|Avery\|Helpers Youth Services/.test(reg), reg.slice(0, 300));
   ok(`${tag}: nobody from the sheet was added`, !/Vale/.test(reg));
   // One person, on their row.
   const row = p.locator("tr.grow", { hasText: "Avery" });
@@ -42,14 +49,14 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   await form.locator("input").nth(2).fill("Helpers Youth Services of Niagara");
   await form.locator("button", { hasText: "Save" }).click(); await p.waitForTimeout(2500);
   ok(`${tag}: saving shows it on the list`, /Helpers Youth Services of Niagara/.test(await p.locator("body").innerText()));
-  const reg2 = await (await fetch(`${S}/api/certificates?event=${ev.id}&csv=registration`, { headers: { "x-admin-key": "testkey" } })).text();
-  ok(`${tag}: and in the download`, /"Stone","Avery","Helpers Youth Services of Niagara"/.test(reg2));
+  const reg2 = await regList(ev.id);
+  ok(`${tag}: and in the download`, /Stone\|Avery\|Helpers Youth Services of Niagara/.test(reg2));
   // The download says what it holds, beside the button.
   await p.locator("details.dlmenu summary").click(); await p.waitForTimeout(200);
   const [dl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);
   await p.waitForTimeout(800);
   const said2 = await p.locator("#g-said").innerText();
-  ok(`${tag}: the registration list downloads and says what it holds`, /registration-list\.csv$/.test(dl.suggestedFilename()) && /Downloaded 2 people\. Everyone has a name\. Everyone has an agency\. Nobody is registered twice\./.test(said2), said2);
+  ok(`${tag}: the registration list downloads and says what it holds`, /registration-list\.xlsx$/.test(dl.suggestedFilename()) && /Downloaded 2 people\. Everyone has a name\. Everyone has an agency\. Nobody is registered twice\./.test(said2), said2);
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));
   const card = p.locator("#g-fix").locator("xpath=ancestor::div[contains(@class,\"card\")][1]");
   await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: D + `guestfix-${tag}.png` });
