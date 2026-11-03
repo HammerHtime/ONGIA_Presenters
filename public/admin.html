@@ -9256,9 +9256,9 @@ function attendeesCard(ev, guests) {
         ${counts.total ? `<span class="chipstat"><b>${counts.fromWix}</b>from the website</span>` : ""}
         ${counts.byHand ? `<span class="chipstat"><b>${counts.byHand}</b>added by hand</span>` : ""}
       </div></div>
-      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button><button class="mini" id="g-fix" title="A sheet with people's names and the organization they work for (a registration form, say): only people already on this list are changed, and the changes stay through every pull from Wix.">Correct names and agencies</button><input type="file" id="g-fixfile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>${mayCertifyHere(ev) ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
-          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name: agency, email, checked in. Pulls the latest from Wix first.</span></button>
-          <button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button></div></details>` : ""}
+      <div class="cardacts"><button class="mini" id="g-csv">Import a spreadsheet</button><button class="mini" id="g-fix" title="A sheet with people's names and the organization they work for (a registration form, say): only people already on this list are changed, and the changes stay through every pull from Wix.">Correct names and agencies</button><input type="file" id="g-fixfile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>${mayCertifyHere(ev) || ev.canEdit !== false ? `<details class="dlmenu"><summary class="mini gold">Download the list ▾</summary><div class="dlpop">
+          <button type="button" data-glist="registration"><b>Registration list</b><span>Everyone coming, by last name, in one Excel file${ev.wixMore?.length ? ", a tab for each group" : ""}: agency, email, checked in. Pulls the latest from Wix first.</span></button>
+          ${mayCertifyHere(ev) ? `<button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button>` : ""}</div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
       ${bar}
@@ -9396,11 +9396,11 @@ function wireAttendees(ev) {
       const res = await apiFetch(`/api/certificates?event=${encodeURIComponent(ev.id)}&csv=${b.dataset.glist}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The download failed.");
       const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
-      Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : "list.csv" }).click();
+      Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : b.dataset.glist === "registration" ? "registration-list.xlsx" : "list.csv" }).click();
       let c = null; try { c = JSON.parse(res.headers.get("x-list-check") ?? "null"); } catch {}
       const bits = [pulled];
       if (c) {
-        bits.push(`Downloaded ${c.people} ${c.people === 1 ? "person" : "people"}.`);
+        bits.push(`Downloaded ${c.people} ${c.people === 1 ? "person" : "people"}${(c.tabs ?? []).length > 1 ? ` in ${c.tabs.length} tabs: ${c.tabs.map((t) => `${t.name} ${t.people}`).join(", ")}` : ""}.`);
         bits.push(c.noName ? `${c.noName} ${c.noName === 1 ? "has" : "have"} no name: tickets bought for someone not yet named.` : "Everyone has a name.");
         bits.push(c.noAgency ? `${c.noAgency} ${c.noAgency === 1 ? "has" : "have"} no agency${c.noAgencyPersonal === c.noAgency ? ": they typed none and used a personal email" : ""}; use Correct on their row to add it.` : "Everyone has an agency.");
         const tw = c.twice ?? [], gr = c.groups ?? [];

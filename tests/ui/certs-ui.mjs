@@ -1,11 +1,15 @@
 // Certificates (Andrew 30 Oct 2026), on Survey & certificates since the audit: pick the design, the date (the event's last
 // day unless changed), preview, and download anyone's certificate; Download the list on Who's coming gives the registration
-// list and the certificate program's list. The lead sees them; another board member on the event does not.
+// list and the certificate program's list. The lead sees them; another board member on the event sees only the
+// registration list (Andrew 3 Nov 2026: Inis Artinian prints the ID cards), as one Excel file.
 const REPO = new URL("../../", import.meta.url).pathname;
 process.env.ADMIN_KEY = "testkey";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const { issueSession } = await import(REPO + "netlify/functions/lib/auth.mjs");
 const fs = await import("node:fs");
+const { readXlsx } = await import(REPO + "netlify/functions/lib/xlsx.mjs");
+// The first tab of a downloaded Excel file, a line per row, cells joined by "|".
+const firstTab = async (dl) => readXlsx(fs.readFileSync(await dl.path())).map((r) => r.join("|")).join("\n");
 const { execFileSync } = await import("node:child_process");
 const D = new URL(".", import.meta.url).pathname;
 const S = "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
@@ -31,8 +35,12 @@ const open = async (email, w, h, where = { tab: "people", pview: "guests" }) => 
 };
 
 const other = await open("member@ongia.ca", 1440, 1000);
-ok("another board member on the event sees no Certificates and no Download the list", await other.locator("#certsfold").count() === 0 && await other.locator(".dlmenu").count() === 0
+ok("another board member on the event sees no Certificates", await other.locator("#certsfold").count() === 0
   && (await other.locator('.etab[data-tab="survey"]').innerText()).trim() === "Survey" && await other.locator("[data-svgo]").count() === 0);
+await other.locator(".dlmenu > summary").click();
+ok("…but Download the list offers them the registration list, and only that", await other.locator('[data-glist="registration"]').isVisible() && await other.locator('[data-glist="certificate"]').count() === 0);
+const [otherReg] = await Promise.all([other.waitForEvent("download"), other.locator('[data-glist="registration"]').click()]);
+ok("…and it downloads for them, as Excel", otherReg.suggestedFilename() === "national-gang-summit-registration-list.xlsx" && /Martin\|Alex\|Peel Regional Police/.test(await firstTab(otherReg)));
 await other.close();
 
 for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
@@ -42,8 +50,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: Download the list offers the registration list and the certificate program's list`, await p.locator('[data-glist="registration"]').isVisible() && await p.locator('[data-glist="certificate"]').isVisible());
   if (tag === "wide") await p.locator(".dlmenu").screenshot({ path: D + "certs-dlmenu.png" }).catch(() => {});
   const [reg] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);
-  const regText = fs.readFileSync(await reg.path(), "utf8");
-  ok(`${tag}: the registration list downloads, sorted by last name, with official agency names`, reg.suggestedFilename() === "national-gang-summit-registration-list.csv" && /"Martin","Alex","Peel Regional Police"/.test(regText) && regText.indexOf("Martin") < regText.indexOf("Okafor"), regText);
+  const regText = await firstTab(reg);
+  ok(`${tag}: the registration list downloads, sorted by last name, with official agency names`, reg.suggestedFilename() === "national-gang-summit-registration-list.xlsx" && /Martin\|Alex\|Peel Regional Police/.test(regText) && regText.indexOf("Martin") < regText.indexOf("Okafor"), regText);
   await p.locator(".dlmenu > summary").click();
   const [cl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="certificate"]').click()]);
   const clText = fs.readFileSync(await cl.path(), "utf8");
