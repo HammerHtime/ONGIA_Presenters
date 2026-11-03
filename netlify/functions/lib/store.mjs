@@ -358,6 +358,22 @@ export async function listMineIds(who) {
   const { blobs } = await store().list({ prefix: `expmine:${who}:` });
   return blobs.map((b) => b.key.slice(`expmine:${who}:`.length));
 }
+export async function listClaimIds() {
+  const { blobs } = await store().list({ prefix: "expclaim:" });
+  return blobs.map((b) => b.key.slice("expclaim:".length));
+}
+/** A claim and everything of it: its lines, receipts, card statements, readings and markers. Returns how many lines went. */
+export async function deleteClaimAll(claimId, who) {
+  const keys = [];
+  for (const p of ["expline", "expread", "expfile", "expthumb", "expshot"]) keys.push(...(await store().list({ prefix: `${p}:${claimId}:` })).blobs.map((b) => b.key));
+  const lines = keys.filter((k) => k.startsWith("expline:")).length;
+  await Promise.all([...keys, `expclaim:${claimId}`, `expmine:${who}:${claimId}`, `expq:${claimId}`].map((k) => store().delete(k)));
+  return lines;
+}
+/** An officer's hand-off while away, one record per role so two officers saving theirs at once can't overwrite each other. */
+export const getAway = (role) => read(`meta:expenses:away:${role}`);
+export const putAway = (role, value) => write(`meta:expenses:away:${role}`, value);
+export const deleteAway = (role) => store().delete(`meta:expenses:away:${role}`);
 export const markWaiting = (claimId, on) => (on ? write(`expq:${claimId}`, { at: new Date().toISOString() }) : store().delete(`expq:${claimId}`));
 export async function listWaitingIds() {
   const { blobs } = await store().list({ prefix: "expq:" });

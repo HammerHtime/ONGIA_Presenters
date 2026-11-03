@@ -59,7 +59,7 @@ ok("without Microsoft set up, signing in says so", (await call("/api/expenses?si
 
 console.log("— an empty start");
 let h = await call("/api/expenses", "GET", undefined, MEMBER);
-ok("a member with no claim yet: no current claim, the rate, ten categories, their name off the roster", h.status === 200 && h.current === null && h.rate === 0.62 && h.categories.length === 10 && h.me.name === "John Healy" && h.me.title === "Board member" && h.officer === false);
+ok("a member with no claim yet: no current claim, the rate, ten categories, their name off the roster", h.status === 200 && h.current === null && h.rate === 0.62 && h.categories.length === 10 && h.me.name === "John Healy" && h.me.title === "Board member" && h.me.officer === false && h.tabs.join() === "claim,past");
 ok("it says who will approve", h.approvers.join() === "President,Treasurer");
 const day = (n) => new Date(Date.now() + n * 86400e3).toISOString().slice(0, 10);
 const mkEvent = async (extra) => (await (await events(new Request("http://localhost/api/events", { method: "POST", headers: H, body: JSON.stringify({ title: "National Gang Summit", city: "Toronto, ON", venue: "V", dayOne: day(5), lastDay: day(7), invite: false, board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], presenters: [], ...extra }) }))).json()).event;

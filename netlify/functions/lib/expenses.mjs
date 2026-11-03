@@ -327,3 +327,166 @@ export function sniff(b) {
   if (s(0, 4) === "RIFF" && s(8, 12) === "WEBP") return "image/webp";
   return null;
 }
+
+/* ---------- the executives, hand-offs, and who holds each sign-off ---------- */
+
+/**
+ * The executives an officer may hand their approvals to while away (Andrew, 3 Nov 2026): the President, the VP, the
+ * Treasurer, the Executive Officer and the Legal Advisor. Each mailbox can be replaced by its own setting.
+ */
+export function executives() {
+  const o = officers();
+  return [
+    { email: o.president, title: "President" },
+    { email: o.vp, title: "VP of Operations" },
+    { email: o.treasurer, title: "Treasurer" },
+    { email: first(process.env.EXPENSE_EXEC_OFFICER, "executiveofficer@ongia.ca"), title: "Executive Officer" },
+    { email: first(process.env.EXPENSE_LEGAL, "j.healy@ongia.ca"), title: "Legal Advisor" },
+  ];
+}
+export const OFFICER_ROLES = ["president", "vp", "treasurer"];
+/** The VP sends the e-transfers and records them (Andrew, 3 Nov 2026), her own claims included, once two others approve. */
+export const PAYER = "vp";
+export const MAX_AWAY_DAYS = 60;
+
+/** A hand-off in force on `today` (a Toronto date), or null. `from` and `until` are both days away. */
+export const inForce = (d, today = todayIso()) => (d?.to && d.from <= today && today <= d.until ? d : null);
+
+/** A hand-off as asked for, checked. Returns { problem } or { ok }. */
+export function cleanAway(role, body, today = todayIso()) {
+  if (!OFFICER_ROLES.includes(role)) return { problem: "Only the President, the VP and the Treasurer hand off approvals." };
+  const me = officers()[role], ex = executives().map((x) => x.email);
+  const to = lc(body?.to), backup = lc(body?.backup);
+  if (!ex.includes(to) || to === me) return { problem: "Pick who will stand in for you. It has to be one of the executives, and not you." };
+  if (backup && (!ex.includes(backup) || backup === me || backup === to)) return { problem: "The second person has to be another executive: not you, and not your stand-in." };
+  const from = isoDate(body?.from) || today, until = isoDate(body?.until);
+  if (!until) return { problem: "Say the last day you're away." };
+  if (until < from) return { problem: "The last day away can't be before the first." };
+  if (until < today) return { problem: "Those dates are already over." };
+  if ((Date.parse(until) - Date.parse(from)) / 86400e3 + 1 > MAX_AWAY_DAYS) return { problem: `A hand-off can run for up to ${MAX_AWAY_DAYS} days.` };
+  return { ok: { role, to, backup: backup || "", from, until } };
+}
+
+/** Is this person an officer who is away today? */
+const awayToday = (email, aways, today) => OFFICER_ROLES.some((r) => officers()[r] === email && inForce(aways?.[r], today));
+
+/**
+ * Who holds each sign-off on a claim today. Always two different people, and never the person claiming. An officer
+ * who is away hands theirs to the stand-in they named; when the stand-in can't take this one (it is their own claim,
+ * or they already hold the other sign-off) it goes to the second person they named; when neither can, it stays with
+ * the officer. A sign-off already given (`decided`, role → { email }) stays with whoever gave it.
+ * Each slot: { role, email, for?: the officer's role when a stand-in holds it, done?, stuck? }.
+ */
+export function holders(ownerEmail, aways = {}, today = todayIso(), decided = {}) {
+  const o = officers(), owner = lc(ownerEmail);
+  const slots = approversFor(owner).map((role) => ({ role }));
+  const taken = new Set([owner]);
+  for (const s of slots) if (decided[s.role]?.email) { s.email = decided[s.role].email; s.done = true; if (decided[s.role].for) s.for = s.role; taken.add(s.email); }
+  for (const s of slots) if (!s.done && !inForce(aways[s.role], today)) { s.email = o[s.role]; taken.add(s.email); }
+  for (const s of slots) if (!s.done && !s.email) {
+    const d = inForce(aways[s.role], today);
+    const pick = [d.to, d.backup].filter(Boolean).find((e) => !taken.has(e) && !awayToday(e, aways, today));
+    if (pick) { s.email = pick; s.for = s.role; } else { s.email = o[s.role]; s.stuck = true; }
+    taken.add(s.email);
+  }
+  return slots;
+}
+
+/** Who records the payment on a claim today: the VP, or while she's away her stand-in (never on their own claim), else her second person. */
+export function payerOf(ownerEmail, aways = {}, today = todayIso()) {
+  const vp = officers()[PAYER];
+  const d = inForce(aways[PAYER], today);
+  if (!d) return { email: vp };
+  const pick = [d.to, d.backup].filter(Boolean).find((e) => e !== lc(ownerEmail) && !awayToday(e, aways, today));
+  return pick ? { email: pick, for: PAYER } : { email: vp, stuck: true };
+}
+
+/**
+ * What a hand-off would do, before it is saved: for each kind of claim the officer signs off, who takes it. `names`
+ * maps an address to a name. Returns [{ label, email, stuck }].
+ */
+export function awayPreview(role, d, aways = {}, today = todayIso(), names = (e) => e) {
+  const o = officers();
+  const all = { ...aways, [role]: { ...d, from: today, until: today } };
+  const rows = [];
+  const kinds = [["member", "Board members' claims", "someone@board.invalid"], ...OFFICER_ROLES.filter((r) => r !== role).map((r) => [r, `${names(o[r])}'s claims`, o[r]])];
+  // A stand-in or second person who isn't an officer claims like any board member: their own claims are a kind of their own.
+  for (const e of [d.to, d.backup].filter(Boolean)) if (roleOf(e) === "member") kinds.push([e, `${names(e)}'s own claims`, e]);
+  for (const [kind, label, owner] of kinds) {
+    if (!approversFor(owner).includes(role)) continue;
+    const s = holders(owner, all, today).find((x) => x.role === role);
+    // A stand-in's own claims get a row only when they go somewhere other than every board member's do.
+    if (kind.includes("@") && rows[0] && rows[0].email === s.email) continue;
+    rows.push({ label, email: s.email, stuck: !!s.stuck });
+  }
+  if (role === PAYER) {
+    const p = payerOf("someone@board.invalid", all, today);
+    rows.push({ label: "Recording payments", email: p.email, stuck: !!p.stuck });
+    for (const e of [d.to, d.backup].filter(Boolean)) {
+      const q = payerOf(e, all, today);
+      if (q.email !== p.email) rows.push({ label: `Paying ${names(e)}'s own claims`, email: q.email, stuck: !!q.stuck });
+    }
+  }
+  return rows;
+}
+
+/* ---------- checking a claim before it goes, and for the approvers ---------- */
+
+/** "Nov 1": how a date reads in a sentence. */
+export const shortDate = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(String(iso)) ? new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" }) : String(iso ?? ""));
+const sameLine = (a, b) => lc(a.paidTo) === lc(b.paidTo) && a.date === b.date && money(a.amount) === money(b.amount);
+
+/** What stops a claim from being sent. Lines are as shown (viewLine). */
+export function submitProblems(lines, today = todayIso()) {
+  if (!lines?.length) return ["Add a receipt, mileage or a line with no receipt first."];
+  const p = [];
+  // A day's grace past Toronto's date: late in the evening it is already tomorrow in Halifax.
+  const latest = new Date(Date.parse(`${today}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
+  for (const l of lines) if (l.date && l.date > latest) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")} is dated ${shortDate(l.date)}, which hasn't come yet. Check the date.`);
+  if (lines.some((l) => l.check?.state === "reading")) p.push("Claude is still reading a receipt. Give it a moment.");
+  for (const l of lines) if (l.problems?.length) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")}${l.date ? ` (${shortDate(l.date)})` : ""} still needs ${l.problems.join(", ")}.`);
+  const seen = [];
+  for (const l of lines) { if (seen.some((s) => sameLine(s, l))) p.push(`${l.paidTo}, ${shortDate(l.date)}, ${dollars(l.amount)} is on this claim twice.`); seen.push(l); }
+  return p;
+}
+
+/**
+ * Claude's check, for the person approving: every receipt against what's claimed, the same receipt claimed before,
+ * dates outside the claim's month, foreign currency. `earlier` are lines on the person's other sent claims.
+ * { ok: true } when there is nothing to look at; otherwise { ok: false, notes: [...] }.
+ */
+export function claimChecks(lines, { month = "", earlier = [] } = {}) {
+  const notes = [];
+  const receipts = lines.filter((l) => l.kind === "receipt");
+  const matched = receipts.filter((l) => l.check?.state === "match").length;
+  for (const l of receipts) {
+    const c = l.check ?? {};
+    if (c.state === "differs") notes.push(`${l.paidTo}: the receipt says ${dollars(c.total)}, and ${dollars(l.amount)} is claimed.`);
+    else if (c.state !== "match") notes.push(`${l.paidTo || "A receipt"}: Claude couldn't check it against the receipt. Look at the photo.`);
+    if (c.currency) notes.push(`${l.paidTo}: the receipt is in ${c.currency}. Check that ${dollars(l.amount)} is what the card was charged in Canadian dollars.`);
+  }
+  for (const l of lines) if (earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
+  const [mName, mYear] = String(month).split(" ");
+  const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
+  if (mIdx >= 0) {
+    // An item forgotten from last month is normal (Andrew's own October claim had one from September); older is worth a look.
+    const start = Date.parse(`${mYear}-${String(mIdx + 1).padStart(2, "0")}-01`);
+    for (const l of lines) if (l.date && Date.parse(l.date) < start - 62 * 86400e3) notes.push(`${l.paidTo || "A line"} is dated ${shortDate(l.date)} ${l.date.slice(0, 4)}, more than two months before ${month}.`);
+  }
+  const noRec = lines.filter((l) => l.kind === "noreceipt");
+  const miles = lines.filter((l) => l.kind === "mileage");
+  const rate = miles[0]?.rate ?? mileageRate();
+  const summary = [
+    receipts.length ? (matched === receipts.length ? (receipts.length === 1 ? "The receipt matches what's claimed" : `All ${receipts.length} receipts match what's claimed`) : `${matched} of ${receipts.length} receipts match what's claimed`) : "",
+    miles.length ? `Mileage is at ${dollars(rate)} a kilometre` : "",
+    noRec.length ? (noRec.length === 1 ? "The line with no receipt has a reason and the card statement" : `The ${noRec.length} lines with no receipt each have a reason and the card statement`) : "",
+  ].filter(Boolean);
+  return { ok: notes.length === 0, notes, summary };
+}
+const dollars = (n) => `$${money(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export { dollars };
+
+/** What a claim is waiting for, in words for its list row. */
+export function statusWords(c) {
+  return { draft: "Not sent yet", submitted: "Waiting for approval", rejected: "Sent back", approved: "Approved, waiting for payment", paid: "Paid" }[c.status] ?? c.status;
+}
