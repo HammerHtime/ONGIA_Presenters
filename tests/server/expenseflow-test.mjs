@@ -206,5 +206,34 @@ ok("hand-off: who, what, the dates, how many are waiting", /Raj Jaswal is away f
 e = M.handoffMail({ from: "Raj Jaswal", title: "Treasurer", d: { from: "2026-11-05", until: "2026-11-19" }, isBackup: true, standIn: "Jacqulyn Taylor" });
 ok("the second person's subject doesn't call them the stand-in", /^If Jacqulyn Taylor can't take one: the Treasurer's approvals/.test(e.subject) && /it comes to you instead/.test(e.text));
 
+console.log("— practice: a test claim comes back to the one who made it (Andrew, 3 Nov 2026)");
+{
+  const BK = as("b.konkle@ongia.ca", "Barb Konkle"), me = "b.konkle@ongia.ca";
+  const yday = new Date(Date.now() - 86400e3).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+  ok("routing: practice sends every sign-off and the payment to the maker", X.holders(me, {}, undefined, {}, { practice: true }).every((x) => x.email === me && x.practice) && X.payerOf(me, {}, undefined, { practice: true }).email === me);
+  const made = await call("/api/expenses?add=noreceipt&test=1", "POST", { paidTo: "Barb Konkle", date: yday, amount: 250, category: 10, purpose: "Practice stipend" }, BK);
+  const TC = made.claim.id;
+  ok("made in test mode, it's a test claim", made.claim.test === true);
+  const sub = await call(`/api/expenses?submit=${TC}`, "POST", {}, BK);
+  ok("sent: both sign-offs are hers, marked practice", sub.claim?.status === "submitted" && sub.claim.slots.length === 2 && sub.claim.slots.every((x) => x.email === me && x.practice), JSON.stringify(sub.claim?.slots ?? sub));
+  ok("the 'to approve' emails go to her, none to the officers", (await S.getClaim(TC)).mail.filter((x) => x.what === "to approve").every((x) => x.to === me));
+  const home = await call("/api/expenses", "GET", undefined, BK);
+  ok("it waits in her own To approve, and she gets the tab", home.toApprove?.some((c) => c.id === TC) && home.tabs.includes("approve"));
+  ok("…and not in the President's or the Treasurer's stand-in's", !(await call("/api/expenses", "GET", undefined, PRES)).toApprove.some((c) => c.id === TC) && !(await call("/api/expenses", "GET", undefined, PEG)).toApprove.some((c) => c.id === TC));
+  const d1 = await call(`/api/expenses?decide=${TC}`, "POST", { decision: "approve" }, BK);
+  ok("she approves once, as the first role; the second still waits on her, as practice", d1.claim.status === "submitted" && d1.claim.slots.filter((x) => x.done).length === 1 && d1.claim.can.decide?.practice === true);
+  const d2 = await call(`/api/expenses?decide=${TC}`, "POST", { decision: "approve" }, BK);
+  ok("…approves again, as the second: approved, and the payment is hers to record", d2.claim.status === "approved" && d2.claim.can.pay && d2.claim.payer.practice);
+  ok("the VP isn't asked to pay it; the 'to pay' email is hers", !(await call("/api/expenses", "GET", undefined, VP)).toPay.some((c) => c.id === TC) && (await S.getClaim(TC)).mail.filter((x) => x.what === "to pay").every((x) => x.to === me));
+  const pd = await call(`/api/expenses?pay=${TC}`, "POST", { ref: "TEST123" }, BK);
+  ok("a pretend reference locks it, paid", pd.claim?.status === "paid" && pd.claim.paid.ref === "TEST123", JSON.stringify(pd).slice(0, 200));
+  ok("the history says the approvals were practice", (await S.getClaim(TC)).history.filter((h) => h.what === "approved").every((h) => /for practice/.test(h.as)));
+  const real = await call("/api/expenses?add=noreceipt", "POST", { paidTo: "Barb Konkle", date: yday, amount: 250, category: 10, purpose: "Real stipend" }, BK);
+  const rs = await call(`/api/expenses?submit=${real.claim.id}`, "POST", {}, BK);
+  ok("a real claim from her still goes to two real approvers, never to her", rs.claim?.status === "submitted" && rs.claim.slots.every((x) => x.email !== me && !x.practice), JSON.stringify(rs.claim?.slots));
+  const am = M.needsApprovalMail({ claim: { ...made.claim, test: true, owner: { name: "Barb Konkle" }, total: 250 }, checks: null, practice: "Treasurer" });
+  ok("the practice email says which role you're approving as, and that every step comes back to you", /Practice: you're approving it as the Treasurer/.test(am.text) && /Every step comes back to you to try/.test(am.text) && !/needs your approval and/.test(am.text));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

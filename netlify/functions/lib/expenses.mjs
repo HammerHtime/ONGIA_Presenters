@@ -400,8 +400,12 @@ const awayToday = (email, aways, today) => OFFICER_ROLES.some((r) => officers()[
  * the officer. A sign-off already given (`decided`, role → { email }) stays with whoever gave it.
  * Each slot: { role, email, for?: the officer's role when a stand-in holds it, done?, stuck? }.
  */
-export function holders(ownerEmail, aways = {}, today = todayIso(), decided = {}) {
+export function holders(ownerEmail, aways = {}, today = todayIso(), decided = {}, { practice = false } = {}) {
   const o = officers(), owner = lc(ownerEmail);
+  // A test claim is practice (Andrew, 3 Nov 2026: "how do I send to myself for testing so I can see how it functions"):
+  // every sign-off comes back to the person who made it, one role at a time, so they can try each step alone. A real
+  // claim never does: two real approvers, never the claimant.
+  if (practice) return approversFor(owner).map((role) => (decided[role]?.email ? { role, email: decided[role].email, done: true, practice: true } : { role, email: owner, practice: true }));
   const slots = approversFor(owner).map((role) => ({ role }));
   const taken = new Set([owner]);
   for (const s of slots) if (decided[s.role]?.email) { s.email = decided[s.role].email; s.done = true; if (decided[s.role].for) s.for = s.role; taken.add(s.email); }
@@ -416,7 +420,8 @@ export function holders(ownerEmail, aways = {}, today = todayIso(), decided = {}
 }
 
 /** Who records the payment on a claim today: the VP, or while she's away her stand-in (never on their own claim), else her second person. */
-export function payerOf(ownerEmail, aways = {}, today = todayIso()) {
+export function payerOf(ownerEmail, aways = {}, today = todayIso(), { practice = false } = {}) {
+  if (practice) return { email: lc(ownerEmail), practice: true };   // a test claim: its maker records the pretend payment
   const vp = officers()[PAYER];
   const d = inForce(aways[PAYER], today);
   if (!d) return { email: vp };

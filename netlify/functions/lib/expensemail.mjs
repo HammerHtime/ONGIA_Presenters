@@ -25,11 +25,13 @@ const what = (c) => {
   return `${dollars(c.total ?? s.total ?? 0)} for ${esc(c.month)}${bits.length ? ` (${bits.join(", ")})` : ""}`;
 };
 const quote = (t) => `<span style="display:block;border-left:3px solid #b8922a;padding:4px 0 4px 12px;color:#2c3448;white-space:pre-wrap">${esc(t)}</span>`;
-const testNote = (c) => (c?.test ? `<b>This is a test claim.</b> It can be deleted with the other test claims, and nothing is paid or filed.` : "");
+// A test claim is practice: every step comes back to the person who made it (Andrew, 3 Nov 2026). It is filed only under
+// "Test claims (safe to delete)", and nothing is paid.
+const testNote = (c) => (c?.test ? `<b>This is a test claim.</b> Every step comes back to you to try. Nothing is paid, it's filed only under Test claims (safe to delete), and it can be deleted with the other test claims.` : "");
 const count = (n, one, many) => (n === 1 ? `One ${one}` : n < 10 ? `${["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"][n]} ${many}` : `${n} ${many}`);
 
 /** To each person who needs to approve it. `acting`: the officer's title when they stand in, with `until`. */
-export function needsApprovalMail({ claim, checks, acting = "", until = "", others = "" }) {
+export function needsApprovalMail({ claim, checks, acting = "", until = "", others = "", practice = "" }) {
   const owner = claim.owner?.name ?? "A board member";
   const lines = [
     testNote(claim),
@@ -37,7 +39,7 @@ export function needsApprovalMail({ claim, checks, acting = "", until = "", othe
     acting ? `You're standing in for the ${esc(acting)}${until ? ` until ${esc(formatDate(until))}` : ""}.` : "",
     checks?.ok ? "Claude checked it: every receipt matches what's claimed, and nothing is claimed twice."
       : checks?.notes?.length ? `Claude checked it. ${count(checks.notes.length, "thing", "things")} to look at:<br>${checks.notes.map((n) => `&bull; ${esc(n)}`).join("<br>")}` : "",
-    others ? `It needs your approval and ${esc(others)}'s.` : "It needs your approval.",
+    practice ? `Practice: you're approving it as the ${esc(practice)}.` : others ? `It needs your approval and ${esc(others)}'s.` : "It needs your approval.",
   ];
   return mail(claim, `Expense claim to approve: ${owner}, ${dollars(claim.total ?? 0)}`, `${owner} sent an expense claim`, lines, { label: "Open the claim", href: claimLink(claim.id) });
 }
@@ -54,8 +56,12 @@ export function sentBackMail({ claim, by, comment }) {
 }
 
 /** To the person claiming, once both have approved. */
-export function approvedMail({ claim, approvers, payer }) {
-  const lines = [
+export function approvedMail({ claim, approvers, payer, practice = false }) {
+  const lines = practice ? [
+    testNote(claim),
+    `You approved it as ${esc(approvers.join(" and "))}: ${what(claim)}.`,
+    "Next, as the VP would, record a pretend e-transfer on the claim and see it lock.",
+  ] : [
     testNote(claim),
     `${esc(approvers.join(" and "))} approved your expense claim: ${what(claim)}.`,
     `${esc(payer)} will send the e-transfer, and you'll get an email when it's paid.`,
@@ -64,13 +70,14 @@ export function approvedMail({ claim, approvers, payer }) {
 }
 
 /** To the VP (or her stand-in) when a claim is ready to pay. */
-export function toPayMail({ claim, approvers, acting = "" }) {
+export function toPayMail({ claim, approvers, acting = "", practice = false }) {
   const owner = claim.owner?.name ?? "A board member";
   const lines = [
     testNote(claim),
-    `${esc(approvers.join(" and "))} approved ${esc(owner)}'s expense claim: ${what(claim)}.`,
+    practice ? `You approved it as ${esc(approvers.join(" and "))}: ${what(claim)}.` : `${esc(approvers.join(" and "))} approved ${esc(owner)}'s expense claim: ${what(claim)}.`,
     acting ? `You're standing in for the ${esc(acting)}, who records the payments.` : "",
-    `Send the e-transfer to ${esc(owner)}${claim.owner?.email ? ` (${esc(claim.owner.email)})` : ""}, then add its reference number to the claim. That locks it.`,
+    practice ? "Practice: nothing is sent. Type a pretend reference on the claim (any letters and numbers, like TEST123) and it locks, as a paid claim does."
+      : `Send the e-transfer to ${esc(owner)}${claim.owner?.email ? ` (${esc(claim.owner.email)})` : ""}, then add its reference number to the claim. That locks it.`,
   ];
   return mail(claim, `Expense claim to pay: ${owner}, ${dollars(claim.total ?? 0)}`, `Ready to pay: ${owner}`, lines, { label: "Record the payment", href: claimLink(claim.id) });
 }
