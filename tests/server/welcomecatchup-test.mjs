@@ -96,8 +96,24 @@ console.log("— the Summit's virtual attendees (#136): their own version, and n
   const saved = await call("", { method: "PUT", body: { xw3: { subject: "Welcome, joining online", body: "Hello {first},\n\nYou're joining us online {dates}." } } });
   ok("the virtual version is saved", saved.status === 200, JSON.stringify(saved.body).slice(0, 200));
   out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
+  ok("written is not sent: until Andrew says it's ready, nothing goes (3 Nov 2026: \"Hold virtual until I've reviewed it\")", sent.length === k && /ready to send/.test(JSON.stringify(out.events?.[0]?.held ?? "")), JSON.stringify(out.events?.[0]));
+  await runLetterRounds([await S.getEvent("ngs")], { today: "2026-11-05", ...quiet });
+  ok("…nor does the next morning's run send it", sent.length === k);
+  let card = (await call("")).body;
+  const vv = card.versions.find((v) => v.key === "xw3");
+  ok("the card says it needs the go-ahead, and isn't ready", vv?.needsReady === true && !vv.readyAt, JSON.stringify(vv && { needsReady: vv.needsReady, readyAt: vv.readyAt }));
+  const r = await call("", { method: "PUT", body: { ready: { xw3: true } } });
+  ok("\"It's ready: send it\" marks it ready", r.status === 200 && !!r.body.versions.find((v) => v.key === "xw3")?.readyAt, JSON.stringify(r.body).slice(0, 200));
+  out = await C.catchUpWelcome({ today: "2026-11-05", ...quiet });
   got = sent.slice(k);
-  ok("once it's saved, the next check sends it to them: their own letter, within 15 minutes, not the next morning", got.length === 1 && got[0].to === "v@example.ca" && /online/i.test(got[0].subject), JSON.stringify(got));
+  ok("then the next check sends it to them: their own letter, within 15 minutes", got.length === 1 && got[0].to === "v@example.ca" && /online/i.test(got[0].subject), JSON.stringify(got));
+  k = sent.length;
+  await call("", { method: "PUT", body: { ready: { xw3: false } } });
+  st = await S.getAttendees("ngs"); st.people.push({ ...person("v2", "v2@example.ca"), group: "Virtual", wixEventId: "w3" }); await S.putAttendees("ngs", st);
+  out = await C.catchUpWelcome({ today: "2026-11-05", ...quiet });
+  ok("\"Hold it\" stops it again: a new virtual registrant waits", sent.length === k, JSON.stringify(sent.slice(k)));
+  const e3 = await S.getEvent("ngs"); e3.welcome.xw3 = { subject: "", body: "" }; await S.putEvent(e3);
+  ok("an empty letter can't be marked ready", (await call("", { method: "PUT", body: { ready: { xw3: true }, xw3: { subject: "", body: "" } } })).status === 400);
 }
 
 console.log("— a Wix outage, the event started, emails off");

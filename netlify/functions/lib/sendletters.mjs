@@ -111,6 +111,9 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
       if (!mine?.body?.trim()) { held.push({ people: people.length, why: `${x.label}: ${people.length} waiting, their letter isn't written yet` }); continue; }
       const wrong = [...letterProblems(mine), ...eventProblems(mine, event)];
       if (wrong.length) { held.push({ people: people.length, why: `${mine.name}: ${wrong[0]}` }); continue; }
+      // Written is not sent: a further version goes only once Andrew has read it and said it's ready (3 Nov 2026: "Hold
+      // virtual until I've reviewed it"). Until then its people wait, counted, by the morning run and the catch-up alike.
+      if (!event.welcomeReady?.[x.key]) { held.push({ people: people.length, why: `${x.label}: ${people.length} waiting until it's marked ready to send` }); continue; }
       batches.push({ letter: mine, people });
     }
   }

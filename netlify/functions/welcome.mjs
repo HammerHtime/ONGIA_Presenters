@@ -50,6 +50,21 @@ export default async (req) => {
       else return fail("Pick who signs it from the list.");
     }
     event.welcome = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)), versionKeys(event));
+    // "It's ready: send it" / "Hold it" on a further version (the Summit's virtual attendees): it goes only once ready.
+    if (body.ready && typeof body.ready === "object") {
+      const letters = welcomeLetters(event, event.welcome);
+      for (const x of extrasOf(event)) {
+        if (body.ready[x.key] === undefined) continue;
+        const ready = { ...(event.welcomeReady ?? {}) };
+        if (body.ready[x.key] === true) {
+          if (!letters[x.key]?.body?.trim()) return fail(`The ${x.label} letter isn't written yet.`);
+          const wrong = problemsOf(letters[x.key], event);
+          if (wrong.length) return fail(`The ${x.label} letter can't go yet: ${wrong[0]}`);
+          ready[x.key] = new Date().toISOString();
+        } else delete ready[x.key];
+        event.welcomeReady = ready;
+      }
+    }
     event.updatedAt = new Date().toISOString();
     await putEvent(event);
     return show(event);
@@ -131,7 +146,7 @@ async function show(event) {
   for (const x of extrasOf(event)) {
     const l = x.link;
     versions.push({ key: x.key, label: x.label, dates: l.dayOne ? range(l.dayOne, l.lastDay || l.dayOne) : "", ...words[x.key], noAgendaSlot: true,
-      agenda: null, attachedBytes: attachedBytes(event, x.key), ...reach[x.key],
+      agenda: null, attachedBytes: attachedBytes(event, x.key), ...reach[x.key], needsReady: true, readyAt: event.welcomeReady?.[x.key] ?? null,
       problems: letters[x.key].body.trim() ? problemsOf(letters[x.key], event) : [`Not written yet, so the ${reach[x.key].reaches} ${x.label.toLowerCase()} ${reach[x.key].reaches === 1 ? "attendee is" : "attendees are"} sent nothing. Write it and save.`] });
   }
   const job = welcomeJob(event);
