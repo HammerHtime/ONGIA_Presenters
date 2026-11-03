@@ -1,6 +1,8 @@
 import { requireAdmin } from "./lib/http.mjs";
 import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
 import { reportSends, KIND_NAMES } from "./lib/sendreport.mjs";
+import { putMeta } from "./lib/store.mjs";
+import { NIGHT_LOCK } from "./lib/welcomecatchup.mjs";
 
 /**
  * The morning run, in the background. The scheduled function (remind.mjs) has
@@ -15,6 +17,8 @@ export default async (req) => {
   if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
   const url = new URL(req.url);
   const hop = Math.min(Math.max(Number(url.searchParams.get("hop")) || 0, 0), MAX_HOPS);
+  // While the morning run sends, the welcome letter's 15-minute catch-up keeps out of its way, so nobody gets two.
+  await putMeta(NIGHT_LOCK, { at: new Date().toISOString(), hop });
   const out = await runNight({ origin: siteOrigin(url.origin), deadline: Date.now() + BUDGET_MS, sendsOnly: hop > 0 });
   let continued = false;
   if (out.left > 0 && hop < MAX_HOPS) {
@@ -24,6 +28,7 @@ export default async (req) => {
     } catch (e) { console.log(`could not start the follow-up run: ${e.message}`); }
   }
   console.log(`nightly run ${hop}: ${out.left} left${continued ? ", follow-up started" : ""}`);
+  if (!continued) await putMeta(NIGHT_LOCK, { at: null });
   await noteNight(out, { ran: "background", hop, continued });
   // Anything to attendees that did not go, or was held back, is emailed to the officers rather than left in the log.
   const rows = [...(out.detail?.letters ?? []).map((r) => ({ ...r, what: KIND_NAMES[r.kind] ?? "An email to attendees" })),

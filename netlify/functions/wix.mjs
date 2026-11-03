@@ -231,6 +231,14 @@ async function unlink(event) {
 /** Pull one event's guests. The sweep is the same thing, for every linked event. */
 async function syncOne(event) {
   if (!event.wix?.eventId) return fail("This event is not linked to a Wix event yet.", 409);
+  return json({ ok: true, ...(await pullEvent(event)) });
+}
+
+/**
+ * One event's registrations from Wix, folded into its list: the pull button's, and the welcome letter's catch-up every
+ * 15 minutes (Andrew 3 Nov 2026). New or changed people get their agencies matched in the background.
+ */
+export async function pullEvent(event) {
   const total = { read: 0, added: 0, changed: 0, withdrawn: 0 };
   let counts = null;
   for (const l of linksOf(event)) {
@@ -246,7 +254,7 @@ async function syncOne(event) {
     try { matching = (await fetch(`${origin}/api/agencies-settle-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY } })).status === 202; }
     catch (e) { console.log(`agency matching not started after the pull: ${e.message}`); }
   }
-  return json({ ok: true, ...total, counts, matching });
+  return { ...total, counts, matching };
 }
 
 /**

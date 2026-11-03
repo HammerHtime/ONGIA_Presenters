@@ -79,9 +79,13 @@ ok("so the next morning the virtual people still get nothing", sent.length === 3
 const pv = (await call(`&preview=${v.key}`, { method: "POST", body: {} })).body;
 ok("the preview is made out to a virtual attendee, with the virtual PDF", /Hello Val/.test(pv.text) && pv.attached.join() === "virtual-agenda.pdf", JSON.stringify(pv).slice(0, 300));
 
-// Written properly: the next morning it goes, once, with its PDF and nothing of the others'.
+// Written properly, but it goes only once Andrew has read it and said so (3 Nov 2026: "Hold virtual until I've
+// reviewed it"); then once, with its PDF and nothing of the others'.
 words.body = words.body.replace(" [WORDLY ACCESS DETAILS]", "");
 await call("", { method: "PUT", body: { [v.key]: words } });
+const r3 = (await run("2026-11-05")).find((r) => r.kind === "welcome");
+ok("written but not yet said ready: the next morning the virtual people still get nothing", sent.length === 3 && /ready to send/.test((r3.held ?? []).join()), JSON.stringify(r3));
+await call("", { method: "PUT", body: { ready: { [v.key]: true } } });
 await run("2026-11-05");
 const virt = sent.filter((m) => /val@|vic@/.test(m.to));
 ok("the virtual people get their own letter, with only the virtual PDF", virt.length === 2 && virt.every((m) => /how to join online/.test(m.subject) && m.files.join() === "virtual-agenda.pdf"), JSON.stringify(virt));

@@ -5706,7 +5706,21 @@ function renderWelcomeCard(ev, W) {
         <div class="agbtns">${v.agenda ? `<button class="mini ghost" data-wlopen="${v.key}">Open</button>` : ""}<button class="mini${v.agenda ? " ghost" : " gold"}" data-wlup="${v.key}">${v.agenda ? "Replace" : "Upload the agenda"}</button>
           <input type="file" data-wlfile="${v.key}" accept="application/pdf,.pdf" hidden></div></div>`}
       ${v.problems.length ? `<div class="bad" style="margin-top:10px"><b>Held back:</b> ${esc(v.problems[0])}</div>` : ""}
+      ${v.needsReady && !v.problems.length ? readyStrip(v) : ""}
     </div>`;
+  // A further version (the Summit's virtual attendees) goes only once Andrew says it's ready (3 Nov 2026: "Hold virtual
+  // until I've reviewed it"): then to everyone waiting within 15 minutes, and to anyone who registers after.
+  const owedOf = (v) => Math.max(0, (v.reaches ?? 0) - (v.had ?? 0));
+  function readyStrip(v) {
+    const n = owedOf(v), who = `${n} ${n === 1 ? "person" : "people"}`;
+    return v.readyAt
+      ? `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--done-bg);color:var(--done);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center">
+          <span><b>Ready to send</b> (since ${esc(new Date(v.readyAt).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}). ${n ? `Going to the ${who} waiting within 15 minutes; anyone who registers after gets it too.` : "Everyone has it; anyone who registers after gets it within 15 minutes."}</span>
+          <button class="linkish" data-wlhold="${v.key}">Hold it</button></div>`
+      : `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--wait-bg);color:var(--wait);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center">
+          <span><b>Not sent yet.</b> ${who} waiting. Preview it, then say when it's ready.</span>
+          <button class="mini gold" data-wlready="${v.key}">It's ready: send it</button></div>`;
+  }
   // PDFs that go with the letter besides the agenda, each ticked for the versions it goes with (Andrew 27 Oct 2026).
   const size = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
   const fileRow = (f) => `<div data-wfrow="${esc(f.id)}" style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:10px 0;border-top:1px solid var(--line)">
@@ -5757,6 +5771,18 @@ function renderWelcomeCard(ev, W) {
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), signature: $("wl-sign").value, ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
   $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, { ...(await save()), library: W.library }); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
+  // Ready / hold a further version. The words on screen are saved with it, so what is ready is what is showing.
+  const setReady = async (key, on, btn) => {
+    const v = W.versions.find((x) => x.key === key), n = owedOf(v);
+    if (on && !confirm(`Send the ${v.label} welcome letter to ${n} ${n === 1 ? "person" : "people"}? It goes within 15 minutes, and to anyone who registers after.`)) return;
+    const done = busy(btn, on ? "Saving…" : "Holding…");
+    try {
+      renderWelcomeCard(ev, { ...(await api(q, { method: "PUT", body: JSON.stringify({ ...words(), ready: { [key]: on } }) })), library: W.library });
+      toast(on ? `${v.label}: ready. It goes within 15 minutes.` : `${v.label}: held. Nothing more goes until you say it's ready.`);
+    } catch (x) { toast(x.message); done(); }
+  };
+  box.querySelectorAll("[data-wlready]").forEach((b) => b.onclick = () => setReady(b.dataset.wlready, true, b));
+  box.querySelectorAll("[data-wlhold]").forEach((b) => b.onclick = () => setReady(b.dataset.wlhold, false, b));
   const auto = autosave(box, $("wl-save"), save, { skip: "#wl-to, [data-wlfrom], [type=file], [data-wftick]", fresh: !W.saved });
   // Copy an earlier letter's words in; nothing is kept until Save.
   box.querySelectorAll("[data-wlfrom]").forEach((sel) => sel.onchange = () => {
