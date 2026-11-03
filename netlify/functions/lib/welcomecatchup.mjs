@@ -39,7 +39,12 @@ export async function catchUpWelcome({ pull, today = todayIso(), deadline = null
       try { const p = await pull(ev); pulled = { added: p.added, changed: p.changed, withdrawn: p.withdrawn }; }
       catch (e) { pulled = { error: e.message }; }   // a Wix outage never stops the letters to people already on the list
     }
-    const r = await sendLetterRound((await getEvent(ev.id)) ?? ev, "welcome", { today, deadline, pace });
+    const fresh = (await getEvent(ev.id)) ?? ev;
+    // Only a round with someone to send to: people waiting for a version not yet written (the Summit's virtual
+    // attendees, until theirs is saved) are not a round, and the morning run's record of the letter stays as it was.
+    const would = await sendLetterRound(fresh, "welcome", { today, dry: true });
+    if (!would.would) { out.push({ ...would, pulled, sent: 0 }); continue; }
+    const r = await sendLetterRound(fresh, "welcome", { today, deadline, pace });
     out.push({ ...r, pulled });
   }
   return { events: out };

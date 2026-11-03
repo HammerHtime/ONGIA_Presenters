@@ -75,6 +75,31 @@ await S.putMeta(C.CATCHUP_LOCK, { at: null });
 out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
 ok("the one who registered meanwhile gets it", sent.slice(k).map((m) => m.to).join() === "f@example.ca", JSON.stringify(sent.slice(k)));
 
+console.log("— the Summit's virtual attendees (#136): their own version, and nothing until it's written");
+{
+  const e2 = await S.getEvent("ngs");
+  e2.wixMore = [{ eventId: "w2", title: "Community", group: "Community partners" }, { eventId: "w3", title: "VIRTUAL", group: "Virtual", online: true }];
+  await S.putEvent(e2);
+  await call("", { method: "PUT", body: { group: { subject: "Welcome, community partners", body: "Hello {first},\n\nYou're with us {dates}." } } });
+  k = sent.length;
+  st = await S.getAttendees("ngs");
+  st.people.push({ ...person("v", "v@example.ca"), group: "Virtual", wixEventId: "w3" }, { ...person("cp", "cp@example.ca"), group: "Community partners", wixEventId: "w2" });
+  await S.putAttendees("ngs", st);
+  out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
+  let got = sent.slice(k);
+  ok("a new community partner gets the community partners' letter", got.some((m) => m.to === "cp@example.ca" && /community partners/i.test(m.subject)), JSON.stringify(got));
+  ok("a new virtual attendee gets nothing while their version isn't written (never an in-person letter)", !got.some((m) => m.to === "v@example.ca"), JSON.stringify(got));
+  const at1 = (await S.getAttendees("ngs")).letterRounds?.welcome?.at;
+  k = sent.length;
+  out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
+  ok("with only them waiting, the next check runs no round: nothing sent, the desk's record of the letter left as it was", sent.length === k && (await S.getAttendees("ngs")).letterRounds?.welcome?.at === at1 && /isn't written yet/.test(JSON.stringify(out.events?.[0]?.held ?? "")), JSON.stringify(out.events?.[0]));
+  const saved = await call("", { method: "PUT", body: { xw3: { subject: "Welcome, joining online", body: "Hello {first},\n\nYou're joining us online {dates}." } } });
+  ok("the virtual version is saved", saved.status === 200, JSON.stringify(saved.body).slice(0, 200));
+  out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
+  got = sent.slice(k);
+  ok("once it's saved, the next check sends it to them: their own letter, within 15 minutes, not the next morning", got.length === 1 && got[0].to === "v@example.ca" && /online/i.test(got[0].subject), JSON.stringify(got));
+}
+
 console.log("— a Wix outage, the event started, emails off");
 k = sent.length;
 st = await S.getAttendees("ngs"); st.people.push(person("g", "g@example.ca")); await S.putAttendees("ngs", st);
@@ -87,7 +112,7 @@ ok("the morning the event starts, it stops: nothing more goes", sent.length === 
 const ev = await S.getEvent("ngs"); ev.attendeeMail = false; await S.putEvent(ev);
 out = await C.catchUpWelcome({ today: "2026-11-06", ...quiet });
 ok("emails to attendees turned off: nothing goes", sent.length === k && (out.events ?? []).length === 0);
-ok("every letter that went was the welcome letter, once to each address", new Set(sent.map((m) => m.to)).size === sent.length && sent.every((m) => m.subject === sent[0].subject));
+ok("every address was sent one welcome letter, never two", new Set(sent.map((m) => m.to)).size === sent.length, JSON.stringify(sent.map((m) => m.to)));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
