@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { isStipend } from "./expenses.mjs";
+import { isStipend, hstOf } from "./expenses.mjs";
 
 /**
  * A claim as a PDF, to sit beside the Excel in the member's folder: the same facts as the template (who, when, the
@@ -86,7 +86,7 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
     if (y + rh > H - M - 40) { footer(); doc.addPage(); band("ONGIA Expense Reimbursement Submission (continued)"); y = 72; head(); }
     if (i % 2 === 0) doc.rect(M, y, W - M * 2, rh).fill(PALE);
     const amount = Number(l.amount) || 0; sum += amount;
-    const cells = [String(i + 1), l.paidTo ?? "", day(l.date), money(amount), money(Math.round(amount * 13) / 100), String(l.category ?? ""), CATEGORY[Number(l.category)] ?? "", purpose];
+    const cells = [String(i + 1), l.paidTo ?? "", day(l.date), money(amount), money(hstOf(l)), String(l.category ?? ""), CATEGORY[Number(l.category)] ?? "", purpose];
     cells.forEach((t, j) => doc.font("Helvetica").fontSize(8.5).fillColor(INK).text(t, xs[j] + 4, y + 5, { width: cols[j][1] * scale - 8, align: cols[j][2] ?? "left" }));
     doc.moveTo(M, y + rh).lineTo(W - M, y + rh).lineWidth(0.4).strokeColor(RULE).stroke();
     y += rh;

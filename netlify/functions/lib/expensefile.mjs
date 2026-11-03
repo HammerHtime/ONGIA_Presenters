@@ -7,7 +7,7 @@ import { safeFileName } from "./ids.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { claimWorkbook } from "./expensexlsx.mjs";
 import { claimPdf } from "./expensepdf.mjs";
-import { officers, approversFor, roleOf, OFFICER_ROLES, ROLE_TITLE, isStipend } from "./expenses.mjs";
+import { officers, approversFor, roleOf, OFFICER_ROLES, ROLE_TITLE, isStipend, noHst } from "./expenses.mjs";
 
 /**
  * Filing a claim in the Treasurer's folders on SharePoint (Andrew, 2 Nov 2026):
@@ -100,7 +100,7 @@ export async function claimDocuments({ claim, lines, names, checks, getFile }) {
   const xlsx = claimWorkbook(await readTemplate(), {
     submittedBy: claim.owner?.name ?? "", submitted: claim.submittedAt ? todayIso(new Date(claim.submittedAt)) : todayIso(),
     signers, txn: claim.paid?.ref ?? "", paidDate: claim.paid?.date ?? "",
-    lines: ordered.map((l) => ({ paidTo: l.paidTo, date: l.date, amount: l.amount, category: l.category, purpose: purposeOf(l) })),
+    lines: ordered.map((l) => ({ paidTo: l.paidTo, date: l.date, amount: l.amount, category: l.category, purpose: purposeOf(l), noHst: noHst(l) })),
   });
   const receipts = [];
   for (const [i, l] of ordered.entries()) {
