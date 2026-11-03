@@ -497,7 +497,8 @@ async function note(claim, what, outcome) {
 }
 
 async function askApprovers(claim, { aways, today, names }) {
-  const view = { ...claim, lines: await listClaimLines(claim.id) };
+  // The lines as the app shows them, each with its receipt check: the email marks each amount with it.
+  const view = { ...claim, lines: await shownLines(claim) };
   const checks = await checksFor(claim, view.lines);
   const open = slotsOf(claim, aways, today).filter((x) => !x.done);
   // "Waiting on approval from President Andrew Hammond and Treasurer Raj Jaswal" (Andrew, 3 Nov 2026).

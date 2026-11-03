@@ -14,7 +14,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 export const claimLink = (id) => `${siteUrl()}/expenses${id ? `#claim=${encodeURIComponent(id)}` : ""}`;
 const FOOTER = "ONGIA Expenses";
 const tag = (c) => (c?.test ? "[TEST] " : "");
-const strip = (l) => String(l).replace(/<\/tr>/g, "\n").replace(/<\/td><td[^>]*>/g, "   ").replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&bull;/g, "•").replace(/&hellip;/g, "…").replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\n+$/, "");
+const strip = (l) => String(l).replace(/<\/tr>/g, "\n").replace(/<\/td><td[^>]*>/g, "   ").replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&bull;/g, "•").replace(/&hellip;/g, "…").replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/ +\n/g, "\n").replace(/\s+$/, "");
 function mail(claim, subject, heading, lines, button) {
   const html = layout({ heading, lines, button, footer: FOOTER });
   const text = [heading, "", ...lines.filter(Boolean).map((l) => `${strip(l)}\n`), button ? `${button.label}: ${button.href}` : "", "", "--", FOOTER].join("\n");
@@ -36,14 +36,32 @@ const count = (n, one, many) => (n === 1 ? `One ${one}` : n < 10 ? `${["Zero", "
 const ITEMS_SHOWN = 15;
 const itemName = (l) => l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${l.from || "?"} to ${l.to || "?"}` : ""}` : l.paidTo || (l.kind === "noreceipt" ? "No receipt" : "Receipt");
 const cut = (s, n = 30) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
-const CELL = "padding:7px 0;border-bottom:1px solid #e6e1d5;vertical-align:top";
+const CELL = "padding:7px 0;border-bottom:1px solid #e6e1d5;vertical-align:middle";
+// Beside each amount, its receipt check (Andrew, 3 Nov 2026: "a green check mark to the right of the amount indicating
+// that the receipt amount and claim amount are same. And a red x if something is off"). A card statement can't confirm
+// an amount, so it gets an amber "?", as the app flags it, not a red x. Mileage and a stipend have no receipt: no mark.
+// Each is a small filled circle, white on green, red or amber, big enough to read at a glance on a phone; U+FE0E keeps
+// a phone from drawing ✓ and ✗ as emoji.
+const MARKS = { ok: ["\u2713\uFE0E", "#2f6b4f", "matches the receipt"], bad: ["\u2717\uFE0E", "#a33328", "doesn't match"], open: ["?", "#8a5d0c", "not confirmed"] };
+export const markOf = (l) => {
+  const st = l.check?.state;
+  if (!st || st === "mileage" || st === "stipend") return "";
+  if (st === "match") return l.check.currency ? "open" : "ok";
+  return st === "differs" || st === "notreceipt" ? "bad" : "open";
+};
+const badge = (m) => `<span style="display:inline-block;width:18px;height:18px;line-height:18px;border-radius:9px;background:${MARKS[m][1]};color:#ffffff;font-size:12px;font-weight:700;text-align:center;vertical-align:middle">${MARKS[m][0]}</span>`;
+const markCell = (m) => `<td style="${CELL};width:26px;text-align:right;white-space:nowrap">${m ? badge(m) : ""}</td>`;
 function itemsTable(lines, total) {
   const sorted = [...lines].sort((a, b) => String(a.date ?? "").localeCompare(String(b.date ?? "")));
   const rows = sorted.slice(0, ITEMS_SHOWN).map((l) =>
-    `<tr><td style="${CELL};padding-right:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(cut(itemName(l)))}</td><td style="${CELL};width:96px;text-align:right;white-space:nowrap">${l.amount === null || l.amount === undefined ? "" : dollars(l.amount)}</td></tr>`);
-  if (sorted.length > ITEMS_SHOWN) rows.push(`<tr><td style="${CELL};color:#767f92" colspan="2">and ${sorted.length - ITEMS_SHOWN} more</td></tr>`);
-  rows.push(`<tr><td style="padding:9px 12px 0 0;font-weight:700">Total</td><td style="padding:9px 0 0;width:96px;text-align:right;white-space:nowrap;font-weight:700">${dollars(total)}</td></tr>`);
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px;line-height:1.35;margin:0 0 16px">${rows.join("")}</table>`;
+    `<tr><td style="${CELL};padding-right:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(cut(itemName(l)))}</td><td style="${CELL};width:90px;text-align:right;white-space:nowrap">${l.amount === null || l.amount === undefined ? "" : dollars(l.amount)}</td>${markCell(markOf(l))}</tr>`);
+  if (sorted.length > ITEMS_SHOWN) rows.push(`<tr><td style="${CELL};color:#767f92" colspan="3">and ${sorted.length - ITEMS_SHOWN} more</td></tr>`);
+  rows.push(`<tr><td style="padding:9px 12px 0 0;font-weight:700">Total</td><td style="padding:9px 0 0;width:90px;text-align:right;white-space:nowrap;font-weight:700">${dollars(total)}</td><td style="width:26px"></td></tr>`);
+  const table = `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px;line-height:1.35;margin:0 0 16px">${rows.join("")}</table>`;
+  // What the marks mean, only those that show.
+  const used = Object.keys(MARKS).filter((m) => sorted.slice(0, ITEMS_SHOWN).some((l) => markOf(l) === m));
+  const key = used.map((m) => `<span style="white-space:nowrap">${badge(m)}&nbsp;${MARKS[m][2]}</span>`).join(" &nbsp; ");
+  return [table, key ? `<span style="font-size:13px;color:#767f92">${key}</span>` : ""];
 }
 
 /**
@@ -57,7 +75,7 @@ export function needsApprovalMail({ claim, lines = [], checks, waitingOn = [], a
   const out = [
     testNote(claim),
     `${esc(owner)} has submitted an expense claim for the following:`,
-    itemsTable(lines, claim.total ?? claim.sums?.total ?? 0),
+    ...itemsTable(lines, claim.total ?? claim.sums?.total ?? 0),
     flagged ? `${count(flagged, "thing is", "things are")} flagged to check. ${flagged === 1 ? "It's" : "They're"} listed on the claim.` : "",
     waitingOn.length ? `Waiting on approval from ${esc(andList(waitingOn))}${practice ? " (both you, for practice)" : ""}.` : "",
     acting ? `You're standing in for the ${esc(acting)}${until ? ` until ${esc(formatDate(until))}` : ""}.` : "",
