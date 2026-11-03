@@ -13,7 +13,7 @@ import { dollars, andList } from "./expenses.mjs";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const claimLink = (id) => `${siteUrl()}/expenses${id ? `#claim=${encodeURIComponent(id)}` : ""}`;
 const FOOTER = "ONGIA Expenses";
-const tag = (c) => (c?.test ? "[TEST] " : "");
+const tag = (c) => (c?.test ? "[TEST] " : c?.trial ? "[BOARD TEST] " : "");
 const strip = (l) => String(l).replace(/<\/tr>/g, "\n").replace(/<\/td><td[^>]*>/g, "   ").replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&bull;/g, "•").replace(/&hellip;/g, "…").replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/ +\n/g, "\n").replace(/\s+$/, "");
 function mail(claim, subject, heading, lines, button) {
   const html = layout({ heading, lines, button, footer: FOOTER });
@@ -28,7 +28,9 @@ const what = (c) => {
 };
 const quote = (t) => `<span style="display:block;border-left:3px solid #b8922a;padding:4px 0 4px 12px;color:#2c3448;white-space:pre-wrap">${esc(t)}</span>`;
 // A test claim is practice: every step comes back to the person who made it (Andrew, 3 Nov 2026), and nothing is paid.
-const testNote = (c) => (c?.test ? `<b>Test claim.</b> Every step comes back to you, and nothing is paid.` : "");
+// A board-test claim (Andrew 3 Nov 2026) goes to the real people, so it says, every time, that nothing is paid.
+const testNote = (c) => (c?.test ? `<b>Test claim.</b> Every step comes back to you, and nothing is paid.`
+  : c?.trial ? `<b>Board test.</b> This claim is part of testing the app, so no money is sent.` : "");
 const count = (n, one, many) => (n === 1 ? `One ${one}` : n < 10 ? `${["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"][n]} ${many}` : `${n} ${many}`);
 
 // One line per item, its amount on the right, the total under them: a quick look, not the claim itself. A long name is
@@ -117,7 +119,7 @@ export function toPayMail({ claim, approvedBy = [], acting = "", practice = fals
     testNote(claim),
     `The expense claim for ${esc(owner)} has been approved by ${esc(andList(approvedBy))} and is ready to be paid.`,
     `<b>${dollars(claim.total ?? 0)}</b> by e-transfer to ${esc(claim.owner?.email || owner)}`,
-    practice ? "Practice: nothing is sent. Type any transaction number, like TEST123." : "",
+    practice ? "Practice: nothing is sent. Type any transaction number, like TEST123." : claim?.trial ? "Don't send any money: type any transaction number, like TEST123, and it locks as a paid claim does." : "",
     acting ? `You're standing in for the ${esc(acting)}, who records the payments.` : "",
   ];
   return mail(claim, `Expense claim for ${owner}`, "Ready to be paid", lines, { label: "Record the payment", href: claimLink(claim.id) });

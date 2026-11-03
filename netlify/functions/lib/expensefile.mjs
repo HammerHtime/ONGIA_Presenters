@@ -126,7 +126,8 @@ export async function fileClaim({ claim, docs, prev = null, drive = null }) {
   const g = drive ?? (await expenseDrive());
   if (!g) return { skipped: true, reason: "Microsoft isn't set up on this site, so nothing could be filed.", at: new Date().toISOString() };
   const base = expenseFolder();
-  const root = claim.test ? `${base}/${TEST_FOLDER}` : `${base}/${String(claim.month).split(" ")[1]}`;
+  // A board-test claim (Andrew 3 Nov 2026) is filed with the test claims, never in the year's real folders.
+  const root = claim.test || claim.trial ? `${base}/${TEST_FOLDER}` : `${base}/${String(claim.month).split(" ")[1]}`;
   const folderNames = async (p) => ((await g.children(p)) ?? []).filter((k) => k.folder).map((k) => k.name);
   const member = prev?.member ?? memberFolder(await folderNames(root), claim.owner?.name ?? "Member");
   const month = prev?.month ?? monthFolder(await folderNames(`${root}/${member}`), claim.month);
