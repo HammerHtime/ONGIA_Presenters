@@ -543,7 +543,7 @@ export const agencyBlank = async () => ((await getMeta("agencies:blank")) ?? [])
 export async function everyone() {
   const out = [];
   for (const ev of await listEvents()) {
-    for (const p of ((await getAttendees(ev.id)) ?? {}).people ?? []) out.push({ ...p, eventTitle: ev.title });
+    for (const p of ((await getAttendees(ev.id)) ?? {}).people ?? []) out.push({ ...p, eventTitle: ev.title, eventId: ev.id });
   }
   return out;
 }

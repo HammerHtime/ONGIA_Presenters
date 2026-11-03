@@ -189,3 +189,23 @@ accepted by Resend: 223 were delivered, 6 bounced, and 1 has an address that can
 **The fix.** The addresses are listed in Resend (Emails, filter "bounced") and on the event's registration list.
 To reach these 7 people: correct the address on the registration (or ask their agency), then use
 Send a reminder now again the next day; it goes only to people who still haven't answered.
+
+---
+
+## 11. Summit welcome letter (3 Nov 2026, 9 a.m.): 413 of 427 sent; 14 owed, plus 9 who registered since
+
+**What happened.** The welcome letter went automatically at 9 a.m. to 354 justice partners and 73 community partners.
+By the end of the morning run (9:55) 413 had it: 353 of 354 justice partners and 60 of 73 community partners. Not
+sent yet: 12 the run ran out of time for, and 2 Microsoft refused. Seven sends in all were refused during the morning;
+5 of those went on a later round. Since 9 a.m., 9 more justice partners have registered and are owed it too.
+
+**Why.** The letter goes out through the Microsoft mailbox (ongiaspeakers@, which recipients see as "Conference
+Speakers") with two PDFs attached, about 3 MB a message. Microsoft limits how much one mailbox can send in a few
+minutes ("Application is over its IncomingBytes limit"), and the morning run stops after four rounds of 13 minutes.
+
+**What happens now.** Everyone still owed is sent the letter on tomorrow's 9 a.m. run (4 Nov), automatically. Nothing
+is sent twice: each address is marked the moment its letter goes.
+
+**The fix, for Andrew to decide.** Send the welcome letter through Resend as "ONGIA Events", like the reminders and the
+certificates (Andrew's 31 Oct rule for bulk mail to attendees). That removes Microsoft's limit, ends the "Conference
+Speakers" sender name on attendee mail, and shows each delivery and bounce in Resend's log.

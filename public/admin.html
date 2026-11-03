@@ -183,6 +183,10 @@
       background:var(--navy-deep);color:#fff;border-right:3px solid var(--gold);padding:calc(20px + env(safe-area-inset-top,0px)) 12px 14px}
     .withside .bar{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
     .withside .bar > .logo,.withside .bar > .sub,.withside .bar .me{display:none}
+    /* "Briefing Room" is the page's header, across the top beside the logo (Andrew 3 Nov 2026, option C: "make the briefing
+       room better. It stands out more ... almost like a header"), not small grey type under the logo. */
+    .withside .bar > .sub{display:block;flex:none;font:400 30px/1.1 var(--fd);color:var(--navy-deep);padding-left:14px;border-left:3px solid var(--gold);white-space:nowrap}
+    .withside .sroom{display:none} .withside .slogo{margin-bottom:24px}
     .withside .bar .chip:not(.solid){color:var(--ink);border-color:var(--border);background:#fff}
     .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
     .withside .bar .hsearch input::placeholder{color:var(--muted)}
@@ -193,7 +197,7 @@
     body.withside{padding-left:88px}
     .withside .side{width:88px;padding-left:6px;padding-right:6px}
     .withside .slogo{height:40px;width:30px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);margin:0 auto 14px}
-    .withside .sroom{display:none}
+    .withside .sroom{display:none} .withside .bar > .sub{font-size:26px}
     .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
     .withside .sn svg{width:21px;height:21px}
     .withside .sn .attnb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
@@ -1813,16 +1817,20 @@
   .agtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
   .agtile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px}.agtile b{display:block;font-size:22px}.agtile span{font-size:12.5px;color:var(--muted)}
   .agtile.hot{background:var(--wait-bg);border-color:#e6cf9f}
-  .agq{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:8px 16px;padding:12px 0;border-top:1px solid var(--border)}.agq:first-child{border-top:0;padding-top:0}
-  .agt{font-size:13px;color:var(--muted)}.agt q{font-weight:600;color:var(--ink)}
+  /* A row: what was typed, who typed it and why on the left; the field and its buttons on the right, both starting at the
+     row's first line (Andrew 3 Nov 2026: the grey boxes on each side sat at different heights). Only the field is boxed. */
+  .agq{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:8px 24px;align-items:start;padding:14px 0;border-top:1px solid var(--border)}.agq:first-child{border-top:0;padding-top:0}
+  .agt{font-size:14px;color:var(--ink-mid);line-height:1.4}.agt q{font-weight:600;color:var(--ink)}
+  .agwho{list-style:none;margin:6px 0 0;padding:0;font-size:13.5px;line-height:1.5}.agwho b{font-weight:600}
+  .agem{color:var(--ink-mid)} .agwho .agev{font:500 13.5px var(--fb);padding:0;text-align:left;text-decoration:none;color:var(--navy)} .agwho .agev:hover{text-decoration:underline}
   .ags{font-size:15px;margin-top:2px}.ags b{color:var(--navy)}
   .agok{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:var(--done);color:#fff;font-size:11px;margin-right:6px;vertical-align:1px}
   .agnew{margin-left:6px;background:var(--gold-pale);color:var(--wait)}
-  .agwhy{font-size:13px;color:var(--ink-mid);background:var(--sunk);border-radius:8px;padding:6px 10px;margin-top:6px}
-  .agby{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .agwhy{font-size:13px;color:var(--ink-mid);line-height:1.5;margin-top:6px}
+  .agby{display:block;font-size:12px;color:var(--muted);margin-top:4px}
   .dom{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--sunk);border-radius:4px;padding:1px 5px;white-space:nowrap}
-  .agwhy .dom{background:#fff}
-  .aga input{width:100%}.agb{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px}
+  .agwait .dom{background:#fff}
+  .aga input{width:100%;margin:0}.agb{display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:8px}.agb:empty{display:none}
   .linkish{background:none;border:0;padding:4px 2px;font:600 13px var(--fb);color:var(--navy);text-decoration:underline;cursor:pointer}
   .agwait{border-color:#e6cf9f;background:#fffaf0}
   .agblank>summary{list-style:none;cursor:pointer}.agblank>summary::-webkit-details-marker{display:none}.agblank[open] .ibcaret{transform:rotate(180deg)}
@@ -2248,10 +2256,41 @@ const SIDE_ICON = {
   letters: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   sows: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/>',
+  expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
   sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
+/**
+ * ONGIA Expenses from the desk (Andrew 3 Nov 2026). It opens in a tab of its own, so the Briefing Room stays where it
+ * was; the desk's sign-in is handed to it (it accepts a Briefing Room session), unless it already holds this person's.
+ * The badge counts what waits on you there: claims to approve, to pay, or your own sent back.
+ */
+let EXPN = 0, EXPN_AT = 0;
+const expBadge = () => `<span class="attnb" data-expn title="Waiting for you in Expenses"${EXPN ? "" : " hidden"}>${EXPN}</span>`;
+async function expAttention(force = false) {
+  if (!WHO?.email || !KEY) return;
+  if (force || Date.now() - EXPN_AT > 60000) {
+    EXPN_AT = Date.now();
+    try {
+      // The answer is always read, refusal or not: one left unread keeps the page "loading" (someone not on the expense list).
+      const r = await fetch("/api/expenses", { headers: { "x-expense-key": KEY } });
+      const h = await r.json().catch(() => null);
+      if (r.ok && h) EXPN = (h.toApprove?.length ?? 0) + (h.toPay?.length ?? 0) + (h.current?.status === "rejected" ? 1 : 0);
+    } catch { /* the badge waits for the next look */ }
+  }
+  document.querySelectorAll("[data-expn]").forEach((el) => { el.textContent = EXPN; el.hidden = !EXPN; });
+}
+function openExpenses() {
+  try {
+    const had = JSON.parse(localStorage.getItem("ongia-exp-me") || "null");
+    if (WHO?.email && KEY && !(had?.email === WHO.email && localStorage.getItem("ongia-exp-session"))) {
+      localStorage.setItem("ongia-exp-session", KEY);
+      localStorage.setItem("ongia-exp-me", JSON.stringify({ email: WHO.email, name: WHO.name || WHO.email }));
+    }
+  } catch { /* no storage: the app asks them to sign in */ }
+  window.open("/expenses", "_blank", "noopener");
+}
 const sideRole = () => !WHO?.email ? "Desk key" : /^president@/i.test(WHO.email) ? "President" : /^vp_/i.test(WHO.email) ? "VP of operations" : "Board";
 function drawSide() {
   const el = document.getElementById("side");
@@ -2266,13 +2305,14 @@ function drawSide() {
     const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors" };
     el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
-    attention();
+    attention(); expAttention();
     return;
   }
   el.dataset.built = built;
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
-  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
+  // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, opened in their own tab, signed in as you.
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
@@ -2283,9 +2323,11 @@ function drawSide() {
   go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("letters", { name: "letters" });
   go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
+  const xb = document.getElementById("expensesnav");
+  if (xb) xb.onclick = openExpenses;
   const mb = document.getElementById("snmore");
   if (mb) mb.onclick = (e) => { e.stopPropagation(); const open = el.classList.toggle("open"); mb.setAttribute("aria-expanded", String(open)); };
-  attention();
+  attention(); expAttention();
 }
 document.addEventListener("click", (e) => { const el = document.getElementById("side"); if (el?.classList.contains("open") && !el.contains(e.target)) { el.classList.remove("open"); document.getElementById("snmore")?.setAttribute("aria-expanded", "false"); } });
 function listScreen(events, inbox = null) {
@@ -5839,17 +5881,28 @@ function agenciesScreen(A) {
   ATTN = A.waiting.length; ATTN_AT = Date.now();
   const names = A.agencies.map((a) => a.name);
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toDateString() === new Date().toDateString() ? `Today, ${d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}` : d.toLocaleDateString("en-CA", { day: "numeric", month: "short" }); };
-  const typed = (m) => `<div class="agt">Typed <q>${esc(m.raw)}</q> · ${m.count || 0} ${m.count === 1 ? "person" : "people"}${m.events?.length ? ` · ${esc(m.events.join(", "))}` : ""}</div>`;
+  // Who typed it, by name (Andrew 3 Nov 2026: "then I can go back in and try to find that person"). A spelling waiting
+  // for him lists each person with their email and the event, which opens on its Who's coming list; one already matched
+  // names the first few on one line.
+  const n = (m) => m.whoCount ?? m.count ?? 0;
+  const evLink = (w) => w.eventId ? `<button type="button" class="linkish agev" data-agev="${esc(w.eventId)}">${esc(w.event)}</button>` : esc(w.event || "");
+  const typed = (m) => `<div class="agt">Typed <q>${esc(m.raw)}</q></div>`;
+  const whoList = (m) => (m.who?.length ? `<ul class="agwho">${m.who.map((w) => `<li><b>${esc(w.name)}</b>${w.email && w.email !== w.name ? ` · <span class="agem">${esc(w.email)}</span>` : ""}${w.event ? ` · ${evLink(w)}` : ""}</li>`).join("")}${n(m) > m.who.length ? `<li class="porg">and ${n(m) - m.who.length} more</li>` : ""}</ul>`
+    : `<div class="agby">${n(m) ? `${n(m)} ${n(m) === 1 ? "person" : "people"}` : "Nobody on a list types it this way now"}${m.events?.length ? ` · ${esc(m.events.join(", "))}` : ""}</div>`);
+  const whoLine = (m) => { const w = m.who ?? []; if (!w.length) return n(m) ? `${n(m)} ${n(m) === 1 ? "person" : "people"}` : "";
+    const shown = w.slice(0, 3).map((x) => esc(x.name)); const more = n(m) - shown.length;
+    return `${shown.join(", ")}${more > 0 ? ` and ${more} more` : ""}`; };
   const dom = (s) => esc(s).replace(/@([a-z0-9.-]+)/gi, '<span class="dom">@$1</span>');
   const run = A.run;
   const runLine = run?.state === "running" ? "Checking now…" : run?.state === "failed" ? `The last check failed: ${esc(run.why || "")}` : run?.at ? `Last checked ${esc(when(run.at))}` : "Checked each night after the Wix sweep";
   const matched = A.matched.map((m, i) => `<div class="agq" data-agraw="${esc(m.raw)}">
       <div class="agw">${typed(m)}<div class="ags"><span class="agok" aria-hidden="true">✓</span>Now <b>${esc(m.agency)}</b>${m.isNew ? `<span class="pill agnew">Added to the list</span>` : ""}</div>
-        <div class="agwhy">${dom(m.reason || "")}<span class="agby">${esc(AG_BY[m.by] ?? "")}${m.looked ? " · looked up on the web" : ""} · ${esc(when(m.at))}</span></div></div>
+        <div class="agwhy">${dom(m.reason || "")}</div>
+        <div class="agby">${[whoLine(m), m.who?.length || n(m) ? esc((m.events ?? []).join(", ")) : "", `${esc(AG_BY[m.by] ?? "")}${m.looked ? ", looked up on the web" : ""}, ${esc(when(m.at))}`].filter(Boolean).join(" · ")}</div></div>
       <div class="aga"><input list="ag-names" data-agfix="${i}" placeholder="Wrong? Type the agency…" aria-label="The right agency for ${esc(m.raw)}">
         <div class="agb"><button class="mini" data-agsave="${i}" hidden>Save</button>${m.by === "you" ? "" : `<button class="linkish" data-agundo="${i}">Undo</button>`}</div></div></div>`).join("");
   const waiting = A.waiting.map((w, i) => `<div class="agq" data-agraw="${esc(w.raw)}">
-      <div class="agw">${typed(w)}<div class="agwhy">${dom(w.reason || "")}</div></div>
+      <div class="agw">${typed(w)}${whoList(w)}<div class="agwhy">${dom(w.reason || "")}</div></div>
       <div class="aga"><input list="ag-names" data-agwait="${i}" placeholder="Type the agency…" aria-label="The agency for ${esc(w.raw)}">
         <div class="agb"><button class="mini gold" data-agwsave="${i}">Save</button><button class="linkish" data-agblank="${i}">Leave blank</button></div></div></div>`).join("");
   const row = (a) => `<tr data-agrow="${esc(a.name)}" data-find="${esc([a.name, a.fr, ...a.aliases, ...a.domains].join(" ").toLowerCase())}">
@@ -5898,6 +5951,8 @@ function agenciesScreen(A) {
     save.onclick = () => ask(w.raw, inp, (a) => `"${w.raw}" is now ${a}.`);
   });
   ROOT.querySelectorAll("[data-agblank]").forEach((b) => b.onclick = () => { const w = A.waiting[+b.dataset.agblank]; redo("blank=1", { raw: w.raw }, `"${w.raw}" will be left blank.`); });
+  // The event beside a name opens on its Who's coming list, where that person is.
+  ROOT.querySelectorAll("[data-agev]").forEach((b) => b.onclick = () => { view = { name: "event", eventId: b.dataset.agev, tab: "people", pview: "guests" }; render(); });
   ROOT.querySelectorAll("[data-agunblank]").forEach((b) => b.onclick = () => { const x = A.blank[+b.dataset.agunblank]; redo("unblank=1", { raw: x.raw }, `"${x.raw}" is back, waiting for an agency.`); });
   document.getElementById("ag-clear")?.addEventListener("click", () => redo("clear=1", {}, "Cleared."));
   const find = document.getElementById("ag-find");
