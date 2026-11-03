@@ -49,12 +49,13 @@ await p.waitForTimeout(800);
 ok("in a form (mileage), a pull never reloads: what was typed stays", (await same()) && (await p.inputValue("#f-km")) === "42");
 ok("…and no pill shows there", (await p.locator(".ptr").evaluate((e) => getComputedStyle(e).opacity)) === "0");
 
-// The President's To approve screen has the away dates on it: once one is typed, a pull leaves it alone.
+// The President's Going away screen has the away dates on it: once one is typed, a pull leaves it alone.
 const q = await ctx.newPage();
 await q.addInitScript(([tk, me]) => { localStorage.setItem("ongia-exp-session", tk); localStorage.setItem("ongia-exp-me", JSON.stringify(me)); },
   [issueExpenseSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond" }]);
 q.on("pageerror", (e) => errs.push(String(e)));
-await q.goto(S + "/expenses", { waitUntil: "networkidle" }); await q.locator('[data-tab="approve"]').click(); await q.locator("#un-president").waitFor();
+await q.goto(S + "/expenses", { waitUntil: "networkidle" }); await q.locator("#addcam").waitFor();
+await q.click("#me"); await q.click("#awaybtn"); await q.locator("#un-president").waitFor();   // Going away, from the menu
 const qcdp = await ctx.newCDPSession(q);
 const qtouch = (type, y) => qcdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x: 195, y }] });
 const qpull = async () => { await qtouch("touchStart", 200); for (let d = 10; d <= 140; d += 10) await qtouch("touchMove", 200 + d); await qtouch("touchEnd"); };

@@ -152,7 +152,10 @@ const dh = await api("derek", "?add=mileage", { method: "POST", body: JSON.strin
 await api("derek", `?submit=${dh.claim.id}`, { method: "POST" });
 await raj.goto(S + "/expenses", { waitUntil: "networkidle" }); await raj.waitForSelector("#running");
 await raj.click('[data-tab="approve"]');
-ok("Raj sees Derek's claim waiting, and Going away?", (await raj.locator(`[data-open="${dh.claim.id}"]`).count()) === 1 && /Going away\?/.test(await raj.textContent("#root")));
+// Andrew, 3 Nov 2026: To approve is the claims to approve and nothing else; Going away is in the menu.
+ok("Raj sees Derek's claim waiting, and nothing else on To approve", (await raj.locator(`[data-open="${dh.claim.id}"]`).count()) === 1 && !/Going away|Hand off/.test(await raj.textContent("#root")) && !(await raj.locator("#to-treasurer").count()));
+await raj.click("#me"); await raj.click("#awaybtn"); await raj.waitForSelector("#to-treasurer");
+ok("Going away opens from the menu, on its own screen", (await raj.textContent("#title")) === "Going away" && /Going away\?/.test(await raj.textContent("#root")) && await raj.isVisible("#back"));
 await raj.selectOption("#to-treasurer", "executiveofficer@ongia.ca");
 await raj.selectOption("#bk-treasurer", "j.healy@ongia.ca");
 await raj.fill("#un-treasurer", day(14)); await raj.locator("#un-treasurer").dispatchEvent("change");
@@ -162,15 +165,18 @@ await raj.screenshot({ path: D + "exp-away-phone.png", fullPage: true });
 await raj.click('[data-save="treasurer"]');
 await raj.waitForSelector('[data-back="treasurer"]');
 ok("saved: handed to Peglar until the date, with I'm back", /Handed to Peglar Artinian/.test(await raj.textContent("#away-treasurer")) && (await raj.textContent('[data-back="treasurer"]')) === "I'm back");
-ok("Derek's claim has moved off Raj's list", (await raj.locator(`[data-open="${dh.claim.id}"]`).count()) === 0);
+await raj.goBack(); await raj.waitForTimeout(400);
+ok("back: To approve, and Derek's claim has moved off Raj's list", (await raj.textContent("#title")) === "To approve" && (await raj.locator(`[data-open="${dh.claim.id}"]`).count()) === 0);
 const peg = await open("peg"); errsOf.push(peg);
 ok("Peglar now has To approve, with a count", /To approve1/.test(await peg.textContent("#tabs")));
 await peg.click('[data-tab="approve"]');
-ok("and Derek's claim in it, standing in for the Treasurer", /standing in for the Treasurer \(Raj Jaswal\)/.test(await peg.textContent("#root")) && /for the Treasurer/.test(await peg.textContent(`[data-open="${dh.claim.id}"]`)));
+ok("and Derek's claim in it, its row saying for the Treasurer, and no notes besides", /for the Treasurer/.test(await peg.textContent(`[data-open="${dh.claim.id}"]`)) && !/standing in for the Treasurer \(Raj Jaswal\)/.test(await peg.textContent("#root")));
 await peg.screenshot({ path: D + "exp-standin-phone.png", fullPage: true });
 await peg.locator(`[data-open="${dh.claim.id}"]`).click(); await peg.waitForSelector("#approve");
 ok("the claim says he's standing in", /You're standing in for the Treasurer/.test(await peg.textContent("#root")));
+await raj.click("#me"); await raj.click("#awaybtn"); await raj.waitForSelector('[data-back="treasurer"]');
 await raj.click('[data-back="treasurer"]'); await raj.waitForSelector("#to-treasurer");
+await raj.goBack(); await raj.waitForTimeout(400);
 ok("I'm back: Derek's claim is Raj's again", (await raj.locator(`[data-open="${dh.claim.id}"]`).count()) === 1);
 
 console.log("— Andrew's test claim, then deleting the test claims");

@@ -345,7 +345,9 @@ $("me").onclick = (e) => {
   m.innerHTML = `<p class="who">Signed in as <b>${esc(ME?.name)}</b><br>${esc(ME?.email)}${ME?.title && ME.title !== "Board member" ? `<br>${esc(ME.title)}` : ""}</p>
     <label class="switch" for="testmode"><span><b>Test mode</b><br><span class="tiny">What you add goes on a separate claim marked TEST, which can be deleted. Sent, it comes back to you to try every step: approving, sending back, paying.</span></span><input type="checkbox" id="testmode" ${TESTMODE() ? "checked" : ""}></label>
     ${badgeRow()}
+    ${HOME?.away ? `<button class="btn ghost" id="awaybtn" type="button" style="margin-bottom:10px">Going away? Hand off approvals</button>` : ""}
     <button class="btn ghost" id="signout" type="button">Sign out</button>`;
+  if ($("awaybtn")) $("awaybtn").onclick = openAway;
   if ($("badgemenu")) $("badgemenu").onclick = async (ev) => { ev.stopPropagation(); ev.currentTarget.disabled = true; await allowBadge(); $("badgerow").outerHTML = badgeRow(); };
   $("signout").onclick = () => { signOut(); signInScreen(); };
   $("testmode").onchange = async (ev) => { if (ev.target.checked) store.set("ongia-exp-test", "1"); else store.del("ongia-exp-test"); $("menu").hidden = true; TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = null; render(); await loadHome().catch((er) => toast(er.message, true)); };
@@ -1114,21 +1116,30 @@ const OFFICER_TITLE = { president: "President", vp: "VP of Operations", treasure
 const officerEmail = (role) => HOME?.executives?.find((x) => x.title === OFFICER_TITLE[role])?.email;
 function approveScreen() {
   chrome({ title: "To approve", back: false });
+  // Only the claims waiting to be approved (Andrew, 3 Nov 2026: "To approve should just be all expenses to approve.
+  // nothing else"). Going away, and the notes about standing in, have their own screen, from the menu. The VP's claims
+  // to pay stay here, for whoever records the payments.
   let h = testBar();
-  for (const si of HOME.standingIn ?? []) h += `<div class="say mu">${si.backup ? `You're the second person for the ${esc(si.title)} (${esc(si.name)})` : `You're standing in for the ${esc(si.title)} (${esc(si.name)})`} until ${esc(longDate(si.until))}.</div>`;
   h += `<div class="day">Waiting for you</div>` + (HOME.toApprove.length ? `<div class="card" style="padding:2px 14px">${HOME.toApprove.map((c) => claimRow(c, c.as && /^for /.test(c.as) ? c.as : "")).join("")}</div>`
     : `<div class="card"><div class="note">Nothing waiting for you. When a claim needs your approval, it shows here and you get an email.</div></div>`);
   if (HOME.toPay.length || HOME.me.role === "vp") h += `<div class="day">To pay</div>` + (HOME.toPay.length ? `<div class="card" style="padding:2px 14px">${HOME.toPay.map((c) => claimRow(c, "approved, send the e-transfer")).join("")}</div>` : `<div class="card"><div class="note">No approved claims waiting to be paid.</div></div>`);
-  const roles = Object.keys(HOME.away ?? {});
-  if (roles.length) {
-    const own = roles.filter((r) => r === HOME.me.role), others = roles.filter((r) => r !== HOME.me.role);
-    h += own.map((r) => awayCard(r, true)).join("");
-    if (others.length) h += `<details class="more" ${others.some((r) => HOME.away[r]) ? "open" : ""}><summary>Hand off for ${esc(others.map((r) => firstName(HOME.executives.find((x) => x.email === officerEmail(r))?.name)).join(" or "))} (if they forgot)</summary>${others.map((r) => awayCard(r, false)).join("")}</details>`;
-  }
   ROOT.innerHTML = h;
   wireRows();
+}
+/* Going away (from the menu): hand your approvals to another executive while you're away; the President can do it for
+   the others. What you're standing in for shows here too. */
+function awayScreen() {
+  chrome({ title: "Going away", back: true, tabs: false });
+  let h = testBar();
+  for (const si of HOME.standingIn ?? []) h += `<div class="say mu">${si.backup ? `You're the second person for the ${esc(si.title)} (${esc(si.name)})` : `You're standing in for the ${esc(si.title)} (${esc(si.name)})`} until ${esc(longDate(si.until))}.</div>`;
+  const roles = Object.keys(HOME.away ?? {});
+  const own = roles.filter((r) => r === HOME.me.role), others = roles.filter((r) => r !== HOME.me.role);
+  h += own.map((r) => awayCard(r, true)).join("");
+  if (others.length) h += `<details class="more" ${others.some((r) => HOME.away[r]) ? "open" : ""}><summary>Hand off for ${esc(others.map((r) => firstName(HOME.executives.find((x) => x.email === officerEmail(r))?.name)).join(" or "))} (if they forgot)</summary>${others.map((r) => awayCard(r, false)).join("")}</details>`;
+  ROOT.innerHTML = h;
   for (const r of roles) wireAway(r);
 }
+const openAway = () => { $("menu").hidden = true; VIEW = { name: "away" }; history.pushState({ away: true }, ""); render(); window.scrollTo(0, 0); };
 function awayCard(r, isMe) {
   const d = HOME.away[r];
   const who = HOME.executives.find((x) => x.email === officerEmail(r));
@@ -1201,6 +1212,7 @@ function render() {
   if (VIEW.name === "view" && OPEN) return viewScreen();
   if (VIEW.name === "past") return pastScreen();
   if (VIEW.name === "approve" && HOME.tabs.includes("approve")) return approveScreen();
+  if (VIEW.name === "away" && HOME.away) return awayScreen();
   if (VIEW.name === "all" && HOME.tabs.includes("all")) return allScreen();
   return claimScreen();
 }
