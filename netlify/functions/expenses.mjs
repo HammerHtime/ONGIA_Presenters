@@ -8,7 +8,7 @@ import { sendExpenseMail } from "./lib/mail.mjs";
 import {
   getRoster, putRoster, listEvents, getClaim, putClaim, listClaimLines, getClaimLine, putClaimLine, deleteClaimLine,
   getClaimRead, putClaimRead, putClaimFile, getClaimFile, markMine, listMineIds, markWaiting, listWaitingIds, listClaimIds,
-  deleteClaimAll, getAway, putAway, deleteAway,
+  deleteClaimAll, getAway, putAway, deleteAway, getMeta, putMeta,
 } from "./lib/store.mjs";
 import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
@@ -43,6 +43,9 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unl
  *   POST   /api/expenses?unlock=<id>                     { reason }: the President or the VP
  *   POST   /api/expenses?marktest=<id>                   { on }: the President
  *   POST   /api/expenses?purge=tests                     the President: every test claim, gone
+ *   POST   /api/expenses?boardtest=1                     { on }: the President. While on, every claim sent is a board test
+ *   GET    /api/expenses?clearpreview=<YYYY-MM-DD>        the President: what Clear would delete, made up to that day
+ *   POST   /api/expenses?clear=1                         { date }: the President: every claim made up to that day, gone
  *   GET    /api/expenses?awaypreview=<role>&to=&backup=  who would take what
  *   PUT    /api/expenses?away=<role>                     { to, backup, from, until };   DELETE ?away=<role>
  */
@@ -106,6 +109,36 @@ export default async (req) => {
     }
     await dropFiled(url.origin, filed);
     return json({ ...(await home(ctx, test)), purged: { claims, lines } });
+  }
+
+  /*
+   * The board's test of the app (Andrew 3 Nov 2026: "test this with a bunch of the other board members ... then clear all
+   * the data and all the receipts ... until the day I tell you"). While the switch is on, every claim sent is marked BOARD
+   * TEST, in the app and in its emails, so nobody pays one for real; its copies go in the Test claims folder. When the
+   * test is over, Clear deletes every claim made up to the day he picks, from everyone, with its receipts and its copies.
+   */
+  if (req.method === "POST" && q("boardtest")) {
+    if (me.role !== "president") return fail("Only the President can turn the board test on or off.", 403);
+    const body = await req.json().catch(() => ({}));
+    const was = (await getMeta(BOARD_TEST)) ?? {};
+    await putMeta(BOARD_TEST, body.on ? { on: true, since: now(), by: me.name } : { on: false, since: was.since ?? null, ended: now(), by: me.name });
+    return json(await home(ctx, test));
+  }
+  if (q("clearpreview") || (req.method === "POST" && q("clear"))) {
+    if (me.role !== "president") return fail("Only the President can clear the test claims.", 403);
+    const date = req.method === "POST" ? String((await req.json().catch(() => ({}))).date ?? "") : q("clearpreview");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) return fail("Pick the last day to clear.");
+    if (date > today) return fail("Pick today or a day before it.");
+    const gone = await madeBy(date);
+    const people = [...new Set(gone.map((c) => names(c.owner?.email)))];
+    const real = gone.filter((c) => !c.test && !c.trial).length;
+    if (req.method !== "POST") return json({ date, claims: gone.length, people, real, paid: gone.filter((c) => c.status === "paid").length });
+    let lines = 0;
+    const filed = [];
+    for (const c of gone) { if (c.filed?.folder) filed.push(c.filed); lines += await deleteClaimAll(c.id, whoKey(c.owner?.email)); }
+    await dropFiled(url.origin, filed);
+    console.log(`expenses cleared by ${me.name}: ${gone.length} claims made up to ${date}, ${lines} lines`);
+    return json({ ...(await home(ctx, test)), cleared: { claims: gone.length, lines, date } });
   }
 
   // A claim named in the request, or the one being built.
@@ -215,6 +248,7 @@ export default async (req) => {
       await putClaimLine(claim.id, line);
     }
     const again = claim.status === "rejected";
+    if (!claim.test && await boardTestOn()) claim.trial = true;
     for (const r of OFFICER_ROLES) delete claim[`signed_${r}`];
     delete claim.rejected;
     Object.assign(claim, {
@@ -425,7 +459,7 @@ async function currentDraft(me, test = false) {
     const had = await getClaim(id);
     if (had && (had.owner?.email !== me.email || had.status !== "draft" || !!had.test !== test)) continue;
     if (had) { await markMine(who, id); return had; }
-    const claim = { id, owner: { email: me.email, name: me.name, role: me.role }, status: "draft", createdAt: now(), updatedAt: now(), history: [], ...(test ? { test: true } : {}) };
+    const claim = { id, owner: { email: me.email, name: me.name, role: me.role }, status: "draft", createdAt: now(), updatedAt: now(), history: [], ...(test ? { test: true } : (await boardTestOn()) ? { trial: true } : {}) };
     await putClaim(claim);
     await markMine(who, id);
     return claim;
@@ -466,6 +500,14 @@ async function startFiling(origin, claimId) {
     const c = await getClaim(claimId);
     if (c) { c.filed = { ...(c.filed ?? {}), problem: "Filing to SharePoint didn't start. Press File it again.", failedAt: now() }; await putClaim(c); }
   }
+}
+const BOARD_TEST = "expenses-board-test";
+const boardTestNow = async () => { const b = await getMeta(BOARD_TEST); return b?.on ? { on: true, since: b.since ?? null } : null; };
+const boardTestOn = async () => !!(await boardTestNow());
+/** Every claim made up to and including a day (Toronto), from everyone, whatever it's at. */
+async function madeBy(date) {
+  const all = (await Promise.all((await listClaimIds()).map(getClaim))).filter(Boolean);
+  return all.filter((c) => todayIso(new Date(c.createdAt ?? c.updatedAt ?? 0)) <= date);
 }
 /** Take filed copies out of SharePoint (deleted test claims, a withdrawn claim): only files the desk put there. */
 async function dropFiled(origin, records) {
@@ -546,7 +588,7 @@ export async function claimView(claim, { me, aways, today, names }) {
   const editableNow = mine && EDITABLE.includes(claim.status);
   return {
     id: claim.id, status: claim.status, words: statusWords(claim), owner: claim.owner, createdAt: claim.createdAt, updatedAt: claim.updatedAt,
-    sentAt: claim.sentAt ?? null, test: !!claim.test,
+    sentAt: claim.sentAt ?? null, test: !!claim.test, trial: !!claim.trial,
     month: claim.month || monthLabel(todayIso()),
     sums, lines: shown, missing: shown.filter((l) => l.problems.length).length,
     approvers: approversFor(claim.owner?.email).map((r) => ROLE_TITLE[r]),
@@ -575,7 +617,7 @@ export async function claimView(claim, { me, aways, today, names }) {
 
 // A claim in a list. Paid claims carry the day they were paid and what is on them (Andrew 3 Nov 2026: "the date and the
 // amount obviously will show the day it was paid out"); an approved one, the day it was approved.
-const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test,
+const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, trial: !!c.trial,
   approvedAt: c.approvedAt ?? null, paidOn: c.paid?.date ?? null, sums: c.sums ? { receipts: c.sums.receipts ?? 0, mileage: c.sums.mileage ?? 0, noreceipt: c.sums.noreceipt ?? 0 } : null, ...extra });
 
 async function home(ctx, test = false) {
@@ -606,6 +648,7 @@ async function home(ctx, test = false) {
   const awayView = (r) => (aways[r] ? { ...aways[r], toName: names(aways[r].to), backupName: aways[r].backup ? names(aways[r].backup) : "", inForce: !!inForce(aways[r], today), mail: (aways[r].mail ?? []).map((m) => ({ ...m, to: names(m.to) })) } : null);
   return {
     me: { ...me, officer }, rate: mileageRate(), test,
+    boardTest: await boardTestNow(),
     categories: CATEGORIES.map(([n, name]) => ({ n, name })),
     events: await choices(),
     current: current ? await claimView(current, ctx) : null,

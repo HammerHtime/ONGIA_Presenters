@@ -661,10 +661,11 @@ function lineRow(l, claimId) {
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
 const firstName = (n) => String(n ?? "").split(" ")[0];
 const when = (iso) => new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim, and every step comes back to you to try. Turn it off ${DESK ? "with Test mode, top right" : "in the menu (your initials, top right)"}.</div>` : "");
+const boardBar = () => (HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST.</b> Claims sent now are part of testing the app, so no money is sent.</div>` : "");
+const testBar = () => boardBar() + (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim, and every step comes back to you to try. Turn it off ${DESK ? "with Test mode, top right" : "in the menu (your initials, top right)"}.</div>` : "");
 /* A claim as a tile (the desk): who or which month, the amount, a line under, and where it stands. */
 function tile(c, name, sub, pill = "") {
-  return `<button type="button" class="tile${VIEW.sel === c.id ? " on" : ""}" data-open="${esc(c.id)}"><span class="tw">${esc(name)}${c.test ? ' <span class="pill test">Test</span>' : ""}</span><span class="ta">${c.total === null || c.total === undefined ? "" : money(c.total)}</span>
+  return `<button type="button" class="tile${VIEW.sel === c.id ? " on" : ""}" data-open="${esc(c.id)}"><span class="tw">${esc(name)}${c.test ? ' <span class="pill test">Test</span>' : c.trial ? ' <span class="pill test">Board test</span>' : ""}</span><span class="ta">${c.total === null || c.total === undefined ? "" : money(c.total)}</span>
     <span class="ts">${esc(sub)}</span>${pill ? `<span class="pill ${PILL[c.status] ?? "mu"}">${esc(pill)}</span>` : "<span></span>"}</button>`;
 }
 const sentWords = (c) => (c.status === "approved" ? `Approved ${shortDay(c.approvedAt)} · waiting for the e-transfer` : `Sent ${shortDay(c.sentAt)} · waiting for approval`);
@@ -1018,7 +1019,8 @@ function viewScreen(target = ROOT) {
   if (target === ROOT) chrome({ title: c.can.decide || myDone && c.status === "submitted" ? "Approve a claim" : c.can.pay ? "Pay a claim" : `${(c.month || "").split(" ")[0]} claim`, back: true, tabs: false });
   const first = firstName(c.owner?.name);
   const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
-  let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>` : "";
+  let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>`
+    : c.trial && !HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST CLAIM.</b> Part of testing the app: no money is sent, and it's filed only under Test claims.</div>` : "";
   h += `<div class="card"><div class="k">From</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
@@ -1040,8 +1042,8 @@ function viewScreen(target = ROOT) {
     <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. When both have approved, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
       <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
-      ${c.payer.practice ? `<div class="say mu" style="margin:0 0 10px">Practice: nothing is sent. Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
-      <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice ? "TEST123" : "As the bank shows it"}"></div>
+      ${c.payer.practice || c.trial ? `<div class="say mu" style="margin:0 0 10px">${c.trial ? "Board test: don't send any money." : "Practice: nothing is sent."} Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
+      <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice || c.trial ? "TEST123" : "As the bank shows it"}"></div>
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
       <button class="btn gold" id="paybtn" type="button">Confirm payment</button>
       ${c.payer.for ? `<p class="tiny center" style="margin-top:6px">You're standing in for the ${esc(c.payer.for)}.</p>` : ""}</div>
@@ -1364,8 +1366,7 @@ function splitScreen(kind) {
     // A filter with nothing in it is left out, so they fit on one line beside the claims.
     list = `<div class="chips">${Object.entries(F).filter(([k, [, fn]]) => k === "all" || ALLF === k || all.some(fn)).map(([k, [label, fn]]) => `<button type="button" data-f="${k}" class="${ALLF === k ? "on" : ""}">${label} ${all.filter(fn).length}</button>`).join("")}</div>`
       + (shown.length ? sec("Newest first", shown, who, (c) => (c.status === "paid" ? [c.month, `paid ${shortDay(c.paidOn)}`].join(" · ") : sentOn(c)), (c) => (c.status === "approved" ? "To pay" : c.status === "submitted" ? "Waiting" : c.words)) : `<div class="card"><div class="note">No claims here.</div></div>`)
-      + (HOME.me.role === "president" ? `<div class="card" style="margin-top:10px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
-        <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : "");
+      + presidentCards(tests);
   }
   // The first one opens to start, without jumping to its payment box: that's for a claim picked, or a link followed.
   if (!VIEW.sel && items.length) VIEW = { ...VIEW, name: kind, sel: items[0].id, id: items[0].id, fresh: false };
@@ -1373,7 +1374,7 @@ function splitScreen(kind) {
   ROOT.querySelectorAll(".dlist .tile").forEach((t) => t.classList.toggle("on", t.dataset.open === VIEW.sel));   // the one open, lit (picked at the start too)
   ROOT.querySelectorAll(".dlist [data-open]").forEach((b) => { b.onclick = () => { VIEW = { name: kind, sel: b.dataset.open, id: b.dataset.open, fresh: true }; render(); }; });
   ROOT.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { ALLF = b.dataset.f; VIEW = { name: kind }; OPEN = null; render(); }; });
-  if ($("purge")) $("purge").onclick = purgeTests;
+  wirePresident();
   const pane = $("dpane");
   if (!VIEW.sel) { pane.innerHTML = ""; return; }
   if (OPEN?.id === VIEW.sel) return viewScreen(pane);
@@ -1381,6 +1382,49 @@ function splitScreen(kind) {
   const want = VIEW.sel;
   api(`?claim=${encodeURIComponent(want)}`).then((o) => { if (VIEW.sel !== want || !$("dpane")) return; OPEN = o.claim; viewScreen($("dpane")); })
     .catch((e) => { if (!e.quiet && $("dpane")) $("dpane").innerHTML = `<div class="say bad">${esc(e.message)}</div>`; });
+}
+/*
+ * The President's cards under All claims: the practice claims (Test mode), and the board's test of the app (Andrew
+ * 3 Nov 2026: test it with the board, then "clear all the data and all the receipts ... until the day I tell you").
+ * While the board test is on, every claim sent is marked BOARD TEST, in the app and in its emails, so nobody pays one.
+ */
+function presidentCards(tests) {
+  if (HOME.me.role !== "president") return "";
+  const bt = HOME.boardTest;
+  return `<div class="card" style="margin-top:10px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
+      <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>
+    <div class="card" id="boardcard"><div class="k">Board test</div>
+      <p class="note" style="margin:4px 0 10px">${bt?.on ? `On since ${esc(new Date(bt.since).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }))}. Every claim sent is marked BOARD TEST, in the app and in its emails, so nobody pays one for real.` : "Off. Turn it on while the board tries the app: every claim sent is then marked BOARD TEST, in the app and in its emails, so nobody pays one for real."}</p>
+      <button class="btn ghost" id="bttoggle" type="button">${bt?.on ? "Turn the board test off" : "Turn the board test on"}</button>
+      <div class="k" style="margin-top:16px">Clear the test claims</div>
+      <p class="note" style="margin:4px 0 10px">When testing is over: every claim made up to the day you pick, from everyone, with its receipts and its copies on SharePoint. You see how many before anything is deleted.</p>
+      <div class="field"><label for="clrdate">Made up to and including</label><input id="clrdate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
+      <button class="btn danger" id="clrgo" type="button" style="border:1.5px solid var(--late)">Clear them</button></div>`;
+}
+function wirePresident() {
+  if ($("purge")) $("purge").onclick = purgeTests;
+  if ($("bttoggle")) $("bttoggle").onclick = async (e) => {
+    const on = !HOME.boardTest?.on;
+    if (!on && !confirm("Turn the board test off? Claims sent from now on are real claims, and get paid.")) return;
+    e.currentTarget.disabled = true;
+    try { HOME = await api(`?boardtest=1${TESTMODE() ? "&test=1" : ""}`, { method: "POST", json: { on } }); toast(on ? "Board test on. Every claim sent is marked BOARD TEST." : "Board test off."); render(); }
+    catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
+  };
+  if ($("clrgo")) $("clrgo").onclick = async (e) => {
+    const date = $("clrdate").value;
+    if (!date) { toast("Pick the last day to clear.", true); return $("clrdate").focus(); }
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const w = await api(`?clearpreview=${date}`);
+      if (!w.claims) { toast(`No claims were made up to ${longDate(date)}.`); btn.disabled = false; return; }
+      const who = w.people.length <= 4 ? w.people.join(", ") : `${w.people.slice(0, 3).join(", ")} and ${w.people.length - 3} others`;
+      const warn = [w.real ? `${w.real === 1 ? "One of them isn't" : `${w.real} of them aren't`} marked as a test.` : "", w.paid ? `${w.paid === 1 ? "One is" : `${w.paid} are`} marked paid.` : ""].filter(Boolean).join(" ");
+      if (!confirm(`Delete ${w.claims} claim${w.claims === 1 ? "" : "s"} made up to ${longDate(date)} (${who}), with their receipts and their copies on SharePoint?${warn ? `\n\n${warn}` : ""}\n\nThis can't be undone.`)) { btn.disabled = false; return; }
+      const out = await api(`?clear=1${TESTMODE() ? "&test=1" : ""}`, { method: "POST", json: { date } });
+      HOME = out; OPEN = null; VIEW = { name: TAB };
+      toast(`Cleared ${out.cleared.claims} claim${out.cleared.claims === 1 ? "" : "s"}.`); render();
+    } catch (er) { btn.disabled = false; if (!er.quiet) toast(er.message, true); }
+  };
 }
 async function purgeTests() {
   if (!confirm("Delete every test claim, from everyone, with its receipts? Real claims aren't touched. This can't be undone.")) return;
@@ -1397,11 +1441,10 @@ function allScreen() {
   const tests = all.filter((c) => c.test).length;
   ROOT.innerHTML = `${testBar()}<div class="chips">${Object.entries(F).map(([k, [label, fn]]) => `<button type="button" data-f="${k}" class="${ALLF === k ? "on" : ""}">${label} ${all.filter(fn).length}</button>`).join("")}</div>
     ${shown.length ? tiles(shown.map((c) => claimRow(c, c.status === "paid" ? `paid ${shortDay(c.paidOn)}` : c.sentAt ? `sent ${shortDay(c.sentAt)}` : "")).join("")) : `<div class="card"><div class="note">No claims here.</div></div>`}
-    ${HOME.me.role === "president" ? `<div class="card" style="margin-top:18px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
-      <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : ""}`;
+    ${presidentCards(tests)}`;
   ROOT.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { ALLF = b.dataset.f; allScreen(); }; });
   wireRows();
-  if ($("purge")) $("purge").onclick = purgeTests;
+  wirePresident();
 }
 
 function render() {
