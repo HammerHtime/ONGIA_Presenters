@@ -65,7 +65,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     const due = event.deadlines.agreement;
     const dayOffset = daysBetween(due, today); // negative before the due date
     const people = await listPresenters(event.id);
-    const outstanding = people.filter((p) => p.status !== "submitted" && p.status !== "approved");
+    const outstanding = people.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper");
     // An event with one presenter date (the Summit) chases only that one, the
     // presentation; no agreement, room or draft reminders. Andrew nudges those by hand.
     const oneDate = event.noDeadlines === true;
@@ -139,7 +139,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
     }
 
     // Materials chase-ups for everyone whose agreement is in.
-    const withAgreement = people.filter((p) => p.status === "submitted" || p.status === "approved");
+    const withAgreement = people.filter((p) => p.status === "submitted" || p.status === "approved" || p.status === "paper");
     if (!digestOnly && withAgreement.length && event.materialsUploadUrl) {
       if (!dry) {
         try { const scan = await scanMaterials(event, people); if (!scan.skipped) { event.materialsScan = scan; await putEvent(event); } } catch { /* keep the last scan */ }
@@ -187,7 +187,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
       const materialsSummary = { draft: mats.filter((m) => m.draft).length, final: mats.filter((m) => m.final).length };
       // One presenter date on this event: only the presentation can be overdue.
       const items = (event.noDeadlines ? [["Presentations", event.deadlines.final, people.filter((p, i) => !mats[i].final)]] : [
-        ["Agreements", event.deadlines.agreement, people.filter((p) => p.status !== "submitted" && p.status !== "approved")],
+        ["Agreements", event.deadlines.agreement, people.filter((p) => p.status !== "submitted" && p.status !== "approved" && p.status !== "paper")],
         ["Draft materials", event.deadlines.draft, people.filter((p, i) => !mats[i].draft)],
         ["Final materials", event.deadlines.final, people.filter((p, i) => !mats[i].final)],
       ]).map(([label, due, missing]) => ({ label, due: formatDate(due), days: daysBetween(due, today), names: missing.map((p) => `${p.first} ${p.last}`) }));

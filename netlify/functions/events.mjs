@@ -30,6 +30,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
  *   PUT    /api/events?id=…&room=1          the main room's seats and the VIPs seated in it ({ seats, vips })
+ *   PUT    /api/events?id=…&presenter=…&paper=1  { on: true|false, note? } signed on paper, filed by hand (or undo it)
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -62,6 +63,7 @@ export default async (req) => {
     if (url.searchParams.get("lead")) return setLead(id, body);
     if (url.searchParams.get("room")) return setRoom(id, body);
     const presenterId = url.searchParams.get("presenter");
+    if (presenterId && url.searchParams.get("paper")) return setPaper(id, presenterId, body, who);
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
   }
   if (req.method === "DELETE") {
@@ -411,6 +413,29 @@ async function updatePresenter(id, presenterId, body) {
 }
 
 /**
+ * Signed on paper (Andrew 3 Nov 2026): the agreement came by email and is filed by hand, so the desk stops treating them
+ * as outstanding. Undo puts them back as they were. An agreement signed here is never overwritten by this; and someone
+ * marked as on paper can still sign online with their link, which then takes over.
+ */
+async function setPaper(id, presenterId, body, who) {
+  const presenter = await getPresenter(id, presenterId);
+  if (!presenter) return fail("No such presenter.", 404);
+  if (body.on === true) {
+    if (presenter.status === "submitted" || presenter.status === "approved") return fail("They have already signed here, so there is nothing to mark.", 409);
+    if (presenter.status !== "paper") presenter.paper = { was: presenter.status || "invited" };
+    presenter.paper = { ...(presenter.paper ?? {}), at: new Date().toISOString(), by: who?.name || who?.email || "", note: text(body.note, 300) };
+    presenter.status = "paper";
+  } else if (body.on === false) {
+    if (presenter.status !== "paper") return fail("They are not marked as signed on paper.", 409);
+    presenter.status = presenter.paper?.was || "invited";
+    delete presenter.paper;
+  } else return fail("Say on: true or on: false.");
+  presenter.updatedAt = new Date().toISOString();
+  await putPresenter(presenter);
+  return json({ ok: true, presenter });
+}
+
+/**
  * Take a presenter off an event. A signed, filed agreement can go too — someone is
  * called to court, or ONGIA no longer wants them (Andrew, 17 Oct 2026) — but only
  * when the request says so (&final=1), and the signed copy stays in SharePoint. The
@@ -551,23 +576,31 @@ export function attentionOf(people) {
   const who = (f) => people.filter(f).map((p) => ({ id: p.id, name: `${p.first} ${p.last}` }));
   return {
     review: who((p) => p.status === "submitted"),
-    uninvited: who((p) => p.status !== "approved" && p.status !== "submitted" && !p.mail?.length),
+    uninvited: who((p) => !HAS_AGREEMENT(p) && !p.mail?.length),
     failed: who((p) => p.status === "approved" && p.delivery?.filing && p.delivery.filing.ok === false),
     sendFailed: who((p) => !!p.lastSendError),
-    outstanding: who((p) => p.status !== "approved" && p.status !== "submitted"),
+    outstanding: who((p) => !HAS_AGREEMENT(p)),
   };
 }
 
+/**
+ * Whether ONGIA has this presenter's agreement: signed here (submitted or approved), or signed on paper and filed by
+ * hand (Andrew 3 Nov 2026: the Summit's agreements gathered by email over the summer, in the Training Director's
+ * folders). A paper one is not chased, not counted as never sent, and not in "email everyone".
+ */
+export const HAS_AGREEMENT = (p) => p.status === "approved" || p.status === "submitted" || p.status === "paper";
+
 export function countStatuses(presenters) {
-  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0, uninvited: 0, failed: 0 };
+  const counts = { total: presenters.length, invited: 0, opened: 0, submitted: 0, approved: 0, paper: 0, uninvited: 0, failed: 0 };
   for (const p of presenters) {
     if (p.status === "approved") counts.approved++;
+    else if (p.status === "paper") counts.paper++;
     else if (p.status === "submitted") counts.submitted++;
     else if (p.openedAt) counts.opened++;
     else counts.invited++;
     // Nobody has ever sent this person their link, so no reminder will ever chase
     // them: only a person can fix it.
-    if (p.status !== "approved" && p.status !== "submitted" && !p.mail?.length) counts.uninvited++;
+    if (!HAS_AGREEMENT(p) && !p.mail?.length) counts.uninvited++;
     // Signed and approved, but the copy never reached SharePoint.
     if (p.status === "approved" && p.delivery && p.delivery.filing && p.delivery.filing.ok === false) counts.failed++;
   }
