@@ -117,7 +117,12 @@ export function surveyProblems(event) {
 /** The days a person is asked about: their group's days, or every day of the event. */
 export function daysFor(event, person) {
   const all = trainingDays(event);
-  const g = person?.group ? groupDaysOf(event) : null;
+  // Only the second group (the community partners) has days of its own; a further group (the virtual attendees, Andrew
+  // 3 Nov 2026) is asked about every day, unless its own Wix event says otherwise.
+  const second = (event?.wixMore ?? [])[0];
+  const further = person?.wixEventId && (event?.wixMore ?? []).slice(1).find((l) => l?.eventId === person.wixEventId);
+  if (further) return further.dayOne ? all.filter((d) => d >= further.dayOne && d <= (further.lastDay || further.dayOne)) : all;
+  const g = person?.group && (!person.wixEventId || !second || person.wixEventId === second.eventId) ? groupDaysOf(event) : null;
   return g ? all.filter((d) => d >= g.dayOne && d <= g.lastDay) : all;
 }
 

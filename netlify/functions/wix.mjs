@@ -18,6 +18,9 @@ import { starterTasks } from "./lib/checklist.mjs";
  *   PUT  /api/wix?event=…&unlink=1    stop pointing at it
  *   PUT  /api/wix?event=…&link=…&also=1&group=…   also pull a second Wix event into this one, its people labelled with the group
  *                                       (Andrew 26 Oct 2026: the National Gang Summit's community partners register on their own Wix event)
+ *                                       &online=1: its people join online, so they are never sent the in-room questions
+ *                                       (Andrew 3 Nov 2026: the Summit's virtual attendees), and each further event linked
+ *                                       this way gets its own version of the welcome letter
  *   PUT  /api/wix?event=…&unlinkAlso=…  stop pulling that second one
  *   POST /api/wix?event=…&sync=1      pull that event's guests now
  *   POST /api/wix?sweep=1             pull every linked event's guests (what the night job runs)
@@ -45,7 +48,7 @@ export default async (req) => {
     const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
     if (url.searchParams.get("unlink")) return unlink(event);
     if (url.searchParams.get("unlinkAlso")) return unlinkAlso(event, text(url.searchParams.get("unlinkAlso"), 80));
-    if (url.searchParams.get("also")) return linkAlso(event, text(url.searchParams.get("link"), 80), text(url.searchParams.get("group"), 60) || "Community partners");
+    if (url.searchParams.get("also")) return linkAlso(event, text(url.searchParams.get("link"), 80), text(url.searchParams.get("group"), 60) || "Community partners", url.searchParams.get("online") === "1");
     return link(event, text(url.searchParams.get("link"), 80));
   }
   if (req.method === "POST") {
@@ -195,7 +198,7 @@ async function link(event, wixEventId) {
 /** Every Wix event a desk event pulls from: its own, then any others (community partners), each with its group. */
 export const linksOf = (event) => [...(event.wix?.eventId ? [{ ...event.wix, group: "", primary: true }] : []), ...(event.wixMore ?? []).map((l) => ({ ...l, primary: false }))];
 
-async function linkAlso(event, wixEventId, group) {
+async function linkAlso(event, wixEventId, group, online = false) {
   if (!wixConfigured()) return fail("Wix is not connected on this site.", 409);
   if (!wixEventId) return fail("Which Wix event?");
   if (!event.wix?.eventId) return fail("Link this event's own Wix event first.", 409);
@@ -206,7 +209,9 @@ async function linkAlso(event, wixEventId, group) {
   if (!match) return fail("That event is not on the Wix site.", 404);
   event.wixMore = [...(event.wixMore ?? []), { eventId: match.id, title: match.title, url: match.url, site: match.site, siteName: match.siteName, group,
     // Their own dates: a letter written for this group gives these, not the whole event's.
-    dayOne: match.dayOne ?? null, lastDay: match.lastDay ?? null, linkedAt: new Date().toISOString() }];
+    dayOne: match.dayOne ?? null, lastDay: match.lastDay ?? null, linkedAt: new Date().toISOString(),
+    // Joining online (the Summit's virtual attendees): never sent the in-room questions about meals and receptions.
+    ...(online ? { online: true } : {}) }];
   await putEvent(event);
   return syncOne(event);
 }

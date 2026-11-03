@@ -6,7 +6,7 @@ import { letterProblems, eventProblems, renderLetter, attachmentsFor, attendeeRe
 import { randomUUID } from "node:crypto";
 import { formatDate } from "./lib/deadlines.mjs";
 import { sendMail } from "./lib/mail.mjs";
-import { groupsOf, welcomeOf, welcomeLetters, cleanWelcome, splitByGroup, welcomeReach, welcomeJob, setSendDay, testAddresses } from "./lib/welcome.mjs";
+import { groupsOf, welcomeOf, welcomeLetters, cleanWelcome, splitForEvent, welcomeReach, welcomeJob, setSendDay, testAddresses, extrasOf, versionKeys, versionLabel } from "./lib/welcome.mjs";
 
 /**
  * An event's welcome letter, all in one place on the event page (Andrew 27 Oct 2026): the words for each group, their
@@ -49,17 +49,16 @@ export default async (req) => {
       else if (kind === "board" && isEmail(a)) event.signature = { email: a };
       else return fail("Pick who signs it from the list.");
     }
-    event.welcome = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)));
+    event.welcome = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)), versionKeys(event));
     event.updatedAt = new Date().toISOString();
     await putEvent(event);
     return show(event);
   }
   if (req.method === "POST") {
     const which = url.searchParams.get("preview") || url.searchParams.get("test");
-    if (which !== "main" && which !== "group") return fail("Which version: main or group?");
-    const words = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)));
+    if (!versionKeys(event).includes(which)) return fail(which === "group" ? "This event has no second group." : "Which version of the letter?", which === "group" ? 409 : 400);
+    const words = cleanWelcome(body, welcomeOf(event, await chosenLetter(event)), versionKeys(event));
     const letter = welcomeLetters(event, words)[which];
-    if (!letter) return fail("This event has no second group.", 409);
     const sample = await sampleFor(event, which);
     if (url.searchParams.get("preview")) {
       const mail = renderLetter(letter, event, sample);
@@ -72,7 +71,7 @@ export default async (req) => {
     if (problems.length) return fail(`Not sending a test with a problem in it: ${problems[0]}`, 422);
     let attachments;
     try { attachments = await attachmentsFor(letter, event, getAgenda, getWelcomeFile); } catch (e) { return fail(e.message, 409); }
-    if (attachedBytes(event, which) > ATTACH_LIMIT) return fail(`${groupsOf(event)[which]} carries more than 3 MB of attachments, and an email takes up to 3 MB. Untick or replace one.`, 413);
+    if (attachedBytes(event, which) > ATTACH_LIMIT) return fail(`${versionLabel(event, which)} carries more than 3 MB of attachments, and an email takes up to 3 MB. Untick or replace one.`, 413);
     for (const address of to) {
       const mail = renderLetter(letter, event, sample);
       const out = await sendMail({ to: address, replyTo: attendeeReplyTo(event), ...mail, subject: `TEST: ${mail.subject}`, attachments });
@@ -110,9 +109,8 @@ const problemsOf = (letter, event) => [...new Set([...letterProblems(letter), ..
 /** Who a preview or test is made out to: a real person from that group if there is one. */
 async function sampleFor(event, which) {
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
-  const all = writeableTo(people);
-  const split = groupsOf(event).group ? splitByGroup(people, all) : { main: all, group: [] };
-  return split[which][0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca" };
+  const split = splitForEvent(event, people, writeableTo(people));
+  return (split[which] ?? [])[0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca" };
 }
 
 const range = (a, b) => (a === b || !b ? formatDate(a) : `${formatDate(a)} to ${formatDate(b)}`);
@@ -128,6 +126,14 @@ async function show(event) {
     agenda: event.agendaFile ?? null, attachedBytes: attachedBytes(event, "main"), ...reach.main, problems: problemsOf(letters.main, event) }];
   if (letters.group) versions.push({ key: "group", label: names.group, dates: g ? range(g.dayOne, g.lastDay) : "", ...words.group,
     agenda: event.agendaGroupFile ?? null, attachedBytes: attachedBytes(event, "group"), ...reach.group, problems: problemsOf(letters.group, event) });
+  // Further groups (the Summit's virtual attendees): their own words and ticked PDFs, no agenda slot. Not written yet is
+  // said plainly: their people are sent nothing until it is saved.
+  for (const x of extrasOf(event)) {
+    const l = x.link;
+    versions.push({ key: x.key, label: x.label, dates: l.dayOne ? range(l.dayOne, l.lastDay || l.dayOne) : "", ...words[x.key], noAgendaSlot: true,
+      agenda: null, attachedBytes: attachedBytes(event, x.key), ...reach[x.key],
+      problems: letters[x.key].body.trim() ? problemsOf(letters[x.key], event) : [`Not written yet, so the ${reach[x.key].reaches} ${x.label.toLowerCase()} ${reach[x.key].reaches === 1 ? "attendee is" : "attendees are"} sent nothing. Write it and save.`] });
+  }
   const job = welcomeJob(event);
   const s = event.signature;
   // Who the letter can't greet by name (Andrew 28 Oct 2026: a registration's first name was "D22"): theirs opens "Hello,".
@@ -151,8 +157,9 @@ async function openFile(event, id) {
 async function fileChange(req, event, id) {
   const names = groupsOf(event);
   const files = event.welcomeFiles ?? [];
-  const tooBig = () => ["main", "group"].filter((k) => (k === "main" || names.group) && attachedBytes(event, k) > ATTACH_LIMIT)
-    .map((k) => `With it, the ${names.group ? `${names[k]} ` : ""}letter would carry ${mb(attachedBytes(event, k))}, and an email takes up to 3 MB. Untick another file, or save a smaller PDF (in Word: File, Save As, PDF, "Minimum size").`)[0];
+  const keys = versionKeys(event);
+  const tooBig = () => keys.filter((k) => attachedBytes(event, k) > ATTACH_LIMIT)
+    .map((k) => `With it, the ${keys.length > 1 ? `${versionLabel(event, k)} ` : ""}letter would carry ${mb(attachedBytes(event, k))}, and an email takes up to 3 MB. Untick another file, or save a smaller PDF (in Word: File, Save As, PDF, "Minimum size").`)[0];
   if (req.method === "POST" && id === "new") {
     if (files.length >= MAX_FILES) return fail(`The welcome letter can carry up to ${MAX_FILES} attachments. Remove one first.`, 409);
     const bytes = new Uint8Array(await req.arrayBuffer());
@@ -160,7 +167,7 @@ async function fileChange(req, event, id) {
     if (bytes.length > ATTACH_LIMIT) return fail(`That file is ${mb(bytes.length)}, and an email takes up to 3 MB. Save a smaller PDF (in Word: File, Save As, PDF, "Minimum size") and upload that.`, 413);
     if (String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-") return fail("That is not a PDF. Save it as a PDF and upload that.", 415);
     // With one version there is nothing to choose, so it goes with the letter; with two, Andrew ticks which.
-    const f = { id: randomUUID().slice(0, 12), name: fileName(req.headers.get("x-file-name"), "attachment.pdf"), size: bytes.length, main: !names.group, group: false, uploadedAt: new Date().toISOString() };
+    const f = { id: randomUUID().slice(0, 12), name: fileName(req.headers.get("x-file-name"), "attachment.pdf"), size: bytes.length, main: keys.length === 1, group: false, uploadedAt: new Date().toISOString() };
     event.welcomeFiles = [...files, f];
     const problem = tooBig();
     if (problem) return fail(problem, 413);
@@ -175,6 +182,7 @@ async function fileChange(req, event, id) {
       const body = await req.json().catch(() => ({}));
       if (body.main !== undefined) f.main = body.main === true;
       if (body.group !== undefined) f.group = body.group === true && !!names.group;
+      for (const x of extrasOf(event)) if (body[x.key] !== undefined) f[x.key] = body[x.key] === true;
       const problem = tooBig();
       if (problem) return fail(problem, 413);
     } else return fail("Method not allowed.", 405);

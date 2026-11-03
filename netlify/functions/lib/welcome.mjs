@@ -26,6 +26,25 @@ export function groupsOf(event) {
   return { main: isSummit(event) ? "Justice partners" : "Everyone else", group: g.group || "The second group" };
 }
 
+/**
+ * Further groups (Andrew 3 Nov 2026: the Summit's virtual attendees register on a third Wix event, and need their own
+ * welcome letter, with its own attachments ticked, beside the justice and community partners'). Each Wix event linked
+ * after the second is a group with its own version of the letter, keyed by its Wix event so the key never moves.
+ */
+export const extraKey = (link) => `x${String(link?.eventId ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 10)}`;
+export const extrasOf = (event) => (event?.wixMore ?? []).slice(1).filter((l) => l?.eventId)
+  .map((l) => ({ key: extraKey(l), label: l.group || "Another group", link: l }));
+
+/** Every version this event's welcome letter has: main, the second group's, then any further group's. */
+export const versionKeys = (event) => ["main", ...(groupsOf(event).group ? ["group"] : []), ...extrasOf(event).map((x) => x.key)];
+
+/** What each version is called on the event page. */
+export const versionLabel = (event, key) => (key === "main" || key === "group" ? groupsOf(event)[key] : extrasOf(event).find((x) => x.key === key)?.label) ?? "";
+
+/** The Wix events whose people are online, not in the room: no housekeeping questions (meals, receptions) for them. */
+export const onlineLinks = (event) => new Set((event?.wixMore ?? []).filter((l) => l?.online && l.eventId).map((l) => l.eventId));
+export const inTheRoom = (event, people) => { const off = onlineLinks(event); return off.size ? people.filter((p) => !off.has(p.wixEventId)) : people; };
+
 /** The words a welcome letter starts with: the Summit's, written for its two groups; any other event's, the general one. */
 export function startingWelcome(event, chosen = null) {
   const at = town(event) || "{city}";
@@ -68,8 +87,12 @@ export function startingWelcome(event, chosen = null) {
   return { main, group };
 }
 
-/** The event's own words, or what they start as. */
-export const welcomeOf = (event, chosen = null) => ({ ...startingWelcome(event, chosen), ...(event?.welcome ?? {}) });
+/**
+ * The event's own words, or what they start as. A further group's version starts empty: it is written for them (the
+ * virtual attendees join on Zoom, with no venue or dress code), and until it is saved its people are sent nothing.
+ */
+export const welcomeOf = (event, chosen = null) => ({ ...startingWelcome(event, chosen),
+  ...Object.fromEntries(extrasOf(event).map((x) => [x.key, { subject: "", body: "" }])), ...(event?.welcome ?? {}) });
 
 /** The two versions as letters the sender and the preview understand. Agendas are attached whenever there is one. */
 export function welcomeLetters(event, words = welcomeOf(event)) {
@@ -79,31 +102,48 @@ export function welcomeLetters(event, words = welcomeOf(event)) {
     out.group = { id: "event-welcome-group", kind: "welcome", audience: "group", name: `Welcome letter (${groupsOf(event).group})`,
       subject: words.group.subject ?? "", body: words.group.body ?? "", attachAgenda: !!event.agendaGroupFile };
   }
+  // A further group's agenda goes as one of the PDFs ticked for it, so it has no agenda slot of its own.
+  for (const x of extrasOf(event)) {
+    out[x.key] = { id: `event-welcome-${x.key}`, kind: "welcome", audience: x.key, name: `Welcome letter (${x.label})`,
+      subject: words[x.key]?.subject ?? "", body: words[x.key]?.body ?? "", attachAgenda: false };
+  }
   return out;
 }
 
-/** The words as typed on the event page. */
-export function cleanWelcome(given, had = {}) {
+/** The words as typed on the event page: one entry per version the event has. */
+export function cleanWelcome(given, had = {}, keys = ["main", "group"]) {
   const one = (v, was) => (v === undefined ? was : { subject: text(v?.subject, 200), body: String(v?.body ?? "").replace(/\r/g, "").slice(0, 8000) });
   const out = { ...had };
-  if (given?.main !== undefined) out.main = one(given.main, had.main);
-  if (given?.group !== undefined) out.group = one(given.group, had.group);
+  for (const k of new Set(["main", "group", ...keys])) if (given?.[k] !== undefined) out[k] = one(given[k], had[k]);
   return out;
 }
 
-/** Who gets which: an address whose every registration came from the second Wix event is the group's. */
-export function splitByGroup(people, owed) {
+/**
+ * Who gets which: an address with any registration on the event's own Wix event gets the main letter; failing that, one
+ * on the second Wix event gets the second group's; failing both, a further group's (the first of them it is on).
+ */
+export function splitByGroup(people, owed, event = null) {
   const rows = people.filter((p) => p.status !== "WITHDRAWN");
-  const groupOnly = (email) => rows.filter((p) => p.email === email).every((p) => p.group);
-  return { main: owed.filter((p) => !groupOnly(p.email)), group: owed.filter((p) => groupOnly(p.email)) };
+  const extras = extrasOf(event);
+  const extraIds = new Map(extras.map((x) => [x.link.eventId, x.key]));
+  const out = { main: [], group: [], ...Object.fromEntries(extras.map((x) => [x.key, []])) };
+  for (const p of owed) {
+    const mine = rows.filter((q) => q.email === p.email);
+    const keys = (mine.length ? mine : [p]).map((q) => (!q.group ? "main" : extraIds.get(q.wixEventId) ?? "group"));
+    const k = keys.includes("main") ? "main" : keys.includes("group") ? "group" : extras.map((x) => x.key).find((x) => keys.includes(x)) ?? "main";
+    out[k].push(p);
+  }
+  return out;
 }
+
+/** Everyone the letter can go to, split by version. */
+export const splitForEvent = (event, people, owed) => (versionKeys(event).length > 1 ? splitByGroup(people, owed, event) : { main: owed });
 
 /** How many each version reaches, and how many have had it. */
 export function welcomeReach(event, people = []) {
-  const all = writeableTo(people);
-  const split = groupsOf(event).group ? splitByGroup(people, all) : { main: all, group: [] };
+  const split = splitForEvent(event, people, writeableTo(people));
   const had = (list) => list.filter((p) => people.some((q) => q.email === p.email && (q.sent ?? []).includes("welcome"))).length;
-  return { main: { reaches: split.main.length, had: had(split.main) }, group: { reaches: split.group.length, had: had(split.group) } };
+  return Object.fromEntries(["main", "group", ...versionKeys(event)].map((k) => [k, { reaches: (split[k] ?? []).length, had: had(split[k] ?? []) }]));
 }
 
 /** The day the welcome letter goes: its checklist job's date. */

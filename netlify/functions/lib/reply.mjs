@@ -3,6 +3,7 @@ import { todayIso } from "./deadlines.mjs";
 import { token as newToken } from "./ids.mjs";
 import { getAttendees, putAttendees, getReplies, listPresenters } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
+import { inTheRoom } from "./welcome.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeSignOf } from "./letters.mjs";
 import { sendMail, sendAttendeeMail, EVENTS_FROM } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
@@ -438,7 +439,9 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
   const told = toldUs(stored.people ?? [], (await getReplies(event.id))?.answers ?? []);
-  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email) && !told.has(p.email));
+  // Only the people in the room: the questions are about meals and receptions, so attendees joining online (the
+  // Summit's virtual registrations, Andrew 3 Nov 2026) are never sent them.
+  const owed = writeableTo(inTheRoom(event, stored.people ?? [])).filter((p) => !had.has(p.email) && !told.has(p.email));
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {
