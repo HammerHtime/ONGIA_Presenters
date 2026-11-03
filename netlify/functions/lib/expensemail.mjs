@@ -13,7 +13,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 export const claimLink = (id) => `${siteUrl()}/expenses${id ? `#claim=${encodeURIComponent(id)}` : ""}`;
 const FOOTER = "ONGIA Expenses: the board's expense claims. Open it from its icon on your phone, or at events.ongia.org/expenses.";
 const tag = (c) => (c?.test ? "[TEST] " : "");
-const strip = (l) => String(l).replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const strip = (l) => String(l).replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&bull;/g, "•").replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
 function mail(claim, subject, heading, lines, button) {
   const html = layout({ heading, lines, button, footer: FOOTER });
   const text = [heading, "", ...lines.filter(Boolean).map(strip), button ? `\n${button.label}: ${button.href}` : "", "", "--", FOOTER].join("\n");

@@ -71,7 +71,7 @@ ok("John has nothing waiting on him: no badge", (await john.evaluate(() => windo
 await andrew.click('[data-tab="approve"]');
 await andrew.locator(`[data-open="${CID}"]`).click();
 await andrew.waitForSelector("#approve");
-ok("Approve a claim: who, how much, Claude's check", (await andrew.textContent("#title")) === "Approve a claim" && /John Healy/.test(await andrew.textContent("#root")) && /\$211\.44/.test(await andrew.textContent("#root")) && /Everything checks out/.test(await andrew.textContent(".allok")));
+ok("Approve a claim: who, how much, Claude's check", (await andrew.textContent("#title")) === "Approve a claim" && /John Healy/.test(await andrew.textContent("#root")) && /\$211\.44/.test(await andrew.textContent("#root")) && /One thing to look at/.test(await andrew.textContent(".looks")) && /Green P parking: no receipt, so \$18\.00 isn't confirmed/.test(await andrew.textContent(".looks")));
 await andrew.screenshot({ path: D + "exp-approve-phone.png", fullPage: true });
 await andrew.click("#approve");
 await andrew.waitForSelector(".stamp");
@@ -83,6 +83,7 @@ await andrew.screenshot({ path: D + "exp-approved-phone.png", fullPage: true });
 const line = andrew.locator(".line", { hasText: "Green P" }); await line.click();
 await andrew.waitForSelector(".sheet img", { timeout: 8000 });
 ok("tapping a line shows its card statement and the reason", /didn't print a receipt/.test(await andrew.textContent(".sheet")));
+ok("…with its amount flagged as not confirmed, to compare with the statement", /Amount not confirmed/.test(await andrew.textContent(".sheet")) && /Compare \$18\.00 with the charge on the card statement above/.test(await andrew.textContent(".sheet")));
 await andrew.screenshot({ path: D + "exp-linesheet-phone.png" });
 await andrew.goBack(); await andrew.waitForTimeout(300);
 ok("back closes it, still on the claim", (await andrew.locator(".sheet").count()) === 0 && (await andrew.textContent("#title")) === "Approve a claim");

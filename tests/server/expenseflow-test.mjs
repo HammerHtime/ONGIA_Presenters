@@ -55,7 +55,9 @@ ok("John's home: nothing being built, the sent claim under past, waiting", hj.cu
 ok("another board member can't open it", (await call(`/api/expenses?claim=${C}`, "GET", undefined, DEREK)).status === 403);
 ok("Peglar can't either, while he isn't standing in for anyone", (await call(`/api/expenses?claim=${C}`, "GET", undefined, PEG)).status === 403);
 const chk = (await claimOf(C, PRES)).checks;
-ok("the approver gets Claude's check with it, in sentences", chk.ok === true && chk.summary.join(". ") === "Mileage is at $0.62 a kilometre. The line with no receipt has a reason and the card statement", JSON.stringify(chk.summary));
+ok("the approver gets Claude's check with it, in sentences", chk.summary.join(". ") === "Mileage is at $0.62 a kilometre. The line with no receipt has a reason and the card statement", JSON.stringify(chk.summary));
+// Andrew, 3 Nov 2026: a card statement's amount can't be confirmed; it is flagged for the approvers, and the claim still goes.
+ok("…and the no-receipt amount is flagged as not confirmed, not passed as checked", chk.ok === false && chk.notes.length === 1 && chk.notes[0] === "Green P: no receipt, so $18.00 isn't confirmed. Check it against the card statement.", JSON.stringify(chk.notes));
 
 console.log("— approving, and sending back");
 ok("John can't approve his own", (await decide(C, JOHN, "approve")).status === 403);

@@ -924,7 +924,8 @@ async function lineSheet(c, l) {
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("What it was for", l.purpose)}</div>
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
-    ${l.kind === "noreceipt" ? `<div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
+    ${l.kind === "noreceipt" ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
+      <div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
   document.body.append(el);
   history.pushState({ sheet: true }, "");
   el.querySelector("[data-close]").onclick = () => history.back();
