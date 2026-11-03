@@ -297,7 +297,14 @@ export const getInbox = (eventId) => read(`inbox:${eventId}`);
 export const putInbox = (eventId, value) => write(`inbox:${eventId}`, value);
 /** The logistics sheet as it was uploaded (see sheetcheck.mjs): the frozen baseline presenters are compared with. */
 /** An RBH event's statement of work and invoice (see sow.mjs). Its own record, so nothing else can read the money. */
-export const getSow = (eventId) => read(`sow:${eventId}`);
+// A line added after RBH approved the SOW has no agreed amount: nil, on the invoice only. Given an estimate while the
+// amounts were unlocked, it is meant for the SOW sent to RBH again (Andrew 3 Nov 2026, the VIP event), so it reads as an
+// ordinary line everywhere: the screen, the PDF, the totals and the lock. Settled on reading, so a SOW saved before
+// this (the VIP event's, with two such lines) is read right without being rewritten.
+const settleSow = (sow) => (sow?.lines?.some((l) => l.added && Number(l.estimate) > 0)
+  ? { ...sow, lines: sow.lines.map((l) => { if (!l.added || !(Number(l.estimate) > 0)) return l; const { added, ...rest } = l; return rest; }) }
+  : sow);
+export const getSow = async (eventId) => settleSow(await read(`sow:${eventId}`));
 export const putSow = (eventId, value) => write(`sow:${eventId}`, value);
 export const getSheetBaseline = (eventId) => read(`sheet:${eventId}`);
 export const putSheetBaseline = (eventId, value) => write(`sheet:${eventId}`, value);

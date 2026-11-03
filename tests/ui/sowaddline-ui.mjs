@@ -4,7 +4,7 @@ process.env.ADMIN_KEY = "testkey";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const { issueSession } = await import(REPO + "netlify/functions/lib/auth.mjs");
 const D = new URL(".", import.meta.url).pathname;
-const S = "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
+const S = process.env.DESK_URL || "http://127.0.0.1:8788", H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
@@ -71,6 +71,31 @@ for (const [w, h, tag] of [[1280, 900, "laptop"], [390, 844, "phone"]]) {
   }
   await p.locator("#sw-table").screenshot({ path: D + `sow-addline-onsow-${tag}.png` });
   ok(`${tag}: fits, no page errors (unlocked)`, (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && !errs.length, errs.join(" | "));
+  await p.close();
+}
+// Moving a line while the last move is still saving (Andrew 3 Nov 2026: two lines on the VIP event's SOW traded ids
+// this way, and receipts are filed by line id). The saves are slowed so each move lands while one is on its way.
+{
+  const ev2 = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: `RBH Move ${T}`, city: "Montreal, QC", venue: "V", dayOne: "2026-11-23", lastDay: "2026-11-27", invite: false, kind: "rbh", province: "QC", invoicePrefix: "MVU",
+    board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }] }) })).event;
+  let s2 = await api(`/api/sow?event=${ev2.id}&create=1`, { method: "POST", body: JSON.stringify({ from: "standard" }) });
+  s2 = await api(`/api/sow?event=${ev2.id}`, { method: "PUT", body: JSON.stringify({ lines: s2.sow.lines.map((l, i) => ({ ...l, estimate: 100 * (i + 1) })), taxes: s2.sow.taxes }) });
+  const idOf = new Map(s2.sow.lines.map((l) => [l.name, l.id])), n = s2.sow.lines.length, last = s2.sow.lines[n - 1].name;
+  const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
+  const token = issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
+  await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true }]);
+  const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(`${S}/admin.html#event/${ev2.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
+  await p.locator('.etab[data-tab="money"]').click(); await p.waitForTimeout(1200);
+  const fold = p.locator("#sowcard"); if (!(await fold.evaluate((d) => d.open))) await fold.locator("summary").first().click();
+  await p.route(/\/api\/sow\?event=/, async (route) => { if (route.request().method() === "PUT") await new Promise((r) => setTimeout(r, 900)); await route.continue(); });
+  for (let k = 1; k <= 3; k++) { await p.locator(`#sw-table [data-up="${n - k}"]`).click(); await p.waitForTimeout(250); }
+  await p.waitForTimeout(5000);
+  const after = (await api(`/api/sow?event=${ev2.id}`)).sow.lines;
+  ok("moved up three places while saving: it is where it was put", after[n - 4]?.name === last, after.map((l) => l.name).join(" | "));
+  const traded = after.filter((l) => idOf.get(l.name) !== l.id).map((l) => l.name);
+  ok("…and every line kept its own id (none traded)", !traded.length, traded.join(", "));
+  ok("no page errors (moving)", !errs.length, errs.join(" | "));
   await p.close();
 }
 await b.close();

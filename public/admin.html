@@ -7705,12 +7705,17 @@ function wireSow(ev, S, { onSums = null } = {}) {
 
   const save = async (quiet) => {
     read(); dirty = false;   // anything typed while this save is on its way marks it not saved again
+    // The named lines and rows as sent, in the order sent: the server answers in that order. Its ids are matched to
+    // these, never to the screen, where a row may have moved while the save was on its way (Andrew 3 Nov 2026: moving
+    // a line up twice quickly on the VIP event's SOW traded two lines' ids, and receipts are filed by line id).
+    const named = (rows) => (rows ?? []).filter((l) => String(l.name ?? "").trim());
+    const sentLines = named(sow.lines), sentInternal = named(sow.internal);
     const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) }).catch((x) => { dirty = true; throw x; });
     if (quiet) {
       // Saved as you go: what is on the screen stays as typed (a line still being named isn't kept by the server yet);
       // each named line and row takes the id the server gave it, so the next save is the same line, not a new one.
-      const ids = (mine, theirs) => { const named = (mine ?? []).filter((l) => String(l.name ?? "").trim()); (theirs ?? []).forEach((l, i) => { if (named[i]) named[i].id = l.id; }); };
-      ids(sow.lines, out.sow.lines); ids(sow.internal, out.sow.internal);
+      const ids = (sent, theirs) => (theirs ?? []).forEach((l, i) => { if (sent[i]) sent[i].id = l.id; });
+      ids(sentLines, out.sow.lines); ids(sentInternal, out.sow.internal);
       const { lines, taxes, internal, program, ...rest } = out.sow;
       Object.assign(sow, rest, { lines: sow.lines.map((l) => {
         const s = (lines ?? []).find((x) => x.id === l.id), m = { ...s, ...l };

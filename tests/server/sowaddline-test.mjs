@@ -87,5 +87,34 @@ ok("and its amount is now agreed, so locked like the others", moved.status === 4
   const text = pdfText(Buffer.from(await res.res.arrayBuffer()));
   ok("the invoice bills the at-cost line from its receipts", /hockey/i.test(text) && /777\.77/.test(text), text.slice(0, 400));
 }
+
+// The VIP event's SOW as it stood on 3 Nov 2026, saved before this fix: approved, unlocked, and two lines still marked
+// "added" though both have an estimate (one of them an agreed line that picked up the mark when two rows traded ids).
+// It must read as RBH will see it, without being rewritten first, and locking it must not wipe those estimates.
+{
+  const { putSow } = await import(F + "lib/store.mjs");
+  const vip = (await call(events, "/api/events", "POST", { title: "RBH VIP Copy", city: "Montreal", dayOne: "2026-11-15", lastDay: "2026-11-17", invite: false, kind: "rbh", province: "QC", invoicePrefix: "VPC",
+    board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] })).event;
+  let v = await call(sowFn, `/api/sow?event=${vip.id}&create=1`, "POST", { from: "standard" });
+  v = await call(sowFn, `/api/sow?event=${vip.id}`, "PUT", { lines: v.sow.lines.slice(0, 4).map((l, i) => ({ ...l, estimate: 1000 * (i + 1) })), taxes: v.sow.taxes });
+  for (const s of ["submitted", "approved"]) v = await call(sowFn, `/api/sow?event=${vip.id}&status=${s}`, "PUT");
+  const [a, b2, c, d] = v.sow.lines;
+  const stored = { ...v.sow, unlocked: true, lines: [a, b2, { ...d, name: "Toronto Entertainment", estimate: 4500, added: true }, c, { id: "lvipnew1", name: "Pre/Post Event Management", description: "", type: "fixed", estimate: 2800, actual: 4100, added: true }] };
+  delete stored.receiptsOther; stored.lines = stored.lines.map(({ receiptsTotal, receiptCount, ...l }) => l);
+  await putSow(vip.id, stored);
+  const want = 1000 + 2000 + 4500 + 3000 + 2800;
+  v = await call(sowFn, `/api/sow?event=${vip.id}`);
+  ok("VIP copy: both lines with an estimate read as ordinary SOW lines", v.status === 200 && !v.sow.lines.some((l) => l.added), JSON.stringify(v.sow.lines.map((l) => [l.name, l.estimate, l.added])));
+  ok("VIP copy: the SOW adds up all five", v.estimate.subtotal === want, `${v.estimate.subtotal} vs ${want}`);
+  let text = pdfText(Buffer.from(await (await call(sowFn, `/api/sow?event=${vip.id}&doc=sow`)).res.arrayBuffer()));
+  ok("VIP copy: the SOW PDF lists both, at their estimates", /TORONTO ENTERTAINMENT/i.test(text) && /4,500\.00/.test(text) && /PRE\/POST EVENT MANAGEMENT/i.test(text) && /2,800\.00/.test(text) && new RegExp(want.toLocaleString("en-US") + "\\.00").test(text), text.slice(0, 700));
+  v = await call(sowFn, `/api/sow?event=${vip.id}&status=submitted`, "PUT");
+  ok("VIP copy: marked sent again, it locks with nothing left over", v.locked === true && !(v.changedSinceSent ?? []).length && v.estimate.subtotal === want);
+  const staleVip = stored.lines;   // a page opened before the fix, still saying "added" on both
+  v = await call(sowFn, `/api/sow?event=${vip.id}`, "PUT", { lines: staleVip, taxes: v.sow.taxes });
+  ok("VIP copy: a save from that page keeps both estimates (locked lines aren't zeroed)", v.status === 200 && v.sow.lines.find((l) => l.name === "Toronto Entertainment")?.estimate === 4500 && v.sow.lines.find((l) => l.name === "Pre/Post Event Management")?.estimate === 2800 && !v.sow.lines.some((l) => l.added), JSON.stringify(v).slice(0, 300));
+  text = pdfText(Buffer.from(await (await call(sowFn, `/api/sow?event=${vip.id}&doc=sow`)).res.arrayBuffer()));
+  ok("VIP copy: and the SOW PDF still lists both", /TORONTO ENTERTAINMENT/i.test(text) && /PRE\/POST EVENT MANAGEMENT/i.test(text));
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
