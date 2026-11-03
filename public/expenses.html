@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA Expenses</title>
+<link rel="icon" href="/assets/expenses-favicon-32.png" sizes="32x32">
+<link rel="icon" href="/assets/expenses-favicon-16.png" sizes="16x16">
+<link rel="apple-touch-icon" href="/assets/expenses-icon-180.png">
+<link rel="manifest" href="/expenses.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ONGIA Expenses">
+<meta name="application-name" content="ONGIA Expenses">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1a35">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme:light;
+    --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
+    --ink:#12161f; --ink-mid:#2c3448; --muted:#596176;
+    --navy:#1a2f5e; --navy-deep:#0e1a35;
+    --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
+    --border:#ddd7c8; --edge:#bfb49a;
+    --done:#2f6b4f; --done-bg:#e2efe7;
+    --wait:#8a5d0c; --wait-bg:#f8ecd5;
+    --late:#a33328; --late-bg:#f7e3e0;
+    --fd:"DM Serif Display",Georgia,serif;
+    --fb:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --fu:"Oswald","Arial Narrow",sans-serif;
+    --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;-webkit-text-size-adjust:100%}
+  body{min-height:100vh;padding-bottom:calc(64px + var(--safe-bottom))}
+  button{font:inherit;color:inherit}
+  [hidden]{display:none!important}
+  .top{position:sticky;top:0;z-index:5;background:var(--navy-deep);color:#fff;border-bottom:3px solid var(--gold);padding:calc(10px + var(--safe-top)) 14px 10px;display:flex;align-items:center;gap:8px;min-height:54px}
+  .top h1{font-family:var(--fd);font-weight:400;font-size:21px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .back{background:none;border:0;color:#fff;font-size:26px;line-height:1;padding:4px 10px 6px 2px;cursor:pointer;opacity:.9}
+  .top .me{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:999px;width:34px;height:34px;font-size:12.5px;font-weight:700;letter-spacing:.04em;cursor:pointer;flex:none}
+  .menu{position:absolute;right:12px;top:calc(100% + 6px);background:#fff;color:var(--ink);border:1px solid var(--edge);border-radius:12px;box-shadow:0 10px 30px rgba(14,26,53,.18);padding:12px 14px;width:260px;font-size:14px}
+  .menu .who{color:var(--ink-mid);margin:0 0 10px;line-height:1.35}
+  main{max-width:560px;margin:0 auto;padding:14px 16px 24px}
+  .card{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin:0 0 10px}
+  .k{font-family:var(--fu);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+  .run{background:var(--navy-deep);color:#fff;border-radius:16px;padding:14px 16px 15px;margin:0 0 12px}
+  .run .k{color:#c7cbe0}
+  .run .big{font-family:var(--fd);font-size:38px;line-height:1.08;margin:2px 0 3px;font-variant-numeric:tabular-nums}
+  .run .s{font-size:13.5px;color:#dfe3f0}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-align:center;border-radius:999px;padding:13px 16px;font-weight:600;font-size:16px;border:1.5px solid var(--edge);background:#fff;color:var(--ink);cursor:pointer;min-height:48px;text-decoration:none}
+  .btn:disabled{opacity:.55;cursor:default}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#1b1404}
+  .btn.navy{background:var(--navy);border-color:var(--navy);color:#fff}
+  .btn.ghost{background:#fff}
+  .btn.danger{background:none;border-color:transparent;color:var(--late);font-weight:600;min-height:44px}
+  .btn svg{flex:none}
+  .row2{display:flex;gap:10px;margin:10px 0 4px}.row2 .btn{flex:1;font-size:15px;padding:11px 10px}
+  .linkish{display:block;margin:8px auto 0;background:none;border:0;color:var(--navy);text-decoration:underline;font-size:14px;cursor:pointer;padding:6px}
+  .day{font-family:var(--fu);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:16px 2px 5px}
+  .lines{padding:2px 12px}
+  .line{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-top:1px solid var(--border);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left}
+  .line:first-child{border-top:0}
+  .thumb{width:44px;height:56px;border-radius:6px;background:#fff;border:1px solid var(--border);flex:none;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb.kind{background:var(--sunk);box-shadow:none}
+  .line .w{font-weight:600;font-size:15.5px}
+  .line .s{font-size:13px;color:var(--muted);margin-top:1px}
+  .amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;font-size:15.5px}
+  .check{font-size:12.5px;margin-top:3px;display:flex;align-items:center;gap:4px}
+  .check.ok{color:var(--done)}.check.wt{color:var(--wait)}.check.bad{color:var(--late)}.check.mu{color:var(--muted)}
+  .needs{font-size:12.5px;color:var(--wait);margin-top:2px}
+  .note{font-size:13.5px;color:var(--ink-mid);line-height:1.45}
+  .tiny{font-size:12.5px;color:var(--muted);line-height:1.4}
+  .empty{text-align:center;padding:26px 10px;color:var(--ink-mid)}
+  .empty .big{font-family:var(--fd);font-size:22px;color:var(--navy-deep);margin-bottom:4px}
+  .field{margin:0 0 11px}
+  .field label,.lab{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted);margin:0 0 4px}
+  .read{font-size:10.5px;color:var(--done);font-family:var(--fu);letter-spacing:.1em;text-transform:uppercase}
+  input,select,textarea{width:100%;background:#fff;border:1px solid var(--edge);border-radius:10px;padding:11px 12px;font:inherit;font-size:16px;color:var(--ink);min-height:46px}
+  textarea{min-height:92px;resize:vertical;line-height:1.4}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-offset:1px;border-color:var(--navy)}
+  .two{display:flex;gap:10px}.two .field{flex:1;min-width:0}
+  .preview{display:flex;gap:12px;align-items:center;margin:0 0 14px}
+  .preview .pic{width:96px;height:124px;border-radius:8px;background:#fff;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.14);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--fu);letter-spacing:.1em;cursor:pointer;padding:0}
+  .preview .pic img{width:100%;height:100%;object-fit:cover}
+  .status{display:flex;gap:8px;align-items:flex-start}
+  .spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin 0.9s linear infinite;flex:none;margin-top:2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .say{border-radius:12px;padding:11px 13px;margin:0 0 12px;font-size:14px;line-height:1.45}
+  .say.bad{background:var(--late-bg);color:var(--late);border:1px solid #e2a79f}
+  .say.wt{background:var(--wait-bg);color:var(--wait);border:1px solid #e5c98c}
+  .say.ok{background:var(--done-bg);color:var(--done);border:1px solid #9cc7b0}
+  .say.mu{background:var(--sunk);color:var(--ink-mid)}
+  .calc{font-size:14px;color:var(--ink-mid);margin:-2px 0 12px;font-variant-numeric:tabular-nums}
+  .calc b{font-size:17px;color:var(--ink)}
+  .shotbox{display:flex;align-items:center;gap:10px}
+  .shotbox .thumb{width:40px;height:50px}
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:6px max(0px,calc((100vw - 560px) / 2)) calc(6px + var(--safe-bottom))}
+  .tabs button{background:none;border:0;font-size:13px;color:var(--muted);padding:8px 10px;min-height:44px;cursor:pointer;display:flex;align-items:center;gap:5px}
+  .tabs button.on{color:var(--navy);font-weight:700}
+  .tabs .n{background:var(--late);color:#fff;border-radius:999px;font-size:10.5px;padding:1px 6px;font-weight:700}
+  .signin{max-width:400px;margin:36px auto 0;text-align:center}
+  .signin img.icon{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(14,26,53,.25)}
+  .signin h2{font-family:var(--fd);font-weight:400;font-size:28px;margin:14px 0 4px;color:var(--navy-deep)}
+  .signin p{color:var(--ink-mid);margin:0 0 20px;font-size:15px;line-height:1.45}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + var(--safe-bottom));background:var(--navy-deep);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:min(92vw,480px);box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9;pointer-events:none}
+  .toast.bad{background:var(--late)}
+  .sheet-bg{position:fixed;inset:0;background:rgba(14,26,53,.82);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+  .sheet-bg img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}
+  .pdfrow{display:flex;align-items:center;gap:10px}
+  .hint{font-size:12.5px;color:var(--muted);margin:-6px 0 11px;line-height:1.4}
+  .pill{display:inline-block;font-family:var(--fu);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;border-radius:999px;padding:2px 9px;font-weight:500;vertical-align:middle;white-space:nowrap}
+  .pill.ok{background:var(--done-bg);color:var(--done)}.pill.wt{background:var(--wait-bg);color:var(--wait)}.pill.bad{background:var(--late-bg);color:var(--late)}.pill.mu{background:var(--sunk);color:var(--muted)}.pill.test{background:#2c3448;color:#fff}
+  .allok{background:var(--done-bg);border:1.5px solid #9cc7b0;border-radius:14px;padding:12px 14px;margin:0 0 10px;display:flex;gap:11px}
+  .allok .tick{width:30px;height:30px;border-radius:50%;background:var(--done);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+  .allok b{color:var(--done)}
+  .looks{background:var(--wait-bg);border:1.5px solid #e5c98c;border-radius:14px;padding:12px 14px;margin:0 0 10px}
+  .looks b{color:var(--wait)}.looks ul{margin:6px 0 0;padding-left:18px}.looks li{margin:4px 0;font-size:14px;line-height:1.4;color:var(--ink-mid)}
+  .bigbtns{display:flex;gap:10px;margin:4px 0 10px}.bigbtns .btn{flex:1;padding:15px 10px;font-size:17px;min-height:54px}
+  .btn.green{background:var(--done);border-color:var(--done);color:#fff}.btn.green:disabled{opacity:1}.btn.red{background:var(--late);border-color:var(--late);color:#fff}
+  .btn.dim{opacity:.4}
+  .stamp{background:var(--done-bg);border-radius:12px;padding:12px 14px;color:var(--done);font-weight:600;display:flex;gap:10px;align-items:center;margin:0 0 10px;font-size:15px}
+  .stamp span{font-weight:400}
+  .sentback{background:var(--late-bg);border:1.5px solid #e2a79f;border-radius:14px;padding:12px 14px;margin:0 0 12px}
+  .sentback b{color:var(--late)}
+  .quote{white-space:pre-wrap;margin-top:4px}
+  .slot{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:14.5px}.slot:first-of-type{border-top:0}
+  .slot>div:first-child{min-width:0;flex:1}.slot .r{flex:none;font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right}.slot .r.ok{color:var(--done);font-weight:600}.slot .r.you{color:var(--wait);font-weight:600}
+  .lock{display:flex;gap:10px;align-items:center;background:var(--sunk);border-radius:12px;padding:11px 13px;font-size:13.5px;margin:0 0 10px;line-height:1.4}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.chips button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:7px 12px;font-size:13.5px;min-height:38px;cursor:pointer}.chips button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .testbar{background:repeating-linear-gradient(135deg,#2c3448 0 10px,#39425a 10px 20px);color:#fff;font-size:13px;padding:8px 14px;text-align:center;border-radius:10px;margin:0 0 12px}
+  .rowbtn{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px 0;border-top:1px solid var(--border);width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
+  .rowbtn:first-child{border-top:0}.rowbtn .w{font-weight:600;font-size:15px}.rowbtn .s{font-size:13px;color:var(--muted);margin-top:2px}
+  details.more{margin:0 0 10px}details.more>summary{cursor:pointer;font-size:14px;color:var(--navy);padding:8px 2px;list-style:none}details.more>summary::-webkit-details-marker{display:none}
+  details.more>summary:before{content:"›";display:inline-block;margin-right:6px;transition:transform .15s}details.more[open]>summary:before{transform:rotate(90deg)}
+  .hist li{font-size:13px;color:var(--ink-mid);margin:4px 0;line-height:1.4}
+  .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;font-size:14px;line-height:1.35;cursor:pointer}
+  .switch input{width:22px;height:22px;min-height:0;flex:none}
+  .btn.small{width:auto;min-height:44px;padding:8px 18px;font-size:15px;flex:none}
+  .say .acts{display:flex;align-items:center;gap:6px;margin-top:10px}.say .acts .linkish{margin:0}
+  .sheet{position:fixed;inset:0;background:var(--paper);z-index:20;overflow:auto;padding-bottom:30px}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}.kv:first-child{border-top:0}.kv .k2{color:var(--muted);flex:none}
+  .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
+  .preview-rows{margin:4px 0 12px;padding:0;list-style:none}.preview-rows li{font-size:14px;padding:5px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}.preview-rows li:first-child{border-top:0}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <button class="back" id="back" type="button" aria-label="Back" hidden>‹</button>
+  <h1 id="title">ONGIA Expenses</h1>
+  <button class="me" id="me" type="button" hidden aria-haspopup="true" aria-expanded="false"></button>
+  <div class="menu" id="menu" hidden></div>
+</header>
+<main id="root" aria-live="polite"></main>
+<nav class="tabs" id="tabs" hidden></nav>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="pick" accept="image/*,application/pdf" hidden>
+<input type="file" id="shotpick" accept="image/*,application/pdf" hidden>
+<script type="module">
+/* ONGIA Expenses: a board member's expense claims, on their phone. The Briefing Room runs it behind the scenes
+   (/api/expenses); this page signs in with the member's ONGIA Microsoft account and opens nothing but their claims. */
+const $ = (id) => document.getElementById(id);
+const ROOT = $("root");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const money = (n) => (Number(n) || 0).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
+const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }); };
+// "12,50" is twelve fifty; "1,250.00" is twelve hundred and fifty.
+const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); return Number(/^\d+,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "")); };
+const longDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
+const ICON = {
+  camera: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  car: '<svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>',
+  note: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg>',
+  receipt: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zM9 8h6M9 12h6M9 16h4"/></svg>',
+  pdf: '<span style="font-family:var(--fu);font-size:12px;letter-spacing:.08em">PDF</span>',
+  tick: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>',
+};
+const MS_MARK = '<svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>';
+
+let SESSION = store.get("ongia-exp-session") || "";
+let ME = (() => { try { return JSON.parse(store.get("ongia-exp-me") || "null"); } catch { return null; } })();
+let HOME = null;          // what /api/expenses answered
+let VIEW = { name: "claim" };
+let EDIT = null;          // the line being checked or typed
+let TAB = "claim";
+let OPEN = null;          // a claim being looked at (sent, to approve, to pay)
+// Test mode: what you add goes on a test claim, marked TEST, that the President can delete with the others.
+const TESTMODE = () => store.get("ongia-exp-test") === "1";
+
+/* ---------- talking to the Briefing Room ---------- */
+async function api(path, { method = "GET", json, body, headers = {} } = {}) {
+  let res;
+  try {
+    res = await fetch(`/api/expenses${path}`, { method, headers: { "x-expense-key": SESSION, ...(json ? { "content-type": "application/json" } : {}), ...headers }, body: json ? JSON.stringify(json) : body });
+  } catch { throw Object.assign(new Error("No connection. Check your signal and try again."), { network: true }); }
+  const out = await res.json().catch(() => ({}));
+  if (res.status === 401) { signOut(false); signInScreen("Your sign-in has run out. Please sign in again."); throw Object.assign(new Error(out.error || "Please sign in again."), { status: 401, quiet: true }); }
+  if (!res.ok) throw Object.assign(new Error(out.error || `Something went wrong (${res.status}). Try again.`), { status: res.status, body: out });
+  return out;
+}
+let toastTimer = null;
+function toast(text, bad = false) {
+  let t = document.querySelector(".toast");
+  if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
+  t.className = `toast${bad ? " bad" : ""}`; t.textContent = text;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), bad ? 6000 : 3200);
+}
+
+/* ---------- signing in: the member's own ONGIA Microsoft account ---------- */
+// Microsoft knows the desk's sign-in page as the way back, so the reply comes to /admin.html, which hands it straight
+// on to /expenses (see the top of admin.html). The verifier is kept in localStorage so it survives that hop.
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const randomCode = () => b64u(crypto.getRandomValues(new Uint8Array(32)));
+const RETURN = () => `${location.origin}/admin.html`;
+let AUTH = null;
+const authConfig = async () => (AUTH ??= await fetch("/api/auth").then((r) => r.json()).catch(() => ({ microsoft: null })));
+async function startMicrosoft() {
+  const { microsoft: ms } = await authConfig();
+  if (!ms) return signInScreen("Microsoft sign-in isn't set up on this site yet.");
+  const verifier = randomCode(), state = randomCode(), nonce = randomCode();
+  const challenge = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  store.set("ongia-xms", JSON.stringify({ verifier, state, nonce, at: Date.now() }));
+  const q = new URLSearchParams({ client_id: ms.client, response_type: "code", response_mode: "fragment", redirect_uri: RETURN(),
+    scope: "openid profile email", state, nonce, code_challenge: challenge, code_challenge_method: "S256" });
+  if (store.get("ongia-xms-pick")) { q.set("prompt", "select_account"); store.del("ongia-xms-pick"); }
+  location.assign(`${ms.authority}/oauth2/v2.0/authorize?${q}`);
+}
+/** Back from Microsoft: true when signed in, words when not, null when this wasn't a sign-in. */
+async function finishMicrosoft() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (!p.has("code") && !p.has("error")) return null;
+  let saved = null; try { saved = JSON.parse(store.get("ongia-xms") || "null"); } catch {}
+  store.del("ongia-xms");
+  history.replaceState(null, "", location.pathname);
+  const first = (t) => String(t ?? "").split(/\r?\n|Trace ID/)[0].trim();
+  if (p.has("error")) return first(p.get("error_description")) || "Microsoft sign-in was cancelled.";
+  if (!saved || p.get("state") !== saved.state || Date.now() - saved.at > 20 * 60e3) return "That sign-in didn't start here. Please try again.";
+  const { microsoft: ms } = await authConfig();
+  if (!ms) return "Microsoft sign-in isn't set up on this site yet.";
+  const tok = await fetch(`${ms.authority}/oauth2/v2.0/token`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: ms.client, grant_type: "authorization_code", code: p.get("code"),
+      redirect_uri: RETURN(), code_verifier: saved.verifier, scope: "openid profile email" }),
+  }).then((r) => r.json()).catch(() => ({}));
+  if (!tok.id_token) return first(tok.error_description) || "Microsoft didn't finish the sign-in. Please try again.";
+  const res = await fetch("/api/expenses?signin=1", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idToken: tok.id_token, nonce: saved.nonce }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) return out.error || `Sign-in failed (${res.status}).`;
+  SESSION = out.session; ME = out.me;
+  store.set("ongia-exp-session", SESSION); store.set("ongia-exp-me", JSON.stringify(ME));
+  return true;
+}
+function signOut(pick = true) {
+  SESSION = ""; ME = null; HOME = null;
+  try { navigator.clearAppBadge?.().catch(() => {}); } catch {} document.title = "ONGIA Expenses";
+  store.del("ongia-exp-session"); store.del("ongia-exp-me");
+  if (pick) store.set("ongia-xms-pick", "1");
+}
+function signInScreen(message) {
+  chrome({ title: "ONGIA Expenses", back: false, tabs: false, me: false });
+  ROOT.innerHTML = `<div class="signin">
+    <img class="icon" src="/assets/expenses-icon-180.png" alt="" width="96" height="96">
+    <h2>ONGIA Expenses</h2>
+    <p>Sign in with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
+    ${message ? `<div class="say bad" style="text-align:left"><b>Couldn't sign in.</b> ${esc(message)}</div>` : ""}
+    <button class="btn navy" id="ms" type="button">${MS_MARK}<span>Sign in with Microsoft</span></button>
+  </div>`;
+  $("ms").onclick = (e) => { e.currentTarget.disabled = true; e.currentTarget.lastElementChild.textContent = "Opening Microsoft…"; startMicrosoft(); };
+}
+
+/* ---------- the frame: title, back, who, tabs ---------- */
+function chrome({ title, back, tabs = true, me = true }) {
+  $("title").textContent = title;
+  $("back").hidden = !back;
+  $("me").hidden = !me || !ME;
+  if (ME) $("me").textContent = String(ME.name || ME.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  $("menu").hidden = true;
+  const t = $("tabs");
+  t.hidden = !tabs;
+  if (tabs) {
+    const tabs = HOME?.tabs ?? ["claim", "past"];
+    const short = tabs.length > 3;
+    const LABEL = { claim: "My claim", past: short ? "Past" : "Past claims", approve: "To approve", all: short ? "All" : "All claims" };
+    const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0);
+    t.innerHTML = tabs.map((k) => `<button type="button" data-tab="${k}" class="${TAB === k ? "on" : ""}" ${TAB === k ? 'aria-current="page"' : ""}>${LABEL[k]}${k === "approve" && n ? `<span class="n" aria-label="${n} waiting">${n}</span>` : ""}</button>`).join("");
+    t.querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => { TAB = b.dataset.tab; VIEW = { name: TAB }; EDIT = null; OPEN = null; render(); window.scrollTo(0, 0); }; });
+  }
+}
+$("me").onclick = (e) => {
+  e.stopPropagation();
+  const m = $("menu");
+  m.hidden = !m.hidden; $("me").setAttribute("aria-expanded", String(!m.hidden));
+  m.innerHTML = `<p class="who">Signed in as <b>${esc(ME?.name)}</b><br>${esc(ME?.email)}${ME?.title && ME.title !== "Board member" ? `<br>${esc(ME.title)}` : ""}</p>
+    <label class="switch" for="testmode"><span><b>Test mode</b><br><span class="tiny">What you add goes on a separate claim marked TEST, which can be deleted.</span></span><input type="checkbox" id="testmode" ${TESTMODE() ? "checked" : ""}></label>
+    ${badgeRow()}
+    <button class="btn ghost" id="signout" type="button">Sign out</button>`;
+  if ($("badgemenu")) $("badgemenu").onclick = async (ev) => { ev.stopPropagation(); ev.currentTarget.disabled = true; await allowBadge(); $("badgerow").outerHTML = badgeRow(); };
+  $("signout").onclick = () => { signOut(); signInScreen(); };
+  $("testmode").onchange = async (ev) => { if (ev.target.checked) store.set("ongia-exp-test", "1"); else store.del("ongia-exp-test"); $("menu").hidden = true; TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = null; render(); await loadHome().catch((er) => toast(er.message, true)); };
+};
+document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.closest("#menu")) $("menu").hidden = true; });
+$("back").onclick = () => history.back();
+window.addEventListener("popstate", () => {
+  if (document.querySelector(".sheet")) { document.querySelector(".sheet").remove(); return; }
+  if (EDIT) leaveEditor(); else { VIEW = { name: TAB }; OPEN = null; render(); }
+});
+
+/* ---------- the photo: made small on the phone, kept on it until it has gone ---------- */
+async function shrink(file) {
+  const isImage = /^image\//.test(file.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(file.name);
+  if (!isImage) return { blob: file, thumb: null, name: file.name || "receipt.pdf" };
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const draw = (max, q) => new Promise((res) => {
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob((b) => res(b), "image/jpeg", q);
+    });
+    const big = await draw(2000, 0.85), thumb = await draw(180, 0.7);
+    const name = (file.name || "receipt").replace(/\.[^.]+$/, "") + ".jpg";
+    return { blob: big && (big.size < file.size || !/jpe?g|png/i.test(file.type)) ? big : file, thumb, name };
+  } catch { return { blob: file, thumb: null, name: file.name || "receipt.jpg" }; }
+  finally { URL.revokeObjectURL(url); }
+}
+const DB = () => new Promise((res, rej) => { const r = indexedDB.open("ongia-expenses", 1); r.onupgradeneeded = () => r.result.createObjectStore("outbox", { keyPath: "id" }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const tx = async (mode, fn) => { const db = await DB(); return new Promise((res, rej) => { const t = db.transaction("outbox", mode); const s = t.objectStore("outbox"); const out = fn(s); t.oncomplete = () => res(out?.result); t.onerror = () => rej(t.error); }); };
+const outbox = {
+  add: (item) => tx("readwrite", (s) => s.put(item)).catch(() => {}),
+  del: (id) => tx("readwrite", (s) => s.delete(id)).catch(() => {}),
+  all: () => tx("readonly", (s) => s.getAll()).catch(() => []),
+};
+let WAITING = 0;
+async function sendItem(item) {
+  const out = await api(`?add=receipt${item.where ?? ""}`, { method: "POST", body: item.blob, headers: { "x-file-name": encodeURIComponent(item.name), "x-upload-id": item.id } });
+  if (item.thumb) api(`?claim=${out.claim.id}&thumb=${out.line}`, { method: "POST", body: item.thumb }).catch(() => {});
+  await outbox.del(item.id);
+  return out;
+}
+/** A photo: kept on the phone first, then sent. If there's no signal, it stays on the phone and goes later. */
+async function addReceipt(file, { open = true } = {}) {
+  if (!file) return;
+  toast("Saving your receipt…");
+  const s = await shrink(file);
+  const item = { id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`, blob: s.blob, thumb: s.thumb, name: s.name, at: Date.now(), where: whereTo() };
+  await outbox.add(item);
+  try {
+    const out = await sendItem(item);
+    HOME.current = out.claim;
+    if (s.thumb) THUMBS.set(`${out.claim.id}:${out.line}`, URL.createObjectURL(s.thumb));
+    toast("Saved. Claude is reading it.");
+    if (open) { openLine(out.line); } else render();
+    pollReading();
+  } catch (e) {
+    if (e.network) { WAITING = (await outbox.all()).length; toast("No signal. The photo is kept on this phone and will be sent when you're back online.", true); render(); }
+    else { await outbox.del(item.id); if (!e.quiet) toast(e.message, true); }
+  }
+}
+/** Where a new line goes: the claim on screen, else a new one (a test one in test mode). */
+const whereTo = () => (HOME?.current?.canEdit ? `&claim=${HOME.current.id}` : TESTMODE() ? "&test=1" : "");
+async function flushOutbox() {
+  const items = await outbox.all();
+  WAITING = items.length;
+  if (!items.length || !SESSION) return;
+  let sent = 0;
+  for (const it of items.sort((a, b) => a.at - b.at)) {
+    try { const out = await sendItem(it); HOME && (HOME.current = out.claim); sent++; }
+    catch (e) { if (e.network) break; if (e.status && e.status !== 401) await outbox.del(it.id); }
+  }
+  WAITING = (await outbox.all()).length;
+  if (sent) { toast(`${sent} photo${sent === 1 ? "" : "s"} kept on this phone ${sent === 1 ? "has" : "have"} now been sent.`); await loadHome(); pollReading(); }
+}
+window.addEventListener("online", () => flushOutbox());
+$("cam").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; addReceipt(f); };
+$("pick").onchange = (e) => { const f = e.target.files?.[0]; e.target.value = ""; addReceipt(f); };
+
+/* ---------- small pictures of receipts, fetched with the sign-in ---------- */
+const THUMBS = new Map();   // "claim:line" → object URL, or "" when there is none
+async function fillThumbs() {
+  for (const el of ROOT.querySelectorAll("[data-thumb]")) {
+    const key = el.dataset.thumb;
+    if (THUMBS.has(key)) { const u = THUMBS.get(key); if (u) el.innerHTML = `<img src="${u}" alt="">`; continue; }
+    THUMBS.set(key, "");
+    const [c, l] = key.split(":");
+    fetch(`/api/expenses?claim=${c}&file=${l}&kind=thumb`, { headers: { "x-expense-key": SESSION } })
+      .then((r) => (r.ok ? r.blob() : null)).then((b) => { if (!b) return; const u = URL.createObjectURL(b); THUMBS.set(key, u); document.querySelectorAll(`[data-thumb="${key}"]`).forEach((x) => (x.innerHTML = `<img src="${u}" alt="">`)); })
+      .catch(() => {});
+  }
+}
+
+/* ---------- my claim ---------- */
+async function loadHome() {
+  HOME = await api(TESTMODE() ? "?test=1" : "");
+  ME = HOME.me; store.set("ongia-exp-me", JSON.stringify(ME));
+  paintBadge();
+  if (!EDIT) render();
+}
+/*
+ * The count on the icon on an iPhone (Andrew, 3 Nov 2026: "add the allow button for the badge"). An iPhone shows a
+ * number on a home-screen app only once the person has allowed that app's notifications, and it asks only after a tap,
+ * so the app offers a button: once on My claim, and always in the menu. The app sends no notifications.
+ */
+function badgeState() {
+  // Only a home-screen app on an iPhone or iPad needs this (navigator.standalone is Apple's). Elsewhere the icon count
+  // needs no permission, or isn't offered at all.
+  if (navigator.standalone !== true || !("setAppBadge" in navigator) || typeof Notification === "undefined") return "none";
+  return { granted: "on", denied: "off" }[Notification.permission] ?? "ask";
+}
+async function allowBadge() {
+  let said = "default";
+  try { said = await Notification.requestPermission(); } catch { /* an older phone: nothing to ask */ }
+  if (said === "granted") { paintBadge(); toast("Done. The count shows on the app icon."); }
+  else if (said === "denied") toast("Your phone said no. You can turn it on in Settings, Notifications, ONGIA Expenses.", true);
+  $("badgeask")?.remove();
+  return said;
+}
+const badgeCard = () => (badgeState() === "ask" && !store.get("ongia-exp-badge-later") ? `<div class="say mu" id="badgeask"><b>Show the count on the app icon?</b>
+  Then your home screen shows a number when a claim needs you. Your phone asks about notifications first: tap Allow there too. The app doesn't send notifications; this is only for the number.
+  <div class="acts"><button class="btn navy small" id="badgeyes" type="button">Allow</button><button class="linkish" id="badgeno" type="button">Not now</button></div></div>` : "");
+function wireBadgeCard() {
+  if (!$("badgeyes")) return;
+  $("badgeyes").onclick = (ev) => { ev.currentTarget.disabled = true; allowBadge(); };
+  $("badgeno").onclick = () => { store.set("ongia-exp-badge-later", "1"); $("badgeask").remove(); };
+}
+function badgeRow() {
+  const st = badgeState();
+  if (st === "none") return "";
+  const words = { ask: "Off until you allow it.", on: "On.", off: "Off. Your phone has notifications turned off for this app: Settings, Notifications, ONGIA Expenses." }[st];
+  return `<div class="switch" id="badgerow"><span><b>Count on the app icon</b><br><span class="tiny">${words}</span></span>${st === "ask" ? `<button class="btn navy small" id="badgemenu" type="button">Allow</button>` : ""}</div>`;
+}
+/**
+ * The count on the app's icon, this person's own (Andrew, 2 Nov 2026: "John Healy doesn't get a badge notification if
+ * Andrew Hammond has a few things"): claims waiting for their approval, payments for them to record, and a claim of
+ * theirs sent back. On a computer an installed app shows it as it is; a phone shows it once notifications are allowed.
+ * The window's title carries it too, for a browser tab.
+ */
+function paintBadge() {
+  const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0) + (HOME?.current?.status === "rejected" ? 1 : 0);
+  document.title = n ? `(${n}) ONGIA Expenses` : "ONGIA Expenses";
+  try { if ("setAppBadge" in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* not offered here */ }
+}
+function checkRow(l) {
+  const c = l.check ?? {};
+  switch (c.state) {
+    case "match": return `<div class="check ok">${ICON.tick} Matches the receipt${c.currency ? ` (in ${esc(c.currency)})` : ""}</div>`;
+    case "differs": return `<div class="check wt">The receipt says ${money(c.total)}${c.currency ? ` ${esc(c.currency)}` : ""}</div>`;
+    case "noamount": return `<div class="check wt">The receipt says ${money(c.total)}. Type the amount you're claiming.</div>`;
+    case "reading": return `<div class="check mu"><span class="spin" style="width:12px;height:12px;margin:0"></span> Reading the receipt…</div>`;
+    case "unread": return `<div class="check wt">Claude couldn't read it. Tap to type it in.</div>`;
+    case "notreceipt": return `<div class="check bad">That doesn't look like a receipt. Tap to check.</div>`;
+    case "nototal": return `<div class="check wt">No total on the receipt. Type the amount.</div>`;
+    case "mileage": return `<div class="check mu">${esc(l.km ?? 0)} km × ${money(l.rate)}</div>`;
+    case "statement": return `<div class="check mu">No receipt: reason and card statement added</div>`;
+    case "statement-missing": return "";
+    default: return "";
+  }
+}
+function lineRow(l, claimId) {
+  const pic = l.kind === "receipt"
+    ? (l.file?.type === "application/pdf" ? `<div class="thumb">${ICON.pdf}</div>` : `<div class="thumb" data-thumb="${claimId}:${l.id}">${ICON.receipt}</div>`)
+    : `<div class="thumb kind">${l.kind === "mileage" ? ICON.car : ICON.note}</div>`;
+  const title = l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${esc(l.from || "?")} to ${esc(l.to || "?")}` : ""}` : esc(l.paidTo || (l.check?.state === "reading" ? "New receipt" : l.kind === "noreceipt" ? "No receipt" : "Receipt"));
+  const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
+  const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.join(", "))}</div>` : "";
+  return `<button type="button" class="line" data-line="${esc(l.id)}">${pic}
+    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${checkRow(l)}${needs}</div>
+    <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
+}
+const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
+const firstName = (n) => String(n ?? "").split(" ")[0];
+const when = (iso) => new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const testBar = () => (TESTMODE() ? `<div class="testbar"><b>TEST MODE.</b> What you add goes on a test claim. Turn it off in the menu (your initials, top right).</div>` : "");
+function claimScreen() {
+  TAB = "claim";
+  chrome({ title: "My claim", back: false });
+  const c = HOME?.current;
+  const lines = c?.lines ?? [];
+  const back = c?.status === "rejected" ? c.rejected : null;
+  const evs = [...new Set(lines.map((l) => l.eventTitle).filter(Boolean))];
+  const groups = new Map();
+  for (const l of lines) { const k = l.date || ""; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(l); }
+  ROOT.innerHTML = `${testBar()}${badgeCard()}
+    ${back ? `<div class="sentback"><b>Sent back by ${esc(back.by?.name)}${back.for ? ` for the ${esc(back.for)}` : ""} · ${esc(when(back.at))}</b>
+      <div class="note quote">"${esc(back.comment)}"</div><div class="tiny" style="margin-top:6px">Change what's needed below, then send it again.</div></div>` : ""}
+    <div class="run" id="running">
+      <div class="k">${esc((c?.month || HOME?.month || "").split(" ")[0])} · ${back ? "sent back" : "not sent yet"}${c?.test ? " · test" : ""}</div>
+      <div class="big">${money(c?.sums.total ?? 0)}</div>
+      <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : "Nothing added yet. Take a photo of your first receipt."}</div>
+    </div>
+    ${WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : ""}
+    <button class="btn gold" id="addcam" type="button">${ICON.camera}<span>Take a photo of a receipt</span></button>
+    <div class="row2">
+      <button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button>
+      <button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button>
+    </div>
+    <button class="linkish" id="addpick" type="button">or choose a photo or PDF you already have</button>
+    ${[...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => lineRow(l, c.id)).join("")}</div>`).join("")}
+    ${lines.length ? `<div id="submitsay" style="margin-top:16px"></div>
+      <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
+      <p class="tiny center" style="margin:8px 4px 0">It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.</p>` : ""}
+    ${(HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : ""}
+    ${c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : ""}`;
+  wireBadgeCard();
+  $("addcam").onclick = () => $("cam").click();
+  $("addpick").onclick = () => $("pick").click();
+  $("addmile").onclick = () => openNew("mileage");
+  $("addnone").onclick = () => openNew("noreceipt");
+  if ($("retry")) $("retry").onclick = () => flushOutbox();
+  if ($("submit")) $("submit").onclick = submitClaim;
+  if ($("delclaim")) $("delclaim").onclick = deleteClaim;
+  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => openLine(b.dataset.line); });
+  fillThumbs();
+}
+async function submitClaim() {
+  const c = HOME.current, btn = $("submit");
+  btn.disabled = true; btn.textContent = "Sending…"; $("submitsay").innerHTML = "";
+  try {
+    const out = await api(`?submit=${c.id}`, { method: "POST" });
+    await loadHome();
+    toast(`Sent to ${out.claim.slots.map((s) => s.name).join(" and ")}.`);
+    openClaim(out.claim.id, { claim: out.claim });
+  } catch (e) {
+    if (e.quiet) return;
+    const list = e.body?.problems ?? [];
+    $("submitsay").innerHTML = `<div class="say bad"><b>${esc(list.length > 1 ? "A few things to sort out first:" : "Not sent yet.")}</b>${list.length > 1 ? `<ul style="margin:6px 0 0;padding-left:18px">${list.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ` ${esc(list[0] ?? e.message)}`}</div>`;
+    btn.disabled = false; btn.textContent = c.status === "rejected" ? "Send it again" : "Send for approval";
+    $("submitsay").scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+}
+async function deleteClaim() {
+  const c = HOME.current;
+  if (!confirm(c.status === "rejected" ? "Withdraw this claim? It and its receipts are deleted, and it won't be paid." : "Delete this claim and everything on it? This can't be undone.")) return;
+  try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); await loadHome(); }
+  catch (e) { if (!e.quiet) toast(e.message, true); }
+}
+let POLL = null;
+function pollReading() {
+  clearTimeout(POLL);
+  const started = Date.now();
+  const tick = async () => {
+    const reading = (HOME?.current?.lines ?? []).some((l) => l.check?.state === "reading");
+    if (!reading || Date.now() - started > 150e3) return;
+    try {
+      const out = await api(`?claim=${HOME.current.id}`);
+      HOME.current = out.claim;
+      if (EDIT) refreshEditor(); else if (VIEW.name === "claim") render();
+    } catch { /* try again next tick */ }
+    POLL = setTimeout(tick, 2500);
+  };
+  POLL = setTimeout(tick, 2000);
+}
+
+/* ---------- one line: check a receipt, type mileage, or a line with no receipt ---------- */
+const TITLES = { receipt: "Check the receipt", mileage: "Mileage", noreceipt: "No receipt" };
+function openNew(kind) {
+  EDIT = { kind, lineId: null, claimId: HOME?.current?.id ?? null, touched: new Set(), dirty: false };
+  history.pushState({ edit: true }, "");
+  editorScreen();
+}
+function openLine(id) {
+  const l = HOME?.current?.lines.find((x) => x.id === id);
+  if (!l) return;
+  EDIT = { kind: l.kind, lineId: id, claimId: HOME.current.id, touched: new Set(), dirty: false };
+  history.pushState({ edit: true }, "");
+  editorScreen();
+}
+const lineNow = () => (EDIT?.lineId ? HOME?.current?.lines.find((x) => x.id === EDIT.lineId) : null);
+function catOptions(sel) {
+  return `<option value="">Choose a category</option>` + (HOME?.categories ?? []).map((c) => `<option value="${c.n}" ${Number(sel) === c.n ? "selected" : ""}>${c.n} · ${esc(c.name)}</option>`).join("");
+}
+function eventOptions(sel, title) {
+  const evs = HOME?.events ?? [];
+  const extra = sel && !evs.some((e) => e.id === sel) ? `<option value="${esc(sel)}" selected>${esc(title || "An earlier event")}</option>` : "";
+  return `<option value="">Not for an event</option>${extra}` + evs.map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? "selected" : ""}>${esc(e.title)}${e.date ? ` · ${esc(dayName(e.date).replace(/^\w+,?\s*/, ""))}` : ""}</option>`).join("");
+}
+const readMark = (l, k) => (l?.fromRead?.includes(k) && !EDIT.touched.has(k) ? `<span class="read" data-readmark="${k}">read</span>` : "");
+function editorScreen() {
+  const l = lineNow() ?? {};
+  const k = EDIT.kind;
+  chrome({ title: TITLES[k], back: true, tabs: false });
+  const isPdf = l.file?.type === "application/pdf";
+  const reading = l.check?.state === "reading";
+  const readSay = k !== "receipt" ? "" : reading
+    ? `<div class="status"><span class="spin"></span><div class="note">Claude is reading your receipt. The boxes will fill in on their own, and you can keep typing.</div></div>`
+    : l.read?.state === "failed" ? `<div class="note">${esc(l.read.why || "Claude couldn't read it.")}</div><button class="linkish" id="again" type="button" style="margin:4px 0 0;padding:0;text-align:left">Read it again</button>`
+    : l.check?.state === "notreceipt" ? `<div class="note" style="color:var(--late)">That doesn't look like a receipt. Check the photo, or take it again.</div>`
+    : `<div class="note">Read from your receipt. Change anything it got wrong.</div>`;
+  const foreign = l.check?.currency ? `<div class="say wt">This receipt is in ${esc(l.check.currency)}. Claim what your card was charged in Canadian dollars, from your card statement.</div>` : "";
+  ROOT.innerHTML = `
+    ${k === "receipt" ? `<div class="preview"><button class="pic" id="pic" type="button" aria-label="See the whole receipt">${isPdf ? ICON.pdf : ICON.receipt}</button><div id="readsay">${readSay}</div></div>` : ""}
+    ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">Kilometres you drove your own car for ONGIA, paid to you at ${money(HOME.rate)} a kilometre.</p>` : ""}
+    ${k === "noreceipt" ? `<p class="note" style="margin:0 0 12px">For something you paid for without getting a receipt. Say why, and add a screenshot of the charge on your card statement.</p>` : ""}
+    <div id="sayslot"></div>
+    ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
+    <div class="two">
+      <div class="field"><label for="f-date"><span>Date</span>${readMark(l, "date")}</label><input id="f-date" type="date" value="${esc(l.date ?? "")}"></div>
+      ${k === "mileage"
+        ? `<div class="field"><label for="f-km"><span>Kilometres</span></label><input id="f-km" inputmode="decimal" autocomplete="off" value="${esc(l.km ?? "")}" placeholder="0"></div>`
+        : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="decimal" autocomplete="off" value="${l.amount === null || l.amount === undefined ? "" : esc(Number(l.amount).toFixed(2))}" placeholder="0.00"></div>`}
+    </div>
+    ${k === "receipt" ? `<div id="matchrow" style="margin:-4px 0 10px"></div>${foreign}` : ""}
+    ${k === "mileage" ? `<div class="two"><div class="field"><label for="f-from">From</label><input id="f-from" autocomplete="off" value="${esc(l.from ?? "")}" placeholder="Barrie"></div>
+      <div class="field"><label for="f-to">To</label><input id="f-to" autocomplete="off" value="${esc(l.to ?? "")}" placeholder="Toronto"></div></div>
+      <div class="calc" id="calc"></div>` : ""}
+    <div class="field"><label for="f-category"><span>Category</span>${readMark(l, "category")}</label><select id="f-category">${catOptions(l.category ?? (k === "mileage" ? 8 : ""))}</select></div>
+    <div class="field"><label for="f-event">For which event?</label><select id="f-event">${eventOptions(l.eventId ?? "", l.eventTitle)}</select></div>
+    <div class="field"><label for="f-purpose"><span>What it was for</span>${readMark(l, "purpose")}</label><input id="f-purpose" autocomplete="off" value="${esc(l.purpose ?? "")}" placeholder="${k === "mileage" ? "Drive to the training" : "Hotel for the presenters"}"></div>
+    ${k === "noreceipt" ? `<div class="field"><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
+      <div class="field"><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
+    <button class="btn gold" id="save" type="button" style="margin-top:6px">${EDIT.lineId ? "Save" : "Add to my claim"}</button>
+    <p class="tiny" style="text-align:center;margin:8px 0 0">Saved as you go. Nothing is sent until you submit.</p>
+    ${EDIT.lineId ? `<button class="btn danger" id="remove" type="button" style="margin-top:14px">Remove this line</button>` : ""}`;
+  for (const id of ["paidTo", "date", "amount", "km", "from", "to", "category", "event", "purpose", "statement"]) {
+    const el = $(`f-${id}`); if (!el) continue;
+    el.addEventListener("input", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); document.querySelector(`[data-readmark="${id}"]`)?.remove(); liveChecks(); });
+    el.addEventListener("change", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); liveChecks(); });
+  }
+  $("save").onclick = () => saveLine({ leave: true });
+  if ($("remove")) $("remove").onclick = removeLine;
+  if ($("again")) $("again").onclick = readAgain;
+  if ($("pic")) { $("pic").onclick = showWhole; showPic(); }
+  if (k === "noreceipt") drawShot();
+  liveChecks();
+}
+function liveChecks() {
+  const l = lineNow();
+  if ($("calc")) {
+    const km = parseMoney($("f-km").value);
+    $("calc").innerHTML = km > 0 ? `${km} km × ${money(HOME.rate)} = <b>${money(Math.round(km * HOME.rate * 100) / 100)}</b>, paid to you` : `At ${money(HOME.rate)} a kilometre, paid to you`;
+  }
+  if ($("matchrow") && l) {
+    const total = l.read?.found?.total;
+    const typed = $("f-amount").value.trim() === "" ? null : parseMoney($("f-amount").value);
+    $("matchrow").innerHTML = total === null || total === undefined || l.read?.found?.isReceipt === false ? ""
+      : typed !== null && Math.abs(typed - total) < 0.005 ? `<div class="check ok">${ICON.tick} Matches the receipt</div>`
+      : `<div class="check wt">The receipt says ${money(total)}</div>`;
+  }
+}
+/** The reading finished while the editor was open: fill only the boxes the person hasn't touched and left empty. */
+function refreshEditor() {
+  const l = lineNow();
+  if (!l || EDIT.kind !== "receipt") return;
+  for (const k of l.fromRead ?? []) {
+    const el = $(`f-${k}`);
+    if (!el || EDIT.touched.has(k) || el.value) continue;
+    el.value = k === "amount" ? Number(l[k]).toFixed(2) : l[k];
+    const lab = el.closest(".field")?.querySelector("label");
+    if (lab && !lab.querySelector(".read")) lab.insertAdjacentHTML("beforeend", `<span class="read" data-readmark="${k}">read</span>`);
+  }
+  const say = $("readsay");
+  if (say && l.check?.state !== "reading") {
+    say.innerHTML = l.read?.state === "failed" ? `<div class="note">${esc(l.read.why)}</div><button class="linkish" id="again" type="button" style="margin:4px 0 0;padding:0;text-align:left">Read it again</button>`
+      : l.check?.state === "notreceipt" ? `<div class="note" style="color:var(--late)">That doesn't look like a receipt. Check the photo, or take it again.</div>`
+      : `<div class="note">Read from your receipt. Change anything it got wrong.</div>`;
+    if ($("again")) $("again").onclick = readAgain;
+    if (l.check?.currency && !ROOT.querySelector(".say.wt")) $("matchrow")?.insertAdjacentHTML("afterend", `<div class="say wt">This receipt is in ${esc(l.check.currency)}. Claim what your card was charged in Canadian dollars, from your card statement.</div>`);
+  }
+  liveChecks();
+}
+function formValues() {
+  const v = (id) => $(`f-${id}`)?.value ?? "";
+  const num = (s) => (String(s).trim() === "" ? "" : parseMoney(s));
+  return { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), km: num(v("km")), from: v("from"), to: v("to"),
+    category: v("category"), eventId: v("event"), purpose: v("purpose"), statement: v("statement") };
+}
+async function saveLine({ leave = false } = {}) {
+  const btn = $("save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+  try {
+    const body = formValues();
+    let out;
+    if (EDIT.lineId) out = await api(`?claim=${EDIT.claimId}&line=${EDIT.lineId}`, { method: "PUT", json: body });
+    else { out = await api(`?add=${EDIT.kind}${EDIT.claimId ? `&claim=${EDIT.claimId}` : TESTMODE() ? "&test=1" : ""}`, { method: "POST", json: body }); EDIT.lineId = out.line; EDIT.claimId = out.claim.id; }
+    HOME.current = out.claim; EDIT.dirty = false;
+    if (leave) { toast("Saved to your claim."); history.back(); }
+    // A quiet save (before adding the card statement) leaves the button as it was, ready to press.
+    else if (btn) { btn.disabled = false; btn.textContent = "Save"; }
+    return true;
+  } catch (e) {
+    if (!e.quiet) toast(e.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = EDIT?.lineId ? "Save" : "Add to my claim"; }
+    return false;
+  }
+}
+async function leaveEditor() {
+  // Going back keeps what was typed: a person shouldn't lose a half-finished line to the back button.
+  if (EDIT?.dirty && (EDIT.lineId || Object.values(formValues()).some((x) => x !== "" && x !== null))) await saveLine();
+  EDIT = null; VIEW = { name: "claim" }; TAB = "claim";
+  render(); window.scrollTo(0, 0);
+}
+async function removeLine() {
+  if (!confirm("Remove this line from your claim?")) return;
+  try { const out = await api(`?claim=${EDIT.claimId}&line=${EDIT.lineId}`, { method: "DELETE" }); HOME.current = out.claim; EDIT.dirty = false; toast("Removed."); history.back(); }
+  catch (e) { if (!e.quiet) toast(e.message, true); }
+}
+async function readAgain() {
+  try { const out = await api(`?claim=${EDIT.claimId}&again=${EDIT.lineId}`, { method: "POST" }); HOME.current = out.claim; editorScreen(); pollReading(); }
+  catch (e) { if (!e.quiet) toast(e.message, true); }
+}
+const FULL = new Map();
+async function fullFile(kind = "file") {
+  const key = `${EDIT.claimId}:${EDIT.lineId}:${kind}`;
+  if (FULL.has(key)) return FULL.get(key);
+  const r = await fetch(`/api/expenses?claim=${EDIT.claimId}&file=${EDIT.lineId}${kind === "file" ? "" : `&kind=${kind}`}`, { headers: { "x-expense-key": SESSION } });
+  if (!r.ok) return null;
+  const b = await r.blob(); const out = { url: URL.createObjectURL(b), type: b.type };
+  FULL.set(key, out); return out;
+}
+async function showPic() {
+  const l = lineNow(); if (!l || l.file?.type === "application/pdf") return;
+  const small = THUMBS.get(`${EDIT.claimId}:${EDIT.lineId}`);
+  if (small) $("pic").innerHTML = `<img src="${small}" alt="Your receipt">`;
+  const f = await fullFile(); if (f && $("pic")) $("pic").innerHTML = `<img src="${f.url}" alt="Your receipt">`;
+}
+async function showWhole() {
+  const f = await fullFile(); if (!f) return toast("Couldn't open the receipt.", true);
+  if (/pdf/.test(f.type)) { window.open(f.url, "_blank"); return; }
+  const bg = document.createElement("div"); bg.className = "sheet-bg"; bg.innerHTML = `<img src="${f.url}" alt="Your receipt">`;
+  bg.onclick = () => bg.remove(); document.body.append(bg);
+}
+async function drawShot() {
+  const l = lineNow();
+  const box = $("shotbox"); if (!box) return;
+  box.innerHTML = l?.shot
+    ? `<div class="thumb" id="shotthumb">${/pdf/.test(l.shot.type) ? ICON.pdf : ICON.note}</div><div style="flex:1"><div class="check ok">${ICON.tick} Added</div><div class="tiny">${esc(l.shot.name)}</div></div><button class="btn ghost" id="shotadd" type="button" style="width:auto;padding:9px 14px;min-height:40px;font-size:14px">Replace</button>`
+    : `<button class="btn ghost" id="shotadd" type="button">${ICON.camera}<span>Add a screenshot of the charge</span></button>`;
+  $("shotadd").onclick = async () => {
+    if (!EDIT.lineId) { if (!(await saveLine())) return; editorScreen(); }
+    $("shotpick").click();
+  };
+  if (l?.shot && !/pdf/.test(l.shot.type)) { const f = await fullFile("shot"); if (f && $("shotthumb")) $("shotthumb").innerHTML = `<img src="${f.url}" alt="">`; }
+}
+$("shotpick").onchange = async (e) => {
+  const file = e.target.files?.[0]; e.target.value = ""; if (!file || !EDIT?.lineId) return;
+  if (EDIT.dirty) await saveLine();
+  toast("Adding the card statement…");
+  const s = await shrink(file);
+  try {
+    const out = await api(`?claim=${EDIT.claimId}&shot=${EDIT.lineId}`, { method: "POST", body: s.blob, headers: { "x-file-name": encodeURIComponent(s.name) } });
+    HOME.current = out.claim; FULL.delete(`${EDIT.claimId}:${EDIT.lineId}:shot`); toast("Card statement added."); drawShot();
+  } catch (err) { if (!err.quiet) toast(err.message, true); }
+};
+
+/* ---------- a claim that has been sent: to approve, to pay, or to look at ---------- */
+const PILL = { draft: "mu", submitted: "wt", rejected: "bad", approved: "ok", paid: "ok" };
+const ICON_LOCK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const todayHere = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+function claimRow(c, extra = "") {
+  return `<button type="button" class="rowbtn" data-open="${esc(c.id)}"><div style="min-width:0"><div class="w">${esc(c.owner?.name ?? "")}${c.test ? ' <span class="pill test">Test</span>' : ""}</div>
+    <div class="s">${esc([c.month, extra || c.words].filter(Boolean).join(" · "))}</div></div>
+    <div style="text-align:right"><div class="amt">${c.total === null || c.total === undefined ? "" : money(c.total)}</div><span class="pill ${PILL[c.status] ?? "mu"}" style="margin-top:4px">${esc(c.status === "approved" ? "Approved" : c.status === "submitted" ? "Waiting" : c.words)}</span></div></button>`;
+}
+function wireRows() { ROOT.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openClaim(b.dataset.open); }); }
+async function openClaim(id, { push = true, claim = null } = {}) {
+  VIEW = { name: "view", id, from: TAB }; EDIT = null;
+  if (push) history.pushState({ view: id }, "");
+  if (claim) { OPEN = claim; return render(); }
+  chrome({ title: "Expense claim", back: true, tabs: false }); ROOT.innerHTML = `<div class="empty"><span class="spin" style="display:inline-block"></span></div>`;
+  try { OPEN = (await api(`?claim=${encodeURIComponent(id)}`)).claim; render(); }
+  catch (e) { if (!e.quiet) { ROOT.innerHTML = `<div class="say bad">${esc(e.message)}</div>`; } }
+}
+function slotRow(s, c) {
+  const right = s.done ? `<span class="r ok">Approved ${esc(new Date(s.at).toLocaleDateString("en-CA", { month: "short", day: "numeric" }))}</span>`
+    : c.status === "submitted" ? `<span class="r${s.me ? " you" : ""}">${s.me ? "Waiting for you" : "Waiting"}</span>` : `<span class="r">${c.status === "rejected" ? "Sent back" : "Not yet"}</span>`;
+  return `<div class="slot"><div>${esc(s.title)} · ${esc(s.name)}${s.for ? `<div class="tiny">Standing in for the ${esc(s.for)}</div>` : ""}${s.stuck ? `<div class="tiny">Their stand-in can't take this one, so it waits for them.</div>` : ""}</div>${right}</div>`;
+}
+function checksBox(c) {
+  const k = c.checks; if (!k) return "";
+  const summary = k.summary?.length ? `<div class="note" style="margin-top:2px">${k.summary.map((x) => `${esc(x)}.`).join(" ")}</div>` : "";
+  if (k.ok) return `<div class="allok"><div class="tick">${ICON.tick}</div><div><b>Everything checks out.</b>${summary}<div class="note">Nothing is claimed twice.</div></div></div>`;
+  return `<div class="looks"><b>${k.notes.length === 1 ? "One thing to look at" : `${k.notes.length} things to look at`}</b>${summary}<ul>${k.notes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+}
+function viewScreen() {
+  const c = OPEN; if (!c) return;
+  const mine = c.owner?.email === ME?.email;
+  const myDone = c.slots.find((s) => s.me && s.done);
+  chrome({ title: c.can.decide || myDone && c.status === "submitted" ? "Approve a claim" : c.can.pay ? "Pay a claim" : `${(c.month || "").split(" ")[0]} claim`, back: true, tabs: false });
+  const first = firstName(c.owner?.name);
+  const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
+  let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Nothing is paid or filed, and it can be deleted.</div>` : "";
+  h += `<div class="card"><div class="k">From</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
+    <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
+    <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
+    <div style="margin-top:4px"><span class="pill ${PILL[c.status] ?? "mu"}">${esc(c.words)}</span></div></div>`;
+  if (c.status === "rejected" && c.rejected) h += `<div class="sentback"><b>Sent back by ${esc(c.rejected.by?.name)}${c.rejected.for ? ` for the ${esc(c.rejected.for)}` : ""} · ${esc(when(c.rejected.at))}</b><div class="note quote">"${esc(c.rejected.comment)}"</div></div>`;
+  if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · e-transfer <b>${esc(c.paid.ref)}</b>. Locked.</div></div>`;
+  if (c.status !== "draft") h += checksBox(c);
+  if (myDone && c.status !== "rejected") h += `<div class="stamp">${ICON.tick}<div>Approved by you${myDone.for ? `, for the ${esc(myDone.for)}` : `, ${esc(myDone.title)}`}<br><span>${esc(when(myDone.at))}</span></div></div>`;
+  if (c.can.decide) h += `<div class="bigbtns"><button class="btn green" id="approve" type="button">${ICON.tick}<span>Approve</span></button><button class="btn red" id="reject" type="button">✕<span>Send back</span></button></div>
+    <div id="rejectbox" hidden><div class="field"><label for="why" style="color:var(--late);font-weight:600">Why are you sending it back? (needed)</label><textarea id="why" placeholder="What needs changing, so ${esc(first)} can fix it."></textarea></div>
+      <button class="btn red" id="dosendback" type="button">Send back to ${esc(first)}</button><p class="tiny center" style="margin-top:6px">${esc(first)} gets an email and sees your note on the claim.</p></div>
+    ${c.can.decide.for ? `<p class="tiny center">You're standing in for the ${esc(c.can.decide.for)}.</p>` : ""}`;
+  else if (myDone && c.status === "submitted") h += `<div class="bigbtns"><button class="btn green" type="button" disabled>${ICON.tick}<span>Approved</span></button><button class="btn dim" type="button" disabled>✕<span>Send back</span></button></div>
+    <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. When both have approved, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
+  if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
+      <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
+      <div class="field"><label for="ref">E-transfer reference</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="As the bank shows it"></div>
+      <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
+      <button class="btn gold" id="paybtn" type="button">Mark paid and lock</button>
+      ${c.payer.for ? `<p class="tiny center" style="margin-top:6px">You're standing in for the ${esc(c.payer.for)}.</p>` : ""}</div>
+    <div class="lock">${ICON_LOCK}<div><b>Locked when paid.</b> Only the President or the VP can unlock it, with a reason.</div></div>`;
+  else if (c.status === "approved") h += `<div class="card"><div class="k">Next</div><div class="note">${esc(c.payer.name)} sends the e-transfer and records it here${c.payer.for ? `, standing in for the ${esc(c.payer.for)}` : ""}.</div></div>`;
+  if (c.can.unlock) h += `<details class="more"><summary>Unlock this claim</summary><div class="field"><label for="unwhy">Why it's being unlocked (needed)</label><textarea id="unwhy" placeholder="The reference number was typed wrong."></textarea></div><button class="btn ghost" id="dounlock" type="button">Unlock it</button><p class="tiny center" style="margin-top:6px">It goes back to approved, so the payment can be recorded again. The VP is told.</p></details>`;
+  if (c.can.sendBack) h += `<details class="more"><summary>Send it back to ${esc(first)}</summary><div class="field"><label for="sbwhy">Why (needed)</label><textarea id="sbwhy"></textarea></div><button class="btn red" id="dosb" type="button">Send back to ${esc(first)}</button></details>`;
+  // Emails that didn't go: one box, so a run of failures can't bury the claim. Officers only.
+  const fails = c.mailFailed ?? [];
+  if (fails.length) h += `<div class="say wt"><b>${fails.length === 1 ? "An email about this claim didn't go." : `${fails.length} emails about this claim didn't go.`}</b> The people below may not know about it.
+    <details class="more" style="margin:6px 0 0"><summary>Which ones</summary><ul class="hist" style="padding-left:18px;margin:0">${fails.map((m) => `<li>${esc(m.to)} (${esc(m.what)}), ${esc(when(m.at))}: ${esc(m.why)}</li>`).join("")}</ul></details></div>`;
+  h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
+  if (c.status !== "draft") h += filedCard(c);
+  h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
+  if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, reference ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
+  if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
+  ROOT.innerHTML = h;
+  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
+  fillThumbs();
+  const act = async (btn, path, body, done) => {
+    btn.disabled = true;
+    try { const out = await api(path, { method: "POST", json: body }); OPEN = out.claim; await loadHome().catch(() => {}); render(); if (done) toast(done); }
+    catch (e) { btn.disabled = false; if (!e.quiet) toast(e.message, true); }
+  };
+  if ($("approve")) $("approve").onclick = (e) => act(e.currentTarget, `?decide=${c.id}`, { decision: "approve" }, "Approved. The date is filled in.");
+  if ($("reject")) $("reject").onclick = () => { $("approve").classList.add("dim"); $("rejectbox").hidden = false; $("why").focus(); };
+  if ($("dosendback")) $("dosendback").onclick = (e) => { if ($("why").value.trim().length < 3) { toast("Say why, so they know what to change.", true); return $("why").focus(); } act(e.currentTarget, `?decide=${c.id}`, { decision: "reject", comment: $("why").value }, `Sent back to ${first}.`); };
+  if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { ref: $("ref").value, date: $("paydate").value }, "Paid and locked.");
+  if ($("dounlock")) $("dounlock").onclick = (e) => act(e.currentTarget, `?unlock=${c.id}`, { reason: $("unwhy").value }, "Unlocked.");
+  if ($("dosb")) $("dosb").onclick = (e) => act(e.currentTarget, `?sendback=${c.id}`, { comment: $("sbwhy").value }, `Sent back to ${first}.`);
+  if ($("marktest")) $("marktest").onclick = (e) => act(e.currentTarget, `?marktest=${c.id}`, { on: !c.test }, c.test ? "Marked as a real claim." : "Marked as a test claim.");
+  if ($("refile")) $("refile").onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if (VIEW.name === "view" && OPEN?.id === c.id) openClaim(c.id, { push: false }); }, 6000); }
+    catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
+  };
+  if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); await loadHome(); history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
+}
+/** Where the claim is filed in the Treasurer's folders on SharePoint, or why it isn't. */
+function filedCard(c) {
+  const f = c.filed;
+  const again = c.can.refile ? `<button class="linkish" id="refile" type="button" style="display:inline;margin:0 0 0 4px;padding:0">File it again</button>` : "";
+  if (!f) return c.can.refile ? `<div class="card"><div class="k">SharePoint</div><div class="note" style="margin-top:2px">Being filed in the Treasurer's folders. ${again}</div></div>` : "";
+  if (f.problem) return `<div class="say wt"><b>Filing to SharePoint didn't work.</b> ${esc(f.problem)} ${again}</div>`;
+  if (f.skipped) return c.can.refile ? `<div class="say mu">Not filed: ${esc(f.reason)}</div>` : "";
+  const where = String(f.folder || "").split("/").slice(-3).join(" › ");
+  const behind = f.status && f.status !== c.status;
+  return `<div class="card"><div class="k">Filed in SharePoint</div><div class="note" style="margin-top:2px">${esc(where)}<br><span class="tiny">The Excel and the PDF, with the receipts in a Receipts folder. ${behind ? "Being updated now." : `Last filed ${esc(when(f.at)).replace(/\.?$/, ".")}`}</span></div>
+    ${f.folderUrl ? `<a class="linkish" href="${esc(f.folderUrl)}" target="_blank" rel="noopener" style="margin:6px 0 0;padding:0;display:inline-block">Open the folder</a>` : ""}${c.can.refile ? ` · ${again}` : ""}</div>`;
+}
+/** One line of a sent claim, read-only: the receipt itself and what was claimed. */
+async function lineSheet(c, l) {
+  if (!l) return;
+  const cat = HOME?.categories?.find((x) => x.n === Number(l.category));
+  const kv = (k, v) => (v || v === 0 ? `<div class="kv"><span class="k2">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : "");
+  const el = document.createElement("div"); el.className = "sheet";
+  el.innerHTML = `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(l.kind === "mileage" ? "Mileage" : l.paidTo || "Receipt")}</h1></header>
+    <main>${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
+    <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
+      ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
+      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("What it was for", l.purpose)}</div>
+    ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
+    ${l.kind === "noreceipt" ? `<div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
+  document.body.append(el);
+  history.pushState({ sheet: true }, "");
+  el.querySelector("[data-close]").onclick = () => history.back();
+  const kind = l.kind === "noreceipt" ? "shot" : "file";
+  if (!el.querySelector("#sheetpic")) return;
+  try {
+    const r = await fetch(`/api/expenses?claim=${encodeURIComponent(c.id)}&file=${encodeURIComponent(l.id)}${kind === "shot" ? "&kind=shot" : ""}`, { headers: { "x-expense-key": SESSION } });
+    if (!r.ok) throw new Error();
+    const b = await r.blob(); const u = URL.createObjectURL(b);
+    el.querySelector("#sheetpic").innerHTML = /pdf/.test(b.type) ? `<a class="btn ghost" href="${u}" target="_blank" rel="noopener">Open the PDF</a>` : `<img src="${u}" alt="The ${kind === "shot" ? "card statement" : "receipt"}" style="max-width:100%;border-radius:8px">${kind === "shot" ? `<div class="tiny" style="margin-top:6px">The card statement</div>` : ""}`;
+  } catch { el.querySelector("#sheetpic").innerHTML = `<div class="note">Couldn't load the picture.</div>`; }
+}
+
+function pastScreen() {
+  chrome({ title: "Past claims", back: false });
+  const past = HOME?.past ?? [];
+  ROOT.innerHTML = testBar() + (past.length
+    ? `<div class="card" style="padding:2px 14px">${past.map((c) => claimRow(c, c.sentAt ? `sent ${new Date(c.sentAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : "")).join("")}</div>`
+    : `<div class="empty"><div class="big">Nothing sent yet</div>Claims you send show up here, each with where it stands: waiting for approval, approved or paid.</div>`);
+  wireRows();
+}
+
+/* ---------- what waits on me, and handing off while away ---------- */
+const OFFICER_TITLE = { president: "President", vp: "VP of Operations", treasurer: "Treasurer" };
+const officerEmail = (role) => HOME?.executives?.find((x) => x.title === OFFICER_TITLE[role])?.email;
+function approveScreen() {
+  chrome({ title: "To approve", back: false });
+  let h = testBar();
+  for (const si of HOME.standingIn ?? []) h += `<div class="say mu">${si.backup ? `You're the second person for the ${esc(si.title)} (${esc(si.name)})` : `You're standing in for the ${esc(si.title)} (${esc(si.name)})`} until ${esc(longDate(si.until))}.</div>`;
+  h += `<div class="day">Waiting for you</div>` + (HOME.toApprove.length ? `<div class="card" style="padding:2px 14px">${HOME.toApprove.map((c) => claimRow(c, c.as && /^for /.test(c.as) ? c.as : "")).join("")}</div>`
+    : `<div class="card"><div class="note">Nothing waiting for you. When a claim needs your approval, it shows here and you get an email.</div></div>`);
+  if (HOME.toPay.length || HOME.me.role === "vp") h += `<div class="day">To pay</div>` + (HOME.toPay.length ? `<div class="card" style="padding:2px 14px">${HOME.toPay.map((c) => claimRow(c, "approved, send the e-transfer")).join("")}</div>` : `<div class="card"><div class="note">No approved claims waiting to be paid.</div></div>`);
+  const roles = Object.keys(HOME.away ?? {});
+  if (roles.length) {
+    const own = roles.filter((r) => r === HOME.me.role), others = roles.filter((r) => r !== HOME.me.role);
+    h += own.map((r) => awayCard(r, true)).join("");
+    if (others.length) h += `<details class="more" ${others.some((r) => HOME.away[r]) ? "open" : ""}><summary>Hand off for ${esc(others.map((r) => firstName(HOME.executives.find((x) => x.email === officerEmail(r))?.name)).join(" or "))} (if they forgot)</summary>${others.map((r) => awayCard(r, false)).join("")}</details>`;
+  }
+  ROOT.innerHTML = h;
+  wireRows();
+  for (const r of roles) wireAway(r);
+}
+function awayCard(r, isMe) {
+  const d = HOME.away[r];
+  const who = HOME.executives.find((x) => x.email === officerEmail(r));
+  const head = isMe ? "Going away?" : `${esc(who?.name)}, ${esc(OFFICER_TITLE[r])}`;
+  if (d) return `<div class="card" id="away-${r}"><div class="k">${isMe ? "Your approvals" : head}</div>
+      <div class="note" style="margin-top:3px">${d.inForce ? "Handed" : "Will be handed"} to <b>${esc(d.toName)}</b> from ${esc(longDate(d.from))} to ${esc(longDate(d.until))}.${d.backupName ? ` When ${esc(firstName(d.toName))} can't take one, it goes to ${esc(d.backupName)}.` : ""}</div>
+      ${(d.mail ?? []).filter((m) => !m.ok).map((m) => `<div class="say wt" style="margin:8px 0 0">The email to ${esc(m.to)} didn't go: ${esc(m.why)}</div>`).join("")}
+      <button class="btn ghost" data-back="${r}" type="button" style="margin-top:10px">${d.inForce ? (isMe ? "I'm back" : "End it now") : "Cancel it"}</button></div>`;
+  const ex = HOME.executives.filter((x) => x.email !== officerEmail(r));
+  const opts = (sel, none) => (none ? `<option value="">No one</option>` : "") + ex.map((x) => `<option value="${esc(x.email)}" ${x.email === sel ? "selected" : ""}>${esc(x.name)} · ${esc(x.title)}</option>`).join("");
+  const firstTo = r === "vp" ? officerEmail("president") : officerEmail("vp");
+  const backup = ex.find((x) => x.email !== firstTo && !Object.values(OFFICER_TITLE).includes(x.title))?.email ?? "";
+  return `<div class="card" id="away-${r}"><div class="k">${head}</div>
+    <p class="note" style="margin:4px 0 10px">${isMe ? "Hand your approvals" : `Hand ${esc(firstName(who?.name))}'s approvals`}${r === "vp" ? " and recording the payments" : ""} to another executive while ${isMe ? "you're" : "they're"} away. Claims waiting move to them at once.</p>
+    <div class="field"><label for="to-${r}">Who stands in</label><select id="to-${r}">${opts(firstTo)}</select></div>
+    <div class="field"><label for="bk-${r}">If they can't take one (their own claim, or one they already approve)</label><select id="bk-${r}">${opts(backup, true)}</select></div>
+    <div class="two"><div class="field"><label for="fr-${r}">First day away</label><input id="fr-${r}" type="date" value="${todayHere()}"></div>
+      <div class="field"><label for="un-${r}">Last day away</label><input id="un-${r}" type="date"></div></div>
+    <div id="pv-${r}"></div>
+    <button class="btn navy" data-save="${r}" type="button">Hand off ${isMe ? "my" : "their"} approvals</button></div>`;
+}
+function wireAway(r) {
+  const b = ROOT.querySelector(`[data-back="${r}"]`);
+  if (b) b.onclick = async () => { b.disabled = true; try { HOME = await api(`?away=${r}${TESTMODE() ? "&test=1" : ""}`, { method: "DELETE" }); toast("Done. Approvals come back as normal."); render(); } catch (e) { b.disabled = false; if (!e.quiet) toast(e.message, true); } };
+  const save = ROOT.querySelector(`[data-save="${r}"]`);
+  if (!save) return;
+  const val = (k) => $(`${k}-${r}`).value;
+  let timer = null;
+  const preview = () => { clearTimeout(timer); timer = setTimeout(async () => {
+    const box = $(`pv-${r}`); if (!box) return;
+    if (!val("un")) { box.innerHTML = `<p class="tiny" style="margin:-4px 0 10px">Pick the last day away to see who takes what.</p>`; return; }
+    try {
+      const out = await api(`?awaypreview=${r}&to=${encodeURIComponent(val("to"))}&backup=${encodeURIComponent(val("bk"))}&from=${val("fr")}&until=${val("un")}`);
+      box.innerHTML = `<div class="k" style="margin-bottom:2px">Who takes what</div><ul class="preview-rows">${out.rows.map((x) => `<li><span>${esc(x.label)}</span><b>${x.stuck ? "stays with " + esc(firstName(HOME.executives.find((e) => e.email === officerEmail(r))?.name)) : esc(x.name)}</b></li>`).join("")}</ul>`;
+    } catch (e) { box.innerHTML = `<div class="say bad" style="margin:0 0 10px">${esc(e.message)}</div>`; }
+  }, 250); };
+  for (const k of ["to", "bk", "fr", "un"]) $(`${k}-${r}`).addEventListener("change", preview);
+  preview();
+  save.onclick = async () => {
+    save.disabled = true;
+    try { HOME = await api(`?away=${r}${TESTMODE() ? "&test=1" : ""}`, { method: "PUT", json: { to: val("to"), backup: val("bk"), from: val("fr"), until: val("un") } }); toast("Handed off. They've been emailed."); render(); }
+    catch (e) { save.disabled = false; if (!e.quiet) toast(e.message, true); }
+  };
+}
+
+let ALLF = "all";
+function allScreen() {
+  chrome({ title: "All claims", back: false });
+  const all = HOME.all ?? [];
+  const F = { all: ["All", () => true], waiting: ["Waiting", (c) => c.status === "submitted"], approved: ["To pay", (c) => c.status === "approved"], paid: ["Paid", (c) => c.status === "paid"], back: ["Sent back", (c) => c.status === "rejected"] };
+  const shown = all.filter(F[ALLF][1]);
+  const tests = all.filter((c) => c.test).length;
+  ROOT.innerHTML = `${testBar()}<div class="chips">${Object.entries(F).map(([k, [label, fn]]) => `<button type="button" data-f="${k}" class="${ALLF === k ? "on" : ""}">${label} ${all.filter(fn).length}</button>`).join("")}</div>
+    ${shown.length ? `<div class="card" style="padding:2px 14px">${shown.map((c) => claimRow(c, c.sentAt ? `sent ${new Date(c.sentAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : "")).join("")}</div>` : `<div class="card"><div class="note">No claims here.</div></div>`}
+    ${HOME.me.role === "president" ? `<div class="card" style="margin-top:18px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Every claim marked TEST, from everyone, with its receipts${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
+      <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : ""}`;
+  ROOT.querySelectorAll("[data-f]").forEach((b) => { b.onclick = () => { ALLF = b.dataset.f; allScreen(); }; });
+  wireRows();
+  if ($("purge")) $("purge").onclick = async () => {
+    if (!confirm("Delete every test claim, from everyone, with its receipts? Real claims aren't touched. This can't be undone.")) return;
+    try { const out = await api(`?purge=tests${TESTMODE() ? "&test=1" : ""}`, { method: "POST" }); HOME = out; toast(`Deleted ${out.purged.claims} test claim${out.purged.claims === 1 ? "" : "s"}.`); render(); }
+    catch (e) { if (!e.quiet) toast(e.message, true); }
+  };
+}
+
+function render() {
+  if (!SESSION) return signInScreen();
+  if (!HOME) { chrome({ title: "ONGIA Expenses", back: false, tabs: false }); ROOT.innerHTML = `<div class="empty"><span class="spin" style="display:inline-block"></span></div>`; return; }
+  if (EDIT) return editorScreen();
+  if (VIEW.name === "view" && OPEN) return viewScreen();
+  if (VIEW.name === "past") return pastScreen();
+  if (VIEW.name === "approve" && HOME.tabs.includes("approve")) return approveScreen();
+  if (VIEW.name === "all" && HOME.tabs.includes("all")) return allScreen();
+  return claimScreen();
+}
+
+/* ---------- start ---------- */
+// A link from an email (/expenses#claim=…) opens that claim, after signing in if need be.
+{ const m = location.hash.match(/^#claim=([a-z0-9-]{4,40})$/); if (m) { store.set("ongia-exp-open", m[1]); history.replaceState(null, "", location.pathname); } }
+(async () => {
+  const done = await finishMicrosoft().catch((e) => e.message);
+  if (typeof done === "string") { store.set("ongia-xms-pick", "1"); return signInScreen(done); }
+  if (!SESSION) return signInScreen();
+  render();
+  try {
+    await loadHome();
+    const want = store.get("ongia-exp-open");
+    if (want) { store.del("ongia-exp-open"); openClaim(want); }
+    await flushOutbox(); if ((HOME?.current?.lines ?? []).some((l) => l.check?.state === "reading")) pollReading();
+  }
+  catch (e) { if (!e.quiet) { ROOT.innerHTML = `<div class="say bad">${esc(e.message)}</div><button class="btn ghost" id="reload" type="button">Try again</button>`; $("reload").onclick = () => location.reload(); } }
+})();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !SESSION || !HOME || EDIT) return;
+  if (VIEW.name === "view" && OPEN) api(`?claim=${OPEN.id}`).then((o) => { OPEN = o.claim; loadHome().catch(() => {}); }).catch(() => {});
+  else loadHome().then(flushOutbox).catch(() => {});
+});
+// The app was open when an email link was tapped: open that claim.
+window.addEventListener("hashchange", () => { const m = location.hash.match(/^#claim=([a-z0-9-]{4,40})$/); if (m && SESSION) { history.replaceState(null, "", location.pathname); openClaim(m[1]); } });
+</script>
+</body>
+</html>

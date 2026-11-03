@@ -297,7 +297,14 @@ export const getInbox = (eventId) => read(`inbox:${eventId}`);
 export const putInbox = (eventId, value) => write(`inbox:${eventId}`, value);
 /** The logistics sheet as it was uploaded (see sheetcheck.mjs): the frozen baseline presenters are compared with. */
 /** An RBH event's statement of work and invoice (see sow.mjs). Its own record, so nothing else can read the money. */
-export const getSow = (eventId) => read(`sow:${eventId}`);
+// A line added after RBH approved the SOW has no agreed amount: nil, on the invoice only. Given an estimate while the
+// amounts were unlocked, it is meant for the SOW sent to RBH again (Andrew 3 Nov 2026, the VIP event), so it reads as an
+// ordinary line everywhere: the screen, the PDF, the totals and the lock. Settled on reading, so a SOW saved before
+// this (the VIP event's, with two such lines) is read right without being rewritten.
+const settleSow = (sow) => (sow?.lines?.some((l) => l.added && Number(l.estimate) > 0)
+  ? { ...sow, lines: sow.lines.map((l) => { if (!l.added || !(Number(l.estimate) > 0)) return l; const { added, ...rest } = l; return rest; }) }
+  : sow);
+export const getSow = async (eventId) => settleSow(await read(`sow:${eventId}`));
 export const putSow = (eventId, value) => write(`sow:${eventId}`, value);
 export const getSheetBaseline = (eventId) => read(`sheet:${eventId}`);
 export const putSheetBaseline = (eventId, value) => write(`sheet:${eventId}`, value);
@@ -321,6 +328,64 @@ export const getReceiptRead = (eventId, id) => read(`receiptread:${eventId}:${id
 export const putReceiptRead = (eventId, id, value) => write(`receiptread:${eventId}:${id}`, value);
 export const deleteReceiptRead = (eventId, id) => store().delete(`receiptread:${eventId}:${id}`);
 export const putAgendaRead = (eventId, value) => write(`agendaread:${eventId}`, value);
+
+/**
+ * Expense claims (ONGIA Expenses, see expenses.mjs). The claim is a small header; each line is its own record, so two
+ * receipts sent seconds apart can never write over each other, and the photo, the card statement and what Claude read
+ * are records of their own too, so the background reader never writes over a line someone is editing.
+ *   expclaim:<claim>              whose it is, its status, the decisions on it
+ *   expline:<claim>:<line>        one line
+ *   expread:<claim>:<line>        what Claude read off that line's receipt
+ *   expfile:<claim>:<line>        the receipt (a photo or a PDF)
+ *   expthumb:<claim>:<line>       a small picture of it for the list
+ *   expshot:<claim>:<line>        the card statement, for a line with no receipt
+ *   expmine:<who>:<claim>         a marker: this claim is <who>'s (who = whoKey of their address)
+ *   expq:<claim>                  a marker: this claim is waiting on someone (an approval, or the payment)
+ */
+export const getClaim = (id) => read(`expclaim:${id}`);
+export const putClaim = (claim) => writeMerged(`expclaim:${claim.id}`, claim);
+export async function listClaimLines(claimId) {
+  const { blobs } = await store().list({ prefix: `expline:${claimId}:` });
+  return (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean);
+}
+export const getClaimLine = (claimId, id) => read(`expline:${claimId}:${id}`);
+export const putClaimLine = (claimId, line) => writeMerged(`expline:${claimId}:${line.id}`, line);
+export const deleteClaimLine = (claimId, id) => Promise.all(["expline", "expread", "expfile", "expthumb", "expshot"].map((p) => store().delete(`${p}:${claimId}:${id}`)));
+export const getClaimRead = (claimId, id) => read(`expread:${claimId}:${id}`);
+export const putClaimRead = (claimId, id, value) => write(`expread:${claimId}:${id}`, value);
+/** kind: "file" (the receipt), "thumb" (its small picture) or "shot" (the card statement). */
+export const putClaimFile = (kind, claimId, id, bytes, meta) => store().set(`exp${kind}:${claimId}:${id}`, bytes, { metadata: meta });
+export async function getClaimFile(kind, claimId, id) {
+  const got = await store().getWithMetadata(`exp${kind}:${claimId}:${id}`, { type: "arrayBuffer" });
+  if (!got) return null;
+  return { bytes: got.data, type: got.metadata?.type ?? "application/octet-stream", name: got.metadata?.name ?? "receipt" };
+}
+export const markMine = (who, claimId) => write(`expmine:${who}:${claimId}`, { at: new Date().toISOString() });
+export async function listMineIds(who) {
+  const { blobs } = await store().list({ prefix: `expmine:${who}:` });
+  return blobs.map((b) => b.key.slice(`expmine:${who}:`.length));
+}
+export async function listClaimIds() {
+  const { blobs } = await store().list({ prefix: "expclaim:" });
+  return blobs.map((b) => b.key.slice("expclaim:".length));
+}
+/** A claim and everything of it: its lines, receipts, card statements, readings and markers. Returns how many lines went. */
+export async function deleteClaimAll(claimId, who) {
+  const keys = [];
+  for (const p of ["expline", "expread", "expfile", "expthumb", "expshot"]) keys.push(...(await store().list({ prefix: `${p}:${claimId}:` })).blobs.map((b) => b.key));
+  const lines = keys.filter((k) => k.startsWith("expline:")).length;
+  await Promise.all([...keys, `expclaim:${claimId}`, `expmine:${who}:${claimId}`, `expq:${claimId}`].map((k) => store().delete(k)));
+  return lines;
+}
+/** An officer's hand-off while away, one record per role so two officers saving theirs at once can't overwrite each other. */
+export const getAway = (role) => read(`meta:expenses:away:${role}`);
+export const putAway = (role, value) => write(`meta:expenses:away:${role}`, value);
+export const deleteAway = (role) => store().delete(`meta:expenses:away:${role}`);
+export const markWaiting = (claimId, on) => (on ? write(`expq:${claimId}`, { at: new Date().toISOString() }) : store().delete(`expq:${claimId}`));
+export async function listWaitingIds() {
+  const { blobs } = await store().list({ prefix: "expq:" });
+  return blobs.map((b) => b.key.slice("expq:".length));
+}
 
 /** Remove a key outright — used when an event or presenter is deleted. */
 export const deleteKey = (key) => store().delete(key);

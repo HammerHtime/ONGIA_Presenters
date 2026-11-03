@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ONGIA Briefing Room</title>
+<script>
+// ONGIA Expenses signs in through this page, the return address Microsoft already knows for the desk's sign-in. Its
+// reply goes straight back to the expense app, before the desk can read it as one of its own.
+(function () { try {
+  var h = location.hash; if (!/[#&](code|error)=/.test(h)) return;
+  var saved = JSON.parse(localStorage.getItem("ongia-xms") || "null"), state = new URLSearchParams(h.slice(1)).get("state");
+  if (saved && state && saved.state === state) { window.ONGIA_EXPENSES_REPLY = true; location.replace("/expenses" + h); }
+} catch (e) { /* no storage: the desk carries on */ } })();
+</script>
 <!-- The tab: ONGIA's leaf, which reads at 16 px; the Dock icon carries the words. -->
 <link rel="icon" href="/assets/desk-favicon-32.png" sizes="32x32">
 <link rel="icon" href="/assets/desk-favicon-16.png" sizes="16x16">
@@ -159,7 +168,7 @@
   .sn:hover{background:rgba(255,255,255,.07)}
   .sn.on{background:var(--gold);color:#1c1608}
   .sn.rbh:not(.on){color:#9fd8d2}
-  .sn .nb{margin-left:auto}
+  .sn .attnb{margin-left:auto}
   .slogo{height:46px;width:auto;display:block;margin:0 8px}
   .sroom{font-size:12px;color:rgba(255,255,255,.55);margin:2px 10px 18px}
   .snav{display:flex;flex-direction:column;gap:3px}
@@ -187,7 +196,7 @@
     .withside .sroom{display:none}
     .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
     .withside .sn svg{width:21px;height:21px}
-    .withside .sn .nb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
+    .withside .sn .attnb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
     .withside .sme{justify-content:center;padding:12px 0 0} .withside .sme div{display:none}
   }
   @media (max-width:899px){
@@ -199,7 +208,7 @@
     .withside .snav > .sn{flex-direction:column;gap:2px;padding:6px 2px;font-size:11px;color:var(--muted);text-align:center;border-radius:10px;justify-content:center;min-height:50px}
     .withside .snav > .sn svg{width:22px;height:22px}
     .withside .snav > .sn.on{background:none;color:var(--navy-deep)} .withside .snav > .sn.on svg{color:var(--gold)}
-    .withside .snav > .sn .nb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
+    .withside .snav > .sn .attnb{position:absolute;top:2px;left:calc(50% + 4px);margin:0}
     .withside .snmore{display:flex}
     .withside .smore{display:none;position:fixed;right:8px;bottom:calc(72px + env(safe-area-inset-bottom,0px));min-width:220px;margin:0;padding:6px;
       background:#fff;border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow)}
@@ -1795,8 +1804,10 @@
   .certl .certact{white-space:nowrap;text-align:right}.certl .certact .linkish{margin-left:8px}
   @media (max-width:760px){.certgrid{grid-template-columns:1fr}.certl .certact{text-align:left}}
   /* Admin › Agencies (Andrew 30 Oct 2026) */
-  .nb{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px}
-  .nb[hidden]{display:none}
+  /* The red count of what's waiting (Andrew 3 Nov 2026: "a round circle"). Its own name: it used to share "nb" with the
+     hotel nights grid, whose flex:1 stretched it into a long pill in the sidebar. One digit is a circle; two, a short oval. */
+  .attnb{display:inline-grid;place-items:center;flex:none;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--late);color:#fff;font:700 11px/1 var(--fb);vertical-align:1px;box-sizing:border-box}
+  .attnb[hidden]{display:none}
   .agtop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px}.agh{font-family:var(--fd);font-size:28px}
   .agrun{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.agrun .porg{font-size:12.5px}
   .agtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
@@ -5811,7 +5822,7 @@ function renderWelcomeCard(ev, W) {
  * French name, work email domains and every way it has been typed, to edit, merge or download.
  */
 let ATTN = 0, ATTN_AT = 0;
-const attnBadge = () => `<span class="nb" data-attn title="Waiting for you"${ATTN ? "" : " hidden"}>${ATTN}</span>`;
+const attnBadge = () => `<span class="attnb" data-attn title="Waiting for you"${ATTN ? "" : " hidden"}>${ATTN}</span>`;
 function paintAttention() { document.querySelectorAll("[data-attn]").forEach((el) => { el.textContent = ATTN; el.hidden = !ATTN; }); }
 async function attention(force = false) {
   if (force || Date.now() - ATTN_AT > 60000) {
@@ -7564,9 +7575,9 @@ function wireSow(ev, S, { onSums = null } = {}) {
         <div class="field"><label for="sw-due">Due date</label><input id="sw-due" type="date" value="${esc(sow.dueDate ?? "")}"></div></div></div>
       <div class="swwrap"><table class="swt${act ? "" : " noact"}${anyRc ? " hasrc" : ""}${locked ? " locked" : ""}" id="sw-table"><thead><tr><th>Line</th><th>Type</th><th>SOW estimate${locked ? ` <span class="swlock" title="Agreed with RBH. Click Edit amounts and type EDIT if RBH agrees to a change.">🔒 agreed with RBH</span>` : ""}</th>${anyRc ? `<th class="rcv">Receipts so far</th>` : ""}<th class="act">Invoice amount</th><th class="act">vs estimate</th><th></th></tr></thead><tbody>
         ${sow.lines.map((l, i) => `<tr data-i="${i}"${l.added ? ` class="added"` : ""}><td class="nm"><input class="ln-name" value="${esc(l.name)}" aria-label="Line name"${locked && !l.added ? " disabled" : ""}>
-            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description">${l.added ? `<div class="addtag">Added after approval · no agreed amount · on the invoice only</div>` : ""}</td>
+            <input class="ln-desc" value="${esc(l.description)}" placeholder="Description (optional)" aria-label="Description">${l.added ? `<div class="addtag">${locked ? "Added after approval · no agreed amount · on the invoice only" : "Added after approval · type an estimate to put it on the SOW"}</div>` : ""}</td>
           <td class="t" data-l="Type"><select class="ln-type"${locked && !l.added ? " disabled" : ""}><option value="fixed"${l.type === "fixed" ? " selected" : ""}>Fixed fee</option><option value="cost"${l.type === "cost" ? " selected" : ""}>At cost</option></select></td>
-          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="${l.added ? "not in the SOW" : "$0.00"}" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
+          <td class="n est" data-l="SOW estimate"><input class="ln-est money" type="text" inputmode="decimal" autocomplete="off" value="${l.estimate ? usd(l.estimate) : ""}" placeholder="${l.added && locked ? "not in the SOW" : "$0.00"}" aria-label="SOW estimate in dollars"${locked ? " disabled" : ""}></td>
           ${rcCell(l)}
           <td class="n act inv" data-l="Invoice amount"><input class="ln-act money" type="text" inputmode="decimal" autocomplete="off" value="${l.actual !== null && l.actual !== undefined ? usd(l.actual) : ""}" aria-label="Invoice amount in dollars"></td>
           <td class="v act" data-l="vs estimate"></td>
@@ -7694,14 +7705,24 @@ function wireSow(ev, S, { onSums = null } = {}) {
 
   const save = async (quiet) => {
     read(); dirty = false;   // anything typed while this save is on its way marks it not saved again
+    // The named lines and rows as sent, in the order sent: the server answers in that order. Its ids are matched to
+    // these, never to the screen, where a row may have moved while the save was on its way (Andrew 3 Nov 2026: moving
+    // a line up twice quickly on the VIP event's SOW traded two lines' ids, and receipts are filed by line id).
+    const named = (rows) => (rows ?? []).filter((l) => String(l.name ?? "").trim());
+    const sentLines = named(sow.lines), sentInternal = named(sow.internal);
     const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) }).catch((x) => { dirty = true; throw x; });
     if (quiet) {
       // Saved as you go: what is on the screen stays as typed (a line still being named isn't kept by the server yet);
       // each named line and row takes the id the server gave it, so the next save is the same line, not a new one.
-      const ids = (mine, theirs) => { const named = (mine ?? []).filter((l) => String(l.name ?? "").trim()); (theirs ?? []).forEach((l, i) => { if (named[i]) named[i].id = l.id; }); };
-      ids(sow.lines, out.sow.lines); ids(sow.internal, out.sow.internal);
+      const ids = (sent, theirs) => (theirs ?? []).forEach((l, i) => { if (sent[i]) sent[i].id = l.id; });
+      ids(sentLines, out.sow.lines); ids(sentInternal, out.sow.internal);
       const { lines, taxes, internal, program, ...rest } = out.sow;
-      Object.assign(sow, rest, { lines: sow.lines.map((l) => ({ ...(lines ?? []).find((x) => x.id === l.id), ...l })) });
+      Object.assign(sow, rest, { lines: sow.lines.map((l) => {
+        const s = (lines ?? []).find((x) => x.id === l.id), m = { ...s, ...l };
+        if (s && !s.added) delete m.added;   // given an estimate while unlocked: on the SOW now (the server says so)
+        return m;
+      }) });
+      document.querySelectorAll("#sw-table tr.added").forEach((tr) => { if (!sow.lines[+tr.dataset.i]?.added) { tr.classList.remove("added"); tr.querySelector(".addtag")?.remove(); } });
       if (document.getElementById("sw-table")) read();   // what was typed while it saved stays as typed
     } else Object.assign(sow, out.sow);
     locked = out.locked; changes = out.changedSinceSent ?? changes;
@@ -12022,7 +12043,8 @@ window.addEventListener("hashchange", () => {
   const e = location.hash.match(/^#event\/([^/]+)$/);
   if (e) { view = { name: "event", eventId: decodeURIComponent(e[1]) }; history.replaceState(null, "", location.pathname); render(); }
 });
-finishMicrosoft().catch((e) => e.message).then((done) => {
+// A sign-in reply for ONGIA Expenses is already on its way back there (see the top of this page): leave it alone.
+if (!window.ONGIA_EXPENSES_REPLY) finishMicrosoft().catch((e) => e.message).then((done) => {
   if (typeof done !== "string") return render();
   try { localStorage.setItem("ongia-ms-pick", "1"); } catch {} // a wrong account gets the account picker next time
   signInScreen(done);

@@ -1,0 +1,16 @@
+{
+  "id": "/expenses",
+  "name": "ONGIA Expenses",
+  "short_name": "ONGIA Expenses",
+  "description": "Expense claims for ONGIA's board: receipts kept as you go, sent for approval when you're done.",
+  "start_url": "/expenses",
+  "scope": "/expenses",
+  "display": "standalone",
+  "background_color": "#0e1a35",
+  "theme_color": "#0e1a35",
+  "icons": [
+    { "src": "/assets/expenses-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/expenses-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/expenses-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

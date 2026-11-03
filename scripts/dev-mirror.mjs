@@ -6,12 +6,12 @@ import { readFile } from "node:fs/promises";
 const SITE = "https://ongia-presenter-agreements.netlify.app";
 const LOCAL = new URL("../public", import.meta.url).pathname;
 const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", svg: "image/svg+xml",
-                png: "image/png", jpg: "image/jpeg", ico: "image/x-icon", json: "application/json" };
+                png: "image/png", jpg: "image/jpeg", ico: "image/x-icon", json: "application/json", webmanifest: "application/manifest+json" };
 createServer(async (req, res) => {
   const path = req.url.split("?")[0];
   if (!path.startsWith("/api/")) {
     try {
-      const buf = await readFile(LOCAL + (path === "/" ? "/index.html" : path));
+      const buf = await readFile(LOCAL + (path === "/" ? "/index.html" : path === "/expenses" ? "/expenses.html" : path));
       res.writeHead(200, { "content-type": TYPES[path.split(".").pop()] || "application/octet-stream" });
       return res.end(buf);
     } catch { /* not checked in — fall through to the live site */ }
