@@ -604,7 +604,7 @@ function editorScreen() {
     <div id="sayslot"></div>
     ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
     <div class="two">
-      <div class="field"><label for="f-date"><span>Date</span>${readMark(l, "date")}</label><input id="f-date" type="date" value="${esc(l.date ?? "")}"></div>
+      <div class="field"><label for="f-date"><span>Date</span>${readMark(l, "date")}</label><input id="f-date" type="date" value="${esc(l.date ?? (k === "mileage" && !EDIT.lineId ? todayHere() : ""))}"></div>
       ${k === "mileage"
         ? `<div class="field"><label for="f-km"><span>Kilometres</span></label><input id="f-km" inputmode="decimal" autocomplete="off" value="${esc(l.km ?? "")}" placeholder="0"></div>`
         : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="decimal" autocomplete="off" value="${l.amount === null || l.amount === undefined ? "" : esc(Number(l.amount).toFixed(2))}" placeholder="0.00"></div>`}
