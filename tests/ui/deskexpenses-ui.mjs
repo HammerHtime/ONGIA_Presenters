@@ -58,6 +58,12 @@ ok("on a laptop, the icon rail has Expenses with its badge", await rail.p.locato
 await rail.p.locator("#side").screenshot({ path: D + "desk-expenses-rail.png" });
 await rail.ctx.close();
 
+// Tidy up: the claim made here would otherwise sit in the President's To approve for the tests that run after this one.
+const P = issueExpenseSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
+await fetch(`${S}/api/expenses?decide=${m.claim.id}`, { method: "POST", headers: { "x-expense-key": P, "content-type": "application/json" }, body: JSON.stringify({ decision: "reject", comment: "Test claim, removed." }) });
+const gone = await fetch(`${S}/api/expenses?claim=${m.claim.id}`, { method: "DELETE", headers: { "x-expense-key": J } });
+ok("the test's claim is sent back and deleted, so nothing waits on the President", gone.status === 200, String(gone.status));
+
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

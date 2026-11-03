@@ -2273,8 +2273,10 @@ async function expAttention(force = false) {
   if (force || Date.now() - EXPN_AT > 60000) {
     EXPN_AT = Date.now();
     try {
+      // The answer is always read, refusal or not: one left unread keeps the page "loading" (someone not on the expense list).
       const r = await fetch("/api/expenses", { headers: { "x-expense-key": KEY } });
-      if (r.ok) { const h = await r.json(); EXPN = (h.toApprove?.length ?? 0) + (h.toPay?.length ?? 0) + (h.current?.status === "rejected" ? 1 : 0); }
+      const h = await r.json().catch(() => null);
+      if (r.ok && h) EXPN = (h.toApprove?.length ?? 0) + (h.toPay?.length ?? 0) + (h.current?.status === "rejected" ? 1 : 0);
     } catch { /* the badge waits for the next look */ }
   }
   document.querySelectorAll("[data-expn]").forEach((el) => { el.textContent = EXPN; el.hidden = !EXPN; });
