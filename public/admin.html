@@ -183,6 +183,10 @@
       background:var(--navy-deep);color:#fff;border-right:3px solid var(--gold);padding:calc(20px + env(safe-area-inset-top,0px)) 12px 14px}
     .withside .bar{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--hair);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:12px}
     .withside .bar > .logo,.withside .bar > .sub,.withside .bar .me{display:none}
+    /* "Briefing Room" is the page's header, across the top beside the logo (Andrew 3 Nov 2026, option C: "make the briefing
+       room better. It stands out more ... almost like a header"), not small grey type under the logo. */
+    .withside .bar > .sub{display:block;flex:none;font:400 30px/1.1 var(--fd);color:var(--navy-deep);padding-left:14px;border-left:3px solid var(--gold);white-space:nowrap}
+    .withside .sroom{display:none} .withside .slogo{margin-bottom:24px}
     .withside .bar .chip:not(.solid){color:var(--ink);border-color:var(--border);background:#fff}
     .withside .bar .hsearch input{background:#fff;border-color:var(--border);color:var(--ink)}
     .withside .bar .hsearch input::placeholder{color:var(--muted)}
@@ -193,7 +197,7 @@
     body.withside{padding-left:88px}
     .withside .side{width:88px;padding-left:6px;padding-right:6px}
     .withside .slogo{height:40px;width:30px;object-fit:cover;object-position:left top;clip-path:inset(0 0 24% 0);margin:0 auto 14px}
-    .withside .sroom{display:none}
+    .withside .sroom{display:none} .withside .bar > .sub{font-size:26px}
     .withside .sn{flex-direction:column;gap:3px;padding:8px 2px;font-size:11px;text-align:center;justify-content:center}
     .withside .sn svg{width:21px;height:21px}
     .withside .sn .attnb{position:absolute;top:2px;left:calc(50% + 6px);margin:0}
