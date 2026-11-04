@@ -25,7 +25,9 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   PUT    /api/events?id=…                 update an event's details (deadlines re-derive)
  *   PUT    /api/events?id=…&attendeeMail=1  { on: true|false } — attendee emails on or off, nothing else
  *   DELETE /api/events?id=…                 delete an event and everything under it
- *   POST   /api/events?id=…&add=1           add presenters to an event
+ *   POST   /api/events?id=…&add=1           add presenters to an event; a row with from: { event, presenter } brings their
+ *                                            bio, talk, outline and phone (and website extras) over from that event
+ *   GET    /api/events?people=1[&for=<event>] everyone who has signed an agreement before, newest first, one per email
  *   DELETE /api/events?id=…&presenter=…     remove one presenter (&final=1 for a signed, filed agreement)
  *   POST   /api/events?id=…&folder=1        create the event's SharePoint folder by convention
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
@@ -42,6 +44,7 @@ export default async (req) => {
   const who = adminWho(req);
   const canCost = mayCost(who);
 
+  if (req.method === "GET" && url.searchParams.get("people")) return pastPresenters(url.searchParams.get("for"));
   if (req.method === "GET") return id ? showEvent(id, canCost, who) : showList(canCost, who);
   // What this board member has now seen on a tab: anyone who can open the event, view-only too.
   if (req.method === "PUT" && id && url.searchParams.get("seen")) return markSeen(id, who, await req.json().catch(() => null));
@@ -732,6 +735,44 @@ async function addPresenters(id, body, origin) {
 }
 
 /**
+ * Presenters who have signed before (Andrew 4 Nov 2026: "some of the presenters will be the same at the other CFAOC
+ * events … select the presenter name and all the info (bio and presentation outline) will prefill"). One per email, the
+ * most recent event they signed for first; practice events left out, and anyone already on the event being added to.
+ */
+async function pastPresenters(forEvent = null) {
+  const events = (await listEvents()).filter((e) => !e.practice && !/^practice-/.test(e.id));
+  const already = forEvent ? new Set((await listPresenters(forEvent)).map((p) => String(p.email ?? "").toLowerCase()).filter(Boolean)) : new Set();
+  const seen = new Map();
+  for (const e of events.sort((a, b) => String(b.dayOne ?? "").localeCompare(String(a.dayOne ?? "")))) {
+    if (e.id === forEvent) continue;
+    for (const p of await listPresenters(e.id)) {
+      const s = p.submission;
+      const email = String(p.email ?? "").toLowerCase();
+      if (!s || !email || seen.has(email) || already.has(email)) continue;
+      if (p.status !== "submitted" && p.status !== "approved") continue;
+      seen.set(email, { event: e.id, presenter: p.id, eventTitle: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "",
+        first: p.first, last: p.last, email: p.email, organization: p.organization ?? "", talk: s.talk ?? "", hasBio: !!s.bio, hasOutline: !!s.outline });
+    }
+  }
+  return json({ people: [...seen.values()] });
+}
+
+/**
+ * What a presenter brings from an earlier event: what they wrote about themselves and their talk, waiting in their new
+ * agreement for them to check (never signed for them: hotel, travel, consent and the signature are this event's own), and
+ * the website's job title and French. Nothing when the source can't be found.
+ */
+async function carriedFrom(from) {
+  if (!from?.event || !from?.presenter) return {};
+  const src = await getPresenter(String(from.event), String(from.presenter)).catch(() => null);
+  const s = src?.submission;
+  if (!s) return {};
+  const prefill = Object.fromEntries(Object.entries({ phone: s.phone, talk: s.talk, bio: s.bio, outline: s.outline }).filter(([, v]) => v));
+  const web = src.web ? Object.fromEntries(Object.entries({ title: src.web.title, titleFr: src.web.titleFr, orgFr: src.web.orgFr, talkFr: src.web.talkFr, bioFr: src.web.bioFr, outlineFr: src.web.outlineFr }).filter(([, v]) => v)) : null;
+  return { prefill, prefillFrom: { event: from.event, presenter: from.presenter, at: new Date().toISOString() }, ...(web && Object.keys(web).length ? { web } : {}) };
+}
+
+/**
  * Create presenters and, unless told not to, email each their link straight
  * away — adding someone to an event is the moment the coordinator means
  * "send them the agreement", not a staging step.
@@ -755,7 +796,9 @@ async function addPeople(event, rows, { invite = true, origin = "" } = {}) {
       rejected.push({ row, why: `"${email}" is not an email address.` });
       continue;
     }
+    const carried = await carriedFrom(row.from);
     const presenter = {
+      ...carried,
       id: token(10),
       eventId: event.id,
       first,

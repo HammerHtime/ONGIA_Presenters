@@ -112,7 +112,8 @@ async function showForm(event, presenter) {
       avAt: presenter.avAt ?? null,
     },
     // What they typed last time, so a half-finished form isn't lost.
-    draft: presenter.submission ?? null,
+    // Or, for someone who presented at an earlier event, what they wrote then (bio, talk, outline, phone) to check.
+    draft: presenter.submission ?? presenter.prefill ?? null,
     // The Presenter Terms they agree to, in both languages, from the one copy the PDF prints.
     terms: TERMS,
   });
