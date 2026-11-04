@@ -183,5 +183,15 @@ ok("a race with another push is retried once and lands", r.ok && JSON.parse(read
 delete process.env.CFAOC_GITHUB_TOKEN;
 ok("without the key, the button says how to fix it and sends nothing", /CFAOC_GITHUB_TOKEN/.test((await call("event=ev-west&preview=1")).body.error));
 
+// The venue's full name on the site, when the event's own is a short form (Andrew 4 Nov 2026).
+{
+  const { cleanWebsite } = await import(F + "lib/website.mjs");
+  const short = { ...west, venue: "Delta Victoria", website: cleanWebsite({ ...(west.website ?? {}), venueName: "Delta Hotels by Marriott Victoria Ocean Pointe Resort" }) };
+  const named = await buildDeskFile(short, people);
+  ok("a venue name for the website is the one published", JSON.stringify(named).includes("Delta Hotels by Marriott Victoria Ocean Pointe Resort") && !JSON.stringify(named).includes("\"Delta Victoria\""));
+  const plain = await buildDeskFile({ ...west, venue: "Delta Victoria", website: cleanWebsite({ ...(west.website ?? {}), venueName: "" }) }, people);
+  ok("left empty, the event's venue is published", JSON.stringify(plain).includes("\"Delta Victoria\""));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -5585,6 +5585,7 @@ function renderWebsite(ev, W) {
     <div class="row2">${f("page", "Website page", w.page, { ph: "victoria", hint: "Which part of the site this event fills, as in cfaoc-symposium.ca/<b>victoria</b>/. A new name adds a new city.", max: 40 })}${f("regionLabel", "Region", w.regionLabel, { ph: "West Coast", max: 60 })}</div>
     <div class="row2">${f("startTime", "Starts", w.startTime, { type: "time" })}${f("endTime", "Ends", w.endTime, { type: "time" })}</div>
     ${f("registerUrl", "Registration link", w.registerUrl, { ph: W.wixUrl || "https://www.ongia.org/event-details/…", max: 800, hint: W.wixUrl ? "Leave it empty to use the Wix event this event is linked to." : "The event's page on Wix, where people register." })}
+    ${f("venueName", "Venue name on the website", w.venueName, { ph: ev.venue || "", max: 200, hint: "Leave it empty to use the venue on the event. Fill it in when the website should give the venue's full name." })}
     <div class="row2">${f("street", "Venue street address", w.street, { ph: "100 Harbour Road" })}${f("postalCode", "Postal code", w.postalCode, { ph: "V9A 0G1", max: 12 })}</div>
     <div class="row2">${f("hotelRate", "Hotel rate shown to the public", w.hotelRate, { ph: "$249", max: 40, hint: "Only this goes on the site, never the rate in the hotel contract." })}${f("groupCode", "Hotel group code", w.groupCode, { max: 60 })}</div>
     <div class="row2"><div class="field"><label for="ws-blurb">Short description</label><textarea id="ws-blurb" maxlength="600" style="min-height:70px">${esc(w.blurb)}</textarea></div>
@@ -5616,7 +5617,7 @@ function renderWebsite(ev, W) {
   const val = (id) => document.getElementById(`ws-${id}`)?.value ?? "";
   const rows = () => [...box.querySelectorAll("[data-wsrow]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
   const fields = () => ({ page: val("page"), regionLabel: val("regionLabel"), startTime: val("startTime"), endTime: val("endTime"), registerUrl: val("registerUrl"),
-    street: val("street"), postalCode: val("postalCode"), hotelRate: val("hotelRate"), groupCode: val("groupCode"), blurb: val("blurb"), blurbFr: val("blurbFr"), agenda: rows() });
+    venueName: val("venueName"), street: val("street"), postalCode: val("postalCode"), hotelRate: val("hotelRate"), groupCode: val("groupCode"), blurb: val("blurb"), blurbFr: val("blurbFr"), agenda: rows() });
   const saveEvent = async () => { const out = await api(`/website?event=${encodeURIComponent(ev.id)}`, { method: "PUT", body: JSON.stringify(fields()) }); W.website = out.website; return out; };
   const busy = (b, words) => { const was = b.textContent; b.disabled = true; b.textContent = words; return () => { b.disabled = false; b.textContent = was; }; };
 
