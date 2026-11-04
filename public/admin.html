@@ -1438,6 +1438,8 @@
   @media (max-width:760px){.qacts{display:grid;grid-template-columns:1fr 1fr} .qacts .qact.gold{grid-column:1 / -1}}
   .qact{display:flex;align-items:center;gap:9px;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 12px;font:600 13.5px var(--fb);color:var(--ink);cursor:pointer;text-align:left}
   .qact:hover{border-color:var(--gold)} .qact.gold{background:var(--gold);border-color:var(--gold);color:#1c1608}
+  /* The to-do rows' button holder shares the name but is no button: just the button, no box around it (Andrew 4 Nov 2026). */
+  span.qact,span.qact:hover{display:block;border:0;background:none;padding:0;border-radius:0;cursor:auto}
   .qact svg,.fic svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
   .dsub{margin:-6px 0 12px;font-size:13px}
   .dnums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
