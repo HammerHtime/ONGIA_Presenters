@@ -41,6 +41,18 @@ export const TEMPLATES = [
     },
     qr: { x: 538, y: 468, size: 38 },
   },
+  // The Canadian Forum Against Organized Crime symposia (Andrew 4 Nov 2026: "the CFAOC events will have the same
+  // certificate with this graphic at the top"): the Summit's page with the CFAOC artwork in place of the Summit's, so
+  // the words go where they go on the Summit's. Made by scripts/make-cfaoc-cert.py.
+  {
+    id: "cfaoc", name: "Canadian Forum Against Organized Crime", note: "Every CFAOC symposium", image: "certs/cfaoc.jpg", imageFr: "certs/cfaoc-fr.jpg", forTitle: /canadian forum against organized crime|\bcfaoc\b/i,
+    fields: {
+      name: { font: "b", size: 28.83, x: 40, base: 572.5, max: 370 },
+      agency: { font: "i", size: 17.08, x: 38, base: 604, max: 400 },
+      date: { font: "r", size: 13.74, x: 36, base: 708.5, max: 115 },
+    },
+    qr: { x: 538, y: 468, size: 38 },
+  },
   {
     id: "generic", name: "Certificate of Completion", note: "Generic: webinars and general training", image: "certs/ongia-generic.jpg", imageFr: "certs/ongia-generic-fr.jpg",
     fields: {
