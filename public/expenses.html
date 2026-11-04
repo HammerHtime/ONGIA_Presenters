@@ -115,6 +115,13 @@
   .signin img.icon{width:96px;height:96px;border-radius:22px;box-shadow:0 8px 24px rgba(14,26,53,.25)}
   .signin h2{font-family:var(--fd);font-weight:400;font-size:28px;margin:14px 0 4px;color:var(--navy-deep)}
   .signin p{color:var(--ink-mid);margin:0 0 20px;font-size:15px;line-height:1.45}
+  .a2hs{text-align:left;background:#fff;border:1px solid var(--line, #e3dfd4);border-radius:16px;padding:16px 18px;margin:0 0 22px;box-shadow:0 4px 14px rgba(14,26,53,.08)}
+  .a2hs b.h{display:block;font-size:16px;color:var(--navy-deep);margin-bottom:8px}
+  .a2hs ol{margin:0;padding-left:22px;font-size:15px;line-height:1.5;color:var(--ink, #1b2333)}
+  .a2hs li{margin:4px 0}
+  .a2hs .gly{display:inline-block;vertical-align:-4px;width:20px;height:20px}
+  .a2hs .after{margin:10px 0 0;font-size:14px;color:var(--ink-mid)}
+  .a2hs .btn{margin-top:12px;width:100%}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + var(--safe-bottom));background:var(--navy-deep);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:min(92vw,480px);box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:9;pointer-events:none}
   .toast.bad{background:var(--late)}
   .sheet-bg{position:fixed;inset:0;background:rgba(14,26,53,.82);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -373,14 +380,64 @@ function signInScreen(message) {
     return;
   }
   chrome({ title: "ONGIA Expenses", back: false, tabs: false, me: false });
+  const a2hs = homeScreenSteps();
   ROOT.innerHTML = `<div class="signin">
     <img class="icon" src="/assets/expenses-icon-180.png" alt="" width="96" height="96">
     <h2>ONGIA Expenses</h2>
-    <p>Sign in with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
+    ${a2hs}
+    <p>${a2hs ? "Then sign in" : "Sign in"} with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
     ${message ? `<div class="say bad" style="text-align:left"><b>Couldn't sign in.</b> ${esc(message)}</div>` : ""}
     <button class="btn navy" id="ms" type="button">${MS_MARK}<span>Sign in with Microsoft</span></button>
   </div>`;
   $("ms").onclick = (e) => { e.currentTarget.disabled = true; e.currentTarget.lastElementChild.textContent = "Opening Microsoft…"; startMicrosoft(); };
+  wireInstall();
+}
+
+/* ---------- add to the home screen (Andrew 4 Nov 2026: "a link I can send … should prompt them to add to home screen") ----------
+ * Shown on the sign-in screen of a phone that isn't already running it from its home screen. On an iPhone the steps come
+ * first and say to sign in from the icon: a sign-in made in Safari doesn't carry over to the home-screen app. A link opened
+ * inside Outlook, Gmail or a text message can't be added from there, so those are told to open it in Safari. Android's
+ * Chrome offers its own Install button, used when it's there.
+ */
+let INSTALL_PROMPT = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); INSTALL_PROMPT = e; const b = document.getElementById("a2hs-go"); if (b) b.hidden = false; });
+window.addEventListener("appinstalled", () => { INSTALL_PROMPT = null; document.querySelector(".a2hs")?.remove(); });
+const SHARE_GLYPH = `<svg class="gly" viewBox="0 0 24 24" fill="none" stroke="#0a66d8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>`;
+function homeScreenSteps() {
+  const ua = navigator.userAgent || "";
+  const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+  if (standalone) return "";
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  if (!ios && !android) return "";
+  const head = `<b class="h">First, add ONGIA Expenses to your home screen</b>`;
+  if (ios) {
+    const inApp = /CriOS|FxiOS|EdgiOS|GSA\/|FBAN|FBAV|Instagram|LinkedInApp|Outlook|OPT\//.test(ua) || !/Safari\//.test(ua);
+    if (inApp) return `<div class="a2hs">${head}<ol>
+        <li>Open this page in <b>Safari</b>: tap the <b>⋯</b> or the compass button and choose <b>Open in Safari</b>. Or copy the link and paste it into Safari.</li>
+        <li>In Safari, tap ${SHARE_GLYPH} <b>Share</b>, then <b>Add to Home Screen</b>.</li></ol>
+      <p class="after">Then open <b>ONGIA Expenses</b> from your home screen and sign in there.</p></div>`;
+    return `<div class="a2hs">${head}<ol>
+        <li>Tap ${SHARE_GLYPH} <b>Share</b> at the bottom of the screen (at the top on an iPad).</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+        <li>Open <b>ONGIA Expenses</b> from your home screen and sign in there.</li></ol>
+      <p class="after">Sign in from the icon, not here: a sign-in in Safari doesn't carry over to it.</p></div>`;
+  }
+  return `<div class="a2hs">${head}
+      <button class="btn navy" id="a2hs-go" type="button"${INSTALL_PROMPT ? "" : " hidden"}>Add to home screen</button>
+      <ol id="a2hs-steps"><li>Tap <b>⋮</b> at the top right of Chrome.</li><li>Tap <b>Add to Home screen</b> or <b>Install app</b>.</li></ol>
+      <p class="after">Then open <b>ONGIA Expenses</b> from your home screen.</p></div>`;
+}
+function wireInstall() {
+  const b = document.getElementById("a2hs-go");
+  if (!b) return;
+  b.onclick = async () => {
+    if (!INSTALL_PROMPT) return;
+    INSTALL_PROMPT.prompt();
+    const choice = await INSTALL_PROMPT.userChoice.catch(() => null);
+    INSTALL_PROMPT = null; b.hidden = true;
+    if (choice?.outcome === "accepted") document.querySelector(".a2hs .after").textContent = "Added. Open ONGIA Expenses from your home screen.";
+  };
 }
 
 /* ---------- the frame: title, back, who, tabs ---------- */
