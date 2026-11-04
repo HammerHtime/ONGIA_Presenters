@@ -3043,10 +3043,11 @@ function eventFormScreen(existing = null) {
     const list = $("wx-list");
     list.hidden = false; list.innerHTML = `<p class="hint">Asking your website…</p>`;
     try {
-      const { events, problems = [] } = await api("/wix?events=1");
+      // Past events are left out (Andrew 4 Nov 2026: "I don't want to see past events"); one with no date stays.
+      const { events, problems = [] } = await api("/wix?events=1").then((o) => ({ ...o, events: upcomingWix(o.events ?? []) }));
       // Anything a second Wix site said instead of its events (a refused key, nothing published) is shown, not hidden.
       const said = problems.map((p) => `<div class="bad" style="margin:0 0 10px">${esc(p)}</div>`).join("");
-      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no upcoming events.</p>`; return; }
       list.innerHTML = said + `<div class="wixev">${events.map((w) => `
         <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
           <b>${esc(w.title)}</b>
@@ -3158,6 +3159,9 @@ function weekendWash(y, m) {
   }
   return `linear-gradient(90deg,${stops.join(",")})`;
 }
+
+/** Wix events still to come (or with no date yet), for the pickers that link one to a desk event. */
+const upcomingWix = (list) => list.filter((w) => !w.dayOne || (w.lastDay || w.dayOne) >= todayIso());
 
 /** The three dates an event counts back to, and whether each still has work behind it. */
 function deadlinesOf(ev) {
@@ -9467,10 +9471,11 @@ function wireAttendees(ev) {
     list.innerHTML = `<p class="hint">Asking your website…</p>`;
     dlg.showModal();
     try {
-      const { events, problems = [] } = await api("/wix?events=1");
+      // Past events are left out (Andrew 4 Nov 2026: "I don't want to see past events"); one with no date stays.
+      const { events, problems = [] } = await api("/wix?events=1").then((o) => ({ ...o, events: upcomingWix(o.events ?? []) }));
       // Anything a second Wix site said instead of its events (a refused key, nothing published) is shown, not hidden.
       const said = problems.map((p) => `<div class="bad" style="margin:0 0 10px">${esc(p)}</div>`).join("");
-      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no events on it yet.</p>`; return; }
+      if (!events.length) { list.innerHTML = said + `<p class="hint">Your website has no upcoming events.</p>`; return; }
       list.innerHTML = said + `<div class="wixev">${events.map((w) => `
         <button type="button" data-wix="${esc(w.id)}"${w.linkedTo ? " disabled" : ""}>
           <b>${esc(w.title)}</b>
