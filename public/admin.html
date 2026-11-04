@@ -1678,6 +1678,10 @@
   .qmail{border-top:1px solid var(--border)} .qmailh{font-family:var(--fu);letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);padding:12px 20px 4px}
   .qmail .ibrows{padding:0 8px 8px}
   .qempty{padding:16px 20px;color:var(--ink-mid)}
+  /* Add presenters: someone who presented before. */
+  .pastlist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .pastpick{text-align:left;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 12px;cursor:pointer;font:inherit;color:var(--ink)}
+  .pastpick:hover{border-color:var(--gold)} .pastpick .psub{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
   /* Each event its own tile, with a gap between them (Andrew 20 Oct 2026: not all one block). */
   .evt{width:calc(100% - 24px);margin:2px 12px 8px;border-collapse:separate;border-spacing:0 8px}
   .evt th{font-family:var(--fu);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted);text-align:left;padding:8px 14px 0}
@@ -3960,9 +3964,36 @@ function eventScreen(data) {
   };
   // Add presenters (audit, 21 Oct 2026): a pop-up over the event, the way Add volunteers works, not a separate screen.
   let addedAny = false;
+  // Someone who presented before (Andrew 4 Nov 2026): picked by name, their details come over from that event.
+  const PICKED = new Map();   // email → { event, presenter }
+  let PAST = null;
+  const pastSearch = () => {
+    const box = document.getElementById("p-pastlist"), q = document.getElementById("p-past").value.trim().toLowerCase();
+    if (!box) return;
+    if (!PAST) { box.innerHTML = `<p class="hint" style="margin:6px 0 0">Loading…</p>`; return; }
+    if (!q) { box.innerHTML = ""; return; }
+    const hits = PAST.filter((x) => `${x.first} ${x.last} ${x.organization} ${x.email}`.toLowerCase().includes(q)).slice(0, 8);
+    box.innerHTML = hits.length ? hits.map((x) => `<button type="button" class="pastpick" data-past="${esc(x.email)}">
+        <b>${esc(`${x.first} ${x.last}`)}</b> <span class="porg">${esc(x.organization || x.email)}</span>
+        <span class="psub">${esc(x.eventTitle)}${x.dayOne ? `, ${esc(fmtDate(x.dayOne))}` : ""}${x.talk ? ` · “${esc(x.talk)}”` : ""}</span></button>`).join("")
+      : `<p class="hint" style="margin:6px 0 0">Nobody by that name has signed an agreement before.</p>`;
+    box.querySelectorAll("[data-past]").forEach((b) => b.onclick = () => {
+      const x = PAST.find((y) => y.email === b.dataset.past);
+      const rows = document.getElementById("p-rows");
+      PICKED.set(x.email.toLowerCase(), { event: x.event, presenter: x.presenter });
+      rows.value = `${rows.value.trim() ? rows.value.replace(/\s+$/, "") + "\n" : ""}${x.first}, ${x.last}, ${x.email}, ${x.organization}`;
+      document.getElementById("p-past").value = ""; box.innerHTML = "";
+      document.getElementById("padd-said").innerHTML = `<div class="note">${esc(`${x.first} ${x.last}`)} is in the list below, with what they wrote for ${esc(x.eventTitle)} to come over.</div>`;
+    });
+  };
   const openAdd = () => {
     const d = document.getElementById("padd");
     document.getElementById("padd-said").innerHTML = "";
+    const past = document.getElementById("p-past");
+    if (past) {
+      past.value = ""; past.oninput = pastSearch; document.getElementById("p-pastlist").innerHTML = "";
+      if (!PAST) api(`/events?people=1&for=${encodeURIComponent(ev.id)}`).then((o) => { PAST = o.people ?? []; if (past.value) pastSearch(); }).catch(() => { PAST = []; });
+    }
     d.showModal();
     document.getElementById("p-rows").focus();
   };
@@ -4527,6 +4558,10 @@ function eventScreen(data) {
           <div class="field"><label for="p-rows">Presenters</label>
             <textarea id="p-rows" style="min-height:150px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, Service de police de la Ville de Montréal"></textarea>
             <p class="hint">Name and email are needed; organization is optional. Phone, biography and the rest they fill in themselves.</p></div>
+          <div class="field"><label for="p-past">Or someone who has presented before</label>
+            <input id="p-past" type="search" autocomplete="off" placeholder="Type a name or organization">
+            <div id="p-pastlist" class="pastlist"></div>
+            <p class="hint" style="margin:6px 0 0">Their biography, talk, outline and phone are waiting in their agreement for them to check and sign. Hotel, travel and the rest are this event's own.</p></div>
           <div id="padd-said"></div>
           <label class="attest" style="margin-top:4px"><input type="checkbox" id="p-invite" checked><span>Email each presenter their agreement link now</span></label>
           <div class="actions" style="margin-top:16px;flex-wrap:wrap">
@@ -4782,7 +4817,10 @@ function eventScreen(data) {
   document.getElementById("padd-save").onclick = async (e) => {
     const said = document.getElementById("padd-said");
     const list = document.getElementById("p-rows").value.split("\n").map((l) => l.trim()).filter(Boolean)
-      .map((line) => { const [first, last, email, organization] = line.split(",").map((x) => (x ?? "").trim()); return { first, last, email, organization }; });
+      // An organization may have commas in it: everything after the email is the organization.
+      .map((line) => { const [first, last, email, ...org] = line.split(",").map((x) => (x ?? "").trim());
+        const from = PICKED.get(String(email ?? "").toLowerCase());
+        return { first, last, email, organization: org.join(", "), ...(from ? { from } : {}) }; });
     if (!list.length) { said.innerHTML = `<div class="bad">Type at least one presenter: first name, last name, email.</div>`; return; }
     e.target.disabled = true; e.target.textContent = "Adding…";
     try {
