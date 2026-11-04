@@ -7802,7 +7802,9 @@ function wireSow(ev, S, { onSums = null } = {}) {
       if (!anyRc) return "";
       if (!l.receiptCount) return `<td class="rcv" data-l="Receipts so far"><span class="hint">–</span></td>`;
       const left = l.type === "cost" && l.estimate > 0 ? (l.estimate - l.receiptsTotal >= 0 ? `<div class="rcl under">${usd(l.estimate - l.receiptsTotal)} left</div>` : `<div class="rcl over">${usd(l.receiptsTotal - l.estimate)} over</div>`)
-        : l.type === "fixed" ? `<div class="rcl">fixed fee: the invoice uses the estimate</div>` : "";
+        // A fixed fee's receipts are ONGIA's own cost against it (Andrew 4 Nov 2026): what's left of the fee, or how far
+        // over, to plan the next statement of work. The invoice still bills the fee.
+        : l.type === "fixed" ? `${l.estimate > 0 ? (l.estimate - l.receiptsTotal >= 0 ? `<div class="rcl under">${usd(l.estimate - l.receiptsTotal)} of the fee left</div>` : `<div class="rcl over">${usd(l.receiptsTotal - l.estimate)} over the fee</div>`) : ""}<div class="rcl">fixed fee: RBH is billed the fee, not these</div>` : "";
       return `<td class="rcv" data-l="Receipts so far"><b>${usd(l.receiptsTotal)}</b><div class="rcl">${l.receiptCount} receipt${l.receiptCount === 1 ? "" : "s"}</div>${left}</td>`;
     };
     const rcAll = r2(sow.lines.reduce((n, l) => n + (l.receiptsTotal || 0), 0) + (sow.receiptsOther || 0));

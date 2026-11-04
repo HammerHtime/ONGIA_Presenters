@@ -126,6 +126,44 @@ export function expenseWho(req) {
 
 /* ---------- lines ---------- */
 
+/*
+ * Which line of an RBH event's statement of work an expense goes under (Andrew 4 Nov 2026; lib/sowexpense.mjs puts it
+ * there once the claim is approved). Each line comes with a word on what it's for and whether RBH is billed for it.
+ */
+/** What each kind of line is for, in words a board member can pick by. Never an amount: those are for the officers. */
+const HELP = [
+  [/on.?site/i, "The event team's own travel and time on site: flights, trains, taxis, mileage, per diems, meals while there."],
+  [/^hotel$/i, "Hotel rooms."],
+  [/meeting/i, "Renting the meeting room."],
+  [/f\s*&\s*b|food|catering/i, "Food and drink from the hotel or caterer for the event."],
+  [/\ba\s*\/?\s*v\b|audio/i, "Audio-visual: screens, sound, microphones."],
+  [/pre.?event|post/i, "Work before and after: marketing, registration, certificates, surveys."],
+  [/presenter|creative/i, "Presenter support and creative work."],
+  [/rebrand|signage|sign/i, "Signs, banners and printed branding."],
+  [/incidental/i, "Small costs that fit no other line."],
+  [/gratuit|tip/i, "Tips and gratuities."],
+];
+const kindWords = (type) => (type === "fixed" ? "Fixed fee: for ONGIA's own tracking, never billed to RBH." : "Billed to RBH at cost: it goes into the invoice total.");
+export const helpFor = (name, type) => `${HELP.find(([re]) => re.test(name))?.[1] ?? ""} ${kindWords(type)}`.trim();
+
+/** The lines an expense on this event can go under, or null when it has none (not RBH, or no statement of work yet). */
+export function sowLinesFor(event, sow) {
+  if (event?.kind !== "rbh" || !sow?.lines?.length) return null;
+  return sow.lines.map((l) => ({ id: l.id, name: l.name, type: l.type === "fixed" ? "fixed" : "cost", help: helpFor(l.name, l.type) }));
+}
+
+/** The line to suggest for an expense, from what it is: a hotel to Hotel, other travel to On Site Management. */
+export function suggestLine(line, lines) {
+  if (!lines?.length) return null;
+  const find = (re) => lines.find((l) => re.test(l.name))?.id ?? null;
+  const words = `${line?.paidTo ?? ""} ${line?.purpose ?? ""}`;
+  if (/hotel|\binn\b|marriott|delta|hilton|sheraton|westin|fairmont|resort|suites?\b|folio|lodg/i.test(words)) return find(/^hotel$/i) ?? find(/on.?site/i);
+  if (line?.kind === "mileage" || Number(line?.category) === TRAVEL) return find(/on.?site/i);
+  return null;
+}
+
+
+
 export const KINDS = ["receipt", "mileage", "noreceipt"];
 const str = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const isoDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) && !Number.isNaN(Date.parse(v)) ? String(v) : "");
@@ -136,7 +174,7 @@ const amountOf = (v) => (v === "" || v === null || v === undefined || !Number.is
  * half-filled and finished later. What is still missing is listed by lineProblems, and only Submit insists.
  * `events` are the ones a line may name (id → title).
  */
-export function cleanLine(kind, body, { events = [], rate = mileageRate() } = {}) {
+export function cleanLine(kind, body, { events = [], rate = mileageRate(), had = null } = {}) {
   const ev = events.find((e) => e.id === String(body?.eventId ?? ""));
   const out = {
     date: isoDate(body?.date),
@@ -144,6 +182,14 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate() } = {}
     eventId: ev ? ev.id : "", eventTitle: ev ? ev.title : "",
     purpose: str(body?.purpose, 240),
   };
+  // An RBH event with a statement of work: which of its lines this goes under. Asked for, never left to guess; a
+  // suggestion from what it is (a flight goes under On Site Management) fills an empty one.
+  const sowLines = ev?.sowLines ?? null;
+  out.sowNeeded = !!sowLines?.length;
+  const asked = body?.sowLineId !== undefined ? String(body.sowLineId) : had?.eventId === out.eventId ? had?.sowLineId ?? "" : "";
+  const picked = sowLines?.find((l) => l.id === asked);
+  out.sowLineId = picked ? picked.id : "";
+  out.sowLineName = picked ? picked.name : "";
   if (kind === "mileage") {
     const km = Number(body?.km);
     out.km = Number.isFinite(km) && km > 0 ? Math.min(Math.round(km * 10) / 10, 10000) : null;
@@ -156,6 +202,10 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate() } = {}
     out.amount = amountOf(body?.amount);
   }
   if (kind === "noreceipt") out.statement = String(body?.statement ?? "").replace(/[ \t]+/g, " ").trim().slice(0, 1500);
+  if (sowLines?.length && !out.sowLineId && body?.sowLineId === undefined) {
+    const s = suggestLine({ ...had, ...out, kind }, sowLines);
+    if (s) { out.sowLineId = s; out.sowLineName = sowLines.find((l) => l.id === s)?.name ?? ""; out.sowSuggested = true; }
+  } else out.sowSuggested = false;
   return out;
 }
 
@@ -215,6 +265,7 @@ export function lineProblems(v) {
   } else if (!(v.amount > 0)) p.push("the amount");
   if (!v.category) p.push("a category");
   if (!v.purpose && !v.eventId) p.push("what it was for");
+  if (v.sowNeeded && !v.sowLineId) p.push("which line of the event's statement of work");
   if (v.kind === "noreceipt" && !isStipend(v)) {
     if (String(v.statement ?? "").trim().length < MIN_REASON) p.push("a reason there's no receipt");
     if (!v.shot) p.push("a screenshot of the card statement");
@@ -242,7 +293,7 @@ export function eventChoices(events, today = todayIso()) {
   return (events ?? [])
     .filter((e) => !e.practice && e.dayOne && day(e.dayOne) >= t - 200 * 86400e3 && day(e.dayOne) <= t + 120 * 86400e3)
     .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)))
-    .map((e) => ({ id: e.id, title: String(e.title ?? "").trim() || e.id, date: e.dayOne, city: e.city ?? "" }));
+    .map((e) => ({ id: e.id, title: String(e.title ?? "").trim() || e.id, date: e.dayOne, city: e.city ?? "", kind: e.kind ?? "" }));
 }
 
 /* ---------- reading a receipt ---------- */

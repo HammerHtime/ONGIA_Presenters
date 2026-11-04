@@ -890,6 +890,7 @@ function editorScreen() {
       <div class="calc" id="calc"></div>` : ""}
     <div class="field"><label for="f-category"><span>Category</span>${readMark(l, "category")}</label><select id="f-category">${catOptions(l.category ?? (k === "mileage" ? 8 : ""))}</select></div>
     <div class="field"><label for="f-event">For which event?</label><select id="f-event">${eventOptions(l.eventId ?? "", l.eventTitle)}</select></div>
+    <div id="sowbox"></div>
     <div class="field"><label for="f-purpose"><span>What it was for</span>${readMark(l, "purpose")}</label><input id="f-purpose" autocomplete="off" value="${esc(l.purpose ?? "")}" placeholder="${k === "mileage" ? "Drive to the training" : "Hotel for the presenters"}"></div>
     ${k === "noreceipt" ? `<div class="field" id="nrwhy"${stipendLine(l) ? " hidden" : ""}><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
       <div class="field" id="nrshot"${stipendLine(l) ? " hidden" : ""}><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
@@ -902,6 +903,8 @@ function editorScreen() {
     el.addEventListener("input", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); document.querySelector(`[data-readmark="${id}"]`)?.remove(); liveChecks(); });
     el.addEventListener("change", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); liveChecks(); });
   }
+  drawSow(l);
+  for (const id of ["event", "category", "paidTo", "purpose"]) $(`f-${id}`)?.addEventListener("change", () => drawSow(lineNow() ?? {}));
   $("save").onclick = () => saveLine({ leave: true });
   if ($("remove")) $("remove").onclick = removeLine;
   if ($("again")) $("again").onclick = readAgain;
@@ -916,6 +919,37 @@ function editorScreen() {
     });
   }
   liveChecks();
+}
+/*
+ * Which line of an RBH event's statement of work this goes under (Andrew 4 Nov 2026): asked only for an event that has
+ * one, with a suggestion from what it is (a flight: On Site Management) and a word on what the picked line is for and
+ * whether RBH is billed for it. The same rule as the server's suggestLine, so a fresh line shows what it will be saved as.
+ */
+const sowSuggest = (lines, v) => {
+  const find = (re) => lines.find((x) => re.test(x.name))?.id ?? "";
+  const words = `${v.paidTo ?? ""} ${v.purpose ?? ""}`;
+  if (/hotel|\binn\b|marriott|delta|hilton|sheraton|westin|fairmont|resort|suites?\b|folio|lodg/i.test(words)) return find(/^hotel$/i) || find(/on.?site/i);
+  if (EDIT?.kind === "mileage" || Number(v.category) === 8) return find(/on.?site/i);
+  return "";
+};
+function drawSow(l) {
+  const box = $("sowbox"); if (!box) return;
+  const ev = (HOME?.events ?? []).find((e) => e.id === ($("f-event")?.value ?? ""));
+  const lines = ev?.sowLines ?? null;
+  if (!lines?.length) { box.innerHTML = ""; return; }
+  const was = $("f-sow")?.value;
+  const touched = EDIT.touched.has("sowLineId");
+  const sel = touched ? was : (l.eventId === ev.id && l.sowLineId && !l.sowSuggested ? l.sowLineId : sowSuggest(lines, { paidTo: $("f-paidTo")?.value, purpose: $("f-purpose")?.value, category: $("f-category")?.value }) || (l.eventId === ev.id ? l.sowLineId : ""));
+  box.innerHTML = `<div class="field"><label for="f-sow">Which line of the statement of work?</label>
+      <select id="f-sow"><option value="">Choose a line</option>${lines.map((x) => `<option value="${esc(x.id)}" ${x.id === sel ? "selected" : ""}>${esc(x.name)} · ${x.type === "fixed" ? "fixed fee" : "billed at cost"}</option>`).join("")}</select>
+      <div class="note" id="sowhelp" style="margin-top:6px"></div></div>`;
+  const help = () => {
+    const x = lines.find((y) => y.id === $("f-sow").value);
+    const suggested = !touched && x && x.id === sel && !(l.eventId === ev.id && l.sowLineId && !l.sowSuggested);
+    $("sowhelp").innerHTML = x ? `${suggested ? "<b>Suggested from what it is.</b> " : ""}${esc(x.help)}` : "Pick the line this belongs to. Ask the President if you're not sure.";
+  };
+  help();
+  $("f-sow").addEventListener("change", () => { EDIT.dirty = true; EDIT.touched.add("sowLineId"); help(); });
 }
 function liveChecks() {
   const l = lineNow();
@@ -956,7 +990,8 @@ function formValues() {
   const v = (id) => $(`f-${id}`)?.value ?? "";
   const num = (s) => (String(s).trim() === "" ? "" : parseMoney(s));
   return { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), km: num(v("km")), from: v("from"), to: v("to"),
-    category: v("category"), eventId: v("event"), purpose: v("purpose"), statement: v("statement") };
+    category: v("category"), eventId: v("event"), purpose: v("purpose"), statement: v("statement"),
+    ...($("f-sow") ? { sowLineId: v("sow") } : {}) };
 }
 async function saveLine({ leave = false } = {}) {
   const btn = $("save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
@@ -1281,6 +1316,30 @@ function openViewer(c, lineId) {
   el.querySelector("#vclose").focus({ preventScroll: true });
 }
 
+/*
+ * The President or the VP moves an expense to another line of the event's statement of work, on any claim, at any time
+ * (Andrew 4 Nov 2026). Only where it counts on the event changes: what was claimed and paid stays as it was.
+ */
+function sowMover(c, l) {
+  if (!["president", "vp"].includes(HOME?.me?.role) || !l.eventId) return "";
+  const lines = (HOME?.events ?? []).find((e) => e.id === l.eventId)?.sowLines;
+  if (!lines?.length) return "";
+  return `<div class="card"><div class="field" style="margin:0"><label for="sowmove">Statement of work line</label>
+      <select id="sowmove" data-claim="${esc(c.id)}" data-line="${esc(l.id)}">${lines.map((x) => `<option value="${esc(x.id)}" ${x.id === l.sowLineId ? "selected" : ""}>${esc(x.name)} · ${x.type === "fixed" ? "fixed fee" : "billed at cost"}</option>`).join("")}${l.sowLineId ? "" : `<option value="" selected>Not on a line yet</option>`}</select>
+      <div class="note" id="sowmovesay" style="margin-top:6px">${c.status === "approved" || c.status === "paid" ? "It's on the event's statement of work under this line. Moving it changes only where it counts there." : "Once the claim is approved it goes on the event's statement of work under this line."}</div></div></div>`;
+}
+function wireSowMover(el) {
+  const s = el.querySelector("#sowmove"); if (!s) return;
+  s.onchange = async () => {
+    if (!s.value) return;
+    s.disabled = true;
+    try {
+      await api(`?claim=${encodeURIComponent(s.dataset.claim)}&line=${encodeURIComponent(s.dataset.line)}&sowline=1`, { method: "POST", json: { sowLineId: s.value } });
+      el.querySelector("#sowmovesay").textContent = `Moved to ${s.options[s.selectedIndex].text.split(" · ")[0]}.`;
+    } catch (e) { el.querySelector("#sowmovesay").textContent = e.message; }
+    s.disabled = false;
+  };
+}
 async function lineSheet(c, l) {
   if (!l) return;
   const cat = HOME?.categories?.find((x) => x.n === Number(l.category));
@@ -1290,7 +1349,8 @@ async function lineSheet(c, l) {
     <main>${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
-      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("What it was for", l.purpose)}</div>
+      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}</div>
+    ${sowMover(c, l)}
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
     ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Speaker stipend: no receipt needed</div></div>` : ""}
     ${l.kind === "noreceipt" && !stipendLine(l) ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
@@ -1298,6 +1358,7 @@ async function lineSheet(c, l) {
   document.body.append(el);
   history.pushState({ sheet: true }, "");
   el.querySelector("[data-close]").onclick = () => history.back();
+  wireSowMover(el);
   const kind = l.kind === "noreceipt" ? "shot" : "file";
   if (!el.querySelector("#sheetpic")) return;
   try {

@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, adminWho, fileName, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { token } from "./lib/ids.mjs";
-import { getEvent, getRoster, getReceipts, putReceipts, putReceiptFile, getReceiptFile, deleteReceiptFile, getReceiptRead, putReceiptRead, deleteReceiptRead } from "./lib/store.mjs";
+import { getEvent, getRoster, getReceipts, putReceipts, putReceiptFile, getReceiptFile, deleteReceiptFile, getReceiptRead, putReceiptRead, deleteReceiptRead, getClaimLine, putClaimLine } from "./lib/store.mjs";
 import { MAX_BYTES, TYPES, OTHER, cleanConfirm, receiptSums, isDuplicate, payerChoices, paidByPerson, receiptLines } from "./lib/receipts.mjs";
 import { STATUSES } from "./lib/sow.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
@@ -129,6 +129,12 @@ export default async (req) => {
     const body = await req.json().catch(() => null);
     const ok = cleanConfirm(body, lineIds, payerChoices(event, await getRoster(), rec.items), { optional });
     if (ok.problem) return fail(ok.problem);
+    // One that came from an expense claim moves with the claim's line, so the two never disagree (lib/sowexpense.mjs).
+    if (item.source?.claim && ok.ok.lineId !== item.lineId) {
+      if (ok.ok.lineId === OTHER) return fail("This one came from an expense claim, so it stays under a line of the statement of work. Pick the line it belongs to.");
+      const line = await getClaimLine(item.source.claim, item.source.line);
+      if (line) await putClaimLine(item.source.claim, { ...line, sowLineId: ok.ok.lineId, sowLineName: nameOf(ok.ok.lineId) ?? "", sowSuggested: false, sowMovedBy: who2, sowMovedAt: new Date().toISOString() });
+    }
     Object.assign(item, ok.ok, { editedAt: new Date().toISOString(), editedBy: who2 });
     await putReceipts(id, rec);
     return json(await view(id, L, costs, who, event));
@@ -145,6 +151,11 @@ export default async (req) => {
     const item = rec.items.find((x) => x.id === q("item"));
     if (!item) return fail("No such receipt.", 404);
     if (!costs && (!mine(item, who2) || closed)) return fail("You can remove the receipts you added, until the invoice goes out. The president or the VP can remove any.", 403);
+    // Taken off here, it stays off: the claim's line no longer names a line of this statement of work.
+    if (item.source?.claim && !item.source.linked) {
+      const line = await getClaimLine(item.source.claim, item.source.line);
+      if (line) await putClaimLine(item.source.claim, { ...line, sowLineId: "", sowLineName: "", sowRemovedBy: who2 });
+    }
     rec.items = rec.items.filter((x) => x.id !== item.id);
     await Promise.all([putReceipts(id, rec), deleteReceiptFile(id, item.id)]);
     // The copy on SharePoint is left where it is: the desk can't safely delete from the shared library.
