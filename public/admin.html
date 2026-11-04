@@ -3983,7 +3983,7 @@ function eventScreen(data) {
       PICKED.set(x.email.toLowerCase(), { event: x.event, presenter: x.presenter });
       rows.value = `${rows.value.trim() ? rows.value.replace(/\s+$/, "") + "\n" : ""}${x.first}, ${x.last}, ${x.email}, ${x.organization}`;
       document.getElementById("p-past").value = ""; box.innerHTML = "";
-      document.getElementById("padd-said").innerHTML = `<div class="note">${esc(`${x.first} ${x.last}`)} is in the list below, with what they wrote for ${esc(x.eventTitle)} to come over.</div>`;
+      document.getElementById("padd-said").innerHTML = `<div class="note">${esc(`${x.first} ${x.last}`)} is added to the list above. What they wrote for ${esc(x.eventTitle)} comes over with them.</div>`;
     });
   };
   const openAdd = () => {
