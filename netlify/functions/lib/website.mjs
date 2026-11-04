@@ -68,6 +68,9 @@ export function cleanWebsite(given, had = {}) {
     startTime: pick("startTime", hhmm),
     endTime: pick("endTime", hhmm),
     registerUrl: pick("registerUrl", link),
+    // The venue's name as the public sees it, when the event's own is a short form (Andrew 4 Nov 2026: Victoria's
+    // "Delta Victoria" is "Delta Hotels by Marriott Victoria Ocean Pointe Resort" on the site). Empty: the event's.
+    venueName: pick("venueName", (v) => text(v, 200)),
     street: pick("street", (v) => text(v, 200)),
     postalCode: pick("postalCode", (v) => text(v, 12).toUpperCase()),
     hotelRate: pick("hotelRate", (v) => text(v, 40)),
@@ -150,7 +153,8 @@ export async function buildDeskFile(event, presenters) {
     agendaFr.push({ ...row, ...(titleFr ? { title: titleFr } : {}), ...(r.detailFr ? { detail: r.detailFr } : {}), ...(abstractFr ? { abstract: paras(abstractFr).join(" ") } : {}) });
   }
 
-  const venue = { ...(event.venue ? { name: event.venue } : {}), ...(w.street ? { street: w.street } : {}), ...(city ? { city } : {}),
+  const venueName = w.venueName || event.venue;
+  const venue = { ...(venueName ? { name: venueName } : {}), ...(w.street ? { street: w.street } : {}), ...(city ? { city } : {}),
     ...(province ? { region: province } : {}), ...(w.postalCode ? { postalCode: w.postalCode } : {}), country: "Canada" };
   const h = event.hotel ?? {};
   const hotel = { ...(h.name ? { name: h.name } : {}), ...(w.hotelRate ? { rate: w.hotelRate } : {}), ...(h.link ? { bookingUrl: h.link } : {}),
