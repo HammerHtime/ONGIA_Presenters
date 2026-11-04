@@ -8,12 +8,13 @@ import { sendExpenseMail } from "./lib/mail.mjs";
 import {
   getRoster, putRoster, listEvents, getClaim, putClaim, listClaimLines, getClaimLine, putClaimLine, deleteClaimLine,
   getClaimRead, putClaimRead, putClaimFile, getClaimFile, markMine, listMineIds, markWaiting, listWaitingIds, listClaimIds,
-  deleteClaimAll, getAway, putAway, deleteAway, getMeta, putMeta,
+  deleteClaimAll, getAway, putAway, deleteAway, getMeta, putMeta, getSow,
 } from "./lib/store.mjs";
+import { syncClaimToSow } from "./lib/sowexpense.mjs";
 import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
-  executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers,
+  executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor } from "./lib/expenseview.mjs";
 import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
@@ -340,13 +341,29 @@ export default async (req) => {
   const lid = q("line") || q("thumb") || q("shot") || q("again");
   const line = lid && /^[a-z0-9]{6,40}$/.test(lid) ? await getClaimLine(claim.id, lid) : null;
   if (!line) return fail("That line isn't on this claim any more. Reload and look again.", 404);
+  // The President or the VP moves an expense to another line of the event's statement of work, at any time (Andrew 4 Nov
+  // 2026: "I should be able to just go and change the line item"). Only where it's counted: what was claimed stays.
+  if (req.method === "POST" && q("sowline")) {
+    if (!["president", "vp"].includes(me.role)) return fail("Only the President or the VP can move an expense to another line of the statement of work.", 403);
+    const body = await req.json().catch(() => ({}));
+    const ev = (await choices()).find((e) => e.id === line.eventId);
+    const to = ev?.sowLines?.find((l) => l.id === String(body.sowLineId ?? ""));
+    if (!to) return fail("Pick a line of the event's statement of work.");
+    const from = line.sowLineName || "none";
+    Object.assign(line, { sowLineId: to.id, sowLineName: to.name, sowSuggested: false, sowMovedBy: me.name, sowMovedAt: now() });
+    await putClaimLine(claim.id, line);
+    claim.history = [...(claim.history ?? []), { at: now(), what: `moved ${line.paidTo || "an expense"} from ${from} to ${to.name} on the statement of work`, by: me.name }];
+    await putClaim(claim);
+    await syncSow(claim);
+    return json({ claim: await claimView(await getClaim(claim.id), ctx) });
+  }
   const no = editable(claim);
   if (no) return fail(no, 409);
 
   if (req.method === "PUT") {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Nothing to save.");
-    const clean = cleanLine(line.kind, body, { events: await choices(), rate: line.rate });
+    const clean = cleanLine(line.kind, body, { events: await choices(), rate: line.rate, had: line });
     if (line.kind === "mileage") clean.paidTo = me.name;
     Object.assign(line, clean, { editedAt: now() });
     await putClaimLine(claim.id, line);
@@ -406,7 +423,10 @@ async function signIn(req) {
 }
 
 const lineId = () => token(16).replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 14).padEnd(8, "0");
-async function choices() { return eventChoices(await listEvents()); }
+// Each event a line can name, and for an RBH event with a statement of work, the lines an expense can go under.
+async function choices() {
+  return Promise.all(eventChoices(await listEvents()).map(async (e) => (e.kind === "rbh" ? { ...e, sowLines: sowLinesFor(e, await getSow(e.id)) } : e)));
+}
 async function loadAways() {
   const out = {};
   for (const r of OFFICER_ROLES) out[r] = await getAway(r);
@@ -491,6 +511,15 @@ async function startRead(origin, claimId, id) {
  * Start filing the claim in the Treasurer's folders (expense-file-background). A start that fails is kept on the
  * claim, in words, for the officers to see and retry.
  */
+/** Bring the events' statements of work in line with this claim (lib/sowexpense.mjs), and remember which it touched. */
+async function syncSow(claim) {
+  try {
+    const out = await syncClaimToSow(claim, await listClaimLines(claim.id));
+    const fresh = await getClaim(claim.id);
+    if (fresh && JSON.stringify(fresh.sowEvents ?? []) !== JSON.stringify(out.events)) { fresh.sowEvents = out.events; await putClaim(fresh); }
+  } catch (e) { console.error("expense to statement of work failed", claim.id, e?.message); }
+}
+
 async function startFiling(origin, claimId) {
   try {
     const r = await fetch(`${origin}/api/expense-file-background?claim=${encodeURIComponent(claimId)}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
@@ -562,6 +591,8 @@ async function sendBack(claim, { me, aways, today, names }, role, acting, commen
   claim.history = [...(claim.history ?? []), { at: now(), what: "sent back", by: me.name, comment: why }];
   await putClaim(claim);
   await markWaiting(claim.id, false);
+  // No longer approved: its receipts come off the events' statements of work until it is approved again.
+  await syncSow(claim);
   const by = acting ? `${me.name}, standing in for the ${ROLE_TITLE[role]},` : `${me.name} (${ROLE_TITLE[role] ?? "approving"})`;
   await note(claim, "sent back", await tell(claim.owner?.email, sentBackMail({ claim, by, comment: why }), me.email));
   return json({ claim: await claimView(await getClaim(claim.id), { me, aways, today, names }) });

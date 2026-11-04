@@ -1,5 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
-import { getClaim, putClaim, getClaimFile, getRoster } from "./lib/store.mjs";
+import { getClaim, putClaim, getClaimFile, getRoster, listClaimLines } from "./lib/store.mjs";
+import { syncClaimToSow } from "./lib/sowexpense.mjs";
 import { rosterName } from "./lib/expenses.mjs";
 import { shownLines, checksFor } from "./lib/expenseview.mjs";
 import { claimDocuments, fileClaim, unfileClaim } from "./lib/expensefile.mjs";
@@ -46,6 +47,12 @@ export default async (req) => {
   const fresh = await getClaim(id);
   if (!fresh) { if (filed?.folder && !filed.problem) await unfileClaim(filed).catch(() => {}); return new Response(null, { status: 202 }); }
   fresh.filed = filed;
+  // An approved claim's expenses on RBH events go on those events' statements of work (lib/sowexpense.mjs). Every time
+  // a claim is filed (approved, paid, unlocked, sent, filed again) the events are brought in line with it.
+  try {
+    const out = await syncClaimToSow(fresh, await listClaimLines(id));
+    fresh.sowEvents = out.events;
+  } catch (e) { console.error("expense to statement of work failed", id, e?.message); }
   await putClaim(fresh);
   return new Response(null, { status: 202 });
 };
