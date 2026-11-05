@@ -1370,6 +1370,15 @@
   .etabs{display:flex;gap:2px;overflow-x:auto;padding:0 12px;border-top:1px solid var(--border);scrollbar-width:none}
   .etabs::-webkit-scrollbar{display:none}
   .mstable{font-size:14px}
+  /* Which email shows (Andrew 5 Nov 2026): a row of buttons, the picked one filled. */
+  .commsbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+  .commsbar button,.wlvbar button{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:999px;padding:8px 16px;font:600 14px var(--fb);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .commsbar button.on,.wlvbar button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .wlvbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0}
+  .rpbar{margin:0 0 12px}
+  .wlvbar .dot{width:8px;height:8px;border-radius:50%;background:var(--late)}
+  .wlvbar button.on .dot{background:#ffb4a8}
+  .wlvbar small{font-weight:500;opacity:.75}
   .msrow{display:grid;grid-template-columns:1.1fr 1.6fr 1.3fr 1.6fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge)}
   .msrow.mshead{border-top:0;padding:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
   .msrow .pill{white-space:normal;text-align:left}
@@ -4520,7 +4529,7 @@ function eventScreen(data) {
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
     // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
@@ -4651,6 +4660,7 @@ function eventScreen(data) {
   wireAgenda(ev, agenda);
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
+  wireComms(ev);
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
@@ -5823,9 +5833,40 @@ function drawMailSum(ev) {
   box.querySelectorAll("[data-msgo]").forEach((b) => { b.onclick = () => {
     const k = b.dataset.msgo;
     if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
-    const d = document.getElementById(k);
-    if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    if (commsShow(k)) document.getElementById("commsbar")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }; });
+}
+
+/*
+ * One email at a time (Andrew 5 Nov 2026: "the layout stinks and it runs on forever … click on this welcome letter and it
+ * shows below. Click on another button … it shows the other"). The buttons pick which email's card shows under them; the
+ * others are hidden, not taken away, so nothing being typed is lost. The pick is remembered per event on this device.
+ */
+const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"]];
+const commsKey = (id) => `ongia-comms-${id}`;
+function commsBar() {
+  return `<div class="commsbar" id="commsbar" role="tablist" aria-label="Which email">${COMMS.map(([k, label]) => `<button type="button" role="tab" data-comms="${k}">${label}</button>`).join("")}</div>`;
+}
+function commsShow(k, evId = null) {
+  if (!document.getElementById(k)) return false;
+  for (const [id] of COMMS) {
+    const d = document.getElementById(id);
+    if (!d) continue;
+    d.hidden = id !== k;
+    if (id === k) d.open = true;
+  }
+  document.querySelectorAll("[data-comms]").forEach((b) => { const on = b.dataset.comms === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+  const id = evId ?? document.getElementById("commsbar")?.dataset.ev;
+  if (id) { try { localStorage.setItem(commsKey(id), k); } catch {} }
+  return true;
+}
+function wireComms(ev) {
+  const bar = document.getElementById("commsbar");
+  if (!bar) return;
+  bar.dataset.ev = ev.id;
+  bar.querySelectorAll("[data-comms]").forEach((b) => { b.onclick = () => commsShow(b.dataset.comms, ev.id); });
+  let k = null; try { k = localStorage.getItem(commsKey(ev.id)); } catch {}
+  if (!commsShow(k || COMMS[0][0], ev.id)) commsShow(COMMS[0][0], ev.id);
 }
 
 /**
@@ -5930,6 +5971,7 @@ function renderWelcomeCard(ev, W) {
     ${W.saved ? "" : `<div class="bad" data-unsaved style="margin-top:10px"><b>Not saved yet.</b> Read ${W.versions.length > 2 ? "each version" : two ? "both versions" : "it"}, then change what you need (it saves as you type) or press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${noName}
     <p class="hint" style="margin-top:14px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
+    ${two ? `<div class="wlvbar" role="tablist" aria-label="Which version">${W.versions.map((v) => `<button type="button" role="tab" data-wlv="${v.key}">${esc(v.label)} <small>${v.reaches ?? 0}</small>${v.problems.length ? `<span class="dot" title="${esc(v.problems[0])}"></span>` : ""}</button>`).join("")}</div>` : ""}
     ${W.versions.map(version).join("")}
     ${attachments}
     ${checks}
@@ -5939,6 +5981,17 @@ function renderWelcomeCard(ev, W) {
       <div class="sheet-body"><div class="lprev"><iframe id="wl-frame" title="The welcome letter as attendees will see it" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
         <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
   const $ = (id) => document.getElementById(id);
+  // One version at a time (Andrew 5 Nov 2026): the buttons pick which version's words show; the others are hidden, not
+  // taken away, so saving still sends every version's words. The pick is remembered per event on this device.
+  const wlvKey = `ongia-wlv-${ev.id}`;
+  const showVersion = (k) => {
+    if (!two || !W.versions.some((v) => v.key === k)) k = W.versions[0].key;
+    box.querySelectorAll(".wlver[data-wl]").forEach((el) => { el.hidden = two && el.dataset.wl !== k; });
+    box.querySelectorAll("[data-wlv]").forEach((b) => { const on = b.dataset.wlv === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    try { localStorage.setItem(wlvKey, k); } catch {}
+  };
+  box.querySelectorAll("[data-wlv]").forEach((b) => { b.onclick = () => showVersion(b.dataset.wlv); });
+  showVersion((() => { try { return localStorage.getItem(wlvKey); } catch { return null; } })());
   const words = () => Object.fromEntries(W.versions.map((v) => [v.key, { subject: $(`wl-${v.key}-subject`).value, body: $(`wl-${v.key}-body`).value }]));
   const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
@@ -7445,7 +7498,8 @@ function renderReplyCard(ev, R) {
       ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left && st.toSend ? `. ${st.toSend} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent${st.round.trouble?.[0] ? ` (${esc(st.round.trouble[0].why)})` : ""}.` : ""}${R.lastSend?.error ? ` The last run stopped: ${esc(R.lastSend.error)}.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
       : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
 
-    <h3 class="wsh">Answers <span class="porg">· ${A.length}</span></h3>
+    <div class="wlvbar rpbar" role="tablist" aria-label="Which part">${[["answers", `Answers <small>${A.length}</small>`], ["form", hasSoc ? "The form and socials" : "The form"], ["email", "The email"], ["reminders", "Reminders"]].map(([k, l]) => `<button type="button" role="tab" data-rpp="${k}">${l}</button>`).join("")}</div>
+    <div data-rppart="answers">
     <div class="rplist">
       <div class="rpans"><span class="rpwhat"><b>Food allergies and intolerances</b></span><span class="rpnum"><b>${food.length}</b> ${food.length === 1 ? "person" : "people"}</span>
         <button class="mini gold" data-rpsheet="dietary"${food.length ? "" : " disabled"}>Dietary list</button></div>
@@ -7466,7 +7520,7 @@ function renderReplyCard(ev, R) {
       ${A.map((a) => `<tr><td><b>${esc(a.first)} ${esc(a.last)}</b><br><span class="porg">${esc(a.email)}</span></td><td>${esc(a.agency)}</td><td>${a.allergy ? esc(a.dietary) : `<span class="porg">none</span>`}${a.source === "desk" ? `<br><span class="porg">added on the desk</span>` : ""}</td>${(r.socials ?? []).map((s) => `<td>${a.source === "desk" ? "" : a.socials?.[s.id] === "yes" ? "Yes" : a.socials?.[s.id] === "no" ? "No" : ""}</td>`).join("")}<td><button class="mini" data-rpdel="${esc(a.id)}" aria-label="Remove ${esc(a.first)} ${esc(a.last)}'s answer">✕</button></td></tr>`).join("")}
     </tbody></table></div></details>` : ""}
 
-    <h3 class="wsh">The form</h3>
+    </div><div data-rppart="form">
     <div class="row2"><div class="field" style="margin:0"><label for="rp-by">Answer by (end of day)</label><input type="date" id="rp-by" value="${esc(r.replyBy)}"></div>
       <div class="field" style="margin:0"><label>Link</label><div class="stack"><a href="${esc(R.link)}" target="_blank" rel="noopener" style="word-break:break-all">${esc(R.link)}</a></div></div></div>
     <label class="attest" style="margin-top:12px"><input type="checkbox" id="rp-open"${r.open ? " checked" : ""}><span>The form is open for answers</span></label>
@@ -7474,7 +7528,7 @@ function renderReplyCard(ev, R) {
     <div id="rpsocs">${(r.socials ?? []).map(socialRow).join("")}</div>
     ${(r.socials ?? []).length < 4 ? `<button class="mini" id="rp-addsoc">${hasSoc ? "Add a social" : "Also ask about a social"}</button>` : ""}
 
-    <h3 class="wsh">The email</h3>
+    </div><div data-rppart="email">
     <div class="field" style="margin-top:0"><label for="rp-subject">Subject</label><input id="rp-subject" maxlength="200" value="${esc(r.subject)}"></div>
     <div class="field"><label for="rp-body">The letter</label><textarea id="rp-body" style="min-height:260px" spellcheck="true">${esc(r.body)}</textarea>
       <p class="hint" style="margin:6px 0 0">A blank line starts a new paragraph; a line starting with * is a bullet. {first}, {event}, {city}, {replyBy}${hasSoc ? ", {social1} and {social2}" : ""} fill themselves in. The button goes underneath, and opens the form with each person's name and email already filled in. For an English half and a French half, put {replyButton} on its own line after the English and {replyButtonFr} after the French: each becomes a button there, and the French one opens the questions in French. {replyByFr}${hasSoc ? ", {social1Fr} and {social2Fr}" : ""} fill in in French.</p></div>
@@ -7493,7 +7547,7 @@ function renderReplyCard(ev, R) {
         <input id="rp-testto" type="text" inputmode="email" value="${esc(WHO?.email ?? "")}" placeholder="you@ongia.ca, someone@ongia.ca">
         <p class="hint" style="margin:6px 0 0">One or more addresses, separated by commas. Someone registered gets their own form filled in; anyone else gets their address filled in.</p></div>
       <div><button class="btn btn-ghost" id="rp-test">Send a test</button></div></div>
-    <h3 class="wsh">Reminders</h3>
+    </div><div data-rppart="reminders">
     <p class="hint" style="margin:0 0 8px">At about 10 AM Eastern on each date, the same email goes again, marked as a reminder, to everyone who had it and hasn't answered yet. Leave a date empty to skip it.</p>
     <div class="row2">${[0, 1].map((i) => { const d = (st.reminders ?? [])[i]; return `<div class="field" style="margin:0"><label for="rp-rem${i}">Reminder ${i + 1}</label><input type="date" id="rp-rem${i}" value="${esc(d?.date ?? "")}">${d?.round ? `<p class="hint" style="margin:6px 0 0">Sent to ${d.round.sent}${d.round.failed ? `, ${d.round.failed} could not be sent` : ""}.</p>` : ""}</div>`; }).join("")}</div>
     ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
@@ -7508,6 +7562,7 @@ function renderReplyCard(ev, R) {
         <span class="hint" style="margin:0">${why ? `${esc(why)} ` : ""}${last ? `Last reminder ${esc(fmtDate(last.date))}: ${last.sent} sent${last.failed ? `, ${last.failed} couldn't be sent` : ""}${last.left ? `, ${last.left} still to go` : ""}.` : "Goes now, only to people who had the email and haven't answered."}</span></div>`;
     })() : ""}
     <button class="mini" id="rp-seerem" style="margin-top:10px">See the reminder</button>
+    </div>
     <div class="wsgo"><button class="btn btn-gold" id="rp-send"${R.problems.length || !st.toSend || R.sending ? " disabled" : ""}>${R.sending ? `Sending… ${st.had} of ${st.reaches}` : st.toSend ? `Send to ${st.toSend} ${st.toSend === 1 ? "address" : "addresses"}${sent ? " that haven't had it" : ""}` : sent ? "Everyone registered has had it" : "Nobody to send to yet"}</button>
       <span class="hint">Each address gets it once. Asks you to confirm first. It sends on the server, so you can close the page, and if any can't be sent the president and VP get an email saying which.${regLine(st)}${st.alreadyTold ? ` ${st.alreadyTold} registered ${st.alreadyTold === 1 ? "address is" : "addresses are"} skipped: someone there has already answered or is on your list.` : ""}</span></div>
       ${regLine(st) ? `<div style="margin-top:8px"><button class="mini" data-rpsheet="addresses">Who shares an address (Excel)</button></div>` : ""}
@@ -7523,6 +7578,17 @@ function renderReplyCard(ev, R) {
         <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="rpd-save" value="save">Save these words</button><button class="btn btn-ghost" value="close">Close without saving</button></div></div></form></dialog>`;
 
   const $ = (id) => document.getElementById(id);
+  // One part at a time (Andrew 5 Nov 2026): the buttons pick which part shows; Send stays under them all. The pick is
+  // remembered per event on this device; hidden parts keep what was typed, and Save still sends every field.
+  const rppKey = `ongia-rpp-${ev.id}`;
+  const showPart = (k) => {
+    if (!box.querySelector(`[data-rppart="${k}"]`)) k = "answers";
+    box.querySelectorAll("[data-rppart]").forEach((el) => { el.hidden = el.dataset.rppart !== k; });
+    box.querySelectorAll("[data-rpp]").forEach((b) => { const on = b.dataset.rpp === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    try { localStorage.setItem(rppKey, k); } catch {}
+  };
+  box.querySelectorAll("[data-rpp]").forEach((b) => { b.onclick = () => showPart(b.dataset.rpp); });
+  showPart((() => { try { return localStorage.getItem(rppKey); } catch { return null; } })() || "answers");
   const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
   const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value, buttonLabelFr: $("rp-button-fr").value, signName: $("rp-sign").value, signEmail: $("rp-sign-email").value,
     reminders: [$("rp-rem0").value, $("rp-rem1").value].filter(Boolean) });
