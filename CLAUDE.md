@@ -63,3 +63,21 @@ Netlify Functions read live Blobs, so the only honest check uses real records.
   that is not a bug, and `Rebuild the PDF` on the review screen re-issues one.
 - Board contact details (name, email, phone) come from the board roster, never
   from a per-event field.
+
+## Layout standard: nice and tight (Andrew, 5 Nov 2026)
+
+"All builds and screens need to be like this. Nice and tight." The model is the
+welcome letter's *Who's had it* list. Every new screen, and any screen touched:
+
+- **One line per row.** Name and detail on the left (cut off with … rather than
+  wrapping), then the status as short coloured text (not a big pill), then one
+  small button. About 38px a row on a phone.
+- **Short labels.** "Not yet / Bounced / All", "Send / Resend", "Sent 3 Nov".
+  No sentences inside buttons or filters.
+- **Filters on one row**, small chips. A search box under them.
+- **Settings and help folded away** behind one summary line that opens on click
+  ("Goes Tue, Nov 3 · signed ONGIA Board · Change").
+- **One thing at a time:** buttons that switch what shows, not long stacked cards.
+- **On a phone:** nothing scrolls sideways; drop secondary detail (like a
+  "4 days" count) before squeezing the main text into four lines.
+- Check it at 390px wide on real data before calling it done.
