@@ -6,6 +6,7 @@ import { welcomeLetters, splitByGroup, versionLabel, extrasOf, inTheRoom } from 
 import { renderReply, replyProblems, replyToOf, toldUs } from "./reply.mjs";
 import { graphConfigured, graphAccessToken, graphGet } from "./graph.mjs";
 import { todayIso } from "./deadlines.mjs";
+import { pacer, timeLeft } from "./bulk.mjs";
 
 /**
  * Who has had each email to attendees, one person at a time (Andrew 5 Nov 2026: "where can I see who and how many
@@ -108,6 +109,41 @@ export async function sendOne(event, kind, email) {
   markRows(fresh.people ?? [], email, kind, { sent: true });
   await putAttendees(event.id, fresh);
   return { sent: true, to: email };
+}
+
+/**
+ * Send now, from Coming up (Andrew 5 Nov 2026: "I see that people haven't received an email and I don't want to wait"):
+ * one welcome-letter version to everyone it is still owed to, today, whatever its date. Each address is marked the
+ * moment its email goes, so a run stopped part way sends nobody a second copy, and the usual round finds them done.
+ */
+export async function sendVersionNow(event, key, { deadline = null, pace = pacer() } = {}) {
+  if (!event.welcome?.main?.body) return { blocked: ["The welcome letter isn't saved yet."] };
+  const letter = welcomeLetters(event)[key];
+  const label = versionLabel(event, key) || "welcome";
+  if (!letter?.body?.trim()) return { blocked: [`The ${label} letter isn't written yet.`] };
+  if (extrasOf(event).some((x) => x.key === key) && !event.welcomeReady?.[key]) return { blocked: [`The ${label} letter isn't marked ready to send yet.`] };
+  const wrong = [...letterProblems(letter), ...eventProblems(letter, event)];
+  if (wrong.length) return { blocked: wrong };
+  const attachments = await attachmentsFor(letter, event, getAgenda, getWelcomeFile);
+  if (attachments.reduce((n, a) => n + a.content.length, 0) > ATTACH_LIMIT) return { blocked: ["Its attachments are over 3 MB."] };
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const people = stored.people ?? [];
+  const had = new Set(people.filter((p) => (p.sent ?? []).includes("welcome")).map((p) => p.email));
+  const owed = splitByGroup(people, writeableTo(people).filter((p) => !had.has(p.email)), event)[key] ?? [];
+  let sent = 0, failed = 0, left = 0;
+  const trouble = [];
+  for (const person of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
+    try {
+      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, person), attachments });
+      if (out.skipped) throw new Error(out.reason);
+      markRows(people, person.email, "welcome", { sent: true });
+      sent++;
+    } catch (e) { markRows(people, person.email, "welcome", { why: e.message }); trouble.push({ email: person.email, why: e.message }); failed++; }
+    await putAttendees(event.id, stored);
+  }
+  return { sent, failed, left, trouble: trouble.slice(0, 10), letter: letter.name };
 }
 
 /* ---------- Bounces ---------- */
