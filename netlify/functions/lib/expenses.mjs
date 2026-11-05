@@ -181,6 +181,8 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate(), had =
     category: CATEGORIES.some(([k]) => k === Number(body?.category)) ? Number(body.category) : null,
     eventId: ev ? ev.id : "", eventTitle: ev ? ev.title : "",
     purpose: str(body?.purpose, 240),
+    // Comments (Andrew 5 Nov 2026): optional, for what it was for and why, in the person's own words.
+    comment: body?.comment !== undefined ? str(body.comment, 1000) : str(had?.comment, 1000),
   };
   // An RBH event with a statement of work: which of its lines this goes under. Asked for, never left to guess; a
   // suggestion from what it is (a flight goes under On Site Management) fills an empty one.
