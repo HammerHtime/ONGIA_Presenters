@@ -143,6 +143,14 @@ ok("the job ran: here, with no Microsoft set up, the claim says it wasn't filed 
 ok("John can't press File it again; an officer can", (await call(`/api/expenses?refile=${m.claim.id}`, "POST", {})).status === 403 && (await call(`/api/expenses?refile=${m.claim.id}`, "POST", {}, PRES)).status === 202);
 ok("the job refuses anyone without the desk key", (await bg(new Request(`http://localhost/api/expense-file-background?claim=${m.claim.id}`, { method: "POST" }))).status === 401);
 
+{ // Comments (Andrew 5 Nov 2026): optional; kept, carried to the claim form, and not lost when a save leaves them out.
+  const { cleanLine } = await import(F + "lib/expenses.mjs");
+  const c = cleanLine("receipt", { paidTo: "Staples", amount: 20, category: 5, purpose: "Name tags", comment: "Ran out of name tags on day two, bought more for the registration desk." });
+  ok("a comment is kept with the line", c.comment === "Ran out of name tags on day two, bought more for the registration desk.");
+  ok("a save that doesn't send the comment keeps it", cleanLine("receipt", { paidTo: "Staples", amount: 20 }, { had: c }).comment === c.comment && cleanLine("receipt", { comment: "" }, { had: c }).comment === "");
+  ok("no comment is fine: nothing is asked for", cleanLine("receipt", { paidTo: "X", amount: 1, category: 5, purpose: "Y" }).comment === "");
+  ok("the claim form shows the comment after what it was for", E.purposeOf({ kind: "receipt", ...c }) === "Name tags Comment: Ran out of name tags on day two, bought more for the registration desk.");
+}
 ok("on the claim form a stipend says it needs no receipt", E.purposeOf({ kind: "noreceipt", category: 10, purpose: "Speaker stipend" }) === "Speaker stipend (speaker stipend: no receipt needed)" && /reason and card statement attached/.test(E.purposeOf({ kind: "noreceipt", category: 8, purpose: "Parking" })));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

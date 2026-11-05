@@ -177,6 +177,7 @@
   .zoomin{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
   .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}.kv:first-child{border-top:0}.kv .k2{color:var(--muted);flex:none}
   .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
+  .kv.kvblock{flex-direction:column;gap:4px}.kv.kvblock .v{text-align:left;white-space:pre-wrap}
   .preview-rows{margin:4px 0 12px;padding:0;list-style:none}.preview-rows li{font-size:14px;padding:5px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}.preview-rows li:first-child{border-top:0}
   .center{text-align:center}
   /* Inside the Briefing Room (/expenses?desk=1, Andrew 3 Nov 2026): the desk's band and tabs across the top, as on an
@@ -892,13 +893,14 @@ function editorScreen() {
     <div class="field"><label for="f-event">For which event?</label><select id="f-event">${eventOptions(l.eventId ?? "", l.eventTitle)}</select></div>
     <div id="sowbox"></div>
     <div class="field"><label for="f-purpose"><span>What it was for</span>${readMark(l, "purpose")}</label><input id="f-purpose" autocomplete="off" value="${esc(l.purpose ?? "")}" placeholder="${k === "mileage" ? "Drive to the training" : "Hotel for the presenters"}"></div>
+    <div class="field"><label for="f-comment"><span>Comments <span class="tiny" style="font-weight:500">(optional)</span></span></label><textarea id="f-comment" maxlength="1000" placeholder="What it was for and why, if it helps the approver.">${esc(l.comment ?? "")}</textarea></div>
     ${k === "noreceipt" ? `<div class="field" id="nrwhy"${stipendLine(l) ? " hidden" : ""}><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
       <div class="field" id="nrshot"${stipendLine(l) ? " hidden" : ""}><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
     <button class="btn gold" id="save" type="button" style="margin-top:6px">${EDIT.lineId ? "Save" : "Add to my claim"}</button>
     <p class="tiny" style="text-align:center;margin:8px 0 0">Saved as you go. Nothing is sent until you submit.</p>
     ${EDIT.lineId ? `<button class="btn danger" id="remove" type="button" style="margin-top:14px">Remove this line</button>` : ""}`;
   tillBox($("f-amount"));   // first, so everything listening after it reads the amount as shown
-  for (const id of ["paidTo", "date", "amount", "km", "from", "to", "category", "event", "purpose", "statement"]) {
+  for (const id of ["paidTo", "date", "amount", "km", "from", "to", "category", "event", "purpose", "comment", "statement"]) {
     const el = $(`f-${id}`); if (!el) continue;
     el.addEventListener("input", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); document.querySelector(`[data-readmark="${id}"]`)?.remove(); liveChecks(); });
     el.addEventListener("change", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); liveChecks(); });
@@ -990,7 +992,7 @@ function formValues() {
   const v = (id) => $(`f-${id}`)?.value ?? "";
   const num = (s) => (String(s).trim() === "" ? "" : parseMoney(s));
   return { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), km: num(v("km")), from: v("from"), to: v("to"),
-    category: v("category"), eventId: v("event"), purpose: v("purpose"), statement: v("statement"),
+    category: v("category"), eventId: v("event"), purpose: v("purpose"), comment: v("comment"), statement: v("statement"),
     ...($("f-sow") ? { sowLineId: v("sow") } : {}) };
 }
 async function saveLine({ leave = false } = {}) {
@@ -1349,7 +1351,7 @@ async function lineSheet(c, l) {
     <main>${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
-      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}</div>
+      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
     ${sowMover(c, l)}
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
     ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Speaker stipend: no receipt needed</div></div>` : ""}
