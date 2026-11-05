@@ -1,5 +1,6 @@
 import { requireAdmin } from "./lib/http.mjs";
 import { putMeta } from "./lib/store.mjs";
+import { scanBounces } from "./lib/attmail.mjs";
 import { catchUpWelcome, CATCHUP_LOCK } from "./lib/welcomecatchup.mjs";
 import { pacer } from "./lib/bulk.mjs";
 import { pullEvent } from "./wix.mjs";
@@ -24,5 +25,7 @@ export default async (req) => {
   } finally {
     await putMeta(CATCHUP_LOCK, { at: null });
   }
+  // While letters are going out, bounce notices are read at most once an hour, so a bad address shows the same day.
+  await scanBounces().catch((e) => console.log(`bounce read failed: ${e.message}`));
   return new Response(null, { status: 202 });
 };

@@ -2,6 +2,7 @@ import { requireAdmin } from "./lib/http.mjs";
 import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
 import { reportSends, KIND_NAMES } from "./lib/sendreport.mjs";
 import { putMeta } from "./lib/store.mjs";
+import { scanBounces } from "./lib/attmail.mjs";
 import { NIGHT_LOCK } from "./lib/welcomecatchup.mjs";
 
 /**
@@ -34,5 +35,7 @@ export default async (req) => {
   const rows = [...(out.detail?.letters ?? []).map((r) => ({ ...r, what: KIND_NAMES[r.kind] ?? "An email to attendees" })),
     ...(out.detail?.hotel ?? []).map((r) => ({ ...r, what: r.days ? `The ${r.days}-day hotel reminder` : "A hotel reminder" }))];
   await reportSends("the morning run", rows);
+  // Bounce notices in the sending mailbox, marked on the person's row (Andrew 5 Nov 2026).
+  if (hop === 0) await scanBounces().catch((e) => console.log(`bounce read failed: ${e.message}`));
   return new Response(null, { status: 202 });
 };

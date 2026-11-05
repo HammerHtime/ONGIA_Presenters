@@ -202,6 +202,16 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     board.push({ name: text(body.reviewerName, 120), email: text(body.reviewerEmail, 200), lead: true });
     for (const e of Array.isArray(body.notify) ? body.notify : []) if (isEmail(text(e, 200))) board.push({ name: "", email: text(e, 200), lead: false });
   }
+  // One entry per person (Andrew 5 Nov 2026: Peglar Artinian twice on the Summit, once under an old address): the same
+  // name twice keeps the one at the roster's address (or the lead), so nobody is listed or emailed twice.
+  {
+    const roster = new Set(((await getRoster()) ?? []).map((m) => String(m.email ?? "").toLowerCase()));
+    const key = (m) => m.name.toLowerCase().replace(/\s+/g, " ").trim();
+    const rank = (m) => (m.lead ? 2 : 0) + (roster.has(m.email.toLowerCase()) ? 1 : 0);
+    const best = new Map();
+    for (const m of board) { const had = best.get(key(m)); if (!had || rank(m) > rank(had)) best.set(key(m), m); }
+    for (let i = board.length - 1; i >= 0; i--) if (best.get(key(board[i])) !== board[i]) board.splice(i, 1);
+  }
   if (board.length && !board.some((m) => m.lead)) board[0].lead = true;
   if (board.filter((m) => m.lead).length > 1) return "Only one board member can be the lead.";
   const lead = board.find((m) => m.lead);
