@@ -1384,7 +1384,7 @@
   .wlset>summary::-webkit-details-marker{display:none}
   .wlset>summary b:not(.late){color:var(--ink)}
   .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
-  .wlset[open] .wlset-edit{display:none}
+  .wlset[open] .wlset-edit{display:none} .wlset b.ok{color:var(--done)}
   .wlset-body{padding:0 0 12px}
   .mwho .mwfil{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
   .mwho .mwfil input{flex:1 1 180px;min-height:38px;padding:7px 10px}
@@ -5968,6 +5968,47 @@ const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) 
   const mine = list.filter((l) => l.from === g);
   return mine.length ? `<optgroup label="${esc(g)}">${mine.map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("")}</optgroup>` : "";
 }).join("");
+/*
+ * The reminder to those joining online, a couple of hours before it starts, with how to log in (Andrew 5 Nov 2026).
+ * Under the online group's welcome letter: one line saying when and to how many; opened, its words, a look, a test,
+ * and It's ready. Nothing goes until it is marked ready.
+ */
+function mountJoin(ev, key, el) {
+  const line = el.querySelector("[data-joinline]"), body = el.querySelector("[data-joinbody]");
+  const q = `/attmail?event=${encodeURIComponent(ev.id)}&kind=join&key=${encodeURIComponent(key)}`;
+  const at = (iso, zone) => { const d = new Date(iso); const z = (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(d).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
+    return `${d.toLocaleDateString("en-CA", { timeZone: zone, weekday: "short", month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" }).toLowerCase()} ${z}`; };
+  const draw = (J) => {
+    const n = Math.max(0, J.reaches - J.had);
+    line.innerHTML = `Reminder before it starts: <b>${esc(at(J.sendAt, J.zone))}</b> · ${J.had && !n ? `<b class="ok">sent to ${J.had}</b>` : `${n} ${n === 1 ? "person" : "people"}`} · ${J.readyAt ? `<b class="ok">ready</b>` : `<b class="late">not ready</b>`}`;
+    body.innerHTML = `<div class="row2" style="align-items:end"><div class="field" style="margin:0"><label for="jr-h-${key}">When</label><select id="jr-h-${key}">${[1, 2, 3, 4].map((h) => `<option value="${h}"${h === J.hours ? " selected" : ""}>${h} hour${h === 1 ? "" : "s"} before it starts</option>`).join("")}</select></div>
+        <p class="hint" style="margin:0 0 8px">Starts ${esc(at(J.startAt, J.zone))}; anyone who registers later gets it until an hour in.</p></div>
+      <div class="field"><label for="jr-s-${key}">Subject</label><input id="jr-s-${key}" maxlength="200" value="${esc(J.subject)}"></div>
+      <div class="field"><label for="jr-b-${key}">The email</label><textarea id="jr-b-${key}" style="min-height:220px" spellcheck="true">${esc(J.body)}</textarea></div>
+      ${J.problems.length ? `<div class="bad" style="margin-top:8px">${esc(J.problems[0])}</div>` : ""}
+      <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-jr="save">Save</button><button class="mini ghost" data-jr="see">See the email</button><button class="mini ghost" data-jr="test">Send me a test</button>
+        ${J.readyAt ? `<button class="mini ghost" data-jr="hold">Hold it</button>` : `<button class="mini gold" data-jr="ready">It's ready</button>`}<span class="hint" data-jrsaid style="margin:0;align-self:center">${J.readyAt ? "Ready: it goes by itself at its time." : J.saved ? "Saved, not ready yet." : "A draft from the virtual welcome letter. Read it, change what you need."}</span></div>`;
+    const words = () => ({ subject: body.querySelector(`#jr-s-${key}`).value, body: body.querySelector(`#jr-b-${key}`).value, hours: Number(body.querySelector(`#jr-h-${key}`).value) });
+    const put = async (extra, msg) => { try { draw(await api(q, { method: "PUT", body: JSON.stringify({ ...words(), ...extra }) })); toast(msg); } catch (x) { toast(x.message); } };
+    body.querySelector('[data-jr="save"]').onclick = () => put({}, "Reminder saved.");
+    body.querySelector('[data-jr="ready"]')?.addEventListener("click", () => { if (confirm(`Mark the reminder ready? It goes by itself on ${at(J.sendAt, J.zone)} to everyone joining online.`)) put({ ready: true }, "Ready. It goes by itself at its time."); });
+    body.querySelector('[data-jr="hold"]')?.addEventListener("click", () => put({ ready: false }, "Held. It won't go until you mark it ready."));
+    body.querySelector('[data-jr="see"]').onclick = async () => {
+      try {
+        const out = await api(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
+        const dlg = document.getElementById("wldlg"); if (!dlg) return;
+        document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = "As someone joining online will see it.";
+        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+      } catch (x) { toast(x.message); }
+    };
+    body.querySelector('[data-jr="test"]').onclick = async () => {
+      const to = document.getElementById("wl-to")?.value || WHO?.email || "";
+      try { await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ ...words(), to }) }); toast(`Test sent to ${to}.`); } catch (x) { toast(x.message); }
+    };
+  };
+  api(q).then(draw).catch((x) => { line.textContent = "Reminder before it starts: couldn't load"; body.innerHTML = `<div class="bad">${esc(x.message)}</div>`; });
+}
+
 let COMING_BUSY = false;
 async function comingSendNow(ev, n, btn, reload) {
   const who = `${n.to} ${n.who === "presenters" ? (n.to === 1 ? "presenter" : "presenters") : n.to === 1 ? "person" : "people"}`;
@@ -6057,6 +6098,7 @@ function renderWelcomeCard(ev, W) {
           <input type="file" data-wlfile="${v.key}" accept="application/pdf,.pdf" hidden></div></div>`}
       ${v.problems.length ? `<div class="bad" style="margin-top:10px"><b>Held back:</b> ${esc(v.problems[0])}</div>` : ""}
       ${v.needsReady && !v.problems.length ? readyStrip(v) : ""}
+      ${v.online ? `<details class="wlset" data-join="${v.key}"><summary><span data-joinline>Reminder before it starts: loading…</span> <span class="wlset-edit">Open</span></summary><div class="wlset-body" data-joinbody></div></details>` : ""}
     </div>`;
   // A further version (the Summit's virtual attendees) goes only once Andrew says it's ready (3 Nov 2026: "Hold virtual
   // until I've reviewed it"): then to everyone waiting within 15 minutes, and to anyone who registers after.
@@ -6126,6 +6168,7 @@ function renderWelcomeCard(ev, W) {
         <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
   const $ = (id) => document.getElementById(id);
   mountWho(ev, "welcome", box.querySelector('[data-mwho="welcome"]'), { versions: W.versions.length });
+  box.querySelectorAll("[data-join]").forEach((el) => mountJoin(ev, el.dataset.join, el));
   const drawSetLine = () => { $("wl-setline").innerHTML = setLine(); };
   drawSetLine();
   $("wl-on").addEventListener("change", drawSetLine);
@@ -6158,7 +6201,7 @@ function renderWelcomeCard(ev, W) {
   };
   box.querySelectorAll("[data-wlready]").forEach((b) => b.onclick = () => setReady(b.dataset.wlready, true, b));
   box.querySelectorAll("[data-wlhold]").forEach((b) => b.onclick = () => setReady(b.dataset.wlhold, false, b));
-  const auto = autosave(box, $("wl-save"), save, { skip: "#wl-to, [data-wlfrom], [type=file], [data-wftick]", fresh: !W.saved });
+  const auto = autosave(box, $("wl-save"), save, { skip: "#wl-to, [data-wlfrom], [type=file], [data-wftick], [id^=jr-]", fresh: !W.saved });
   // Copy an earlier letter's words in; nothing is kept until Save.
   box.querySelectorAll("[data-wlfrom]").forEach((sel) => sel.onchange = () => {
     const pick = (W.library ?? []).find((l) => l.id === sel.value);

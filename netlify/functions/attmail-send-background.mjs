@@ -3,6 +3,7 @@ import { getEvent, putEvent } from "./lib/store.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { sendVersionNow } from "./lib/attmail.mjs";
 import { sendHotelRound } from "./lib/hotel.mjs";
+import { sendJoinRound } from "./lib/joinreminder.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 
 /**
@@ -11,6 +12,8 @@ import { reportSends } from "./lib/sendreport.mjs";
  *
  *   POST /api/attmail-send-background?event=…&type=welcome&key=<version>[&hop=n]   (with the desk's own key)
  *   POST /api/attmail-send-background?event=…&type=hotel&days=<30|15|7>[&hop=n]
+ *   POST /api/attmail-send-background?event=…&type=join&key=<group>[&auto=1][&hop=n]   the reminder to those joining online;
+ *        auto=1 is join-tick at its time, without it Send now
  */
 const BUDGET_MS = 13 * 60 * 1000;
 const MAX_HOPS = 5;
@@ -28,13 +31,14 @@ export default async (req) => {
   let out, what;
   try {
     if (type === "welcome") { what = "The welcome letter (sent now)"; out = await sendVersionNow(event, key, { deadline: Date.now() + BUDGET_MS }); }
+    else if (type === "join") { what = "The reminder to those joining online"; out = await sendJoinRound(event, key, { deadline: Date.now() + BUDGET_MS, force: url.searchParams.get("auto") !== "1" }); }
     else if (type === "hotel") { what = `The ${days}-day hotel reminder (sent now)`; out = await sendHotelRound(event, days, { deadline: Date.now() + BUDGET_MS }); }
     else out = { error: "unknown kind" };
   } catch (e) { out = { error: e.message }; }
   let continued = false;
   if (out.left > 0 && hop < MAX_HOPS) {
     try {
-      const r = await fetch(`${url.origin}/api/attmail-send-background?event=${encodeURIComponent(event.id)}&type=${type}&key=${encodeURIComponent(key)}&days=${days || ""}&hop=${hop + 1}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+      const r = await fetch(`${url.origin}/api/attmail-send-background?event=${encodeURIComponent(event.id)}&type=${type}&key=${encodeURIComponent(key)}&days=${days || ""}${url.searchParams.get("auto") === "1" ? "&auto=1" : ""}&hop=${hop + 1}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
       continued = r.status < 400;
     } catch (e) { console.log(`send now: could not start the follow-up run: ${e.message}`); }
   }

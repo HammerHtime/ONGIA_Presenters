@@ -35,7 +35,7 @@ ok("no presenter reminders on a one-date event", !line("Agreement").length);
 const later = await emailSchedule(await getEvent("ngs"), "2026-11-08");
 ok("what's past drops off", !later.some((x) => x.what.startsWith("Welcome") || x.what.startsWith("Food")) && later[0].date === "2026-11-09");
 const off = await emailSchedule({ ...(await getEvent("ngs")), attendeeMail: false }, "2026-11-02");
-ok("with attendee emails off, each says it won't go", off.filter((x) => x.who === "attendees").every((x) => /won't go/.test(x.note)));
+ok("with attendee emails off, each says it won't go (not the online reminder, which goes when marked ready)", off.filter((x) => x.who === "attendees" && !/join online/.test(x.what)).every((x) => /won't go/.test(x.note)));
 
 // An event with an agreement date: reminders to presenters who haven't signed.
 await putEvent({ id: "reg", title: "Regina", city: "Regina", dayOne: "2026-12-10", lastDay: "2026-12-10", board: [{ name: "R", email: "r@ongia.ca", lead: true }], deadlines: { agreement: "2026-11-20", draft: "2026-11-25", final: "2026-12-01" } });

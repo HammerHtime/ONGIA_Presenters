@@ -146,7 +146,7 @@ async function show(event) {
   for (const x of extrasOf(event)) {
     const l = x.link;
     versions.push({ key: x.key, label: x.label, dates: l.dayOne ? range(l.dayOne, l.lastDay || l.dayOne) : "", ...words[x.key], noAgendaSlot: true,
-      agenda: null, attachedBytes: attachedBytes(event, x.key), ...reach[x.key], needsReady: true, readyAt: event.welcomeReady?.[x.key] ?? null,
+      agenda: null, attachedBytes: attachedBytes(event, x.key), ...reach[x.key], needsReady: true, online: !!l.online, readyAt: event.welcomeReady?.[x.key] ?? null,
       problems: letters[x.key].body.trim() ? problemsOf(letters[x.key], event) : [`Not written yet, so the ${reach[x.key].reaches} ${x.label.toLowerCase()} ${reach[x.key].reaches === 1 ? "attendee is" : "attendees are"} sent nothing. Write it and save.`] });
   }
   const job = welcomeJob(event);
