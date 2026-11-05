@@ -8,6 +8,7 @@ import { pacer, timeLeft } from "./bulk.mjs";
 import { sendReplyRound, sendReminderRound } from "./reply.mjs";
 import { welcomeLetters, splitByGroup, extrasOf } from "./welcome.mjs";
 import { primeRoster } from "./signature.mjs";
+import { markRows } from "./attmail.mjs";
 
 /** An event whose welcome letter is written on the event itself (the event page's Welcome letter card). */
 const ownWelcome = (event, kind) => kind === "welcome" && !!event.welcome?.main?.body;
@@ -145,14 +146,13 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
         const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, attachments: b.attachments });
         if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
         // Everyone at that address has had it: their guests on the same registration too.
-        for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
-          same.sent = [...new Set([...(same.sent ?? []), kind])];
-          same.sentAt = { ...(same.sentAt ?? {}), [kind]: new Date().toISOString() };
-        }
+        markRows(stored.people ?? [], person.email, kind, { sent: true });
         sent++;
         await putAttendees(event.id, stored);
       } catch (e) {
         trouble.push({ email: person.email, why: e.message });
+        // Said on their row on the event page, where Send again is (Andrew 5 Nov 2026).
+        markRows(stored.people ?? [], person.email, kind, { why: e.message });
         failed++;
       }
     }

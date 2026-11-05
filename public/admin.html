@@ -1384,8 +1384,15 @@
   .wlset>summary::-webkit-details-marker{display:none}
   .wlset>summary b:not(.late){color:var(--ink)}
   .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
-  .wlset[open] .wlset-edit{visibility:hidden}
+  .wlset[open] .wlset-edit{display:none}
   .wlset-body{padding:0 0 12px}
+  .mwho .mwfil{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
+  .mwho .mwfil input{flex:1 1 180px;min-height:38px;padding:7px 10px}
+  .mwho .mwfil button{padding:6px 12px;font-size:13px}
+  .mwrow{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+  .mwrow .mwn{flex:1 1 200px;min-width:0}.mwrow .mwn b{display:block}.mwrow .mwn span{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+  .mwrow .mwst{font-size:13px;flex:0 1 auto}
+  .mwrow .mwwhy{flex-basis:100%;font-size:13px;color:var(--late)}
   .msrow{display:grid;grid-template-columns:1.1fr 1.6fr 1.3fr 1.6fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge)}
   .msrow.mshead{border-top:0;padding:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
   .msrow .pill{white-space:normal;text-align:left}
@@ -1527,6 +1534,7 @@
   .stick{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--edge);flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:#fff}
   .sready li.done .stick{background:var(--done);border-color:var(--done)}
   .ssoon .mile{display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--hair);align-items:baseline} .ssoon .mile:first-child{border-top:0}
+  .comingtop{margin-bottom:16px} .ssoon .mlic{color:var(--navy);margin-right:6px}
   .ssoon .md{width:52px;flex:none;font-weight:700;white-space:nowrap} .ssoon .mt{flex:1;min-width:0} .ssoon .ml{color:var(--muted);font-size:12.5px;white-space:nowrap}
   /* A presenter's panel takes the side column's place; the Room column and the status notes step aside. */
   .evbody.withdrawer #sidepanels{display:none} .evbody:not(.withdrawer) #pdslot{display:none}
@@ -1672,7 +1680,17 @@
     .vtable td.pn{grid-column:1} .vtable td.pr{display:block;grid-column:2;grid-row:1;text-align:right;white-space:normal}
     .vtable td.pa{grid-column:1 / -1} .vtable td.pa .psub{display:block}
     .vtable td.pact{grid-column:1 / -1;width:auto} .vacts{justify-content:flex-start;flex-wrap:wrap}
-    .etabs{padding:2px 6px;flex-wrap:wrap;overflow:visible;gap:0 2px} .etab{padding:10px 9px 8px;font-size:13.5px}
+    /* The event's tabs on a phone (Andrew 5 Nov 2026: "doesn't stand out … took me some time to find it"): one row of
+       clear buttons that scrolls sideways, the open one filled navy, pinned under the top bar while the page scrolls. */
+    .evhead{display:contents}
+    .evhead .etabs{position:sticky;top:var(--barh,64px);z-index:9;margin:0 -20px 16px;padding:10px 20px;gap:8px;flex-wrap:nowrap;overflow-x:auto;
+      background:var(--paper);border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:0 6px 12px -8px rgba(15,25,45,.25);
+      -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+    .evhead .etabs.atend{-webkit-mask-image:none;mask-image:none}
+    .etab{flex:none;padding:9px 15px;font-size:14.5px;border:1.5px solid var(--edge);border-radius:999px;background:#fff;color:var(--ink);min-height:42px}
+    .etab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+    .etab.on .lock{color:#cfd6e4}
+    .bhead{margin-bottom:12px}
   }
   .qcard .card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .qseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-left:auto}
@@ -2330,6 +2348,11 @@ function sizeExpFrame() {
   if (f) f.style.height = `${Math.max(480, Math.round(window.innerHeight - (f.getBoundingClientRect().top + window.scrollY) - 12))}px`;
 }
 window.addEventListener("resize", sizeExpFrame);
+// The event tabs pin under the top bar on a phone: how tall the bar is, and whether the tabs are scrolled to their end
+// (the fade at the right edge says there are more).
+const setBarH = () => { const h = document.querySelector(".bar")?.offsetHeight; if (h) document.documentElement.style.setProperty("--barh", `${h}px`); };
+setBarH(); window.addEventListener("resize", setBarH);
+document.addEventListener("scroll", (e) => { const t = e.target; if (t?.classList?.contains("etabs")) t.classList.toggle("atend", t.scrollLeft + t.clientWidth >= t.scrollWidth - 4); }, true);
 // The app says how many wait on you whenever it looks; the sidebar's count follows at once.
 window.addEventListener("message", (e) => {
   const m = e.origin === location.origin ? e.data?.ongiaExpenses : null;
@@ -4375,17 +4398,26 @@ function eventScreen(data) {
   const todoHtml = Qev.needs.filter((r) => r.title !== "Event is blocked").map(evQRow).join("")
     + (mailTodo ? evQRow({ icon: "✉", cls: "you", title: `${mailTodo} email${mailTodo === 1 ? "" : "s"} to deal with`, note: "From your inbox, filed to this event",
         btn: `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open email</button>` }) : "");
-  const soon = [
+  // Coming up (Andrew 5 Nov 2026: "put it at the top and include all the scheduled emails, date and to how many … If the
+  // list is longer than 10 only show the first 10 in chronological order. Remove the ones when done and add the next").
+  // The dates on the event and its checklist straight away; the emails the desk sends on its own follow when they load.
+  const soonDates = [
     ...nextDl.filter((x) => x.d >= 0).map((x) => ({ iso: x.iso, d: x.d, what: x.l,
       extra: x.l === "Training starts" || !presenters.length ? "" : stillOut(x.l) ? `${stillOut(x.l)} still to come in` : "all in" })),
     ...(checklist?.tasks ?? []).filter((t) => t.scheduled && t.due && !t.done && !t.na && daysTo(t.due) >= 0)
-      .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "" })),
-  ].sort((a, b) => a.iso.localeCompare(b.iso)).slice(0, 6);
-  const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2></div></div><div class="card-body">${soon.length
-    ? soon.map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}</span>
-        <span class="ml">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("")
-    : `<div class="porg">Nothing dated coming up.</div>`}</div></div>`;
-  const boardOthers = (ev.board ?? []).filter((m) => !m.lead).map((m) => esc(m.name || m.email));
+      .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "", auto: !!t.auto })),
+  ];
+  const comingRows = (emails) => {
+    const mail = (emails ?? []).filter((x) => daysTo(x.date) >= 0).map((x) => ({ iso: x.date, d: daysTo(x.date), what: x.what, mail: true, note: x.note,
+      extra: `to ${x.to} ${x.who === "presenters" ? (x.to === 1 ? "presenter" : "presenters") : x.to === 1 ? "person" : "people"}${x.time ? ` · ${fmt12(x.time)}` : ""}` }));
+    // With the emails loaded, the checklist's "sends itself" jobs are those emails: shown once, with their numbers.
+    const rows = [...soonDates.filter((x) => !(emails && x.auto)), ...mail].sort((a, b) => a.iso.localeCompare(b.iso));
+    return rows.slice(0, 10).map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${x.mail ? `<span class="mlic" aria-hidden="true">✉</span>` : ""}${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}${x.note ? ` <span class="late" style="font-size:12.5px">· ${esc(x.note)}</span>` : ""}</span>
+        <span class="ml">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
+  };
+  const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2><div class="s">The next 10 things, emails included, soonest first</div></div></div><div class="card-body" id="comingbody">${comingRows(null)}</div></div>`;
+  if ((ev.lastDay || ev.dayOne || "9999") >= new Date().toLocaleDateString("en-CA")) api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=schedule`).then((out) => { const b = document.getElementById("comingbody"); if (b) b.innerHTML = comingRows(out.emails ?? []); }).catch(() => {});
+  const boardOthers = [...new Set((ev.board ?? []).filter((m) => !m.lead).map((m) => m.name || m.email))].map(esc);
   // When the lead last signed in to the desk (Andrew 21 Oct 2026): small, beside their name, never wrapping.
   const leadMember = lead ? (ROSTER ?? []).find((m) => (ev.reviewer?.email && (m.email ?? "").toLowerCase() === ev.reviewer.email.toLowerCase()) || (m.name && m.name === lead)) : null;
   const seenWords = !leadMember ? "" : leadMember.lastSignIn ? `last signed in ${signInTime(leadMember.lastSignIn)}` : "never signed in";
@@ -4427,7 +4459,7 @@ function eventScreen(data) {
       <div class="cardacts"><button class="mini ghost" id="readyhide">Hide this</button></div></div>
     <div class="card-body"><ul class="sready">${readyItems.map((x) => `<li class="${x.done ? "done" : ""}"><span class="stick" aria-label="${x.done ? "Done" : "To do"}">${x.done ? "✓" : ""}</span><span class="rw">${x.what}</span>${x.done ? "" : x.btn}</li>`).join("")}</ul></div></div>`;
   const overviewHtml = (`${overdue.length ? `<div class="bad" style="margin:0 0 14px">${overdue.map((x) => `<b>${esc(x.l.replace(" due", ""))}</b> were due ${esc(fmtDate(x.iso))} (${-x.d} day${x.d === -1 ? "" : "s"} ago) — <span class="num">${x.out}</span> of ${presenters.length} still outstanding.`).join("<br>")}</div>` : ""}`)
-    // The left column is the to-do list and who does what; the right, what is coming. Two columns of about the same height.
+    // The to-do list and who does what. (Coming up sits above the dashboard, at the very top: Andrew 5 Nov 2026.)
     + `<div><div><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
         <div class="qlist">${todoHtml || `<div class="qempty">Nothing needs you on this event right now.</div>`}${Qev.waiting.length ? `<div class="qmailh">Waiting on them</div>${Qev.waiting.map(evQRow).join("")}` : ""}</div></div>
       </div></div>`
@@ -4511,7 +4543,7 @@ function eventScreen(data) {
       <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
 </section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
-    ${blockedHtml}${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
+    ${blockedHtml}<div class="comingtop" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>${comingCard}</div>${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
@@ -4559,11 +4591,11 @@ function eventScreen(data) {
         ${(ev.removedPresenters ?? []).length ? `<dt class="top">Removed</dt><dd><div class="stack">${ev.removedPresenters.slice().reverse().map((r) =>
           `<span>${esc(r.name)} <span class="porg">· ${r.role === "volunteer" ? "volunteer · " : ""}${r.status === "approved" || r.status === "signed" ? "signed agreement" : esc(r.status)} · removed ${esc(fmtDate(r.at.slice(0, 10)))}${r.filedTo ? ` · <a href="${esc(r.filedTo)}" target="_blank" rel="noopener">signed copy in SharePoint</a>` : ""}</span>${r.reason ? `<br><span class="porg">Reason: ${esc(r.reason)}</span>` : ""}</span>`).join("")}</div></dd>` : ""}
         ${sheetcheck ? `<dt>Logistics sheet check</dt><dd>${sheetShown ? (sheetcheck.baseline ? `<span class="said">On: a sheet has been uploaded for this event.</span>` : `<div class="stack"><span class="said">On, with no sheet uploaded yet.</span><button class="mini" id="sheet-off">Turn it off</button></div>`) : `<div class="stack"><span class="said">Off. It compares an uploaded logistics sheet with the agreements; only some events have one.</span><button class="mini" id="sheet-on">Turn it on for this event</button></div>`}</dd>` : ""}
-        <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
+        <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.filter((m, i, all) => m.lead || !all.some((o, j) => (o.name || o.email) === (m.name || m.email) && (o.lead || j < i))).map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
     </div>`, { id: "evsettings" }))
-    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${comingCard}${rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="padd">
@@ -4699,6 +4731,9 @@ function eventScreen(data) {
     if (k === "money" && SBX_EV?.id === ev.id) api(`/budget?event=${encodeURIComponent(ev.id)}`).then((got) => { if ((got.rev ?? 0) > (SBX_REV ?? 0) && SBX_EV?.id === ev.id) mountBudget(ev, got); }).catch(() => {});
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+    // On a phone the tabs scroll sideways: bring the open one into view.
+    const onTab = ROOT.querySelector(".etab.on"), bar = onTab?.parentElement;
+    if (bar && bar.scrollWidth > bar.clientWidth) bar.scrollTo({ left: Math.max(0, onTab.offsetLeft - (bar.clientWidth - onTab.offsetWidth) / 2), behavior: "smooth" });
     // Opening a tab is seeing what is new on it.
     ROOT.querySelector(`.etab[data-tab="${k}"] .nnew`)?.remove();
     markSeen([k]);
@@ -5909,6 +5944,62 @@ const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) 
   const mine = list.filter((l) => l.from === g);
   return mine.length ? `<optgroup label="${esc(g)}">${mine.map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("")}</optgroup>` : "";
 }).join("");
+/*
+ * Who's had it (Andrew 5 Nov 2026: "where can I see who and how many haven't received the email? How do I resend to
+ * individual attendees"): everyone registered with an address, where that email stands for them (sent, not yet,
+ * bounced, couldn't be sent), and Send again for one person, with their own version. A <details> on the email's card;
+ * the list loads when it's opened, and its line says the counts.
+ */
+const MW_WORD = { welcome: "welcome letter", reply: "food-allergy email" };
+function whoBox(kind) {
+  return `<details class="wlset mwho" data-mwho="${kind}"><summary><span data-mwline>Who's had it: loading…</span> <span class="wlset-edit">Open</span></summary><div class="wlset-body" data-mwbody></div></details>`;
+}
+async function mountWho(ev, kind, el, { versions = 1 } = {}) {
+  if (!el) return;
+  const line = el.querySelector("[data-mwline]"), body = el.querySelector("[data-mwbody]");
+  let P = [], filter = null, q = "", all = false, check = null;
+  const bad = (p) => !!p.trouble;
+  const status = (p) => p.trouble?.kind === "bounced" ? `<span class="pill late">Bounced ${esc(fmtDate(String(p.trouble.at).slice(0, 10)))}</span>`
+    : p.trouble ? `<span class="pill late">Couldn't send</span>`
+    : p.had ? `<span class="pill done">Sent ${esc(p.at ? fmtDate(p.at.slice(0, 10)) : "")}</span>` : `<span class="pill wait">Not sent yet</span>`;
+  const load = async () => {
+    const out = await api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=${kind}`);
+    P = out.people ?? []; check = out.bounceCheck;
+    const n = { had: P.filter((p) => p.had && !bad(p)).length, not: P.filter((p) => !p.had && !bad(p)).length, bad: P.filter(bad).length };
+    line.innerHTML = `Who's had it: <b>${n.had} of ${P.length}</b>${n.not ? ` · <b class="late">${n.not} not yet</b>` : ""}${n.bad ? ` · <b class="late">${n.bad} bounced or couldn't send</b>` : ""}`;
+    if (!filter) filter = n.bad ? "bad" : n.not ? "not" : "all";
+    draw();
+  };
+  const draw = () => {
+    const n = { not: P.filter((p) => !p.had && !bad(p)).length, bad: P.filter(bad).length };
+    const want = P.filter((p) => filter === "bad" ? bad(p) : filter === "not" ? !p.had && !bad(p) : true)
+      .filter((p) => !q || `${p.name} ${p.email} ${p.version ?? ""}`.toLowerCase().includes(q));
+    const shown = all ? want : want.slice(0, 50);
+    body.innerHTML = `<div class="mwfil wlvbar" role="tablist" aria-label="Show">${[["not", `Hasn't had it <small>${n.not}</small>`], ["bad", `Bounced or couldn't send <small>${n.bad}</small>`], ["all", `Everyone <small>${P.length}</small>`]]
+        .map(([k, l]) => `<button type="button" role="tab" data-mwf="${k}" class="${filter === k ? "on" : ""}" aria-selected="${filter === k}">${l}</button>`).join("")}
+        <input type="search" data-mwq placeholder="Search a name or email" value="${esc(q)}" aria-label="Search a name or email"></div>
+      ${shown.length ? shown.map((p) => `<div class="mwrow"><div class="mwn"><b>${esc(p.name || p.email)}</b><span>${esc(p.email)}${versions > 1 && p.version ? ` · ${esc(p.version)}` : ""}${p.answered ? " · answered" : ""}</span></div>
+          <span class="mwst">${status(p)}</span><button type="button" class="mini${p.had && !bad(p) ? " ghost" : " gold"}" data-mwsend="${esc(p.email)}">${p.had && !bad(p) ? "Send again" : "Send now"}</button>
+          ${p.trouble ? `<span class="mwwhy">${esc(p.trouble.why)}</span>` : ""}</div>`).join("")
+        : `<p class="porg" style="margin:6px 0">${filter === "not" ? "Everyone registered has had it." : filter === "bad" ? "None bounced or failed." : "Nobody matches."}</p>`}
+      ${want.length > shown.length ? `<button type="button" class="linkish" data-mwall>Show all ${want.length}</button>` : ""}
+      <p class="hint" style="margin:10px 0 0">Send now or Send again sends this one person their own ${versions > 1 ? "version of the " : ""}${MW_WORD[kind]} straight away, whatever the date or the automatic-emails switch.${check?.at ? ` Bounces last checked ${esc(new Date(check.at).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}.` : ""}${check?.error ? ` <span class="late">Couldn't read bounces: ${esc(check.error)}</span>` : ""}</p>`;
+    body.querySelectorAll("[data-mwf]").forEach((b) => { b.onclick = () => { filter = b.dataset.mwf; all = false; draw(); }; });
+    const qi = body.querySelector("[data-mwq]");
+    qi.oninput = () => { q = qi.value.trim().toLowerCase(); const at = qi.selectionStart; draw(); const n2 = body.querySelector("[data-mwq]"); n2.focus(); try { n2.setSelectionRange(at, at); } catch {} };
+    body.querySelector("[data-mwall]")?.addEventListener("click", () => { all = true; draw(); });
+    body.querySelectorAll("[data-mwsend]").forEach((b) => { b.onclick = async () => {
+      const p = P.find((x) => x.email === b.dataset.mwsend);
+      if (!confirm(`Send the ${versions > 1 && p.version ? `${p.version} ` : ""}${MW_WORD[kind]} to ${p.name || p.email} (${p.email}) now?`)) return;
+      b.disabled = true; b.textContent = "Sending…";
+      try { await api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=${kind}&to=${encodeURIComponent(p.email)}`, { method: "POST" }); toast(`Sent to ${p.email}.`); await load(); }
+      catch (x) { toast(x.message); await load(); }
+    }; });
+  };
+  el.addEventListener("toggle", () => { if (el.open && !P.length) load().catch((x) => { body.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }); });
+  load().catch((x) => { line.textContent = "Who's had it: couldn't load"; body.innerHTML = `<div class="bad">${esc(x.message)}</div>`; });
+}
+
 function renderWelcomeCard(ev, W) {
   const box = document.getElementById("wlbox");
   if (!box) return;
@@ -5984,6 +6075,7 @@ function renderWelcomeCard(ev, W) {
           <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
         <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
       </div></details>
+    ${whoBox("welcome")}
     ${W.saved ? "" : `<div class="bad" data-unsaved style="margin-top:10px"><b>Not saved yet.</b> Read ${W.versions.length > 2 ? "each version" : two ? "both versions" : "it"}, then change what you need (it saves as you type) or press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${noName}
     ${W.versions.map(version).join("")}
@@ -5995,6 +6087,7 @@ function renderWelcomeCard(ev, W) {
       <div class="sheet-body"><div class="lprev"><iframe id="wl-frame" title="The welcome letter as attendees will see it" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
         <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
   const $ = (id) => document.getElementById(id);
+  mountWho(ev, "welcome", box.querySelector('[data-mwho="welcome"]'), { versions: W.versions.length });
   const drawSetLine = () => { $("wl-setline").innerHTML = setLine(); };
   drawSetLine();
   $("wl-on").addEventListener("change", drawSetLine);
@@ -7515,6 +7608,7 @@ function renderReplyCard(ev, R) {
       : sent
       ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left && st.toSend ? `. ${st.toSend} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent${st.round.trouble?.[0] ? ` (${esc(st.round.trouble[0].why)})` : ""}.` : ""}${R.lastSend?.error ? ` The last run stopped: ${esc(R.lastSend.error)}.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
       : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
+    ${sent ? `<div style="margin:-4px 0 14px">${whoBox("reply")}</div>` : ""}
 
     <div class="wlvbar rpbar" role="tablist" aria-label="Which part">${[["answers", `Answers <small>${A.length}</small>`], ["form", hasSoc ? "The form and socials" : "The form"], ["email", "The email"], ["reminders", "Reminders"]].map(([k, l]) => `<button type="button" role="tab" data-rpp="${k}">${l}</button>`).join("")}</div>
     <div data-rppart="answers">
@@ -7606,6 +7700,7 @@ function renderReplyCard(ev, R) {
     try { localStorage.setItem(rppKey, k); } catch {}
   };
   box.querySelectorAll("[data-rpp]").forEach((b) => { b.onclick = () => showPart(b.dataset.rpp); });
+  mountWho(ev, "reply", box.querySelector('[data-mwho="reply"]'));
   showPart((() => { try { return localStorage.getItem(rppKey); } catch { return null; } })() || "answers");
   const socials = () => [...box.querySelectorAll("[data-rpsoc]")].map((el) => Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])));
   const body = () => ({ replyBy: $("rp-by").value, open: $("rp-open").checked, socials: socials(), subject: $("rp-subject").value, body: $("rp-body").value, buttonLabel: $("rp-button").value, buttonLabelFr: $("rp-button-fr").value, signName: $("rp-sign").value, signEmail: $("rp-sign-email").value,

@@ -8,6 +8,7 @@ import { letterProblems, eventProblems, renderLetter, attendeeSignOf } from "./l
 import { sendMail, sendAttendeeMail, EVENTS_FROM } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { xlsx } from "./xlsx.mjs";
+import { markRows } from "./attmail.mjs";
 
 /**
  * Housekeeping questions for an event's attendees (Andrew 26 Oct 2026, for the National Gang Summit).
@@ -450,13 +451,10 @@ export async function sendReplyRound(event, { deadline = null, pace = pacer(), t
     try {
       const out = await sendMail({ to: person.email, replyTo: replyToOf(event), ...renderReply(event, person) });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
-      for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
-        same.sent = [...new Set([...(same.sent ?? []), "reply"])];
-        same.sentAt = { ...(same.sentAt ?? {}), reply: new Date().toISOString() };
-      }
+      markRows(stored.people ?? [], person.email, "reply", { sent: true });
       sent++;
       await putAttendees(event.id, stored);
-    } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
+    } catch (e) { trouble.push({ email: person.email, why: e.message }); markRows(stored.people ?? [], person.email, "reply", { why: e.message }); failed++; }
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), reply: { at: new Date().toISOString(), sent, failed, left, trouble: trouble.slice(0, 10) } } });
   return { sent, failed, left, trouble: trouble.slice(0, 10), sentTo: owed.slice(0, sent + failed).map((p) => p.email) };

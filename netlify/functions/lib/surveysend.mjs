@@ -100,7 +100,7 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
 }
 
 /** Who a part still has to go to: everyone registered who hasn't had it, and for a daily part only those there that day. */
-function owedFor(event, part, people) {
+export function owedFor(event, part, people) {
   const had = new Set(people.filter((p) => (p.sent ?? []).includes(sentKey(part))).map((p) => p.email));
   // A daily part only goes to people whose days include it (the Summit's community partners: their two days).
   return writeableTo(people).filter((p) => !had.has(p.email) && (part === "end" || daysFor(event, p).includes(part)));

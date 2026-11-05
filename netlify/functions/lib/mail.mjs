@@ -25,6 +25,8 @@ import { siteUrl } from "./site.mjs";
 
 const RESEND_FROM = process.env.MAIL_FROM || "ONGIA Training <agreements@send.ongia.ca>";
 const GRAPH_MAILBOX = process.env.MS_MAIL_FROM || "";
+/** The Microsoft mailbox attendee mail goes from (bounces come back to it). */
+export const graphMailbox = () => String(process.env.MS_MAIL_FROM || "").trim().toLowerCase();
 export const ATTENDEE_REPLY_TO = process.env.ATTENDEE_REPLY_TO || "ongiaevents@ongia.ca";
 export const CERT_FROM = process.env.CERT_MAIL_FROM || "ONGIA Certificates <certificates@send.ongia.ca>";
 // Reminders to attendees (the reply-form reminder, the hotel cut-off rounds) (Andrew 31 Oct 2026). Surveys stay a manual send.
