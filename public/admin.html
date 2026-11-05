@@ -1379,6 +1379,13 @@
   .wlvbar .dot{width:8px;height:8px;border-radius:50%;background:var(--late)}
   .wlvbar button.on .dot{background:#ffb4a8}
   .wlvbar small{font-weight:500;opacity:.75}
+  .wlset{margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:0 14px}
+  .wlset>summary{cursor:pointer;padding:10px 0;font-size:14px;color:var(--muted,#555);list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+  .wlset>summary::-webkit-details-marker{display:none}
+  .wlset>summary b:not(.late){color:var(--ink)}
+  .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
+  .wlset[open] .wlset-edit{visibility:hidden}
+  .wlset-body{padding:0 0 12px}
   .msrow{display:grid;grid-template-columns:1.1fr 1.6fr 1.3fr 1.6fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge)}
   .msrow.mshead{border-top:0;padding:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
   .msrow .pill{white-space:normal;text-align:left}
@@ -5962,16 +5969,23 @@ function renderWelcomeCard(ev, W) {
         ${two ? `<b style="flex:1 1 180px">${esc(v.label)}</b>` : ""}<button class="btn btn-ghost" data-wlsee="${v.key}">See the email</button><button class="btn btn-ghost" data-wltest="${v.key}">Send a test</button></div>`).join("")}
     </div>`;
   const job = W.sendOn ? `Goes on <input type="date" id="wl-on" value="${esc(W.sendOn)}" style="width:auto;display:inline-block;margin:0 6px">` : `Goes on <input type="date" id="wl-on" style="width:auto;display:inline-block;margin:0 6px">`;
+  // Tightened (Andrew 5 Nov 2026, "tighten it"): the version buttons come first, and the send date, signer and help fold
+  // into one line that opens when clicked, so picking a version shows its letter straight away.
+  const shortDay = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }) : "no date set");
+  const setLine = () => `Goes <b>${esc(shortDay($("wl-on")?.value ?? W.sendOn))}</b> · signed <b>${esc(($("wl-sign")?.selectedOptions?.[0]?.textContent ?? "").split(" — ")[0] || W.signer.name || "ONGIA Board")}</b> · attendee emails <b class="${W.attendeeMail ? "" : "late"}">${W.attendeeMail ? "on" : "off"}</b>`;
   box.innerHTML = `
-    <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
-    ${W.attendeeMail ? `<div class="note" style="margin-top:10px">Attendee emails are <b>on</b>: it will go on that day by itself. If any can't be sent, or it is held back, the president and VP get an email saying why.</div>`
-      : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
-    <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
-      <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
+    ${two ? `<div class="wlvbar" role="tablist" aria-label="Which version" style="margin-top:4px">${W.versions.map((v) => `<button type="button" role="tab" data-wlv="${v.key}">${esc(v.label)} <small>${v.reaches ?? 0}</small>${v.problems.length ? `<span class="dot" title="${esc(v.problems[0])}"></span>` : ""}</button>`).join("")}</div>` : ""}
+    <details class="wlset"><summary><span id="wl-setline"></span> <span class="wlset-edit">Change</span></summary>
+      <div class="wlset-body">
+        <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
+        ${W.attendeeMail ? `<div class="note" style="margin-top:10px">Attendee emails are <b>on</b>: it will go on that day by itself. If any can't be sent, or it is held back, the president and VP get an email saying why.</div>`
+          : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
+        <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
+          <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
+        <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
+      </div></details>
     ${W.saved ? "" : `<div class="bad" data-unsaved style="margin-top:10px"><b>Not saved yet.</b> Read ${W.versions.length > 2 ? "each version" : two ? "both versions" : "it"}, then change what you need (it saves as you type) or press <b>Save the welcome letter</b> at the bottom. Until then nothing goes.</div>`}
     ${noName}
-    <p class="hint" style="margin-top:14px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
-    ${two ? `<div class="wlvbar" role="tablist" aria-label="Which version">${W.versions.map((v) => `<button type="button" role="tab" data-wlv="${v.key}">${esc(v.label)} <small>${v.reaches ?? 0}</small>${v.problems.length ? `<span class="dot" title="${esc(v.problems[0])}"></span>` : ""}</button>`).join("")}</div>` : ""}
     ${W.versions.map(version).join("")}
     ${attachments}
     ${checks}
@@ -5981,6 +5995,10 @@ function renderWelcomeCard(ev, W) {
       <div class="sheet-body"><div class="lprev"><iframe id="wl-frame" title="The welcome letter as attendees will see it" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
         <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
   const $ = (id) => document.getElementById(id);
+  const drawSetLine = () => { $("wl-setline").innerHTML = setLine(); };
+  drawSetLine();
+  $("wl-on").addEventListener("change", drawSetLine);
+  $("wl-sign").addEventListener("change", drawSetLine);
   // One version at a time (Andrew 5 Nov 2026): the buttons pick which version's words show; the others are hidden, not
   // taken away, so saving still sends every version's words. The pick is remembered per event on this device.
   const wlvKey = `ongia-wlv-${ev.id}`;
