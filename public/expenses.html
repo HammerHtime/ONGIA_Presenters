@@ -71,6 +71,10 @@
   .thumb img{width:100%;height:100%;object-fit:cover}
   .thumb.kind{background:var(--sunk);box-shadow:none}
   .line .w{font-weight:600;font-size:15.5px}
+  .swipe{position:relative;overflow:hidden;border-top:1px solid var(--border)} .swipe:first-child{border-top:0}
+  .swipe .line{position:relative;z-index:1;background:var(--card,#fff);border-top:0;transition:transform .2s ease;touch-action:pan-y}
+  .swipe .swdel{position:absolute;top:0;right:0;bottom:0;width:88px;border:0;background:var(--late);color:#fff;font:600 15px var(--fb,inherit);cursor:pointer}
+  .swipe.going{opacity:.4;pointer-events:none}
   .line .s{font-size:13px;color:var(--muted);margin-top:1px}
   .amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;font-size:15.5px}
   .check{font-size:12.5px;margin-top:3px;display:flex;align-items:center;gap:4px}
@@ -752,7 +756,8 @@ function claimScreen() {
       <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : DESK ? "Nothing added yet. Drop your first receipt on the right." : "Nothing added yet. Take a photo of your first receipt."}</div>
     </div>`;
   const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
-  const list = [...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => lineRow(l, c.id)).join("")}</div>`).join("");
+  // Swipe a line left to delete it, as on any phone (Andrew 5 Nov 2026): a red Delete shows behind it; tap it to remove.
+  const list = [...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => `<div class="swipe" data-swl="${esc(l.id)}"><button type="button" class="swdel" tabindex="-1" aria-hidden="true">Delete</button>${lineRow(l, c.id)}</div>`).join("")}</div>`).join("");
   const send = lines.length ? `<div id="submitsay" style="margin-top:16px"></div>
       <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
       <p class="tiny${DESK ? "" : " center"}" style="margin:8px 4px 0">${c?.test ? `A test claim comes back to you: approve it as the ${esc((c?.approvers ?? HOME.approvers).join(" and as the "))}, then record a pretend payment.` : `It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.`}</p>` : "";
@@ -782,7 +787,8 @@ function claimScreen() {
   if ($("retry")) $("retry").onclick = () => flushOutbox();
   if ($("submit")) $("submit").onclick = submitClaim;
   if ($("delclaim")) $("delclaim").onclick = deleteClaim;
-  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => openLine(b.dataset.line); });
+  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => { if (b.closest(".swipe")?.classList.contains("open")) { closeSwipes(); return; } openLine(b.dataset.line); }; });
+  wireSwipes(c);
   fillThumbs();
 }
 /* The desk's drop box: photos and PDFs dropped on it go on the claim, one after another. */
@@ -1018,6 +1024,39 @@ async function leaveEditor() {
   if (EDIT?.dirty && (EDIT.lineId || Object.values(formValues()).some((x) => x !== "" && x !== null))) await saveLine();
   EDIT = null; VIEW = { name: "claim" }; TAB = "claim";
   render(); window.scrollTo(0, 0);
+}
+/** Swipe left on a line of the claim being built: past a third of the Delete button it stays open; tap Delete to remove. */
+const SWIPE_W = 88;
+function closeSwipes(except = null) {
+  ROOT.querySelectorAll(".swipe.open").forEach((w) => { if (w !== except) { w.classList.remove("open"); w.querySelector(".line").style.transform = ""; } });
+}
+function wireSwipes(c) {
+  ROOT.querySelectorAll(".swipe").forEach((w) => {
+    const row = w.querySelector(".line");
+    let x0 = 0, y0 = 0, dx = 0, base = 0, dragging = false, decided = false;
+    row.addEventListener("touchstart", (e) => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; dx = 0; dragging = true; decided = false; base = w.classList.contains("open") ? -SWIPE_W : 0; row.style.transition = "none"; closeSwipes(w); }, { passive: true });
+    row.addEventListener("touchmove", (e) => {
+      if (!dragging) return;
+      const t = e.touches[0], mx = t.clientX - x0, my = t.clientY - y0;
+      // Sideways only once it's clearly sideways; an up-and-down scroll is left alone.
+      if (!decided) { if (Math.abs(mx) < 8 && Math.abs(my) < 8) return; decided = true; if (Math.abs(my) > Math.abs(mx)) { dragging = false; return; } }
+      dx = mx;
+      row.style.transform = `translateX(${Math.min(0, Math.max(-SWIPE_W * 1.4, base + dx))}px)`;
+    }, { passive: true });
+    row.addEventListener("touchend", () => {
+      if (!dragging) return; dragging = false; row.style.transition = "";
+      const open = base + dx < -SWIPE_W / 3;
+      w.classList.toggle("open", open); row.style.transform = open ? `translateX(-${SWIPE_W}px)` : "";
+      if (decided && Math.abs(dx) > 8) { row.dataset.swiped = "1"; setTimeout(() => delete row.dataset.swiped, 350); }
+    });
+    row.addEventListener("click", (e) => { if (row.dataset.swiped) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    w.querySelector(".swdel").onclick = async () => {
+      const id = w.dataset.swl;
+      w.classList.add("going");
+      try { const out = await api(`?claim=${c.id}&line=${id}`, { method: "DELETE" }); HOME.current = out.claim; toast("Removed."); claimScreen(); }
+      catch (e) { w.classList.remove("going"); closeSwipes(); if (!e.quiet) toast(e.message, true); }
+    };
+  });
 }
 async function removeLine() {
   if (!confirm("Remove this line from your claim?")) return;
