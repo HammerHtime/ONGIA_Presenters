@@ -32,7 +32,8 @@ export async function emailSchedule(event, today = todayIso()) {
       if (!owed) continue;
       const extra = extrasOf(event).some((x) => x.key === k);
       const label = versionKeys(event).length > 1 ? `Welcome letter (${versionLabel(event, k)})` : "Welcome letter";
-      out.push({ date: job.due, what: label, to: owed, who: "attendees", note: offNote || (extra && !event.welcomeReady?.[k] ? "waiting for you to mark it ready" : "") });
+      const waiting = extra && !event.welcomeReady?.[k];
+      out.push({ date: job.due, what: label, to: owed, who: "attendees", note: offNote || (waiting ? "waiting for you to mark it ready" : ""), ...(waiting ? {} : { now: { type: "welcome", key: k } }) });
     }
   }
 
@@ -43,7 +44,7 @@ export async function emailSchedule(event, today = todayIso()) {
     if (dates.length) {
       const answers = (await getReplies(event.id))?.answers ?? [];
       const owed = stillToAnswer(inTheRoom(event, people), answers).length;
-      for (const d of dates) out.push({ date: d, what: "Food allergies: reminder", to: owed, who: "attendees", note: offNote });
+      for (const d of dates) out.push({ date: d, what: "Food allergies: reminder", to: owed, who: "attendees", note: offNote, now: { type: "remind" } });
     }
   }
 
@@ -63,7 +64,7 @@ export async function emailSchedule(event, today = todayIso()) {
     for (const d of HOTEL_DAYS) {
       const on = before(h.cutoff, d);
       if (on < today) continue;
-      out.push({ date: on, what: `Hotel reminder (${d} days before the block closes)`, to: writeable.filter((p) => !(p.sent ?? []).includes(`hotel${d}`)).length, who: "attendees", note: offNote });
+      out.push({ date: on, what: `Hotel reminder (${d} days before the block closes)`, to: writeable.filter((p) => !(p.sent ?? []).includes(`hotel${d}`)).length, who: "attendees", note: offNote, ...(off ? {} : { now: { type: "hotel", days: d } }) });
     }
   }
 
@@ -73,13 +74,13 @@ export async function emailSchedule(event, today = todayIso()) {
     const owed = presenters.filter((p) => p.mail?.length && !["submitted", "approved", "arranged", "withdrawn"].includes(p.status)).length;
     if (owed) for (const d of PRESENTER_DAYS) {
       const on = before(event.deadlines.agreement, d);
-      if (on >= today) out.push({ date: on, what: d ? `Agreement reminder (${d} day${d === 1 ? "" : "s"} before it's due)` : "Agreement reminder (due today)", to: owed, who: "presenters", note: "" });
+      if (on >= today) out.push({ date: on, what: d ? `Agreement reminder (${d} day${d === 1 ? "" : "s"} before it's due)` : "Agreement reminder (due today)", to: owed, who: "presenters", note: "", now: { type: "presenters" } });
     }
     // Then, once it's overdue: every 3 days for two weeks, then weekly (lib/reminders.mjs), until the event.
     if (owed) for (let n = 1; n <= 60; n++) {
       const on = before(event.deadlines.agreement, -n);
       if (on < today || (n <= 14 ? n % 3 : n % 7) || (event.dayOne && on >= event.dayOne)) continue;
-      out.push({ date: on, what: `Agreement reminder (${n} days overdue)`, to: owed, who: "presenters", note: "" });
+      out.push({ date: on, what: `Agreement reminder (${n} days overdue)`, to: owed, who: "presenters", note: "", now: { type: "presenters" } });
     }
   }
   // Done is gone: nothing left to send on that one (today's survey once it has gone, a reminder nobody is owed).

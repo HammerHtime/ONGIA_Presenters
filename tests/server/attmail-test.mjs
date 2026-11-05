@@ -76,6 +76,19 @@ ok("a virtual attendee can't be sent it", (await call("&kind=reply&to=val%40exam
 const rr = await call("&kind=reply&to=cam%40example.ca", "POST");
 ok("the food-allergy email goes to one person in the room", rr.status === 200 && sent.at(-1).to === "cam@example.ca" && (await call("&kind=reply")).body.people.find((p) => p.email === "cam@example.ca").had);
 
+// Send now from Coming up: a version to everyone still owed it, whatever its date.
+{ const { sendVersionNow } = await import(F + "lib/attmail.mjs");
+  const st = await getAttendees("ngs");
+  st.people.push({ key: "j2", first: "Jo", last: "Late", email: "jo@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" },
+    { key: "j3", first: "Kim", last: "Late", email: "kim@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" });
+  await putAttendees("ngs", st);
+  const n0 = sent.length;
+  const out = await sendVersionNow(await (await import(F + "lib/store.mjs")).getEvent("ngs"), "main");
+  ok("Send now sends that version to just the two still owed it", out.sent === 2 && sent.length === n0 + 2 && sent.slice(-2).every((m) => m.subject === "Welcome to the Summit"), JSON.stringify(out));
+  const again = await sendVersionNow(await (await import(F + "lib/store.mjs")).getEvent("ngs"), "main");
+  ok("pressing it again sends nobody a second copy", again.sent === 0 && sent.length === n0 + 2);
+}
+
 // Bounces.
 ok("a bounce notice's address is found, not ours or Microsoft's", JSON.stringify(bouncedAddresses("Your message to jay@example.ca couldn't be delivered. postmaster@outlook.com ongiaspeakers@ongia.ca abc@NAM12.prod.outlook.com", "ongiaspeakers@ongia.ca")) === '["jay@example.ca"]');
 const ev = await (await import(F + "lib/store.mjs")).getEvent("ngs");

@@ -1534,7 +1534,7 @@
   .stick{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--edge);flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:#fff}
   .sready li.done .stick{background:var(--done);border-color:var(--done)}
   .ssoon .mile{display:flex;gap:10px;padding:5px 0;border-top:1px solid var(--hair);align-items:baseline} .ssoon .mile:first-child{border-top:0}
-  .comingtop{margin-bottom:16px} .ssoon .mlic{color:var(--navy);margin-right:6px}
+  .comingtop{margin-bottom:16px} .ssoon .cnow{margin-left:6px;padding:3px 10px;min-height:28px;font-size:12.5px;vertical-align:baseline} .ssoon .mlic{color:var(--navy);margin-right:6px}
   .ssoon .md{width:52px;flex:none;font-weight:700;white-space:nowrap} .ssoon .mt{flex:1;min-width:0} .ssoon .ml{color:var(--muted);font-size:12.5px;white-space:nowrap}
   /* A presenter's panel takes the side column's place; the Room column and the status notes step aside. */
   .evbody.withdrawer #sidepanels{display:none} .evbody:not(.withdrawer) #pdslot{display:none}
@@ -4408,15 +4408,28 @@ function eventScreen(data) {
       .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "", auto: !!t.auto })),
   ];
   const comingRows = (emails) => {
-    const mail = (emails ?? []).filter((x) => daysTo(x.date) >= 0).map((x) => ({ iso: x.date, d: daysTo(x.date), what: x.what, mail: true, note: x.note,
+    const mail = (emails ?? []).filter((x) => daysTo(x.date) >= 0).map((x) => ({ iso: x.date, d: daysTo(x.date), what: x.what, mail: true, note: x.note, now: x.now, to: x.to, who: x.who,
       extra: `to ${x.to} ${x.who === "presenters" ? (x.to === 1 ? "presenter" : "presenters") : x.to === 1 ? "person" : "people"}${x.time ? ` · ${fmt12(x.time)}` : ""}` }));
     // With the emails loaded, the checklist's "sends itself" jobs are those emails: shown once, with their numbers.
     const rows = [...soonDates.filter((x) => !(emails && x.auto)), ...mail].sort((a, b) => a.iso.localeCompare(b.iso));
-    return rows.slice(0, 10).map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${x.mail ? `<span class="mlic" aria-hidden="true">✉</span>` : ""}${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}${x.note ? ` <span class="late" style="font-size:12.5px">· ${esc(x.note)}</span>` : ""}</span>
+    // The same email on two dates (two reminder days) is one Send now: on the first.
+    const seenNow = new Set();
+    for (const x of rows) if (x.now) { const k = JSON.stringify(x.now); if (seenNow.has(k)) delete x.now; else seenNow.add(k); }
+    return rows.slice(0, 10).map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}</span><span class="mt">${x.mail ? `<span class="mlic" aria-hidden="true">✉</span>` : ""}${esc(x.what)}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}${x.note ? ` <span class="late" style="font-size:12.5px">· ${esc(x.note)}</span>` : ""}${x.now && !x.note ? ` <button type="button" class="mini cnow" data-cnow="${esc(JSON.stringify({ ...x.now, what: x.what, to: x.to, who: x.who }))}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : ""}</span>
         <span class="ml">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
   };
   const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2><div class="s">The next 10 things, emails included, soonest first</div></div></div><div class="card-body" id="comingbody">${comingRows(null)}</div></div>`;
-  if ((ev.lastDay || ev.dayOne || "9999") >= new Date().toLocaleDateString("en-CA")) api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=schedule`).then((out) => { const b = document.getElementById("comingbody"); if (b) b.innerHTML = comingRows(out.emails ?? []); }).catch(() => {});
+  // Send now beside each email that can go early (Andrew 5 Nov 2026: "I don't want to wait and I want them to get the
+  // email now"): to everyone that line is for, after a confirm. Welcome letters and hotel reminders go on the server;
+  // the food-allergy reminder is the one "Send a reminder now" sends; presenters' is "Email all outstanding".
+  const loadComing = () => api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=schedule`).then((out) => {
+    const b = document.getElementById("comingbody"); if (!b) return;
+    COMING_BUSY = !!(out.sending || out.replySending);
+    b.innerHTML = comingRows(out.emails ?? []);
+    b.querySelectorAll("[data-cnow]").forEach((btn) => { btn.onclick = () => comingSendNow(ev, JSON.parse(btn.dataset.cnow), btn, loadComing); });
+    if (COMING_BUSY) setTimeout(() => { if (document.getElementById("comingbody") === b) loadComing(); }, 20000);
+  }).catch(() => {});
+  if ((ev.lastDay || ev.dayOne || "9999") >= new Date().toLocaleDateString("en-CA")) loadComing();
   const boardOthers = [...new Set((ev.board ?? []).filter((m) => !m.lead).map((m) => m.name || m.email))].map(esc);
   // When the lead last signed in to the desk (Andrew 21 Oct 2026): small, beside their name, never wrapping.
   const leadMember = lead ? (ROSTER ?? []).find((m) => (ev.reviewer?.email && (m.email ?? "").toLowerCase() === ev.reviewer.email.toLowerCase()) || (m.name && m.name === lead)) : null;
@@ -5944,6 +5957,21 @@ const libraryOptions = (list = []) => ["Saved letters", "Other events"].map((g) 
   const mine = list.filter((l) => l.from === g);
   return mine.length ? `<optgroup label="${esc(g)}">${mine.map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("")}</optgroup>` : "";
 }).join("");
+let COMING_BUSY = false;
+async function comingSendNow(ev, n, btn, reload) {
+  const who = `${n.to} ${n.who === "presenters" ? (n.to === 1 ? "presenter" : "presenters") : n.to === 1 ? "person" : "people"}`;
+  if (n.type === "presenters") { document.getElementById("mailall")?.click(); return; }
+  if (!confirm(`Send "${n.what}" now to ${who}?\n\nIt goes from the server straight away, so you can close the page. Nobody gets it twice.`)) return;
+  btn.disabled = true; btn.textContent = "Starting…";
+  try {
+    const out = n.type === "remind"
+      ? await api(`/reply?event=${encodeURIComponent(ev.id)}&remind=1`, { method: "POST", body: "{}" })
+      : await api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=now&type=${n.type}${n.key ? `&key=${encodeURIComponent(n.key)}` : ""}${n.days ? `&days=${n.days}` : ""}`, { method: "POST" });
+    toast(out.already ? "Something is already sending for this event; try again when it's done." : `Sending now to ${who}, on the server.`);
+  } catch (x) { toast(x.message); }
+  reload();
+}
+
 /*
  * Who's had it (Andrew 5 Nov 2026: "where can I see who and how many haven't received the email? How do I resend to
  * individual attendees"): everyone registered with an address, where that email stands for them (sent, not yet,
