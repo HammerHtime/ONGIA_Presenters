@@ -2,7 +2,7 @@ import { getAttendees, getReplies, listPresenters } from "./store.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { welcomeJob, welcomeReach, extrasOf, versionLabel, versionKeys, inTheRoom } from "./welcome.mjs";
 import { remindersOf, stillToAnswer } from "./reply.mjs";
-import { dailyTimes, owedFor } from "./surveysend.mjs";
+import { dailyTimes, owedFor, zoneOf } from "./surveysend.mjs";
 import { HOTEL_DAYS } from "./hotel.mjs";
 import { writeableTo } from "./attendees.mjs";
 
@@ -13,6 +13,10 @@ import { writeableTo } from "./attendees.mjs";
  * once its day has passed.
  */
 const PRESENTER_DAYS = [28, 14, 7, 4, 2, 1, 0];
+// The morning run starts at 14:00 UTC (lib/nightly.mjs, remind.mjs): 9 am Eastern in winter, 10 am in summer. A time is
+// given in its zone's short name ("ET", "PT"), so Andrew sees when, wherever the event is (Andrew 5 Nov 2026).
+const zoneAbbr = (zone, date) => (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(new Date(`${date}T17:00:00Z`)).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
+const morning = (date) => ({ time: new Date(`${date}T14:00:00Z`).toLocaleTimeString("en-GB", { timeZone: "America/Toronto", hour: "2-digit", minute: "2-digit", hour12: false }), tz: zoneAbbr("America/Toronto", date) });
 const before = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOString().slice(0, 10);
 
 export async function emailSchedule(event, today = todayIso()) {
@@ -20,7 +24,7 @@ export async function emailSchedule(event, today = todayIso()) {
   const off = event.attendeeMail !== true;
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
   const writeable = writeableTo(people);
-  const offNote = off ? "won't go: emails to attendees are off" : "";
+  const offNote = off ? "won't go: attendee emails are off" : "";
 
   // The welcome letter, each version, until everyone has it.
   const job = welcomeJob(event, today);
@@ -33,7 +37,7 @@ export async function emailSchedule(event, today = todayIso()) {
       const extra = extrasOf(event).some((x) => x.key === k);
       const label = versionKeys(event).length > 1 ? `Welcome letter (${versionLabel(event, k)})` : "Welcome letter";
       const waiting = extra && !event.welcomeReady?.[k];
-      out.push({ date: job.due, what: label, to: owed, who: "attendees", note: offNote || (waiting ? "waiting for you to mark it ready" : ""), ...(waiting ? {} : { now: { type: "welcome", key: k } }) });
+      out.push({ date: job.due, what: label, to: owed, who: "attendees", note: offNote || (waiting ? "not marked ready yet" : ""), ...(waiting ? {} : { now: { type: "welcome", key: k } }) });
     }
   }
 
@@ -53,7 +57,7 @@ export async function emailSchedule(event, today = todayIso()) {
   if (s?.open) {
     const parts = s.mode === "end" ? (s.sendOn ? [{ day: s.sendOn, part: "end", at: "09:00" }] : []) : dailyTimes(event).map((t) => ({ day: t.day, part: t.day, at: t.at }));
     for (const p of parts.filter((x) => x.day >= today)) {
-      out.push({ date: p.day, time: p.at, what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
+      out.push({ date: p.day, time: p.at ?? "", tz: zoneAbbr(zoneOf(event), p.day), what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
         note: offNote || (!p.at ? "won't go: that day has no end time" : "") });
     }
   }
@@ -83,6 +87,7 @@ export async function emailSchedule(event, today = todayIso()) {
       out.push({ date: on, what: `Agreement reminder (${n} days overdue)`, to: owed, who: "presenters", note: "", now: { type: "presenters" } });
     }
   }
+  for (const x of out) if (x.time === undefined) Object.assign(x, morning(x.date));
   // Done is gone: nothing left to send on that one (today's survey once it has gone, a reminder nobody is owed).
   return out.filter((x) => x.to > 0).sort((a, b) => a.date.localeCompare(b.date) || String(a.time ?? "").localeCompare(String(b.time ?? "")));
 }
