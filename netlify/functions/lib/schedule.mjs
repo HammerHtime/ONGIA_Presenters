@@ -5,6 +5,7 @@ import { remindersOf, stillToAnswer } from "./reply.mjs";
 import { dailyTimes, owedFor, zoneOf } from "./surveysend.mjs";
 import { HOTEL_DAYS } from "./hotel.mjs";
 import { writeableTo } from "./attendees.mjs";
+import { onlineGroups, timesOf, joinPeople } from "./joinreminder.mjs";
 
 /**
  * Every email the desk will send for an event on its own, from today on: the day, what it is, and how many it goes to
@@ -39,6 +40,18 @@ export async function emailSchedule(event, today = todayIso()) {
       const waiting = extra && !event.welcomeReady?.[k];
       out.push({ date: job.due, what: label, to: owed, who: "attendees", note: offNote || (waiting ? "not marked ready yet" : ""), ...(waiting ? {} : { now: { type: "welcome", key: k } }) });
     }
+  }
+
+  // The reminder to those joining online, a couple of hours before it starts.
+  for (const g of onlineGroups(event)) {
+    const t = timesOf(event, g.key);
+    if (!t) continue;
+    const local = new Date(t.sendAt).toLocaleString("en-CA", { timeZone: t.zone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+    const [date, time] = local.split(" ");
+    if (date < today) continue;
+    const ready = !!event.joinReminder?.[g.key]?.readyAt;
+    out.push({ date, time: time.slice(0, 5), tz: zoneAbbr(t.zone, date), what: `How to join online: reminder (${g.label})`, to: joinPeople(event, g.key, people).owed.length, who: "attendees",
+      note: offNote ? "" : ready ? "" : "not marked ready yet", ...(ready ? { now: { type: "join", key: g.key } } : {}) });
   }
 
   // The food-allergy reminders: to everyone in the room who had the email and hasn't answered.
