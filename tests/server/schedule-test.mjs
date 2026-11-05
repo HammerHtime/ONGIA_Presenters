@@ -43,5 +43,8 @@ await putPresenter({ id: "p1", eventId: "reg", token: "t1", first: "P", last: "O
 await putPresenter({ id: "p2", eventId: "reg", token: "t2", first: "P", last: "Two", email: "p2@example.ca", status: "approved", mail: [{ type: "invite", at: "2026-11-01" }] });
 const R = await emailSchedule(await getEvent("reg"), "2026-11-10");
 ok("agreement reminders, to the presenters who haven't signed", R.length >= 5 && R.every((x) => x.who === "presenters" && x.to === 1) && R[0].date === "2026-11-13", JSON.stringify(R.slice(0, 3)));
+{ const { dailyTimes, hhmm24 } = await import(F + "lib/surveysend.mjs");
+  ok("session times typed as \"5:00 PM\" are read (the Summit's), so a daily survey goes 15 minutes after", JSON.stringify(dailyTimes({ dayOne: "2026-11-09", lastDay: "2026-11-10", schedule: [{ date: "2026-11-09", end: "5:00 PM" }, { date: "2026-11-10", end: "16:00" }] }).map((t) => t.at)) === '["17:15","16:15"]');
+  ok("and 12 PM is noon, 12 AM midnight", hhmm24("12:00 PM") === "12:00" && hhmm24("12:30 AM") === "00:30" && hhmm24("whenever") === null); }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
