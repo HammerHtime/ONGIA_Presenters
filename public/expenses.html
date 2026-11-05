@@ -64,15 +64,18 @@
   .row2{display:flex;gap:10px;margin:10px 0 4px}.row2 .btn{flex:1;font-size:15px;padding:11px 10px}
   .linkish{display:block;margin:8px auto 0;background:none;border:0;color:var(--navy);text-decoration:underline;font-size:14px;cursor:pointer;padding:6px}
   .day{font-family:var(--fu);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:16px 2px 5px}
-  .lines{padding:2px 12px}
   .line{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-top:1px solid var(--border);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left}
   .line:first-child{border-top:0}
+  /* Each line its own card, a gap between (Andrew 5 Nov 2026: "make sure each looks separated and easily distinguishable"). */
+  .card.lines{background:none;border:0;box-shadow:none;padding:0;display:flex;flex-direction:column;gap:8px}
+  .card.lines > .line, .card.lines > .swipe{background:var(--card);border:1px solid var(--edge);border-radius:12px;box-shadow:0 1px 2px rgba(15,25,45,.06)}
+  .card.lines > .line{padding:11px 12px}
   .thumb{width:44px;height:56px;border-radius:6px;background:#fff;border:1px solid var(--border);flex:none;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}
   .thumb img{width:100%;height:100%;object-fit:cover}
   .thumb.kind{background:var(--sunk);box-shadow:none}
   .line .w{font-weight:600;font-size:15.5px}
-  .swipe{position:relative;overflow:hidden;border-top:1px solid var(--border)} .swipe:first-child{border-top:0}
-  .swipe .line{position:relative;z-index:1;background:var(--card,#fff);border-top:0;transition:transform .2s ease;touch-action:pan-y}
+  .swipe{position:relative;overflow:hidden}
+  .swipe .line{position:relative;z-index:1;background:var(--card,#fff);border-top:0;padding:11px 12px;border-radius:0;transition:transform .2s ease;touch-action:pan-y}
   .swipe .swdel{position:absolute;top:0;right:0;bottom:0;width:88px;border:0;background:var(--late);color:#fff;font:600 15px var(--fb,inherit);cursor:pointer}
   .swipe.going{opacity:.4;pointer-events:none}
   .line .s{font-size:13px;color:var(--muted);margin-top:1px}
