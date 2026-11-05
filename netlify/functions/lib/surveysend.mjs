@@ -27,7 +27,16 @@ export function localNow(event, now = new Date()) {
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
-const add15 = (hhmm) => { const [h, m] = String(hhmm).split(":").map(Number); const t = h * 60 + m + 15; return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
+/** A session time as typed on the event ("5:00 PM", "9:30 am", "17:00", "5 PM") as 24-hour "HH:MM", or null. */
+export function hhmm24(v) {
+  const m = String(v ?? "").trim().match(/^(\d{1,2})(?::(\d{2}))?\s*([ap])?\.?\s*m?\.?$/i);
+  if (!m) return null;
+  let h = Number(m[1]); const min = Number(m[2] ?? 0);
+  if (m[3]) { const pm = m[3].toLowerCase() === "p"; if (h === 12) h = pm ? 12 : 0; else if (pm) h += 12; }
+  return h < 24 && min < 60 ? `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}` : null;
+}
+// The Summit's times are kept as "5:00 PM" (Andrew types them that way): read either form (5 Nov 2026).
+const add15 = (time) => { const v = hhmm24(time); if (!v) return null; const [h, m] = v.split(":").map(Number); const t = h * 60 + m + 15; return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
 
 /** When each daily part goes: 15 minutes after that day's last session. Days with no end time say so. */
 export function dailyTimes(event) {
