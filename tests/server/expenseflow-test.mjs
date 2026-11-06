@@ -241,6 +241,26 @@ console.log("— practice: a test claim comes back to the one who made it (Andre
   ok("the practice email says it waits on the President and the Treasurer, both her, and that every step comes back to her", /Waiting on approval from the President and the Treasurer \(both you, for practice\)/.test(am.text) && /Every step comes back to you/.test(am.text), am.text);
 }
 
+console.log("— a test claim's lines onto the real claim, without uploading again (Andrew 6 Nov 2026)");
+{
+  const DS = as("d.sullivan@ongia.ca", "Derek Sullivan");
+  const t1 = await call("/api/expenses?add=receipt&test=1", "POST", PNG, { ...DS, "content-type": "image/png", "x-file-name": "aircanada1.png" });
+  const TCx = t1.claim.id;
+  await call(`/api/expenses?add=receipt&claim=${TCx}`, "POST", PNG, { ...DS, "content-type": "image/png", "x-file-name": "aircanada2.png" });
+  await call(`/api/expenses?add=receipt&claim=${TCx}`, "POST", PNG, { ...DS, "content-type": "image/png", "x-file-name": "aircanada3.png" });
+  await call("/api/expenses?add=receipt", "POST", PNG, { ...DS, "content-type": "image/png", "x-file-name": "aircanada4.png" });
+  const realBefore = (await home(DS)).current;
+  ok("three on the test claim, one on the real claim", (await S.listClaimLines(TCx)).length === 3 && realBefore.lines.length === 1);
+  ok("someone else can't move them", (await call(`/api/expenses?claim=${TCx}&toreal=1`, "POST", {}, JOHN)).status >= 403);
+  const mv = await call(`/api/expenses?claim=${TCx}&toreal=1`, "POST", {}, DS);
+  const real = (await home(DS)).current;
+  ok("moved: all four on the real claim, which isn't a test", mv.status === 200 && mv.moved === 3 && real.id === realBefore.id && real.lines.length === 4 && !real.test, JSON.stringify(mv).slice(0, 200));
+  const files = await Promise.all((await S.listClaimLines(real.id)).map((l) => S.getClaimFile("file", real.id, l.id)));
+  ok("each receipt came with it, nothing to upload again", files.every((f) => f && f.bytes.byteLength === PNG.length) && files.map((f) => f.name).sort().join() === "aircanada1.png,aircanada2.png,aircanada3.png,aircanada4.png", JSON.stringify(files.map((f) => f?.name)));
+  ok("the emptied test claim is gone", !(await S.getClaim(TCx)) && (await S.listClaimLines(TCx)).length === 0);
+  ok("a real claim can't be 'moved to real'", (await call(`/api/expenses?claim=${real.id}&toreal=1`, "POST", {}, DS)).status === 409);
+}
+
 console.log("— the President's own claim: to the VP alone (Andrew 6 Nov 2026)");
 {
   const pm = await mileage(PRES, 50);
