@@ -43,6 +43,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unl
  *   POST   /api/expenses?pay=<id>                        { ref, date }: the VP (or her stand-in); locks it
  *   POST   /api/expenses?unlock=<id>                     { reason }: the President or the VP
  *   POST   /api/expenses?marktest=<id>                   { on }: the President
+ *   POST   /api/expenses?claim=<id>&toreal=1             a test claim being built: its lines onto my real claim, receipts and all
  *   POST   /api/expenses?purge=tests                     the President: every test claim, gone
  *   POST   /api/expenses?boardtest=1                     { on }: the President. While on, every claim sent is a board test
  *   GET    /api/expenses?clearpreview=<YYYY-MM-DD>        the President: what Clear would delete, made up to that day
@@ -209,6 +210,38 @@ export default async (req) => {
   if (!named) return fail("Which claim?");
   const { claim, problem } = await loadNamed();
   if (problem) return problem;
+
+  /*
+   * Off testing, without uploading again (Andrew 6 Nov 2026: "Is there any way to get them off testing without uploading
+   * again"): every line of a test claim still being built moves onto the person's real claim, with its receipt, its card
+   * statement, what Claude read and what they typed. The emptied test claim is deleted.
+   */
+  if (req.method === "POST" && q("toreal")) {
+    if (claim.owner?.email !== me.email) return fail("Only the person claiming can move their lines.", 403);
+    if (!claim.test || claim.status !== "draft") return fail("Only a test claim that hasn't been sent can be moved.", 409);
+    const lines = await listClaimLines(claim.id);
+    if (!lines.length) return fail("There's nothing on it to move.", 409);
+    const real = await currentDraft(me, false);
+    const there = await listClaimLines(real.id);
+    if (there.length + lines.length > MAX_LINES) return fail(`Your real claim can hold ${MAX_LINES - there.length} more lines. Send it first, then move these.`, 409);
+    let moved = 0;
+    for (const l of lines) {
+      const id = there.some((x) => x.id === l.id) ? lineId() : l.id;
+      for (const kind of ["file", "thumb", "shot"]) {
+        const f = await getClaimFile(kind, claim.id, l.id);
+        if (f) await putClaimFile(kind, real.id, id, f.bytes, { name: f.name, type: f.type });
+      }
+      const read = await getClaimRead(claim.id, l.id);
+      if (read) await putClaimRead(real.id, id, read);
+      await putClaimLine(real.id, { ...l, id, movedFromTest: now() });
+      moved++;
+    }
+    real.history = [...(real.history ?? []), { at: now(), what: `${moved} line${moved === 1 ? "" : "s"} moved from a test claim`, by: me.name }];
+    await touch(real);
+    await deleteClaimAll(claim.id, whoKey(me.email));
+    console.log(`expenses: ${me.name} moved ${moved} lines from test claim ${claim.id} to ${real.id}`);
+    return json({ ...(await home(ctx, false)), moved, to: real.id });
+  }
 
   /* ---- the whole claim ---- */
   if (req.method === "DELETE" && !q("line")) {

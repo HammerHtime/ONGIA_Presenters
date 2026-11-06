@@ -765,9 +765,12 @@ function claimScreen() {
       <button class="btn navy" id="submit" type="button" style="margin-top:6px">${back ? "Send it again" : "Send for approval"}</button>
       <p class="tiny${DESK ? "" : " center"}" style="margin:8px 4px 0">${c?.test ? `A test claim comes back to you: approve it as the ${esc((c?.approvers ?? HOME.approvers).join(" and as the "))}, then record a pretend payment.` : `It goes to the ${esc((c?.approvers ?? HOME.approvers).join(" and the "))}. Once it's sent it can't be changed, unless one of them sends it back.`}</p>` : "";
   const others = (HOME?.others ?? []).length ? `<div class="card" style="margin-top:14px"><div class="note">You have another claim open too (${esc(HOME.others.map((o) => o.words.toLowerCase()).join(", "))}). It comes up here once this one is sent.</div></div>` : "";
+  // A test claim's lines onto the real claim, receipts and all, without uploading again (Andrew 6 Nov 2026).
+  const toReal = c?.test && c.status === "draft" && lines.length ? `<button class="btn gold" id="toreal" type="button" style="margin-top:14px${DESK ? ";width:auto" : ""}">Move ${lines.length === 1 ? "this" : `these ${lines.length}`} to my real claim</button>
+      <p class="tiny${DESK ? "" : " center"}" style="margin:6px 4px 0">Receipts and all, nothing to upload again. Test mode goes off.</p>` : "";
   const del = c && lines.length ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px${DESK ? ";width:auto" : ""}">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : "";
   ROOT.innerHTML = DESK
-    ? `${testBar()}${sentBack}<div class="dclaim"><div>${run}${waiting}${list}${send}${others}${del}${sentList()}</div>
+    ? `${testBar()}${sentBack}<div class="dclaim"><div>${run}${waiting}${list}${send}${toReal}${others}${del}${sentList()}</div>
       <div class="card dadd"><div class="dh">Add to this claim</div>
         <div class="drop" id="drop"><b>Drop receipts here</b><div class="tiny">Photos or PDFs, several at once. Claude reads each one.</div><button class="btn gold small" id="addpick" type="button">Choose files</button></div>
         <div class="row2"><button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button><button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button></div></div></div>`
@@ -779,7 +782,7 @@ function claimScreen() {
       <button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button>
     </div>
     <button class="linkish" id="addpick" type="button">or choose a photo or PDF you already have</button>
-    ${list}${send}${others}${sentList()}${del}`;
+    ${list}${send}${toReal}${others}${sentList()}${del}`;
   wireBadgeCard();
   if ($("addcam")) $("addcam").onclick = () => $("cam").click();
   if ($("drop")) wireDrop($("drop"));
@@ -790,6 +793,16 @@ function claimScreen() {
   if ($("retry")) $("retry").onclick = () => flushOutbox();
   if ($("submit")) $("submit").onclick = submitClaim;
   if ($("delclaim")) $("delclaim").onclick = deleteClaim;
+  if ($("toreal")) $("toreal").onclick = async (e) => {
+    const n = lines.length;
+    if (!confirm(`Move ${n === 1 ? "this line" : `these ${n} lines`} to your real claim? Real claims get paid. Test mode goes off.`)) return;
+    e.currentTarget.disabled = true;
+    try {
+      const out = await api(`?claim=${c.id}&toreal=1`, { method: "POST" });
+      store.del("ongia-exp-test"); TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; HOME = out; render();
+      toast(`Moved ${out.moved} to your real claim.`);
+    } catch (x) { e.currentTarget.disabled = false; if (!x.quiet) toast(x.message, true); }
+  };
   ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => { if (b.closest(".swipe")?.classList.contains("open")) { closeSwipes(); return; } openLine(b.dataset.line); }; });
   wireSwipes(c);
   fillThumbs();
