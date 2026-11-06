@@ -4381,7 +4381,8 @@ function eventScreen(data) {
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
   const showMoney = !!(sow || receipts || budget) || !!ev.project;
   // An RBH project (website development, Andrew 6 Nov 2026) is its statement of work and invoice: Money and Settings only.
-  const TABS = ev.project ? [["money", data.canCost ? "Money" : "Receipts"], ["settings", "Settings"]] : [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
+  // Andrew 6 Nov 2026, on a project: "I just don't need the other stuff except line items under money".
+  const TABS = ev.project ? [["money", data.canCost ? "Money" : "Receipts"]] : [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
     // A board member on the event sees only its receipts there, so for them the tab says so.
     ...(showMoney ? [["money", data.canCost ? "Money" : "Receipts"]] : []), ["communications", "Communications"], ["survey", mayCertifyHere(ev) ? "Survey & certificates" : "Survey"], ["settings", "Settings"]];
   const tab = TABS.some(([k]) => k === view.tab) ? view.tab : TABS[0][0];
@@ -4611,7 +4612,10 @@ function eventScreen(data) {
       + pv("guests", attendeesCard(ev, guests)))
     + panel("program", agendaCard(ev, agenda))
     + panel("logistics", roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
-    + (showMoney ? panel("money", (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
+    + (showMoney ? panel("money", ev.project
+      // A project is its statement of work, and a way to delete it.
+      ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
+      : (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
     + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
@@ -4622,7 +4626,7 @@ function eventScreen(data) {
       <div data-svp="setup">${surveyCard()}</div><div data-svp="delivery" hidden><div class="card"><div class="card-body" id="svdel"><p class="porg">Loading…</p></div></div></div>
       <div data-svp="results" hidden>${(ev.kind === "rbh" ? reportsCard() : "") + resultsCard()}</div></div>`
       + (mayCertifyHere(ev) ? `<div data-svw="certs" hidden>${certsCard()}</div>` : ""))
-    + panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
+    + (ev.project ? "" : panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
         <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
         <dt class="top">Slides to</dt><dd><div class="stack"><span>${esc(ev.materialsFolderPath || ev.sharePointFolder || "the event folder")}${ev.materialsFolderPath ? "" : ` <span class="porg">(the event folder)</span>`}</span>${ev.materialsFolderUrl ? `<a class="mini" href="${esc(ev.materialsFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : ""}</div></dd>
@@ -4638,8 +4642,8 @@ function eventScreen(data) {
         <dt>Board</dt><dd>${(ev.board ?? []).length ? ev.board.filter((m, i, all) => m.lead || !all.some((o, j) => (o.name || o.email) === (m.name || m.email) && (o.lead || j < i))).map((m) => `${esc(m.name || m.email)}${m.lead ? " <span class=\"pill done\" style=\"font-size:10px;padding:2px 8px\">lead</span>" : ""}`).join(" · ") : (ev.reviewer?.name ? esc(ev.reviewer.name) + " (lead)" : "<i>nobody picked — edit the event</i>")}</dd>
       </dl>
       <div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this event</button></div>
-    </div>`, { id: "evsettings" }))
-    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${whoCard}${rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
+    </div>`, { id: "evsettings" })))
+    + `</div><aside class="evside" aria-label="This event at a glance"><div id="sidepanels">${ev.project ? "" : readyCard || (readyHidden && !isOver && readyOpen ? `<div class="readyback"><button type="button" class="linkbtn" id="readyshow">Show Getting ready</button> <span class="porg">· ${readyOpen} left to do</span></div>` : "")}${ev.project ? "" : whoCard + rbhCard}</div><div id="pdslot" class="pdslot">${drawer}</div></aside></div>`
     // The dialogs sit outside the tabs: a dialog inside a hidden tab could not open.
     + inboxDialogs() + jobDialog() + roomingDialog() + guestDialog() + presenterListDialog() + volunteerDialogs() + wixDialog()
     + `<dialog class="sheet" id="padd">
