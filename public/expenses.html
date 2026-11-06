@@ -918,6 +918,7 @@ function editorScreen() {
     <div class="field"><label for="f-comment"><span>Comments <span class="tiny" style="font-weight:500">(optional)</span></span></label><textarea id="f-comment" maxlength="1000" placeholder="What it was for and why, if it helps the approver.">${esc(l.comment ?? "")}</textarea></div>
     ${k === "noreceipt" ? `<div class="field" id="nrwhy"${stipendLine(l) ? " hidden" : ""}><label for="f-statement">Why is there no receipt?</label><textarea id="f-statement" placeholder="The parking machine didn't print one. The charge is on my Visa.">${esc(l.statement ?? "")}</textarea></div>
       <div class="field" id="nrshot"${stipendLine(l) ? " hidden" : ""}><div class="lab">Card statement</div><div class="shotbox" id="shotbox"></div></div>` : ""}
+    ${EDIT.lineId && HOME?.current?.test ? `<label class="switch" for="f-istest" style="margin:6px 0 12px"><span><b>Test data</b><br><span class="tiny">Untick to move this receipt to your real claim.</span></span><input type="checkbox" id="f-istest" checked></label>` : ""}
     <button class="btn gold" id="save" type="button" style="margin-top:6px">${EDIT.lineId ? "Save" : "Add to my claim"}</button>
     <p class="tiny" style="text-align:center;margin:8px 0 0">Saved as you go. Nothing is sent until you submit.</p>
     ${EDIT.lineId ? `<button class="btn danger" id="remove" type="button" style="margin-top:14px">Remove this line</button>` : ""}`;
@@ -931,6 +932,19 @@ function editorScreen() {
   for (const id of ["event", "category", "paidTo", "purpose"]) $(`f-${id}`)?.addEventListener("change", () => drawSow(lineNow() ?? {}));
   $("save").onclick = () => saveLine({ leave: true });
   if ($("remove")) $("remove").onclick = removeLine;
+  // "Test data" unticked (Andrew 6 Nov 2026): what's on screen is saved, then this one receipt moves to the real claim.
+  if ($("f-istest")) $("f-istest").onchange = async (e) => {
+    if (e.target.checked) return;
+    if (!confirm("Move this receipt to your real claim? Real claims get paid.")) { e.target.checked = true; return; }
+    try {
+      if (EDIT.dirty) await saveLine({ leave: false });
+      const out = await api(`?claim=${EDIT.claimId}&toreal=1&line=${EDIT.lineId}`, { method: "POST" });
+      EDIT.dirty = false;
+      if (out.emptied) store.del("ongia-exp-test");
+      HOME = out; history.back();   // back to the claim, as Save does
+      toast(out.emptied ? "Moved to your real claim. Test mode is off." : "Moved to your real claim.");
+    } catch (x) { e.target.checked = true; if (!x.quiet) toast(x.message, true); }
+  };
   if ($("again")) $("again").onclick = readAgain;
   // Your own receipt opens in the viewer too, once it has reached the claim (a photo still on the phone opens as before).
   if ($("pic")) { $("pic").onclick = () => (HOME?.current?.lines?.some((x) => x.id === EDIT?.lineId && x.file) ? openViewer(HOME.current, EDIT.lineId) : showWhole()); showPic(); }
