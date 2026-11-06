@@ -261,6 +261,22 @@ console.log("— a test claim's lines onto the real claim, without uploading aga
   ok("a real claim can't be 'moved to real'", (await call(`/api/expenses?claim=${real.id}&toreal=1`, "POST", {}, DS)).status === 409);
 }
 
+console.log("— one receipt's Test data box unticked: just that one moves");
+{
+  const BK2 = as("b.konkle@ongia.ca", "Barb Konkle");
+  const a = await call("/api/expenses?add=receipt&test=1", "POST", PNG, { ...BK2, "content-type": "image/png", "x-file-name": "one.png" });
+  const TCy = a.claim.id;
+  await call(`/api/expenses?add=receipt&claim=${TCy}`, "POST", PNG, { ...BK2, "content-type": "image/png", "x-file-name": "two.png" });
+  const [l1] = (await S.listClaimLines(TCy)).filter((l) => l.file?.name === "one.png");
+  const one = await call(`/api/expenses?claim=${TCy}&toreal=1&line=${l1.id}`, "POST", {}, BK2);
+  const realB = (await home(BK2)).current;
+  ok("only that receipt moved; the other stays on the test claim, still in test mode", one.status === 200 && one.moved === 1 && !one.emptied && one.current?.id === TCy && realB.lines.length === 1 && (await S.listClaimLines(TCy)).length === 1, JSON.stringify(one).slice(0, 160));
+  ok("its receipt came with it", (await S.getClaimFile("file", realB.id, realB.lines[0].id))?.name === "one.png");
+  const [l2] = await S.listClaimLines(TCy);
+  const last = await call(`/api/expenses?claim=${TCy}&toreal=1&line=${l2.id}`, "POST", {}, BK2);
+  ok("the last one: the test claim goes, and it's back on the real claim", last.emptied === true && !(await S.getClaim(TCy)) && (await home(BK2)).current.lines.length === 2);
+}
+
 console.log("— the President's own claim: to the VP alone (Andrew 6 Nov 2026)");
 {
   const pm = await mileage(PRES, 50);
