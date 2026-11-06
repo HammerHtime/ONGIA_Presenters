@@ -123,11 +123,13 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   const title = text(body.title, 200);
   const city = text(body.city, 120);
   const dayOne = text(body.dayOne, 10);
-  if (!title) return "The event needs a title.";
-  if (!city) return "The event needs a city.";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayOne)) return "Day one must be a date, as YYYY-MM-DD.";
+  // An RBH project (website development, Andrew 6 Nov 2026) is an RBH event without the training: no city needed.
+  const project = canCost && body.project !== undefined ? body.project === true && body.kind === "rbh" : !!event.project;
+  if (!title) return project ? "The project needs a title." : "The event needs a title.";
+  if (!city && !project) return "The event needs a city.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayOne)) return project ? "Pick the day the project starts." : "Day one must be a date, as YYYY-MM-DD.";
   const lastDay = /^\d{4}-\d{2}-\d{2}$/.test(text(body.lastDay, 10)) ? text(body.lastDay, 10) : dayOne;
-  if (lastDay < dayOne) return "The event cannot end before it starts.";
+  if (lastDay < dayOne) return project ? "The target finish can't be before the start." : "The event cannot end before it starts.";
 
   // How far ahead this event wants each thing. A regional half-day does not need
   // the ninety days a national summit does, so the numbers travel with the event.
@@ -190,6 +192,9 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     materialsUploadUrl: text(body.materialsUploadUrl, 800),
     updatedAt: new Date().toISOString(),
   });
+  // A project has its statement of work and invoice, and nothing for attendees or presenters to be emailed.
+  if (project) Object.assign(event, { project: true, attendeeMail: false, noDeadlines: true });
+  else delete event.project;
 
   // Board members on this event: any number, exactly one lead. The lead
   // reviews and signs; everyone picked is notified. Older clients that still
@@ -262,7 +267,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   // The folder may arrive as a path, a folder URL, or a sharing link.
   try {
     const folder = await resolveFolderInput(text(body.sharePointFolder, 800));
-    event.sharePointFolder = folder.path || conventionalFolder(dayOne, city);
+    // A project's papers go under RBH projects, by year and title, unless a folder is given.
+    event.sharePointFolder = folder.path || (project ? `ONGIA Board/RBH Projects/${dayOne.slice(0, 4)}/${safeFileName(title, "Project")}` : conventionalFolder(dayOne, city));
     if (folder.url) event.sharePointFolderUrl = folder.url;
     else if (!folder.path) event.sharePointFolderUrl = "";
   } catch (e) {
@@ -707,17 +713,17 @@ async function createEvent(body, origin, canCost = true) {
   const event = { id: null, nextSequence: 1 };
   const problem = await applyDetails(event, body, { creating: true, canCost });
   if (problem) return fail(problem);
-  event.id = eventId(event.dayOne.slice(0, 4), event.city);
+  event.id = eventId(event.dayOne.slice(0, 4), event.city || (event.project ? event.title : ""));
   // The desk's own checklist comes with the event, so nobody has to remember to
   // ask for it. Every job is stored as days before day one, so moving the
-  // training moves the whole list with it.
-  event.tasks = await starterTasks(event.title);
+  // training moves the whole list with it. A project has none of a training's jobs.
+  event.tasks = event.project ? [] : await starterTasks(event.title);
   await adoptDraftContract(event, body.contractDraft);
   await putEvent(event);
 
   // With Microsoft connected, a new event gets its folder and upload link
-  // made for it — the coordinator pastes nothing.
-  if (!event.materialsUploadUrl && graphConfigured()) {
+  // made for it — the coordinator pastes nothing. (Not a project: nobody uploads slides to it.)
+  if (!event.materialsUploadUrl && graphConfigured() && !event.project) {
     try {
       await provisionUpload(event);
       await putEvent(event);

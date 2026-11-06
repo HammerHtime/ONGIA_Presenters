@@ -1379,6 +1379,7 @@
   .wlvbar .dot{width:8px;height:8px;border-radius:50%;background:var(--late)}
   .wlvbar button.on .dot{background:#ffb4a8}
   .wlvbar small{font-weight:500;opacity:.75}
+  .card[data-project] .noproj, .card[data-project] #ct-new, .card[data-project] #ctnewbox{display:none!important}
   .wlset{margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:0 14px}
   .wlset>summary{cursor:pointer;padding:10px 0;font-size:14px;color:var(--muted,#555);list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
   .wlset>summary::-webkit-details-marker{display:none}
@@ -2530,7 +2531,7 @@ function qGroupsHtml(rows) {
     const d = ev.dayOne ? Math.round((Date.parse(ev.dayOne) - Date.parse(today)) / 86400000) : null;
     const when = ev.dayOne ? `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${d !== null && d >= 0 ? ` · ${d === 0 ? "today" : `in ${d} day${d === 1 ? "" : "s"}`}` : ""}` : "";
     const n = list.length;
-    return `<div class="qgroup"><div class="qgh"><b title="${esc(ev.title)}">${esc(short)}</b>${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}
+    return `<div class="qgroup"><div class="qgh"><b title="${esc(ev.title)}">${esc(short)}</b>${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}
         <span class="qgs">${[esc(ev.city ?? ""), when].filter(Boolean).join(" · ")}</span></div>
       <span class="qgn">${n} thing${n === 1 ? "" : "s"}</span><button class="mini" data-goev="${esc(ev.id)}">Open event</button></div>
       ${list.slice().sort((a, b) => a.rank - b.rank).map((r) => qRowHtml(r, { grouped: true })).join("")}`;
@@ -2572,7 +2573,7 @@ function eventsTable(upcoming) {
     const c = ev.counts ?? {}, a = ev.attention ?? {};
     const total = c.total ?? 0, signed = (c.approved ?? 0) + (c.arranged ?? 0), mf = ev.materials?.final ?? 0;
     const pct = total ? Math.round((signed / total) * 100) : 0;
-    const pills = [], open = !hotelLocked(ev);
+    const pills = [], open = !hotelLocked(ev) && !ev.project;
     if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
     // The main room (Andrew 30 Oct 2026: "Nearly full badge please"): as the event page's tile counts it.
     const room = roomFill(ev, ev.registered ?? 0, ev.presenterCount ?? 0);
@@ -2594,7 +2595,7 @@ function eventsTable(upcoming) {
     // The tile's left edge says whether the event needs you (red) or not (navy).
     const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
-      <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">RBH</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
+      <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}${open ? `<span class="tent">held, not locked</span>` : ""}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
       <td class="m">${mf} of ${total} <span class="lab">final materials</span></td>
@@ -2681,7 +2682,7 @@ function blockersOf(ev) {
   const out = [];
   if (!ev.reviewer?.name) out.push({ short: "no lead", title: "No lead board member",
     why: "Nobody is named on the agreement, nobody is prompted to review, and replies go to the speakers mailbox.", fix: "Pick a lead", act: "edit" });
-  if (!ev.materialsUploadUrl) out.push({ short: "no upload link", title: "No upload link",
+  if (!ev.materialsUploadUrl && !ev.project) out.push({ short: "no upload link", title: "No upload link",
     why: "Presenters have nowhere to put their slides, and materials reminders are switched off for this event.", fix: "Create upload link", act: "mklink" });
   if (!ev.sharePointFolder) out.push({ short: "no SharePoint folder", title: "No SharePoint folder",
     why: "Approved agreements will not be filed anywhere.", fix: "Create it", act: "mkfolder" });
@@ -2707,15 +2708,16 @@ function eventFormScreen(existing = null) {
       ${ev ? "" : `<div class="starts" id="wixstart" role="group" aria-label="How to start">
         <button type="button" class="start" id="wx-pick"><b>From your website</b><span>Already on your website? Pick it from Wix: title, dates, city and venue come across, and its registered guests when you create it.</span></button>
         <button type="button" class="start" id="cp-pick"><b>Copy a past event</b><span>Its board and lead, presentation slot, deadlines, RBH settings, presenter options, letters and hotel name.</span></button>
-        <button type="button" class="start" id="bl-pick"><b>Start blank</b><span>Type the title, place and dates below.</span></button></div>
+        <button type="button" class="start" id="bl-pick"><b>Start blank</b><span>Type the title, place and dates below.</span></button>
+        ${WHO?.canCost === false ? "" : `<button type="button" class="start" id="pj-pick"><b>RBH project</b><span>Work for RBH that isn't an event, like website development: just its statement of work and invoice.</span></button>`}</div>
         <div id="wx-list" hidden style="margin:0 0 12px"></div><div id="wx-chosen" class="note" hidden style="margin:0 0 12px"></div>
         <div id="cp-list" hidden style="margin:0 0 12px"></div><div id="cp-chosen" class="note" hidden style="margin:0 0 12px"></div>`}
       <div class="row2">
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
         <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
       </div>
-      <div class="field"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
-      ${SPONSORS_ON ? `<label class="attest" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>` : ""}
+      <div class="field noproj"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
+      ${SPONSORS_ON ? `<label class="attest noproj" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>` : ""}
       <div class="row2">
         <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date" value="${v("dayOne")}"></div>
         <div class="field"><label for="e-last">Last day</label><input id="e-last" type="date" value="${v("lastDay")}"></div>
@@ -2734,19 +2736,19 @@ function eventFormScreen(existing = null) {
           </div>
         </details>
       </div>
-      <div class="field"><label>Presenters reach</label>
+      <div class="field noproj"><label>Presenters reach</label>
         <p class="hint" id="cphonehint" style="margin:0"></p></div>
-      ${ev ? "" : `<div class="field"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
+      ${ev ? "" : `<div class="field noproj"><label for="e-people">Presenters (one per line: first, last, email, organization)</label>
         <textarea id="e-people" style="min-height:120px" placeholder="Dana, Whitfield, d.whitfield@example.ca, Ontario Provincial Police&#10;Marc, Thibault, m.thibault@example.ca, SPVM"></textarea>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-invite" checked><span>Email each presenter their agreement link as soon as the event is created</span></label>
         <p class="hint" style="margin:6px 0 0">Optional now — you can add more later from the event page.</p></div>`}
       <div class="field"><label for="e-folder">Event folder in SharePoint <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(paste the link, or leave blank)</span></label>
         <input id="e-folder" value="${esc(ev?.sharePointFolderUrl || ev?.sharePointFolder || "")}" placeholder="https://ongia.sharepoint.com/sites/…/2026/Toronto 2026">
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
-        <div class="field" style="margin:14px 0 0"><label for="e-matfolder">Folder for presenters' slides <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
+        <div class="field noproj" style="margin:14px 0 0"><label for="e-matfolder">Folder for presenters' slides <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
           <input id="e-matfolder" value="${esc(ev?.materialsFolderUrl || ev?.materialsFolderPath || "")}" placeholder="Leave blank to use the event folder, or e.g. 2026/Toronto 2026/Presentations">
           <p class="hint" style="margin:6px 0 0">Where the slides presenters upload are saved. Paste a SharePoint folder link, or type a path; it is made if it isn't there, and the presenters' upload link points to it. Agreements still go to the event folder.</p></div>
-        <p class="hint" style="margin:10px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
+        <p class="hint noproj" style="margin:10px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
         <div id="adv" hidden>
           <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
             <input id="e-upload" value="${v("materialsUploadUrl")}" placeholder="Paste the “Request files” link for the event folder">
@@ -2764,7 +2766,7 @@ function eventFormScreen(existing = null) {
           <div class="field"><label for="e-prefix">Invoice number starts with</label><input id="e-prefix" maxlength="8" value="${esc(ev?.invoicePrefix || defaultPrefix(ev?.title))}" data-auto="${ev?.invoicePrefix ? "0" : "1"}" placeholder="RBH"><p class="hint" style="margin:6px 0 0">Then the year and a running number, like RBH-2026-001. ITP for the ITP trainings, CFAOC for the forum, RBH for the rest. The desk keeps count.</p></div>
         </div>
       </details>`}
-      <details class="settings" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
+      <details class="settings noproj" style="margin-top:4px"${ev?.talkOnFile || ev?.noDeadlines || ev?.inviteNote || ev?.inviteNoteFr ? " open" : ""}>
         <summary>Presenter agreement for this event only</summary>
         <p class="hint" style="margin-top:10px">For an event whose presenters are already confirmed and on the agenda —
           when you are re-sending agreements rather than collecting new ones. Every other event keeps the full form and its dates.</p>
@@ -2778,7 +2780,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-invnotefr">The same paragraph in French <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional; left empty, the French half goes without it)</span></label>
           <textarea id="e-invnotefr" maxlength="1500" style="min-height:90px">${esc(ev?.inviteNoteFr ?? "")}</textarea></div>
       </details>
-      <details class="settings" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
+      <details class="settings noproj" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
         <summary>Hotel and room block</summary>
         <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
           30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
@@ -2807,7 +2809,7 @@ function eventFormScreen(existing = null) {
         ${ev?.hotelCostsHidden ? `<input id="e-hnotes" type="hidden" value="">` : `<div class="field"><label for="e-hnotes">Anything else from the contract</label>
           <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>`}
       </details>
-      <details class="settings" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true)) ? " open" : ""}>
+      <details class="settings noproj" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true)) ? " open" : ""}>
         <summary>Emails to attendees</summary>
         <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-amail"${ev?.attendeeMail === true ? " checked" : ""}>
           <span>Email this event's attendees from the desk: the welcome letter, the survey and the hotel reminders</span></label>
@@ -2823,7 +2825,7 @@ function eventFormScreen(existing = null) {
           <div class="field" style="margin:0"><label for="e-survey">Its survey link</label>
             <input id="e-survey" type="url" value="${esc(ev?.surveyLink ?? "")}" placeholder="https://forms.office.com/…"></div></div>` : ""}
       </details>
-      <details class="settings" style="margin-top:4px">
+      <details class="settings noproj" style="margin-top:4px">
         <summary>Presentation slot</summary>
         <div class="field" style="margin-top:12px"><label for="e-mins">Presentation slot (minutes)</label><input id="e-mins" type="number" inputmode="numeric" min="15" step="5" value="${v("sessionMinutes", 70)}" style="max-width:160px"></div>
       </details>
@@ -3040,7 +3042,23 @@ function eventFormScreen(existing = null) {
   // Three ways to start a new event (redesign step 4): from Wix, as a copy of a past event, or blank.
   const startOn = (id) => document.querySelectorAll(".starts .start").forEach((b) => b.classList.toggle("on", b.id === id));
   const put = (id, val) => { const el = $(id); if (!el || val === undefined || val === null || val === "") return; el.value = val; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
-  if ($("bl-pick")) $("bl-pick").onclick = () => { startOn("bl-pick"); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); $("e-title").focus(); };
+  // An RBH project (Andrew 6 Nov 2026: "an SOW for RBH not for an event but for website development … everything stays
+  // the same as with RBH events"): the same record and statement of work, without the training's parts. The form hides
+  // them and calls the dates the start and the target finish.
+  const card = ROOT.querySelector(".card");
+  const label = (id, words) => { const l = document.querySelector(`label[for="${id}"]`); if (l) { l.dataset.was ??= l.textContent; l.textContent = words ?? l.dataset.was; } };
+  const setProject = (on) => {
+    card.toggleAttribute("data-project", on);
+    card.querySelector(".card-head h2").textContent = on ? (ev ? "Edit RBH project" : "New RBH project") : ev ? "Edit event" : "New training event";
+    label("e-title", on ? "Project title" : null); label("e-city", on ? "City (optional)" : null);
+    label("e-day1", on ? "Start" : null); label("e-last", on ? "Target finish" : null); label("e-folder", on ? "Project folder in SharePoint (paste the link, or leave blank)" : null);
+    if ($("e-title")) $("e-title").placeholder = on ? "Website development" : "Gangs & Guns Symposium";
+    if (on && $("e-rbh")) { $("e-rbh").checked = true; $("e-rbh").closest("details").open = true; }
+  };
+  if (ev?.project) setProject(true);
+  if ($("pj-pick")) $("pj-pick").onclick = () => { startOn("pj-pick"); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); setProject(true); $("e-title").focus(); };
+  ["wx-pick", "cp-pick"].forEach((id) => $(id)?.addEventListener("click", () => setProject(false)));
+  if ($("bl-pick")) $("bl-pick").onclick = () => { startOn("bl-pick"); setProject(false); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); $("e-title").focus(); };
   // Copy a past event: the board and lead, the slot, how far ahead the deadlines fall, the RBH settings, the presenter
   // options, the letters and the hotel's name and contact. Never its title, dates, people, folder or hotel dates.
   if ($("cp-pick")) $("cp-pick").onclick = async () => {
@@ -3130,6 +3148,7 @@ function eventFormScreen(existing = null) {
     surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
     attendeeMail: $("e-amail")?.checked === true,
     kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
+    project: ROOT.querySelector(".card[data-project]") ? true : ev?.project ? false : undefined,
     province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
     talkOnFile: $("e-talkfile")?.checked === true,
     noDeadlines: $("e-nodates")?.checked === true,
@@ -3314,7 +3333,7 @@ let CAL_SHOW = { ongia: true, rbh: true, ext: true }, CAL_WHO = "";
 function calItems(events, confs) {
   const nameOf = (email) => ROSTER.find((m) => String(m.email ?? "").toLowerCase() === email)?.name || email.split("@")[0];
   const items = [
-    ...events.filter((e) => isDate(e.dayOne) && !e.practice).map((e) => ({ key: `e:${e.id}`, kind: e.kind === "rbh" ? "rbh" : "ongia", title: e.title, place: e.city ?? "",
+    ...events.filter((e) => isDate(e.dayOne) && !e.practice && !e.project).map((e) => ({ key: `e:${e.id}`, kind: e.kind === "rbh" ? "rbh" : "ongia", title: e.title, place: e.city ?? "",
       from: e.dayOne, to: isDate(e.lastDay) && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne, ev: e,
       people: [...(e.board ?? [])].sort((a, b) => !!b.lead - !!a.lead).map((m) => ({ name: m.name || m.email, email: String(m.email ?? "").toLowerCase(), lead: !!m.lead })) })),
     ...confs.map((c) => ({ key: `c:${c.id}`, kind: "ext", title: c.title, place: c.place ?? "", from: c.from, to: c.to || c.from, conf: c, role: c.role,
@@ -3407,7 +3426,7 @@ function yearScreen(events, year, confs = []) {
   const how = view.cal ?? (matchMedia("(max-width:760px)").matches ? "list" : "year");
   const month = view.month ?? (yearOf(today) === year ? monthOf(today) : 1);
   const all = calItems(events, confs), items = all.filter(calShown);
-  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year && !e.practice).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
+  const mine = events.filter((e) => isDate(e.dayOne) && yearOf(e.dayOne) === year && !e.practice && !e.project).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
   const trainingDays = mine.reduce((n, e) => n + (isDate(e.lastDay) ? daysBetween(e.dayOne, e.lastDay) + 1 : 1), 0);
   const cities = new Set(mine.map((e) => (e.city ?? "").trim()).filter(Boolean)).size;
   const presenters = mine.reduce((n, e) => n + (e.counts?.total ?? 0), 0);
@@ -4360,11 +4379,12 @@ function eventScreen(data) {
 
   // The event page in tabs (redesign step 2, Andrew 20 Oct 2026). The whole event still loads in one go, so a tab
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
-  const showMoney = !!(sow || receipts || budget);
-  const TABS = [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
+  const showMoney = !!(sow || receipts || budget) || !!ev.project;
+  // An RBH project (website development, Andrew 6 Nov 2026) is its statement of work and invoice: Money and Settings only.
+  const TABS = ev.project ? [["money", data.canCost ? "Money" : "Receipts"], ["settings", "Settings"]] : [["overview", "Overview"], ["people", "People"], ["program", "Program"], ["logistics", "Logistics"],
     // A board member on the event sees only its receipts there, so for them the tab says so.
     ...(showMoney ? [["money", data.canCost ? "Money" : "Receipts"]] : []), ["communications", "Communications"], ["survey", mayCertifyHere(ev) ? "Survey & certificates" : "Survey"], ["settings", "Settings"]];
-  const tab = TABS.some(([k]) => k === view.tab) ? view.tab : "overview";
+  const tab = TABS.some(([k]) => k === view.tab) ? view.tab : TABS[0][0];
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
   const PVIEWS = [["presenters", "Presenters", presenters.length], ["volunteers", "Volunteers", volunteers?.counts?.total ?? (volunteers?.volunteers ?? []).length],
@@ -4559,12 +4579,12 @@ function eventScreen(data) {
 
   // A practice event says so across the top, so nobody mistakes it for the real one (audit, 30 Oct 2026).
   ROOT.innerHTML = `<div class="evhead">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
-    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">RBH</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
+    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
-        <span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>
+        ${ev.city || ev.venue ? `<span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>` : ""}
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
-      ${hotelLocked(ev) ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
-      <div class="bacts"><button class="mini" id="edit">Edit event</button><button class="mini" id="mailall">Email all outstanding</button><button class="mini gold" id="add">Add presenters</button></div></div>
+      ${hotelLocked(ev) || ev.project ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
+      <div class="bacts"><button class="mini" id="edit">${ev.project ? "Edit project" : "Edit event"}</button><button class="mini" id="mailall"${ev.project ? " hidden" : ""}>Email all outstanding</button><button class="mini gold" id="add"${ev.project ? " hidden" : ""}>Add presenters</button></div></div>
 </section>${evNotices(ev)}
     <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
     ${blockedHtml}<div class="comingtop" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>${comingCard}</div>${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
@@ -8028,7 +8048,7 @@ function sowCard(ev, S) {
     : `${sow.invoice.number} · ${(SOW_STATUSES.find(([k]) => k === sow.status) ?? [])[1]} · ${usd(S.estimate.total)}`;
   const badge = sow ? (afterApproval(sow) && sow.status !== "paid" ? `${usd(S.actual.total)} invoice` : "") : "";
   const inner = !sow ? `<div class="card-body">
-      <p class="hint" style="margin:0 0 12px">The statement of work is the estimate you send RBH, line by line. When the event is over the same lines carry the actuals and become the final invoice.
+      <p class="hint" style="margin:0 0 12px">The statement of work is the estimate you send RBH, line by line. ${ev.project ? "When the project is done" : "When the event is over"} the same lines carry the actuals and become the final invoice.
         The invoice number is given automatically, by year. Only you and the VP can see this.</p>
       <div class="field"><label>Start from</label>
         ${(S.templates ?? []).filter((t) => t.key !== "cfaoc-victoria" || /victoria/i.test(ev.city ?? "")).map((t) => `<label class="attest" style="margin-top:4px"><input type="radio" name="sw-from" value="${esc(t.key)}"${t.key === pre ? " checked" : ""}> <span><b>${esc(t.title)}</b>${t.total ? ` (${usd(t.total)} before fee and tax)` : ""}. ${esc(t.blurb)}</span></label>`).join("")}
