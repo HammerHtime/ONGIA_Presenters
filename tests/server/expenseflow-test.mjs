@@ -115,12 +115,12 @@ const away = (to, backup = "", from = T, until = day(10)) => ({ to, backup, from
 const P = "president@ongia.ca", V = "vp_operations@ongia.ca", R = "treasurer@ongia.ca", PG = "executiveofficer@ongia.ca", J = "j.healy@ongia.ca";
 const who = (owner, aways, decided) => X.holders(owner, aways, T, decided).map((x) => x.email).join();
 ok("Raj away, Jacqulyn standing in: a board member's claim goes to Andrew and Jacqulyn", who("d.sullivan@ongia.ca", { treasurer: away(V, PG) }) === `${P},${V}`);
-ok("…the President's claim: Jacqulyn already approves it, so Raj's half goes to his second person, Peglar", who(P, { treasurer: away(V, PG) }) === `${V},${PG}`);
+ok("…the President's claim: the VP's alone, so Raj being away doesn't touch it", who(P, { treasurer: away(V, PG) }) === `${V}`);
 ok("…Jacqulyn's own claim: not to her, to Peglar", who(V, { treasurer: away(V, PG) }) === `${P},${PG}`);
 ok("Andrew away to Jacqulyn: Raj's claim (Andrew and Jacqulyn sign it) goes to Jacqulyn and Peglar", who(R, { president: away(V, PG) }) === `${PG},${V}`);
 ok("Andrew and Raj both away, both to Jacqulyn: a board member's claim is Jacqulyn and Raj's second person, never Jacqulyn twice", who("d.sullivan@ongia.ca", { president: away(V, PG), treasurer: away(V, J) }) === `${V},${J}`);
 ok("a stand-in who is away themselves is passed over", who("d.sullivan@ongia.ca", { president: away(V, PG), vp: away(R) }) === `${PG},${R}`);
-ok("with no one who can take it, it stays with the officer (and says so)", (() => { const h = X.holders(P, { treasurer: away(V) }, T); return h.find((x) => x.role === "treasurer").email === R && h.find((x) => x.role === "treasurer").stuck; })());
+ok("with no one who can take it, it stays with the officer (and says so)", (() => { const h = X.holders(R, { president: away(V) }, T); return h.find((x) => x.role === "president").email === P && h.find((x) => x.role === "president").stuck; })());
 ok("John standing in can't sign off his own claim: it goes to the second person", who(J, { president: away(J, PG) }) === `${PG},${R}`);
 ok("a hand-off that's over: the officer again", who("d.sullivan@ongia.ca", { treasurer: away(V, PG, day(-10), day(-1)) }) === `${P},${R}`);
 ok("a sign-off already given stays with whoever gave it, hand-off or not", who("d.sullivan@ongia.ca", { treasurer: away(V, PG) }, { treasurer: { email: R } }) === `${P},${R}`);
@@ -239,6 +239,17 @@ console.log("— practice: a test claim comes back to the one who made it (Andre
   ok("one 'to approve' email, not one per role: both sign-offs are hers", (await S.getClaim(TC)).mail.filter((x) => x.what === "to approve").length === 1);
   const am = M.needsApprovalMail({ claim: { ...made.claim, test: true, owner: { name: "Barb Konkle" }, total: 250 }, lines: [], checks: null, waitingOn: ["the President", "the Treasurer"], practice: true });
   ok("the practice email says it waits on the President and the Treasurer, both her, and that every step comes back to her", /Waiting on approval from the President and the Treasurer \(both you, for practice\)/.test(am.text) && /Every step comes back to you/.test(am.text), am.text);
+}
+
+console.log("— the President's own claim: to the VP alone (Andrew 6 Nov 2026)");
+{
+  const pm = await mileage(PRES, 50);
+  const PC = pm.claim.id;
+  const ps = await call(`/api/expenses?submit=${PC}`, "POST", {}, PRES);
+  ok("it waits on the VP and nobody else", ps.status === 200 && ps.claim.slots.map((x) => `${x.title}:${x.name}`).join() === "VP of Operations:Jacqulyn Taylor", JSON.stringify(ps.claim?.slots));
+  ok("the Treasurer isn't asked", !(await home(TRES)).toApprove.some((c) => c.id === PC));
+  const pd = await decide(PC, VP, "approve");
+  ok("once the VP approves, it's approved and waits on payment", pd.status === 200 && (await S.getClaim(PC)).status === "approved", JSON.stringify(pd).slice(0, 200));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

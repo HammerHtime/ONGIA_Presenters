@@ -36,7 +36,7 @@ const names = (e) => ({ "president@ongia.ca": "Andrew Hammond", "vp_operations@o
 let sg = E.signersOf({ owner: { email: "j.healy@ongia.ca" }, signed_president: { name: "Andrew Hammond", at: "2026-11-14T15:00:00Z" }, signed_treasurer: { name: "Peglar Artinian", for: "Treasurer", at: "2026-11-14T18:00:00Z" } }, names);
 ok("a member's claim: Andrew and Peglar for Raj, dated; the VP's row isn't needed", sg.president.label === "A. Hammond" && sg.president.date === "2026-11-14" && sg.treasurer.label === "P. Artinian for R. Jaswal" && sg.treasurer.for === "Treasurer" && sg.vp.name === "" && sg.vp.note === "Not needed for this claim");
 sg = E.signersOf({ owner: { email: "president@ongia.ca" } }, names);
-ok("the President's own claim: their row says so", sg.president.note === "Their own claim" && sg.vp.name === "J. Taylor" && sg.treasurer.name === "R. Jaswal");
+ok("the President's own claim: their row says so, the VP signs, the Treasurer isn't needed", sg.president.note === "Their own claim" && sg.vp.name === "J. Taylor" && sg.treasurer.name === "" && sg.treasurer.note === "Not needed for this claim");
 
 console.log("— ONGIA's template, filled in");
 const T = await E.readTemplate();

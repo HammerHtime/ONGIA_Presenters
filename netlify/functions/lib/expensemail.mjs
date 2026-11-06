@@ -82,7 +82,7 @@ export function needsApprovalMail({ claim, lines = [], checks, waitingOn = [], a
     `${esc(owner)} has submitted an expense claim for the following:`,
     ...itemsTable(lines, claim.total ?? claim.sums?.total ?? 0),
     flagged ? `${count(flagged, "thing is", "things are")} flagged to check. ${flagged === 1 ? "It's" : "They're"} listed on the claim.` : "",
-    waitingOn.length ? `Waiting on approval from ${esc(andList(waitingOn))}${practice ? " (both you, for practice)" : ""}.` : "",
+    waitingOn.length ? `Waiting on approval from ${esc(andList(waitingOn))}${practice ? ` (${waitingOn.length > 1 ? "both you" : "you"}, for practice)` : ""}.` : "",
     acting ? `You're standing in for the ${esc(acting)}${until ? ` until ${esc(formatDate(until))}` : ""}.` : "",
   ];
   return mail(claim, `Expense claim for ${owner}`, "New expense claim", out, { label: "Review", href: claimLink(claim.id) });

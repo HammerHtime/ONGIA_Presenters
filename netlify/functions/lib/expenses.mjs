@@ -71,10 +71,13 @@ export function roleOf(email) {
   const e = lc(email), o = officers();
   return e === o.president ? "president" : e === o.vp ? "vp" : e === o.treasurer ? "treasurer" : "member";
 }
-/** The two officers a claim goes to, by role. Never the person claiming. */
+/**
+ * The officers a claim goes to, by role. Never the person claiming. The President's go to the VP of Operations alone
+ * (Andrew 6 Nov 2026: "All my receipts as president should only go to the VP for approval"); everyone else's to two.
+ */
 export function approversFor(email) {
   const role = roleOf(email);
-  if (role === "president") return ["vp", "treasurer"];
+  if (role === "president") return ["vp"];
   if (role === "treasurer") return ["president", "vp"];
   return ["president", "treasurer"];
 }

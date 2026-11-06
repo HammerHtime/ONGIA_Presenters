@@ -39,7 +39,8 @@ const PRES = as("president@ongia.ca", "Andrew Hammond"), VP = as("vp_operations@
 console.log("— who signs off");
 ok("a board member's claim goes to the President and the Treasurer", X.approversFor("j.healy@ongia.ca").join() === "president,treasurer");
 ok("the VP's goes to the President and the Treasurer", X.approversFor("vp_operations@ongia.ca").join() === "president,treasurer");
-ok("the President's goes to the VP and the Treasurer", X.approversFor("president@ongia.ca").join() === "vp,treasurer");
+ok("the President's goes to the VP alone (Andrew 6 Nov 2026)", X.approversFor("president@ongia.ca").join() === "vp");
+ok("…one sign-off, Jacqulyn's, and nobody else's", X.holders("president@ongia.ca").map((h) => h.email).join() === "vp_operations@ongia.ca");
 ok("the Treasurer's goes to the President and the VP", X.approversFor("Treasurer@ongia.ca").join() === "president,vp");
 ok("nobody ever approves their own", ["j.healy@ongia.ca", "vp_operations@ongia.ca", "president@ongia.ca", "treasurer@ongia.ca"].every((e) => !X.approversFor(e).includes(X.roleOf(e))));
 ok("the ten categories are the template's, in its order", X.CATEGORIES.length === 10 && X.categoryName(8) === "Travel" && X.categoryName(10) === "Speaker Stipend" && X.categoryName(11) === "");
