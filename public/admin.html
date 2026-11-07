@@ -1375,7 +1375,7 @@
   .commsbar button,.wlvbar button{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:999px;padding:8px 16px;font:600 14px var(--fb);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
   .commsbar button.on,.wlvbar button.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .wlvbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0}
-  .rpbar{margin:0 0 12px}
+  .rppbar{margin:0 0 12px}
   .wlvbar .dot{width:8px;height:8px;border-radius:50%;background:var(--late)}
   .wlvbar button.on .dot{background:#ffb4a8}
   .wlvbar small{font-weight:500;opacity:.75}
@@ -6093,7 +6093,7 @@ async function mountWho(ev, kind, el, { versions = 1 } = {}) {
     body.querySelector("[data-mwall]")?.addEventListener("click", () => { all = true; draw(); });
     body.querySelectorAll("[data-mwsend]").forEach((b) => { b.onclick = async () => {
       const p = P.find((x) => x.email === b.dataset.mwsend);
-      if (!confirm(`Send the ${versions > 1 && p.version ? `${p.version} ` : ""}${MW_WORD[kind]} to ${p.name || p.email} (${p.email}) now?`)) return;
+      // No "are you sure" (Andrew 7 Nov 2026: "When I click send, just send it"). One person, their own version.
       b.disabled = true; b.textContent = "Sending…";
       try { await api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=${kind}&to=${encodeURIComponent(p.email)}`, { method: "POST" }); toast(`Sent to ${p.email}.`); await load(); }
       catch (x) { toast(x.message); await load(); }
@@ -7715,7 +7715,7 @@ function renderReplyCard(ev, R) {
       : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
     ${sent ? `<div style="margin:-4px 0 14px">${whoBox("reply")}</div>` : ""}
 
-    <div class="wlvbar rpbar" role="tablist" aria-label="Which part">${[["answers", `Answers <small>${A.length}</small>`], ["form", hasSoc ? "The form and socials" : "The form"], ["email", "The email"], ["reminders", "Reminders"]].map(([k, l]) => `<button type="button" role="tab" data-rpp="${k}">${l}</button>`).join("")}</div>
+    <div class="wlvbar rppbar" role="tablist" aria-label="Which part">${[["answers", `Answers <small>${A.length}</small>`], ["form", hasSoc ? "The form and socials" : "The form"], ["email", "The email"], ["reminders", "Reminders"]].map(([k, l]) => `<button type="button" role="tab" data-rpp="${k}">${l}</button>`).join("")}</div>
     <div data-rppart="answers">
     <div class="rplist">
       <div class="rpans"><span class="rpwhat"><b>Food allergies and intolerances</b></span><span class="rpnum"><b>${food.length}</b> ${food.length === 1 ? "person" : "people"}</span>
