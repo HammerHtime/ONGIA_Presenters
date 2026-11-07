@@ -1,3 +1,4 @@
+import { readZip } from "./zip.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { formatDate, todayIso } from "./deadlines.mjs";
 import { datesOf } from "./letters.mjs";
@@ -192,9 +193,22 @@ export function whyItFailed(e) {
  * Read one contract. Returns the tidied result; throws with a reason Andrew
  * can act on. `client` is only passed by tests.
  */
+/** A Word contract (.docx) as plain text: its paragraphs, table cells and line breaks, for Claude to read. */
+export const isDocx = (bytes) => { const b = Buffer.from(bytes); if (b.length < 4 || b[0] !== 0x50 || b[1] !== 0x4b) return false; try { return readZip(b).some((e) => e.name === "word/document.xml"); } catch { return false; } };
+export function docxText(bytes) {
+  const doc = readZip(Buffer.from(bytes)).find((e) => e.name === "word/document.xml");
+  if (!doc) throw new Error("That Word file has no document in it.");
+  return doc.data.toString("utf8")
+    .replace(/<w:tab\/>/g, "\t").replace(/<w:br[^>]*\/>/g, "\n").replace(/<\/w:p>\s*<\/w:tc>/g, " | ").replace(/<\/w:p>/g, "\n").replace(/<\/w:tc>/g, " | ").replace(/<\/w:tr>/g, "\n")
+    .replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export async function readContract(pdfBytes, event, { client = null, today = todayIso() } = {}) {
   const api = client ?? new Anthropic({ apiKey: anthropicKey() });
-  const data = Buffer.from(pdfBytes).toString("base64");
+  // A PDF goes as itself; a Word contract (Andrew 7 Nov 2026: "The app doesn't allow me to upload MS Word documents") as its text.
+  const word = isDocx(pdfBytes);
+  const source = word ? { type: "text", media_type: "text/plain", data: docxText(pdfBytes) } : { type: "base64", media_type: "application/pdf", data: Buffer.from(pdfBytes).toString("base64") };
   const about = event
     ? `This contract is for ${event.title}, ${datesOf(event)}${event.city ? `, in ${event.city}` : ""}. Today is ${formatDate(today)}.`
     : `The event has not been set up yet: its training days and city will be taken from this contract. Today is ${formatDate(today)}.`;
@@ -210,7 +224,7 @@ export async function readContract(pdfBytes, event, { client = null, today = tod
     messages: [{
       role: "user",
       content: [
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data } },
+        { type: "document", source },
         { type: "text", text: `${about} List the room block details and the dates.` },
       ],
     }],

@@ -1,3 +1,4 @@
+import { isDocx } from "./lib/contract.mjs";
 import { json, fail, requireAdmin, adminWho, fileName, editGuard } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, putEvent, putContract, getContract, contractInfo, getContractRead, putContractRead, deleteKey } from "./lib/store.mjs";
@@ -49,7 +50,7 @@ export default async (req) => {
       const doc = await getContract(eventId);
       if (!doc) return fail("No contract has been uploaded for this event.", 404);
       return new Response(doc.bytes, { headers: {
-        "content-type": "application/pdf",
+        "content-type": isDocx(new Uint8Array(doc.bytes)) ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "application/pdf",
         "content-disposition": `inline; filename="${doc.name.replace(/[^\w.\- ]+/g, "_")}"`,
         "cache-control": "no-store",
       } });
@@ -67,8 +68,13 @@ export default async (req) => {
     const bytes = new Uint8Array(buffer);
     if (!bytes.length) return fail("That file was empty.");
     if (bytes.length > MAX_BYTES) return fail("That file is over 5 MB. Save a smaller copy of the PDF (without scanned images if you can) and try again.", 413);
-    if (String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-") return fail("That is not a PDF. Save the contract as a PDF and upload that.", 415);
-    const name = fileName(req.headers.get("x-file-name"), "hotel-contract.pdf");
+    const word = isDocx(bytes);
+    if (String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-" && !word) {
+      return fail(/\.doc$/i.test(req.headers.get("x-file-name") ?? "") || (bytes[0] === 0xd0 && bytes[1] === 0xcf)
+        ? "That's an older Word file (.doc). In Word, use File, Save As, and save it as a Word document (.docx) or a PDF, then upload that."
+        : "That isn't a PDF or a Word document. Save the contract as a PDF or .docx and upload that.", 415);
+    }
+    const name = fileName(req.headers.get("x-file-name"), word ? "hotel-contract.docx" : "hotel-contract.pdf");
     await putContract(eventId, buffer, { name, size: bytes.length, uploadedAt: new Date().toISOString() });
     return start(eventId, ask, url.origin, name);
   }
