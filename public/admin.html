@@ -1508,7 +1508,8 @@
   .etile.attn .tflag{background:var(--gold);color:#1c1608}
   .meter{height:6px;border-radius:99px;background:var(--sunk);margin-top:7px;overflow:hidden;display:flex}
   .meter i{display:block;height:100%} .meter .a{background:var(--done)} .meter .b{background:var(--gold-light)}
-  .evhead .etabs{background:#fff;border:1.5px solid var(--edge);border-top:0;border-radius:0 0 20px 20px;box-shadow:var(--shadow)}
+  .etabs.evnav{background:#fff;border:1.5px solid var(--edge);border-top:0;border-radius:0 0 20px 20px;box-shadow:var(--shadow);margin-bottom:18px}
+  .evhead.hasnav{margin-bottom:0}
   .etab .lock{font-size:11px;font-weight:600;color:var(--muted);margin-left:4px}
   .evbody{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
   .evmain{min-width:0} .evside{min-width:0}
@@ -1540,7 +1541,7 @@
   .ssoon .mile{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--hair);align-items:center;font-size:14px;line-height:1.3} .ssoon .mile:first-child{border-top:0}
   .comingtop{margin-bottom:16px} .ssoon .cnow{padding:2px 10px;min-height:28px;font-size:12.5px}
   #comingcard .card-body{padding-top:10px;padding-bottom:12px}
-  @media (max-width:760px){ .ssoon .mdays{display:none} #comingcard .card-body{padding-left:16px;padding-right:16px} .ssoon .mile{gap:8px} } .ssoon .mlic{color:var(--navy);margin-right:6px}
+  @media (max-width:760px){ .ssoon .cmdays{display:none} #comingcard .card-body{padding-left:16px;padding-right:16px} .ssoon .mile{gap:8px} } .ssoon .mlic{color:var(--navy);margin-right:6px}
   .ssoon .md{width:64px;flex:none;font-weight:700;white-space:nowrap;line-height:1.2} .ssoon .md small{display:block;font-weight:500;font-size:11.5px;color:var(--muted)}
   .ssoon .mt{flex:1;min-width:0} .ssoon .mnote{font-size:12.5px}
   .ssoon .ml{color:var(--muted);font-size:12.5px;white-space:nowrap;display:flex;align-items:center;gap:8px}
@@ -1690,11 +1691,10 @@
     .vtable td.pact{grid-column:1 / -1;width:auto} .vacts{justify-content:flex-start;flex-wrap:wrap}
     /* The event's tabs on a phone (Andrew 5 Nov 2026: "doesn't stand out … took me some time to find it"): one row of
        clear buttons that scrolls sideways, the open one filled navy, pinned under the top bar while the page scrolls. */
-    .evhead{display:contents}
-    .evhead .etabs{position:sticky;top:var(--barh,64px);z-index:9;margin:0 -20px 16px;padding:10px 20px;gap:8px;flex-wrap:nowrap;overflow-x:auto;
-      background:var(--paper);border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:0 6px 12px -8px rgba(15,25,45,.25);
-      -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
-    .evhead .etabs.atend{-webkit-mask-image:none;mask-image:none}
+    /* No display:contents and no mask (7 Nov 2026): on an iPhone those left the tabs not answering the first tap. The tab
+       row sits straight on the page instead, so sticky works with nothing in between. */
+    .etabs.evnav{position:sticky;top:var(--barh,64px);z-index:9;margin:0 -20px 16px;padding:10px 20px;gap:8px;flex-wrap:nowrap;overflow-x:auto;
+      background:var(--paper);border:0;border-bottom:1px solid var(--border);border-radius:0;box-shadow:0 6px 12px -8px rgba(15,25,45,.25);-webkit-overflow-scrolling:touch}
     .etab{flex:none;padding:9px 15px;font-size:14.5px;border:1.5px solid var(--edge);border-radius:999px;background:#fff;color:var(--ink);min-height:42px}
     .etab.on{background:var(--navy);border-color:var(--navy);color:#fff}
     .etab.on .lock{color:#cfd6e4}
@@ -2360,7 +2360,7 @@ window.addEventListener("resize", sizeExpFrame);
 // (the fade at the right edge says there are more).
 const setBarH = () => { const h = document.querySelector(".bar")?.offsetHeight; if (h) document.documentElement.style.setProperty("--barh", `${h}px`); };
 setBarH(); window.addEventListener("resize", setBarH);
-document.addEventListener("scroll", (e) => { const t = e.target; if (t?.classList?.contains("etabs")) t.classList.toggle("atend", t.scrollLeft + t.clientWidth >= t.scrollWidth - 4); }, true);
+
 // The app says how many wait on you whenever it looks; the sidebar's count follows at once.
 window.addEventListener("message", (e) => {
   const m = e.origin === location.origin ? e.data?.ongiaExpenses : null;
@@ -4448,7 +4448,7 @@ function eventScreen(data) {
     // One tight line each (Andrew 5 Nov 2026: "tighten up the coming up list … beside date, add the time as well").
     return rows.slice(0, 10).map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}${x.time ? `<small>${esc(x.time)}</small>` : ""}</span>
         <span class="mt">${x.mail ? `<span class="mlic" aria-hidden="true">✉</span>` : ""}${esc(x.what.replace(/ \((.+)\)$/, " · $1"))}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}${x.note ? ` <span class="late mnote">· ${esc(x.note)}</span>` : ""}</span>
-        <span class="ml">${x.now && !x.note ? `<button type="button" class="mini cnow" data-cnow="${esc(JSON.stringify({ ...x.now, what: x.what, to: x.to, who: x.who }))}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : ""}<span class="mdays">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
+        <span class="ml">${x.now && !x.note ? `<button type="button" class="mini cnow" data-cnow="${esc(JSON.stringify({ ...x.now, what: x.what, to: x.to, who: x.who }))}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : ""}<span class="cmdays">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
   };
   const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2><div class="s">The next 10 things, emails included, soonest first</div></div></div><div class="card-body" id="comingbody">${comingRows(null)}</div></div>`;
   // Send now beside each email that can go early (Andrew 5 Nov 2026: "I don't want to wait and I want them to get the
@@ -4579,15 +4579,15 @@ function eventScreen(data) {
   const dashHtml = eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN: c.total, tab, allTabs });
 
   // A practice event says so across the top, so nobody mistakes it for the real one (audit, 30 Oct 2026).
-  ROOT.innerHTML = `<div class="evhead">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
+  ROOT.innerHTML = `<div class="evhead hasnav">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
     <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         ${ev.city || ev.venue ? `<span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>` : ""}
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
       ${hotelLocked(ev) || ev.project ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">${ev.project ? "Edit project" : "Edit event"}</button><button class="mini" id="mailall"${ev.project ? " hidden" : ""}>Email all outstanding</button><button class="mini gold" id="add"${ev.project ? " hidden" : ""}>Add presenters</button></div></div>
-</section>${evNotices(ev)}
-    <nav class="etabs" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav></div>
+</section>${evNotices(ev)}</div>
+    <nav class="etabs evnav" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav>
     ${blockedHtml}<div class="comingtop" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>${comingCard}</div>${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
     + panel("overview", overviewHtml)
     + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
