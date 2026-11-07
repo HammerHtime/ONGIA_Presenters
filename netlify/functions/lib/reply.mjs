@@ -516,23 +516,28 @@ export async function sendReplyToPresenters(event, { deadline = null, pace = pac
 /** Where the email stands: how many it reaches, how many had it, the last round. */
 export async function replyStatus(event) {
   const stored = (await getAttendees(event.id)) ?? { people: [] };
-  const people = stored.people ?? [];
+  const all = stored.people ?? [];
+  // Only the people in the room (Andrew 7 Nov 2026: the top said "90 not yet sent", the list "464 of 465"): those joining
+  // online are never sent the food-allergy email, so they aren't counted as owed it either.
+  const people = inTheRoom(event, all);
   const answers = (await getReplies(event.id))?.answers ?? [];
+  const had = new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
   return {
     reaches: new Set(writeableTo(people).map((p) => p.email)).size,
+    online: all.length - people.length,
     // Why that is fewer than the registrations (Andrew 27 Oct 2026: "the button says 367 registered and the number at
     // the top says 403"): one email goes to each address, so registrations sharing an address get one between them,
     // and a registration with no email address gets none.
     registrations: people.filter((p) => p.status === "ATTENDING").length,
     noEmail: people.filter((p) => p.status === "ATTENDING" && !isEmail(p.email)).length,
-    had: new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email)).size,
+    had: writeableTo(people).filter((p) => had.has(p.email)).length,
     round: stored.letterRounds?.reply ?? null,
     answered: answers.length,
     stillToAnswer: stillToAnswer(people, answers).length,
     // Registered addresses the email and reminders will skip, because someone there already told us.
     alreadyTold: [...toldUs(people, answers)].filter((e) => writeableTo(people).some((p) => p.email === e)).length,
     // Who "Send" would email right now: registered, not had it, nobody there has told us yet.
-    toSend: (() => { const told = toldUs(people, answers); const had = new Set(people.filter((p) => (p.sent ?? []).includes("reply")).map((p) => p.email));
+    toSend: (() => { const told = toldUs(people, answers);
       return writeableTo(people).filter((p) => !had.has(p.email) && !told.has(p.email)).length; })(),
     reminders: remindersOf(event.reply).map((d) => ({ date: d, round: stored.letterRounds?.[`reply-reminder:${d}`] ?? null })),
     // The latest reminder that went, scheduled or sent by hand: its date and how it went.
