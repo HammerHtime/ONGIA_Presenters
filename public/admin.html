@@ -2705,7 +2705,7 @@ function eventFormScreen(existing = null) {
         : "Have the hotel contract? Upload it and Claude fills in the training days, the city and the hotel's dates. Then add the title and venue."}</div></div>
       ${ev ? "" : `<div class="cardacts"><button class="mini solid" id="ct-new" type="button">Upload hotel contract</button></div>`}</div>
     <div class="card-body">
-      ${ev ? "" : `<div class="ctbox" id="ctnewbox" hidden style="margin:0 0 18px"><div id="ct-body"></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden></div>`}
+      ${ev ? "" : `<div class="ctbox" id="ctnewbox" hidden style="margin:0 0 18px"><div id="ct-body"></div><input type="file" id="ct-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`}
       ${ev ? "" : `<div class="starts" id="wixstart" role="group" aria-label="How to start">
         <button type="button" class="start" id="wx-pick"><b>From your website</b><span>Already on your website? Pick it from Wix: title, dates, city and venue come across, and its registered guests when you create it.</span></button>
         <button type="button" class="start" id="cp-pick"><b>Copy a past event</b><span>Its board and lead, presentation slot, deadlines, RBH settings, presenter options, letters and hotel name.</span></button>
@@ -2787,7 +2787,7 @@ function eventFormScreen(existing = null) {
           30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
           arrives while they can book.</p>
         ${ev?.hotelCostsHidden ? `<p class="hint" style="margin:0">The contract, the rate and its notes on an RBH event are kept by the president and the VP of operations.</p>` : `<div class="ctbox">${ev
-          ? `<div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf" hidden>`
+          ? `<div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>`
           : `<p class="hint" style="margin:0">Use <b>Upload hotel contract</b> at the top of this form and Claude fills these in for you.</p>`}</div>`}
         <div class="row2" style="margin-top:12px">
           <div class="field" style="margin:0"><label for="e-hotel">Hotel</label>
@@ -8827,7 +8827,7 @@ function contractLine(ev, C) {
   return `<div class="card ctline"><div class="card-body">
       <span class="ctl-what"><b>Hotel contract</b> ${f ? `${esc(f.name)} <span class="porg">· uploaded ${esc(fmtDate(String(f.uploadedAt).slice(0, 10)))}</span>` : `<span class="porg">none uploaded yet</span>`}</span>
       <span class="ctl-acts">${f ? `<button type="button" class="mini ghost" id="ctl-check">Check its dates</button>` : ""}<button type="button" class="mini${f ? "" : " gold"}" id="ctl-up">${f ? "Upload new version" : "Upload the contract"}</button>
-        <input type="file" id="ctl-file" accept="application/pdf,.pdf" hidden></span></div></div>`;
+        <input type="file" id="ctl-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></span></div></div>`;
 }
 function wireContractLine(ev) {
   const up = document.getElementById("ctl-up"), file = document.getElementById("ctl-file");
@@ -11940,7 +11940,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
   const links = (st) => [
     st.file ? `<a href="#" data-ct="open">Open it</a>` : "",
     st.file && st.read?.state !== "reading" ? `<a href="#" data-ct="again">Read it again</a>` : "",
-    st.read?.state !== "reading" ? `<a href="#" data-ct="pick">${st.file ? "Upload a different one" : "Upload the contract (PDF)"}</a>` : "",
+    st.read?.state !== "reading" ? `<a href="#" data-ct="pick">${st.file ? "Upload a different one" : "Upload the contract (PDF or Word)"}</a>` : "",
   ].filter(Boolean).join(" · ");
 
   // One row per thing found. Only the first cut-off and the first food and
@@ -11988,7 +11988,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
       html = `<div class="cthead"><b>Hotel contract</b></div>
         <p class="hint" style="margin:4px 0 10px">Upload the PDF and Claude will read the cut-off, the food and beverage date and the other
           deadlines in it. You check every one before anything is saved.</p>
-        <button type="button" class="mini" data-ct="pick">Upload the contract (PDF)</button>`;
+        <button type="button" class="mini" data-ct="pick">Upload the contract (PDF or Word)</button>`;
     } else if (r?.state === "reading") {
       html = `<div class="cthead ctbusy"><span class="spin" aria-hidden="true"></span><b>Claude is reading ${esc(r.name || file?.name || "the contract")}…</b>
           <span class="hint" style="margin-left:8px" id="ct-clock" data-since="${esc(r.startedAt ?? "")}"></span></div>
