@@ -5893,7 +5893,7 @@ function drawMailSum(ev) {
   if (R) {
     const st = R.status ?? {};
     rows.push({ at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
-      who: `Everyone registered (${st.reaches ?? 0})`,
+      who: st.online ? `Everyone attending in person (${st.reaches ?? 0})` : `Everyone registered (${st.reaches ?? 0})`,
       when: !R.reply ? "When you press Send" : R.reply.sentAt ? `Sent ${esc(fmtDate(R.reply.sentAt.slice(0, 10)))}` : `When you press Send${R.reply.replyBy ? `<br><span class="porg">answers by ${esc(fmtDate(R.reply.replyBy))}</span>` : ""}`,
       state: !R.reply ? ["idle", "Not set up"] : R.sending ? ["wait", `Sending: ${st.had ?? 0} of ${st.reaches ?? 0}`]
         : R.problems?.length ? ["late", "Held back: see below"]
@@ -7713,7 +7713,9 @@ function renderReplyCard(ev, R) {
     <div class="rpstate">${R.sending
       ? `<div class="note" style="margin:0 0 14px"><b>Sending now, on the server:</b> ${st.had} of ${st.reaches} registered addresses have it so far, about ${Math.max(1, Math.ceil(((st.toSend ?? 0) * 2.1) / 60))} ${Math.ceil(((st.toSend ?? 0) * 2.1) / 60) > 1 ? "minutes" : "minute"} to go. You can close this page: it carries on. <b>${A.length} answered.</b></div>`
       : sent
-      ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of ${st.reaches} registered addresses${st.round?.left && st.toSend ? `. ${st.toSend} still to go: press Send again.` : ""}${st.round?.failed ? `. ${st.round.failed} could not be sent${st.round.trouble?.[0] ? ` (${esc(st.round.trouble[0].why)})` : ""}.` : ""}${R.lastSend?.error ? ` The last run stopped: ${esc(R.lastSend.error)}.` : ""}${st.had < st.reaches && !st.round?.left ? ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.` : ""} <b>${A.length} answered.</b></div>`
+      // In-person only, in one plain sentence (Andrew 7 Nov 2026: the top said 90 not sent, this said 471 of 556).
+      ? `<div class="note" style="margin:0 0 14px"><b>Sent ${esc(fmtDate(r.sentAt.slice(0, 10)))}</b> to ${st.had} of the ${st.reaches} people attending in person${st.online ? ` (those joining online don't get it)` : ""}.${st.round?.left && st.toSend ? ` ${st.toSend} still to go: press Send again.` : ""}${st.round?.failed ? ` ${st.round.failed} could not be sent${st.round.trouble?.[0] ? ` (${esc(st.round.trouble[0].why)})` : ""}.` : ""}${(() => { const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" }); const past = r.replyBy && today > r.replyBy;
+        return st.toSend && !st.round?.left ? (past ? ` ${st.toSend} registered after it went. The reply-by date has passed, so it won't go to them by itself: use Send under Who's had it.` : ` Anyone who registers later gets it the next night, up to ${esc(longDayEn(r.replyBy))}, while automatic emails are on.`) : ""; })()} <b>${A.length} answered.</b></div>`
       : `<p class="said" style="margin:0 0 14px">Not sent yet. ${st.reaches} registered ${st.reaches === 1 ? "address" : "addresses"} would get it.</p>`}</div>
     ${sent ? `<div style="margin:-4px 0 14px">${whoBox("reply")}</div>` : ""}
 
