@@ -17,5 +17,8 @@ const client = { beta: { messages: { stream: (req) => { sent = req; return { fin
 try { await readContract(docx, { title: "Royalties", city: "Quebec", dayOne: "2027-04-13", lastDay: "2027-04-14" }, { client }); } catch (e) { console.log("   (reader said:", e.message, ")"); }
 const src = sent?.messages?.[0]?.content?.[0]?.source;
 ok("Claude is given the Word contract as text, not as a PDF", src?.type === "text" && /March 12, 2027/.test(src.data), JSON.stringify(src).slice(0, 160));
+const unions = (o) => (o && typeof o === "object" ? (Array.isArray(o.anyOf) || Array.isArray(o.type) ? 1 : 0) + Object.values(o).reduce((n, v) => n + unions(v), 0) : 0);
+const schema = sent?.output_config?.format?.schema;
+ok("the answer format stays within the API's 16 nullable fields (17 made every read fail, 7 Nov 2026)", schema && unions(schema) <= 16, String(unions(schema)));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
