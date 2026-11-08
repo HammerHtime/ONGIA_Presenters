@@ -195,6 +195,7 @@
   html.desk main{max-width:none;margin:0;padding:0 2px 28px}
   html.desk main[data-screen="editor"],html.desk main[data-screen="view"],html.desk main[data-screen="away"]{max-width:860px}
   html.desk .toast{bottom:24px}
+  html.desk .sheet{padding:14px 14px 30px}html.desk .sheet main{max-width:860px;margin:0 auto;padding:0}.sheethead{max-width:860px;margin:0 auto 14px}
   html.desk #dhead{display:block;margin:0 2px 14px}
   .dband{background:#fff;border:1.5px solid var(--edge);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 24px 14px;display:flex;gap:12px 16px;align-items:flex-start;flex-wrap:wrap}
   .dband.alone{border-bottom:1.5px solid var(--edge);border-radius:20px;box-shadow:0 10px 30px rgba(14,26,53,.09),0 2px 6px rgba(14,26,53,.05)}
@@ -1416,7 +1417,9 @@ async function lineSheet(c, l) {
   const cat = HOME?.categories?.find((x) => x.n === Number(l.category));
   const kv = (k, v) => (v || v === 0 ? `<div class="kv"><span class="k2">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : "");
   const el = document.createElement("div"); el.className = "sheet";
-  el.innerHTML = `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(l.kind === "mileage" ? "Mileage" : l.paidTo || "Receipt")}</h1></header>
+  const head = l.kind === "mileage" ? "Mileage" : l.paidTo || "Receipt";
+  // On the laptop the phone's navy bar is hidden, so the line gets the desk's own band with a Back (Andrew, 8 Nov 2026).
+  el.innerHTML = `${DESK ? `<div class="dband alone sheethead"><div><button class="dback" type="button" data-close>‹ Back to the claim</button><h2>${esc(head)}</h2></div></div>` : `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(head)}</h1></header>`}
     <main>${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
