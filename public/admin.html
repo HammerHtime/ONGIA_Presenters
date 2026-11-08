@@ -1384,6 +1384,8 @@
   .wlset>summary{cursor:pointer;padding:10px 0;font-size:14px;color:var(--muted,#555);list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
   .wlset>summary::-webkit-details-marker{display:none}
   .wlset>summary b:not(.late){color:var(--ink)}
+  @media (max-width:520px){.filters.ggrp{gap:5px;flex-wrap:wrap;overflow:visible}.filters.ggrp .fchip{padding:5px 9px}}
+  .gwix{margin:0 0 12px}.gwix>.wixbar:first-of-type{margin-top:0}
   .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
   .wlset[open] .wlset-edit{display:none} .wlset b.ok{color:var(--done)}
   .wlset-body{padding:0 0 12px}
@@ -9725,14 +9727,15 @@ function attendeesCard(ev, guests) {
     .filter(([k, , n]) => k === "all" || k === "coming" || n);
 
   // Linked to Wix, or not — the bar says which and offers the next move.
+  // Linked: folded behind one line, so the list and its groups come first (Andrew 8 Nov 2026, "nice and tight").
   const bar = wix?.eventId
-    ? `<div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
+    ? `<details class="wlset gwix"><summary><span>Linked to Wix · <b>${1 + wixMore.length} event${wixMore.length ? "s" : ""}</b>${syncedAt ? ` · pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span> <span class="wlset-edit">Change</span></summary><div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
         <button class="mini" id="g-sync">Pull from Wix now</button>
         <button class="mini ghost" id="g-unlink">Unlink</button></div>
       ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b>${l.site && l.site !== "1" ? ` from ${esc(l.siteName || "the second Wix site")}` : ""} · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
         <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
       <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
-        <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div>`
+        <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div></details>`
     : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
         <button class="mini" id="g-link">Link to a Wix event</button></div>`;
 
@@ -9761,7 +9764,7 @@ function attendeesCard(ev, guests) {
       <div id="g-said">${GUEST_NOTE
         ? `<div class="${GUEST_NOTE.bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(GUEST_NOTE.msg)}</div>` : ""}</div>
       ${people.length ? `<div class="ptools">${people.length > 8 ? `<input type="search" id="gfind" class="pfind" placeholder="Find someone registered…" aria-label="Find someone registered" autocomplete="off">` : ""}
-          ${ggrps.length > 2 ? `<div class="filters" aria-label="Which group">${ggrps.map(([k, l, n]) => `<button class="fchip${k === GGRP_ON ? " on" : ""}" data-ggrpbtn="${k}">${esc(l)} <b>${n}</b></button>`).join("")}</div>` : ""}
+          ${ggrps.length > 2 ? `<div class="filters ggrp" aria-label="Which group">${ggrps.map(([k, l, n]) => `<button class="fchip${k === GGRP_ON ? " on" : ""}" data-ggrpbtn="${k}" title="${esc(l)}">${esc(l.replace(/\s+partners$/i, ""))} <b>${n}</b></button>`).join("")}</div>` : ""}
           <div class="filters">${gcuts.map(([k, l, n]) => `<button class="fchip${k === GCUT_ON ? " on" : ""}" data-gcutbtn="${k}">${l} <b>${n ?? 0}</b></button>`).join("")}</div></div>
         <div class="ptwrap"><table class="ptable gtable"><thead><tr><th>Name</th><th>Organization</th><th>Status</th><th>From</th></tr></thead><tbody>${rows}</tbody></table></div>
         <div class="gempty porg" hidden>Nobody in this view.</div>`
