@@ -29,6 +29,26 @@ export const ABOUT = [
 ];
 
 // For each session: six star questions (Kingston's six, as questions), whether they'd book the presenter again, a comment.
+/**
+ * "About you" for the community partners (Andrew 8 Nov 2026: "Remove the years of service and other law enforcement
+ * questions for the community partners"). They're asked for their organization, not their agency, and not for years of
+ * service. The answer keeps the id "agency", so the results count organizations the same way.
+ */
+export const PARTNER_ABOUT = ABOUT.filter((q) => q.id !== "years").map((q) => (q.id === "agency"
+  ? { ...q, en: "Which organization do you work for?", fr: "Pour quel organisme travaillez-vous?", ph: { en: "Start typing your organization…", fr: "Commencez à taper votre organisme…" } }
+  // Same place in the list as "My agency", so the counts still add up together.
+  : q.id === "heard" ? { ...q, options: { ...q.options, en: q.options.en.map((o) => (o === "My agency" ? "My organization" : o)) } }
+  : q));
+
+/** Whether this person is one of the second group (the Summit's community partners): their own days, their own questions. */
+export function isPartner(event, person) {
+  const second = (event?.wixMore ?? [])[0];
+  if (!second || !person?.group) return false;
+  if (person.wixEventId && (event.wixMore ?? []).slice(1).some((l) => l?.eventId === person.wixEventId)) return false;
+  return !person.wixEventId || person.wixEventId === second.eventId;
+}
+export const aboutFor = (asked) => (asked?.partner ? PARTNER_ABOUT : ABOUT);
+
 export const SESSION = [
   { id: "relevant", kind: "stars", en: "How relevant was this to your work?", fr: "Dans quelle mesure était-ce pertinent pour votre travail?" },
   { id: "knowledge", kind: "stars", en: "How much did it add to what you knew?", fr: "Dans quelle mesure cela a-t-il enrichi vos connaissances?" },
@@ -136,6 +156,7 @@ export function partFor(event, person, part, done = {}) {
   const showDays = part === "end" ? days : days.filter((d) => d === part);
   return {
     part,
+    partner: isPartner(event, person),
     about: !done.about,
     days: showDays.map((d) => ({ day: d, sessions: sessions.filter((s) => s.day === d) })).filter((d) => d.sessions.length),
     overall: part === "end" || part === days[days.length - 1],
@@ -164,7 +185,7 @@ export function cleanResponse(body, asked, lang = "en") {
   const rec = { part: asked.part, lang: lang === "fr" ? "fr" : "en" };
   if (asked.about) {
     rec.about = {};
-    for (const q of ABOUT) {
+    for (const q of aboutFor(asked)) {
       const v = cleanAnswerFor(q, body?.about?.[q.id], lang);
       if (v === null) { if (!q.optional) missing.push(`about.${q.id}`); continue; }
       rec.about[q.id] = v;
@@ -205,7 +226,7 @@ export function surveyForPage(event, asked, agencies = []) {
   return {
     title: event.title, city: event.city, part: asked.part,
     dayNumber: Object.fromEntries(trainingDays(event).map((d, i) => [d, i + 1])),
-    about: asked.about ? ABOUT.map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
+    about: asked.about ? aboutFor(asked).map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
     days: asked.days.map((d) => ({ day: d.day, sessions: d.sessions.map((s) => ({ id: s.id, en: name(s, "en"), fr: name(s, "fr"), presenters: s.presenters })) })),
     session: SESSION, overall: asked.overall ? OVERALL.map((q) => (q.kind === "province" ? { ...q, provinces: PROVINCES } : q)) : null, stars: STARS,
   };

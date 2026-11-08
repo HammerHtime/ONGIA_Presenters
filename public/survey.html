@@ -193,7 +193,7 @@ function agencyOptions(key, list, typed) {
 }
 function agencyHtml(key, q, value) {
   const typed = A.agencyTyped ?? value ?? "";
-  return `<div class="combo"><input type="text" autocomplete="off" data-agencyin="${key}" placeholder="${t("typeAgency")}" value="${esc(typed)}" aria-label="${esc(qText(q))}">
+  return `<div class="combo"><input type="text" autocomplete="off" data-agencyin="${key}" placeholder="${esc(q.ph?.[LANG] || t("typeAgency"))}" value="${esc(typed)}" aria-label="${esc(qText(q))}">
     ${value ? `<div class="chosen">✓ ${esc(value)}</div>` : ""}<div class="opts" id="opts-${esc(key)}">${value && typed === value ? "" : agencyOptions(key, q.agencies ?? [], typed)}</div></div>`;
 }
 function question(key, q, value) {
