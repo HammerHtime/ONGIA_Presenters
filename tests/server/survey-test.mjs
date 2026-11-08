@@ -103,5 +103,22 @@ ok("Day 2's goes to both", round2.sent === 2);
 ok("the email is in both languages, each with its own button, opening the survey in that language", /\/f\/[A-Za-z0-9_-]+\/[0-9a-f]{16}\?lang=en/.test(sent.at(-1).text) && /\?lang=fr/.test(sent.at(-1).text) && /FRANÇAIS/.test(sent.at(-1).text) && /how was today\? \/ Votre avis/.test(sent.at(-1).subject));
 ok("and nobody gets the same day twice", (await sendSurveyRound(await getEvent("ngs"), "2026-11-10", { pace: async () => {} })).sent === 0);
 
+// A QR code for each day (Andrew 8 Nov 2026): that day's sessions only, for whoever scans it.
+const qr2 = (await pub(`t=${tok}&day=2026-11-10`)).body;
+ok("a day's QR link asks about that day's sessions only, with no About-you and no overall", qr2.qr && qr2.days.length === 1 && qr2.days[0].day === "2026-11-10" && qr2.about === null && qr2.overall === null, JSON.stringify(qr2).slice(0, 300));
+const before = (await getSurveyResponses("ngs")).length;
+const qrSid = qr2.days[0].sessions[0].id;
+const qrOk = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { part: "2026-11-10", sessions: { [qrSid]: { ...stars(5), rebook: 0 } } } });
+const qrKept = (await getSurveyResponses("ngs")).at(-1);
+ok("a QR answer is kept, marked as from the QR code, with no About-you", qrOk.body.ok && (await getSurveyResponses("ngs")).length === before + 1 && qrKept.via === "qr" && !qrKept.about && qrKept.part === "2026-11-10", JSON.stringify(qrKept));
+ok("a QR answer with a session left blank is refused", (await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { sessions: {} } })).status === 400);
+ok("a day that isn't the event's is refused", (await pub(`t=${tok}&day=2026-12-01`)).status === 404);
+const png = await survey(new Request("http://x/api/survey?event=ngs&qr=2026-11-10", { headers: H }));
+ok("the desk downloads a day's QR code as a picture", png.status === 200 && png.headers.get("content-type") === "image/png" && /day-2-qr\.png/.test(png.headers.get("content-disposition")));
+const pdf = await survey(new Request("http://x/api/survey?event=ngs&qr=all", { headers: H }));
+const pdfBytes = Buffer.from(await pdf.arrayBuffer());
+ok("and every day's on its own page of a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && (pdfBytes.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length >= 2);
+ok("the QR codes are for the desk only", (await survey(new Request("http://x/api/survey?event=ngs&qr=all"))).status === 401);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
