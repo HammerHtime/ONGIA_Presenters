@@ -161,9 +161,13 @@ const starOf = (v) => (v === "na" ? "N/A" : typeof v === "number" ? v : "");
 export function surveyResponsesXlsx(event, responses) {
   const sessions = event.survey?.sessions ?? [];
   const stars = SESSION.filter((q) => q.kind === "stars");
+  const group = (event.wixMore ?? [])[0] ? (event.wixMore[0].group || "Second group") : "";
+  const main = /national gang summit/i.test(event.title ?? "") ? "Justice partners" : "Everyone else";
   const columns = [
     { head: "Sent", width: 17 }, { head: "Part", width: 12 }, { head: "Language", width: 9 },
-    ...ABOUT.map((q) => ({ head: q.en.replace(/\?$/, ""), width: q.id === "agency" ? 30 : 14 })),
+    // With a second group (the Summit's community partners), a column saying whose answer it is, so they filter apart.
+    ...(group ? [{ head: "Who", width: 18 }] : []),
+    ...ABOUT.map((q) => ({ head: group && q.id === "agency" ? "Agency or organization" : q.en.replace(/\?$/, ""), width: q.id === "agency" ? 30 : 14 })),
     ...sessions.flatMap((s) => [...stars.map((q) => ({ head: `${s.title || s.presenters.join(", ")}\n${q.en}`, width: 14 })),
       { head: `${s.title || s.presenters.join(", ")}\nRecommend presenter`, width: 13 }, { head: `${s.title || s.presenters.join(", ")}\nComment`, width: 34 }]),
     ...OVERALL.map((q) => ({ head: q.en.replace(/\?$/, ""), width: q.kind === "text" ? 34 : 14 })),
@@ -171,6 +175,7 @@ export function surveyResponsesXlsx(event, responses) {
   const label = (q, v) => (v === undefined || v === null ? "" : q.kind === "stars" ? starOf(v) : q.kind === "choice" ? q.options.en[v] ?? "" : q.kind === "province" ? PROVINCES[v] ?? v : v);
   const rows = responses.map((r) => [
     r.at ? r.at.slice(0, 16).replace("T", " ") : "", r.part === "end" ? "After the event" : r.part, r.lang === "fr" ? "French" : "English",
+    ...(group ? [r.partner ? group : main] : []),
     ...ABOUT.map((q) => label(q, r.about?.[q.id])),
     ...sessions.flatMap((s) => { const g = r.sessions?.[s.id]; if (!g) return [...stars.map(() => ""), "", ""]; if (g.skipped) return [...stars.map(() => "Not there"), "", ""];
       return [...stars.map((q) => starOf(g[q.id])), label(SESSION.find((q) => q.id === "rebook"), g.rebook), g.comment ?? ""]; }),

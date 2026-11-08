@@ -95,7 +95,7 @@ export default async (req) => {
       return show(event);
     }
     const part = partName(event, body.part);
-    if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), part, adminWho(req));
+    if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), part, adminWho(req), body.as === "partner");
     if (url.searchParams.get("send")) {
       const out = await sendSurveyRound(event, part, { deadline: Date.now() + 8000 });
       if (out.blocked) return fail(`Not sent: ${out.blocked[0]}`, 409);
@@ -212,19 +212,23 @@ async function attendeeSide(req, url, tok, pid) {
   if (url.searchParams.get("preview")) return json({ ok: true, preview: true });
   const at = new Date().toISOString();
   // The answers carry no name, address or link id: only which part, the language, and the time.
-  await putSurveyResponse(event.id, { id: newToken(16), at, ...rec, ...(person?.group ? { group: person.group } : {}) });
+  await putSurveyResponse(event.id, { id: newToken(16), at, ...rec, ...(person?.group ? { group: person.group } : {}), ...(asked.partner ? { partner: true } : {}) });
   if (contact) await putSurveyContact(event.id, { id: newToken(12), at, ...contact });
   if (person) await putSurveyDone(event.id, pid, { about: !!(done.about || asked.about), parts: [...new Set([...(done.parts ?? []), part])] });
   return json({ ok: true });
 }
 
 /** A test of the email to up to five addresses; each gets a link of their own, so they can try the survey. */
-async function testSend(event, to, part, who) {
+async function testSend(event, to, part, who, partner = false) {
   const addresses = [...new Set(String(to || who?.email || "").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
   if (!addresses.length) return fail("Which address should the test go to?");
   if (addresses.length > 5) return fail("Up to five test addresses at a time.");
   if (addresses.some((a) => !isEmail(a))) return fail(`${addresses.find((a) => !isEmail(a))} is not an email address.`);
-  const testers = addresses.map((email) => ({ key: `test:${email}`, first: email === String(who?.email ?? "").toLowerCase() ? String(who?.name ?? "").split(/\s+/)[0] : "", email }));
+  // A test as a community partner gets their days and their questions (the second group's Wix event).
+  const second = partner ? (event.wixMore ?? [])[0] : null;
+  if (partner && !second) return fail("This event has no community partners group.");
+  const testers = addresses.map((email) => ({ key: `test:${second ? "partner:" : ""}${email}`, first: email === String(who?.email ?? "").toLowerCase() ? String(who?.name ?? "").split(/\s+/)[0] : "", email,
+    ...(second ? { group: second.group || "group", wixEventId: second.eventId } : {}) }));
   event.survey = { ...event.survey, testers: [...testers, ...(event.survey.testers ?? []).filter((t) => !testers.some((n) => n.key === t.key))].slice(0, 10) };
   await putEvent(event);
   const letter = surveyLetter(event, part);

@@ -50,6 +50,11 @@ ok("Jay's Day 1: about-you, Day 1's session only, no overall yet", day1.about?.l
 ok("each question in both languages, and the star words in both", day1.session[0].fr && day1.stars.fr[4] === "Excellent" && day1.stars.en[0] === "Poor");
 const camDay1 = (await pub(`t=${tok}&p=${cam}&part=2026-11-09`)).body;
 ok("a community partner asking for Day 1 is given their first day instead (Nov 10)", camDay1.days[0].day === "2026-11-10", JSON.stringify(camDay1.days));
+// Andrew 8 Nov 2026: the community partners aren't asked law-enforcement questions.
+ok("a community partner isn't asked years of service", camDay1.about?.length === 5 && !camDay1.about.some((q) => q.id === "years"), JSON.stringify(camDay1.about?.map((q) => q.id)));
+ok("and is asked their organization, not their agency, in both languages", camDay1.about.find((q) => q.id === "agency")?.en === "Which organization do you work for?" && /organisme/.test(camDay1.about.find((q) => q.id === "agency").fr) && /organization/.test(camDay1.about.find((q) => q.id === "agency").ph.en));
+ok("their 'how did you hear' says My organization, in the same place as My agency", camDay1.about.find((q) => q.id === "heard").options.en[2] === "My organization" && day1.about.find((q) => q.id === "heard").options.en[2] === "My agency");
+ok("a justice partner is still asked agency and years of service", day1.about.some((q) => q.id === "years") && day1.about.find((q) => q.id === "agency").en === "Which agency do you work for?");
 
 // Answers: missing ones are named; complete ones are kept with no name.
 const stars = (n) => Object.fromEntries(["relevant", "knowledge", "expectations", "expert", "engaging", "delivery"].map((k) => [k, n]));
@@ -68,12 +73,18 @@ const day4 = (await pub(`t=${tok}&p=${jay}&part=2026-11-12`)).body;
 ok("the last day carries the event overall, with the extra questions", day4.overall?.some((q) => q.id === "nps") && day4.overall.some((q) => q.id === "venue") && day4.overall.some((q) => q.id === "present"));
 const camLast = (await pub(`t=${tok}&p=${cam}&part=2026-11-11`)).body;
 ok("a community partner's last day is Nov 11, so their overall comes then", !!camLast.overall);
+const camAbout = { agency: "Youth Outreach Centre", province: "ON", before: 1, again: 0 };
+const camSid = camDay1.days[0].sessions[0].id;
+const camOk = await pub(`t=${tok}&p=${cam}`, { method: "POST", body: { part: "2026-11-10", about: camAbout, sessions: { [camSid]: { ...stars(4), rebook: 0 } } } });
+ok("a community partner's answers go in without years of service", camOk.status === 200 && camOk.body.ok, JSON.stringify(camOk.body));
+const camKept = (await getSurveyResponses("ngs")).find((r) => r.about?.agency === "Youth Outreach Centre");
+ok("kept marked as a community partner's, with no years", camKept?.partner === true && camKept.about.years === undefined, JSON.stringify(camKept));
 const overall = { quality: 5, pace: 1, confidence: 4, variety: 5, practical: 4, venue: 5, av: "na", registration: 5, food: 3, length: 1, nps: 9 };
 const skipped = await pub(`t=${tok}&p=${jay}`, { method: "POST", body: { part: "2026-11-12", skipDays: ["2026-11-12"], overall: { ...overall, present: 0 }, contact: { name: "Jay Sample", email: "jay@example.ca", topic: "Drill music" } } });
 ok("'I wasn't there this day' skips every session that day; the overall is still kept", skipped.status === 200);
 const last = (await getSurveyResponses("ngs")).at(-1);
 ok("the day is kept as skipped, and the person who would like to present is kept apart from the answers", last.sessions[sid("Ghost Guns")].skipped === "day" && !/Jay|jay@/.test(JSON.stringify(last)) && (await getSurveyContacts("ngs"))[0]?.email === "jay@example.ca");
-ok("a test (preview) answer is checked but not kept", (await pub(`t=${tok}&preview=1`, { method: "POST", body: { part: "2026-11-10", about, sessions: { [sid("Following the Money")]: { ...stars(4), rebook: 1 } } } })).body.preview && (await getSurveyResponses("ngs")).length === 2);
+ok("a test (preview) answer is checked but not kept", (await pub(`t=${tok}&preview=1`, { method: "POST", body: { part: "2026-11-10", about, sessions: { [sid("Following the Money")]: { ...stars(4), rebook: 1 } } } })).body.preview && (await getSurveyResponses("ngs")).length === 3);
 
 // When each part goes.
 const at = (local) => new Date(`${local}:00-05:00`); // Toronto in November
