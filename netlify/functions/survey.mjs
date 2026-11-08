@@ -203,7 +203,7 @@ const qrPng = (link, width = 900) => QRCode.toBuffer(link, { margin: 2, width, e
 async function qrCodes(event, which) {
   if (!event.survey) return fail("Set up the survey first.", 409);
   const days = trainingDays(event).map((day, i) => ({ day, n: i + 1 })).filter((d) => qrPart(event, d.day));
-  const base = `${slugOf(event.title) || "event"}-survey`;
+  const base = `${slugOf(String(event.title).split(/\s*:\s*/)[0]) || "event"}-survey`;   // "national-gang-summit-survey-day-2-qr.png"
   if (which === "all") {
     if (!days.length) return fail("No day has sessions yet. Pick the day for each session first.", 409);
     for (const d of days) { d.url = qrLink(event, d.day); d.png = await qrPng(d.url); }

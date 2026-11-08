@@ -7401,7 +7401,11 @@ function surveyHead(ev, S) {
       + (sent ? `sent to ${sent} · ${S.responses} answered` : daily ? (first ? `first goes ${fmtDate(first.day)} at ${fmt12(first.at)}` : "no day has an end time yet") : x.sendOn ? `goes ${fmtDate(x.sendOn)}` : "no send date yet")
       + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · attendee emails are off");
   head.innerHTML = `<span class="dtag ${st[0]}">${esc(st[1])}</span><span class="svwhat">${esc(what)}</span>
-    ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}`;
+    ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}
+    ${x?.sessions?.some((r) => r.day) ? `<button type="button" class="mini gold" id="sv-qrgo">QR codes</button>` : ""}`;
+  // Straight to the QR codes for each day (Andrew 8 Nov 2026: "I need a download button to get the QR code for each day").
+  const qrGo = document.getElementById("sv-qrgo");
+  if (qrGo) qrGo.onclick = () => { svPart("delivery"); document.querySelector(".svqr")?.closest(".field")?.scrollIntoView({ behavior: "smooth", block: "center" }); };
   if (!view.svpart) svPart(S.responses ? "results" : "setup");
   else svPart(view.svpart, true);
 }
@@ -7463,9 +7467,9 @@ function renderSurveyCard(ev, S) {
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
       <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${/national gang summit/i.test(ev.title) ? "justice partners" : "everyone else"}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
     ${(() => { const qd = S.days.map((d, i) => ({ d, i, n: s.sessions.filter((x) => x.day === d).length })).filter((x) => x.n);
-      return qd.length ? `<div class="field" style="margin-top:14px"><label>QR code for each day</label>
-      <div class="svqr">${qd.map(({ d, i, n }) => `<div class="svqrow"><span class="t"><b>Day ${i + 1}</b> · ${esc(fmtDate(d))} · ${n} session${n === 1 ? "" : "s"}</span><button type="button" class="mini" data-svqr="${d}">Picture</button><button type="button" class="mini ghost" data-svqrlink="${esc(`${S.link}?day=${d}`)}">Copy link</button></div>`).join("")}</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="mini gold" data-svqr="all" style="white-space:nowrap">All days (PDF)</button><span class="porg" style="font-size:12.5px">One page a day, to print or show on screen. Scanning opens that day's sessions only.</span></div></div>` : ""; })()}
+      return qd.length ? `<div class="field" style="margin-top:14px"><label>QR code for each day</label><p class="hint" style="margin:0 0 6px">Download gives that day's QR code as a picture, for a slide or the screen.</p>
+      <div class="svqr">${qd.map(({ d, i, n }) => `<div class="svqrow"><span class="t"><b>Day ${i + 1}</b> · ${esc(fmtDate(d))} · ${n} session${n === 1 ? "" : "s"}</span><button type="button" class="mini" data-svqr="${d}">Download</button><button type="button" class="mini ghost" data-svqrlink="${esc(`${S.link}?day=${d}`)}">Copy link</button></div>`).join("")}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="mini gold" data-svqr="all" style="white-space:nowrap">Download all days (PDF)</button><span class="porg" style="font-size:12.5px">One page a day, to print or show on screen. Scanning opens that day's sessions only.</span></div></div>` : ""; })()}
     <div class="field" style="margin-top:14px"><label for="sv-share">The survey's link, to share by hand</label>
       <div style="display:flex;gap:8px"><input id="sv-share" readonly value="${esc(S.link)}"><button class="mini" id="sv-copy">Copy</button></div>
       <p class="hint" style="margin:6px 0 0">Anyone with it can answer, and their answers are kept (unlike <b>Try the survey</b>). Good for a trial run with the board; clear the answers afterwards, below the results.</p></div>
