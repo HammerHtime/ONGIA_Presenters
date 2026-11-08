@@ -9786,7 +9786,8 @@ function lettersStrip(L) {
     const tail = x.why === "due now" ? "goes tonight" : /^not until/.test(x.why) ? `goes ${esc(when)}` : esc(x.why);
     return `<div class="lrow"><b>${label}</b><span>${esc(x.name)} · ${tail} · ${x.reaches} ${x.reaches === 1 ? "person" : "people"}${x.had ? `, ${x.had} already had it` : ""}</span></div>`;
   };
-  return `<div class="lstrip">${row("welcome", "Welcome letter")}${row("survey", "Survey")}</div>`;
+  const rows = [["welcome", "Welcome letter"], ["survey", "Survey"]].filter(([k]) => !L[k]?.replaced).map(([k, l]) => row(k, l)).join("");
+  return rows ? `<div class="lstrip">${rows}</div>` : "";
 }
 
 const wixDialog = () => `<dialog class="sheet" id="wixdlg">
