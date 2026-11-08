@@ -1608,6 +1608,8 @@
   .pview[hidden]{display:none}
   .pbody{padding-top:14px}
   .pdates{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px} .pdates b{color:var(--ink)}
+  .svqr{border:1px solid var(--line);border-radius:10px;padding:0 10px}.svqrow{display:flex;align-items:center;gap:6px;min-height:38px;border-top:1px solid var(--line)}.svqrow:first-child{border-top:0}
+  .svqrow .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
   .ptools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px} .ptools .filters{margin:0}
   .pfind{flex:1 1 200px;max-width:320px;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;background:#fff}
   .pbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:9px 14px;margin:0 0 10px;font-size:14px}
@@ -5506,6 +5508,7 @@ const GUEST_WORDS = {
 };
 const SHOW_GUESTS = 25;
 let GCUT_ON = "coming";   // the "Who's coming" table's cut, kept through redraws
+let GGRP_ON = "all";      // and which group (Andrew 8 Nov 2026: "split the list of attendees for community partners and justice")
 let GFIND = "";
 
 /**
@@ -7457,6 +7460,10 @@ function renderSurveyCard(ev, S) {
       <span class="porg" style="font-size:13px">Nothing you enter there is kept.</span></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
       <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${/national gang summit/i.test(ev.title) ? "justice partners" : "everyone else"}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
+    ${(() => { const qd = S.days.map((d, i) => ({ d, i, n: s.sessions.filter((x) => x.day === d).length })).filter((x) => x.n);
+      return qd.length ? `<div class="field" style="margin-top:14px"><label>QR code for each day</label>
+      <div class="svqr">${qd.map(({ d, i, n }) => `<div class="svqrow"><span class="t"><b>Day ${i + 1}</b> · ${esc(fmtDate(d))} · ${n} session${n === 1 ? "" : "s"}</span><button type="button" class="mini" data-svqr="${d}">Picture</button><button type="button" class="mini ghost" data-svqrlink="${esc(`${S.link}?day=${d}`)}">Copy link</button></div>`).join("")}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="mini gold" data-svqr="all" style="white-space:nowrap">All days (PDF)</button><span class="porg" style="font-size:12.5px">One page a day, to print or show on screen. Scanning opens that day's sessions only.</span></div></div>` : ""; })()}
     <div class="field" style="margin-top:14px"><label for="sv-share">The survey's link, to share by hand</label>
       <div style="display:flex;gap:8px"><input id="sv-share" readonly value="${esc(S.link)}"><button class="mini" id="sv-copy">Copy</button></div>
       <p class="hint" style="margin:6px 0 0">Anyone with it can answer, and their answers are kept (unlike <b>Try the survey</b>). Good for a trial run with the board; clear the answers afterwards, below the results.</p></div>
@@ -7471,6 +7478,16 @@ function renderSurveyCard(ev, S) {
   box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
   $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: `n${Date.now().toString(36)}`, day: "", title: "", titleFr: "", presenters: [] }] } });   // its own id, so saving as you go keeps it the same session
   $("sv-refresh").onclick = async (e) => { const done = busy(e.target, "…"); try { await save(); renderSurveyCard(ev, await api(`${q}&refresh=1`, { method: "POST", body: "{}" })); toast("Presenters brought in."); } catch (x) { toast(x.message); done(); } };
+  document.querySelectorAll("[data-svqr]").forEach((b) => b.onclick = async () => {
+    const done = busy(b, "…");
+    try {
+      const res = await apiFetch(`/api${q}&qr=${b.dataset.svqr}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The QR code did not download.");
+      saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "survey-qr");
+    } catch (x) { toast(x.message); }
+    done();
+  });
+  document.querySelectorAll("[data-svqrlink]").forEach((b) => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.svqrlink); toast("Link copied."); } catch { prompt("Copy this link:", b.dataset.svqrlink); } });
   $("sv-copy").onclick = async () => { const i = $("sv-share"); try { await navigator.clipboard.writeText(i.value); toast("Link copied."); } catch { i.select(); toast("Selected: press Ctrl+C (or Cmd+C) to copy."); } };
   $("sv-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderSurveyCard(ev, await save()); toast("Survey saved."); } catch (x) { toast(x.message); done(); } };
   autosave(box, $("sv-save"), save, { skip: "#sv-to, #sv-share, #sv-part, #sv-as" });
@@ -9689,11 +9706,16 @@ function attendeesCard(ev, guests) {
   // A table like the presenters' (Andrew 20 Oct 2026): everyone, with a find box and the coming / waitlist / withdrew cuts.
   const GCUT = { ATTENDING: "coming", IN_WAITLIST: "waitlist", NOT_ATTENDING: "notcoming", WITHDRAWN: "withdrew" };
   const mayEdit = ev.canEdit !== false;
+  // Each registration's group: the event's own Wix event, the second (community partners), or a further one (virtual).
+  const grpOf = (p) => (!p.group ? "main" : wixMore.findIndex((l) => l.eventId === p.wixEventId) > 0 ? `x${wixMore.findIndex((l) => l.eventId === p.wixEventId)}` : "g");
+  const ggrps = wixMore.length ? [["all", "All"], ["main", /national gang summit/i.test(ev.title ?? "") ? "Justice partners" : "Everyone else"], ...wixMore.map((l, i) => [i ? `x${i}` : "g", l.group || "Second group"])]
+    .map(([k, l]) => [k, l, people.filter((p) => p.status === "ATTENDING" && (k === "all" || grpOf(p) === k)).length]).filter(([k, , n]) => k === "all" || n) : [];
+  if (!ggrps.some(([k]) => k === GGRP_ON)) GGRP_ON = "all";
   const rows = people.map((p) => {
     const [cls, word] = GUEST_WORDS[p.status] ?? ["idle", String(p.status ?? "").toLowerCase()];
     const named = [p.first, p.last].filter(Boolean).join(" ");
     const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
-    return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""} ${p.agency ?? ""}`.toLowerCase())}">
+    return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-ggrp="${grpOf(p)}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""} ${p.agency ?? ""}`.toLowerCase())}">
       <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span>${mayEdit ? `<br><button type="button" class="gfx" data-gfixone="${esc(p.key || (p.source === "wix" && p.wixGuestId ? `wix:${p.wixGuestId}` : p.email))}" data-gf="${esc(p.first ?? "")}" data-gl="${esc(p.last ?? "")}" data-go="${esc(p.organization ?? "")}">Correct</button>` : ""}</td>
       <td class="go"${p.agency && p.organization && p.agency !== p.organization ? ` title="Typed as: ${esc(p.organization)}"` : ""}>${esc(p.agency || p.organization || "")}${p.fixed ? ` <span class="pill" title="Corrected on the desk, and kept through every pull. Wix has: ${esc([[p.asWix?.first, p.asWix?.last].filter(Boolean).join(" ") || "no name", p.asWix?.organization || "no organization"].join(" · "))}">corrected</span>` : ""}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
@@ -9739,6 +9761,7 @@ function attendeesCard(ev, guests) {
       <div id="g-said">${GUEST_NOTE
         ? `<div class="${GUEST_NOTE.bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(GUEST_NOTE.msg)}</div>` : ""}</div>
       ${people.length ? `<div class="ptools">${people.length > 8 ? `<input type="search" id="gfind" class="pfind" placeholder="Find someone registered…" aria-label="Find someone registered" autocomplete="off">` : ""}
+          ${ggrps.length > 2 ? `<div class="filters" aria-label="Which group">${ggrps.map(([k, l, n]) => `<button class="fchip${k === GGRP_ON ? " on" : ""}" data-ggrpbtn="${k}">${esc(l)} <b>${n}</b></button>`).join("")}</div>` : ""}
           <div class="filters">${gcuts.map(([k, l, n]) => `<button class="fchip${k === GCUT_ON ? " on" : ""}" data-gcutbtn="${k}">${l} <b>${n ?? 0}</b></button>`).join("")}</div></div>
         <div class="ptwrap"><table class="ptable gtable"><thead><tr><th>Name</th><th>Organization</th><th>Status</th><th>From</th></tr></thead><tbody>${rows}</tbody></table></div>
         <div class="gempty porg" hidden>Nobody in this view.</div>`
@@ -9781,12 +9804,17 @@ function wireAttendees(ev) {
     const words = GFIND.toLowerCase().split(/\s+/).filter(Boolean);
     let shown = 0;
     ROOT.querySelectorAll("tr.grow").forEach((tr) => {
-      const on = (GCUT_ON === "all" || tr.dataset.gcut === GCUT_ON) && words.every((w) => tr.dataset.find.includes(w));
+      const on = (GCUT_ON === "all" || tr.dataset.gcut === GCUT_ON) && (GGRP_ON === "all" || tr.dataset.ggrp === GGRP_ON) && words.every((w) => tr.dataset.find.includes(w));
       tr.hidden = !on; if (on) shown++;
     });
     const empty = ROOT.querySelector(".gempty"); if (empty) empty.hidden = shown > 0;
     ROOT.querySelectorAll("[data-gcutbtn]").forEach((b) => b.classList.toggle("on", b.dataset.gcutbtn === GCUT_ON));
+    ROOT.querySelectorAll("[data-ggrpbtn]").forEach((b) => b.classList.toggle("on", b.dataset.ggrpbtn === GGRP_ON));
+    // With a group picked, the status chips count that group only.
+    const inGrp = [...ROOT.querySelectorAll("tr.grow")].filter((tr) => GGRP_ON === "all" || tr.dataset.ggrp === GGRP_ON);
+    ROOT.querySelectorAll("[data-gcutbtn]").forEach((b) => { const n = b.querySelector("b"); if (n) n.textContent = inGrp.filter((tr) => b.dataset.gcutbtn === "all" || tr.dataset.gcut === b.dataset.gcutbtn).length; });
   };
+  ROOT.querySelectorAll("[data-ggrpbtn]").forEach((b) => { b.onclick = () => { GGRP_ON = b.dataset.ggrpbtn; applyG(); }; });
   ROOT.querySelectorAll("[data-gcutbtn]").forEach((b) => { b.onclick = () => { GCUT_ON = b.dataset.gcutbtn; applyG(); }; });
   const gfind = document.getElementById("gfind");
   if (gfind) { gfind.value = GFIND; gfind.oninput = () => { GFIND = gfind.value; applyG(); }; } else GFIND = "";

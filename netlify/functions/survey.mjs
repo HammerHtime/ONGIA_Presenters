@@ -12,10 +12,11 @@ import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./l
 import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
 import { analyseSurvey } from "./lib/surveyanalysis.mjs";
-import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx } from "./lib/surveyreport.mjs";
+import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx, surveyQrPdf } from "./lib/surveyreport.mjs";
 import { infographicHtml, BLOCKS } from "./lib/infographic.mjs";
 import { slugOf } from "./lib/public.mjs";
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 
 /**
  * An event's survey (Andrew 27 Oct 2026; notes/surveys-plan.md).
@@ -23,6 +24,7 @@ import PDFDocument from "pdfkit";
  * The attendee's side, by the survey's token (their own link adds who they are, only so nobody is asked twice):
  *   GET  /api/survey?t=…[&p=…][&part=…]     the questions for their part (a day, or "end")
  *   POST /api/survey?t=…[&p=…]              their answers, kept with no name on them (&preview=1: checked, not kept)
+ *   GET|POST /api/survey?t=…&day=2026-11-10  a day's QR code: that day's sessions only, nobody's link, no About-you
  *
  * The event page (signed in):
  *   GET  /api/survey?event=…                settings, sessions, when each part goes, how many have answered
@@ -51,6 +53,7 @@ export default async (req) => {
   if (req.method === "GET") {
     if (url.searchParams.get("results")) return results(event);
     if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"));
+    if (url.searchParams.get("qr")) return qrCodes(event, url.searchParams.get("qr"));
     if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"));
     return show(event);
   }
@@ -187,10 +190,36 @@ function whichPart(event, person, asked, done) {
   return open[open.length - 1] ?? days.find((d) => !(done.parts ?? []).includes(d)) ?? days[days.length - 1];
 }
 
+/** A day's QR link: that day's sessions and nothing else. Null when the day isn't one of the event's with sessions. */
+function qrPart(event, day) {
+  if (!trainingDays(event).includes(day)) return null;
+  const sessions = (event.survey?.sessions ?? []).filter((s) => s.day === day);
+  return sessions.length ? { part: day, partner: false, about: false, days: [{ day, sessions }], overall: false } : null;
+}
+const qrLink = (event, day) => `${siteUrl()}/f/${event.survey.token}?day=${day}`;
+const qrPng = (link, width = 900) => QRCode.toBuffer(link, { margin: 2, width, errorCorrectionLevel: "M", color: { dark: "#14264d", light: "#ffffff" } });
+
+/** The QR codes: one day's as a picture, or every day's on its own page of a PDF to print or put on screen. */
+async function qrCodes(event, which) {
+  if (!event.survey) return fail("Set up the survey first.", 409);
+  const days = trainingDays(event).map((day, i) => ({ day, n: i + 1 })).filter((d) => qrPart(event, d.day));
+  const base = `${slugOf(event.title) || "event"}-survey`;
+  if (which === "all") {
+    if (!days.length) return fail("No day has sessions yet. Pick the day for each session first.", 409);
+    for (const d of days) { d.url = qrLink(event, d.day); d.png = await qrPng(d.url); }
+    return new Response(await surveyQrPdf(event, days), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${base}-qr-codes.pdf"`, "cache-control": "no-store" } });
+  }
+  const d = days.find((x) => x.day === which);
+  if (!d) return fail("That day has no sessions to rate.", 404);
+  return new Response(await qrPng(qrLink(event, d.day), 1200), { headers: { "content-type": "image/png", "content-disposition": `attachment; filename="${base}-day-${d.n}-qr.png"`, "cache-control": "no-store" } });
+}
+
 async function attendeeSide(req, url, tok, pid) {
   const event = await eventByToken(tok);
   if (!event) return fail("This link is not working. Reply to the email it came in and we will sort it out.", 404);
   const s = event.survey;
+  const qrDay = url.searchParams.get("day");
+  if (qrDay) return qrSide(req, url, event, qrDay);
   const person = await personFor(event, pid);
   const done = (person ? await getSurveyDone(event.id, pid) : null) ?? {};
   if (req.method === "GET") {
@@ -215,6 +244,22 @@ async function attendeeSide(req, url, tok, pid) {
   await putSurveyResponse(event.id, { id: newToken(16), at, ...rec, ...(person?.group ? { group: person.group } : {}), ...(asked.partner ? { partner: true } : {}) });
   if (contact) await putSurveyContact(event.id, { id: newToken(12), at, ...contact });
   if (person) await putSurveyDone(event.id, pid, { about: !!(done.about || asked.about), parts: [...new Set([...(done.parts ?? []), part])] });
+  return json({ ok: true });
+}
+
+/** Someone who scanned a day's QR code: that day's sessions only. Anonymous, and not tied to anyone's emailed link. */
+async function qrSide(req, url, event, day) {
+  const asked = qrPart(event, day);
+  if (!asked) return fail("This code is for a day with nothing to rate. Ask at the registration desk.", 404);
+  if (req.method === "GET") return json({ ...surveyForPage(event, asked), open: event.survey.open, answered: false, daily: true, qr: true });
+  if (req.method !== "POST") return fail("Method not allowed.", 405);
+  if (!event.survey.open) return fail("closed", 409);
+  const body = await req.json().catch(() => null);
+  if (!body) return fail("Expected a JSON body.");
+  const { rec, missing } = cleanResponse(body, asked, body.lang);
+  if (missing.length) return json({ error: "missing", missing }, 400);
+  if (url.searchParams.get("preview")) return json({ ok: true, preview: true });
+  await putSurveyResponse(event.id, { id: newToken(16), at: new Date().toISOString(), ...rec, via: "qr" });
   return json({ ok: true });
 }
 

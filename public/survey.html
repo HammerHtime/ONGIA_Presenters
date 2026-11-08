@@ -117,6 +117,8 @@ const LANGBTN = document.getElementById("lang");
 const seg = location.pathname.startsWith("/f/") ? location.pathname.slice(3).split("/") : [];
 const QS = new URLSearchParams(location.search);
 const TOKEN = seg[0] || QS.get("t"), PERSON = seg[1] || QS.get("p") || "", PREVIEW = QS.get("preview") === "1";
+// A day's QR code (Andrew 8 Nov 2026): that day's sessions only, for whoever scans it.
+const DAY = /^\d{4}-\d{2}-\d{2}$/.test(QS.get("day") ?? "") ? QS.get("day") : "";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const ASKED = QS.get("lang");
 let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
@@ -222,7 +224,7 @@ function render() {
   const dayLabel = (iso) => `${D.dayNumber?.[iso] ? `${t("dayN", D.dayNumber[iso])} · ` : ""}${t("dayName", iso)}`;
   const daysHtml = D.days.map((d) => {
     const off = A.skipDays.includes(d.day);
-    return `<div class="dayhead"><span>${esc(dayLabel(d.day))}</span><button type="button" class="skip" data-skipday="${d.day}" aria-pressed="${off}">${t("dayskip")}</button></div>
+    return `<div class="dayhead"><span>${esc(dayLabel(d.day))}</span>${D.qr ? "" : `<button type="button" class="skip" data-skipday="${d.day}" aria-pressed="${off}">${t("dayskip")}</button>`}</div>
       ${off ? `<div class="card skipped">${t("skipped")}</div>` : d.sessions.map((s) => {
         const sk = !!(A.sessions[s.id] ?? {}).skipped;
         return `<div class="card"><p class="talk">${esc(s[LANG] || s.en || s.presenters.join(", "))}</p><p class="who">${esc(s.presenters.join(" · "))}</p>
@@ -274,7 +276,7 @@ async function send() {
   const btn = document.getElementById("send");
   btn.disabled = true; btn.textContent = t("sending");
   try {
-    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN)}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${PREVIEW ? "&preview=1" : ""}`, { method: "POST", headers: { "content-type": "application/json" },
+    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN)}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${DAY ? `&day=${encodeURIComponent(DAY)}` : ""}${PREVIEW ? "&preview=1" : ""}`, { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ part: D.part, lang: LANG, about: A.about, sessions: A.sessions, skipDays: A.skipDays, overall: A.overall, contact: A.contact }) });
     const out = await res.json().catch(() => ({}));
     if (res.status === 400 && out.missing) {
@@ -295,7 +297,7 @@ async function send() {
 LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage.setItem("ongia-lang", LANG); } catch {} render(); };
 (async () => {
   try {
-    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN ?? "")}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${QS.get("part") ? `&part=${encodeURIComponent(QS.get("part"))}` : ""}`);
+    const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN ?? "")}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${QS.get("part") ? `&part=${encodeURIComponent(QS.get("part"))}` : ""}${DAY ? `&day=${encodeURIComponent(DAY)}` : ""}`);
     if (!res.ok) { STATE = "broken"; return render(); }
     D = await res.json();
     STATE = !D.open ? "closed" : D.answered && !PREVIEW ? "already" : "form";

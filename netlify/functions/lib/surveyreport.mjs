@@ -174,8 +174,8 @@ export function surveyResponsesXlsx(event, responses) {
   ];
   const label = (q, v) => (v === undefined || v === null ? "" : q.kind === "stars" ? starOf(v) : q.kind === "choice" ? q.options.en[v] ?? "" : q.kind === "province" ? PROVINCES[v] ?? v : v);
   const rows = responses.map((r) => [
-    r.at ? r.at.slice(0, 16).replace("T", " ") : "", r.part === "end" ? "After the event" : r.part, r.lang === "fr" ? "French" : "English",
-    ...(group ? [r.partner ? group : main] : []),
+    r.at ? r.at.slice(0, 16).replace("T", " ") : "", r.part === "end" ? "After the event" : r.via === "qr" ? `${r.part} (QR code)` : r.part, r.lang === "fr" ? "French" : "English",
+    ...(group ? [r.via === "qr" ? "QR code" : r.partner ? group : main] : []),
     ...ABOUT.map((q) => label(q, r.about?.[q.id])),
     ...sessions.flatMap((s) => { const g = r.sessions?.[s.id]; if (!g) return [...stars.map(() => ""), "", ""]; if (g.skipped) return [...stars.map(() => "Not there"), "", ""];
       return [...stars.map((q) => starOf(g[q.id])), label(SESSION.find((q) => q.id === "rebook"), g.rebook), g.comment ?? ""]; }),
@@ -189,4 +189,35 @@ export function surveyContactsXlsx(event, contacts) {
   return xlsx({ title: `${event.title}: interested in presenting`, subtitle: `${contacts.length} ${contacts.length === 1 ? "person" : "people"} · from the survey, kept apart from the answers`,
     columns: [{ head: "Name", width: 26 }, { head: "Email", width: 32 }, { head: "What they'd present on", width: 50 }, { head: "When", width: 17 }],
     rows: contacts.map((c) => [c.name, c.email, c.topic, (c.at ?? "").slice(0, 16).replace("T", " ")]), sheet: "Presenters" });
+}
+
+/**
+ * A QR code for each day of the survey, one page each, to put on screen or print (Andrew 8 Nov 2026: "a QR code for each
+ * day that will take attendees to questions for that one day only"). `days` is [{ day, n, url, png }].
+ */
+export async function surveyQrPdf(event, days) {
+  const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline.png")).catch(() => null);
+  const doc = new PDFDocument({ size: "LETTER", margin: 0, autoFirstPage: false, info: { Title: `${String(event.title).split(/\s*:\s*/)[0]} · survey QR codes`, Author: "ONGIA" } });
+  const chunks = [];
+  doc.on("data", (c) => chunks.push(c));
+  const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
+  const long = (iso, lang) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(lang === "fr" ? "fr-CA" : "en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+  for (const d of days) {
+    doc.addPage();
+    let y = 54;
+    if (logo) { doc.image(logo, (W - 200) / 2, y, { width: 200 }); y += 78; }
+    doc.font("Helvetica").fontSize(13).fillColor(MUTED).text(String(event.title).split(/\s*:\s*/)[0], M, y, { width: BODY, align: "center" }); y = doc.y + 18;
+    doc.font("Helvetica-Bold").fontSize(34).fillColor(NAVY).text(`Day ${d.n} · Jour ${d.n}`, M, y, { width: BODY, align: "center" }); y = doc.y + 4;
+    const en = long(d.day, "en"), fr = long(d.day, "fr");
+    doc.font("Helvetica").fontSize(16).fillColor(INK).text(`${en[0].toUpperCase()}${en.slice(1)}  ·  ${fr[0].toUpperCase()}${fr.slice(1)}`, M, y, { width: BODY, align: "center" }); y = doc.y + 22;
+    const size = 300;
+    doc.image(d.png, (W - size) / 2, y, { width: size }); y += size + 22;
+    doc.font("Helvetica-Bold").fontSize(20).fillColor(NAVY).text("Scan to rate today's sessions", M, y, { width: BODY, align: "center" }); y = doc.y + 4;
+    doc.font("Helvetica").fontSize(16).fillColor(NAVY).text("Balayez pour évaluer les séances d'aujourd'hui", M, y, { width: BODY, align: "center" }); y = doc.y + 10;
+    doc.font("Helvetica").fontSize(11).fillColor(MUTED).text("Two minutes. Anonymous.  ·  Deux minutes. Anonyme.", M, y, { width: BODY, align: "center" }); y = doc.y + 18;
+    doc.moveTo(W / 2 - 60, y).lineTo(W / 2 + 60, y).lineWidth(1.5).strokeColor(GOLD).stroke(); y += 12;
+    doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(d.url, M, y, { width: BODY, align: "center" });
+  }
+  doc.end();
+  return done;
 }
