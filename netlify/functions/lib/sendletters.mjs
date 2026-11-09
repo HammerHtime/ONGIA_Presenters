@@ -29,7 +29,9 @@ const ownWelcome = (event, kind) => kind === "welcome" && !!event.welcome?.main?
  * the next run inside that window rather than lost.
  */
 const WINDOW = {
-  welcome: (event) => event.dayOne,                                   // up to the morning it starts
+  // Through the last day (Andrew 9 Nov 2026: "keep it running"): someone who registers once it has started still gets
+  // their letter, with the agenda and, joining online, how to log in, within 15 minutes. Closes the day after it ends.
+  welcome: (event) => { const end = event.lastDay || event.dayOne; return end ? new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10) : end; },
   survey: (event, due) => new Date(Date.parse(due) + 14 * 86400000).toISOString().slice(0, 10),
 };
 

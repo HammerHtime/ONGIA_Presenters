@@ -124,7 +124,16 @@ ok("Wix down: the people already on the list who are owed it still get it", sent
 k = sent.length;
 st = await S.getAttendees("ngs"); st.people.push(person("h", "h@example.ca")); await S.putAttendees("ngs", st);
 out = await C.catchUpWelcome({ today: "2026-11-09", ...quiet });
-ok("the morning the event starts, it stops: nothing more goes", sent.length === k && (out.events ?? []).length === 0);
+// Andrew 9 Nov 2026: "keep it running": someone who registers once it has started still gets their letter.
+ok("once the event has started it keeps going: someone registered on day one gets it", sent.slice(k).map((m) => m.to).join() === "h@example.ca", JSON.stringify(out.events?.[0]));
+k = sent.length;
+st = await S.getAttendees("ngs"); st.people.push(person("i", "i@example.ca")); await S.putAttendees("ngs", st);
+out = await C.catchUpWelcome({ today: "2026-11-12", ...quiet });
+ok("…on the last day too", sent.slice(k).map((m) => m.to).join() === "i@example.ca");
+k = sent.length;
+st = await S.getAttendees("ngs"); st.people.push(person("j", "j@example.ca")); await S.putAttendees("ngs", st);
+out = await C.catchUpWelcome({ today: "2026-11-13", ...quiet });
+ok("the day after it ends, it stops: nothing more goes", sent.length === k && (out.events ?? []).length === 0);
 const ev = await S.getEvent("ngs"); ev.attendeeMail = false; await S.putEvent(ev);
 out = await C.catchUpWelcome({ today: "2026-11-06", ...quiet });
 ok("emails to attendees turned off: nothing goes", sent.length === k && (out.events ?? []).length === 0);
