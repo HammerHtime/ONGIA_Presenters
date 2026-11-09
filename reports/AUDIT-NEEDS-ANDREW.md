@@ -209,3 +209,26 @@ is sent twice: each address is marked the moment its letter goes.
 **The fix, for Andrew to decide.** Send the welcome letter through Resend as "ONGIA Events", like the reminders and the
 certificates (Andrew's 31 Oct rule for bulk mail to attendees). That removes Microsoft's limit, ends the "Conference
 Speakers" sender name on attendee mail, and shows each delivery and bounce in Resend's log.
+
+---
+
+## 6. Summit: three registrants were never sent the welcome letter automatically (9 Nov 2026)
+
+**What happened.** On 9 Nov the Summit had 9 registered addresses with no welcome
+letter. Four had registered that morning, after the letter's window then closed
+(it stopped the day an event starts). Two virtual (YRP, registered Nov 4 and 8)
+had the Zoom login reminder but not the virtual letter. Three in person should
+have been caught by the 15-minute catch-up and weren't: two Toronto Police
+registrations pulled from Wix on Nov 5 (they did get the food-allergy email), and
+one CFSEU-BC registration pulled the evening of Nov 8. None had a failed send
+recorded: the catch-up never tried them.
+
+**What was done.** All nine were sent their own version by hand on 9 Nov (all
+`sent: true`), and the welcome letter now keeps going through an event's last day
+(PR #188), so day-one registrants get it within 15 minutes.
+
+**Still open.** Why the catch-up skipped people registered before the event.
+Leads: a version-not-ready state blocking the whole round (the virtual letter
+was marked ready after Nov 4), or the catch-up lock held. Fix: read the
+welcome-tick and welcome-catchup-background logs for Nov 4–8, then add a check that
+names anyone owed the letter for more than an hour while it is due.
