@@ -102,6 +102,13 @@ const round2 = await sendSurveyRound(await getEvent("ngs"), "2026-11-10", { pace
 ok("Day 2's goes to both", round2.sent === 2);
 ok("the email is in both languages, each with its own button, opening the survey in that language", /\/f\/[A-Za-z0-9_-]+\/[0-9a-f]{16}\?lang=en/.test(sent.at(-1).text) && /\?lang=fr/.test(sent.at(-1).text) && /FRANÇAIS/.test(sent.at(-1).text) && /how was today\? \/ Votre avis/.test(sent.at(-1).subject));
 ok("and nobody gets the same day twice", (await sendSurveyRound(await getEvent("ngs"), "2026-11-10", { pace: async () => {} })).sent === 0);
+// Andrew 9 Nov 2026: "use the separate email for community partners".
+const before11 = sent.length;
+const r11 = await sendSurveyRound(await getEvent("ngs"), "2026-11-11", { pace: async () => {} });
+const camMail = sent.slice(before11).find((m) => m.to.includes("cam@")), jayMail = sent.slice(before11).find((m) => m.to.includes("jay@"));
+ok("on their day the community partner gets their own email, in both languages", r11.sent === 2 && /as one of our community partners/.test(camMail?.text) && /à titre de partenaire communautaire/.test(camMail?.text), camMail?.text?.slice(0, 300));
+ok("and the justice partner gets the usual one", jayMail && !/community partners/.test(jayMail.text) && /Thank you for being with us today/.test(jayMail.text));
+ok("both with the short subject", /^National Gang Summit: how was today\? \/ Votre avis sur la journée$/.test(camMail?.subject) && camMail?.subject === jayMail?.subject, camMail?.subject);
 
 // A QR code for each day (Andrew 8 Nov 2026): that day's sessions only, for whoever scans it.
 const qr2 = (await pub(`t=${tok}&day=2026-11-10`)).body;

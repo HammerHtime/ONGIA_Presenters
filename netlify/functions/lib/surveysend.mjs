@@ -5,7 +5,7 @@ import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { trainingDays } from "./agenda.mjs";
 import { guessProvince } from "./sow.mjs";
-import { daysFor, surveyProblems } from "./survey.mjs";
+import { daysFor, surveyProblems, isPartner } from "./survey.mjs";
 
 /**
  * Sending an event's survey (Andrew 27 Oct 2026):
@@ -57,24 +57,28 @@ export function partsDue(event, now = new Date()) {
 
 /** The email, in both languages, with each person's own buttons. Words Andrew can change are kept on the event. */
 const shortTitle = (event) => String(event?.title ?? "").split(/\s*:\s*/)[0].trim() || "{event}";
-export function surveyLetter(event, part) {
+export function surveyLetter(event, part, { partner = false } = {}) {
   const s = event.survey ?? {};
   const daily = part !== "end";
-  const own = daily ? s.dailyWords : s.endWords;
+  // The community partners' own email on their days (Andrew 9 Nov 2026: "use the separate email for community partners").
+  const mine = partner && daily;
+  const own = mine ? s.partnerWords : daily ? s.dailyWords : s.endWords;
   return {
-    name: "Survey", kind: "survey",
+    name: mine ? "Survey (community partners)" : "Survey", kind: "survey",
     // The event's name before its subtitle (Andrew 9 Nov 2026: "change the title line"): "National Gang Summit: how was
     // today?", not the whole "…: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future: how was today?".
     subject: own?.subject || `${shortTitle(event)}: ${daily ? "how was today? / Votre avis sur la journée" : "tell us how it went / Votre avis"}`,
     body: own?.body || [
       "Hello {first},",
-      daily ? "Thank you for being with us today. Please take two minutes to tell us how today's sessions went, while they're fresh. Your answers are anonymous."
+      mine ? "Thank you for joining us today as one of our community partners. Your view from the community matters to us. Please take two minutes to tell us how today's sessions went, while they're fresh. Your answers are anonymous."
+        : daily ? "Thank you for being with us today. Please take two minutes to tell us how today's sessions went, while they're fresh. Your answers are anonymous."
         : "Thank you for being part of {event}. Please take a few minutes to tell us how it went. Your answers are anonymous and help us plan the next one.",
       "{surveyButton}",
       ...(daily ? ["Already scanned today's QR code? Then you're done. Thank you."] : []),
       "FRANÇAIS",
       "Bonjour {first},",
-      daily ? "Merci d'avoir été des nôtres aujourd'hui. Prenez deux minutes pour nous dire ce que vous avez pensé des séances de la journée, pendant qu'elles sont fraîches à votre mémoire. Vos réponses sont anonymes."
+      mine ? "Merci d'avoir été des nôtres aujourd'hui à titre de partenaire communautaire. Le regard de la communauté compte pour nous. Prenez deux minutes pour nous dire ce que vous avez pensé des séances de la journée, pendant qu'elles sont fraîches à votre mémoire. Vos réponses sont anonymes."
+        : daily ? "Merci d'avoir été des nôtres aujourd'hui. Prenez deux minutes pour nous dire ce que vous avez pensé des séances de la journée, pendant qu'elles sont fraîches à votre mémoire. Vos réponses sont anonymes."
         : "Merci d'avoir participé à {event}. Prenez quelques minutes pour nous dire comment ça s'est passé. Vos réponses sont anonymes et nous aident à préparer le prochain événement.",
       "{surveyButtonFr}",
       ...(daily ? ["Vous avez déjà balayé le code QR d'aujourd'hui? Alors c'est fait. Merci!"] : []),
@@ -89,7 +93,8 @@ const sentKey = (part) => `survey:${part}`;
 export async function sendSurveyRound(event, part, { deadline = null, pace = pacer() } = {}) {
   const problems = surveyProblems(event);
   const letter = surveyLetter(event, part);
-  const wrong = [...problems, ...letterProblems(letter), ...eventProblems(letter, event)];
+  const partnerLetter = surveyLetter(event, part, { partner: true });
+  const wrong = [...new Set([...problems, ...[letter, partnerLetter].flatMap((l) => [...letterProblems(l), ...eventProblems(l, event)])])];
   if (wrong.length) return { event: event.id, title: event.title, kind: "survey", part, blocked: wrong };
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const owed = owedFor(event, part, stored.people ?? []);
@@ -99,7 +104,7 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, person) });
+      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(isPartner(event, person) ? partnerLetter : letter, event, person) });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
         same.sent = [...new Set([...(same.sent ?? []), sentKey(part)])];
