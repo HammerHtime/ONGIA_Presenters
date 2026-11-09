@@ -17,6 +17,7 @@ import {
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor } from "./lib/expenseview.mjs";
+import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
 import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
 
 /**
@@ -191,7 +192,7 @@ export default async (req) => {
     if (kind === "receipt") {
       const got = await bytesOf(req, TYPES, "a photo of the receipt (JPEG or PNG) or a PDF");
       if (got.problem) return got.problem;
-      line.file = { name: fileName(req.headers.get("x-file-name"), `receipt.${TYPES[got.type]}`), type: got.type, size: got.bytes.byteLength };
+      line.file = { name: fileName(req.headers.get("x-file-name"), `receipt.${TYPES[got.type]}`), type: got.type, size: got.bytes.byteLength, hash: hashOf(got.bytes) };
       Object.assign(line, cleanLine(kind, {}, {}));
       await putClaimFile("file", claim.id, line.id, got.bytes, { name: line.file.name, type: got.type });
       await putClaimLine(claim.id, line);
@@ -296,6 +297,8 @@ export default async (req) => {
       history: [...(claim.history ?? []), { at: now(), what: again ? "sent again" : "sent", by: me.name }],
     });
     await putClaim(claim);
+    // Into the index of sent receipts, so the next claim is checked against this one.
+    await indexClaim(claim, view.lines).catch((e) => console.error("expense dupes index", e));
     await markWaiting(claim.id, true);
     await askApprovers(claim, ctx);
     await startFiling(url.origin, claim.id);
@@ -428,7 +431,7 @@ export default async (req) => {
     if (got.problem) return got.problem;
     const name = fileName(req.headers.get("x-file-name"), `statement.${SHOT_TYPES[got.type]}`);
     await putClaimFile("shot", claim.id, line.id, got.bytes, { name, type: got.type });
-    line.shot = { name, type: got.type, size: got.bytes.byteLength, at: now() };
+    line.shot = { name, type: got.type, size: got.bytes.byteLength, at: now(), hash: hashOf(got.bytes) };
     await putClaimLine(claim.id, line);
     await touch(claim);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -648,6 +651,11 @@ export async function claimView(claim, { me, aways, today, names }) {
   const sums = claimSums(shown);
   const mine = claim.owner?.email === me.email;
   const sent = claim.status !== "draft";
+  // The same receipt already claimed, by anyone (Andrew 9 Nov 2026): marked on the line, for the person and the approvers.
+  if (shown.length && (sent || (mine && EDITABLE.includes(claim.status)))) {
+    const dupes = await dupesFor(claim, shown).catch(() => ({}));
+    for (const l of shown) { const d = dupes[l.id]; if (d) l.dupe = { level: d.level, why: d.why, where: whereWords(d.on, me.email) }; }
+  }
   const slots = slotsOf(claim, aways, today).map((s) => {
     const signed = claim[`signed_${s.role}`];
     return { role: s.role, title: ROLE_TITLE[s.role], email: s.email, name: names(s.email), for: s.for ? ROLE_TITLE[s.role] : "", done: !!s.done, at: signed?.at ?? null, stuck: !!s.stuck, me: s.email === me.email, practice: !!s.practice };

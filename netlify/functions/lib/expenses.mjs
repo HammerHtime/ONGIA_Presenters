@@ -223,7 +223,7 @@ export function viewLine(line, read) {
   const f = read?.state === "done" ? read.found : null;
   if (line.kind === "receipt" && f?.isReceipt !== false && f) {
     const fill = (k, val) => { if ((v[k] === "" || v[k] === null || v[k] === undefined) && val !== "" && val !== null && val !== undefined) { v[k] = val; v.fromRead.push(k); } };
-    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what);
+    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what); fill("ref", f.ref);
   }
   v.check = receiptCheck(v, read);
   v.problems = lineProblems(v);
@@ -311,7 +311,7 @@ const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["isReceipt", "vendor", "date", "total", "tax", "currency", "category", "what", "confidence", "notes"],
+  required: ["isReceipt", "vendor", "date", "total", "tax", "currency", "category", "what", "ref", "confidence", "notes"],
   properties: {
     isReceipt: { type: "boolean" },
     vendor: nullable({ type: "string" }),
@@ -321,6 +321,7 @@ const SCHEMA = {
     currency: nullable({ type: "string" }),
     category: nullable({ type: "integer", enum: CATEGORIES.map(([k]) => k) }),
     what: nullable({ type: "string" }),
+    ref: nullable({ type: "string" }),
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     notes: nullable({ type: "string" }),
   },
@@ -345,6 +346,7 @@ Report only what is printed on it. If something is not there, say null rather th
   9 Interest & Bank Charges
   10 Speaker Stipend (payment to a presenter)
 - what: what was bought, in four words or fewer, plain and lower-key ("Hotel, 3 nights", "Airport parking", "Taxi").
+- ref: the receipt, invoice, transaction, booking or confirmation number printed on it (an airline's booking reference, a hotel's folio number), exactly as printed, or null. Not a phone number, a card number or a date.
 - confidence: "high" when the figures are sharp and clear; "low" when the picture is blurry, cut off, faded or handwritten.
 - notes: one short sentence if anything is odd (a tip written in by hand, a refund, two receipts in one photo, a foreign currency, a date that is hard to read). Otherwise null.
 If this is not a receipt or an invoice at all, set isReceipt to false and leave the rest null.`;
@@ -369,6 +371,7 @@ export function tidyRead(raw) {
     currency: /^[A-Za-z]{3}$/.test(String(raw?.currency ?? "")) ? String(raw.currency).toUpperCase() : "",
     category: CATEGORIES.some(([k]) => k === Number(raw?.category)) ? Number(raw.category) : null,
     what: str(raw?.what, 60),
+    ref: str(raw?.ref, 40),
     confidence: ["high", "medium", "low"].includes(raw?.confidence) ? raw.confidence : "low",
     notes: str(raw?.notes, 240),
   };
@@ -530,7 +533,12 @@ export function submitProblems(lines, today = todayIso()) {
   if (lines.some((l) => l.check?.state === "reading")) p.push("Claude is still reading a receipt. Give it a moment.");
   for (const l of lines) if (l.problems?.length) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")}${l.date ? ` (${shortDate(l.date)})` : ""} still needs ${andList(l.problems)}.`);
   const seen = [];
-  for (const l of lines) { if (seen.some((s) => sameLine(s, l))) p.push(`${l.paidTo}, ${shortDate(l.date)}, ${dollars(l.amount)} is on this claim twice.`); seen.push(l); }
+  for (const l of lines) {
+    // The same photo or receipt number already claimed (lib/expensedupes.mjs) can't go again.
+    if (l.dupe?.level === "same") p.push(`${l.paidTo || "A receipt"}${l.date ? ` (${shortDate(l.date)})` : ""} is already on ${l.dupe.where}: ${l.dupe.why}. Remove it from this claim.`);
+    else if (seen.some((s) => sameLine(s, l))) p.push(`${l.paidTo}, ${shortDate(l.date)}, ${dollars(l.amount)} is on this claim twice.`);
+    seen.push(l);
+  }
   return p;
 }
 
@@ -553,7 +561,8 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
   // a reason to refuse the claim (Andrew, 3 Nov 2026: "don't reject it ... flag it as unverified amount"). Without this the
   // check said "everything checks out" though no one had compared the amount.
   for (const l of lines) if (l.kind === "noreceipt" && !isStipend(l)) notes.push(`${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`);
-  for (const l of lines) if (earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
+  for (const l of lines) if (l.dupe) notes.push(`${l.paidTo || "A line"}${l.date ? `, ${shortDate(l.date)}` : ""}, ${dollars(l.amount)}: ${l.dupe.level === "same" ? "already claimed" : "may already be claimed"} on ${l.dupe.where} (${l.dupe.why}).`);
+  for (const l of lines) if (!l.dupe && earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
   const [mName, mYear] = String(month).split(" ");
   const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
   if (mIdx >= 0) {

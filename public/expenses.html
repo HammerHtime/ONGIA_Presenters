@@ -713,6 +713,8 @@ function checkRow(l) {
     default: return "";
   }
 }
+// The same receipt already claimed (Andrew 9 Nov 2026): red when it's certain, amber when it looks like it.
+const dupeRow = (l) => (l.dupe ? `<div class="check ${l.dupe.level === "same" ? "bad" : "wt"}">${l.dupe.level === "same" ? "Already claimed" : "May already be claimed"} on ${esc(l.dupe.where)}</div>` : "");
 function lineRow(l, claimId) {
   const pic = l.kind === "receipt"
     ? (l.file?.type === "application/pdf" ? `<div class="thumb">${ICON.pdf}</div>` : `<div class="thumb" data-thumb="${claimId}:${l.id}">${ICON.receipt}</div>`)
@@ -721,7 +723,7 @@ function lineRow(l, claimId) {
   const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
   const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.length < 2 ? l.problems.join("") : `${l.problems.slice(0, -1).join(", ")} and ${l.problems.at(-1)}`)}</div>` : "";
   return `<button type="button" class="line" data-line="${esc(l.id)}">${pic}
-    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${checkRow(l)}${needs}</div>
+    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${checkRow(l)}${dupeRow(l)}${needs}</div>
     <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
 }
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
@@ -1426,6 +1428,7 @@ async function lineSheet(c, l) {
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
     ${sowMover(c, l)}
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
+    ${l.dupe ? `<div class="card">${dupeRow(l)}<div class="note">${esc(l.dupe.why[0].toUpperCase() + l.dupe.why.slice(1))}. ${!c?.canEdit ? (l.dupe.level === "same" ? "If it's a resubmit, send the claim back." : "Compare the two. If it's a resubmit, send the claim back.") : l.dupe.level === "same" ? "It can't be claimed again. Remove it from this claim." : "If it's a different purchase, leave it: the people approving will see this and decide."}</div></div>` : ""}
     ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Speaker stipend: no receipt needed</div></div>` : ""}
     ${l.kind === "noreceipt" && !stipendLine(l) ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
       <div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
