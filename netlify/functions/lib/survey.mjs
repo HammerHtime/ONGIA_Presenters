@@ -117,6 +117,9 @@ export function cleanSurvey(given, had, event) {
       id: /^[A-Za-z0-9_-]{1,40}$/.test(s?.id ?? "") ? s.id : `s${i + 1}${Date.now().toString(36)}`,
       day: days.has(s?.day) ? s.day : "",
       title: text(s?.title, 200), titleFr: text(s?.titleFr, 200),
+      // The plain line under the title on the infographic (Andrew 9 Nov 2026); kept when the page doesn't send it.
+      about: s?.about !== undefined ? text(s.about, 120) : had?.sessions?.find((x) => x.id === s?.id)?.about ?? "",
+      aboutFr: s?.aboutFr !== undefined ? text(s.aboutFr, 140) : had?.sessions?.find((x) => x.id === s?.id)?.aboutFr ?? "",
       presenters: (Array.isArray(s?.presenters) ? s.presenters : String(s?.presenters ?? "").split(/\s*[,;&]\s*|\s+and\s+/)).map((n) => text(n, 120)).filter(Boolean).slice(0, 6),
     })).filter((s) => s.title || s.presenters.length);
   }

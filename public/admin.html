@@ -7516,6 +7516,10 @@ function renderSurveyCard(ev, S) {
       <input data-k="presenters" value="${esc(x.presenters.join(", "))}" placeholder="Names, separated by commas" aria-label="Presenters">
       <span class="porg" style="align-self:center;font-size:13px">French title</span>
       <input data-k="titleFr" value="${esc(x.titleFr || "")}" placeholder="Optional: shown in the French survey" aria-label="French title">
+      <span class="porg" style="align-self:center;font-size:13px">What it's about</span>
+      <input data-k="about" maxlength="120" value="${esc(x.about || "")}" placeholder="A few words under the title on the infographic" aria-label="What it's about">
+      <span class="porg" style="align-self:center;font-size:13px">En français</span>
+      <input data-k="aboutFr" maxlength="140" value="${esc(x.aboutFr || "")}" placeholder="Optional: the same line in French" aria-label="What it's about, in French">
       <span></span><button class="mini ghost" data-svdel="${i}" style="justify-self:start">Remove this session</button></div>`;
   box.innerHTML = `
     <div class="field" style="margin-top:0"><label>When it goes</label>
@@ -7526,7 +7530,7 @@ function renderSurveyCard(ev, S) {
     <h3 class="wsh" style="margin-top:18px">Sessions <span class="porg">(${s.sessions.length})</span></h3>
     <p class="hint" style="margin-top:0">From the presenters' agreements. Pick the day each one is on. Change a title or a presenter's name here at any time, even after it has gone out (a last-minute swap): the survey shows the change at once, and answers already given stay with the session.</p>
     <div id="sv-rows">${s.sessions.map(row).join("")}</div>
-    <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button></div>
+    <div class="actions" style="margin-top:8px;flex-wrap:wrap"><button class="mini" id="sv-add">Add a session</button><button class="mini ghost" id="sv-refresh">Bring in presenters added since</button><button class="mini ghost" id="sv-describe" title="Claude writes a few plain words for each session without one, from the presenter's outline, for under its title on the infographic. Change any of them before you share it.">Draft "What it's about"</button></div>
     ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button></div>`;
   if (del) del.innerHTML = `
@@ -7553,6 +7557,11 @@ function renderSurveyCard(ev, S) {
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   box.querySelectorAll("[data-svmode]").forEach((b) => b.onclick = async () => { if (b.dataset.svmode === s.mode) return; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: JSON.stringify({ ...body(), mode: b.dataset.svmode }) })); } catch (x) { toast(x.message); } });
   box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
+  $("sv-describe").onclick = async (e) => {
+    const done = busy(e.target, "Drafting…");
+    try { await save(); renderSurveyCard(ev, await api(`${q}&describe=1`, { method: "POST", body: "{}" })); toast("Drafted. Read them, and change any before you share the infographic."); }
+    catch (x) { toast(x.message); done(); }
+  };
   $("sv-add").onclick = () => renderSurveyCard(ev, { ...S, survey: { ...s, sessions: [...rows().map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })), { id: `n${Date.now().toString(36)}`, day: "", title: "", titleFr: "", presenters: [] }] } });   // its own id, so saving as you go keeps it the same session
   $("sv-refresh").onclick = async (e) => { const done = busy(e.target, "…"); try { await save(); renderSurveyCard(ev, await api(`${q}&refresh=1`, { method: "POST", body: "{}" })); toast("Presenters brought in."); } catch (x) { toast(x.message); done(); } };
   document.querySelectorAll("[data-svqr]").forEach((b) => b.onclick = async () => {

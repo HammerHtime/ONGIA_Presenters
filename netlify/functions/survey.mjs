@@ -12,6 +12,7 @@ import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./l
 import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
 import { analyseSurvey } from "./lib/surveyanalysis.mjs";
+import { describeSessions } from "./lib/topicdescribe.mjs";
 import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx, surveyQrPdf } from "./lib/surveyreport.mjs";
 import { infographicHtml, BLOCKS } from "./lib/infographic.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -71,6 +72,24 @@ export default async (req) => {
     event.survey = rest;
     await putEvent(event);
     return json({ ok: true, removed });
+  }
+  // Claude drafts the plain line under each session title on the infographic: those without one, or all with &all=1.
+  if (req.method === "POST" && url.searchParams.get("describe")) {
+    if (!event.survey) return fail("Set up the survey first.", 409);
+    const all = url.searchParams.get("all") === "1";
+    const presenters = await listPresenters(event.id);
+    const outlineOf = (s) => {
+      const p = presenters.find((x) => `p${x.id}`.slice(0, 40) === s.id) ?? presenters.find((x) => s.presenters.includes([x.first, x.last].filter(Boolean).join(" ").trim()));
+      return p?.submission?.outline ?? "";
+    };
+    const want = event.survey.sessions.filter((s) => s.title && (all || !s.about));
+    try {
+      const lines = await describeSessions(want.map((s) => ({ id: s.id, title: s.title, presenters: s.presenters, outline: outlineOf(s) })));
+      event.survey = { ...event.survey, sessions: event.survey.sessions.map((s) => (lines[s.id] ? { ...s, about: lines[s.id].en, aboutFr: lines[s.id].fr } : s)) };
+      event.updatedAt = new Date().toISOString();
+      await putEvent(event);
+      return show(event);
+    } catch (e) { return fail(e.message, 503); }
   }
   if (req.method === "POST" && url.searchParams.get("analyse")) {
     if (!event.survey) return fail("Set up the survey first.", 409);
