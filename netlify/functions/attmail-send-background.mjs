@@ -6,6 +6,7 @@ import { sendHotelRound } from "./lib/hotel.mjs";
 import { sendJoinRound } from "./lib/joinreminder.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 import { sendSurveyRound } from "./lib/surveysend.mjs";
+import { sendMessageRound } from "./lib/message.mjs";
 
 /**
  * Send now, from Coming up (Andrew 5 Nov 2026), on the server so closing the page doesn't stop it: a welcome-letter
@@ -13,6 +14,7 @@ import { sendSurveyRound } from "./lib/surveysend.mjs";
  *
  *   POST /api/attmail-send-background?event=…&type=welcome&key=<version>[&hop=n]   (with the desk's own key)
  *   POST /api/attmail-send-background?event=…&type=hotel&days=<30|15|7>[&hop=n]
+ *   POST /api/attmail-send-background?event=…&type=message&key=<id>[&hop=n]   a message of Andrew's own, to its group
  *   POST /api/attmail-send-background?event=…&type=survey&key=<end|YYYY-MM-DD>[&hop=n]   the survey, before its time
  *   POST /api/attmail-send-background?event=…&type=join&key=<group>[&auto=1][&hop=n]   the reminder to those joining online;
  *        auto=1 is join-tick at its time, without it Send now
@@ -35,6 +37,7 @@ export default async (req) => {
     if (type === "welcome") { what = "The welcome letter (sent now)"; out = await sendVersionNow(event, key, { deadline: Date.now() + BUDGET_MS }); }
     else if (type === "join") { what = "The reminder to those joining online"; out = await sendJoinRound(event, key, { deadline: Date.now() + BUDGET_MS, force: url.searchParams.get("auto") !== "1" }); }
     else if (type === "survey") { what = key === "end" ? "The survey (sent now)" : `The survey for ${key} (sent now)`; out = await sendSurveyRound(event, key, { deadline: Date.now() + BUDGET_MS }); }
+    else if (type === "message") { what = `Your message: ${(event.messages ?? []).find((m) => m.id === key)?.subject ?? ""}`; out = await sendMessageRound(event, key, { deadline: Date.now() + BUDGET_MS }); }
     else if (type === "hotel") { what = `The ${days}-day hotel reminder (sent now)`; out = await sendHotelRound(event, days, { deadline: Date.now() + BUDGET_MS }); }
     else out = { error: "unknown kind" };
   } catch (e) { out = { error: e.message }; }

@@ -1384,6 +1384,7 @@
   .wlset>summary{cursor:pointer;padding:10px 0;font-size:14px;color:var(--muted,#555);list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
   .wlset>summary::-webkit-details-marker{display:none}
   .wlset>summary b:not(.late){color:var(--ink)}
+  .filters.msgto{flex-wrap:wrap;overflow:visible;gap:5px}
   @media (max-width:520px){.filters.ggrp{gap:5px;flex-wrap:wrap;overflow:visible}.filters.ggrp .fchip{padding:5px 9px}}
   .gwix{margin:0 0 12px}.gwix>.wixbar:first-of-type{margin-top:0}
   .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
@@ -4621,7 +4622,7 @@ function eventScreen(data) {
       // A project is its statement of work, and a way to delete it.
       ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
       : (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + messageCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
     // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
@@ -4756,6 +4757,7 @@ function eventScreen(data) {
   wireComms(ev);
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
+  if (document.getElementById("msgbox")) loadMessage(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
   svWhich(view.svw === "certs" && document.getElementById("certbox") ? "certs" : "survey", true);
@@ -5939,7 +5941,7 @@ function drawMailSum(ev) {
  * shows below. Click on another button … it shows the other"). The buttons pick which email's card shows under them; the
  * others are hidden, not taken away, so nothing being typed is lost. The pick is remembered per event on this device.
  */
-const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"]];
+const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"]];
 const commsKey = (id) => `ongia-comms-${id}`;
 function commsBar() {
   return `<div class="commsbar" id="commsbar" role="tablist" aria-label="Which email">${COMMS.map(([k, label]) => `<button type="button" role="tab" data-comms="${k}">${label}</button>`).join("")}</div>`;
@@ -5971,6 +5973,75 @@ function wireComms(ev) {
  * the National Gang Summit event, I just need to click email attendees"). One version per group: the words, its agenda,
  * See the email and Send a test. The day it goes sits at the top; the switch above turns attendee emails on.
  */
+/*
+ * A message of Andrew's own (Andrew 9 Nov 2026: "HOW DO I SEND email to virtual attendees … I want to send it through the
+ * briefing room"): pick who, write it, see it, test it, send. It goes on the server, once per address, signed and
+ * replied to like the welcome letter. Below, each message sent, one line, with Send to the rest when someone is owed it.
+ */
+function messageCard() {
+  return secFold("message", "Message a group", "Write to everyone registered, or one group, and send it now", "", `<div class="card-body" id="msgbox"><p class="porg">Loading…</p></div>`, { id: "msgfold" });
+}
+let MSG_GROUP = "";
+function loadMessage(ev) {
+  const box = document.getElementById("msgbox");
+  if (!box) return;
+  const q = `/attmail?event=${encodeURIComponent(ev.id)}&kind=message`;
+  const draw = (M) => {
+    const d = M.draft ?? {};
+    if (!MSG_GROUP || !M.groups.some((g) => g.key === MSG_GROUP)) MSG_GROUP = M.groups.some((g) => g.key === d.group) ? d.group : M.groups[0].key;
+    const g = () => M.groups.find((x) => x.key === MSG_GROUP);
+    const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+    box.innerHTML = `
+      <div class="field" style="margin-top:0"><label>To</label>
+        <div class="filters msgto" role="radiogroup" aria-label="Who it goes to">${M.groups.map((x) => `<button type="button" class="fchip${x.key === MSG_GROUP ? " on" : ""}" data-mto="${esc(x.key)}" role="radio" aria-checked="${x.key === MSG_GROUP}">${esc(x.label.replace(/\s+partners$/i, ""))} <b>${x.reaches}</b></button>`).join("")}</div></div>
+      <div class="field"><label for="msg-s">Subject</label><input id="msg-s" maxlength="200" value="${esc(d.subject ?? "")}" placeholder="What it's about"></div>
+      <div class="field"><label for="msg-b">Message</label><textarea id="msg-b" style="min-height:200px" spellcheck="true" placeholder="Hello {first},
+
+…">${esc(d.body ?? "Hello {first},\n\n")}</textarea>
+        <p class="hint" style="margin:6px 0 0">{first} is each person's first name. A line in CAPITALS is a heading. Signed and answered like the welcome letter${M.replyTo ? `: replies go to ${esc(M.replyTo)}` : ""}.</p></div>
+      ${M.mailOn ? "" : `<div class="bad" style="margin-top:8px">Emails to attendees are off for this event, so it can't be sent. Turn them on in Settings.</div>`}
+      <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini ghost" data-msg="see">See the email</button><button class="mini ghost" data-msg="test">Send me a test</button>
+        <button class="mini gold" data-msg="send"${M.mailOn && !M.sending ? "" : " disabled"}>Send to ${g()?.reaches ?? 0}</button><span class="hint" data-msgsaid style="margin:0;align-self:center">${M.sending ? "Something is sending for this event now." : ""}</span></div>
+      ${M.sent.length ? `<div class="xh" style="margin:16px 0 4px">Sent</div><div class="svqr">${M.sent.map((m) => { const owed = m.reaches - m.had;
+        return `<div class="svqrow"><span class="t"><b>${esc(day(m.at))}</b> · ${esc(m.subject)} · ${esc(m.label)}</span><span class="${m.trouble ? "late" : owed ? "porg" : "ok"}" style="font-size:12.5px;white-space:nowrap">${m.had} of ${m.reaches}${m.trouble ? ` · ${m.trouble} failed` : ""}</span>${owed && M.mailOn ? `<button type="button" class="mini" data-mrest="${esc(m.id)}" data-mn="${owed}">Send ${owed}</button>` : ""}</div>`; }).join("")}</div>` : ""}`;
+    const words = () => ({ group: MSG_GROUP, subject: box.querySelector("#msg-s").value, body: box.querySelector("#msg-b").value });
+    const said = (t) => { const el = box.querySelector("[data-msgsaid]"); if (el) el.textContent = t; };
+    let timer = null;
+    const keep = () => { clearTimeout(timer); timer = setTimeout(() => api(q, { method: "PUT", body: JSON.stringify(words()) }).then(() => said("Draft kept.")).catch(() => {}), 800); };
+    box.querySelector("#msg-s").oninput = keep; box.querySelector("#msg-b").oninput = keep;
+    box.querySelectorAll("[data-mto]").forEach((b) => b.onclick = () => { MSG_GROUP = b.dataset.mto; box.querySelectorAll("[data-mto]").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", String(on)); }); box.querySelector('[data-msg="send"]').textContent = `Send to ${g()?.reaches ?? 0}`; keep(); });
+    box.querySelector('[data-msg="see"]').onclick = async () => {
+      try {
+        const out = await api(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
+        const dlg = document.getElementById("wldlg");
+        if (!dlg) { const w = window.open("", "_blank"); if (w) { w.document.write(out.html); w.document.close(); } return; }
+        document.getElementById("wld-title").textContent = out.subject || "(no subject yet)"; document.getElementById("wld-note").textContent = out.problems?.length ? out.problems[0] : `As ${g()?.label ?? "they"} will see it.`;
+        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+      } catch (x) { toast(x.message); }
+    };
+    box.querySelector('[data-msg="test"]').onclick = async () => {
+      const to = prompt("Send the test to:", WHO?.email || ""); if (!to) return;
+      try { const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ ...words(), to }) }); toast(`Test sent to ${out.to.join(", ")}.`); } catch (x) { toast(x.message); }
+    };
+    box.querySelector('[data-msg="send"]').onclick = async (e) => {
+      const n = g()?.reaches ?? 0;
+      if (!confirm(`Send "${words().subject || "this message"}" now to ${n} ${n === 1 ? "person" : "people"} (${g()?.label})?\n\nIt goes from the server, so you can close the page. Each address gets it once.`)) return;
+      e.target.disabled = true; e.target.textContent = "Starting…";
+      try { await api(`${q}&send=1`, { method: "POST", body: JSON.stringify(words()) }); toast(`Sending to ${n}, on the server.`); MSG_GROUP = ""; }
+      catch (x) { toast(x.message); }
+      api(q).then(draw).catch(() => {});
+    };
+    box.querySelectorAll("[data-mrest]").forEach((b) => b.onclick = async () => {
+      if (!confirm(`Send it to the ${b.dataset.mn} still owed it (registered since, or their copy didn't go)?`)) return;
+      b.disabled = true;
+      try { await api(`${q}&rest=${encodeURIComponent(b.dataset.mrest)}`, { method: "POST", body: "{}" }); toast("Sending, on the server."); } catch (x) { toast(x.message); }
+      api(q).then(draw).catch(() => {});
+    });
+    if (M.sending) setTimeout(() => { if (document.getElementById("msgbox") === box) api(q).then(draw).catch(() => {}); }, 15000);
+  };
+  api(q).then(draw).catch((x) => { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; });
+}
+
 function welcomeCard() {
   return secFold("welcome", "Welcome letter", "Write it here. Each attendee gets the right version, with the right agenda, on the day below.", "", `<div class="card-body" id="wlbox"><p class="porg">Loading…</p></div>`, { id: "welcomefold" });
 }
