@@ -23,7 +23,10 @@ const S = await import(F + "lib/store.mjs");
 const { runLetterRounds } = await import(F + "lib/sendletters.mjs");
 const C = await import(F + "lib/welcomecatchup.mjs");
 const welcome = (await import(F + "welcome.mjs")).default;
-const tick = (await import(F + "welcome-tick.mjs")).default;
+const { welcomeTick } = await import(F + "welcome-tick.mjs");
+// The fixture's dates are fixed (letter on 3 Nov, event from 9 Nov 2026), so every check passes the day it is "today":
+// the 15-minute check included, or it reads the real date and goes quiet once the event's first day has come.
+const tick = (today) => welcomeTick({ today });
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 const H = { "x-admin-key": "testkey", "content-type": "application/json" };
@@ -41,7 +44,7 @@ await call("", { method: "PUT", body: { main: { subject: first.versions[0].subje
 console.log("— before the morning run, the catch-up leaves it alone");
 let out = await C.catchUpWelcome({ today: "2026-11-03", ...quiet });
 ok("on the letter's day, before the morning run has sent it, nothing goes (never the whole list at midnight)", sent.length === 0 && (out.events ?? []).length === 0, JSON.stringify(out));
-ok("…and the 15-minute check stays quiet", (await (await tick()).text()) === "ok" && started.length === 0);
+ok("…and the 15-minute check stays quiet", (await (await tick("2026-11-03")).text()) === "ok" && started.length === 0);
 
 console.log("— the morning run sends it");
 await runLetterRounds([await S.getEvent("ngs")], { today: "2026-11-03", ...quiet });
@@ -67,10 +70,10 @@ let st = await S.getAttendees("ngs"); st.people.push(person("f", "f@example.ca")
 await S.putMeta(C.NIGHT_LOCK, { at: new Date().toISOString() });
 out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
 ok("while the morning run is sending, the catch-up waits", out.skipped === "the morning run is sending" && sent.length === k);
-ok("…and so does the 15-minute check", (await (await tick()).text()) === "the morning run is sending" && started.length === 0);
+ok("…and so does the 15-minute check", (await (await tick("2026-11-04")).text()) === "the morning run is sending" && started.length === 0);
 await S.putMeta(C.NIGHT_LOCK, { at: null });
-ok("when it's done, the check hands the catch-up to the background", (await (await tick()).text()) === "started" && started.length === 1);
-ok("…and one at a time: a second check while it runs leaves it be", (await (await tick()).text()) === "already catching up" && started.length === 1);
+ok("when it's done, the check hands the catch-up to the background", (await (await tick("2026-11-04")).text()) === "started" && started.length === 1);
+ok("…and one at a time: a second check while it runs leaves it be", (await (await tick("2026-11-04")).text()) === "already catching up" && started.length === 1);
 await S.putMeta(C.CATCHUP_LOCK, { at: null });
 out = await C.catchUpWelcome({ today: "2026-11-04", ...quiet });
 ok("the one who registered meanwhile gets it", sent.slice(k).map((m) => m.to).join() === "f@example.ca", JSON.stringify(sent.slice(k)));

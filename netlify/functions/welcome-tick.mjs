@@ -7,9 +7,10 @@ import { siteOrigin } from "./lib/nightly.mjs";
  * welcome-catchup-background, which has the time a pull and a few sends need; this check has 30 seconds. Quiet when no
  * event's welcome letter is due, which is most of the year. One at a time, and never during the morning run.
  * At 7, 22, 37 and 52 past the hour, so it is clear of the morning run's start on the hour.
+ * `today` is for tests: the scheduled run always uses the real date.
  */
-export default async () => {
-  if (!(await welcomeEvents()).length) return new Response("ok");
+export async function welcomeTick({ today } = {}) {
+  if (!(await welcomeEvents(today)).length) return new Response("ok");
   if (held(await getMeta(NIGHT_LOCK))) return new Response("the morning run is sending");
   if (held(await getMeta(CATCHUP_LOCK))) return new Response("already catching up");
   await putMeta(CATCHUP_LOCK, { at: new Date().toISOString() });
@@ -24,6 +25,8 @@ export default async () => {
     await putMeta(CATCHUP_LOCK, { at: null });
     return new Response("not started");
   }
-};
+}
+
+export default () => welcomeTick();
 
 export const config = { schedule: "7,22,37,52 * * * *" };
