@@ -30,7 +30,7 @@ ok("the welcome letter: only the version someone is still owed, and how many", l
 ok("food-allergy reminders from today on, to those in the room who haven't answered", line("Food allergies").length === 2 && line("Food allergies")[0].to === 2, JSON.stringify(line("Food")));
 const surv = line("Survey");
 ok("each day's survey, to the people with that day", surv.length === 4 && surv[0].to === 3 && surv[1].to === 4, JSON.stringify(surv));
-ok("welcome letters and reminders can be sent now; the survey can't", line("Welcome letter")[0].now?.type === "welcome" && line("Food allergies")[0].now?.type === "remind" && !surv[0].now);
+ok("welcome letters, reminders and the survey can be sent now (Andrew 9 Nov 2026: 'push out emails now if i want')", line("Welcome letter")[0].now?.type === "welcome" && line("Food allergies")[0].now?.type === "remind" && surv[0].now?.type === "survey" && !!surv[0].now.key);
 ok("no presenter reminders on a one-date event", !line("Agreement").length);
 const later = await emailSchedule(await getEvent("ngs"), "2026-11-08");
 ok("what's past drops off", !later.some((x) => x.what.startsWith("Welcome") || x.what.startsWith("Food")) && later[0].date === "2026-11-09");

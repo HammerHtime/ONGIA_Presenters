@@ -71,7 +71,7 @@ export async function emailSchedule(event, today = todayIso()) {
     const parts = s.mode === "end" ? (s.sendOn ? [{ day: s.sendOn, part: "end", at: "09:00" }] : []) : dailyTimes(event).map((t) => ({ day: t.day, part: t.day, at: t.at }));
     for (const p of parts.filter((x) => x.day >= today)) {
       out.push({ date: p.day, time: p.at ?? "", tz: zoneAbbr(zoneOf(event), p.day), what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
-        note: offNote || (!p.at ? "won't go: that day has no end time" : "") });
+        note: offNote || (!p.at ? "won't go: that day has no end time" : ""), ...(offNote ? {} : { now: { type: "survey", key: p.part } }) });
     }
   }
 
