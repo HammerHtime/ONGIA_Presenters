@@ -2,7 +2,7 @@ import { getAttendees, putAttendees } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
-import { welcomeLetters, splitByGroup, extrasOf } from "./welcome.mjs";
+import { welcomeLetters, extrasOf } from "./welcome.mjs";
 import { hhmm24, zoneOf } from "./surveysend.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { markRows } from "./attmail.mjs";
@@ -73,9 +73,14 @@ See you online.`,
 
 export const joinLetter = (event, key) => ({ id: `event-join-${key}`, kind: "welcome", audience: key, name: "Joining-online reminder", attachAgenda: false, ...joinWords(event, key) });
 
-/** Everyone in that group with an address, and who has had the reminder. */
+/**
+ * Everyone registered in that group with an address, and who has had the reminder. Anyone with an online registration
+ * gets it, even if they also registered to come in person (Andrew 9 Nov 2026: "There are 94 virtual in wix and the
+ * briefing room shows 93": one person had both, and the welcome letters count them once, in the room).
+ */
 export function joinPeople(event, key, people) {
-  const all = splitByGroup(people, writeableTo(people), event)[key] ?? [];
+  const g = onlineGroups(event).find((x) => x.key === key);
+  const all = g ? writeableTo(people.filter((p) => p.wixEventId === g.link.eventId)) : [];
   const had = (p) => people.some((q) => q.email === p.email && (q.sent ?? []).includes(KIND(key)));
   return { all, owed: all.filter((p) => !had(p)) };
 }

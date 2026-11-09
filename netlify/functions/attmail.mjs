@@ -55,7 +55,11 @@ async function startNow(event, url, who) {
   const type = url.searchParams.get("type");
   const key = url.searchParams.get("key") ?? "";
   const days = Number(url.searchParams.get("days"));
-  if (!["welcome", "hotel", "join"].includes(type)) return fail("Which email?");
+  if (!["welcome", "hotel", "join", "survey"].includes(type)) return fail("Which email?");
+  // The survey early, when Andrew wants it out now (Andrew 9 Nov 2026): the end survey, or one day's part.
+  if (type === "survey" && !event.survey?.open) return fail("The survey is closed. Open it first.", 409);
+  if (type === "survey" && key !== "end" && !/^\d{4}-\d{2}-\d{2}$/.test(key)) return fail("Which part of the survey?");
+  if (type === "survey" && event.attendeeMail !== true) return fail("Emails to attendees are off for this event, so the survey can't go. Turn them on first.", 409);
   if (type === "join" && !event.joinReminder?.[key]?.readyAt) return fail("Read the reminder and mark it ready first.", 409);
   if (type === "hotel" && ![30, 15, 7].includes(days)) return fail("Which hotel reminder?");
   if (type === "hotel" && event.attendeeMail !== true) return fail("Emails to attendees are off for this event, so the hotel reminder can't go. Turn them on first.", 409);

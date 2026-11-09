@@ -27,6 +27,9 @@ await putAttendees("ngs", { people: [
   { key: "a", first: "Ann", email: "ann@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" },
   { key: "v", first: "Val", email: "val@example.ca", status: "ATTENDING", wixEventId: "v-1", group: "Virtual" },
   { key: "w", first: "Wes", email: "wes@example.ca", status: "ATTENDING", wixEventId: "v-1", group: "Virtual" },
+  // Registered both ways (Andrew 9 Nov 2026: "94 virtual in wix and the briefing room shows 93"): still gets the Zoom login.
+  { key: "b1", first: "Bea", email: "bea@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" },
+  { key: "b2", first: "Bea", email: "bea@example.ca", status: "ATTENDING", wixEventId: "v-1", group: "Virtual" },
 ] });
 let ev = await getEvent("ngs");
 const key = J.onlineGroups(ev)[0]?.key;
@@ -37,7 +40,7 @@ ok("the draft carries the Zoom link, meeting ID and passcode from the virtual we
 ok("it isn't due until marked ready", !J.joinDue(ev, key, new Date("2026-11-09T12:40:00Z")));
 const call = async (qs, method = "GET", body) => { const r = await attmail(new Request(`http://x/api/attmail?event=ngs&kind=join&key=${key}${qs}`, { method, headers: H, body: body ? JSON.stringify(body) : undefined })); return { status: r.status, body: await r.json() }; };
 const g = await call("");
-ok("the page sees when it goes and to how many", g.body.reaches === 2 && g.body.sendAt === t.sendAt && !g.body.readyAt, JSON.stringify(g.body).slice(0, 200));
+ok("the page sees when it goes and to how many", g.body.reaches === 3 && g.body.sendAt === t.sendAt && !g.body.readyAt, JSON.stringify(g.body).slice(0, 200));
 await call("", "PUT", { ready: true });
 ev = await getEvent("ngs");
 ok("marked ready: not before its time", !J.joinDue(ev, key, new Date("2026-11-09T12:00:00Z")) && J.joinDue(ev, key, new Date("2026-11-09T12:34:00Z")));
@@ -45,7 +48,7 @@ const S = await emailSchedule(await getEvent("ngs"), "2026-11-05");
 const line = S.find((x) => /join online/.test(x.what));
 ok("Coming up lists it at 7:30 am ET", line && line.date === "2026-11-09" && line.time === "07:30" && line.tz === "ET" && line.now?.type === "join", JSON.stringify(line));
 const out = await J.sendJoinRound(ev, key, { now: new Date("2026-11-09T12:34:00Z") });
-ok("at its time it goes to the two joining online, not the one in the room", out.sent === 2 && sent.every((m) => m.to !== "ann@example.ca") && /example\.zoom\.us/.test(sent[0].text), JSON.stringify(out));
+ok("at its time it goes to the three joining online, Bea too (also registered in person), not Ann in the room", out.sent === 3 && sent.some((m) => m.to === "bea@example.ca") && sent.every((m) => m.to !== "ann@example.ca") && /example\.zoom\.us/.test(sent[0].text), JSON.stringify(out));
 ok("again: nobody gets it twice", (await J.sendJoinRound(await getEvent("ngs"), key, { now: new Date("2026-11-09T12:50:00Z") })).sent === 0);
 ok("an hour into the first session it stops", !J.joinDue(ev, key, new Date("2026-11-09T15:31:00Z")));
 console.log(`\n${pass} passed, ${fail} failed`);
