@@ -236,7 +236,8 @@ function htmlOf(text, event, person) {
     if (i % 2 === 1) { out += fill(`{${parts[i]}}`, event, person, { html: true }); continue; }
     // A long address — a Drive folder, say — must wrap inside the card on a
     // phone rather than run off its edge.
-    out += esc(parts[i]).replace(/(https?:\/\/[^\s<]+)/g, (u) => `<a href="${u}" style="word-break:break-all;overflow-wrap:anywhere">${u}</a>`);
+    // A sentence's full stop (or comma, or closing bracket) after a link stays out of it: "…/j/999." went to a broken page.
+    out += esc(parts[i]).replace(/(https?:\/\/[^\s<]+?)([.,;:!?)\]]*)(?=\s|<|$)/g, (_, u, tail) => `<a href="${u}" style="word-break:break-all;overflow-wrap:anywhere">${u}</a>${tail}`);
   }
   return out;
 }
