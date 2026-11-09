@@ -283,12 +283,13 @@
   .rsg{display:grid;grid-template-columns:116px minmax(0,1fr);gap:10px 14px;align-items:center;border-top:1px solid var(--edge);padding-top:12px}
   .rsg > .l{font:600 13px var(--fb);color:var(--ink-mid)}
   .rsg > .r{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .rsg > *{min-width:0}
   .rsg .pseg{margin:0}.rsg .pseg button{padding:5px 11px;font-size:12.5px}
   .rsread{grid-column:1/-1}
   .rsfoot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--ink-mid)}
   .rsfoot .linkbtn{background:none;border:0;padding:0;color:var(--late);font:600 12.5px var(--fb);cursor:pointer;text-decoration:underline}
   .rsfoot .linkbtn:disabled{color:var(--ink-mid);cursor:default;text-decoration:none}
-  @media(max-width:560px){.rsk div{flex:1 1 calc(50% - 8px)}.rsg{grid-template-columns:1fr;gap:4px 0}.rsg > .r{margin-bottom:8px}}
+  @media(max-width:560px){.rsk div{flex:1 1 calc(50% - 8px)}.rsg{grid-template-columns:minmax(0,1fr);gap:4px 0}.rsg > .r{margin-bottom:8px}}
   .rpans{display:grid;grid-template-columns:minmax(0,1fr) auto 118px;gap:6px 12px;align-items:center;padding:9px 12px;border-top:1px solid var(--edge)}
   .rpans:first-child{border-top:0}
   .rpans .rpnum{white-space:nowrap;font-size:14px}
@@ -7615,7 +7616,8 @@ function renderResults(ev, D) {
     <div class="rsk">${kpi(R.responses, `answer${R.responses === 1 ? "" : "s"} · ${R.respondents} ${R.respondents === 1 ? "person" : "people"}`)}${R.headline.n ? kpi(`${R.headline.avg}<small style="font-size:12px">/5</small>`, "overall") + kpi(`${R.headline.top2}%`, "rated 4 or 5") : ""}${R.overall.nps.n ? kpi(`${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}`, "recommend score") : ""}</div>
     ${R.responses ? "" : `<div class="note">No answers yet. Everything below works as soon as the first ones come in; try it with <b>Try the survey</b> above (those answers aren't kept).</div>`}
     <div class="rsg">
-      <div class="l">Download</div><div class="r"><button class="mini" data-rsdl="summary">Summary with charts · PDF</button><button class="mini" data-rsdl="answers">Every answer · Excel</button>${D.presenters ? `<button class="mini" data-rsdl="presenters">${D.presenters} ${D.presenters === 1 ? "wants" : "want"} to present · Excel</button>` : ""}</div>
+      <div class="l">Download</div><div class="r"><button class="mini" data-rsdl="summary">Summary with charts · PDF</button><button class="mini" data-rsdl="answers">Every answer · Excel</button><button class="mini" data-rsdl="feedback">Each presenter · PDF</button>${D.presenters ? `<button class="mini" data-rsdl="presenters">${D.presenters} ${D.presenters === 1 ? "wants" : "want"} to present · Excel</button>` : ""}</div>
+      ${R.sessions.length ? `<div class="l">By presenter</div><div class="r" style="display:block"><div class="svqr">${R.sessions.slice().sort((a, b) => String(a.day).localeCompare(String(b.day))).map((x) => `<div class="svqrow"><span class="t" title="${esc(`${x.title} — ${x.presenters.join(", ")}`)}"><b>${esc(x.presenters.join(", ") || x.title)}</b> · ${esc(x.title)}</span><span class="${x.n && x.avg < 3.5 ? "late" : "porg"}" style="font-size:12.5px;white-space:nowrap">${x.n ? `${x.avg}/5 · ${x.rebook.yesPct}% rec · ${x.n}` : "no ratings yet"}</span>${x.n ? `<button type="button" class="mini" data-rsdl="feedback&amp;session=${esc(x.id)}">PDF</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin:6px 0 0">Out of 5 · % who would recommend them · how many rated. The PDF has each question, how the stars fell, and every comment.</p></div>` : ""}
       <div class="l">Claude's read</div><div class="r"><button class="mini ${A ? "" : "gold"}" id="rs-analyse"${R.responses ? "" : " disabled"}>${A ? "Read them again" : "Ask Claude to read the results"}</button>${A ? `<span class="hint" style="margin:0">Read ${esc(fmtDate((A.at || "").slice(0, 10)))}.</span>` : `<span class="hint" style="margin:0">Do this first: it picks the comments for the infographic.</span>`}</div>
       ${A ? `<div class="note rsread" style="margin:0"><p style="margin:0 0 8px">${esc(A.summary)}</p>
         ${A.liked?.length ? `<b>What attendees valued</b>${list(A.liked, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}

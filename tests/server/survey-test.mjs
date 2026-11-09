@@ -110,6 +110,16 @@ ok("on their day the community partner gets their own email, in both languages",
 ok("and the justice partner gets the usual one", jayMail && !/community partners/.test(jayMail.text) && /Thank you for being with us today/.test(jayMail.text));
 ok("both with the short subject", /^National Gang Summit: how was today\? \/ Votre avis sur la journée$/.test(camMail?.subject) && camMail?.subject === jayMail?.subject, camMail?.subject);
 
+// Feedback on each presenter (Andrew 9 Nov 2026: "I think it's important for me to look at the presenters individually").
+const fbAll = await survey(new Request("http://x/api/survey?event=ngs&download=feedback", { headers: H }));
+const fbBytes = Buffer.from(await fbAll.arrayBuffer());
+ok("Each presenter · PDF: one page for each session rated so far", fbAll.status === 200 && fbAll.headers.get("content-type") === "application/pdf" && (fbBytes.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length >= 1);
+const sessOne = (await getEvent("ngs")).survey.sessions[0];
+const fbOne = await survey(new Request(`http://x/api/survey?event=ngs&download=feedback&session=${sessOne.id}`, { headers: H }));
+ok("and one presenter's own, named for them", fbOne.status === 200 && /-feedback\.pdf"$/.test(fbOne.headers.get("content-disposition")), fbOne.headers.get("content-disposition"));
+ok("a session that isn't on the survey is refused", (await survey(new Request("http://x/api/survey?event=ngs&download=feedback&session=nope", { headers: H }))).status === 404);
+ok("the people interested in presenting still download as before", (await survey(new Request("http://x/api/survey?event=ngs&download=presenters", { headers: H }))).headers.get("content-type").includes("spreadsheet"));
+
 // A QR code for each day (Andrew 8 Nov 2026): that day's sessions only, for whoever scans it.
 const qr2 = (await pub(`t=${tok}&day=2026-11-10`)).body;
 ok("a day's QR link asks about that day's sessions only, with no About-you and no overall", qr2.qr && qr2.days.length === 1 && qr2.days[0].day === "2026-11-10" && qr2.about === null && qr2.overall === null, JSON.stringify(qr2).slice(0, 300));
