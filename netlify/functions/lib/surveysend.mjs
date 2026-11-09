@@ -71,11 +71,13 @@ export function surveyLetter(event, part) {
       daily ? "Thank you for being with us today. Please take two minutes to tell us how today's sessions went, while they're fresh. Your answers are anonymous."
         : "Thank you for being part of {event}. Please take a few minutes to tell us how it went. Your answers are anonymous and help us plan the next one.",
       "{surveyButton}",
+      ...(daily ? ["Already scanned today's QR code? Then you're done. Thank you."] : []),
       "FRANÇAIS",
       "Bonjour {first},",
       daily ? "Merci d'avoir été des nôtres aujourd'hui. Prenez deux minutes pour nous dire ce que vous avez pensé des séances de la journée, pendant qu'elles sont fraîches à votre mémoire. Vos réponses sont anonymes."
         : "Merci d'avoir participé à {event}. Prenez quelques minutes pour nous dire comment ça s'est passé. Vos réponses sont anonymes et nous aident à préparer le prochain événement.",
       "{surveyButtonFr}",
+      ...(daily ? ["Vous avez déjà balayé le code QR d'aujourd'hui? Alors c'est fait. Merci!"] : []),
     ].join("\n\n"),
     buttonLabel: "", buttonLink: "",
   };
