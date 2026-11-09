@@ -119,6 +119,7 @@ const QS = new URLSearchParams(location.search);
 const TOKEN = seg[0] || QS.get("t"), PERSON = seg[1] || QS.get("p") || "", PREVIEW = QS.get("preview") === "1";
 // A day's QR code (Andrew 8 Nov 2026): that day's sessions only, for whoever scans it.
 const DAY = /^\d{4}-\d{2}-\d{2}$/.test(QS.get("day") ?? "") ? QS.get("day") : "";
+const QRDONE = (part) => `ongia-survey-done:${TOKEN}:${part}`;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const ASKED = QS.get("lang");
 let LANG = (/^(en|fr)$/.test(ASKED ?? "") ? ASKED : null) || (() => { try { return localStorage.getItem("ongia-lang"); } catch { return null; } })() || (/^fr/i.test(navigator.language) ? "fr" : "en");
@@ -127,14 +128,14 @@ const T = {
   yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
   overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…", retry: "Try again", failed: "We couldn't send your answers.", failedText: "They're still here. Check your connection, then try again.", kept: "Your answers so far are still here.",
   missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
-  already: "You've already answered this part. Thank you!", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
+  already: "You've already answered this part. Thank you!", qrDone: "You already rated today's sessions with the QR code on this phone. Thank you!", anyway: "Answer again anyway", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
   contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
  fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", typeAgency: "Commencez à taper votre organisme…", useTyped: (s) => `Utiliser « ${s} » (pas dans la liste)`,
   yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
   overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…", retry: "Réessayer", failed: "Nous n'avons pas pu envoyer vos réponses.", failedText: "Elles sont toujours ici. Vérifiez votre connexion, puis réessayez.", kept: "Les réponses déjà données sont toujours là.",
   missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
-  already: "Vous avez déjà répondu à cette partie. Merci!", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
+  already: "Vous avez déjà répondu à cette partie. Merci!", qrDone: "Vous avez déjà évalué les séances d'aujourd'hui avec le code QR sur ce téléphone. Merci!", anyway: "Répondre quand même", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
   contactAsk: "Laissez votre nom et votre courriel, et nous communiquerons avec vous. Ces renseignements sont conservés à part de vos réponses.", name: "Nom", email: "Courriel", topic: "Sur quel sujet présenteriez-vous? (facultatif)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("fr-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Jour ${n}` } };
 const t = (k, ...a) => (typeof T[LANG][k] === "function" ? T[LANG][k](...a) : T[LANG][k]);
@@ -220,6 +221,9 @@ function render() {
   if (STATE === "closed") { ROOT.innerHTML = `<div class="card"><h1>${esc(D.title)}</h1><p class="lede">${t("closed")}</p></div>`; return; }
   keep();
   if (STATE === "done" || STATE === "already") { ROOT.innerHTML = `<div class="card done"><div class="okmark">✓</div><h1>${t("done")}</h1><p class="lede">${STATE === "done" ? t("doneText") : t("already")}</p></div>`; return; }
+  // Today's done by QR code on this phone, and now their emailed link (Andrew 9 Nov 2026: keep it anonymous, but don't count a day twice).
+  if (STATE === "qrdone") { ROOT.innerHTML = `<div class="card done"><div class="okmark">✓</div><h1>${t("done")}</h1><p class="lede">${t("qrDone")}</p><p style="margin-top:14px"><button type="button" id="anyway" style="background:none;border:0;padding:6px 0;font:inherit;font-size:15px;color:inherit;text-decoration:underline;cursor:pointer">${t("anyway")}</button></p></div>`;
+    document.getElementById("anyway").onclick = () => { STATE = "form"; restore(); render(); }; return; }
   const day1 = D.allDays?.[0];
   const dayLabel = (iso) => `${D.dayNumber?.[iso] ? `${t("dayN", D.dayNumber[iso])} · ` : ""}${t("dayName", iso)}`;
   const daysHtml = D.days.map((d) => {
@@ -286,7 +290,10 @@ async function send() {
       return;
     }
     if (!res.ok) throw Object.assign(new Error(out.error || ""), { server: true });
-    SENDFAIL = null; forget(); STATE = out.already ? "already" : "done"; render(); window.scrollTo(0, 0);
+    SENDFAIL = null; forget(); STATE = out.already ? "already" : "done";
+    // This phone remembers the day was answered (nothing about who): opening the survey again for that day says it's done.
+    if (!PREVIEW && D?.part && D.part !== "end") { try { localStorage.setItem(QRDONE(D.part), "1"); } catch {} }
+    render(); window.scrollTo(0, 0);
   } catch (e) {
     SENDFAIL = { why: e.server && LANG === "en" ? e.message : "" };   // the server's own reason is in English; the French page keeps to its own words
     btn.disabled = false; btn.textContent = t("retry");
@@ -300,7 +307,8 @@ LANGBTN.onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; try { localStorage
     const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN ?? "")}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${QS.get("part") ? `&part=${encodeURIComponent(QS.get("part"))}` : ""}${DAY ? `&day=${encodeURIComponent(DAY)}` : ""}`);
     if (!res.ok) { STATE = "broken"; return render(); }
     D = await res.json();
-    STATE = !D.open ? "closed" : D.answered && !PREVIEW ? "already" : "form";
+    const doneHere = (() => { try { return D.part && D.part !== "end" && localStorage.getItem(QRDONE(D.part)) === "1"; } catch { return false; } })();
+    STATE = !D.open ? "closed" : D.answered && !PREVIEW ? "already" : doneHere && !PREVIEW ? (DAY ? "already" : "qrdone") : "form";
     if (STATE === "form") restore(); else forget();
     render();
   } catch { STATE = "broken"; render(); }
