@@ -212,7 +212,7 @@ Speakers" sender name on attendee mail, and shows each delivery and bounce in Re
 
 ---
 
-## 6. Summit: three registrants were never sent the welcome letter automatically (9 Nov 2026)
+## 12. Summit: three registrants were never sent the welcome letter automatically (9 Nov 2026)
 
 **What happened.** On 9 Nov the Summit had 9 registered addresses with no welcome
 letter. Four had registered that morning, after the letter's window then closed
