@@ -56,13 +56,16 @@ export function partsDue(event, now = new Date()) {
 }
 
 /** The email, in both languages, with each person's own buttons. Words Andrew can change are kept on the event. */
+const shortTitle = (event) => String(event?.title ?? "").split(/\s*:\s*/)[0].trim() || "{event}";
 export function surveyLetter(event, part) {
   const s = event.survey ?? {};
   const daily = part !== "end";
   const own = daily ? s.dailyWords : s.endWords;
   return {
     name: "Survey", kind: "survey",
-    subject: own?.subject || (daily ? "{event}: how was today? / Votre avis sur la journée" : "{event}: tell us how it went / Votre avis"),
+    // The event's name before its subtitle (Andrew 9 Nov 2026: "change the title line"): "National Gang Summit: how was
+    // today?", not the whole "…: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future: how was today?".
+    subject: own?.subject || `${shortTitle(event)}: ${daily ? "how was today? / Votre avis sur la journée" : "tell us how it went / Votre avis"}`,
     body: own?.body || [
       "Hello {first},",
       daily ? "Thank you for being with us today. Please take two minutes to tell us how today's sessions went, while they're fresh. Your answers are anonymous."
