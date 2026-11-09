@@ -13,7 +13,7 @@ import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
 import { analyseSurvey } from "./lib/surveyanalysis.mjs";
 import { describeSessions } from "./lib/topicdescribe.mjs";
-import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx, surveyQrPdf } from "./lib/surveyreport.mjs";
+import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx, surveyQrPdf, surveyPresentersPdf } from "./lib/surveyreport.mjs";
 import { infographicHtml, BLOCKS } from "./lib/infographic.mjs";
 import { slugOf } from "./lib/public.mjs";
 import PDFDocument from "pdfkit";
@@ -53,7 +53,7 @@ export default async (req) => {
   if (!event) return fail("No such event.", 404);
   if (req.method === "GET") {
     if (url.searchParams.get("results")) return results(event);
-    if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"));
+    if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"), url);
     if (url.searchParams.get("qr")) return qrCodes(event, url.searchParams.get("qr"));
     if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"));
     return show(event);
@@ -153,12 +153,21 @@ async function results(event) {
   return json({ results: R, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
-async function download(event, which) {
+async function download(event, which, url = null) {
   if (!event.survey) return fail("Set up the survey first.", 409);
   const responses = await getSurveyResponses(event.id);
   const base = `${slugOf(event.title) || "event"}-survey`;
   const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
   if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
+  // Feedback on each presenter, one page each, or one presenter's (&session=…) (Andrew 9 Nov 2026).
+  if (which === "feedback") {
+    const only = /^[A-Za-z0-9_-]{1,40}$/.test(url?.searchParams.get("session") ?? "") ? url.searchParams.get("session") : "";
+    const R = await resultsOf(event, responses);
+    const one = only ? R.sessions.find((x) => x.id === only) : null;
+    if (only && !one) return fail("That session isn't on this survey.", 404);
+    const name = one ? `${slugOf(one.presenters.join(" ")) || "presenter"}-feedback.pdf` : `${base}-presenters.pdf`;
+    return send(await surveyPresentersPdf(event, R, event.survey.analysis ?? null, { only }), "application/pdf", name);
+  }
   if (which === "answers") return send(surveyResponsesXlsx(event, responses), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-answers.xlsx`);
   if (which === "presenters") return send(surveyContactsXlsx(event, await getSurveyContacts(event.id)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-interested-in-presenting.xlsx`);
   return fail("Which download: summary, answers or presenters?");

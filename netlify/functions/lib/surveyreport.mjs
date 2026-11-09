@@ -221,3 +221,89 @@ export async function surveyQrPdf(event, days) {
   doc.end();
   return done;
 }
+
+/**
+ * Feedback on each presenter, one page each (Andrew 9 Nov 2026: "I think it's important for me to look at the presenters
+ * individually"): every star question with its average, how the stars fell, would they recommend them, and every
+ * comment on the session, word for word. `only` is a session id for one presenter's page; otherwise every session.
+ */
+export async function surveyPresentersPdf(event, R, analysis = null, { only = "" } = {}) {
+  const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
+  // Every session rated so far (a day still to come has nothing to show), or the one asked for.
+  const list = R.sessions.filter((s) => (only ? s.id === only : s.n > 0)).sort((a, b) => String(a.day).localeCompare(String(b.day)));
+  const days = [...new Set(R.sessions.map((s) => s.day).filter(Boolean))].sort();
+  const short = String(event.title).split(/\s*:\s*/)[0];
+  const doc = new PDFDocument({ size: "LETTER", margin: 0, bufferPages: true, autoFirstPage: false, displayTitle: true,
+    info: { Title: `Presenter feedback · ${short}${list.length === 1 ? ` · ${list[0].presenters.join(", ")}` : ""}`, Author: "ONGIA" } });
+  const chunks = [];
+  doc.on("data", (c) => chunks.push(c));
+  const done = new Promise((res) => doc.on("end", () => res(Buffer.concat(chunks))));
+  let y = 0;
+  const band = () => {
+    doc.addPage();
+    doc.rect(0, 0, W, 70).fill(DEEP); doc.rect(0, 70, W, 3).fill(GOLD);
+    if (logo) doc.image(logo, M, 16, { height: 30 });
+    doc.font("Helvetica").fontSize(9.5).fillColor("#e2bf5c").text(`Presenter feedback · ${short}`, M + 150, 20, { width: BODY - 150, align: "right", lineBreak: false });
+    doc.text(dates(event), M + 150, 34, { width: BODY - 150, align: "right", lineBreak: false });
+    y = 92;
+  };
+  const room = (h) => { if (y + h > H - M) band(); };
+  const para = (t, { size = 10, color = INK, bold = false, indent = 0 } = {}) => { doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(size).fillColor(color);
+    room(doc.heightOfString(t, { width: BODY - indent }) + 4); doc.text(t, M + indent, y, { width: BODY - indent }); y = doc.y + 4; };
+  const heading = (t) => { room(40); y += 8; doc.font("Helvetica-Bold").fontSize(11).fillColor(NAVY).text(t.toUpperCase(), M, y, { characterSpacing: 0.6 }); y = doc.y + 3;
+    doc.moveTo(M, y).lineTo(M + BODY, y).lineWidth(1).strokeColor(GOLD).stroke(); y += 8; };
+  const QS = SESSION.filter((q) => q.kind === "stars");
+  if (!list.length) { band(); para("No session has been rated yet.", { color: MUTED }); }
+  for (const s of list) {
+    band();
+    const n = days.indexOf(s.day) + 1;
+    doc.font("Helvetica").fontSize(9.5).fillColor(MUTED).text(`${n ? `DAY ${n} · ` : ""}${s.day ? formatDate(s.day).toUpperCase() : "NO DAY SET"}`, M, y, { characterSpacing: 0.5 }); y = doc.y + 4;
+    doc.font("Helvetica-Bold").fontSize(18).fillColor(NAVY).text(s.title || "Untitled session", M, y, { width: BODY }); y = doc.y + 2;
+    doc.font("Helvetica-Bold").fontSize(11.5).fillColor("#9a7a1f").text(s.presenters.join(", "), M, y, { width: BODY }); y = doc.y + 2;
+    const about = (event.survey?.sessions ?? []).find((x) => x.id === s.id)?.about;
+    if (about) { doc.font("Helvetica-Oblique").fontSize(10).fillColor(MUTED).text(about, M, y, { width: BODY }); y = doc.y + 2; }
+    y += 10;
+    if (!s.n) { para(s.skipped ? `No ratings yet. ${s.skipped} said they weren't there.` : "No ratings yet.", { color: MUTED }); continue; }
+    // The headline tiles.
+    const tiles = [
+      ["Overall", out5(s.avg), `average of the ${QS.length} questions`],
+      ["Rated 4 or 5", `${s.top2}%`, "of all their star ratings"],
+      ["Would recommend", `${s.rebook.yesPct}%`, `${s.rebook.yes} yes · ${s.rebook.maybe} maybe · ${s.rebook.no} no`],
+      ["Rated by", String(s.n), `${s.n === 1 ? "person" : "people"}${s.skipped ? ` · ${s.skipped} weren't there` : ""}`],
+    ];
+    const tw = (BODY - 30) / 4;
+    tiles.forEach(([a, b, c], i) => {
+      const x = M + i * (tw + 10);
+      doc.roundedRect(x, y, tw, 70, 8).fill(PALE);
+      doc.font("Helvetica").fontSize(8).fillColor(MUTED).text(a.toUpperCase(), x + 10, y + 9, { width: tw - 20, characterSpacing: 0.4 });
+      doc.font("Helvetica-Bold").fontSize(20).fillColor(NAVY).text(b, x + 10, y + 22, { width: tw - 20 });
+      doc.font("Helvetica").fontSize(8).fillColor(INK).text(c, x + 10, y + 50, { width: tw - 20 });
+    });
+    y += 84;
+    heading("Each question");
+    const labelW = 220, bw = BODY - labelW - 150;
+    for (const q of QS) {
+      const st = s.byQ[q.id] ?? { n: 0, avg: null, top2: 0, dist: [0, 0, 0, 0, 0], na: 0 };
+      room(34);
+      doc.font("Helvetica").fontSize(9.5).fillColor(INK).text(q.en, M, y + 1, { width: labelW - 8 });
+      doc.roundedRect(M + labelW, y + 2, bw, 10, 3).fill(LINE);
+      if (st.avg) doc.roundedRect(M + labelW, y + 2, Math.max(4, (bw * st.avg) / 5), 10, 3).fill(st.avg < 3.5 ? RED : NAVY);
+      doc.font("Helvetica-Bold").fontSize(9.5).fillColor(NAVY).text(`${out5(st.avg)}  ·  ${st.top2}% 4–5`, M + labelW + bw + 8, y + 1, { width: 142 });
+      doc.font("Helvetica").fontSize(8).fillColor(MUTED).text(`${[5, 4, 3, 2, 1].map((k) => `${STARS.en[k - 1]} ${st.dist[k - 1]}`).join("  ·  ")}${st.na ? `  ·  N/A ${st.na}` : ""}`, M + labelW, y + 15, { width: bw + 150 });
+      y += 30;
+    }
+    const note = (analysis?.presenters ?? []).find((p) => s.title && String(p.session).toLowerCase().includes(String(s.title).toLowerCase().slice(0, 24)));
+    if (note) { heading("Claude's note"); para(note.note); }
+    heading(`Comments (${s.comments.length})`);
+    if (!s.comments.length) para("No comments on this session.", { color: MUTED });
+    for (const c of s.comments) para(`“${c}”`, { size: 10, indent: 4 });
+  }
+  // Page numbers and the note on where the answers come from.
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    doc.font("Helvetica").fontSize(7.5).fillColor(MUTED).text(`Anonymous answers, by email link and QR code. Out of 5. N/A and those who weren't there left out.  ·  Page ${i - range.start + 1} of ${range.count}`, M, H - 30, { width: BODY, align: "center", lineBreak: false });
+  }
+  doc.end();
+  return done;
+}
