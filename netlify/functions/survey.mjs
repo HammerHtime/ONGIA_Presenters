@@ -276,7 +276,7 @@ async function testSend(event, to, part, who, partner = false) {
     ...(second ? { group: second.group || "group", wixEventId: second.eventId } : {}) }));
   event.survey = { ...event.survey, testers: [...testers, ...(event.survey.testers ?? []).filter((t) => !testers.some((n) => n.key === t.key))].slice(0, 10) };
   await putEvent(event);
-  const letter = surveyLetter(event, part);
+  const letter = surveyLetter(event, part, { partner: !!second });
   for (const person of testers) {
     const mail = renderLetter(letter, event, person);
     const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, subject: `TEST: ${mail.subject}` });
