@@ -128,14 +128,14 @@ const T = {
   yourDay: "Today's sessions", wholeEvent: "Tell us how it went", dayskip: "I wasn't there this day", skip: "I didn't attend this session", skipped: "Skipped",
   overall: "The event overall", na: "N/A", npsL: "Not likely", npsR: "Very likely", optional: "optional", send: "Send my answers", sending: "Sending…", retry: "Try again", failed: "We couldn't send your answers.", failedText: "They're still here. Check your connection, then try again.", kept: "Your answers so far are still here.",
   missing: (n) => `${n} answer${n === 1 ? " is" : "s are"} still needed. They're marked in red.`, done: "Thank you!", doneText: "Your answers are in. They help us make the next event even better.",
-  already: "You've already answered this part. Thank you!", qrDone: "You already rated today's sessions with the QR code on this phone. Thank you!", anyway: "Answer again anyway", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
+  whoAsk: "Which best describes you?", whoFree: "Every question is optional.", already: "You've already answered this part. Thank you!", qrDone: "You already rated today's sessions with the QR code on this phone. Thank you!", anyway: "Answer again anyway", closed: "This survey is closed.", broken: "This link is not working.", preview: "Preview: these answers are checked but not kept.",
   contactAsk: "Leave your name and email, and we'll be in touch. This is kept separate from your answers.", name: "Name", email: "Email", topic: "What would you present on? (optional)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Day ${n}` },
  fr: { other: "English", loading: "Chargement…", anon: "Vos réponses sont anonymes.", about: "À propos de vous", aboutHint: "Demandé une seule fois.", pick: "Choisir…", typeAgency: "Commencez à taper votre organisme…", useTyped: (s) => `Utiliser « ${s} » (pas dans la liste)`,
   yourDay: "Les séances d'aujourd'hui", wholeEvent: "Donnez-nous votre avis", dayskip: "Je n'étais pas là ce jour-là", skip: "Je n'ai pas assisté à cette séance", skipped: "Passé",
   overall: "L'événement dans son ensemble", na: "S.O.", npsL: "Peu probable", npsR: "Très probable", optional: "facultatif", send: "Envoyer mes réponses", sending: "Envoi…", retry: "Réessayer", failed: "Nous n'avons pas pu envoyer vos réponses.", failedText: "Elles sont toujours ici. Vérifiez votre connexion, puis réessayez.", kept: "Les réponses déjà données sont toujours là.",
   missing: (n) => `Il manque encore ${n} réponse${n === 1 ? "" : "s"}. ${n === 1 ? "Elle est indiquée" : "Elles sont indiquées"} en rouge.`, done: "Merci!", doneText: "Vos réponses ont été reçues. Elles nous aident à améliorer le prochain événement.",
-  already: "Vous avez déjà répondu à cette partie. Merci!", qrDone: "Vous avez déjà évalué les séances d'aujourd'hui avec le code QR sur ce téléphone. Merci!", anyway: "Répondre quand même", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
+  whoAsk: "Lequel vous décrit le mieux?", whoFree: "Toutes les questions sont facultatives.", already: "Vous avez déjà répondu à cette partie. Merci!", qrDone: "Vous avez déjà évalué les séances d'aujourd'hui avec le code QR sur ce téléphone. Merci!", anyway: "Répondre quand même", closed: "Ce sondage est fermé.", broken: "Ce lien ne fonctionne pas.", preview: "Aperçu : ces réponses sont vérifiées, mais pas conservées.",
   contactAsk: "Laissez votre nom et votre courriel, et nous communiquerons avec vous. Ces renseignements sont conservés à part de vos réponses.", name: "Nom", email: "Courriel", topic: "Sur quel sujet présenteriez-vous? (facultatif)",
   dayName: (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("fr-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }), dayN: (n) => `Jour ${n}` } };
 const t = (k, ...a) => (typeof T[LANG][k] === "function" ? T[LANG][k](...a) : T[LANG][k]);
@@ -148,12 +148,17 @@ let SENDFAIL = null;
 let KEPT = false;
 const DRAFT = () => `ongia-survey:${TOKEN}:${PERSON}:${D?.part ?? ""}${PREVIEW ? ":preview" : ""}`;
 const keep = () => { if (STATE !== "form" || !D) return; try { sessionStorage.setItem(DRAFT(), JSON.stringify({ ...A, agencyTyped: A.agencyTyped ?? "" })); } catch {} };
+// One survey for everyone (Andrew 10 Nov 2026): they pick who they are; a community partner gets their wording, and nothing is required.
+const WHO = () => A.who || D?.who || "";
+const FREE = () => WHO() === "partner";
+const asAsked = (q) => (FREE() ? { ...q, optional: true } : q);
+const aboutNow = () => (FREE() ? D.aboutPartner : D.about) ?? D.about;
 const forget = () => { try { sessionStorage.removeItem(DRAFT()); } catch {} };
 const restore = () => {
   try {
     const was = JSON.parse(sessionStorage.getItem(DRAFT()) ?? "null");
     if (!was || typeof was !== "object") return;
-    A = { about: was.about ?? {}, sessions: was.sessions ?? {}, overall: was.overall ?? {}, skipDays: Array.isArray(was.skipDays) ? was.skipDays : [], contact: was.contact ?? {}, ...(was.agencyTyped ? { agencyTyped: was.agencyTyped } : {}) };
+    A = { about: was.about ?? {}, sessions: was.sessions ?? {}, overall: was.overall ?? {}, skipDays: Array.isArray(was.skipDays) ? was.skipDays : [], contact: was.contact ?? {}, ...(was.agencyTyped ? { agencyTyped: was.agencyTyped } : {}), ...(was.who ? { who: was.who } : {}) };
     KEPT = [A.about, A.sessions, A.overall, A.contact].some((o) => Object.keys(o).length) || A.skipDays.length > 0;
   } catch {}
 };
@@ -232,7 +237,7 @@ function render() {
       ${off ? `<div class="card skipped">${t("skipped")}</div>` : d.sessions.map((s) => {
         const sk = !!(A.sessions[s.id] ?? {}).skipped;
         return `<div class="card"><p class="talk">${esc(s[LANG] || s.en || s.presenters.join(", "))}</p><p class="who">${esc(s.presenters.join(" · "))}</p>
-          ${sk ? "" : D.session.map((q) => question(`${s.id}.${q.id}`, q, get(`${s.id}.${q.id}`))).join("")}
+          ${sk ? "" : D.session.map((q) => question(`${s.id}.${q.id}`, asAsked(q), get(`${s.id}.${q.id}`))).join("")}
           <button type="button" class="skip" data-skipsession="${s.id}" aria-pressed="${sk}">${t("skip")}</button></div>`;
       }).join("")}`;
   }).join("");
@@ -240,15 +245,19 @@ function render() {
   ROOT.innerHTML = `
     ${PREVIEW ? `<div class="problems">${t("preview")}</div>` : ""}
     <div class="card"><span class="tag">${esc(D.title)}</span><h1>${D.daily ? t("yourDay") : t("wholeEvent")}</h1><p class="lede">${t("anon")}</p>${KEPT ? `<p class="hint" id="kept" style="margin:8px 0 0">${t("kept")}</p>` : ""}</div>
-    ${D.about ? `<div class="card"><h2>${t("about")}</h2><p class="hint">${t("aboutHint")}</p>${D.about.map((q) => question(`about.${q.id}`, q, get(`about.${q.id}`))).join("")}</div>` : ""}
+    <div class="card${MISSING.has("who") ? " missing-q" : ""}" id="q-who"><p class="talk" style="margin-bottom:10px">${t("whoAsk")} ${WHO() ? "" : `<span class="req">*</span>`}</p>
+      <div class="chips">${Object.entries(D.whoChoices ?? {}).map(([k, w]) => `<button type="button" data-who="${k}" aria-pressed="${WHO() === k}">${esc(w[LANG] || w.en)}</button>`).join("")}</div>
+      ${FREE() ? `<p class="hint" style="margin:10px 0 0">${t("whoFree")}</p>` : ""}</div>
+    ${!WHO() ? "" : `
+    ${D.about ? `<div class="card"><h2>${t("about")}</h2><p class="hint">${t("aboutHint")}</p>${aboutNow().map((q) => question(`about.${q.id}`, asAsked(q), get(`about.${q.id}`))).join("")}</div>` : ""}
     ${daysHtml}
-    ${D.overall ? `<div class="card"><h2>${t("overall")}</h2>${D.overall.map((q) => question(`overall.${q.id}`, q, get(`overall.${q.id}`))).join("")}
+    ${D.overall ? `<div class="card"><h2>${t("overall")}</h2>${D.overall.map((q) => question(`overall.${q.id}`, asAsked(q), get(`overall.${q.id}`))).join("")}
       ${wantsToPresent ? `<div class="stmt"><p class="hint" style="margin:0 0 8px">${t("contactAsk")}</p>
         <div class="row2"><div class="field" style="margin:0"><label>${t("name")}</label><input type="text" data-contact="name" value="${esc(A.contact.name ?? "")}"></div>
         <div class="field" style="margin:0"><label>${t("email")}</label><input type="email" data-contact="email" value="${esc(A.contact.email ?? "")}"></div></div>
         <div class="field"><label>${t("topic")}</label><input type="text" data-contact="topic" value="${esc(A.contact.topic ?? "")}"></div></div>` : ""}</div>` : ""}
     <div id="problems" aria-live="assertive">${failNote()}</div>
-    <button type="button" class="btn btn-gold" id="send">${t(SENDFAIL ? "retry" : "send")}</button>`;
+    <button type="button" class="btn btn-gold" id="send">${t(SENDFAIL ? "retry" : "send")}</button>`}`;
   wire();
 }
 
@@ -258,7 +267,7 @@ function wire() {
   ROOT.querySelectorAll("[data-select]").forEach((s) => s.onchange = () => { put(s.dataset.select, s.value || undefined); });
   ROOT.querySelectorAll("[data-agencyin]").forEach((x) => x.oninput = () => {
     // Only the list under the box is redrawn while they type, so the box keeps the cursor.
-    const key = x.dataset.agencyin, q = D.about.find((qq) => `about.${qq.id}` === key);
+    const key = x.dataset.agencyin, q = aboutNow().find((qq) => `about.${qq.id}` === key);
     A.agencyTyped = x.value; put(key, undefined);
     const chosen = x.parentElement.querySelector(".chosen"); if (chosen) chosen.remove();
     const box = document.getElementById(`opts-${key}`); box.innerHTML = agencyOptions(key, q.agencies ?? [], x.value);
@@ -269,7 +278,8 @@ function wire() {
   ROOT.querySelectorAll("[data-contact]").forEach((x) => x.oninput = () => { A.contact[x.dataset.contact] = x.value; keep(); });
   ROOT.querySelectorAll("[data-skipday]").forEach((b) => b.onclick = () => { const d = b.dataset.skipday; A.skipDays = A.skipDays.includes(d) ? A.skipDays.filter((x) => x !== d) : [...A.skipDays, d]; render(); });
   ROOT.querySelectorAll("[data-skipsession]").forEach((b) => b.onclick = () => { const id = b.dataset.skipsession; const s = (A.sessions[id] ??= {}); if (s.skipped) delete s.skipped; else s.skipped = true; render(); });
-  document.getElementById("send").onclick = send;
+  ROOT.querySelectorAll("[data-who]").forEach((b) => b.onclick = () => { A.who = b.dataset.who; MISSING.delete("who"); keep(); render(); });
+  const sendBtn = document.getElementById("send"); if (sendBtn) sendBtn.onclick = send;
 }
 
 function wireAgencyPicks() {
@@ -281,7 +291,7 @@ async function send() {
   btn.disabled = true; btn.textContent = t("sending");
   try {
     const res = await fetch(`/api/survey?t=${encodeURIComponent(TOKEN)}${PERSON ? `&p=${encodeURIComponent(PERSON)}` : ""}${DAY ? `&day=${encodeURIComponent(DAY)}` : ""}${PREVIEW ? "&preview=1" : ""}`, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ part: D.part, lang: LANG, about: A.about, sessions: A.sessions, skipDays: A.skipDays, overall: A.overall, contact: A.contact }) });
+      body: JSON.stringify({ part: D.part, lang: LANG, who: WHO(), about: A.about, sessions: A.sessions, skipDays: A.skipDays, overall: A.overall, contact: A.contact }) });
     const out = await res.json().catch(() => ({}));
     if (res.status === 400 && out.missing) {
       SENDFAIL = null; MISSING = new Set(out.missing); render();

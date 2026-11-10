@@ -7600,10 +7600,12 @@ function resultsCard() {
 }
 async function loadResults(ev) {
   const box = document.getElementById("rsbox");
-  try { renderResults(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}&results=1`)); }
+  try { renderResults(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}&results=1${RS_WHO ? `&who=${RS_WHO}` : ""}`)); }
   catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
 }
 let RS_LANG = "en";
+// Whose answers the Results show (Andrew 10 Nov 2026: "track the answers separately"): everyone, justice or community partners.
+let RS_WHO = "";
 function renderResults(ev, D) {
   const box = document.getElementById("rsbox");
   if (!box) return;
@@ -7612,7 +7614,10 @@ function renderResults(ev, D) {
   const q = `/survey?event=${encodeURIComponent(ev.id)}`;
   const list = (items, f) => items?.length ? `<ul style="margin:6px 0 12px;padding-left:20px">${items.map((x) => `<li style="margin:3px 0">${f(x)}</li>`).join("")}</ul>` : "";
   const kpi = (big, small) => `<div><b>${big}</b><span>${small}</span></div>`;
+  const C = D.counts ?? null;
+  const wq = RS_WHO ? `&who=${RS_WHO}` : "";
   box.innerHTML = `
+    ${C && (C.partner || ev.wixMore?.length) ? `<div class="filters ggrp" role="radiogroup" aria-label="Whose answers" style="margin:0 0 12px">${[["", "Everyone", C.all], ["justice", "Justice", C.justice], ["partner", "Community", C.partner]].map(([k, l, n]) => `<button type="button" class="fchip${RS_WHO === k ? " on" : ""}" data-rswho="${k}" role="radio" aria-checked="${RS_WHO === k}">${l} <b>${n}</b></button>`).join("")}</div>` : ""}
     <div class="rsk">${kpi(R.responses, `answer${R.responses === 1 ? "" : "s"} · ${R.respondents} ${R.respondents === 1 ? "person" : "people"}`)}${R.headline.n ? kpi(`${R.headline.avg}<small style="font-size:12px">/5</small>`, "overall") + kpi(`${R.headline.top2}%`, "rated 4 or 5") : ""}${R.overall.nps.n ? kpi(`${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}`, "recommend score") : ""}</div>
     ${R.responses ? "" : `<div class="note">No answers yet. Everything below works as soon as the first ones come in; try it with <b>Try the survey</b> above (those answers aren't kept).</div>`}
     <div class="rsg">
@@ -7639,13 +7644,14 @@ function renderResults(ev, D) {
   box.querySelectorAll("[data-rsdl]").forEach((b) => b.onclick = async () => {
     const done = busy(b, "Preparing…");
     try {
-      const res = await apiFetch(`/api${q}&download=${b.dataset.rsdl}`, { headers: { "x-admin-key": KEY } });
+      const res = await apiFetch(`/api${q}&download=${b.dataset.rsdl}${wq}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The download did not work.");
       saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "survey");
     } catch (x) { toast(x.message); }
     done();
   });
   box.querySelectorAll("[data-rslang]").forEach((b) => b.onclick = () => { RS_LANG = b.dataset.rslang; renderResults(ev, D); });
+  box.querySelectorAll("[data-rswho]").forEach((b) => b.onclick = () => { RS_WHO = b.dataset.rswho; loadResults(ev); });
   $("rs-clear").onclick = async () => {
     const typed = prompt(`This deletes all ${R.responses} answer${R.responses === 1 ? "" : "s"}, the would-be presenters' details and Claude's read for this event. The questions and sessions stay. It cannot be undone.\n\nType CLEAR to go ahead.`);
     if (typed === null) return;
@@ -7658,7 +7664,7 @@ function renderResults(ev, D) {
     catch (x) { toast(x.message); done(); }
   };
   const fetchHtml = async (block = "") => {
-    const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}`, { headers: { "x-admin-key": KEY } });
+    const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}${RS_WHO ? `&who=${RS_WHO}` : ""}`, { headers: { "x-admin-key": KEY } });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error("The infographic could not be made.");
     return res.text();
