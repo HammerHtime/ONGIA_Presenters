@@ -49,6 +49,15 @@ export function isPartner(event, person) {
 }
 export const aboutFor = (asked) => (asked?.partner ? PARTNER_ABOUT : ABOUT);
 
+/**
+ * One survey for everyone (Andrew 10 Nov 2026: "Instead of two separate ones (because this will cause an issue with the
+ * QR code on screen) … The user would select Justice Community or Community Partners. And we can then have the
+ * different language in each. And for community members, the answers are all optional."). The first question; an
+ * emailed link starts on the person's own group, a QR code starts on neither.
+ */
+export const WHO = { justice: { en: "Justice community", fr: "Milieu de la justice" }, partner: { en: "Community partner", fr: "Partenaire communautaire" } };
+const whoOf = (body, asked) => (WHO[body?.who] ? body.who : asked.who ?? null);
+
 export const SESSION = [
   { id: "relevant", kind: "stars", en: "How relevant was this to your work?", fr: "Dans quelle mesure était-ce pertinent pour votre travail?" },
   { id: "knowledge", kind: "stars", en: "How much did it add to what you knew?", fr: "Dans quelle mesure cela a-t-il enrichi vos connaissances?" },
@@ -160,6 +169,7 @@ export function partFor(event, person, part, done = {}) {
   return {
     part,
     partner: isPartner(event, person),
+    who: person ? (isPartner(event, person) ? "partner" : "justice") : null,
     about: !done.about,
     days: showDays.map((d) => ({ day: d, sessions: sessions.filter((s) => s.day === d) })).filter((d) => d.sessions.length),
     overall: part === "end" || part === days[days.length - 1],
@@ -186,11 +196,16 @@ function cleanAnswerFor(q, v, lang) {
 export function cleanResponse(body, asked, lang = "en") {
   const missing = [];
   const rec = { part: asked.part, lang: lang === "fr" ? "fr" : "en" };
+  // Who they said they are decides the wording and what's required: a community partner may leave anything out.
+  const who = whoOf(body, asked);
+  if (who) rec.who = who; else missing.push("who");
+  const free = who === "partner";
+  const need = (q) => !q.optional && !free;
   if (asked.about) {
     rec.about = {};
-    for (const q of aboutFor(asked)) {
+    for (const q of aboutFor({ partner: free })) {
       const v = cleanAnswerFor(q, body?.about?.[q.id], lang);
-      if (v === null) { if (!q.optional) missing.push(`about.${q.id}`); continue; }
+      if (v === null) { if (need(q)) missing.push(`about.${q.id}`); continue; }
       rec.about[q.id] = v;
     }
   }
@@ -203,7 +218,7 @@ export function cleanResponse(body, asked, lang = "en") {
       const out = {};
       for (const q of SESSION) {
         const v = cleanAnswerFor(q, given[q.id], lang);
-        if (v === null) { if (!q.optional) missing.push(`${s.id}.${q.id}`); continue; }
+        if (v === null) { if (need(q)) missing.push(`${s.id}.${q.id}`); continue; }
         out[q.id] = v;
       }
       rec.sessions[s.id] = out;
@@ -214,7 +229,7 @@ export function cleanResponse(body, asked, lang = "en") {
     rec.overall = {};
     for (const q of OVERALL) {
       const v = cleanAnswerFor(q, body?.overall?.[q.id], lang);
-      if (v === null) { if (!q.optional) missing.push(`overall.${q.id}`); continue; }
+      if (v === null) { if (need(q)) missing.push(`overall.${q.id}`); continue; }
       rec.overall[q.id] = v;
     }
     const c = body?.contact ?? {};
@@ -229,7 +244,10 @@ export function surveyForPage(event, asked, agencies = []) {
   return {
     title: event.title, city: event.city, part: asked.part,
     dayNumber: Object.fromEntries(trainingDays(event).map((d, i) => [d, i + 1])),
-    about: asked.about ? aboutFor(asked).map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
+    // Both wordings: the page switches when they pick who they are.
+    about: asked.about ? ABOUT.map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
+    aboutPartner: asked.about ? PARTNER_ABOUT.map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
+    who: asked.who ?? null, whoChoices: WHO,
     days: asked.days.map((d) => ({ day: d.day, sessions: d.sessions.map((s) => ({ id: s.id, en: name(s, "en"), fr: name(s, "fr"), presenters: s.presenters })) })),
     session: SESSION, overall: asked.overall ? OVERALL.map((q) => (q.kind === "province" ? { ...q, provinces: PROVINCES } : q)) : null, stars: STARS,
   };

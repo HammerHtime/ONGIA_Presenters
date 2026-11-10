@@ -52,10 +52,10 @@ export default async (req) => {
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
   if (req.method === "GET") {
-    if (url.searchParams.get("results")) return results(event);
+    if (url.searchParams.get("results")) return results(event, url.searchParams.get("who"));
     if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"), url);
     if (url.searchParams.get("qr")) return qrCodes(event, url.searchParams.get("qr"));
-    if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"));
+    if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"), url.searchParams.get("who"));
     return show(event);
   }
   if (req.method === "POST" && url.searchParams.get("pdf")) return pngToPdf(req, url);
@@ -147,16 +147,27 @@ async function show(event) {
   });
 }
 
-async function results(event) {
+/**
+ * The answers of one group, or everyone (Andrew 10 Nov 2026: "can we track the answers separately? Community Members and
+ * Justice Community"). By what each person picked at the top of the survey; answers from before the choice existed go by
+ * how the person registered, and a QR answer from then (nobody known) only counts under everyone.
+ */
+const whoOfAnswer = (r) => r.who || (r.partner ? "partner" : r.via === "qr" ? "" : "justice");
+const byWho = (responses, who) => (who === "justice" || who === "partner" ? responses.filter((r) => whoOfAnswer(r) === who) : responses);
+
+async function results(event, who = "") {
   if (!event.survey) return json({ results: null });
-  const R = await resultsOf(event);
-  return json({ results: R, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
+  const all = await getSurveyResponses(event.id);
+  const R = await resultsOf(event, byWho(all, who));
+  const counts = { all: all.length, justice: byWho(all, "justice").length, partner: byWho(all, "partner").length };
+  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", counts, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
 async function download(event, which, url = null) {
   if (!event.survey) return fail("Set up the survey first.", 409);
-  const responses = await getSurveyResponses(event.id);
-  const base = `${slugOf(event.title) || "event"}-survey`;
+  const who = url?.searchParams.get("who") ?? "";
+  const responses = byWho(await getSurveyResponses(event.id), who);
+  const base = `${slugOf(event.title) || "event"}-survey${who === "justice" ? "-justice" : who === "partner" ? "-community-partners" : ""}`;
   const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
   if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
   // Feedback on each presenter, one page each, or one presenter's (&session=…) (Andrew 9 Nov 2026).
@@ -173,9 +184,9 @@ async function download(event, which, url = null) {
   return fail("Which download: summary, answers or presenters?");
 }
 
-async function infographic(event, lang, block) {
+async function infographic(event, lang, block, who = "") {
   if (!event.survey) return fail("Set up the survey first.", 409);
-  const R = await resultsOf(event);
+  const R = await resultsOf(event, byWho(await getSurveyResponses(event.id), who));
   const html = infographicHtml(event, R, event.survey.analysis ?? null, { lang: lang === "fr" ? "fr" : "en", block: block || "" });
   if (!html) return fail("There is nothing for that section yet.", 404);
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
@@ -227,7 +238,7 @@ function whichPart(event, person, asked, done) {
 function qrPart(event, day) {
   if (!trainingDays(event).includes(day)) return null;
   const sessions = (event.survey?.sessions ?? []).filter((s) => s.day === day);
-  return sessions.length ? { part: day, partner: false, about: false, days: [{ day, sessions }], overall: false } : null;
+  return sessions.length ? { part: day, partner: false, who: null, about: false, days: [{ day, sessions }], overall: false } : null;
 }
 const qrLink = (event, day) => `${siteUrl()}/f/${event.survey.token}?day=${day}`;
 const qrPng = (link, width = 900) => QRCode.toBuffer(link, { margin: 2, width, errorCorrectionLevel: "M", color: { dark: "#14264d", light: "#ffffff" } });
@@ -274,7 +285,7 @@ async function attendeeSide(req, url, tok, pid) {
   if (url.searchParams.get("preview")) return json({ ok: true, preview: true });
   const at = new Date().toISOString();
   // The answers carry no name, address or link id: only which part, the language, and the time.
-  await putSurveyResponse(event.id, { id: newToken(16), at, ...rec, ...(person?.group ? { group: person.group } : {}), ...(asked.partner ? { partner: true } : {}) });
+  await putSurveyResponse(event.id, { id: newToken(16), at, ...rec, ...(person?.group ? { group: person.group } : {}), ...(rec.who === "partner" ? { partner: true } : {}) });
   if (contact) await putSurveyContact(event.id, { id: newToken(12), at, ...contact });
   if (person) await putSurveyDone(event.id, pid, { about: !!(done.about || asked.about), parts: [...new Set([...(done.parts ?? []), part])] });
   return json({ ok: true });
@@ -292,7 +303,7 @@ async function qrSide(req, url, event, day) {
   const { rec, missing } = cleanResponse(body, asked, body.lang);
   if (missing.length) return json({ error: "missing", missing }, 400);
   if (url.searchParams.get("preview")) return json({ ok: true, preview: true });
-  await putSurveyResponse(event.id, { id: newToken(16), at: new Date().toISOString(), ...rec, via: "qr" });
+  await putSurveyResponse(event.id, { id: newToken(16), at: new Date().toISOString(), ...rec, ...(rec.who === "partner" ? { partner: true } : {}), via: "qr" });
   return json({ ok: true });
 }
 

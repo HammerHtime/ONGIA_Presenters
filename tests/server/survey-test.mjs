@@ -55,9 +55,10 @@ ok("each question in both languages, and the star words in both", day1.session[0
 const camDay1 = (await pub(`t=${tok}&p=${cam}&part=2026-11-09`)).body;
 ok("a community partner asking for Day 1 is given their first day instead (Nov 10)", camDay1.days[0].day === "2026-11-10", JSON.stringify(camDay1.days));
 // Andrew 8 Nov 2026: the community partners aren't asked law-enforcement questions.
-ok("a community partner isn't asked years of service", camDay1.about?.length === 5 && !camDay1.about.some((q) => q.id === "years"), JSON.stringify(camDay1.about?.map((q) => q.id)));
-ok("and is asked their organization, not their agency, in both languages", camDay1.about.find((q) => q.id === "agency")?.en === "Which organization do you work for?" && /organisme/.test(camDay1.about.find((q) => q.id === "agency").fr) && /organization/.test(camDay1.about.find((q) => q.id === "agency").ph.en));
-ok("their 'how did you hear' says My organization, in the same place as My agency", camDay1.about.find((q) => q.id === "heard").options.en[2] === "My organization" && day1.about.find((q) => q.id === "heard").options.en[2] === "My agency");
+// Andrew 10 Nov 2026: one survey; they pick who they are, and the page switches to that wording.
+ok("a community partner's link starts on Community partner, with the partner wording beside the justice one", camDay1.who === "partner" && day1.who === "justice" && camDay1.aboutPartner?.length === 5 && !camDay1.aboutPartner.some((q) => q.id === "years") && camDay1.whoChoices?.partner?.fr === "Partenaire communautaire", JSON.stringify({ who: camDay1.who, ids: camDay1.aboutPartner?.map((q) => q.id) }));
+ok("and is asked their organization, not their agency, in both languages", camDay1.aboutPartner.find((q) => q.id === "agency")?.en === "Which organization do you work for?" && /organisme/.test(camDay1.aboutPartner.find((q) => q.id === "agency").fr) && /organization/.test(camDay1.aboutPartner.find((q) => q.id === "agency").ph.en));
+ok("their 'how did you hear' says My organization, in the same place as My agency", camDay1.aboutPartner.find((q) => q.id === "heard").options.en[2] === "My organization" && day1.about.find((q) => q.id === "heard").options.en[2] === "My agency");
 ok("a justice partner is still asked agency and years of service", day1.about.some((q) => q.id === "years") && day1.about.find((q) => q.id === "agency").en === "Which agency do you work for?");
 
 // Answers: missing ones are named; complete ones are kept with no name.
@@ -89,7 +90,7 @@ const skipped = await pub(`t=${tok}&p=${jay}`, { method: "POST", body: { part: "
 ok("'I wasn't there this day' skips every session that day; the overall is still kept", skipped.status === 200);
 const last = (await getSurveyResponses("ngs")).at(-1);
 ok("the day is kept as skipped, and the person who would like to present is kept apart from the answers", last.sessions[sid("Ghost Guns")].skipped === "day" && !/Jay|jay@/.test(JSON.stringify(last)) && (await getSurveyContacts("ngs"))[0]?.email === "jay@example.ca");
-ok("a test (preview) answer is checked but not kept", (await pub(`t=${tok}&preview=1`, { method: "POST", body: { part: "2026-11-10", about, sessions: { [sid("Following the Money")]: { ...stars(4), rebook: 1 } } } })).body.preview && (await getSurveyResponses("ngs")).length === 3);
+ok("a test (preview) answer is checked but not kept", (await pub(`t=${tok}&preview=1`, { method: "POST", body: { part: "2026-11-10", who: "justice", about, sessions: { [sid("Following the Money")]: { ...stars(4), rebook: 1 } } } })).body.preview && (await getSurveyResponses("ngs")).length === 3);
 
 // When each part goes.
 const at = (local) => new Date(`${local}:00-05:00`); // Toronto in November
@@ -130,7 +131,7 @@ const qr2 = (await pub(`t=${tok}&day=2026-11-10`)).body;
 ok("a day's QR link asks about that day's sessions only, with no About-you and no overall", qr2.qr && qr2.days.length === 1 && qr2.days[0].day === "2026-11-10" && qr2.about === null && qr2.overall === null, JSON.stringify(qr2).slice(0, 300));
 const before = (await getSurveyResponses("ngs")).length;
 const qrSid = qr2.days[0].sessions[0].id;
-const qrOk = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { part: "2026-11-10", sessions: { [qrSid]: { ...stars(5), rebook: 0 } } } });
+const qrOk = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { part: "2026-11-10", who: "justice", sessions: { [qrSid]: { ...stars(5), rebook: 0 } } } });
 const qrKept = (await getSurveyResponses("ngs")).at(-1);
 ok("a QR answer is kept, marked as from the QR code, with no About-you", qrOk.body.ok && (await getSurveyResponses("ngs")).length === before + 1 && qrKept.via === "qr" && !qrKept.about && qrKept.part === "2026-11-10", JSON.stringify(qrKept));
 ok("a QR answer with a session left blank is refused", (await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { sessions: {} } })).status === 400);
@@ -162,6 +163,28 @@ ok("and a link that says Monday still opens Monday", (await pub(`t=${tok}&p=${ze
 const k2 = sent.length;
 await sendSurveyRound(await getEvent("ngs"), "2026-11-10", { pace: async () => {} });
 ok("the email itself now says which day it's for", sent.slice(k2).length > 0 && sent.slice(k2).every((m) => /\?lang=en&part=2026-11-10/.test(m.text) && /\?lang=fr&part=2026-11-10/.test(m.text)), sent.slice(k2)[0]?.text?.match(/https?:\S+/g)?.join(" "));
+
+// One survey: on the QR code they choose; a community partner may leave anything out; a justice partner may not.
+NOW = RealDate.parse("2026-11-13T15:00:00Z");
+const qrSess = (await pub(`t=${tok}&day=2026-11-10`)).body;
+ok("the QR code's survey starts with nobody chosen", qrSess.who === null && !!qrSess.whoChoices?.justice);
+const noWho = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { sessions: Object.fromEntries(qrSess.days[0].sessions.map((x) => [x.id, { ...stars(5), rebook: 0 }])) } });
+ok("an answer that doesn't say who they are is asked to", noWho.status === 400 && noWho.body.missing.includes("who"));
+const cpBlank = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { who: "partner", sessions: { [qrSess.days[0].sessions[0].id]: { relevant: 4 } } } });
+ok("a community partner can answer only what they want: nothing required", cpBlank.status === 200 && cpBlank.body.ok, JSON.stringify(cpBlank.body));
+const cpKept = (await getSurveyResponses("ngs")).at(-1);
+ok("kept as a community partner's, by QR code", cpKept.who === "partner" && cpKept.partner === true && cpKept.via === "qr" && cpKept.sessions[qrSess.days[0].sessions[0].id].relevant === 4);
+const jBlank = await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { who: "justice", sessions: { [qrSess.days[0].sessions[0].id]: { relevant: 4 } } } });
+ok("a justice partner leaving questions out is asked for them, as before", jBlank.status === 400 && jBlank.body.missing.some((m) => m.endsWith(".knowledge")));
+const jaySwitch = (await pub(`t=${tok}&p=${jay}&part=2026-11-10`)).body;
+ok("an emailed link starts on the person's own group, and they can change it", jaySwitch.who === "justice" && !!jaySwitch.whoChoices?.partner);
+
+// Andrew 10 Nov 2026: "can we track the answers separately? Community Members and Justice Community".
+const res = async (who) => (await admin(`&results=1${who ? `&who=${who}` : ""}`)).body;
+const rAll = await res(""), rJ = await res("justice"), rP = await res("partner");
+ok("Results can be split: everyone, justice, community partners, with counts for each", rAll.counts.all === rAll.results.responses && rJ.results.responses === rAll.counts.justice && rP.results.responses === rAll.counts.partner && rP.counts.partner >= 2 && rJ.results.responses + rP.results.responses <= rAll.results.responses, JSON.stringify(rAll.counts));
+const dlP = await survey(new Request("http://x/api/survey?event=ngs&download=answers&who=partner", { headers: H }));
+ok("and the downloads follow the group, named for it", dlP.status === 200 && /-community-partners-answers\.xlsx/.test(dlP.headers.get("content-disposition")));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

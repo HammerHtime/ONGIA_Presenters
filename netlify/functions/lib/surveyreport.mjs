@@ -175,7 +175,7 @@ export function surveyResponsesXlsx(event, responses) {
   const label = (q, v) => (v === undefined || v === null ? "" : q.kind === "stars" ? starOf(v) : q.kind === "choice" ? q.options.en[v] ?? "" : q.kind === "province" ? PROVINCES[v] ?? v : v);
   const rows = responses.map((r) => [
     r.at ? r.at.slice(0, 16).replace("T", " ") : "", r.part === "end" ? "After the event" : r.via === "qr" ? `${r.part} (QR code)` : r.part, r.lang === "fr" ? "French" : "English",
-    ...(group ? [r.via === "qr" ? "QR code" : r.partner ? group : main] : []),
+    ...(group ? [`${r.who === "partner" || (!r.who && r.partner) ? group : r.who || r.via !== "qr" ? main : "Not said"}${r.via === "qr" ? " (QR code)" : ""}`] : []),
     ...ABOUT.map((q) => label(q, r.about?.[q.id])),
     ...sessions.flatMap((s) => { const g = r.sessions?.[s.id]; if (!g) return [...stars.map(() => ""), "", ""]; if (g.skipped) return [...stars.map(() => "Not there"), "", ""];
       return [...stars.map((q) => starOf(g[q.id])), label(SESSION.find((q) => q.id === "rebook"), g.rebook), g.comment ?? ""]; }),
