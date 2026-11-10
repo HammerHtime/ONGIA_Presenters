@@ -14,8 +14,12 @@ globalThis.fetch = async (url, init) => {
   }
   throw new Error("unexpected fetch " + url);
 };
+// The clock, pinned: after the event unless a check sets it (every day's survey has gone by then).
+const RealDate = Date;
+let NOW = RealDate.parse("2026-11-10T21:30:00Z");   // Tuesday 4:30 pm in Toronto: Monday's and Tuesday's have gone
+globalThis.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } };
 const F = REPO + "netlify/functions/";
-const { putEvent, getEvent, putAttendees, putPresenter, getSurveyResponses, getSurveyContacts } = await import(F + "lib/store.mjs");
+const { putEvent, getEvent, putAttendees, getAttendees, putPresenter, getSurveyResponses, getSurveyContacts } = await import(F + "lib/store.mjs");
 const { personalId } = await import(F + "lib/letters.mjs");
 const { partsDue, sendSurveyRound } = await import(F + "lib/surveysend.mjs");
 const survey = (await import(F + "survey.mjs")).default;
@@ -67,6 +71,7 @@ ok("a complete part is kept", okDay1.status === 200 && okDay1.body.ok);
 const kept = await getSurveyResponses("ngs");
 ok("the answers carry no name, address or link id", kept.length === 1 && !/jay|Jay|j1|example\.ca/.test(JSON.stringify(kept[0])) && kept[0].lang === "fr" && kept[0].about.agency === "Toronto Police Service" && kept[0].sessions[sid("Gang Trends Coast to Coast")].delivery === "na", JSON.stringify(kept[0]));
 ok("answering the same part again is not counted twice", (await pub(`t=${tok}&p=${jay}`, { method: "POST", body: { part: "2026-11-09", about, sessions: {} } })).body.already === true && (await getSurveyResponses("ngs")).length === 1);
+NOW = RealDate.parse("2026-11-13T15:00:00Z");   // after the event: every day's has gone
 const day2 = (await pub(`t=${tok}&p=${jay}&part=2026-11-10`)).body;
 ok("on Day 2, about-you is not asked again", day2.about === null && day2.days[0].day === "2026-11-10");
 const day4 = (await pub(`t=${tok}&p=${jay}&part=2026-11-12`)).body;
@@ -136,6 +141,27 @@ const pdf = await survey(new Request("http://x/api/survey?event=ngs&qr=all", { h
 const pdfBytes = Buffer.from(await pdf.arrayBuffer());
 ok("and every day's on its own page of a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && (pdfBytes.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length >= 2);
 ok("the QR codes are for the desk only", (await survey(new Request("http://x/api/survey?event=ngs&qr=all"))).status === 401);
+
+// Andrew 10 Nov 2026: "the email for survey went out for days monday and others". The link had no day in it, so it
+// opened the latest day not answered: Tuesday's sessions, the night before Tuesday, to someone who had done Monday.
+const evNow = await getEvent("ngs");
+const fresh = (k) => personalId(evNow.survey.token, { key: k });
+const st2 = await getAttendees("ngs"); st2.people.push({ key: "z1", first: "Zed", email: "zed@example.ca", status: "ATTENDING" }); await putAttendees("ngs", st2);
+const zed = fresh("z1");
+NOW = RealDate.parse("2026-11-09T23:30:00Z");   // Monday 6:30 pm in Toronto, Monday's survey gone at 4:15
+ok("Monday evening, the link with no day opens Monday", (await pub(`t=${tok}&p=${zed}`)).body.part === "2026-11-09");
+await pub(`t=${tok}&p=${zed}`, { method: "POST", body: { part: "2026-11-09", about, sessions: Object.fromEntries((await pub(`t=${tok}&p=${zed}`)).body.days[0].sessions.map((x) => [x.id, { ...stars(5), rebook: 0 }])) } });
+const again = (await pub(`t=${tok}&p=${zed}`)).body;
+ok("answered, it opens Monday again and says so: never Tuesday's sessions before Tuesday", again.part === "2026-11-09" && again.answered === true, JSON.stringify({ part: again.part, answered: again.answered }));
+ok("asking for Tuesday on Monday night gets Monday, not Tuesday", (await pub(`t=${tok}&p=${zed}&part=2026-11-10`)).body.part === "2026-11-09");
+NOW = RealDate.parse("2026-11-10T13:00:00Z");   // Tuesday 8 am: Tuesday's survey hasn't gone
+ok("Tuesday morning, Monday's emailed link still opens Monday", (await pub(`t=${tok}&p=${zed}`)).body.part === "2026-11-09");
+NOW = RealDate.parse("2026-11-10T21:30:00Z");   // Tuesday 4:30 pm: its survey went at 4:15
+ok("once Tuesday's has gone, the link opens Tuesday", (await pub(`t=${tok}&p=${zed}`)).body.part === "2026-11-10");
+ok("and a link that says Monday still opens Monday", (await pub(`t=${tok}&p=${zed}&part=2026-11-09`)).body.part === "2026-11-09");
+const k2 = sent.length;
+await sendSurveyRound(await getEvent("ngs"), "2026-11-10", { pace: async () => {} });
+ok("the email itself now says which day it's for", sent.slice(k2).length > 0 && sent.slice(k2).every((m) => /\?lang=en&part=2026-11-10/.test(m.text) && /\?lang=fr&part=2026-11-10/.test(m.text)), sent.slice(k2)[0]?.text?.match(/https?:\S+/g)?.join(" "));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

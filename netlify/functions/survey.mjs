@@ -212,10 +212,15 @@ async function personFor(event, pid) {
 function whichPart(event, person, asked, done) {
   if (event.survey.mode !== "daily") return "end";
   const days = daysFor(event, person);
-  if (days.includes(asked)) return asked;
-  const today = localNow(event).slice(0, 10);
-  const open = days.filter((d) => d <= today && !(done.parts ?? []).includes(d));
-  return open[open.length - 1] ?? days.find((d) => !(done.parts ?? []).includes(d)) ?? days[days.length - 1];
+  // Only a day whose survey has gone: one before today, or today once its time has come (15 minutes after its last
+  // session). Never a day still to come (Andrew 10 Nov 2026: Monday's link, opened again, showed Tuesday's sessions).
+  const [today, time] = localNow(event).split(" ");
+  const at = new Map(dailyTimes(event).map((t) => [t.day, t.at]));
+  const gone = days.filter((d) => d < today || (d === today && at.get(d) && time >= at.get(d)));
+  if (gone.includes(asked)) return asked;
+  const open = gone.filter((d) => !(done.parts ?? []).includes(d));
+  // The latest one not answered yet; all answered, the latest (it says "already answered"); none gone yet, the first.
+  return open[open.length - 1] ?? gone[gone.length - 1] ?? days[0];
 }
 
 /** A day's QR link: that day's sessions and nothing else. Null when the day isn't one of the event's with sessions. */
@@ -306,7 +311,7 @@ async function testSend(event, to, part, who, partner = false) {
   await putEvent(event);
   const letter = surveyLetter(event, part, { partner: !!second });
   for (const person of testers) {
-    const mail = renderLetter(letter, event, person);
+    const mail = renderLetter(letter, event, { ...person, surveyPart: part });
     const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...mail, subject: `TEST: ${mail.subject}` });
     if (out.skipped) return fail(`The test did not send: ${out.reason}`, 502);
   }
