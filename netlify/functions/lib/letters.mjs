@@ -54,7 +54,9 @@ export const BLANKS = {
 /** A person's own link to an event's survey; it says who is answering only so nobody is asked twice. */
 export function surveyUrl(e, p, lang = "") {
   if (!e.survey?.token || !siteUrl()) return "";
-  return `${siteUrl()}/f/${e.survey.token}${p && (p.key || p.email) ? `/${personalId(e.survey.token, p)}` : ""}${lang ? `?lang=${lang}` : ""}`;
+  // A daily part's email opens that day's survey (Andrew 10 Nov 2026: Monday's link showed later days).
+  const q = [lang ? `lang=${lang}` : "", p?.surveyPart && p.surveyPart !== "end" ? `part=${p.surveyPart}` : ""].filter(Boolean).join("&");
+  return `${siteUrl()}/f/${e.survey.token}${p && (p.key || p.email) ? `/${personalId(e.survey.token, p)}` : ""}${q ? `?${q}` : ""}`;
 }
 
 /** A person's own link to an event's housekeeping questions; `lang` opens the form in that language. */

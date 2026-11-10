@@ -104,7 +104,7 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(isPartner(event, person) ? partnerLetter : letter, event, person) });
+      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(isPartner(event, person) ? partnerLetter : letter, event, { ...person, surveyPart: part }) });
       if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
       for (const same of (stored.people ?? []).filter((p) => p.email === person.email)) {
         same.sent = [...new Set([...(same.sent ?? []), sentKey(part)])];
