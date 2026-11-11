@@ -52,10 +52,10 @@ export default async (req) => {
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
   if (req.method === "GET") {
-    if (url.searchParams.get("results")) return results(event, url.searchParams.get("who"));
+    if (url.searchParams.get("results")) return results(event, url.searchParams.get("who"), url.searchParams.get("day"));
     if (url.searchParams.get("download")) return download(event, url.searchParams.get("download"), url);
     if (url.searchParams.get("qr")) return qrCodes(event, url.searchParams.get("qr"));
-    if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"), url.searchParams.get("who"));
+    if (url.searchParams.get("infographic")) return infographic(event, url.searchParams.get("lang"), url.searchParams.get("block"), url.searchParams.get("who"), url.searchParams.get("day"));
     return show(event);
   }
   if (req.method === "POST" && url.searchParams.get("pdf")) return pngToPdf(req, url);
@@ -155,19 +155,26 @@ async function show(event) {
 const whoOfAnswer = (r) => r.who || (r.partner ? "partner" : r.via === "qr" ? "" : "justice");
 const byWho = (responses, who) => (who === "justice" || who === "partner" ? responses.filter((r) => whoOfAnswer(r) === who) : responses);
 
-async function results(event, who = "") {
+// One day's answers (Andrew 11 Nov 2026: "where can i see the results by days"): the answers given for that day's part.
+const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d ?? "");
+const byDay = (responses, day) => (isDay(day) ? responses.filter((r) => r.part === day) : responses);
+
+async function results(event, who = "", day = "") {
   if (!event.survey) return json({ results: null });
   const all = await getSurveyResponses(event.id);
-  const R = await resultsOf(event, byWho(all, who));
-  const counts = { all: all.length, justice: byWho(all, "justice").length, partner: byWho(all, "partner").length };
-  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", counts, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
+  const R = await resultsOf(event, byDay(byWho(all, who), day));
+  const inDay = byDay(all, day);
+  const counts = { all: inDay.length, justice: byWho(inDay, "justice").length, partner: byWho(inDay, "partner").length,
+    days: Object.fromEntries(trainingDays(event).map((d) => [d, byDay(byWho(all, who), d).length])) };
+  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", day: isDay(day) ? day : "", daily: event.survey.mode === "daily", counts, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
 async function download(event, which, url = null) {
   if (!event.survey) return fail("Set up the survey first.", 409);
-  const who = url?.searchParams.get("who") ?? "";
-  const responses = byWho(await getSurveyResponses(event.id), who);
-  const base = `${slugOf(event.title) || "event"}-survey${who === "justice" ? "-justice" : who === "partner" ? "-community-partners" : ""}`;
+  const who = url?.searchParams.get("who") ?? "", day = url?.searchParams.get("day") ?? "";
+  const responses = byDay(byWho(await getSurveyResponses(event.id), who), day);
+  const dayN = isDay(day) ? trainingDays(event).indexOf(day) + 1 : 0;
+  const base = `${slugOf(event.title) || "event"}-survey${dayN ? `-day-${dayN}` : ""}${who === "justice" ? "-justice" : who === "partner" ? "-community-partners" : ""}`;
   const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
   if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
   // Feedback on each presenter, one page each, or one presenter's (&session=…) (Andrew 9 Nov 2026).
@@ -184,9 +191,9 @@ async function download(event, which, url = null) {
   return fail("Which download: summary, answers or presenters?");
 }
 
-async function infographic(event, lang, block, who = "") {
+async function infographic(event, lang, block, who = "", day = "") {
   if (!event.survey) return fail("Set up the survey first.", 409);
-  const R = await resultsOf(event, byWho(await getSurveyResponses(event.id), who));
+  const R = await resultsOf(event, byDay(byWho(await getSurveyResponses(event.id), who), day));
   const html = infographicHtml(event, R, event.survey.analysis ?? null, { lang: lang === "fr" ? "fr" : "en", block: block || "" });
   if (!html) return fail("There is nothing for that section yet.", 404);
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });

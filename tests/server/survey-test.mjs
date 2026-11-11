@@ -186,5 +186,12 @@ ok("Results can be split: everyone, justice, community partners, with counts for
 const dlP = await survey(new Request("http://x/api/survey?event=ngs&download=answers&who=partner", { headers: H }));
 ok("and the downloads follow the group, named for it", dlP.status === 200 && /-community-partners-answers\.xlsx/.test(dlP.headers.get("content-disposition")));
 
+// Andrew 11 Nov 2026: "where can i see the results by days".
+const rD = (await admin("&results=1&day=2026-11-10")).body, rAllD = (await admin("&results=1")).body;
+ok("Results by day: only that day's answers, with a count for each day", rD.day === "2026-11-10" && rD.results.responses === rAllD.counts.days["2026-11-10"] && rD.results.responses < rAllD.results.responses && Object.keys(rAllD.counts.days).length === 4, JSON.stringify(rAllD.counts.days));
+ok("and by day and group together", (await admin("&results=1&day=2026-11-10&who=partner")).body.results.responses === rD.counts.partner);
+const dlD = await survey(new Request("http://x/api/survey?event=ngs&download=feedback&day=2026-11-10", { headers: H }));
+ok("downloads follow the day, named for it", dlD.status === 200 && /-day-2-presenters\.pdf/.test(dlD.headers.get("content-disposition")), dlD.headers.get("content-disposition"));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

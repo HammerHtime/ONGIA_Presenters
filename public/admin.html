@@ -1387,6 +1387,7 @@
   .wlset>summary b:not(.late){color:var(--ink)}
   .filters.msgto{flex-wrap:wrap;overflow:visible;gap:5px}
   @media (max-width:520px){.filters.ggrp{gap:5px;flex-wrap:wrap;overflow:visible}.filters.ggrp .fchip{padding:5px 9px}}
+  .rsdayh .t{font:600 11px var(--fu);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .gwix{margin:0 0 12px}.gwix>.wixbar:first-of-type{margin-top:0}
   .wlset-edit{margin-left:auto;color:var(--navy);font-weight:600;text-decoration:underline}
   .wlset[open] .wlset-edit{display:none} .wlset b.ok{color:var(--done)}
@@ -7600,12 +7601,13 @@ function resultsCard() {
 }
 async function loadResults(ev) {
   const box = document.getElementById("rsbox");
-  try { renderResults(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}&results=1${RS_WHO ? `&who=${RS_WHO}` : ""}`)); }
+  try { renderResults(ev, await api(`/survey?event=${encodeURIComponent(ev.id)}&results=1${RS_WHO ? `&who=${RS_WHO}` : ""}${RS_DAY ? `&day=${RS_DAY}` : ""}`)); }
   catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; }
 }
 let RS_LANG = "en";
 // Whose answers the Results show (Andrew 10 Nov 2026: "track the answers separately"): everyone, justice or community partners.
 let RS_WHO = "";
+let RS_DAY = "";   // and which day (Andrew 11 Nov 2026: "where can i see the results by days")
 function renderResults(ev, D) {
   const box = document.getElementById("rsbox");
   if (!box) return;
@@ -7615,14 +7617,17 @@ function renderResults(ev, D) {
   const list = (items, f) => items?.length ? `<ul style="margin:6px 0 12px;padding-left:20px">${items.map((x) => `<li style="margin:3px 0">${f(x)}</li>`).join("")}</ul>` : "";
   const kpi = (big, small) => `<div><b>${big}</b><span>${small}</span></div>`;
   const C = D.counts ?? null;
-  const wq = RS_WHO ? `&who=${RS_WHO}` : "";
+  const wq = `${RS_WHO ? `&who=${RS_WHO}` : ""}${RS_DAY ? `&day=${RS_DAY}` : ""}`;
+  const dayList = Object.keys(C?.days ?? {});
+  const dayName = (d) => `Day ${dayList.indexOf(d) + 1} · ${fmtDate(d)}`;
   box.innerHTML = `
     ${C && (C.partner || ev.wixMore?.length) ? `<div class="filters ggrp" role="radiogroup" aria-label="Whose answers" style="margin:0 0 12px">${[["", "Everyone", C.all], ["justice", "Justice", C.justice], ["partner", "Community", C.partner]].map(([k, l, n]) => `<button type="button" class="fchip${RS_WHO === k ? " on" : ""}" data-rswho="${k}" role="radio" aria-checked="${RS_WHO === k}">${l} <b>${n}</b></button>`).join("")}</div>` : ""}
+    ${D.daily && dayList.length > 1 ? `<div class="filters ggrp" role="radiogroup" aria-label="Which day" style="margin:0 0 12px">${[["", "All days", Object.values(C.days).reduce((a, b) => a + b, 0)], ...dayList.map((d, i) => [d, `Day ${i + 1}`, C.days[d]])].map(([k, l, n]) => `<button type="button" class="fchip${RS_DAY === k ? " on" : ""}" data-rsday="${k}" role="radio" aria-checked="${RS_DAY === k}" title="${k ? esc(fmtDate(k)) : "Every day"}">${l} <b>${n}</b></button>`).join("")}</div>` : ""}
     <div class="rsk">${kpi(R.responses, `answer${R.responses === 1 ? "" : "s"} · ${R.respondents} ${R.respondents === 1 ? "person" : "people"}`)}${R.headline.n ? kpi(`${R.headline.avg}<small style="font-size:12px">/5</small>`, "overall") + kpi(`${R.headline.top2}%`, "rated 4 or 5") : ""}${R.overall.nps.n ? kpi(`${R.overall.nps.score > 0 ? "+" : ""}${R.overall.nps.score}`, "recommend score") : ""}</div>
     ${R.responses ? "" : `<div class="note">No answers yet. Everything below works as soon as the first ones come in; try it with <b>Try the survey</b> above (those answers aren't kept).</div>`}
     <div class="rsg">
       <div class="l">Download</div><div class="r"><button class="mini" data-rsdl="summary">Summary with charts · PDF</button><button class="mini" data-rsdl="answers">Every answer · Excel</button><button class="mini" data-rsdl="feedback">Each presenter · PDF</button>${D.presenters ? `<button class="mini" data-rsdl="presenters">${D.presenters} ${D.presenters === 1 ? "wants" : "want"} to present · Excel</button>` : ""}</div>
-      ${R.sessions.length ? `<div class="l">By presenter</div><div class="r" style="display:block"><div class="svqr">${R.sessions.slice().sort((a, b) => String(a.day).localeCompare(String(b.day))).map((x) => `<div class="svqrow"><span class="t" title="${esc(`${x.title} — ${x.presenters.join(", ")}`)}"><b>${esc(x.presenters.join(", ") || x.title)}</b> · ${esc(x.title)}</span><span class="${x.n && x.avg < 3.5 ? "late" : "porg"}" style="font-size:12.5px;white-space:nowrap">${x.n ? `${x.avg}/5 · ${x.rebook.yesPct}% rec · ${x.n}` : "no ratings yet"}</span>${x.n ? `<button type="button" class="mini" data-rsdl="feedback&amp;session=${esc(x.id)}">PDF</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin:6px 0 0">Out of 5 · % who would recommend them · how many rated. The PDF has each question, how the stars fell, and every comment.</p></div>` : ""}
+      ${R.sessions.length ? `<div class="l">By presenter</div><div class="r" style="display:block"><div class="svqr">${R.sessions.filter((x) => !RS_DAY || x.day === RS_DAY).sort((a, b) => String(a.day).localeCompare(String(b.day))).map((x, i, all) => `${D.daily && x.day && x.day !== all[i - 1]?.day ? `<div class="svqrow rsdayh"><span class="t">${esc(dayName(x.day))}</span></div>` : ""}<div class="svqrow"><span class="t" title="${esc(`${x.title} — ${x.presenters.join(", ")}`)}"><b>${esc(x.presenters.join(", ") || x.title)}</b> · ${esc(x.title)}</span><span class="${x.n && x.avg < 3.5 ? "late" : "porg"}" style="font-size:12.5px;white-space:nowrap">${x.n ? `${x.avg}/5 · ${x.rebook.yesPct}% rec · ${x.n}` : "no ratings yet"}</span>${x.n ? `<button type="button" class="mini" data-rsdl="feedback&amp;session=${esc(x.id)}">PDF</button>` : ""}</div>`).join("")}</div><p class="hint" style="margin:6px 0 0">Out of 5 · % who would recommend them · how many rated. The PDF has each question, how the stars fell, and every comment.</p></div>` : ""}
       <div class="l">Claude's read</div><div class="r"><button class="mini ${A ? "" : "gold"}" id="rs-analyse"${R.responses ? "" : " disabled"}>${A ? "Read them again" : "Ask Claude to read the results"}</button>${A ? `<span class="hint" style="margin:0">Read ${esc(fmtDate((A.at || "").slice(0, 10)))}.</span>` : `<span class="hint" style="margin:0">Do this first: it picks the comments for the infographic.</span>`}</div>
       ${A ? `<div class="note rsread" style="margin:0"><p style="margin:0 0 8px">${esc(A.summary)}</p>
         ${A.liked?.length ? `<b>What attendees valued</b>${list(A.liked, (l) => `${esc(l.point)} <span class="porg">(${esc(l.evidence)})</span>`)}` : ""}
@@ -7652,6 +7657,7 @@ function renderResults(ev, D) {
   });
   box.querySelectorAll("[data-rslang]").forEach((b) => b.onclick = () => { RS_LANG = b.dataset.rslang; renderResults(ev, D); });
   box.querySelectorAll("[data-rswho]").forEach((b) => b.onclick = () => { RS_WHO = b.dataset.rswho; loadResults(ev); });
+  box.querySelectorAll("[data-rsday]").forEach((b) => b.onclick = () => { RS_DAY = b.dataset.rsday; loadResults(ev); });
   $("rs-clear").onclick = async () => {
     const typed = prompt(`This deletes all ${R.responses} answer${R.responses === 1 ? "" : "s"}, the would-be presenters' details and Claude's read for this event. The questions and sessions stay. It cannot be undone.\n\nType CLEAR to go ahead.`);
     if (typed === null) return;
@@ -7664,7 +7670,7 @@ function renderResults(ev, D) {
     catch (x) { toast(x.message); done(); }
   };
   const fetchHtml = async (block = "") => {
-    const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}${RS_WHO ? `&who=${RS_WHO}` : ""}`, { headers: { "x-admin-key": KEY } });
+    const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}${wq}`, { headers: { "x-admin-key": KEY } });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error("The infographic could not be made.");
     return res.text();
