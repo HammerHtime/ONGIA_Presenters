@@ -1615,6 +1615,11 @@
   .pdates{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px} .pdates b{color:var(--ink)}
   .svqr{border:1px solid var(--line);border-radius:10px;padding:0 10px}.svqrow{display:flex;align-items:center;gap:6px;min-height:38px;border-top:1px solid var(--line)}.svqrow:first-child{border-top:0}
   .svqrow .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
+  /* MC introductions (Andrew 12 Nov 2026): one line a session, the intro opens under its row. */
+  .mcrow .st{font-size:12.5px;white-space:nowrap}.mcrow .st.ok{color:var(--done)}.mcrow .st.w{color:var(--muted)}.mcrow .st.x{color:var(--late)}
+  .mced{padding:4px 0 12px}.mced textarea{width:100%;min-height:150px;font-size:14.5px;line-height:1.5}.mced .hint{margin:4px 0 0}
+  .mchead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}.mchead .porg{flex:1;min-width:140px}
+  .mcday{font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;padding:10px 0 2px;border-top:1px solid var(--line)}.mcday:first-child{border-top:0;padding-top:6px}
   .ptools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px} .ptools .filters{margin:0}
   .pfind{flex:1 1 200px;max-width:320px;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;background:#fff}
   .pbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:9px 14px;margin:0 0 10px;font-size:14px}
@@ -4618,7 +4623,7 @@ function eventScreen(data) {
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
       + pv("guests", attendeesCard(ev, guests)))
-    + panel("program", agendaCard(ev, agenda))
+    + panel("program", agendaCard(ev, agenda) + mcCard())
     + panel("logistics", contractLine(ev, contract) + roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", ev.project
       // A project is its statement of work, and a way to delete it.
@@ -4760,6 +4765,7 @@ function eventScreen(data) {
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("msgbox")) loadMessage(ev);
+  if (document.getElementById("mcbox")) loadMc(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
   svWhich(view.svw === "certs" && document.getElementById("certbox") ? "certs" : "survey", true);
@@ -5982,6 +5988,69 @@ function wireComms(ev) {
  */
 function messageCard() {
   return secFold("message", "Message a group", "Write to everyone registered, or one group, and send it now", "", `<div class="card-body" id="msgbox"><p class="porg">Loading…</p></div>`, { id: "msgfold" });
+}
+/* MC introductions (Andrew 12 Nov 2026: "summarize bios and summarize presentation outline so this could be used for the
+   MC to introduce the presenters"). Claude drafts one per session from what each presenter sent; changed here; a PDF. */
+function mcCard() {
+  return secFold("mcintro", "MC introductions", "What the MC reads to bring each presenter on", "", `<div class="card-body" id="mcbox"><p class="porg">Loading…</p></div>`, { id: "mcfold", open: false });
+}
+let MC_OPEN = "";
+function loadMc(ev) {
+  const box = document.getElementById("mcbox");
+  if (!box) return;
+  const q = `/mcintros?event=${encodeURIComponent(ev.id)}`;
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const stateOf = (s) => s.intro?.stale ? ["x", "Out of date"] : s.intro?.by === "edited" ? ["ok", "Edited"] : s.intro ? ["ok", "Drafted"]
+    : s.presenters.some((p) => p.sent) ? ["w", "Not drafted"] : ["w", "Waiting"];
+  const draw = (V) => {
+    const owed = V.sessions.filter((s) => !s.intro || s.intro.stale).length;
+    const done = V.sessions.filter((s) => s.intro).length;
+    const head = document.querySelector("#mcfold .card-head .s");
+    if (head) head.textContent = `${V.submitted} of ${V.total} agreements in · ${done} of ${V.sessions.length} drafted`;
+    let day = null;
+    box.innerHTML = `<div class="mchead"><span class="porg">${V.submitted < V.total ? `${V.total - V.submitted} agreement${V.total - V.submitted === 1 ? "" : "s"} still to come` : "Every agreement is in"}</span>
+        <button class="mini gold" data-mc="draft"${owed ? "" : " disabled"}>${owed ? `Draft ${owed}` : "All drafted"}</button><button class="mini" data-mc="pdf"${done ? "" : " disabled"}>MC script · PDF</button></div>
+      ${V.sessions.length ? `<div class="svqr">${V.sessions.map((s) => {
+        const [c, w] = stateOf(s);
+        const dh = s.day !== day && V.sessions.some((x) => x.dayN) ? `<div class="mcday">${s.dayN ? `Day ${s.dayN}` : "No day set yet"}</div>` : "";
+        day = s.day;
+        const names = s.presenters.map((p) => p.name).join(", ");
+        return `${dh}<div class="svqrow mcrow"><span class="t" title="${esc(names)} · ${esc(s.title)}"><b>${esc(names)}</b> · ${esc(s.title || "No title")}</span><span class="st ${c}">${w}</span><button type="button" class="mini" data-mcopen="${esc(s.id)}">${MC_OPEN === s.id ? "Close" : s.intro ? "Open" : "Write"}</button></div>
+          ${MC_OPEN === s.id ? `<div class="mced"><textarea id="mc-t" spellcheck="true" placeholder="What the MC says to bring them on.">${esc(s.intro?.text ?? "")}</textarea>
+            ${s.intro?.check ? `<p class="hint"><b>Check:</b> ${esc(s.intro.check)}</p>` : ""}${s.intro?.stale ? `<p class="hint late">Their bio or outline has changed since this was drafted.</p>` : ""}
+            ${s.presenters.filter((p) => !p.sent).length ? `<p class="hint">No agreement yet from ${esc(s.presenters.filter((p) => !p.sent).map((p) => p.name).join(", "))}.</p>` : ""}
+            <div class="actions" style="margin-top:8px;gap:8px"><button class="mini gold" data-mc="save">Save</button><button class="mini ghost" data-mc="redo" data-id="${esc(s.id)}">${s.intro ? "Redraft" : "Draft"}</button><span class="hint" data-mcsaid style="margin:0;align-self:center"></span></div></div>` : ""}`;
+      }).join("")}</div>` : `<p class="porg">No presenters yet.</p>`}`;
+    box.querySelectorAll("[data-mcopen]").forEach((b) => b.onclick = () => { MC_OPEN = MC_OPEN === b.dataset.mcopen ? "" : b.dataset.mcopen; draw(V); box.querySelector("#mc-t")?.focus(); });
+    const said = (t) => { const el = box.querySelector("[data-mcsaid]"); if (el) el.textContent = t; };
+    const save = box.querySelector('[data-mc="save"]');
+    if (save) save.onclick = async () => { const done = busy(save, "Saving…"); try { draw(await api(q, { method: "PUT", body: JSON.stringify({ id: MC_OPEN, text: box.querySelector("#mc-t").value }) })); toast("Saved."); } catch (x) { toast(x.message); done(); } };
+    const redo = box.querySelector('[data-mc="redo"]');
+    if (redo) redo.onclick = async () => {
+      if (box.querySelector("#mc-t").value.trim() && !confirm("Replace this introduction with a new draft?")) return;
+      const done = busy(redo, "Drafting…"); said("Claude is drafting it…");
+      try { draw(await api(`${q}&draft=1&id=${encodeURIComponent(redo.dataset.id)}`, { method: "POST", body: "{}" })); } catch (x) { toast(x.message); done(); said(""); }
+    };
+    box.querySelector('[data-mc="draft"]').onclick = async (e) => {
+      const b = e.target; b.disabled = true;
+      let left = owed, out = V;
+      try {
+        while (left > 0) { b.textContent = `Drafting… ${left} to go`; out = await api(`${q}&draft=1`, { method: "POST", body: "{}" }); if (out.left >= left) break; left = out.left; }
+        toast("Drafted. Read each one before the day.");
+      } catch (x) { toast(x.message); }
+      draw(out.sessions ? out : await api(q));
+    };
+    box.querySelector('[data-mc="pdf"]').onclick = async (e) => {
+      const done = busy(e.target, "…");
+      try {
+        const res = await apiFetch(`/api${q}&pdf=1`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The MC script did not download.");
+        saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "mc-script.pdf");
+      } catch (x) { toast(x.message); }
+      done();
+    };
+  };
+  api(q).then(draw).catch((x) => { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; });
 }
 let MSG_GROUP = "";
 function loadMessage(ev) {
