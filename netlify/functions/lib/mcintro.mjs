@@ -94,6 +94,7 @@ For each session you get its title, its presenters (name, organization, the bio 
 Rules:
 - Use only what the bio, outline, title and organization say. Never invent awards, years, ranks or numbers.
 - Refer to each presenter by name or role. Use a pronoun for them only if their own bio uses it.
+- Names: if the bio calls the presenter by a different first name than the name given (e.g. "Sandy" for Sandra), use the bio's name throughout, including "Please welcome". Don't raise it in check.
 - General terms only for casework: never name a victim, survivor, suspect, informant or minor, and never give operational details, addresses or file numbers, even if the outline has them. A project name already in the session title may be said.
 - No hype ("world-renowned", "needs no introduction"). Warm, plain and professional. Canadian spelling.`;
 
