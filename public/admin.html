@@ -6000,11 +6000,11 @@ function loadMc(ev) {
   if (!box) return;
   const q = `/mcintros?event=${encodeURIComponent(ev.id)}`;
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
-  const stateOf = (s) => s.intro?.stale ? ["x", "Out of date"] : s.intro?.by === "edited" ? ["ok", "Edited"] : s.intro ? ["ok", "Drafted"]
+  const stateOf = (s) => s.noBio && s.intro?.by !== "edited" ? ["w", "No bio"] : s.intro?.stale ? ["x", "Out of date"] : s.intro?.by === "edited" ? ["ok", "Edited"] : s.intro ? ["ok", "Drafted"]
     : s.presenters.some((p) => p.sent) ? ["w", "Not drafted"] : ["w", "Waiting"];
   const draw = (V) => {
-    const owed = V.sessions.filter((s) => !s.intro || s.intro.stale).length;
-    const done = V.sessions.filter((s) => s.intro).length;
+    const owed = V.sessions.filter((s) => !s.noBio && (!s.intro || s.intro.stale)).length;
+    const done = V.sessions.filter((s) => s.intro || s.noBio).length;
     const head = document.querySelector("#mcfold .card-head .s");
     if (head) head.textContent = `${V.submitted} of ${V.total} agreements in · ${done} of ${V.sessions.length} drafted`;
     let day = null;
@@ -6016,10 +6016,10 @@ function loadMc(ev) {
         day = s.day;
         const names = s.presenters.map((p) => p.name).join(", ");
         return `${dh}<div class="svqrow mcrow"><span class="t" title="${esc(names)} · ${esc(s.title)}"><b>${esc(names)}</b> · ${esc(s.title || "No title")}</span><span class="st ${c}">${w}</span><button type="button" class="mini" data-mcopen="${esc(s.id)}">${MC_OPEN === s.id ? "Close" : s.intro ? "Open" : "Write"}</button></div>
-          ${MC_OPEN === s.id ? `<div class="mced"><textarea id="mc-t" spellcheck="true" placeholder="What the MC says to bring them on.">${esc(s.intro?.text ?? "")}</textarea>
-            ${s.intro?.check ? `<p class="hint"><b>Check:</b> ${esc(s.intro.check)}</p>` : ""}${s.intro?.stale ? `<p class="hint late">Their bio or outline has changed since this was drafted.</p>` : ""}
+          ${MC_OPEN === s.id ? `<div class="mced"><textarea id="mc-t" spellcheck="true" placeholder="What the MC says to bring them on.">${esc(s.noBio && s.intro?.by !== "edited" ? "" : s.intro?.text ?? "")}</textarea>
+            ${s.noBio ? `<p class="hint">No bio sent, so the MC script says "No bio". Write one here and it prints instead.</p>` : s.intro?.check ? `<p class="hint"><b>Check:</b> ${esc(s.intro.check)}</p>` : ""}${s.intro?.stale ? `<p class="hint late">Their bio or outline has changed since this was drafted.</p>` : ""}
             ${s.presenters.filter((p) => !p.sent).length ? `<p class="hint">No agreement yet from ${esc(s.presenters.filter((p) => !p.sent).map((p) => p.name).join(", "))}.</p>` : ""}
-            <div class="actions" style="margin-top:8px;gap:8px"><button class="mini gold" data-mc="save">Save</button><button class="mini ghost" data-mc="redo" data-id="${esc(s.id)}">${s.intro ? "Redraft" : "Draft"}</button><span class="hint" data-mcsaid style="margin:0;align-self:center"></span></div></div>` : ""}`;
+            <div class="actions" style="margin-top:8px;gap:8px"><button class="mini gold" data-mc="save">Save</button>${s.noBio ? "" : `<button class="mini ghost" data-mc="redo" data-id="${esc(s.id)}">${s.intro ? "Redraft" : "Draft"}</button>`}<span class="hint" data-mcsaid style="margin:0;align-self:center"></span></div></div>` : ""}`;
       }).join("")}</div>` : `<p class="porg">No presenters yet.</p>`}`;
     box.querySelectorAll("[data-mcopen]").forEach((b) => b.onclick = () => { MC_OPEN = MC_OPEN === b.dataset.mcopen ? "" : b.dataset.mcopen; draw(V); box.querySelector("#mc-t")?.focus(); });
     const said = (t) => { const el = box.querySelector("[data-mcsaid]"); if (el) el.textContent = t; };

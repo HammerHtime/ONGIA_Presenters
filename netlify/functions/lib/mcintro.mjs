@@ -25,6 +25,8 @@ import { formatDate } from "./deadlines.mjs";
 const NAME = (p) => [p.first, p.last].filter(Boolean).join(" ").trim();
 /** Their agreement is in: the bio and outline they sent can be used. */
 export const hasSent = (p) => !!p.submission && ["submitted", "approved"].includes(p.status);
+/** Somebody on the session sent a bio, so there is something to draft from. */
+export const hasBio = (s) => s.people.some((p) => hasSent(p) && p.submission.bio);
 
 /** The sessions in the program's order (the survey's list, with its days, when there is one), each with its presenters. */
 export function mcSessions(event, presenters = []) {
@@ -74,6 +76,8 @@ export function mcView(event, presenters) {
       return {
         id: s.id, day: s.day, dayN: s.dayN, title: s.title,
         presenters: s.people.map((p) => ({ name: p.name ?? NAME(p), organization: p.organization ?? "", sent: p.id ? hasSent(p) : false, bio: !!(hasSent(p) && p.submission.bio) })),
+        // Nobody on it sent a bio (Andrew 12 Nov 2026: "If no bio, then on PDF just indicate, no bio"): nothing is drafted.
+        noBio: !hasBio(s),
         intro: k ? { text: k.text, check: k.check ?? "", by: k.by, at: k.at, stale: k.by === "claude" && k.from !== fingerprint(b) } : null,
       };
     }),
@@ -151,10 +155,12 @@ export async function mcScriptPdf(event, view) {
   let day = null;
   const list = view.sessions;
   const dated = list.some((s) => s.day);
-  if (!list.some((s) => s.intro?.text)) { doc.font("Helvetica").fontSize(12).fillColor(MUTED).text("No introductions drafted yet.", M, y); }
+  if (!list.some((s) => s.intro?.text || s.noBio)) { doc.font("Helvetica").fontSize(12).fillColor(MUTED).text("No introductions drafted yet.", M, y); }
   for (const s of list) {
-    const intro = s.intro?.text || "";
-    const names = s.presenters.map((p) => p.name).join(", ");
+    // With no bio, the script says so; an intro written by hand is still printed.
+    const nobio = s.noBio && s.intro?.by !== "edited";
+    const intro = nobio ? "" : s.intro?.text || "";
+    const names = s.presenters.map((p) => p.name + (p.bio || s.noBio ? "" : " (no bio)")).join(", ");
     doc.font("Helvetica").fontSize(14);
     const need = 70 + doc.heightOfString(intro || "-", { width: BODY, lineGap: 4 });
     if (s.day !== day && dated) {
@@ -165,7 +171,7 @@ export async function mcScriptPdf(event, view) {
     } else if (y + need > H - M) page();
     doc.font("Helvetica-Bold").fontSize(15).fillColor(NAVY).text(names, M, y, { width: BODY }); y = doc.y + 2;
     doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(MUTED).text(s.title || "", M, y, { width: BODY }); y = doc.y + 8;
-    doc.font("Helvetica").fontSize(14).fillColor(intro ? INK : MUTED).text(intro || "No introduction yet.", M, y, { width: BODY, lineGap: 4 }); y = doc.y + 14;
+    doc.font("Helvetica").fontSize(14).fillColor(intro ? INK : MUTED).text(intro || (nobio ? "No bio." : "No introduction yet."), M, y, { width: BODY, lineGap: 4 }); y = doc.y + 14;
     doc.moveTo(M, y).lineTo(M + BODY, y).lineWidth(0.5).strokeColor(LINE).stroke(); y += 16;
   }
   const range = doc.bufferedPageRange();
