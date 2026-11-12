@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, editGuard, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters } from "./lib/store.mjs";
 import { primeRoster } from "./lib/signature.mjs";
-import { mcSessions, mcView, draftIntros, mcScriptPdf } from "./lib/mcintro.mjs";
+import { mcSessions, mcView, draftIntros, mcScriptPdf, hasBio } from "./lib/mcintro.mjs";
 import { slugOf } from "./lib/public.mjs";
 
 /**
@@ -37,8 +37,8 @@ export default async (req) => {
     const one = url.searchParams.get("id");
     // Not yet drafted, or drafted from a bio since changed. One changed by hand is only redrafted when asked for by name.
     const stale = new Set(mcView(event, presenters).sessions.filter((v) => v.intro?.stale).map((v) => v.id));
-    const want = mcSessions(event, presenters).filter((s) => (one ? s.id === one : !kept[s.id] || stale.has(s.id)));
-    if (!want.length) return json({ ...mcView(event, presenters), left: 0 });
+    const want = mcSessions(event, presenters).filter((s) => hasBio(s) && (one ? s.id === one : !kept[s.id] || stale.has(s.id)));
+    if (!want.length) return one ? fail("Nobody on this session sent a bio, so there's nothing to draft from. Write it by hand.", 409) : json({ ...mcView(event, presenters), left: 0 });
     // A few at a time, so each call ends well inside the function's time limit; the page asks again for the rest.
     const now = want.slice(0, BATCH);
     try {
