@@ -6008,8 +6008,8 @@ function loadMc(ev) {
     const head = document.querySelector("#mcfold .card-head .s");
     if (head) head.textContent = `${V.submitted} of ${V.total} agreements in · ${done} of ${V.sessions.length} drafted`;
     let day = null;
-    box.innerHTML = `<div class="mchead"><span class="porg">${V.submitted < V.total ? `${V.total - V.submitted} agreement${V.total - V.submitted === 1 ? "" : "s"} still to come` : "Every agreement is in"}</span>
-        <button class="mini gold" data-mc="draft"${owed ? "" : " disabled"}>${owed ? `Draft ${owed}` : "All drafted"}</button><button class="mini" data-mc="pdf"${done ? "" : " disabled"}>MC script · PDF</button></div>
+    box.innerHTML = `<div class="mchead">
+        <button class="mini gold" data-mc="draft"${owed ? "" : " disabled"}>${owed ? `Draft ${owed}` : "All drafted"}</button><button class="mini" data-mc="pdf"${done ? "" : " disabled"}>MC script · PDF</button>${V.submitted < V.total ? `<span class="porg">${V.total - V.submitted} to come</span>` : ""}</div>
       ${V.sessions.length ? `<div class="svqr">${V.sessions.map((s) => {
         const [c, w] = stateOf(s);
         const dh = s.day !== day && V.sessions.some((x) => x.dayN) ? `<div class="mcday">${s.dayN ? `Day ${s.dayN}` : "No day set yet"}</div>` : "";
