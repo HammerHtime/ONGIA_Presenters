@@ -454,7 +454,7 @@ function wireInstall() {
 const deskTabs = () => { const t = HOME?.tabs ?? ["claim", "past"]; return t.includes("approve") ? ["approve", ...t.filter((k) => k !== "approve")] : t; };
 let DESK_LANDED = false;
 // In the Briefing Room: what each officer does, under the title.
-const ROLE_LINE = { president: "You approve claims as the President", treasurer: "You approve claims as the Treasurer", vp: "You record the payments, and approve some claims, as the VP of Operations" };
+const ROLE_LINE = { president: "You approve claims as the President", treasurer: "You see every claim as the Treasurer", vp: "You approve claims, and record the payments, as the VP of Operations" };
 function deskHead({ title, back, tabs }) {
   ROOT.dataset.screen = tabs ? "tab" : EDIT ? "editor" : VIEW.name === "away" ? "away" : "view";
   const keys = deskTabs();
@@ -1205,7 +1205,7 @@ function viewScreen(target = ROOT) {
       <button class="btn red" id="dosendback" type="button">Send back to ${esc(first)}</button><p class="tiny center" style="margin-top:6px">${esc(first)} gets an email and sees your note on the claim.</p></div>
     ${c.can.decide.practice ? `<p class="tiny center">Practice: you're approving it as the ${esc(c.can.decide.title)}.</p>` : c.can.decide.for ? `<p class="tiny center">You're standing in for the ${esc(c.can.decide.for)}.</p>` : ""}`;
   else if (myDone && c.status === "submitted") h += `<div class="bigbtns"><button class="btn green" type="button" disabled>${ICON.tick}<span>Approved</span></button><button class="btn dim" type="button" disabled>✕<span>Send back</span></button></div>
-    <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. When both have approved, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
+    <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. ${waitingOn.length > 1 ? "When both have approved" : "Once approved"}, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
       <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
       ${c.payer.practice || c.trial ? `<div class="say mu" style="margin:0 0 10px">${c.trial ? "Board test: don't send any money." : "Practice: nothing is sent."} Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}

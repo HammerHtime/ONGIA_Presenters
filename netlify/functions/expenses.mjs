@@ -12,7 +12,7 @@ import {
 } from "./lib/store.mjs";
 import { syncClaimToSow } from "./lib/sowexpense.mjs";
 import {
-  CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
+  CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, APPROVER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
 } from "./lib/expenses.mjs";
@@ -324,7 +324,7 @@ export default async (req) => {
       fresh.status = "approved"; fresh.approvedAt = now();
       await putClaim(fresh);
       const practice = !!fresh.test;
-      // "Approved by the President and the Treasurer" (Andrew, 3 Nov 2026); a stand-in is named.
+      // "Approved by the President and the VP of Operations"; a stand-in is named.
       const approvedBy = after.map((s) => { const g = fresh[`signed_${s.role}`]; return g?.for && !practice ? `${g.name} for the ${g.for}` : `the ${ROLE_TITLE[s.role]}`; });
       const payer = payerFor(fresh, aways, today);
       await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvedBy, payer: names(payer.email), practice }), payer.email));
@@ -474,7 +474,7 @@ async function loadAways() {
   return out;
 }
 /** That officer themselves, or the President for any of them (if someone forgets before leaving). */
-const mayHandOff = (me, role) => OFFICER_ROLES.includes(role) && (me.role === role || me.role === "president");
+const mayHandOff = (me, role) => APPROVER_ROLES.includes(role) && (me.role === role || me.role === "president");
 const decidedOf = (c) => Object.fromEntries(OFFICER_ROLES.filter((r) => c[`signed_${r}`]).map((r) => [r, c[`signed_${r}`]]));
 // Who signs and who pays a claim: a test claim is practice, and every step goes back to the person who made it.
 const slotsOf = (c, aways, today) => holders(c.owner?.email, aways, today, decidedOf(c), { practice: !!c.test });
@@ -720,7 +720,7 @@ async function home(ctx, test = false) {
     all = (await Promise.all((await listClaimIds()).map(getClaim))).filter((c) => c && c.status !== "draft")
       .sort((a, b) => String(b.sentAt ?? "").localeCompare(String(a.sentAt ?? ""))).map((c) => summary(c, names));
   }
-  const standingIn = OFFICER_ROLES.filter((r) => inForce(aways[r], today) && (aways[r].to === me.email || aways[r].backup === me.email))
+  const standingIn = APPROVER_ROLES.filter((r) => inForce(aways[r], today) && (aways[r].to === me.email || aways[r].backup === me.email))
     .map((r) => ({ role: r, title: ROLE_TITLE[r], name: names(officers()[r]), until: aways[r].until, backup: aways[r].backup === me.email }));
   const awayView = (r) => (aways[r] ? { ...aways[r], toName: names(aways[r].to), backupName: aways[r].backup ? names(aways[r].backup) : "", inForce: !!inForce(aways[r], today), mail: (aways[r].mail ?? []).map((m) => ({ ...m, to: names(m.to) })) } : null);
   return {
@@ -734,8 +734,8 @@ async function home(ctx, test = false) {
     approvers: approversFor(me.email).map((r) => ROLE_TITLE[r]),
     past: past.map((c) => summary(c, names)),
     toApprove, toPay, all, standingIn,
-    // Hand-offs: an officer sees their own; the President sees all three (to set one for someone who forgot).
-    away: officer ? Object.fromEntries(OFFICER_ROLES.filter((r) => r === me.role || me.role === "president").map((r) => [r, awayView(r)])) : null,
+    // Hand-offs: an approver sees their own; the President sees both (to set one for the VP if she forgets).
+    away: APPROVER_ROLES.includes(me.role) ? Object.fromEntries(APPROVER_ROLES.filter((r) => r === me.role || me.role === "president").map((r) => [r, awayView(r)])) : null,
     executives: executives().map((x) => ({ ...x, name: names(x.email) })),
     tabs: ["claim", "past", ...(officer || toApprove.length || toPay.length || standingIn.length ? ["approve"] : []), ...(officer ? ["all"] : [])],
   };

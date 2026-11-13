@@ -34,12 +34,12 @@ console.log("— a claim sent while it's on");
 const j = (await mileage(JOHN)).claim;
 ok("a claim started now is marked as a board test", j.trial === true && !j.test);
 const sent = await call(`/api/expenses?submit=${j.id}`, "POST", {}, JOHN);
-ok("sent, it goes to the real people, marked", sent.claim?.status === "submitted" && sent.claim.trial === true && sent.claim.slots.map((x) => x.name).join() === "Andrew Hammond,Raj Jaswal", JSON.stringify(sent.claim?.slots));
+ok("sent, it goes to the real people, marked", sent.claim?.status === "submitted" && sent.claim.trial === true && sent.claim.slots.map((x) => x.name).join() === "Andrew Hammond,Jacqulyn Taylor", JSON.stringify(sent.claim?.slots));
 ok("…and the President's To approve shows it as a board test", (await home(PRES)).toApprove.find((c) => c.id === j.id)?.trial === true);
 const stored = await S.getClaim(j.id);
 const ask = M.needsApprovalMail({ claim: stored, lines: [], waitingOn: ["Andrew Hammond"] });
 ok("its emails say BOARD TEST in the subject, and that no money is sent", /^\[BOARD TEST\] /.test(ask.subject) && /Board test\. This claim is part of testing the app, so no money is sent\./.test(ask.text.replace(/\s+/g, " ")), ask.subject);
-const pay = M.toPayMail({ claim: stored, approvedBy: ["the President", "the Treasurer"] });
+const pay = M.toPayMail({ claim: stored, approvedBy: ["the President", "the VP of Operations"] });
 ok("…and the one asking the VP to pay it says to send no money and type any transaction number", /^\[BOARD TEST\] /.test(pay.subject) && /Don't send any money: type any transaction number, like TEST123/.test(pay.text.replace(/\s+/g, " ")), pay.text);
 // It is filed with the test claims, never in the year's folders.
 let filedTo = "";

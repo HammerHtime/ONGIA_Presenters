@@ -33,10 +33,14 @@ ok("a receipt is named by its line, date, vendor and amount", E.receiptName(1, {
 
 console.log("— who signs where on the form");
 const names = (e) => ({ "president@ongia.ca": "Andrew Hammond", "vp_operations@ongia.ca": "Jacqulyn Taylor", "treasurer@ongia.ca": "Raj Jaswal", "executiveofficer@ongia.ca": "Peglar Artinian" }[e] ?? e);
-let sg = E.signersOf({ owner: { email: "j.healy@ongia.ca" }, signed_president: { name: "Andrew Hammond", at: "2026-11-14T15:00:00Z" }, signed_treasurer: { name: "Peglar Artinian", for: "Treasurer", at: "2026-11-14T18:00:00Z" } }, names);
-ok("a member's claim: Andrew and Peglar for Raj, dated; the VP's row isn't needed", sg.president.label === "A. Hammond" && sg.president.date === "2026-11-14" && sg.treasurer.label === "P. Artinian for R. Jaswal" && sg.treasurer.for === "Treasurer" && sg.vp.name === "" && sg.vp.note === "Not needed for this claim");
+let sg = E.signersOf({ owner: { email: "j.healy@ongia.ca" }, signed_president: { name: "Andrew Hammond", at: "2026-11-14T15:00:00Z" }, signed_vp: { name: "Peglar Artinian", for: "VP of Operations", at: "2026-11-14T18:00:00Z" } }, names);
+ok("a member's claim: Andrew and Peglar for Jacqulyn, dated; the Treasurer's row isn't needed", sg.president.label === "A. Hammond" && sg.president.date === "2026-11-14" && sg.vp.label === "P. Artinian for J. Taylor" && sg.vp.for === "VP of Operations" && sg.treasurer.name === "" && sg.treasurer.note === "Not needed for this claim", JSON.stringify(sg));
 sg = E.signersOf({ owner: { email: "president@ongia.ca" } }, names);
 ok("the President's own claim: their row says so, the VP signs, the Treasurer isn't needed", sg.president.note === "Their own claim" && sg.vp.name === "J. Taylor" && sg.treasurer.name === "" && sg.treasurer.note === "Not needed for this claim");
+sg = E.signersOf({ owner: { email: "vp_operations@ongia.ca" } }, names);
+ok("the VP's own claim: her row says so, the President signs, the Treasurer isn't needed", sg.vp.note === "Their own claim" && sg.president.name === "A. Hammond" && sg.treasurer.name === "" && sg.treasurer.note === "Not needed for this claim");
+sg = E.signersOf({ owner: { email: "j.healy@ongia.ca" }, signed_president: { name: "Andrew Hammond", at: "2026-11-10T15:00:00Z" }, signed_treasurer: { name: "Raj Jaswal", at: "2026-11-10T18:00:00Z" } }, names);
+ok("a claim the Treasurer signed under the earlier rules keeps his signature on the form", sg.treasurer.name === "R. Jaswal" && sg.treasurer.note === "" && sg.treasurer.date === "2026-11-10");
 
 console.log("— ONGIA's template, filled in");
 const T = await E.readTemplate();

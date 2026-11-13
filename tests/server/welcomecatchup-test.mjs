@@ -3,6 +3,10 @@
 // after the morning run has sent the letter: pull from Wix, send it to whoever hasn't had it; nobody twice, no
 // reminders, never while the morning run sends, never once the event has started. Made-up people; a stand-in for Resend.
 const REPO = new URL("../../", import.meta.url).pathname;
+// The clock pinned to the week before the Summit, so the checks that read today's date don't go stale once it's over.
+const RealDate = Date;
+const NOW = RealDate.parse("2026-11-06T15:00:00Z");
+globalThis.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [NOW])); } static now() { return NOW; } };
 process.env.RESEND_API_KEY = "test-key";
 process.env.APP_URL = "https://events.example.org";
 process.env.ADMIN_KEY = "testkey";

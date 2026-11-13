@@ -16,8 +16,10 @@ import { todayIso } from "./deadlines.mjs";
  *   mileage    typed in by hand: kilometres at the mileage rate ($0.62/km), paid to the board member
  *   noreceipt  a written statement of why there is no receipt, with a screenshot of the card statement
  *
- * Who signs off (Andrew, 2 Nov 2026): a board member's claim, and the VP's, go to the President and the Treasurer; the
- * President's to the VP and the Treasurer; the Treasurer's to the President and the VP. Nobody approves their own.
+ * Who signs off (Andrew, 13 Nov 2026: "remove the treasurer from the approvals. Just the vp and myself"): every claim
+ * goes to the President and the VP of Operations; the President's to the VP alone and the VP's to the President alone.
+ * Nobody approves their own. The Treasurer still sees every claim once it's sent, and claims still file to the
+ * Treasurer's folders.
  */
 
 /** The ten categories on ONGIA's expense claim template, in its order and its words. */
@@ -72,14 +74,15 @@ export function roleOf(email) {
   return e === o.president ? "president" : e === o.vp ? "vp" : e === o.treasurer ? "treasurer" : "member";
 }
 /**
- * The officers a claim goes to, by role. Never the person claiming. The President's go to the VP of Operations alone
- * (Andrew 6 Nov 2026: "All my receipts as president should only go to the VP for approval"); everyone else's to two.
+ * The officers a claim goes to, by role. Never the person claiming. Just the President and the VP of Operations (Andrew
+ * 13 Nov 2026); the President's go to the VP alone (Andrew 6 Nov 2026: "All my receipts as president should only go to
+ * the VP for approval"), and so the VP's to the President alone.
  */
 export function approversFor(email) {
   const role = roleOf(email);
   if (role === "president") return ["vp"];
-  if (role === "treasurer") return ["president", "vp"];
-  return ["president", "treasurer"];
+  if (role === "vp") return ["president"];
+  return ["president", "vp"];
 }
 /** Anyone on the board roster may claim, and the three officers always may. */
 export function mayClaim(email, roster) {
@@ -427,7 +430,9 @@ export function executives() {
   ];
 }
 export const OFFICER_ROLES = ["president", "vp", "treasurer"];
-/** The VP sends the e-transfers and records them (Andrew, 3 Nov 2026), her own claims included, once two others approve. */
+/** The officers who approve claims, and so the ones who hand off their approvals while away. */
+export const APPROVER_ROLES = ["president", "vp"];
+/** The VP sends the e-transfers and records them (Andrew, 3 Nov 2026), her own claims included, once approved. */
 export const PAYER = "vp";
 export const MAX_AWAY_DAYS = 60;
 
@@ -436,7 +441,7 @@ export const inForce = (d, today = todayIso()) => (d?.to && d.from <= today && t
 
 /** A hand-off as asked for, checked. Returns { problem } or { ok }. */
 export function cleanAway(role, body, today = todayIso()) {
-  if (!OFFICER_ROLES.includes(role)) return { problem: "Only the President, the VP and the Treasurer hand off approvals." };
+  if (!APPROVER_ROLES.includes(role)) return { problem: "Only the President and the VP hand off approvals." };
   const me = officers()[role], ex = executives().map((x) => x.email);
   const to = lc(body?.to), backup = lc(body?.backup);
   if (!ex.includes(to) || to === me) return { problem: "Pick who will stand in for you. It has to be one of the executives, and not you." };
