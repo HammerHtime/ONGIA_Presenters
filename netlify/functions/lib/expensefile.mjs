@@ -76,10 +76,11 @@ export function signersOf(claim, names) {
     out[role] = {
       title: role === "vp" ? "VP" : ROLE_TITLE[role],
       label: s ? (s.for ? `${short(s.name)} for ${officer}` : short(s.name)) : officer,
-      name: need.includes(role) ? (s ? short(s.name) : officer) : "",
+      // A claim signed under the earlier rules keeps the signature it has.
+      name: need.includes(role) || s ? (s ? short(s.name) : officer) : "",
       for: s?.for ? ROLE_TITLE[role] : "",
       date: s?.at ? todayIso(new Date(s.at)) : null,
-      note: need.includes(role) ? "" : roleOf(owner) === role ? "Their own claim" : "Not needed for this claim",
+      note: need.includes(role) || s ? "" : roleOf(owner) === role ? "Their own claim" : "Not needed for this claim",
     };
   }
   return out;
