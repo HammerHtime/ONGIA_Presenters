@@ -245,9 +245,9 @@ function render() {
   ROOT.innerHTML = `
     ${PREVIEW ? `<div class="problems">${t("preview")}</div>` : ""}
     <div class="card"><span class="tag">${esc(D.title)}</span><h1>${D.daily ? t("yourDay") : t("wholeEvent")}</h1><p class="lede">${t("anon")}</p>${KEPT ? `<p class="hint" id="kept" style="margin:8px 0 0">${t("kept")}</p>` : ""}</div>
-    <div class="card${MISSING.has("who") ? " missing-q" : ""}" id="q-who"><p class="talk" style="margin-bottom:10px">${t("whoAsk")} ${WHO() ? "" : `<span class="req">*</span>`}</p>
+    ${D.whoChoices ? `<div class="card${MISSING.has("who") ? " missing-q" : ""}" id="q-who"><p class="talk" style="margin-bottom:10px">${t("whoAsk")} ${WHO() ? "" : `<span class="req">*</span>`}</p>
       <div class="chips">${Object.entries(D.whoChoices ?? {}).map(([k, w]) => `<button type="button" data-who="${k}" aria-pressed="${WHO() === k}">${esc(w[LANG] || w.en)}</button>`).join("")}</div>
-      ${FREE() ? `<p class="hint" style="margin:10px 0 0">${t("whoFree")}</p>` : ""}</div>
+      ${FREE() ? `<p class="hint" style="margin:10px 0 0">${t("whoFree")}</p>` : ""}</div>` : ""}
     ${!WHO() ? "" : `
     ${D.about ? `<div class="card"><h2>${t("about")}</h2><p class="hint">${t("aboutHint")}</p>${aboutNow().map((q) => question(`about.${q.id}`, asAsked(q), get(`about.${q.id}`))).join("")}</div>` : ""}
     ${daysHtml}

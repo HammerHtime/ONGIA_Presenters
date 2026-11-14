@@ -19,13 +19,14 @@ export const STARS = { en: ["Poor", "Fair", "Good", "Very good", "Excellent"], f
 const yn = { en: ["Yes", "No"], fr: ["Oui", "Non"] };
 
 export const ABOUT = [
-  { id: "agency", kind: "agency", en: "Which agency do you work for?", fr: "Pour quel organisme travaillez-vous?" },
+  // General wording, as most attendees are from the justice community and a few may not be (Andrew 14 Nov 2026).
+  { id: "agency", kind: "agency", en: "Which agency or organization do you work for?", fr: "Pour quel organisme ou quelle organisation travaillez-vous?" },
   { id: "province", kind: "province", en: "Which province or territory do you work in?", fr: "Dans quelle province ou quel territoire travaillez-vous?" },
   { id: "years", kind: "choice", en: "Years of service", fr: "Années de service", options: { en: ["0–3", "4–8", "9–15", "16–20", "21+"], fr: ["0–3", "4–8", "9–15", "16–20", "21+"] } },
   { id: "before", kind: "choice", en: "Have you attended an ONGIA event before?", fr: "Avez-vous déjà assisté à un événement de l'ONGIA?", options: yn },
   { id: "again", kind: "choice", en: "Are you considering attending again?", fr: "Envisagez-vous d'y assister de nouveau?", options: yn },
   { id: "heard", kind: "choice", optional: true, en: "How did you hear about this event?", fr: "Comment avez-vous entendu parler de cet événement?",
-    options: { en: ["Email from ONGIA", "A colleague", "My agency", "LinkedIn", "ongia.ca", "Other"], fr: ["Courriel de l'ONGIA", "Un collègue", "Mon organisme", "LinkedIn", "ongia.ca", "Autre"] } },
+    options: { en: ["Email from ONGIA", "A colleague", "My agency or organization", "LinkedIn", "ongia.ca", "Other"], fr: ["Courriel de l'ONGIA", "Un collègue", "Mon organisme ou mon organisation", "LinkedIn", "ongia.ca", "Autre"] } },
 ];
 
 // For each session: six star questions (Kingston's six, as questions), whether they'd book the presenter again, a comment.
@@ -37,7 +38,7 @@ export const ABOUT = [
 export const PARTNER_ABOUT = ABOUT.filter((q) => q.id !== "years").map((q) => (q.id === "agency"
   ? { ...q, en: "Which organization do you work for?", fr: "Pour quel organisme travaillez-vous?", ph: { en: "Start typing your organization…", fr: "Commencez à taper votre organisme…" } }
   // Same place in the list as "My agency", so the counts still add up together.
-  : q.id === "heard" ? { ...q, options: { ...q.options, en: q.options.en.map((o) => (o === "My agency" ? "My organization" : o)) } }
+  : q.id === "heard" ? { ...q, options: { ...q.options, en: q.options.en.map((o) => (o === "My agency or organization" ? "My organization" : o)) } }
   : q));
 
 /** Whether this person is one of the second group (the Summit's community partners): their own days, their own questions. */
@@ -56,7 +57,13 @@ export const aboutFor = (asked) => (asked?.partner ? PARTNER_ABOUT : ABOUT);
  * emailed link starts on the person's own group, a QR code starts on neither.
  */
 export const WHO = { justice: { en: "Justice community", fr: "Milieu de la justice" }, partner: { en: "Community partner", fr: "Partenaire communautaire" } };
-const whoOf = (body, asked) => (WHO[body?.who] ? body.who : asked.who ?? null);
+/**
+ * Asked only where the event's survey says so (survey.askWho, set on its Setup), as at the Summit, which invited
+ * community partners. Everywhere else nobody is asked, and every answer counts as one group (Andrew 14 Nov 2026: "Is
+ * there any way we can use general language instead of using justice or community partners?").
+ */
+export const asksWho = (event) => event?.survey?.askWho === true;
+const whoOf = (body, asked) => (asked.askWho === false ? "justice" : WHO[body?.who] ? body.who : asked.who ?? null);
 
 export const SESSION = [
   { id: "relevant", kind: "stars", en: "How relevant was this to your work?", fr: "Dans quelle mesure était-ce pertinent pour votre travail?" },
@@ -120,6 +127,7 @@ export function cleanSurvey(given, had, event) {
   if (given?.open !== undefined) out.open = given.open === true;
   if (given?.mode !== undefined) out.mode = given.mode === "daily" ? "daily" : "end";
   if (given?.sendOn !== undefined) out.sendOn = isDate(given.sendOn) ? given.sendOn : "";
+  if (given?.askWho !== undefined) out.askWho = given.askWho === true;
   if (Array.isArray(given?.sessions)) {
     const days = new Set(trainingDays(event));
     out.sessions = given.sessions.slice(0, 60).map((s, i) => ({
@@ -168,8 +176,9 @@ export function partFor(event, person, part, done = {}) {
   const showDays = part === "end" ? days : days.filter((d) => d === part);
   return {
     part,
-    partner: isPartner(event, person),
-    who: person ? (isPartner(event, person) ? "partner" : "justice") : null,
+    askWho: asksWho(event),
+    partner: asksWho(event) && isPartner(event, person),
+    who: !asksWho(event) ? "justice" : person ? (isPartner(event, person) ? "partner" : "justice") : null,
     about: !done.about,
     days: showDays.map((d) => ({ day: d, sessions: sessions.filter((s) => s.day === d) })).filter((d) => d.sessions.length),
     overall: part === "end" || part === days[days.length - 1],
@@ -247,7 +256,7 @@ export function surveyForPage(event, asked, agencies = []) {
     // Both wordings: the page switches when they pick who they are.
     about: asked.about ? ABOUT.map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
     aboutPartner: asked.about ? PARTNER_ABOUT.map((q) => ({ ...q, ...(q.kind === "agency" ? { agencies } : {}), ...(q.kind === "province" ? { provinces: PROVINCES } : {}) })) : null,
-    who: asked.who ?? null, whoChoices: WHO,
+    who: asked.askWho === false ? "justice" : asked.who ?? null, whoChoices: asked.askWho === false ? null : WHO,
     days: asked.days.map((d) => ({ day: d.day, sessions: d.sessions.map((s) => ({ id: s.id, en: name(s, "en"), fr: name(s, "fr"), presenters: s.presenters })) })),
     session: SESSION, overall: asked.overall ? OVERALL.map((q) => (q.kind === "province" ? { ...q, provinces: PROVINCES } : q)) : null, stars: STARS,
   };

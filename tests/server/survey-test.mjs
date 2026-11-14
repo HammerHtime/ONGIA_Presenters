@@ -42,7 +42,11 @@ const set = (await admin("", { method: "PUT", body: {} })).body;
 ok("set up from the presenters: one session per talk, two presenters sharing one talk on one session", set.survey.sessions.length === 4 && set.survey.sessions.find((s) => s.title === "Following the Money").presenters.join() === "Jordan Avery,Riley Chen", JSON.stringify(set.survey.sessions));
 ok("it waits for each session's day, and says so", set.problems.some((p) => /4 sessions have no day yet/.test(p)));
 const days = { "Gang Trends Coast to Coast": "2026-11-09", "Following the Money": "2026-11-10", "From Recruitment to Exit": "2026-11-11", "Ghost Guns": "2026-11-12" };
-const withDays = (await admin("", { method: "PUT", body: { mode: "daily", sessions: set.survey.sessions.map((s) => ({ ...s, day: days[s.title] })) } })).body;
+// A new survey asks nobody which group they're in (Andrew 14 Nov 2026): one wording, "agency or organization".
+ok("a new survey doesn't ask Justice community or Community partner", set.survey.askWho !== true);
+// The Summit invited community partners, so its Setup has the question switched on.
+const withDays = (await admin("", { method: "PUT", body: { mode: "daily", askWho: true, sessions: set.survey.sessions.map((s) => ({ ...s, day: days[s.title] })) } })).body;
+ok("switched on in Setup, it's kept", withDays.survey.askWho === true);
 ok("with the days set, nothing is held back; daily times are 15 minutes after each day's end", withDays.problems.length === 0 && withDays.times.every((t) => t.at === "16:15"), JSON.stringify(withDays.problems));
 const tok = withDays.survey.token;
 const ev = await getEvent("ngs");
@@ -58,8 +62,8 @@ ok("a community partner asking for Day 1 is given their first day instead (Nov 1
 // Andrew 10 Nov 2026: one survey; they pick who they are, and the page switches to that wording.
 ok("a community partner's link starts on Community partner, with the partner wording beside the justice one", camDay1.who === "partner" && day1.who === "justice" && camDay1.aboutPartner?.length === 5 && !camDay1.aboutPartner.some((q) => q.id === "years") && camDay1.whoChoices?.partner?.fr === "Partenaire communautaire", JSON.stringify({ who: camDay1.who, ids: camDay1.aboutPartner?.map((q) => q.id) }));
 ok("and is asked their organization, not their agency, in both languages", camDay1.aboutPartner.find((q) => q.id === "agency")?.en === "Which organization do you work for?" && /organisme/.test(camDay1.aboutPartner.find((q) => q.id === "agency").fr) && /organization/.test(camDay1.aboutPartner.find((q) => q.id === "agency").ph.en));
-ok("their 'how did you hear' says My organization, in the same place as My agency", camDay1.aboutPartner.find((q) => q.id === "heard").options.en[2] === "My organization" && day1.about.find((q) => q.id === "heard").options.en[2] === "My agency");
-ok("a justice partner is still asked agency and years of service", day1.about.some((q) => q.id === "years") && day1.about.find((q) => q.id === "agency").en === "Which agency do you work for?");
+ok("their 'how did you hear' says My organization, in the same place as My agency or organization", camDay1.aboutPartner.find((q) => q.id === "heard").options.en[2] === "My organization" && day1.about.find((q) => q.id === "heard").options.en[2] === "My agency or organization");
+ok("a justice partner is still asked their agency or organization and years of service", day1.about.some((q) => q.id === "years") && day1.about.find((q) => q.id === "agency").en === "Which agency or organization do you work for?");
 
 // Answers: missing ones are named; complete ones are kept with no name.
 const stars = (n) => Object.fromEntries(["relevant", "knowledge", "expectations", "expert", "engaging", "delivery"].map((k) => [k, n]));
@@ -192,6 +196,12 @@ ok("Results by day: only that day's answers, with a count for each day", rD.day 
 ok("and by day and group together", (await admin("&results=1&day=2026-11-10&who=partner")).body.results.responses === rD.counts.partner);
 const dlD = await survey(new Request("http://x/api/survey?event=ngs&download=feedback&day=2026-11-10", { headers: H }));
 ok("downloads follow the day, named for it", dlD.status === 200 && /-day-2-presenters\.pdf/.test(dlD.headers.get("content-disposition")), dlD.headers.get("content-disposition"));
+
+// Switched off (every event but the Summit): no question, general wording, and an answer without a group goes in.
+await admin("", { method: "PUT", body: { askWho: false } });
+const plain = (await pub(`t=${tok}&part=2026-11-09`)).body;
+ok("switched off: the page has no Justice/Community question, and asks for an agency or organization", !plain.whoChoices && plain.who === "justice" && plain.about?.find((q) => q.id === "agency")?.en === "Which agency or organization do you work for?", JSON.stringify({ w: plain.whoChoices, who: plain.who }));
+await admin("", { method: "PUT", body: { askWho: true } });
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
