@@ -35,7 +35,7 @@ ok("the email to the hotel gives the board member's Bonvoy number under their na
 ok("someone with no number gets no Bonvoy line", (pv.html.match(/Marriott Bonvoy/g) ?? []).length === 1);
 const csv = await call(rooming, `/api/rooming?event=${ev.id}&csv=1&keys=${keys.join(",")}`);
 const lines = csv.text.trim().split(/\r?\n/);
-ok("the spreadsheet has a Marriott Bonvoy # column, filled in for the board member", /Marriott Bonvoy #/.test(lines[0]) && lines.some((l) => l.includes(raj.name) && l.endsWith("123456789")) && lines.some((l) => l.includes("Pat Example") && l.endsWith(",")), lines.join(" | "));
+ok("the spreadsheet has a Marriott Bonvoy # column beside the guest name, filled in for the board member", /Marriott Bonvoy #/.test(lines[0]) && lines.some((l) => l.startsWith(`No,${raj.name},123456789,`) || l.startsWith(`Yes,${raj.name},123456789,`)) && lines.some((l) => l.startsWith("Yes,Pat Example,,")), lines.join(" | "));
 
 // Put the roster back as it was.
 await call(roster, "/api/roster", "PUT", { members: before });
