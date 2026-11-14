@@ -190,24 +190,23 @@ await jac.click('[data-back="vp"]'); await jac.waitForSelector("#to-vp");
 await jac.goBack(); await jac.waitForTimeout(400);
 ok("I'm back: Derek's claim is Jacqulyn's again", (await jac.locator(`[data-open="${dh.claim.id}"]`).count()) === 1);
 
-console.log("— Andrew's test claim, then deleting the test claims");
+console.log("— test mode is gone; a test claim left from before can still be deleted");
+// Andrew 14 Nov 2026: "Take out the testing mode." A test claim made before then (here through the server) still shows.
+const left = await api("andrew", "?add=mileage&test=1", { method: "POST", body: JSON.stringify({ date: day(-1), km: 20, from: "A", to: "B", purpose: "Trying it out", category: 8 }) });
+await api("andrew", `?submit=${left.claim.id}&test=1`, { method: "POST", body: "{}" });
 await andrew.goto(S + "/expenses", { waitUntil: "networkidle" }); await andrew.waitForSelector("#running");
-await andrew.click("#me"); await andrew.check("#testmode"); await andrew.waitForSelector(".testbar");
-ok("test mode: a striped bar says so", /TEST MODE/.test(await andrew.textContent(".testbar")));
-await andrew.click("#addmile");
-await andrew.fill("#f-date", day(-1)); await andrew.fill("#f-km", "20"); await andrew.fill("#f-from", "A"); await andrew.fill("#f-to", "B"); await andrew.fill("#f-purpose", "Trying it out");
-await andrew.click("#save"); await andrew.waitForSelector("#running");
-ok("it lands on a test claim", /test/.test(await andrew.textContent("#running .k")));
-await andrew.click("#submit"); await andrew.waitForSelector(".slot");
-ok("the sent test claim is marked so", /TEST CLAIM/.test(await andrew.textContent("#root")));
-await andrew.goBack(); await andrew.waitForSelector("#running");
+await andrew.click("#me"); await andrew.waitForSelector("#menu:not([hidden])");
+ok("the menu has no Test mode", (await andrew.locator("#testmode").count()) === 0 && !/Test mode/.test(await andrew.textContent("#menu")));
+await andrew.keyboard.press("Escape").catch(() => {}); await andrew.click("#me").catch(() => {});
 await andrew.click('[data-tab="all"]');
-ok("All claims: chips with counts, the test claim marked", /Paid \d/.test(await andrew.textContent(".chips")) && (await andrew.locator(".tile .pill.test").count()) >= 1);
+ok("All claims: chips with counts, the old test claim marked", /Paid \d/.test(await andrew.textContent(".chips")) && (await andrew.locator(".tile .pill.test").count()) >= 1);
+ok("with one left, the President is offered Delete all test claims, and no board test or Clear them", await andrew.isVisible("#purge") && (await andrew.locator("#bttoggle, #clrgo").count()) === 0);
 await andrew.screenshot({ path: D + "exp-all-phone.png", fullPage: true });
 await andrew.click("#purge"); await andrew.waitForFunction(() => /Deleted \d+ test claim/.test(document.querySelector(".toast")?.textContent ?? ""));
-ok("Delete all test claims: gone, the real ones stay", (await andrew.locator(".tile .pill.test").count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1);
-await andrew.click("#me"); await andrew.uncheck("#testmode"); await andrew.waitForSelector("#running");
-ok("test mode off: the bar is gone", (await andrew.locator(".testbar").count()) === 0);
+ok("Delete all test claims: gone, the real ones stay, and the card with them", (await andrew.locator(".tile .pill.test").count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1 && (await andrew.locator("#purge").count()) === 0);
+await andrew.locator(`[data-open="${CID}"]`).first().click(); await andrew.waitForSelector(".slot");
+ok("…on its screen either", (await andrew.locator("#marktest").count()) === 0 && !/Mark this as a test/.test(await andrew.textContent("#root")));
+await andrew.goBack(); await andrew.waitForTimeout(400);
 
 console.log("— on a laptop");
 const wide = await open("jac", { width: 1280, height: 860 }, `/expenses#claim=${dh.claim.id}`); errsOf.push(wide);
