@@ -24,17 +24,17 @@ const open = async (email, name) => {
 };
 const m = await open("i.artinian@ongia.ca", "Inis Artinian");
 await m.click("#addnone"); await m.locator("#f-category").waitFor();
-ok("No receipt says where a stipend goes", /A speaker stipend needs neither: pick Speaker Stipend as the category/.test(await m.textContent("#nrintro")));
+ok("No receipt says where a stipend goes", /A stipend needs neither: pick Stipend as the category/.test(await m.textContent("#nrintro")));
 ok("…and, as it opens, asks for a reason and the card statement", await m.isVisible("#nrwhy") && await m.isVisible("#nrshot"));
 await m.selectOption("#f-category", "10");
 ok("picking Speaker Stipend puts the reason and the card statement away", await m.isHidden("#nrwhy") && await m.isHidden("#nrshot"));
-ok("…and says a stipend needs none of it", /A speaker stipend needs no receipt, no reason and no card statement/.test(await m.textContent("#nrintro")));
+ok("…and says a stipend needs none of it", /A stipend needs no receipt, no reason and no card statement/.test(await m.textContent("#nrintro")));
 await m.screenshot({ path: D + "expenses-stipend.png" });
 await m.fill("#f-paidTo", "Inis Artinian"); await m.fill("#f-date", todayIso(new Date(Date.now() - 86400e3)));
 await m.locator("#f-amount").pressSequentially("50000"); await m.fill("#f-purpose", "Speaker stipend, Ontario Symposium");
 await m.click("#save"); await m.waitForSelector("#running");
 const row = m.locator(".line", { hasText: "Inis Artinian" });
-ok("added: the line says no receipt is needed, and nothing is missing", /Speaker stipend: no receipt needed/.test(await row.innerText()) && !(await m.locator(".needs").count()), await row.innerText());
+ok("added: the line says no receipt is needed, and nothing is missing", /Stipend: no receipt needed/.test(await row.innerText()) && !(await m.locator(".needs").count()), await row.innerText());
 
 await row.click(); await m.locator("#f-category").waitFor();
 ok("opened again, the reason and statement stay put away", await m.isHidden("#nrwhy") && await m.isHidden("#nrshot"));
@@ -52,11 +52,11 @@ const a = await open("president@ongia.ca", "Andrew Hammond");
 await a.locator('[data-tab="approve"]').click();
 await a.locator(`[data-open="${sent?.id}"]`).first().click(); await a.locator("#approve").waitFor();
 const root = await a.textContent("#root");
-ok("the President sees Everything checks out: the stipend needs no receipt", /Everything checks out/.test(root) && /The speaker stipend needs no receipt/.test(root), root.slice(0, 400));
+ok("the President sees Everything checks out: the stipend needs no receipt", /Everything checks out/.test(root) && /The stipend needs no receipt/.test(root), root.slice(0, 400));
 ok("…and no amount flagged as not confirmed", !/isn't confirmed/.test(root));
 await a.locator(".line", { hasText: "Inis Artinian" }).click(); await a.locator(".sheet").waitFor();
 const sheet = await a.textContent(".sheet");
-ok("its line says Speaker stipend: no receipt needed, with no card statement asked for", /Speaker stipend: no receipt needed/.test(sheet) && !/Amount not confirmed/.test(sheet) && !/Why there's no receipt/.test(sheet));
+ok("its line says Speaker stipend: no receipt needed, with no card statement asked for", /Stipend: no receipt needed/.test(sheet) && !/Amount not confirmed/.test(sheet) && !/Why there's no receipt/.test(sheet));
 ok("no page errors", !m.errs.length && !a.errs.length, [...m.errs, ...a.errs].join(" | "));
 
 await b.close();

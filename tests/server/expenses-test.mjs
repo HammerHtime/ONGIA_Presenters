@@ -44,7 +44,7 @@ ok("…one sign-off, Jacqulyn's, and nobody else's", X.holders("president@ongia.
 ok("the Treasurer's goes to the President and the VP", X.approversFor("Treasurer@ongia.ca").join() === "president,vp");
 ok("the Treasurer approves nobody's", ["j.healy@ongia.ca", "vp_operations@ongia.ca", "president@ongia.ca", "treasurer@ongia.ca"].every((e) => !X.approversFor(e).includes("treasurer")));
 ok("nobody ever approves their own", ["j.healy@ongia.ca", "vp_operations@ongia.ca", "president@ongia.ca", "treasurer@ongia.ca"].every((e) => !X.approversFor(e).includes(X.roleOf(e))));
-ok("the ten categories are the template's, in its order", X.CATEGORIES.length === 10 && X.categoryName(8) === "Travel" && X.categoryName(10) === "Speaker Stipend" && X.categoryName(11) === "");
+ok("the ten categories are the template's, in its order", X.CATEGORIES.length === 10 && X.categoryName(8) === "Travel" && X.categoryName(10) === "Stipend" && X.categoryName(11) === "");
 
 console.log("— signing in");
 const rosterNow = await S.getRoster();
@@ -147,7 +147,7 @@ ok("what's missing reads as a sentence: \"…, a and b\"", X.andList(["the date"
   ok("a speaker stipend with no reason and no card statement needs nothing more", X.lineProblems(st).length === 0 && X.receiptCheck(st).state === "stipend", JSON.stringify(X.lineProblems(st)));
   ok("…but it still needs who, the amount and the date", X.lineProblems({ ...st, paidTo: "", amount: null, date: "" }).join("|") === "who it was paid to|the date|the amount");
   const ck = X.claimChecks([st], { month: "November 2026" });
-  ok("Claude's check doesn't flag a stipend's amount, and says it needs no receipt", ck.ok === true && ck.summary.includes("The speaker stipend needs no receipt"), JSON.stringify(ck));
+  ok("Claude's check doesn't flag a stipend's amount, and says it needs no receipt", ck.ok === true && ck.summary.includes("The stipend needs no receipt"), JSON.stringify(ck));
   ok("any other no-receipt line still needs its reason and statement", X.lineProblems({ ...st, category: 8 }).join("|") === "a reason there's no receipt|a screenshot of the card statement");
 }
 await call(`/api/expenses?claim=${C}&line=${L4}`, "PUT", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue", statement: "The machine printed no receipt. It is on my Visa statement." }, MEMBER);

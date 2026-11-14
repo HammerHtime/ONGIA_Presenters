@@ -155,6 +155,6 @@ ok("the job refuses anyone without the desk key", (await bg(new Request(`http://
   ok("no comment is fine: nothing is asked for", cleanLine("receipt", { paidTo: "X", amount: 1, category: 5, purpose: "Y" }).comment === "");
   ok("the claim form shows the comment after what it was for", E.purposeOf({ kind: "receipt", ...c }) === "Name tags Comment: Ran out of name tags on day two, bought more for the registration desk.");
 }
-ok("on the claim form a stipend says it needs no receipt", E.purposeOf({ kind: "noreceipt", category: 10, purpose: "Speaker stipend" }) === "Speaker stipend (speaker stipend: no receipt needed)" && /reason and card statement attached/.test(E.purposeOf({ kind: "noreceipt", category: 8, purpose: "Parking" })));
+ok("on the claim form a stipend says it needs no receipt", E.purposeOf({ kind: "noreceipt", category: 10, purpose: "Speaker stipend" }) === "Speaker stipend (stipend: no receipt needed)" && /reason and card statement attached/.test(E.purposeOf({ kind: "noreceipt", category: 8, purpose: "Parking" })));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
