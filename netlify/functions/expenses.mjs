@@ -55,6 +55,8 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unl
 const STALE_MS = 5 * 60 * 1000;
 const MAX_LINES = 60;
 const EDITABLE = ["draft", "rejected"];
+/** How many claims one person can be building at once. */
+const MAX_DRAFTS = 6;
 const now = () => new Date().toISOString();
 
 export default async (req) => {
@@ -72,7 +74,10 @@ export default async (req) => {
   const names = (e) => rosterName(e, roster, e);
   const today = todayIso();
   const aways = await loadAways();
-  const ctx = { me, names, today, aways, roster };
+  // The claim being worked on, when the person has more than one open (Andrew 14 Nov 2026: "I want to have that ability
+  // to have more than one I am working on"). The app says which with every request.
+  const working = /^[a-z0-9-]{4,40}$/.test(req.headers.get("x-working-claim") ?? "") ? req.headers.get("x-working-claim") : "";
+  const ctx = { me, names, today, aways, roster, working };
   const test = q("test") === "1";
 
   if (req.method === "GET" && q("awaypreview")) {
@@ -172,12 +177,19 @@ export default async (req) => {
 
   if (req.method === "GET") return json(await home(ctx, test));
 
+  // Start another claim beside the one(s) being built. An empty one already open is used rather than making a second.
+  if (req.method === "POST" && q("new")) {
+    const claim = await currentDraft(me, test, { fresh: true, keep: working });
+    if (claim.problem) return fail(claim.problem, 409);
+    return json({ ...(await home({ ...ctx, working: claim.id }, test)), working: claim.id });
+  }
+
   if (req.method === "POST" && q("add")) {
     const kind = q("add");
     if (!KINDS.includes(kind)) return fail("Add a receipt, mileage, or a line with no receipt.");
     let claim;
     if (named) { const got = await loadNamed(); if (got.problem) return got.problem; claim = got.claim; }
-    else claim = await currentDraft(me, test);
+    else claim = await currentDraft(me, test, { working });
     const no = editable(claim);
     if (no) return fail(no, 409);
     if ((await listClaimLines(claim.id)).length >= MAX_LINES) return fail(`A claim holds up to ${MAX_LINES} lines. Send this one, then start the next.`, 409);
@@ -509,16 +521,24 @@ async function bytesOf(req, types, what, max = MAX_BYTES) {
  * comes from the person and how many claims they have had, so two receipts sent at the same moment land on the same
  * new claim rather than two.
  */
-async function currentDraft(me, test = false) {
+async function currentDraft(me, test = false, { working = "", fresh = false, keep = "" } = {}) {
   const who = whoKey(me.email);
   const ids = await listMineIds(who);
   const claims = (await Promise.all(ids.map(getClaim))).filter(Boolean);
-  const draft = claims.filter((c) => c.status === "draft" && !!c.test === test).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-  if (draft) return draft;
+  const drafts = claims.filter((c) => c.status === "draft" && !!c.test === test).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  if (fresh) {
+    // Another claim: an empty one already open (not the one on screen) does, else a new one, up to MAX_DRAFTS at once.
+    for (const d of drafts) if (d.id !== keep && !(await listClaimLines(d.id)).length) return d;
+    if (drafts.length >= MAX_DRAFTS) return { problem: `You have ${drafts.length} claims open. Send or delete one before starting another.` };
+  } else {
+    const draft = drafts.find((c) => c.id === working) ?? drafts[0];
+    if (draft) return draft;
+  }
   for (let n = ids.length + 1; n < ids.length + 50; n++) {
     const id = `${who.slice(0, 10)}-${test ? "t" : ""}${n}`;
     const had = await getClaim(id);
     if (had && (had.owner?.email !== me.email || had.status !== "draft" || !!had.test !== test)) continue;
+    if (had && fresh && drafts.some((d) => d.id === had.id)) continue;
     if (had) { await markMine(who, id); return had; }
     const claim = { id, owner: { email: me.email, name: me.name, role: me.role }, status: "draft", createdAt: now(), updatedAt: now(), history: [], ...(test ? { test: true } : (await boardTestOn()) ? { trial: true } : {}) };
     await putClaim(claim);
@@ -704,7 +724,8 @@ async function home(ctx, test = false) {
   const newest = (a, b) => String(b.updatedAt ?? b.createdAt).localeCompare(String(a.updatedAt ?? a.createdAt));
   // The one in front of the person: a claim sent back to them first (it needs them), else the one they are building.
   const open = claims.filter((c) => EDITABLE.includes(c.status) && !!c.test === test).sort((a, b) => (a.status === "rejected" ? -1 : 0) - (b.status === "rejected" ? -1 : 0) || newest(a, b));
-  const current = open[0] ?? null;
+  // Unless the app says which one is being worked on.
+  const current = open.find((c) => c.id === ctx.working) ?? open[0] ?? null;
   const past = claims.filter((c) => !EDITABLE.includes(c.status)).sort((a, b) => String(b.sentAt ?? b.createdAt).localeCompare(String(a.sentAt ?? a.createdAt)));
   // What waits on this person: sign-offs they hold today, and payments to record.
   const toApprove = [], toPay = [];
@@ -729,7 +750,12 @@ async function home(ctx, test = false) {
     categories: CATEGORIES.map(([n, name]) => ({ n, name })),
     events: await choices(),
     current: current ? await claimView(current, ctx) : null,
-    others: open.slice(1).map((c) => summary(c, names)),
+    // The other open claims, to switch to: how many lines, the total, and what they're for.
+    others: await Promise.all(open.filter((c) => c !== current).map(async (c) => {
+      const ls = await listClaimLines(c.id);
+      const evs = [...new Set(ls.map((l) => l.eventTitle).filter(Boolean))];
+      return summary(c, names, { lines: ls.length, sum: Math.round(ls.reduce((t, l) => t + (Number(l.amount) || 0), 0) * 100) / 100, about: evs[0] ?? "", createdAt: c.createdAt ?? null });
+    })),
     month: monthLabel(today),
     approvers: approversFor(me.email).map((r) => ROLE_TITLE[r]),
     past: past.map((c) => summary(c, names)),
