@@ -1,6 +1,6 @@
-import { getAttendees, putAttendees } from "./store.mjs";
+import { getAttendees, putAttendees, listSurveyDone } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
-import { renderLetter, letterProblems, eventProblems, attendeeReplyTo } from "./letters.mjs";
+import { renderLetter, letterProblems, eventProblems, attendeeReplyTo, personalId } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { trainingDays } from "./agenda.mjs";
@@ -130,9 +130,11 @@ export async function surveyWorkDue(events, now = new Date()) {
   for (const event of events) {
     if (event.attendeeMail !== true || !event.survey?.open) continue;
     const parts = partsDue(event, now);
-    if (!parts.length) continue;
+    const n = reminderDue(event, now);
+    if (!parts.length && !n) continue;
     const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
     if (parts.some((part) => owedFor(event, part, people).length)) return true;
+    if (n && (await stillOwed(event, people)).some(({ person }) => !people.some((p) => p.email === person.email && (p.sent ?? []).includes(REMIND_KEY(n))))) return true;
   }
   return false;
 }
@@ -146,6 +148,116 @@ export async function runSurveyRounds(events, opts = {}) {
       try { out.push(await sendSurveyRound(event, part, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind: "survey", part, error: e.message }); }
     }
+    const n = reminderDue(event, opts.now);
+    if (n) {
+      try { out.push(await sendReminderRound(event, n, opts)); }
+      catch (e) { out.push({ event: event.id, title: event.title, kind: "survey", part: `reminder ${n}`, error: e.message }); }
+    }
   }
   return out;
+}
+
+/* ---------- reminders ---------- */
+
+/**
+ * Two reminders after the event (Andrew 14 Nov 2026): "the second business day post-conference, because most people have
+ * out-of-office replies during the training event ... if training finishes on a Thursday, Friday would be 1, and then
+ * Monday would be the 2nd. And then 1 week later, we do the last one." Each goes, in the morning run's hour (from 9 am
+ * local time), only to people who had the survey and haven't answered every part they were sent, with a button for
+ * each part still to answer. Someone who answered by the QR code isn't known to have, so the email says they're done.
+ * On unless the survey's Setup turns it off (survey.remind === false).
+ */
+export const REMIND_KEY = (n) => `survey-remind:${n}`;
+const plusDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+/** n business days (Monday to Friday) after a date. */
+export function businessDaysAfter(iso, n) {
+  let d = iso, k = 0;
+  while (k < n) { d = plusDays(d, 1); const wd = new Date(`${d}T12:00:00Z`).getUTCDay(); if (wd !== 0 && wd !== 6) k++; }
+  return d;
+}
+/** The two reminder dates: the second business day after the last day, then a week after that. */
+export function reminderDates(event) {
+  const s = event.survey ?? {};
+  const last = s.mode === "end" && s.sendOn ? s.sendOn : event.lastDay || event.dayOne;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(last ?? "")) return [];
+  const first = businessDaysAfter(last, 2);
+  return [first, plusDays(first, 7)];
+}
+/** Which reminder is due now: the latest whose day has come (from 9 am local), so a missed first never goes after the last. */
+export function reminderDue(event, now = new Date()) {
+  const s = event.survey;
+  if (!s?.open || s.remind === false) return null;
+  const [today, time] = localNow(event, now).split(" ");
+  const dates = reminderDates(event);
+  let due = null;
+  dates.forEach((d, i) => { if (today > d || (today === d && time >= "09:00")) due = i + 1; });
+  // Not weeks later: a reminder only goes within a week of its day.
+  return due && today <= plusDays(dates[due - 1], 6) ? due : null;
+}
+
+/** The parts each address was sent and hasn't answered by its own link. Returns [{ person, parts }]. */
+export async function stillOwed(event, people) {
+  const done = new Map((await listSurveyDone(event.id)).map((d) => [d.pid, d.parts ?? []]));
+  const tok = event.survey?.token ?? "";
+  const out = [];
+  for (const person of writeableTo(people)) {
+    const rows = people.filter((p) => p.email === person.email);
+    const sent = [...new Set(rows.flatMap((p) => (p.sent ?? []).filter((k) => /^survey:/.test(k)).map((k) => k.slice(7))))];
+    const answered = new Set(rows.flatMap((p) => done.get(personalId(tok, p)) ?? []));
+    const parts = sent.filter((x) => !answered.has(x)).sort();
+    if (parts.length) out.push({ person, parts });
+  }
+  return out;
+}
+
+/** The reminder, in both languages, with a button for each part they still owe. */
+export function reminderLetter(event, n, parts) {
+  const days = trainingDays(event);
+  const buttons = (fr) => parts.map((x) => (x === "end" ? (fr ? "{surveyButtonFr}" : "{surveyButton}") : `{surveyDay${days.indexOf(x) + 1}${fr ? "Fr" : ""}}`)).filter((b) => !/surveyDay0/.test(b));
+  const many = parts.length > 1, last = n === 2;
+  const own = event.survey?.remindWords;
+  return {
+    name: `Survey reminder ${n}`, kind: "survey",
+    subject: own?.subject || `${shortTitle(event)}: ${last ? "a last reminder about the survey / Dernier rappel : sondage" : "a reminder about the survey / Rappel : sondage"}`,
+    body: [
+      "Hello {first},",
+      `Thank you again for coming to the ${shortTitle(event)}. If you haven't had a chance yet, we'd be grateful for a few minutes on the survey${many ? " for the days below" : parts[0] === "end" ? "" : " for the day below"}. Your answers are anonymous and help us plan the next one.${last ? " This is our last reminder." : ""}`,
+      ...buttons(false),
+      `Already answered${parts[0] === "end" ? "" : " by scanning the QR code"}? Then you're done. Thank you.`,
+      "FRANÇAIS",
+      "Bonjour {first},",
+      `Merci encore de votre participation. Si vous n'en avez pas encore eu l'occasion, nous vous serions reconnaissants de prendre quelques minutes pour répondre au sondage${many ? " pour les journées ci-dessous" : parts[0] === "end" ? "" : " pour la journée ci-dessous"}. Vos réponses sont anonymes et nous aident à préparer le prochain événement.${last ? " C'est notre dernier rappel." : ""}`,
+      ...buttons(true),
+      `Vous avez déjà répondu${parts[0] === "end" ? "" : " en balayant le code QR"}? Alors c'est fait. Merci!`,
+    ].join("\n\n"),
+    buttonLabel: "", buttonLink: "",
+  };
+}
+
+/** Send reminder n to everyone still owed a part and not yet reminded. */
+export async function sendReminderRound(event, n, { deadline = null, pace = pacer() } = {}) {
+  const problems = surveyProblems(event);
+  if (problems.length) return { event: event.id, title: event.title, kind: "survey", part: `reminder ${n}`, blocked: problems };
+  const stored = (await getAttendees(event.id)) ?? { people: [] };
+  const people = stored.people ?? [];
+  const key = REMIND_KEY(n);
+  const owed = (await stillOwed(event, people)).filter(({ person }) => !people.some((p) => p.email === person.email && (p.sent ?? []).includes(key)));
+  let sent = 0, failed = 0, left = 0;
+  const trouble = [];
+  for (const { person, parts } of owed) {
+    if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
+    await pace();
+    try {
+      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(reminderLetter(event, n, parts), event, person) });
+      if (out.skipped) { trouble.push({ email: person.email, why: out.reason }); failed++; continue; }
+      for (const same of people.filter((p) => p.email === person.email)) {
+        same.sent = [...new Set([...(same.sent ?? []), key])];
+        same.sentAt = { ...(same.sentAt ?? {}), [key]: new Date().toISOString() };
+      }
+      sent++;
+      await putAttendees(event.id, stored);
+    } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
+  }
+  await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), [key]: { at: new Date().toISOString(), sent, failed, left } } });
+  return { event: event.id, title: event.title, kind: "survey", part: `reminder ${n}`, sent, failed, left, trouble: trouble.slice(0, 10) };
 }
