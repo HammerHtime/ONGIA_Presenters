@@ -277,9 +277,14 @@ async function thanks(req, event, url) {
     if (!to.length) return fail("Put an address to send the test to.");
     const wrong = [...letterProblems(letter), ...eventProblems(letter, event)];
     if (wrong.length) return fail(wrong[0], 409);
-    const m = renderLetter(letter, event, sample);
+    // A test can be made out to someone else, so a board member sees it with their own name, organization and a talk
+    // (Andrew 14 Nov 2026: "with our names, and just make up a presentation topic").
+    const as = body.as && typeof body.as === "object" ? { first: String(body.as.first ?? "").slice(0, 60), last: String(body.as.last ?? "").slice(0, 60),
+      organization: String(body.as.organization ?? "").slice(0, 120), talk: String(body.as.talk ?? "").slice(0, 200), talkDay: /^\d{4}-\d{2}-\d{2}$/.test(body.as.talkDay ?? "") ? body.as.talkDay : sample.talkDay || event.dayOne } : null;
+    const who = as?.first ? as : sample;
+    const m = renderLetter(letter, event, who);
     // With the letter attached, as the presenter will get it.
-    const attachments = letterOn(event) ? [await letterAttachment(event, sample, { signature: await signatureImage() })] : [];
+    const attachments = letterOn(event) ? [await letterAttachment(event, who, { signature: await signatureImage() })] : [];
     const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}`, attachments }).catch((e) => ({ skipped: true, reason: e.message }));
     if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
     return json({ sent: true, to });
