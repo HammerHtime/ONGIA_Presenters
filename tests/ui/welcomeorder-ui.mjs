@@ -32,9 +32,12 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1500);
   const top = (sel) => p.evaluate((s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().top + scrollY : -1; }, sel);
-  const order = { signed: await top("#wl-sign"), hint: await top("#wlbox p.hint + .wlver, #wlbox .wlver"), versions: await top('.wlver[data-wl="group"]'), files: await top("#wl-addfile"),
+  // Since 5 Nov 2026 (nice and tight): the versions are buttons that switch which letter shows, and the signer sits in
+  // the settings line folded under them ("Goes … · signed … · Change").
+  const order = { versions: await top(".wlvbar"), signed: await top("details.wlset"), letter: await top(".wlver:not([hidden])"), files: await top("#wl-addfile"),
     to: await top("#wl-to"), see: await top('.wlcheck [data-wlsee="main"]'), test2: await top('.wlcheck [data-wltest="group"]'), save: await top("#wl-save") };
-  ok(`${tag}: signer, then the letters, then the PDFs, then Check it, then Save`, Object.values(order).every((v, i, a) => v > 0 && (!i || v >= a[i - 1])), JSON.stringify(order));
+  ok(`${tag}: the versions, the signer, then the letter, then the PDFs, then Check it, then Save`, Object.values(order).every((v, i, a) => v > 0 && (!i || v >= a[i - 1])), JSON.stringify(order));
+  ok(`${tag}: one letter at a time, with a button for each version`, (await p.locator(".wlvbar [data-wlv]").count()) === 2 && (await p.locator(".wlver:not([hidden])").count()) === 1);
   ok(`${tag}: the test addresses sit right above the test buttons`, order.see - order.to < 160, `${order.see - order.to}px`);
   ok(`${tag}: one See the email and one Send a test for each version, all in Check it, none left inside the letters`,
     (await p.locator(".wlcheck [data-wltest]").count()) === 2 && (await p.locator(".wlcheck [data-wlsee]").count()) === 2 && (await p.locator(".wlver [data-wltest], .wlver [data-wlsee]").count()) === 0);

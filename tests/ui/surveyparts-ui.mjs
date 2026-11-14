@@ -57,7 +57,7 @@ await p.close();
 // Once answers are in, the tab opens on Results.
 await api(`/api/survey?event=${ev.id}`, { method: "PUT", body: JSON.stringify({ open: true, mode: "end", sendOn: "2031-11-27", sessions: [{ id: "a", day: "2031-11-24", title: "Following the money", presenters: ["Jordan Avery"] }] }) });
 const tok = (await api(`/api/survey?event=${ev.id}`)).survey.token;
-const answered = await fetch(`${S}/api/survey?t=${tok}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", lang: "en",
+const answered = await fetch(`${S}/api/survey?t=${tok}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", who: "justice", lang: "en",
   about: { agency: "TPS", province: "ON", years: 2, before: 0, again: 0, heard: 1 }, sessions: { a: { relevant: 5, knowledge: 5, expectations: 5, expert: 5, engaging: 5, delivery: 5, rebook: 0 } },
   overall: { quality: 5, pace: 1, confidence: 5, variety: 5, practical: 5, venue: 5, av: 5, registration: 5, food: 5, length: 1, nps: 10 } }) });
 p = await open(ev.id, 390, 844);

@@ -17,7 +17,7 @@ const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ ti
 const set = await api(`/api/survey?event=${ev.id}`, { method: "PUT", body: JSON.stringify({ open: true, mode: "end", sendOn: shift(-1), sessions: [{ id: "sa", day: ev.dayOne, title: "Following the Money", presenters: ["Jordan Avery"] }] }) });
 const reply = await api(`/api/reply?event=${ev.id}`, { method: "PUT", body: "{}" });
 const stars = (n) => Object.fromEntries(["relevant", "knowledge", "expectations", "expert", "engaging", "delivery"].map((k) => [k, n]));
-const answerSurvey = (i) => fetch(`${S}/api/survey?t=${set.survey.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", lang: "en",
+const answerSurvey = (i) => fetch(`${S}/api/survey?t=${set.survey.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", who: "justice", lang: "en",
   about: { agency: "TPS", province: "ON", years: 1, before: 0, again: 0, heard: 1 }, sessions: { sa: { ...stars(4), rebook: 0 } },
   overall: { quality: 4, pace: 1, confidence: 4, variety: 4, practical: 4, venue: 4, av: 4, registration: 4, food: 4, length: 1, nps: 8 + (i % 2) } }) });
 const answerReply = (i) => fetch(`${S}/api/reply?t=${reply.reply.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: "Ann", last: `Number${i}`, agency: "TPS", email: `ann${i}.${T}@example.ca`, allergy: "no" }) });

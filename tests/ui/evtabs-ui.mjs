@@ -48,7 +48,9 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: it opens on Overview`, (await shown(p)) === "overview");
   const ov = await p.locator('.etabp[data-panel="overview"]').innerText();
   const side = await p.locator("#sidepanels").innerText();
-  ok(`${tag}: Overview has To do on this event and the checklist; Coming up and Lead and folder are in the side column`, /To do on this event/.test(ov) && /Your checklist/.test(ov) && /Coming up/.test(side) && /Lead and folder/.test(side), side.slice(0, 300));
+  // Coming up moved to the very top of Overview (Andrew 5 Nov 2026: "put it at the top"); Lead and folder stays at the side.
+  const top = await p.locator(".comingtop").innerText().catch(() => "");
+  ok(`${tag}: Overview has To do on this event and the checklist; Coming up is at the top and Lead and folder in the side column`, /To do on this event/.test(ov) && /Your checklist/.test(ov) && /Coming up/.test(top) && await p.locator(".comingtop").isVisible() && /Lead and folder/.test(side), JSON.stringify({ top: top.slice(0, 80), side: side.slice(0, 200) }));
   ok(`${tag}: To do lists the agreement to review, with its button`, /Review agreement · Rev Iewer/.test(ov) && (await p.locator('.etabp[data-panel="overview"] [data-goreview]').count()) === 1, ov.slice(0, 400));
   ok(`${tag}: Lead and folder names the lead and the rest of the board`, /Lead\s*Raj Jaswal/.test(side) && /Board\s*Barb Konkle/.test(side), side);
   const band = await p.locator(".evband").innerText();

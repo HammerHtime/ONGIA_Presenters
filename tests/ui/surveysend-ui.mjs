@@ -20,6 +20,8 @@ for (const [w, h, tag] of [[1280, 900, "wide"], [390, 844, "phone"]]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(`${S}/f/${set.survey.token}?lang=en`, { waitUntil: "networkidle" }); await p.waitForTimeout(800);
+  // One survey for everyone since 13 Nov 2026 (#193): the attendee first says who they are, then the questions show.
+  await p.locator('[data-who="justice"]').click(); await p.waitForTimeout(300);
   await p.locator('[data-star="sa.relevant"][data-v="4"]').click();
   // The connection drops as they press Send.
   let mode = "drop";
