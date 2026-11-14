@@ -168,9 +168,10 @@ const csvCell = (v) => (/[",\n]/.test(String(v ?? "")) ? `"${String(v).replace(/
 
 /** The spreadsheet a hotel can open or import: one row per room. */
 export function roomingCsv(event, rows) {
-  const head = ["Master block", "Guest name", "Check-in", "Check-out", "Nights", "Billing", "Group", "Marriott Bonvoy #"];
+  // The Bonvoy number beside the name it belongs to (Andrew 14 Nov 2026).
+  const head = ["Master block", "Guest name", "Marriott Bonvoy #", "Check-in", "Check-out", "Nights", "Billing", "Group"];
   const ordered = [...rows.filter(onMaster), ...rows.filter((r) => !onMaster(r))];
-  const lines = ordered.map((r) => [onMaster(r) ? "Yes" : "No", r.name, r.checkIn, r.checkOut, r.nights, billingWords(r.billing, r), `ONGIA - ${event.title}`, r.bonvoy ?? ""]);
+  const lines = ordered.map((r) => [onMaster(r) ? "Yes" : "No", r.name, r.bonvoy ?? "", r.checkIn, r.checkOut, r.nights, billingWords(r.billing, r), `ONGIA - ${event.title}`]);
   return [head, ...lines].map((l) => l.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 

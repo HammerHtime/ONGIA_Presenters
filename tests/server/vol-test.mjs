@@ -239,7 +239,7 @@ const row = rm.rows.find((x) => /Hana/.test(x.name));
 ok("her nights are on the hotel rooming list: a Volunteer, those dates, ONGIA billed, confirmed", row && row.type === "Volunteer" && row.who === "volunteer" && row.checkIn === "2026-11-08" && row.checkOut === "2026-11-13" && row.nights === 5 && row.billing === "ONGIA" && row.confirmed === true, JSON.stringify(row));
 ok("and she is off the 'may still need a room' list", !rm.waiting.some((w) => /Hana/.test(w.name)));
 const csv = await (await rooming(new Request(`http://localhost/api/rooming?event=${ev4.id}&csv=1`, { headers: H }))).text();
-ok("the spreadsheet for the hotel includes her", /Hana Hotel,2026-11-08,2026-11-13,5/.test(csv), csv);
+ok("the spreadsheet for the hotel includes her", /Hana Hotel,,2026-11-08,2026-11-13,5/.test(csv), csv);
 ok("Noah, who needs no room, is not on the list", !rm.rows.some((x) => /Noah/.test(x.name)));
 
 await signAs(by("Gus"));
