@@ -6016,6 +6016,7 @@ async function loadThanks(ev) {
   if (!box) return;
   const q = `/attmail?event=${encodeURIComponent(ev.id)}&kind=thanks`;
   let T = null, filter = "all";
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   const zoneAbbr = (zone, date) => (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(new Date(`${date}T17:00:00Z`)).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
   const when = () => T.day ? `${new Date(`${T.day}T12:00:00Z`).toLocaleDateString("en-CA", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" })}, 9:00 am ${zoneAbbr(T.zone, T.day)}` : "no dates yet";
   const st = (p) => p.sentAt ? `<span class="mwst ok">Sent ${esc(shortDate(p.sentAt.slice(0, 10)).replace(/^\w+ /, ""))}</span>`
@@ -6028,14 +6029,18 @@ async function loadThanks(ev) {
     const going = T.people.filter((p) => p.in && !p.sentAt), sent = T.people.filter((p) => p.sentAt);
     const shown = T.people.filter((p) => filter === "not" ? p.in && !p.sentAt : filter === "sent" ? p.sentAt : true);
     const past = T.day && T.day < new Date().toISOString().slice(0, 10);
-    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · replies to ${esc(T.replyTo || "the board")} · ${T.standard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>
         <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
         <div class="field"><label for="th-b">The email</label><textarea id="th-b" style="min-height:260px" spellcheck="true">${esc(T.body)}</textarea>
           <p class="hint" style="margin:4px 0 0">{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event</p></div>
+        <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:14px 0 10px;font-size:14px"><input type="checkbox" id="th-lon"${T.letterOn ? " checked" : ""} style="margin-top:3px"><span>Attach a letter of appreciation (PDF on letterhead, signed by Andrew) for their boss and their file</span></label>
+        <div class="field"><label for="th-l">The letter</label><textarea id="th-l" style="min-height:220px" spellcheck="true">${esc(T.letter)}</textarea>
+          <p class="hint" style="margin:4px 0 0">{name} · {first} · {organization} · {talk} · {event} · {city} · {date}. Dated the day it goes, "To whom it may concern", signed by Andrew.${T.signature ? "" : " <b class=\"late\">No signature saved yet: it'll have room for a wet signature.</b>"}</p></div>
+        ${T.noOrg.length ? `<p class="hint" style="margin:0 0 6px"><b class="late">No organization on file</b> for ${esc(T.noOrg.join(", "))}: their letter thanks "their organization".</p>` : ""}
         ${T.problems.length ? `<div class="bad" style="margin-top:8px">${esc(T.problems[0])}</div>` : ""}
-        <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-th="save">Save</button><button class="mini ghost" data-th="see">See the email</button><button class="mini ghost" data-th="test">Send me a test</button>${T.standard ? "" : `<button class="mini ghost" data-th="std">Use the standard words</button>`}</div>
+        <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-th="save">Save</button><button class="mini ghost" data-th="see">See the email</button><button class="mini ghost" data-th="letter">See the letter</button><button class="mini ghost" data-th="test">Send me a test</button>${T.standard ? "" : `<button class="mini ghost" data-th="std">Standard email</button>`}${T.letterStandard ? "" : `<button class="mini ghost" data-th="lstd">Standard letter</button>`}</div>
       </div></details>
       <div class="mwfil wlvbar" role="tablist" aria-label="Show">${[["all", `All <small>${T.people.length}</small>`], ["not", `Not yet <small>${going.length}</small>`], ["sent", `Sent <small>${sent.length}</small>`]]
         .map(([k, l]) => `<button type="button" role="tab" data-thf="${k}" class="${filter === k ? "on" : ""}" aria-selected="${filter === k}">${l}</button>`).join("")}</div>
@@ -6045,8 +6050,19 @@ async function loadThanks(ev) {
     const words = () => ({ subject: box.querySelector("#th-s").value, body: box.querySelector("#th-b").value });
     const call = async (url, opts, msg) => { try { const r = await api(url, opts); if (r.people) draw(r); if (msg) toast(typeof msg === "function" ? msg(r) : msg); return r; } catch (x) { toast(x.message); return null; } };
     box.querySelectorAll("[data-thf]").forEach((b) => { b.onclick = () => { filter = b.dataset.thf; draw(T); }; });
-    box.querySelector('[data-th="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify({ ...words(), off: !box.querySelector("#th-on").checked }) }, "Thank-you saved.");
-    box.querySelector('[data-th="std"]')?.addEventListener("click", () => { if (confirm("Put back the standard words for this event?")) call(q, { method: "PUT", body: JSON.stringify({ standard: true }) }, "Standard words back."); });
+    box.querySelector('[data-th="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify({ ...words(), off: !box.querySelector("#th-on").checked, letter: box.querySelector("#th-l").value, letterOff: !box.querySelector("#th-lon").checked }) }, "Thank-you saved.");
+    box.querySelector('[data-th="lstd"]')?.addEventListener("click", () => { if (confirm("Put back the standard letter for this event?")) call(q, { method: "PUT", body: JSON.stringify({ letterStandard: true }) }, "Standard letter back."); });
+    box.querySelector('[data-th="letter"]').onclick = async (e) => {
+      const done = busy(e.target, "…");
+      try {
+        const res = await apiFetch(`/api${q}&letter=sample&words=${encodeURIComponent(box.querySelector("#th-l").value)}`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The letter didn't load.");
+        // Downloaded, so it opens in the phone's or computer's own PDF viewer (the email preview box can't show a PDF).
+        saveBlob(await res.blob(), "Letter of appreciation (sample).pdf");
+      } catch (x) { toast(x.message); }
+      done();
+    };
+    box.querySelector('[data-th="std"]')?.addEventListener("click", () => { if (confirm("Put back the standard email for this event?")) call(q, { method: "PUT", body: JSON.stringify({ standard: true }) }, "Standard words back."); });
     box.querySelector('[data-th="see"]').onclick = async () => {
       const out = await call(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
       const dlg = document.getElementById("wldlg"); if (!out || !dlg) return;
