@@ -8,6 +8,7 @@ import { trainingDays } from "./lib/agenda.mjs";
 import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage, asksWho } from "./lib/survey.mjs";
+import { emailSchedule } from "./lib/schedule.mjs";
 import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf, reminderLetter, reminderDates } from "./lib/surveysend.mjs";
 import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
@@ -157,6 +158,8 @@ async function show(event) {
     group: g && (event.wixMore ?? []).length ? { name: event.wixMore[0].group || "Second group", ...g } : null,
     times: dailyTimes(event), zone: zoneOf(event), now: localNow(event),
     remindDates: reminderDates(event),
+    // What the survey sends next, for the header (Andrew 14 Nov 2026: "see when the next one is scheduled to go").
+    next: (await emailSchedule(event).catch(() => [])).filter((x) => /^Survey/.test(x.what)).sort((a, b) => `${a.date} ${a.time ?? ""}`.localeCompare(`${b.date} ${b.time ?? ""}`))[0] ?? null,
     responses: responses.length, byPart,
     sent: Object.fromEntries(Object.entries(people.reduce((m, p) => { for (const k of p.sent ?? []) if (k.startsWith("survey:")) (m[k] ??= new Set()).add(p.email); return m; }, {})).map(([k, v]) => [k.slice(7), v.size])),
     attendeeMail: event.attendeeMail === true,
