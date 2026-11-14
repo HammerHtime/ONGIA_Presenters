@@ -41,7 +41,9 @@ ok("with attendee emails off, each says it won't go (not the online reminder, wh
 await putEvent({ id: "reg", title: "Regina", city: "Regina", dayOne: "2026-12-10", lastDay: "2026-12-10", board: [{ name: "R", email: "r@ongia.ca", lead: true }], deadlines: { agreement: "2026-11-20", draft: "2026-11-25", final: "2026-12-01" } });
 await putPresenter({ id: "p1", eventId: "reg", token: "t1", first: "P", last: "One", email: "p1@example.ca", status: "invited", mail: [{ type: "invite", at: "2026-11-01" }] });
 await putPresenter({ id: "p2", eventId: "reg", token: "t2", first: "P", last: "Two", email: "p2@example.ca", status: "approved", mail: [{ type: "invite", at: "2026-11-01" }] });
-const R = await emailSchedule(await getEvent("reg"), "2026-11-10");
+const all = await emailSchedule(await getEvent("reg"), "2026-11-10");
+const R = all.filter((x) => /^Agreement reminder/.test(x.what));
+ok("the presenter thank-you, the morning after, to both presenters", all.some((x) => x.what === "Presenter thank-you" && x.date === "2026-12-11" && x.to === 2));
 ok("agreement reminders, to the presenters who haven't signed", R.length >= 5 && R.every((x) => x.who === "presenters" && x.to === 1) && R[0].date === "2026-11-13", JSON.stringify(R.slice(0, 3)));
 { const { dailyTimes, hhmm24 } = await import(F + "lib/surveysend.mjs");
   ok("session times typed as \"5:00 PM\" are read (the Summit's), so a daily survey goes 15 minutes after", JSON.stringify(dailyTimes({ dayOne: "2026-11-09", lastDay: "2026-11-10", schedule: [{ date: "2026-11-09", end: "5:00 PM" }, { date: "2026-11-10", end: "16:00" }] }).map((t) => t.at)) === '["17:15","16:15"]');
