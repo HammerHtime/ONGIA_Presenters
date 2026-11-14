@@ -96,6 +96,21 @@ const pdf = await call("&letter=a");
 ok("one presenter's letter downloads as a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && /Ana Diaz/.test(pdf.headers.get("content-disposition")));
 const sig = await fn(new Request("http://x/api/attmail?kind=signature", { method: "PUT", headers: H, body: JSON.stringify({ png: Buffer.from("not a png").toString("base64") }) }));
 ok("the signature store takes only a PNG", sig.status === 400);
+{
+  const fs = await import("node:fs");
+  const png = fs.readFileSync(REPO + "public/assets/letterhead-top.png"); // any PNG stands in for the signature
+  const svg = '<?xml version="1.0"?>\n<!-- Illustrator -->\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 10 10"><path d="M0 0L10 10"/></svg>';
+  const put = await fn(new Request("http://x/api/attmail?kind=signature", { method: "PUT", headers: H, body: JSON.stringify({ png: png.toString("base64"), svg }) }));
+  const info = await (await fn(new Request("http://x/api/attmail?kind=signature", { headers: H }))).json();
+  ok("the signature is kept, with its original drawing", put.status === 200 && info.saved && info.svg);
+  const back = await fn(new Request("http://x/api/attmail?kind=signature&png=1", { headers: H }));
+  ok("and comes back on request, as it was given", back.status === 200 && Buffer.from(await back.arrayBuffer()).equals(png));
+  ok("the drawing too", (await (await fn(new Request("http://x/api/attmail?kind=signature&svg=1", { headers: H }))).text()) === svg);
+  const bad = svg.replace("<path", '<path onload="x()"');
+  await fn(new Request("http://x/api/attmail?kind=signature", { method: "PUT", headers: H, body: JSON.stringify({ png: png.toString("base64"), svg: bad }) }));
+  ok("a drawing with a script in it isn't kept", !(await (await fn(new Request("http://x/api/attmail?kind=signature", { headers: H }))).json()).svg);
+  ok("no key, no signature", (await fn(new Request("http://x/api/attmail?kind=signature&png=1"))).status === 401);
+}
 v = await (await call("", "PUT", { off: true })).json();
 ok("switched off", v.on === false && (await emailSchedule({ ...(await S.getEvent("vic")) }, "2026-11-14")).find((x) => x.what === "Presenter thank-you") === undefined);
 ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&kind=thanks"))).status === 401);

@@ -89,3 +89,11 @@ welcome letter's *Who's had it* list. Every new screen, and any screen touched:
 - **On a phone:** nothing scrolls sideways; drop secondary detail (like a
   "4 days" count) before squeezing the main text into four lines.
 - Check it at 390px wide on real data before calling it done.
+
+## Andrew's signature (Andrew, 14 Nov 2026)
+
+"Store that … as my signature to use when I request." His handwritten signature is kept in the desk's own store
+(Blobs `meta:letter-signature`), never in this repository, which is public. Get it with
+`curl -H "x-admin-key: $KEY" "$SITE/api/attmail?kind=signature&png=1"` (or `&svg=1` for the original drawing).
+Use it only when Andrew asks for it on something, and on the presenter letters of appreciation, which he approved.
+Never commit it, attach it to a page, or send it anywhere else.
