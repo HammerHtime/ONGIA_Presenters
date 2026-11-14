@@ -6,7 +6,7 @@ import { personalId } from "./lib/letters.mjs";
 import { readXlsx } from "./lib/xlsx.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { sendMail } from "./lib/mail.mjs";
-import { renderReminder, summitSocialLabels, replyToOf, signOf, freshenedReply } from "./lib/reply.mjs";
+import { renderReminder, replyToOf, signOf } from "./lib/reply.mjs";
 import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, suggestedWording, dietarySheet, socialsSheet, addressesSheet, presenterReplyStatus, sendReplyToPresenters, replyProblems, renderReply, replyStatus, sendReplyRound,
   longDay, longDayFr, socialLine, socialLineFr, dateRange, dateRangeFr } from "./lib/reply.mjs";
 import { slugOf } from "./lib/public.mjs";
@@ -45,7 +45,6 @@ export default async (req) => {
   if (denied) return fail(denied, 401);
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
-  await freshen(event);
   if (req.method === "GET") {
     const sheet = url.searchParams.get("sheet");
     return sheet ? download(event, sheet) : show(event);
@@ -59,8 +58,7 @@ export default async (req) => {
     const body = await req.json().catch(() => ({}));
     if (url.searchParams.get("add")) return addByHand(event, body);
     if (url.searchParams.get("wording")) {
-      // At the Summit, the socials' names come back in Andrew's latest wording too; their dates stay as set.
-      const socials = /national gang summit/i.test(event.title) ? summitSocialLabels(event, event.reply.socials ?? []) : event.reply.socials ?? [];
+      const socials = event.reply.socials ?? [];
       event.reply = { ...event.reply, socials, ...suggestedWording(event, socials) };
       await putEvent(event);
       return show(event);
@@ -279,14 +277,6 @@ async function upload(event, bytes) {
 
 /* ------------------------------------------------------------ the attendee's side */
 
-/** An untouched old Summit email takes Andrew's current wording (see freshenedReply), and is saved that way. */
-async function freshen(event) {
-  const fresh = freshenedReply(event);
-  if (!fresh) return;
-  event.reply = fresh;
-  await putEvent(event);
-}
-
 async function eventByToken(tok) {
   if (!/^[A-Za-z0-9_-]{8,40}$/.test(tok)) return null;
   return (await listEvents()).find((e) => e.reply?.token === tok) ?? null;
@@ -304,7 +294,6 @@ async function personFor(event, pid) {
 async function attendeeSide(req, tok, pid) {
   const event = await eventByToken(tok);
   if (!event) return fail("This link is not working. Reply to the email it came in and we will sort it out.", 404);
-  await freshen(event);
   const r = event.reply;
   if (req.method === "GET") {
     return json({

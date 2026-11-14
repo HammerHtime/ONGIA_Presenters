@@ -64,6 +64,14 @@ Netlify Functions read live Blobs, so the only honest check uses real records.
 - Board contact details (name, email, phone) come from the board roster, never
   from a per-event field.
 
+## One event's problem is every event's fix (Andrew, 14 Nov 2026)
+
+- When Andrew reports a problem on one event, fix it for **every event, past and future**, unless he says it's for
+  that event only.
+- Each time, tell him in one line whether the fix covers all events or only one.
+- **Never decide by an event's title** (no `/national gang summit/i.test(event.title)`). If something must differ for
+  one event, make it a setting on the event, editable on its page.
+
 ## Layout standard: nice and tight (Andrew, 5 Nov 2026)
 
 "All builds and screens need to be like this. Nice and tight." The model is the

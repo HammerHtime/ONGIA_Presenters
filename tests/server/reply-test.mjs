@@ -50,13 +50,64 @@ await putEvent(ngs);
 const person = (email, first, last, status = "ATTENDING") => ({ email, first, last, status, source: "wix" });
 await putAttendees("ngs", { people: [person("a@example.ca", "Ann", "One"), person("b@example.ca", "Ben", "Two"), person("b@example.ca", "Guest", "OfBen"), person("c@example.ca", "Cat", "Three", "NOT_ATTENDING")] });
 
+// The Summit's receptions and wording, as set on its page (they were once written into the code; since 14 Nov 2026
+// every event's socials and words are its own settings).
+const SUMMIT_SOCIALS = [
+  { date: "2026-11-10", label: "Networking Reception followed by a screening of the documentary WATTS", labelFr: "Réception de réseautage suivie de la projection du documentaire WATTS" },
+  { date: "2026-11-11", label: "Evening Social at the hotel featuring a live performance by District 6", labelFr: "Soirée à l'hôtel avec une prestation en direct de District 6" },
+];
+const summitWording = (socials) => {
+  return {
+    subject: "National Gang Summit: A Few Quick Questions / Quelques questions rapides",
+    body: [
+      "Hello {first},",
+      "As we finalize arrangements for the National Gang Summit, we'd appreciate a few details to help us prepare for your visit.",
+      "This survey is for all registered participants, whether you'll be attending the full Summit November 9-12 or joining us as a community partner on November 10 and 11.",
+      "DIETARY REQUIREMENTS",
+      "Please let us know if you have any food allergies, intolerances, or dietary requirements. We will share this information with the hotel to help ensure suitable meal options are available.",
+      "SOCIAL EVENTS",
+      "Please indicate whether you plan to attend the following events:",
+      socials.map((_, i) => `* {social${i + 1}}`).join("\n"),
+      "HOW TO RESPOND",
+      "Simply click the button below to answer a few questions.",
+      "Please submit your responses by {replyBy}, to allow sufficient time to finalize arrangements with the hotel. The survey should take less than one minute to complete.",
+      "Thank you for your time. We look forward to welcoming you to the Summit.",
+      "National Gang Summit Planning Committee",
+      "{replyButton}",
+      // The French half (Andrew 27 Oct 2026: "two sections, the top English with the link and the bottom French with
+      // the link; the French link takes them to the French questions"). Translated from his English.
+      "FRANÇAIS",
+      "Bonjour {first},",
+      "Alors que nous finalisons les préparatifs du Sommet national sur les gangs, nous aimerions obtenir quelques renseignements pour bien préparer votre visite.",
+      "Ce sondage s'adresse à tous les participants inscrits, que vous assistiez à l'ensemble du Sommet, du 9 au 12 novembre, ou que vous vous joigniez à nous à titre de partenaire communautaire les 10 et 11 novembre.",
+      "RESTRICTIONS ALIMENTAIRES",
+      "Veuillez nous indiquer si vous avez des allergies, des intolérances ou des restrictions alimentaires. Nous transmettrons ces renseignements à l'hôtel afin que des repas adaptés soient offerts.",
+      "ACTIVITÉS SOCIALES",
+      "Veuillez indiquer si vous prévoyez assister aux activités suivantes :",
+      socials.map((_, i) => `* {social${i + 1}Fr}`).join("\n"),
+      "COMMENT RÉPONDRE",
+      "Il suffit de cliquer sur le bouton ci-dessous pour répondre à quelques questions.",
+      "Veuillez nous faire parvenir vos réponses d'ici le {replyByFr}, afin de nous laisser le temps de finaliser les arrangements avec l'hôtel. Le sondage prend moins d'une minute à remplir.",
+      "Merci de votre temps. Nous avons hâte de vous accueillir au Sommet.",
+      "Le comité organisateur du Sommet national sur les gangs",
+      "{replyButtonFr}",
+    ].join("\n\n"),
+    buttonLabel: "Complete the survey",
+    buttonLabelFr: "Répondre au sondage",
+    // Signed by the board, with the Summit's own inbox, not by the event's lead (Andrew 27 Oct 2026).
+    signName: "ONGIA Board",
+    signEmail: "ngs@ongia.ca",
+  };
+};
+
 /* setting it up */
 const defaults = startingReply(ngs, new Date("2026-10-26T15:00:00Z"));
 ok("the reply-by date starts as the Friday of this week (Friday 30 October)", defaults.replyBy === "2026-10-30", defaults.replyBy);
-ok("the two socials start on the Tuesday and the Wednesday of the Summit", defaults.socials[0].date === "2026-11-10" && /WATTS/.test(defaults.socials[0].label) && defaults.socials[1].date === "2026-11-11" && /District 6/.test(defaults.socials[1].label));
+ok("a new event starts with no socials, whatever its title (the next Summit starts with none)", defaults.socials.length === 0 && !/WATTS|FRANÇAIS/.test(JSON.stringify(defaults)));
 const board = { "x-admin-key": issueSession({ email: "secretary@ongia.ca", name: "Lee" }), "content-type": "application/json" };
 ok("a board member who is not on this event cannot set it up", (await call("event=ngs", { method: "PUT", body: {}, headers: board })).status === 403);
-const set = (await call("event=ngs", { method: "PUT", body: { replyBy: "2026-10-30" } })).body;
+const set = (await call("event=ngs", { method: "PUT", body: { replyBy: "2026-10-30", socials: SUMMIT_SOCIALS, ...summitWording(SUMMIT_SOCIALS) } })).body;
+ok("the socials are set on the event's page, with their days", set.reply.socials.length === 2 && set.reply.socials[0].id === "s1" && set.reply.socials[1].date === "2026-11-11");
 ok("setting it up gives a form link", /^https:\/\/events\.example\.org\/q\/[A-Za-z0-9_-]{16}$/.test(set.link), set.link);
 ok("nothing is held back", set.problems.length === 0, set.problems.join(" | "));
 const tok = set.link.split("/q/")[1];
@@ -69,20 +120,6 @@ ok("its button goes to the form", pv.html.includes(`https://events.example.org/q
 ok("no blank left unfilled", !/\{[a-zA-Z0-9]+\}/.test(pv.text));
 // Signed by the board with the Summit's inbox, not by the lead (Andrew 27 Oct 2026).
 ok("the Summit email is signed ONGIA Board, with ngs@ongia.ca, and no 'lead for' line", /ONGIA Board/.test(pv.html) && /mailto:ngs@ongia\.ca/.test(pv.html) && !/lead for/.test(pv.html) && /Replies to this email go straight to ONGIA Board/.test(pv.html) && /acheminées directement à ONGIA Board/.test(pv.html), pv.html.slice(-1500));
-// Andrew 27 Oct 2026: his Summit email was set up before he wrote his own wording, and his test still went out in the
-// old words. Untouched, it now takes his wording on its own; anything he typed himself is left alone.
-{ const e = await getEvent("ngs"); const keep = structuredClone(e.reply);
-  const oldSocials = keep.socials.map((s, i) => ({ ...s, label: ["Networking social, followed by a screening of the documentary WATTS", "Social at the hotel, with a live band"][i] }));
-  const oldBody = ["Hello {first},", "We're putting the final touches on the {event}, and we're looking forward to hosting you and to hearing from a great lineup of speakers.",
-    "This is for everyone coming, whether you're with us for the full Summit, November 9 to 12, or joining us as a community partner on November 10 and 11.",
-    "A few housekeeping questions before then. First: do you have a food allergy, intolerance or dietary need? We'll pass it to the hotel so they can plan your meals.",
-    "We'd also like to know whether you'll come to each of the socials:", "* {social1}\n* {social2}", "Please answer by end of day {replyBy}, so the hotel has time to plan. It takes about a minute.", "See you soon."].join("\n\n");
-  e.reply = { ...keep, socials: oldSocials, subject: "{event}: a few quick questions", body: oldBody, buttonLabel: "Answer the questions" }; delete e.reply.buttonLabelFr; delete e.reply.signName; delete e.reply.signEmail; await putEvent(e);
-  const got = (await call("event=ngs")).body.reply;
-  ok("an untouched old Summit email takes Andrew's wording, French half, and the socials' new names when the card opens", /FRANÇAIS/.test(got.body) && /A Few Quick Questions/.test(got.subject) && /District 6/.test(got.socials[1].label) && got.replyBy === keep.replyBy && got.token === keep.token, JSON.stringify(got).slice(0, 300));
-  e.reply = { ...keep, socials: oldSocials, subject: "{event}: a few quick questions", body: oldBody + "\n\nAndrew's own line." }; await putEvent(e);
-  ok("but an email he has changed himself is left as he wrote it", /Andrew's own line/.test((await call("event=ngs")).body.reply.body));
-  e.reply = keep; await putEvent(e); }
 // Andrew's own Summit email was saved before the signature fields existed: it is still signed by the board.
 { const e = await getEvent("ngs"); const keep = { ...e.reply }; delete e.reply.signName; delete e.reply.signEmail; await putEvent(e);
   const old = (await call("event=ngs&preview=1", { method: "POST", body: {} })).body;
@@ -246,13 +283,17 @@ ok("hand and sheet entries are on the dietary list, not the socials list", names
 const notXlsx = await reply(new Request("http://localhost/api/reply?event=ngs&upload=1", { method: "POST", headers: { "x-admin-key": "testkey" }, body: "first,last\nA,B" }));
 ok("a file that isn't .xlsx is refused with a reason", notXlsx.status === 400);
 
-/* every event asks about food; only the Summit asks about socials */
+/* every event asks about food; socials only when they are added on the event's page */
 await putEvent({ id: "itp", title: "RBH ITP Training", city: "Halifax, NS", dayOne: "2026-12-01", lastDay: "2026-12-02", board: [], contact: { name: "Andrew Hammond", email: "president@ongia.ca" } });
 const itp = (await call("event=itp", { method: "PUT", body: {} })).body;
 ok("another event asks only about food", itp.reply.socials.length === 0 && itp.problems.length === 0, JSON.stringify(itp.problems));
 const itpMail = (await call("event=itp&preview=1", { method: "POST", body: {} })).body;
 ok("its email asks one question and mentions no socials or community days", /food allergy/.test(itpMail.text) && !/social|community/i.test(itpMail.text), itpMail.text);
 ok("and there is no socials list to download", (await call("event=itp&sheet=socials")).status === 400);
+// A one-day event adds its networking hour on its page (Victoria, 14 Nov 2026): the form asks it, the email can say so.
+const vic = (await call("event=itp", { method: "PUT", body: { socials: [{ date: "2026-12-01", label: "Are you planning on staying for the 2-hour networking event right after the conclusion of the day?" }] } })).body;
+ok("a social added on any event's page is asked on its form", vic.reply.socials.length === 1 && (await call("event=itp&sheet=socials")).status === 200, JSON.stringify(vic.reply.socials));
+ok("Suggest the wording again keeps the socials as set", (await call("event=itp&wording=1", { method: "POST", body: {} })).body.reply.socials[0].label.startsWith("Are you planning"));
 
 /* removing an answer, closing the form */
 const ann = all.find((a) => a.first === "Ann");
