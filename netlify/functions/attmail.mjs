@@ -49,12 +49,23 @@ export default async (req) => {
   // The President's signature for the letters of appreciation (Andrew 14 Nov 2026: "you can use my signature"). In the
   // desk's own store, not the repository, which is public.
   if (url.searchParams.get("kind") === "signature") {
-    if (req.method === "GET") return json({ saved: !!(await signatureImage()) });
+    if (req.method === "GET") {
+      // The signature itself, for when Andrew asks for it on something else ("store that … as my signature to use when
+      // I request", 14 Nov 2026): &png=1 the image, &svg=1 the original drawing.
+      const s = await getMeta(SIGNATURE_KEY);
+      const want = url.searchParams.get("svg") ? "svg" : url.searchParams.get("png") ? "png" : "";
+      if (want === "svg" && s?.svg) return new Response(s.svg, { headers: { "content-type": "image/svg+xml", "content-disposition": 'attachment; filename="Andrew_Hammond-signature.svg"', "cache-control": "no-store" } });
+      if (want === "png" && s?.png) return new Response(Buffer.from(s.png, "base64"), { headers: { "content-type": "image/png", "content-disposition": 'attachment; filename="Andrew_Hammond-signature.png"', "cache-control": "no-store" } });
+      if (want) return fail("No signature saved.", 404);
+      return json({ saved: !!s?.png, svg: !!s?.svg, at: s?.at ?? null });
+    }
     if (req.method !== "PUT") return fail("Not allowed.", 405);
     const b = await req.json().catch(() => ({}));
     const png = Buffer.from(String(b.png ?? ""), "base64");
     if (png.length < 100 || png.length > 500000 || png.subarray(1, 4).toString() !== "PNG") return fail("Send the signature as a PNG.");
-    await putMeta(SIGNATURE_KEY, { png: png.toString("base64"), at: new Date().toISOString(), by: adminWho(req)?.email ?? "the desk key" });
+    // The original drawing is kept beside it when sent, so the signature can be had again at any size.
+    const svg = /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/.test(String(b.svg ?? "")) && !/<script|on\w+=|href="(?!#)/i.test(b.svg) ? String(b.svg).slice(0, 200000) : null;
+    await putMeta(SIGNATURE_KEY, { png: png.toString("base64"), ...(svg ? { svg } : {}), at: new Date().toISOString(), by: adminWho(req)?.email ?? "the desk key" });
     return json({ saved: true });
   }
   const event = await getEvent(url.searchParams.get("event"));
