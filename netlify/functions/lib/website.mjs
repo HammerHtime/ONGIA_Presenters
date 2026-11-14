@@ -131,7 +131,8 @@ export async function buildDeskFile(event, presenters) {
     // The French page shows the French where there is some, and the English where there is not yet.
     const bioFr = c.bio === "no" ? [] : paras(web.bioFr);
     frSpeakers.push({ ...sp, ...(web.titleFr ? { title: web.titleFr } : {}), ...(web.orgFr ? { org: web.orgFr } : {}), ...(bioFr.length ? { bio: bioFr } : {}) });
-    report.push({ id: p.id, name, bioConsent: c.bio, talk: s.talk || "", outline: s.outline || "",
+    // The talk title and description from the agreement only with a yes to the public summary (Andrew 14 Nov 2026).
+    report.push({ id: p.id, name, bioConsent: c.bio, summary: c.summary, talk: c.summary ? s.talk || "" : "", outline: c.summary ? s.outline || "" : "",
       frMissing: !!(bio.length && !bioFr.length), frReviewed: web.frReviewed });
   }
 

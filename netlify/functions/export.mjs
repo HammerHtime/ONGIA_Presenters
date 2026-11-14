@@ -60,10 +60,10 @@ export async function websiteExport(event, presenters, headshotOf) {
       organization: p.organization || null,
       bio: c.bio === "no" ? null : s.bio || null, // empty when they said no to it, said ONGIA already has it, or the event keeps bios on file
       photo,
-      presentation: { title: s.talk || null, description: s.outline || null },
+      presentation: c.summary ? { title: s.talk || null, description: s.outline || null } : { title: null, description: null },
       session: null,                     // the desk keeps the event's daily times, not each talk's slot
       consent: {
-        publicSummary: true,
+        publicSummary: c.summary,
         publicPhoto: c.photo,
         publicMaterials: c.materials,
         publicBio: c.bio,                // "yes", "no", or "legacy": signed before the biography line was asked
