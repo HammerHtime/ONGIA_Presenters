@@ -49,7 +49,18 @@ export const BLANKS = {
   // The event's own survey (survey.mjs): each person's link, opening in English or French.
   surveyButton:   { means: "a button to the event's survey in English, on a line of its own", from: (e, p) => surveyUrl(e, p, "en"), link: true, button: (e) => e.survey?.buttonLabel || "Take the survey" },
   surveyButtonFr: { means: "a button to the event's survey in French, on a line of its own", from: (e, p) => surveyUrl(e, p, "fr"), link: true, button: (e) => e.survey?.buttonLabelFr || "Répondre au sondage" },
+  // One button per training day, for the survey reminder (Andrew 14 Nov 2026): each opens that day's sessions only.
+  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7].flatMap((n) => [
+    [`surveyDay${n}`, { means: `a button to day ${n} of the event's survey, in English, on a line of its own`, from: (e, p) => (eventDay(e, n) ? surveyUrl(e, { ...p, surveyPart: eventDay(e, n) }, "en") : ""), link: true, button: (e) => `Day ${n} · ${longDate(eventDay(e, n))}` }],
+    [`surveyDay${n}Fr`, { means: `a button to day ${n} of the event's survey, in French, on a line of its own`, from: (e, p) => (eventDay(e, n) ? surveyUrl(e, { ...p, surveyPart: eventDay(e, n) }, "fr") : ""), link: true, button: (e) => `Jour ${n} · ${longDateFr(eventDay(e, n))}` }],
+  ])),
 };
+/** Day n of an event (1 is day one), or "" when the event has fewer days. */
+function eventDay(e, n) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e?.dayOne ?? "")) return "";
+  const d = new Date(Date.parse(`${e.dayOne}T12:00:00Z`) + (n - 1) * 86400000).toISOString().slice(0, 10);
+  return d <= (e.lastDay || e.dayOne) ? d : "";
+}
 
 /** A person's own link to an event's survey; it says who is answering only so nobody is asked twice. */
 export function surveyUrl(e, p, lang = "") {
@@ -255,7 +266,7 @@ function htmlOf(text, event, person) {
 const BULLET = /^\s*[*\-•]\s+/;
 const SCHEDULE = /^\s*\{schedule\}\s*$/;
 const DAYLINE = /^\s*\{day[1-7]\}\s*$/;
-const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr|surveyButton|surveyButtonFr)\}\s*$/;
+const BUTTONLINE = /^\s*\{(replyButton|replyButtonFr|surveyButton|surveyButtonFr|surveyDay[1-7]|surveyDay[1-7]Fr)\}\s*$/;
 const isCaps = (line) => /[A-Z]{3}/.test(line) && !/[a-z]/.test(line.replace(BLANK, "")) && line.trim().length <= 60;
 
 function blocksOf(body) {

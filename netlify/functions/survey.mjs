@@ -8,7 +8,7 @@ import { trainingDays } from "./lib/agenda.mjs";
 import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage, asksWho } from "./lib/survey.mjs";
-import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./lib/surveysend.mjs";
+import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf, reminderLetter, reminderDates } from "./lib/surveysend.mjs";
 import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
 import { analyseSurvey } from "./lib/surveyanalysis.mjs";
@@ -130,6 +130,8 @@ export default async (req) => {
       return show(event);
     }
     const part = partName(event, body.part);
+    // A reminder, as it will look (Andrew 14 Nov 2026): every day's button, marked TEST.
+    if (url.searchParams.get("test") && /^[12]$/.test(String(body.remind ?? ""))) return testReminder(event, text(body.to, 600), Number(body.remind), adminWho(req));
     if (url.searchParams.get("test")) return testSend(event, text(body.to, 600), part, adminWho(req), body.as === "partner");
     if (url.searchParams.get("send")) {
       const out = await sendSurveyRound(event, part, { deadline: Date.now() + 8000 });
@@ -154,6 +156,7 @@ async function show(event) {
     survey: s, link: `${siteUrl()}/f/${s.token}`, problems: surveyProblems(event), days: trainingDays(event),
     group: g && (event.wixMore ?? []).length ? { name: event.wixMore[0].group || "Second group", ...g } : null,
     times: dailyTimes(event), zone: zoneOf(event), now: localNow(event),
+    remindDates: reminderDates(event),
     responses: responses.length, byPart,
     sent: Object.fromEntries(Object.entries(people.reduce((m, p) => { for (const k of p.sent ?? []) if (k.startsWith("survey:")) (m[k] ??= new Set()).add(p.email); return m; }, {})).map(([k, v]) => [k.slice(7), v.size])),
     attendeeMail: event.attendeeMail === true,
@@ -328,6 +331,21 @@ async function qrSide(req, url, event, day) {
 }
 
 /** A test of the email to up to five addresses; each gets a link of their own, so they can try the survey. */
+/** A reminder to up to five addresses, marked TEST, with a button for every part, as someone who answered none would get. */
+async function testReminder(event, to, n, who) {
+  const addresses = [...new Set(String(to || who?.email || "").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
+  if (!addresses.length) return fail("Which address should the test go to?");
+  if (addresses.length > 5 || addresses.some((a) => !isEmail(a))) return fail("Up to five email addresses.");
+  const parts = event.survey?.mode === "end" ? ["end"] : trainingDays(event);
+  for (const email of addresses) {
+    const person = { key: `test:${email}`, first: email === String(who?.email ?? "").toLowerCase() ? String(who?.name ?? "").split(/\s+/)[0] : "", email };
+    const mail = renderLetter(reminderLetter(event, n, parts), event, person);
+    const out = await sendMail({ to: email, replyTo: attendeeReplyTo(event), ...mail, subject: `TEST: ${mail.subject}` });
+    if (out.skipped) return fail(`The test did not send: ${out.reason}`, 502);
+  }
+  return json({ ok: true, to: addresses.join(", "), dates: reminderDates(event) });
+}
+
 async function testSend(event, to, part, who, partner = false) {
   const addresses = [...new Set(String(to || who?.email || "").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
   if (!addresses.length) return fail("Which address should the test go to?");

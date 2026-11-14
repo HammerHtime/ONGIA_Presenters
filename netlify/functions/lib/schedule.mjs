@@ -2,7 +2,7 @@ import { getAttendees, getReplies, listPresenters } from "./store.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { welcomeJob, welcomeReach, extrasOf, versionLabel, versionKeys, inTheRoom } from "./welcome.mjs";
 import { remindersOf, stillToAnswer } from "./reply.mjs";
-import { dailyTimes, owedFor, zoneOf } from "./surveysend.mjs";
+import { dailyTimes, owedFor, zoneOf, reminderDates, stillOwed, REMIND_KEY } from "./surveysend.mjs";
 import { HOTEL_DAYS } from "./hotel.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { onlineGroups, timesOf, joinPeople } from "./joinreminder.mjs";
@@ -73,6 +73,17 @@ export async function emailSchedule(event, today = todayIso()) {
       out.push({ date: p.day, time: p.at ?? "", tz: zoneAbbr(zoneOf(event), p.day), what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
         note: offNote || (!p.at ? "won't go: that day has no end time" : ""), ...(offNote ? {} : { now: { type: "survey", key: p.part } }) });
     }
+  }
+
+  // The survey reminders: the second business day after the event, and a week later (Andrew 14 Nov 2026).
+  if (s?.open && s.remind !== false) {
+    const dates = reminderDates(event);
+    const left = dates.some((d) => d >= today) ? await stillOwed(event, people) : [];
+    dates.forEach((d, i) => {
+      if (d < today) return;
+      const to = left.filter(({ person }) => !people.some((p) => p.email === person.email && (p.sent ?? []).includes(REMIND_KEY(i + 1)))).length;
+      out.push({ date: d, time: "09:00", tz: zoneAbbr(zoneOf(event), d), what: i ? "Survey: last reminder" : "Survey: reminder", to, who: "attendees", note: offNote });
+    });
   }
 
   // The hotel reminders before the room block closes.

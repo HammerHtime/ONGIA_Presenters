@@ -29,7 +29,7 @@ export default async () => {
     await putMeta("survey-sending", { at: null });
     const out = await runSurveyRounds(events, { deadline: Date.now() + 8000 });
     if (out.length) console.log(JSON.stringify(out.map(({ trouble, ...r }) => r)));
-    await reportSends("the survey", out.map((r) => ({ ...r, what: r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+    await reportSends("the survey", out.map((r) => ({ ...r, what: /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
     return new Response("ok");
   }
 };

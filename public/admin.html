@@ -7615,6 +7615,7 @@ function renderSurveyCard(ev, S) {
       : `<div class="field"><label for="sv-on">Goes on</label><input type="date" id="sv-on" value="${esc(s.sendOn || "")}" style="max-width:220px">
         <p class="hint" style="margin:6px 0 0">From 9 am local time that day. One survey, broken up by day, ending with "The event overall".${S.group ? ` ${esc(S.group.name)} only see their days, and are asked their organization, not their agency or years of service.` : ""}${S.sent.end ? ` Sent to ${S.sent.end}.` : ""}${S.byPart.end ? ` ${S.byPart.end} answered.` : ""}</p></div>`}
     <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:14px 0 0;font-size:14px"><input type="checkbox" id="sv-askwho"${s.askWho ? " checked" : ""} style="margin-top:3px"><span>Ask if they're justice community or a community partner, with the results split between the two <span class="porg">(for an event that invites community partners, as the Summit did)</span></span></label>
+    <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;font-size:14px"><input type="checkbox" id="sv-remind"${s.remind === false ? "" : " checked"} style="margin-top:3px"><span>Remind those who haven't answered${(S.remindDates ?? []).length ? `: ${esc(S.remindDates.map((d) => fmtDate(d)).join(", then "))}` : ""} <span class="porg">(the second business day after the event, then a week later; one button for each day they still owe)</span></span></label>
     <h3 class="wsh" style="margin-top:18px">Sessions <span class="porg">(${s.sessions.length})</span></h3>
     <p class="hint" style="margin-top:0">From the presenters' agreements. Pick the day each one is on. Change a title or a presenter's name here at any time, even after it has gone out (a last-minute swap): the survey shows the change at once, and answers already given stay with the session.</p>
     <div id="sv-rows">${s.sessions.map(row).join("")}</div>
@@ -7628,7 +7629,7 @@ function renderSurveyCard(ev, S) {
     <div class="actions" style="margin-top:14px;flex-wrap:wrap"><a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a>
       <span class="porg" style="font-size:13px">Nothing you enter there is kept.</span></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
-      <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${/national gang summit/i.test(ev.title) ? "justice partners" : "everyone else"}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button></div></div>
+      <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${/national gang summit/i.test(ev.title) ? "justice partners" : "everyone else"}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button><button class="btn btn-ghost" id="sv-testrem" style="margin-top:6px">Test the reminder</button></div></div>
     ${(() => { const qd = S.days.map((d, i) => ({ d, i, n: s.sessions.filter((x) => x.day === d).length })).filter((x) => x.n);
       return qd.length ? `<div class="field" style="margin-top:14px"><label>QR code for each day</label><p class="hint" style="margin:0 0 6px">Download gives that day's QR code as a picture, for a slide or the screen.</p>
       <div class="svqr">${qd.map(({ d, i, n }) => `<div class="svqrow"><span class="t"><b>Day ${i + 1}</b> · ${esc(fmtDate(d))} · ${n} session${n === 1 ? "" : "s"}</span><button type="button" class="mini" data-svqr="${d}">Download</button><button type="button" class="mini ghost" data-svqrlink="${esc(`${S.link}?day=${d}`)}">Copy link</button></div>`).join("")}</div>
@@ -7640,7 +7641,7 @@ function renderSurveyCard(ev, S) {
   if (ROOT.classList.contains("ro") && del) lockForView(del, VIEW_WHY);
   const $ = (id) => document.getElementById(id);
   const rows = () => [...box.querySelectorAll("[data-sv]")].map((el) => ({ id: s.sessions[Number(el.dataset.sv)]?.id, ...Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])) }));
-  const body = () => ({ mode: s.mode, sessions: rows(), askWho: !!$("sv-askwho")?.checked, ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
+  const body = () => ({ mode: s.mode, sessions: rows(), askWho: !!$("sv-askwho")?.checked, remind: !!$("sv-remind")?.checked, ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
   const save = async () => api(q, { method: "PUT", body: JSON.stringify(body()) });
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   box.querySelectorAll("[data-svmode]").forEach((b) => b.onclick = async () => { if (b.dataset.svmode === s.mode) return; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: JSON.stringify({ ...body(), mode: b.dataset.svmode }) })); } catch (x) { toast(x.message); } });
@@ -7673,6 +7674,7 @@ function renderSurveyCard(ev, S) {
     row?.scrollIntoView({ block: "center", behavior: "smooth" }); row?.querySelector('[data-ag="end"]')?.focus({ preventScroll: true });
   });
   $("sv-open").onclick = async () => { try { await save(); } catch {} };
+  $("sv-testrem").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), remind: 1 }) }); toast(`Reminder test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
   $("sv-test").onclick = async (e) => { const done = busy(e.target, "Sending…"); try { await save(); const out = await api(`${q}&test=1`, { method: "POST", body: JSON.stringify({ to: $("sv-to").value.trim(), part: $("sv-part")?.value || "end", as: $("sv-as")?.value || "" }) }); toast(`Test sent to ${out.to}.`); } catch (x) { toast(x.message); } done(); };
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
 }

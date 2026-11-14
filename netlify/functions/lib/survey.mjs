@@ -128,6 +128,8 @@ export function cleanSurvey(given, had, event) {
   if (given?.mode !== undefined) out.mode = given.mode === "daily" ? "daily" : "end";
   if (given?.sendOn !== undefined) out.sendOn = isDate(given.sendOn) ? given.sendOn : "";
   if (given?.askWho !== undefined) out.askWho = given.askWho === true;
+  // The two reminders after the event (Andrew 14 Nov 2026): on unless switched off on the survey's Setup.
+  if (given?.remind !== undefined) out.remind = given.remind !== false;
   if (Array.isArray(given?.sessions)) {
     const days = new Set(trainingDays(event));
     out.sessions = given.sessions.slice(0, 60).map((s, i) => ({

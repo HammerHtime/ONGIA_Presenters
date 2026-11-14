@@ -35,7 +35,7 @@ export default async (req) => {
   // While a run goes, the 15-minute check leaves it be; the last run lets the next check start fresh.
   const lock = (await getMeta("survey-sending")) ?? {};
   await putMeta("survey-sending", continued ? { ...lock, at: new Date().toISOString(), hop: hop + 1 } : { at: null, finishedAt: new Date().toISOString() });
-  await reportSends("the survey", out.map((r) => ({ ...r, what: r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+  await reportSends("the survey", out.map((r) => ({ ...r, what: /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
   if (out.length) console.log(`survey send run ${hop}: ${JSON.stringify(out.map(({ trouble, ...r }) => r))}${continued ? ", follow-up started" : ""}`);
   return new Response(null, { status: 202 });
 };
