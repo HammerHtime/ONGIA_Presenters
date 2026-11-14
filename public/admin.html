@@ -4641,7 +4641,7 @@ function eventScreen(data) {
       // A project is its statement of work, and a way to delete it.
       ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
       : (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + messageCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", `<div class="card">${mailSwitch(ev, guests)}</div>` + mailSumCard() + commsBar() + welcomeCard() + replyCard() + messageCard() + thanksCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
     // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
@@ -4777,6 +4777,7 @@ function eventScreen(data) {
   if (document.getElementById("replybox")) loadReply(ev);
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("msgbox")) loadMessage(ev);
+  if (document.getElementById("thbox")) loadThanks(ev);
   if (document.getElementById("mcbox")) loadMc(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
@@ -5962,7 +5963,7 @@ function drawMailSum(ev) {
  * shows below. Click on another button … it shows the other"). The buttons pick which email's card shows under them; the
  * others are hidden, not taken away, so nothing being typed is lost. The pick is remembered per event on this device.
  */
-const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"]];
+const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"], ["thanksfold", "Thank-you"]];
 const commsKey = (id) => `ongia-comms-${id}`;
 function commsBar() {
   return `<div class="commsbar" id="commsbar" role="tablist" aria-label="Which email">${COMMS.map(([k, label]) => `<button type="button" role="tab" data-comms="${k}">${label}</button>`).join("")}</div>`;
@@ -6001,6 +6002,72 @@ function wireComms(ev) {
  */
 function messageCard() {
   return secFold("message", "Message a group", "Write to everyone registered, or one group, and send it now", "", `<div class="card-body" id="msgbox"><p class="porg">Loading…</p></div>`, { id: "msgfold" });
+}
+/*
+ * The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026: "Goes out the day after the
+ * conference or training event ends, and it goes out personally to each one"). One summary line that opens the words
+ * and the switch; under it one row per presenter: who, their talk, where it stands, and Skip / Add / Resend.
+ */
+function thanksCard() {
+  return secFold("thanks", "Presenter thank-you", "Each presenter, the morning after the last day", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
+}
+async function loadThanks(ev) {
+  const box = document.getElementById("thbox");
+  if (!box) return;
+  const q = `/attmail?event=${encodeURIComponent(ev.id)}&kind=thanks`;
+  let T = null, filter = "all";
+  const zoneAbbr = (zone, date) => (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(new Date(`${date}T17:00:00Z`)).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
+  const when = () => T.day ? `${new Date(`${T.day}T12:00:00Z`).toLocaleDateString("en-CA", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" })}, 9:00 am ${zoneAbbr(T.zone, T.day)}` : "no dates yet";
+  const st = (p) => p.sentAt ? `<span class="mwst ok">Sent ${esc(shortDate(p.sentAt.slice(0, 10)).replace(/^\w+ /, ""))}</span>`
+    : p.why ? `<span class="mwst late" title="${esc(p.why)}">Failed<span class="vh">: ${esc(p.why)}</span></span>`
+    : !p.email ? `<span class="mwst late">No email</span>` : p.in ? `<span class="mwst wt">Not yet</span>` : `<span class="mwst">Skipped</span>`;
+  const btn = (p) => !p.email ? "" : p.sentAt || p.why ? `<button type="button" class="mini ghost" data-th1="${esc(p.id)}">${p.sentAt ? "Resend" : "Send"}</button>`
+    : `<button type="button" class="mini ghost" data-thpick="${esc(p.id)}" data-v="${p.in ? "no" : "yes"}">${p.in ? "Skip" : "Add"}</button>`;
+  const draw = (out) => {
+    T = out;
+    const going = T.people.filter((p) => p.in && !p.sentAt), sent = T.people.filter((p) => p.sentAt);
+    const shown = T.people.filter((p) => filter === "not" ? p.in && !p.sentAt : filter === "sent" ? p.sentAt : true);
+    const past = T.day && T.day < new Date().toISOString().slice(0, 10);
+    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · signed for ${esc(T.replyTo || "the board")} · ${T.standard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+      <div class="wlset-body">
+        <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>
+        <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
+        <div class="field"><label for="th-b">The email</label><textarea id="th-b" style="min-height:260px" spellcheck="true">${esc(T.body)}</textarea>
+          <p class="hint" style="margin:4px 0 0">{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event</p></div>
+        ${T.problems.length ? `<div class="bad" style="margin-top:8px">${esc(T.problems[0])}</div>` : ""}
+        <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-th="save">Save</button><button class="mini ghost" data-th="see">See the email</button><button class="mini ghost" data-th="test">Send me a test</button>${T.standard ? "" : `<button class="mini ghost" data-th="std">Use the standard words</button>`}</div>
+      </div></details>
+      <div class="mwfil wlvbar" role="tablist" aria-label="Show">${[["all", `All <small>${T.people.length}</small>`], ["not", `Not yet <small>${going.length}</small>`], ["sent", `Sent <small>${sent.length}</small>`]]
+        .map(([k, l]) => `<button type="button" role="tab" data-thf="${k}" class="${filter === k ? "on" : ""}" aria-selected="${filter === k}">${l}</button>`).join("")}</div>
+      ${shown.length ? shown.map((p) => `<div class="mwrow"><span class="mwn" title="${esc(`${p.first} ${p.last} · ${p.talk || "no talk title"}`)}"><b>${esc(`${p.first} ${p.last}`.trim() || p.email)}</b> ${esc(p.talk || p.email)}</span>${st(p)}${btn(p)}</div>`).join("")
+        : `<p class="porg" style="margin:6px 0">${T.people.length ? "Nobody here." : "No presenters on this event yet."}</p>`}
+      ${past && going.length ? `<div class="actions" style="margin-top:10px"><button class="mini gold" data-th="now">Send now to ${going.length}</button></div>` : ""}`;
+    const words = () => ({ subject: box.querySelector("#th-s").value, body: box.querySelector("#th-b").value });
+    const call = async (url, opts, msg) => { try { const r = await api(url, opts); if (r.people) draw(r); if (msg) toast(typeof msg === "function" ? msg(r) : msg); return r; } catch (x) { toast(x.message); return null; } };
+    box.querySelectorAll("[data-thf]").forEach((b) => { b.onclick = () => { filter = b.dataset.thf; draw(T); }; });
+    box.querySelector('[data-th="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify({ ...words(), off: !box.querySelector("#th-on").checked }) }, "Thank-you saved.");
+    box.querySelector('[data-th="std"]')?.addEventListener("click", () => { if (confirm("Put back the standard words for this event?")) call(q, { method: "PUT", body: JSON.stringify({ standard: true }) }, "Standard words back."); });
+    box.querySelector('[data-th="see"]').onclick = async () => {
+      const out = await call(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
+      const dlg = document.getElementById("wldlg"); if (!out || !dlg) return;
+      document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = "As a presenter will see it.";
+      document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+    };
+    box.querySelector('[data-th="test"]').onclick = () => { const to = WHO?.email || prompt("Send the test to which address?") || ""; if (to) call(`${q}&test=1`, { method: "POST", body: JSON.stringify({ ...words(), to }) }, `Test sent to ${to}.`); };
+    box.querySelectorAll("[data-thpick]").forEach((b) => { b.onclick = () => call(q, { method: "PUT", body: JSON.stringify({ id: b.dataset.thpick, pick: b.dataset.v }) }); });
+    box.querySelectorAll("[data-th1]").forEach((b) => { b.onclick = () => {
+      const p = T.people.find((x) => x.id === b.dataset.th1);
+      if (confirm(`Send the thank-you to ${p.first} ${p.last} (${p.email}) now?`)) call(`${q}&send=1&id=${encodeURIComponent(p.id)}`, { method: "POST", body: "{}" }, (r) => (r.sent ? `Sent to ${p.email}.` : `It didn't go: ${r.trouble?.[0]?.why ?? "try again"}`));
+    }; });
+    box.querySelector('[data-th="now"]')?.addEventListener("click", async (e) => {
+      if (!confirm(`Send the thank-you now to ${going.length} presenter${going.length === 1 ? "" : "s"}? Each gets their own, once.`)) return;
+      e.target.disabled = true; e.target.textContent = "Sending…";
+      let r; do { r = await call(`${q}&send=1`, { method: "POST", body: "{}" }); } while (r && r.left > 0 && r.sent > 0);
+      if (r) toast(`${T.people.filter((p) => p.sentAt).length} sent${r.failed ? `, ${r.failed} couldn't be sent` : ""}.`);
+    });
+    if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
+  };
+  try { draw(await api(q)); } catch (x) { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; }
 }
 /* MC introductions (Andrew 12 Nov 2026: "summarize bios and summarize presentation outline so this could be used for the
    MC to introduce the presenters"). Claude drafts one per session from what each presenter sent; changed here; a PDF. */
@@ -8249,7 +8316,7 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  */
 // Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
 // filters, the find box, opening a person's details, the way back) still works.
-const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind, [data-mwf], [data-mwq], [data-mwall], [data-mcopen], [data-mc=\"pdf\"]";
+const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind, [data-mwf], [data-mwq], [data-mwall], [data-thf], [data-mcopen], [data-mc=\"pdf\"]";
 const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");

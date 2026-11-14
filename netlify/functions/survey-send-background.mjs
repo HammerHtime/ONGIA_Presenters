@@ -3,6 +3,7 @@ import { listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { runSurveyRounds } from "./lib/surveysend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
+import { runThanksRounds } from "./lib/thanks.mjs";
 
 /**
  * The survey emails, sent on the server (Andrew 27 Oct 2026: "Is this going to be a problem when we send out 400 …
@@ -22,7 +23,12 @@ export default async (req) => {
   const hop = Math.min(Math.max(Number(url.searchParams.get("hop")) || 0, 0), MAX_HOPS);
   await primeRoster();
   let out;
-  try { out = await runSurveyRounds(await listEvents(), { deadline: Date.now() + BUDGET_MS }); }
+  try {
+    const events = await listEvents();
+    out = await runSurveyRounds(events, { deadline: Date.now() + BUDGET_MS });
+    // The presenter thank-yous, the morning after an event (lib/thanks.mjs).
+    out.push(...(await runThanksRounds(events, { deadline: Date.now() + BUDGET_MS })));
+  }
   catch (e) { out = [{ title: "every event", error: e.message }]; }
   const left = out.reduce((n, r) => n + (r.left ?? 0), 0);
   let continued = false;
@@ -35,7 +41,7 @@ export default async (req) => {
   // While a run goes, the 15-minute check leaves it be; the last run lets the next check start fresh.
   const lock = (await getMeta("survey-sending")) ?? {};
   await putMeta("survey-sending", continued ? { ...lock, at: new Date().toISOString(), hop: hop + 1 } : { at: null, finishedAt: new Date().toISOString() });
-  await reportSends("the survey", out.map((r) => ({ ...r, what: /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+  await reportSends("the survey", out.map((r) => ({ ...r, what: r.kind === "thanks" ? "The presenter thank-you" : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
   if (out.length) console.log(`survey send run ${hop}: ${JSON.stringify(out.map(({ trouble, ...r }) => r))}${continued ? ", follow-up started" : ""}`);
   return new Response(null, { status: 202 });
 };
