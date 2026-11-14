@@ -96,7 +96,7 @@ en: {
   foodQ: "Do you have a food allergy, intolerance or dietary need?",
   foodWhat: "What is it?", foodPh: "e.g. allergic to shellfish; vegan; no pork; gluten-free",
   foodHint: "This goes to the hotel kitchen with your name, so they can plan your meals.",
-  socials: "The socials", socialsLede: "Will you be there? Yes or no for each.",
+  socials: "The socials", socialsLede: "Will you be there? Yes or no for each.", socialOne: "After the day",
   yes: "Yes, I'll be there", no: "No", yesPlain: "Yes", noPlain: "No",
   send: "Send my answers", sending: "Sending…",
   fix: "Please fill in what's marked:", missing: { first: "First name", last: "Last name", agency: "Agency or organization", email: "Email (a full address)", allergy: "Yes or no to a food allergy", dietary: "What your allergy or intolerance is" },
@@ -118,7 +118,7 @@ fr: {
   foodQ: "Avez-vous une allergie, une intolérance ou un besoin alimentaire?",
   foodWhat: "De quoi s'agit-il?", foodPh: "p. ex. allergie aux fruits de mer; végétalien; pas de porc; sans gluten",
   foodHint: "Ce renseignement est transmis à la cuisine de l'hôtel avec votre nom, pour qu'elle planifie vos repas.",
-  socials: "Les activités sociales", socialsLede: "Serez-vous là? Oui ou non pour chacune.",
+  socials: "Les activités sociales", socialsLede: "Serez-vous là? Oui ou non pour chacune.", socialOne: "Après la journée",
   yes: "Oui, j'y serai", no: "Non", yesPlain: "Oui", noPlain: "Non",
   send: "Envoyer mes réponses", sending: "Envoi…",
   fix: "Veuillez remplir ce qui est indiqué :", missing: { first: "Prénom", last: "Nom", agency: "Organisme", email: "Courriel (adresse complète)", allergy: "Oui ou non à une allergie alimentaire", dietary: "Votre allergie ou intolérance" },
@@ -170,14 +170,14 @@ function render() {
       ${S.allergy === "yes" ? `<div class="field"><label for="f-dietary">${t("foodWhat")}</label>
         <textarea id="f-dietary" data-k="dietary" maxlength="600" placeholder="${esc(t("foodPh"))}"${miss.has("dietary") ? ` class="missing"` : ""}>${esc(S.dietary)}</textarea>
         <p class="hint">${t("foodHint")}</p></div>` : ""}</div>
-    <div class="card"><h2>${t("socials")}</h2><p class="lede" style="margin-bottom:6px">${t("socialsLede")}</p>
+    ${DATA.socials.length ? `<div class="card"><h2>${DATA.socials.length === 1 ? t("socialOne") : t("socials")}</h2>${DATA.socials.length === 1 ? "" : `<p class="lede" style="margin-bottom:6px">${t("socialsLede")}</p>`}
       ${DATA.socials.map((s) => {
         const line = LANG === "fr" ? s.fr : s.en, at = line.indexOf(LANG === "fr" ? " : " : ": ");
         return `<div class="q" id="q-${esc(s.id)}"><p>${at > 0 ? `<span class="when">${esc(line.slice(0, at))}</span>${esc(line.slice(at + (LANG === "fr" ? 3 : 2)))}` : esc(line)}</p>
           <div class="seg${miss.has(s.id) ? " missing" : ""}" style="${miss.has(s.id) ? "border-radius:999px;padding:4px" : ""}" role="group" aria-label="${esc(line)}">
             <button type="button" data-s="${esc(s.id)}" data-v="yes" aria-pressed="${S.socials[s.id] === "yes"}">${t("yes")}</button>
             <button type="button" data-s="${esc(s.id)}" data-v="no" aria-pressed="${S.socials[s.id] === "no"}">${t("no")}</button></div></div>`;
-      }).join("")}</div>
+      }).join("")}</div>` : ""}
     ${netFail && !sending ? `<div class="problems" role="alert"><b>${t("network")}</b><br>${t("networkMore")}</div>` : ""}
     <button type="button" class="btn btn-gold" id="send"${sending ? " disabled" : ""}>${sending ? t("sending") : t("send")}</button>
   </div>`;
