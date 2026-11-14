@@ -1,4 +1,4 @@
-import { json, fail, requireAdmin, text, editGuard } from "./lib/http.mjs";
+import { json, fail, isEmail, requireAdmin, text, editGuard } from "./lib/http.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
 import { readCsv, merge, tally, writeableTo, keyOf, correct } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
@@ -136,9 +136,17 @@ async function correctOne(req, event, rowKey) {
   if (!p) return fail("That person isn't on this list.", 404);
   const fixed = { ...(p.fixed ?? {}) };
   for (const f of ["first", "last", "organization"]) if (body[f] !== undefined) fixed[f] = text(body[f], 160);
-  p.asWix = p.asWix ?? { first: p.first ?? "", last: p.last ?? "", organization: p.organization ?? "" };
+  // A wrong address (Andrew 14 Nov 2026: a certificate bounced, and fixing it in Wix didn't reach the ticket): corrected
+  // here, kept through every pull from Wix, and what Wix has is kept beside it.
+  if (body.email !== undefined) {
+    const e = text(body.email, 200).toLowerCase();
+    if (e && !isEmail(e)) return fail("That isn't an email address.");
+    fixed.email = e;
+  }
+  // What Wix has; a correction saved before emails could be corrected kept no email there, and the row's is still Wix's.
+  p.asWix = { first: p.first ?? "", last: p.last ?? "", organization: p.organization ?? "", email: p.email ?? "", ...(p.asWix ?? {}) };
   // Put back exactly what Wix has: the correction goes.
-  const same = ["first", "last", "organization"].every((f) => (fixed[f] ?? p.asWix[f] ?? "") === (p.asWix[f] ?? ""));
+  const same = ["first", "last", "organization", "email"].every((f) => (fixed[f] ?? p.asWix[f] ?? "") === (p.asWix[f] ?? ""));
   if (same) { Object.assign(p, p.asWix); delete p.fixed; delete p.asWix; }
   else Object.assign(p, fixed, { fixed, correctedAt: new Date().toISOString() });
   await putAttendees(event.id, { ...stored, people: stored.people });

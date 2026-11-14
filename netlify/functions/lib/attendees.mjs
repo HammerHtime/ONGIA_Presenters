@@ -145,7 +145,7 @@ export function merge(existing, incoming, { source, authoritative = false, withi
     // with the right names").
     const fix = had?.fixed && person.source !== "correction" ? had.fixed : null;
     const next = { ...(had ?? {}), ...person, ...(fix ?? {}), key: k, source: had?.source === "wix" && !person.key ? "wix" : (person.source ?? source), updatedAt: at,
-      ...(fix ? { fixed: fix, asWix: { first: person.first ?? "", last: person.last ?? "", organization: person.organization ?? "" } } : {}) };
+      ...(fix ? { fixed: fix, asWix: { first: person.first ?? "", last: person.last ?? "", organization: person.organization ?? "", email: person.email ?? "" } } : {}) };
     if (!had) { next.addedAt = at; added++; fresh.add(k); byKey.set(k, next); continue; }
     const moved = ["first", "last", "phone", "organization", "status"].some((f) => (had[f] ?? "") !== (next[f] ?? ""));
     if (moved) changed++;
@@ -247,7 +247,7 @@ export function correct(existing, sheet, { at = new Date().toISOString() } = {})
     const org = String(s.organization ?? "").trim();
     if (org && org !== String(p.organization ?? "").trim()) { fixed.organization = org; out.organizations++; did = true; }
     if (!did) { out.same++; continue; }
-    p.asWix = p.asWix ?? { first: p.first ?? "", last: p.last ?? "", organization: p.organization ?? "" };
+    p.asWix = p.asWix ?? { first: p.first ?? "", last: p.last ?? "", organization: p.organization ?? "", email: p.email ?? "" };
     Object.assign(p, fixed, { fixed, correctedAt: at });
   }
   return { people, ...out };

@@ -85,5 +85,17 @@ delete scans.j1;
 await sweepWix();
 ok("a check-in, once seen, stays", (await getAttendees("ngs")).people.find((p) => p.first === "Jay").checkedIn === true);
 
+// A wrong address corrected on the desk (Andrew 14 Nov 2026: a certificate bounced, and fixing it in Wix didn't reach the
+// ticket): it stays through every pull, and what Wix has is kept beside it.
+const attendees = (await import(F + "attendees.mjs")).default;
+const fixEmail = async (key, email) => attendees(new Request(`http://localhost/api/attendees?event=ngs&key=${encodeURIComponent(key)}`, { method: "PUT", headers: { ...H, "content-type": "application/json" }, body: JSON.stringify({ email }) }));
+const jay = (await getAttendees("ngs")).people.find((p) => p.first === "Jay");
+ok("an address that isn't one is refused", (await fixEmail(jay.key, "not-an-email")).status === 400);
+ok("a corrected address is saved", (await fixEmail(jay.key, "Jay.Right@Example.ca")).status === 200 && (await getAttendees("ngs")).people.find((p) => p.first === "Jay").email === "jay.right@example.ca");
+await sweepWix();
+const jay2 = (await getAttendees("ngs")).people.find((p) => p.first === "Jay");
+ok("and kept through the next pull from Wix, with Wix's own beside it", jay2.email === "jay.right@example.ca" && jay2.asWix?.email === "jay@example.ca", JSON.stringify({ e: jay2.email, w: jay2.asWix }));
+ok("putting Wix's address back removes the correction", (await fixEmail(jay.key, "jay@example.ca")).status === 200 && !(await getAttendees("ngs")).people.find((p) => p.first === "Jay").fixed);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
