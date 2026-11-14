@@ -6028,7 +6028,7 @@ async function loadThanks(ev) {
     const going = T.people.filter((p) => p.in && !p.sentAt), sent = T.people.filter((p) => p.sentAt);
     const shown = T.people.filter((p) => filter === "not" ? p.in && !p.sentAt : filter === "sent" ? p.sentAt : true);
     const past = T.day && T.day < new Date().toISOString().slice(0, 10);
-    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · signed for ${esc(T.replyTo || "the board")} · ${T.standard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · replies to ${esc(T.replyTo || "the board")} · ${T.standard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>
         <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
