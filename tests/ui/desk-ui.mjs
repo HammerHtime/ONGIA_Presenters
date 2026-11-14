@@ -85,8 +85,9 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: her row says Signed, and the filing problem shows because there is no SharePoint here`, /signed/i.test(await row0.innerText()) && /not filed/i.test(await row0.innerText()) && await row0.locator("[data-vrefile]").count() === 1, await row0.innerText());
   ok(`${tag}: a signed row offers PDF and Retry filing`, await row0.locator("[data-vpdf]").count() === 1);
   ok(`${tag}: the line counts her as signed`, /1 signed/.test(await f2.locator("> summary").innerText()));
-  await row0.locator("[data-vpdf]").click(); await page.waitForTimeout(700);
-  ok(`${tag}: PDF opens the signed copy`, /^blob:/.test(await page.evaluate(() => window.__opened ?? "")));
+  // Saved under its own name rather than opened in a tab, where a saved copy got a random name (Andrew 14 Nov 2026).
+  const [vdl] = await Promise.all([page.waitForEvent("download"), row0.locator("[data-vpdf]").click()]);
+  ok(`${tag}: PDF downloads the signed copy, named last name first and dated`, / - Volunteer agreement - \d{4}-\d{2}-\d{2}\.pdf$/.test(vdl.suggestedFilename()), vdl.suggestedFilename());
   await row0.locator("[data-vrefile]").click(); await page.waitForTimeout(900);
   ok(`${tag}: Retry filing reports the real reason`, /Still not filed.*Microsoft credentials/.test(await page.locator(".toast").first().innerText().catch(() => "")));
   await page.screenshot({ path: OUT + `desk-signed-${tag}.png`, fullPage: true });

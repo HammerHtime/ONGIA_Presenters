@@ -45,11 +45,11 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     p.once("dialog", (d) => { asked = d.message(); d.accept(); });
     const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.locator("#cert-all").click()]);
     ok("it asks first, saying how many it will issue", /Issue certificates to the 3 people checked in who don't have one yet/.test(asked), asked);
-    ok("the ZIP is named for the event", dl.suggestedFilename() === `prairie-gang-forum-${T}-certificates.zip`, dl.suggestedFilename());
+    ok("the ZIP is named for the event", new RegExp(`^Prairie Gang Forum ${T} - Certificates - \\d{4}-\\d{2}-\\d{2}\\.zip$`).test(dl.suggestedFilename()), dl.suggestedFilename());
     const files = readZip(fs.readFileSync(await dl.path()));
     const names = files.map((f) => f.name).sort();
-    ok("it holds the four certificates in use: both Casey Lees, Jordan and Sam; not Alex (not checked in) or Riley (withdrawn)", names.length === 4 && names.filter((n) => /^Casey Lee/.test(n)).length === 2 && names.includes("Jordan Tremblay - certificate.pdf") && names.includes("Sam Okafor - certificate.pdf"), JSON.stringify(names));
-    const jordan = files.find((f) => f.name === "Jordan Tremblay - certificate.pdf");
+    ok("it holds the four certificates in use: both Casey Lees, Jordan and Sam; not Alex (not checked in) or Riley (withdrawn)", names.length === 4 && names.filter((n) => /^Lee Casey/.test(n)).length === 2 && names.some((n) => /^Tremblay Jordan - Certificate/.test(n)) && names.some((n) => /^Okafor Sam - Certificate/.test(n)), JSON.stringify(names));
+    const jordan = files.find((f) => /^Tremblay Jordan - Certificate/.test(f.name));
     fs.writeFileSync("/tmp/certsall-jordan.pdf", jordan.data);
     const words = execFileSync("pdftotext", ["-layout", "/tmp/certsall-jordan.pdf", "-"]).toString();
     ok("each file is a real certificate: Jordan's, with the official agency", /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words), words.slice(0, 200));

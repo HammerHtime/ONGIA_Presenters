@@ -40,7 +40,7 @@ ok("another board member on the event sees no Certificates", await other.locator
 await other.locator(".dlmenu > summary").click();
 ok("…but Download the list offers them the registration list, and only that", await other.locator('[data-glist="registration"]').isVisible() && await other.locator('[data-glist="certificate"]').count() === 0);
 const [otherReg] = await Promise.all([other.waitForEvent("download"), other.locator('[data-glist="registration"]').click()]);
-ok("…and it downloads for them, as Excel", otherReg.suggestedFilename() === "national-gang-summit-registration-list.xlsx" && /Martin\|Alex\|Peel Regional Police/.test(await firstTab(otherReg)));
+ok("…and it downloads for them, as Excel", /^National Gang Summit - Registration list - \d{4}-\d{2}-\d{2}\.xlsx$/.test(otherReg.suggestedFilename()) && /Martin\|Alex\|Peel Regional Police/.test(await firstTab(otherReg)));
 await other.close();
 
 for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
@@ -51,7 +51,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   if (tag === "wide") await p.locator(".dlmenu").screenshot({ path: D + "certs-dlmenu.png" }).catch(() => {});
   const [reg] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);
   const regText = await firstTab(reg);
-  ok(`${tag}: the registration list downloads, sorted by last name, with official agency names`, reg.suggestedFilename() === "national-gang-summit-registration-list.xlsx" && /Martin\|Alex\|Peel Regional Police/.test(regText) && regText.indexOf("Martin") < regText.indexOf("Okafor"), regText);
+  ok(`${tag}: the registration list downloads, sorted by last name, with official agency names`, /^National Gang Summit - Registration list - \d{4}-\d{2}-\d{2}\.xlsx$/.test(reg.suggestedFilename()) && /Martin\|Alex\|Peel Regional Police/.test(regText) && regText.indexOf("Martin") < regText.indexOf("Okafor"), regText);
   await p.locator(".dlmenu > summary").click();
   const [cl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="certificate"]').click()]);
   const clText = fs.readFileSync(await cl.path(), "utf8");
@@ -75,7 +75,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const [dl] = await Promise.all([p.waitForEvent("download"), row.locator("[data-certpdf]").click()]);
     const file = await dl.path(); fs.copyFileSync(file, "/tmp/certs-jordan.pdf");
     const words = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan.pdf", "-"]).toString();
-    ok("Download PDF gives Jordan's certificate: name, official agency, the last day", dl.suggestedFilename() === "Jordan Tremblay - certificate.pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2031/.test(words), words.slice(0, 200));
+    ok("Download PDF gives Jordan's certificate: name, official agency, the last day", dl.suggestedFilename() === "Tremblay Jordan - Certificate - 2031-05-06.pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2031/.test(words), words.slice(0, 200));
     await p.waitForTimeout(1200);
     ok("and it now shows when it was issued and its number", /Issued \d+ \w{3}/i.test(await row.innerText()) && /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await row.innerText()), await row.innerText());
     await row.locator(".certmore summary").click();
@@ -86,7 +86,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     fs.copyFileSync(await dlfr.path(), "/tmp/certs-jordan-fr.pdf");
     const frWords = execFileSync("pdftotext", ["-layout", "/tmp/certs-jordan-fr.pdf", "-"]).toString();
     const frInfo = execFileSync("pdfinfo", ["/tmp/certs-jordan-fr.pdf"]).toString();
-    ok("Download in French gives the French certificate, named so", dlfr.suggestedFilename() === "Jordan Tremblay - certificat.pdf" && /Certificat de r.ussite/.test(frInfo) && /Balayer pour v.rifier/.test(frWords), dlfr.suggestedFilename());
+    ok("Download in French gives the French certificate, named so", dlfr.suggestedFilename() === "Tremblay Jordan - Certificat - 2031-05-06.pdf" && /Certificat de r.ussite/.test(frInfo) && /Balayer pour v.rifier/.test(frWords), dlfr.suggestedFilename());
     await p.waitForTimeout(800);
     if (await row.locator(".certmore").getAttribute("open") !== null) await row.locator(".certmore summary").click();
     // Change the date; then back.
@@ -119,10 +119,10 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     p.once("dialog", (d) => d.accept());
     const [dla] = await Promise.all([p.waitForEvent("download"), alex.locator("[data-certpdf]").click()]);
     await p.waitForTimeout(1200);
-    ok("saying yes issues Alex's", dla.suggestedFilename() === "Alex Martin - certificate.pdf" && /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await alex.innerText()));
-    // Preview opens a PDF in a new tab.
-    const [tab] = await Promise.all([p.context().waitForEvent("page"), p.locator("#cert-preview").click()]);
-    ok("Preview a PDF opens one", !!tab); await tab.close().catch(() => {});
+    ok("saying yes issues Alex's", /^Martin Alex - Certificate - \d{4}-\d{2}-\d{2}\.pdf$/.test(dla.suggestedFilename()) && /No\. [A-Z0-9]{4}-[A-Z0-9]{4}/.test(await alex.innerText()));
+    // Preview saves a sample PDF under its own name (a new tab gave a saved copy a random name, Andrew 14 Nov 2026).
+    const [pv] = await Promise.all([p.waitForEvent("download"), p.locator("#cert-preview").click()]);
+    ok("Preview a sample gives one, named for the person on it", / - Certificate - \d{4}-\d{2}-\d{2}\.pdf$/.test(pv.suggestedFilename()), pv.suggestedFilename());
     // Verify page for Jordan's number.
     const code = /No\. ([A-Z0-9]{4}-[A-Z0-9]{4})/.exec(await p.locator("[data-certkey]", { hasText: "Jordan Tremblay" }).innerText())?.[1];
     const vp = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });

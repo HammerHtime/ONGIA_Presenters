@@ -2,7 +2,7 @@ import { json, fail, requireAdmin, editGuard, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters } from "./lib/store.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { mcSessions, mcView, draftIntros, mcScriptPdf, hasBio, setPlan } from "./lib/mcintro.mjs";
-import { slugOf } from "./lib/public.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The MC's introductions (Andrew 12 Nov 2026), on the event's Program tab.
@@ -25,8 +25,8 @@ export default async (req) => {
   if (req.method === "GET") {
     const view = mcView(event, presenters);
     if (url.searchParams.get("pdf")) {
-      const name = `${slugOf(String(event.title).split(":")[0]) || "event"}-mc-script.pdf`;
-      return new Response(await mcScriptPdf(event, view), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+      const name = eventFile(event, "MC script");
+      return new Response(await mcScriptPdf(event, view), { headers: { "content-type": "application/pdf", "content-disposition": disposition(name), "cache-control": "no-store" } });
     }
     return json(view);
   }

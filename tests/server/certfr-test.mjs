@@ -32,8 +32,8 @@ await putAttendees("webfr", { people: [p("g1", "Jordan", "Roy", "CBSA", "jr@cbsa
 const en = await call("event=ngsfr&pdf=f1");
 const fr = await call("event=ngsfr&pdf=f1&lang=fr");
 const E = read(en.body), R = read(fr.body);
-ok("English by default: the English title and file name", /Certificate of Completion: Camille Gagnon/.test(E.info) && /certificate\.pdf/.test(en.disp), en.disp);
-ok("French: the French title and file name", /Certificat de r.ussite : Camille Gagnon/.test(R.info) && /certificat\.pdf/.test(fr.disp), fr.disp);
+ok("English by default: the English title and file name", /Certificate of Completion: Camille Gagnon/.test(E.info) && /Gagnon Camille - Certificate - 2027-05-06\.pdf/.test(en.disp), en.disp);
+ok("French: the French title and file name", /Certificat de r.ussite : Camille Gagnon/.test(R.info) && /Gagnon Camille - Certificat - 2027-05-06\.pdf/.test(fr.disp), fr.disp);
 ok("the agency under its French name in French, its English name in English", /Gendarmerie royale du Canada/.test(R.text) && /Royal Canadian Mounted Police/.test(E.text) && !/Royal Canadian Mounted Police/.test(R.text), R.text);
 ok("the QR code's label is in French", /Balayer pour v.rifier/.test(R.text) && /Scan to verify/.test(E.text));
 ok("it is the same person on both", /Camille Gagnon/.test(R.text) && /Camille Gagnon/.test(E.text));
@@ -60,9 +60,9 @@ await putMeta(`certs:code:${code}`, { ...r0, dl: "tok123" });
 const res = await certfile(new Request(`https://events.ongia.org/api/certfile?c=${code}&d=tok123&lang=fr`));
 const disp = res.headers.get("content-disposition") ?? "";
 const viaLink = read(Buffer.from(await res.arrayBuffer()));
-ok("the French button in the email downloads the French certificate", res.status === 200 && /certificat\.pdf/.test(disp) && /Certificat de r.ussite/.test(viaLink.info), `${res.status} ${disp}`);
+ok("the French button in the email downloads the French certificate", res.status === 200 && /- Certificat -/.test(disp) && /Certificat de r.ussite/.test(viaLink.info), `${res.status} ${disp}`);
 const resEn = await certfile(new Request(`https://events.ongia.org/api/certfile?c=${code}&d=tok123`));
-ok("and the English button the English one", /certificate\.pdf/.test(resEn.headers.get("content-disposition") ?? ""));
+ok("and the English button the English one", /- Certificate -/.test(resEn.headers.get("content-disposition") ?? ""));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

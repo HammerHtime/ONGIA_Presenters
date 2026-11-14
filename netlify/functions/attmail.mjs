@@ -14,6 +14,7 @@ import { putMeta } from "./lib/store.mjs";
 import { listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
 import { zoneOf } from "./lib/surveysend.mjs";
 import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage } from "./lib/message.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * Who has had an email to attendees, person by person, and Send again (Andrew 5 Nov 2026).
@@ -227,7 +228,7 @@ async function thanks(req, event, url) {
     if (!v) return fail("No such presenter.", 404);
     const words = url.searchParams.get("words");
     const pdf = await appreciationPdf(event, v, { body: words || letterWords(event), signature: await signatureImage(), on: v.sentAt?.slice(0, 10) || undefined });
-    return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="${letterFileName(v).replace(/"/g, "")}"`, "cache-control": "no-store" } });
+    return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": disposition(letterFileName(v, v.sentAt), "inline"), "cache-control": "no-store" } });
   }
   if (req.method === "GET") return view();
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;

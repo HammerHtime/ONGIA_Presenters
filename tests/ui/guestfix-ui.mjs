@@ -56,7 +56,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   const [dl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);
   await p.waitForTimeout(800);
   const said2 = await p.locator("#g-said").innerText();
-  ok(`${tag}: the registration list downloads and says what it holds`, /registration-list\.xlsx$/.test(dl.suggestedFilename()) && /Downloaded 2 people\. Everyone has a name\. Everyone has an agency\. Nobody is registered twice\./.test(said2), said2);
+  ok(`${tag}: the registration list downloads and says what it holds`, / - Registration list - \d{4}-\d{2}-\d{2}\.xlsx$/.test(dl.suggestedFilename()) && /Downloaded 2 people\. Everyone has a name\. Everyone has an agency\. Nobody is registered twice\./.test(said2), said2);
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));
   const card = p.locator("#g-fix").locator("xpath=ancestor::div[contains(@class,\"card\")][1]");
   await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: D + `guestfix-${tag}.png` });

@@ -126,7 +126,7 @@ const fbBytes = Buffer.from(await fbAll.arrayBuffer());
 ok("Each presenter · PDF: one page for each session rated so far", fbAll.status === 200 && fbAll.headers.get("content-type") === "application/pdf" && (fbBytes.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length >= 1);
 const sessOne = (await getEvent("ngs")).survey.sessions[0];
 const fbOne = await survey(new Request(`http://x/api/survey?event=ngs&download=feedback&session=${sessOne.id}`, { headers: H }));
-ok("and one presenter's own, named for them", fbOne.status === 200 && /-feedback\.pdf"$/.test(fbOne.headers.get("content-disposition")), fbOne.headers.get("content-disposition"));
+ok("and one presenter's own, named for them", fbOne.status === 200 && / - Feedback - \d{4}-\d{2}-\d{2}\.pdf"/.test(fbOne.headers.get("content-disposition")), fbOne.headers.get("content-disposition"));
 ok("a session that isn't on the survey is refused", (await survey(new Request("http://x/api/survey?event=ngs&download=feedback&session=nope", { headers: H }))).status === 404);
 ok("the people interested in presenting still download as before", (await survey(new Request("http://x/api/survey?event=ngs&download=presenters", { headers: H }))).headers.get("content-type").includes("spreadsheet"));
 
@@ -141,7 +141,7 @@ ok("a QR answer is kept, marked as from the QR code, with no About-you", qrOk.bo
 ok("a QR answer with a session left blank is refused", (await pub(`t=${tok}&day=2026-11-10`, { method: "POST", body: { sessions: {} } })).status === 400);
 ok("a day that isn't the event's is refused", (await pub(`t=${tok}&day=2026-12-01`)).status === 404);
 const png = await survey(new Request("http://x/api/survey?event=ngs&qr=2026-11-10", { headers: H }));
-ok("the desk downloads a day's QR code as a picture", png.status === 200 && png.headers.get("content-type") === "image/png" && /day-2-qr\.png/.test(png.headers.get("content-disposition")));
+ok("the desk downloads a day's QR code as a picture", png.status === 200 && png.headers.get("content-type") === "image/png" && /Survey QR code, day 2 - \d{4}-\d{2}-\d{2}\.png/.test(png.headers.get("content-disposition")));
 const pdf = await survey(new Request("http://x/api/survey?event=ngs&qr=all", { headers: H }));
 const pdfBytes = Buffer.from(await pdf.arrayBuffer());
 ok("and every day's on its own page of a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && (pdfBytes.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length >= 2);
@@ -188,14 +188,14 @@ const res = async (who) => (await admin(`&results=1${who ? `&who=${who}` : ""}`)
 const rAll = await res(""), rJ = await res("justice"), rP = await res("partner");
 ok("Results can be split: everyone, justice, community partners, with counts for each", rAll.counts.all === rAll.results.responses && rJ.results.responses === rAll.counts.justice && rP.results.responses === rAll.counts.partner && rP.counts.partner >= 2 && rJ.results.responses + rP.results.responses <= rAll.results.responses, JSON.stringify(rAll.counts));
 const dlP = await survey(new Request("http://x/api/survey?event=ngs&download=answers&who=partner", { headers: H }));
-ok("and the downloads follow the group, named for it", dlP.status === 200 && /-community-partners-answers\.xlsx/.test(dlP.headers.get("content-disposition")));
+ok("and the downloads follow the group, named for it", dlP.status === 200 && /Survey, community partners, answers - \d{4}-\d{2}-\d{2}\.xlsx/.test(dlP.headers.get("content-disposition")));
 
 // Andrew 11 Nov 2026: "where can i see the results by days".
 const rD = (await admin("&results=1&day=2026-11-10")).body, rAllD = (await admin("&results=1")).body;
 ok("Results by day: only that day's answers, with a count for each day", rD.day === "2026-11-10" && rD.results.responses === rAllD.counts.days["2026-11-10"] && rD.results.responses < rAllD.results.responses && Object.keys(rAllD.counts.days).length === 4, JSON.stringify(rAllD.counts.days));
 ok("and by day and group together", (await admin("&results=1&day=2026-11-10&who=partner")).body.results.responses === rD.counts.partner);
 const dlD = await survey(new Request("http://x/api/survey?event=ngs&download=feedback&day=2026-11-10", { headers: H }));
-ok("downloads follow the day, named for it", dlD.status === 200 && /-day-2-presenters\.pdf/.test(dlD.headers.get("content-disposition")), dlD.headers.get("content-disposition"));
+ok("downloads follow the day, named for it", dlD.status === 200 && /Survey day 2, feedback on each presenter - \d{4}-\d{2}-\d{2}\.pdf/.test(dlD.headers.get("content-disposition")), dlD.headers.get("content-disposition"));
 
 // Switched off (every event but the Summit): no question, general wording, and an answer without a group goes in.
 await admin("", { method: "PUT", body: { askWho: false } });

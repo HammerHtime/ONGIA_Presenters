@@ -4,6 +4,7 @@ import { putVolunteer, putPdf } from "./store.mjs";
 import { buildVolunteerPdf } from "./pdf.mjs";
 import { fileVolunteerAgreement } from "./graph.mjs";
 import { sendMail, volunteerContact, volunteerInvitationMail, volunteerSignedMail, volunteerNoticeMail, volunteerReceivedMail, volunteerReviewNeededMail, agreementRecipients } from "./mail.mjs";
+import { personFile } from "./filenames.mjs";
 
 /**
  * Volunteers: people ONGIA asks to sign the Volunteer Terms before an event.
@@ -104,7 +105,7 @@ export async function inviteVolunteer(event, volunteer, origin, { remind = false
  */
 export async function deliverVolunteer(event, volunteer, pdf, which = { filing: true, volunteerEmail: true, boardEmail: true }) {
   volunteer.delivery ??= {};
-  const filename = `${safeFileName(volunteer.last, "Volunteer")}_Volunteer Agreement.pdf`;
+  const filename = personFile(volunteer, "Volunteer agreement", volunteer.signedAt);
   const replyTo = volunteerContact(event).email || undefined;
 
   // Filing first: the board's notice links to wherever it landed.

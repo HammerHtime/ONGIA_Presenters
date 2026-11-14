@@ -12,6 +12,7 @@ import { startingReply, cleanReply, cleanAnswer, cleanDeskEntry, dietaryRowsOf, 
 import { slugOf } from "./lib/public.mjs";
 import { todayIso } from "./lib/deadlines.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * An event's housekeeping questions for attendees: food allergies and the socials (Andrew 26 Oct 2026).
@@ -209,15 +210,15 @@ async function download(event, which) {
   if (which === "addresses") {
     const { bytes } = addressesSheet(event, ((await getAttendees(event.id)) ?? {}).people ?? []);
     return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "content-disposition": `attachment; filename="${slugOf(event.title) || "event"}-shared-addresses.xlsx"`, "cache-control": "no-store" } });
+      "content-disposition": disposition(eventFile(event, "Shared email addresses", "", "xlsx")), "cache-control": "no-store" } });
   }
   if (!event.reply) return fail("Set up the questions first.", 409);
   const answers = (await getReplies(event.id))?.answers ?? [];
   const bytes = which === "dietary" ? dietarySheet(event, answers) : which === "socials" && (event.reply.socials ?? []).length ? socialsSheet(event, answers, event.reply) : null;
   if (!bytes) return fail("Which list: dietary or socials?");
-  const name = `${slugOf(event.title) || "event"}-${which === "dietary" ? "dietary-list" : "socials"}.xlsx`;
+  const name = eventFile(event, which === "dietary" ? "Dietary list" : "Socials", "", "xlsx");
   return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+    "content-disposition": disposition(name), "cache-control": "no-store" } });
 }
 
 async function removeAnswer(event, id) {

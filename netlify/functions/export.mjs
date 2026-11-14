@@ -3,6 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listPresenters, getHeadshot } from "./lib/store.mjs";
 import { makeZip } from "./lib/zip.mjs";
 import { slugOf, publicConsent, byLastName } from "./lib/public.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 export { slugOf, publicConsent, byLastName };
 
@@ -29,8 +30,7 @@ export default async (req) => {
     { name: "presenter-desk-export.json", data: Buffer.from(JSON.stringify(json, null, 2) + "\n") },
     ...photos.map((p) => ({ name: `photos/${p.file}`, data: Buffer.from(p.bytes) })),
   ]);
-  const slug = slugOf(event.title) || "event";
-  return new Response(zip, { headers: { "content-type": "application/zip", "content-disposition": `attachment; filename="${slug}-presenters.zip"`, "cache-control": "no-store" } });
+  return new Response(zip, { headers: { "content-type": "application/zip", "content-disposition": disposition(eventFile(event, "Presenters for the website", "", "zip")), "cache-control": "no-store" } });
 };
 
 /** What goes on a public website, decided per presenter from their own consent answers. `headshotOf` is for tests. */

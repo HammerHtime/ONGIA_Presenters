@@ -66,7 +66,7 @@ fs.writeFileSync("/tmp/cert-k1.pdf", one.body);
 const words = execFileSync("pdftotext", ["-layout", "/tmp/cert-k1.pdf", "-"]).toString();
 ok("Jordan's certificate is a one-page PDF with the name, the official agency and the last day", one.type === "application/pdf" && /Jordan Tremblay/.test(words) && /Toronto Police Service/.test(words) && /06\/05\/2027/.test(words)
   && /Pages:\s+1\b/.test(execFileSync("pdfinfo", ["/tmp/cert-k1.pdf"]).toString()), words.slice(0, 300));
-ok("it downloads under the person's name", /Jordan%20Tremblay%20-%20certificate\.pdf/.test(one.disp), one.disp);
+ok("it downloads under the person's name", /filename="Tremblay Jordan - Certificate - \d{4}-\d{2}-\d{2}\.pdf"/.test(one.disp), one.disp);
 C = (await call("event=ngs27")).body;
 const code = C.people.find((x) => x.key === "k1").cert?.code;
 ok("it now has a number", /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code ?? ""), JSON.stringify(C.people.find((x) => x.key === "k1").cert));
@@ -122,7 +122,7 @@ ok("the generic design carries the course, wrapped, and the RCMP's official name
 // The two downloads.
 const reg = await call("event=ngs27&csv=registration");
 const regTabs = tabsOf(reg.body), regRows = regTabs[0].rows.slice(3);
-ok("the registration list is one Excel file; an event with one group has one tab", reg.type.includes("spreadsheetml") && /national-gang-summit-registration-list\.xlsx/.test(reg.disp) && regTabs.length === 1 && regTabs[0].name === "Everyone", JSON.stringify(regTabs.map((t) => t.name)));
+ok("the registration list is one Excel file; an event with one group has one tab", reg.type.includes("spreadsheetml") && /National Gang Summit - Registration list - \d{4}-\d{2}-\d{2}\.xlsx/.test(reg.disp) && regTabs.length === 1 && regTabs[0].name === "Everyone", JSON.stringify(regTabs.map((t) => t.name)));
 ok("everyone coming, by last name, official agency third and what they typed last", regRows.length === 3 && regRows[0].slice(0, 3).join() === "Martin,Alex,Peel Regional Police" && regRows[0].at(-1) === "Peel Police"
   && regRows[1][0] === "Okafor" && regRows[2][0] === "Tremblay" && regTabs[0].rows[2].join() === "Last name,First name,Agency,Email,Checked in,Registered,Typed on Wix"
   && /^Everyone: 3 coming · list as of /.test(regTabs[0].rows[1][0]), JSON.stringify(regTabs[0].rows));

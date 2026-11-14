@@ -2,6 +2,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { putMeta, getMeta } from "./lib/store.mjs";
 import { certRecord, certificatePdf, certFileName, findTemplate, hasFrench } from "./lib/certs.mjs";
 import { timingSafeEqual } from "node:crypto";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The "Download your certificate" link in the certificate email (Andrew 31 Oct 2026). Public, but only with the
@@ -27,7 +28,7 @@ export default async (req) => {
   const lang = fr && (!tpl || hasFrench(tpl)) ? "fr" : "en";
   const name = certFileName(rec, lang);
   return new Response(await certificatePdf(rec, { origin: siteUrl(req), lang }), { headers: { "content-type": "application/pdf",
-    "content-disposition": `attachment; filename="${encodeURIComponent(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`, "cache-control": "no-store" } });
+    "content-disposition": disposition(name), "cache-control": "no-store" } });
 };
 
 const page = (status, words) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ONGIA certificate</title>

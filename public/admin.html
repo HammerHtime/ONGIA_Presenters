@@ -4994,10 +4994,7 @@ function eventScreen(data) {
     try {
       const res = await apiFetch(`/api/export?event=${encodeURIComponent(ev.id)}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Export failed (${res.status})`);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(await res.blob());
-      a.download = (res.headers.get("content-disposition") ?? "").match(/filename="([^"]+)"/)?.[1] ?? "presenters.zip";
-      document.body.appendChild(a); a.click(); a.remove();
+      await saveRes(res, "presenters.zip");
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       toast("Downloaded. It holds only the presenters who agreed to be shown publicly.");
     } catch (e) { toast(e.message); }
@@ -6058,7 +6055,7 @@ async function loadThanks(ev) {
         const res = await apiFetch(`/api${q}&letter=sample&words=${encodeURIComponent(box.querySelector("#th-l").value)}`, { headers: { "x-admin-key": KEY } });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The letter didn't load.");
         // Downloaded, so it opens in the phone's or computer's own PDF viewer (the email preview box can't show a PDF).
-        saveBlob(await res.blob(), "Letter of appreciation (sample).pdf");
+        await saveRes(res, "Letter of appreciation (sample).pdf");
       } catch (x) { toast(x.message); }
       done();
     };
@@ -6147,7 +6144,7 @@ function loadMc(ev) {
       try {
         const res = await apiFetch(`/api${q}&pdf=1`, { headers: { "x-admin-key": KEY } });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The MC script did not download.");
-        saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "mc-script.pdf");
+        await saveRes(res, "MC script.pdf");
       } catch (x) { toast(x.message); }
       done();
     };
@@ -6535,7 +6532,7 @@ function renderWelcomeCard(ev, W) {
     try {
       const res = await apiFetch(`/api${agendaQ(b.dataset.wlopen)}&file=1`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The agenda could not be opened.");
-      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+      await saveRes(res, "agenda.pdf");
     } catch (x) { toast(x.message); }
   });
   // The other attachments: words are saved first, as for the agenda, so nothing typed is lost when the card redraws.
@@ -6572,7 +6569,7 @@ function renderWelcomeCard(ev, W) {
     try {
       const res = await apiFetch(fileQ(b.dataset.wfopen), { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The attachment could not be opened.");
-      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+      await saveRes(res, "attachment.pdf");
     } catch (x) { toast(x.message); }
   });
   if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
@@ -6683,7 +6680,7 @@ function agenciesScreen(A) {
   find.oninput = filter; filter();
   document.getElementById("ag-csv").onclick = async () => {
     try { const res = await apiFetch("/api/agencies?master=1&download=1", { headers: { "x-admin-key": KEY } }); if (!res.ok) throw new Error("The download failed.");
-      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: "ongia-agencies-master-list.csv" }); a.click(); }
+      await saveRes(res, "ONGIA - Agency master list.csv"); }
     catch (x) { toast(x.message); }
   };
   document.getElementById("ag-add").onclick = () => agencyDialog(A, null, (body) => redo("add=1", body, `${body.name} added.`));
@@ -6827,7 +6824,7 @@ async function certsAll(ev, C, ready) {
     // Two people with the same name each keep their own file.
     const seen = new Set();
     for (const f of files.sort((x, y) => x.name.localeCompare(y.name))) { if (seen.has(f.name)) f.name = f.name.replace(/\.pdf$/, ` (${f.code}).pdf`); seen.add(f.name); }
-    if (files.length) Object.assign(document.createElement("a"), { href: URL.createObjectURL(zipBlob(files)), download: `${slugOf(ev.title)}-certificates.zip` }).click();
+    if (files.length) Object.assign(document.createElement("a"), { href: URL.createObjectURL(zipBlob(files)), download: evFile(ev, "Certificates", "zip") }).click();
     said.innerHTML = `${files.length} certificate${files.length === 1 ? "" : "s"} in the ZIP.${missed.length ? ` <b>${missed.length} couldn't be made:</b> ${esc(missed.join(", "))}. Press it again for those, or download them one at a time.` : ""}`;
   } catch (x) { said.textContent = x.message; }
   renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
@@ -6873,6 +6870,9 @@ async function certsMail(ev, C, ready) {
   renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
   const k = document.getElementById("cert-said"); if (k && kept) { k.innerHTML = kept; k.querySelector("[data-certcut]")?.addEventListener("click", () => { CERT_CUT = "mailbad"; loadCerts(ev); }); }
 }
+/** "Western Symposium - Certificates - 2026-11-14.zip", the way the server names an event's files (lib/filenames.mjs). */
+const evShort = (ev) => { const t = String(ev?.title ?? "").split(/\s*:\s*/)[0].replace(/[^\p{L}\p{N} .,'&()-]+/gu, " ").replace(/\s+/g, " ").trim(); return (t.match(/^Canadian Forum Against Organized Crime\s*-\s*(.+)$/i)?.[1] ?? t).slice(0, 60).trim() || "ONGIA"; };
+const evFile = (ev, what, ext) => `${evShort(ev)} - ${what} - ${new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" })}.${ext}`;
 const slugOf = (t) => String(t ?? "event").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "event";
 /** A plain ZIP of files stored as they are (PDFs are already compressed), which every unzip tool opens. */
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -6987,7 +6987,7 @@ function renderCerts(ev, C) {
   if (find) { find.oninput = () => { CERT_FIND = find.value; filter(); }; filter(); }
   box.querySelector("#cert-preview").onclick = async (e) => {
     const b = e.target; b.disabled = true; b.textContent = "Making the preview…";
-    try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); window.open(URL.createObjectURL(f.blob), "_blank", "noopener"); }
+    try { const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&preview=1`); saveBlob(f.blob, f.name); }
     catch (x) { toast(x.message); }
     b.disabled = false; b.textContent = "Preview a sample";
   };
@@ -7773,7 +7773,7 @@ function renderSurveyCard(ev, S) {
     try {
       const res = await apiFetch(`/api${q}&qr=${b.dataset.svqr}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The QR code did not download.");
-      saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "survey-qr");
+      await saveRes(res, "Survey QR codes.pdf");
     } catch (x) { toast(x.message); }
     done();
   });
@@ -7854,7 +7854,7 @@ function renderResults(ev, D) {
     try {
       const res = await apiFetch(`/api${q}&download=${b.dataset.rsdl}${wq}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The download did not work.");
-      saveBlob(await res.blob(), (res.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "survey");
+      await saveRes(res, "Survey.pdf");
     } catch (x) { toast(x.message); }
     done();
   });
@@ -7910,7 +7910,7 @@ function renderResults(ev, D) {
   };
   $("rs-png").onclick = async (e) => {
     const done = busy(e.target, "Drawing…");
-    try { const { blob } = await artToPng($("rs-frame").contentDocument); saveBlob(blob, `${name}-infographic.png`); $("rs-said").textContent = "PNG downloaded."; }
+    try { const { blob } = await artToPng($("rs-frame").contentDocument); saveBlob(blob, evFile(ev, `Infographic${RS_LANG === "fr" ? " (French)" : ""}`, "png")); $("rs-said").textContent = "PNG downloaded."; }
     catch (x) { toast(x.message); }
     done();
   };
@@ -7920,7 +7920,7 @@ function renderResults(ev, D) {
       const { blob, w, h } = await artToPng($("rs-frame").contentDocument);
       const res = await apiFetch(`/api${q}&pdf=1&w=${w}&h=${h}&name=${encodeURIComponent(`${ev.title} infographic`)}`, { method: "POST", headers: { "x-admin-key": KEY, "content-type": "image/png" }, body: blob });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The PDF could not be made.");
-      saveBlob(await res.blob(), `${name}-infographic.pdf`); $("rs-said").textContent = "PDF downloaded.";
+      saveBlob(await res.blob(), evFile(ev, `Infographic${RS_LANG === "fr" ? " (French)" : ""}`, "pdf")); $("rs-said").textContent = "PDF downloaded.";
     } catch (x) { toast(x.message); }
     done();
   };
@@ -7938,12 +7938,26 @@ function renderResults(ev, D) {
         files.push({ name: `${String(i + 1).padStart(2, "0")}-${block}-${RS_LANG}.png`, bytes: new Uint8Array(await blob.arrayBuffer()) });
       }
       document.getElementById("rs-hidden")?.remove();
-      saveBlob(zipStore(files), `${name}-social-media.zip`);
+      saveBlob(zipStore(files), evFile(ev, `Social media${RS_LANG === "fr" ? " (French)" : ""}`, "zip"));
       toast(`${files.length} images downloaded in one .zip.`);
     } catch (x) { toast(x.message); }
     done();
   };
 }
+/**
+ * The file's own name, as the server gave it (Andrew 14 Nov 2026: "Last First - What - date", lib/filenames.mjs). The
+ * full name (filename*, accents and all) first; the plain one after.
+ */
+const fileNameOf = (res, fallback = "download") => {
+  const cd = res.headers.get("content-disposition") ?? "";
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(cd)?.[1];
+  if (star) { try { return decodeURIComponent(star); } catch {} }
+  const plain = /filename="([^"]+)"/.exec(cd)?.[1];
+  if (plain) { try { return decodeURIComponent(plain); } catch { return plain; } }
+  return fallback;
+};
+/** Save what came back under its own name. Opened in a new tab instead, a saved copy is named with a random code. */
+const saveRes = async (res, fallback) => saveBlob(await res.blob(), fileNameOf(res, fallback));
 const saveBlob = (blob, filename) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
 /** A page loaded out of sight, for drawing one social media square. */
 function loadHidden(html) {
@@ -8237,10 +8251,7 @@ function renderReplyCard(ev, R) {
     try {
       const res = await apiFetch(`/api/reply?event=${encodeURIComponent(ev.id)}&sheet=${b.dataset.rpsheet}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(await res.blob());
-      a.download = (res.headers.get("content-disposition") ?? "").match(/filename="([^"]+)"/)?.[1] ?? "list.xlsx";
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      await saveRes(res, "list.xlsx");
     } catch (x) { toast(x.message); }
     done();
   }; });
@@ -8619,7 +8630,7 @@ function wireSow(ev, S, { onSums = null } = {}) {
     if (kind === "invoice" && over().over && !String(sow.increaseReason ?? "").trim() && !confirm(`The invoice is ${over().pct}% over the statement of work and has no explanation for RBH yet. Make the PDF anyway?`)) return;
     const res = await apiFetch(`/api${q}&doc=${kind}`, { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
-    window.open(URL.createObjectURL(await res.blob()), "_blank");
+    await saveRes(res, `${kind}.pdf`);
   });
   const file = (kind) => guard(async () => {
     if (dirty) await save(true);
@@ -8760,7 +8771,7 @@ function sowsScreen({ events }) {
   const openPdf = async (url) => {
     const res = await apiFetch(`/api${url}`, { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
-    window.open(URL.createObjectURL(await res.blob()), "_blank");
+    await saveRes(res, "ONGIA.pdf");
   };
   ROOT.querySelectorAll("[data-sowpdf]").forEach((b) => { b.onclick = () => openPdf(`/sow?event=${encodeURIComponent(b.dataset.sowpdf)}&doc=sow`).catch((x) => toast(x.message)); });
   const all = document.getElementById("sowsall");
@@ -9336,10 +9347,7 @@ function wireRooming(ev, R) {
     try {
       const res = await apiFetch(`/api${q}&csv=1&keys=${encodeURIComponent(keys().join(","))}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
-      const url = URL.createObjectURL(await res.blob());
-      const a = Object.assign(document.createElement("a"), { href: url, download: `rooming-list-${ev.title.replace(/[^\w]+/g, "-").toLowerCase()}.csv` });
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      await saveRes(res, "Rooming list.csv");
     } catch (e) { toast(e.message); }
   };
 
@@ -9936,7 +9944,7 @@ function wireAgenda(ev, A) {
     try {
       const res = await apiFetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The agenda could not be opened.");
-      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+      await saveRes(res, "agenda.pdf");
     } catch (err) { toast(err.message); }
   };
   const del = document.getElementById("ag-del");
@@ -9966,7 +9974,7 @@ function wireAgenda(ev, A) {
     try {
       const res = await apiFetch(`/api${q}&file=1&group=1`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error("The agenda could not be opened.");
-      window.open(URL.createObjectURL(await res.blob()), "_blank", "noopener");
+      await saveRes(res, "agenda.pdf");
     } catch (err) { toast(err.message); }
   };
   const del2 = document.getElementById("ag2-del");
@@ -10221,8 +10229,7 @@ function wireAttendees(ev) {
     try {
       const res = await apiFetch(`/api/certificates?event=${encodeURIComponent(ev.id)}&csv=${b.dataset.glist}`, { headers: { "x-admin-key": KEY } });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The download failed.");
-      const named = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "");
-      Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? named[1] : b.dataset.glist === "registration" ? "registration-list.xlsx" : "list.csv" }).click();
+      await saveRes(res, b.dataset.glist === "registration" ? "Registration list.xlsx" : "list.csv");
       let c = null; try { c = JSON.parse(res.headers.get("x-list-check") ?? "null"); } catch {}
       const bits = [pulled];
       if (c) {
@@ -10755,9 +10762,7 @@ function wireVolunteers(ev, V) {
       try {
         const res = await apiFetch(`/api/volunteers?${q}&id=${encodeURIComponent(b.dataset.vpdf)}&pdf=1`, { headers: { "x-admin-key": KEY } });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
-        const url = URL.createObjectURL(await res.blob());
-        window.open(url, "_blank");
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        await saveRes(res, "Volunteer agreement.pdf");
       } catch (e) { toast(e.message); }
     };
   });
@@ -12488,9 +12493,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
           try {
             const res = await apiFetch(`/api${q}&file=1`, { headers: { "x-admin-key": KEY } });
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Could not open it (${res.status})`);
-            const url = URL.createObjectURL(await res.blob());
-            window.open(url, "_blank");
-            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            await saveRes(res, "contract.pdf");
           } catch (err) { toast(err.message); }
         }
       };
@@ -12505,9 +12508,7 @@ async function openPdf(eventId, presenterId, preview = false) {
     const res = await apiFetch(`/api/download?event=${encodeURIComponent(eventId)}&presenter=${encodeURIComponent(presenterId)}&inline=1${preview ? "&preview=1" : ""}`,
       { headers: { "x-admin-key": KEY } });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
-    const url = URL.createObjectURL(await res.blob());
-    window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    await saveRes(res, "Presenter agreement.pdf");
   } catch (e) { toast(e.message); }
 }
 

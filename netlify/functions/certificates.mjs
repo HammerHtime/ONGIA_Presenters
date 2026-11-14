@@ -10,6 +10,7 @@ import { directory, agencyOf, domainOf } from "./lib/agencies.mjs";
 import { templateOf, findTemplate, hasFrench, templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
 import { sendCertificate, sendSample, mailCard } from "./lib/certmail.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * Certificates and the attendee downloads, on Who's coming (Andrew 30 Oct 2026). The president, the VP and the event's
@@ -79,7 +80,7 @@ export default async (req) => {
     // French where the design has a French version; otherwise the English one, named as such.
     const lang = q("lang") === "fr" && hasFrench(await findTemplate(rec.template ?? "generic")) ? "fr" : "en";
     return new Response(await certificatePdf(rec, { origin, lang }), { headers: { "content-type": "application/pdf",
-      "content-disposition": `${q("pdf") ? "attachment" : "inline"}; filename="${encodeURIComponent(certFileName(rec, lang))}"; filename*=UTF-8''${encodeURIComponent(certFileName(rec, lang))}`, "cache-control": "no-store" } });
+      "content-disposition": disposition(certFileName(rec, lang), q("pdf") ? "attachment" : "inline"), "cache-control": "no-store" } });
   }
   if (req.method === "GET") return json(await view(event, people, templates));
   if (req.method === "PUT") {
@@ -240,13 +241,12 @@ async function designs(req, url, q) {
 
 function csv(event, people, which) {
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const slug = String(event.title || "event").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
   let head, rows, name;
   if (which === "certificate") {
     const s = certSettings(event);
     head = ["First name", "Last name", "Agency", "Email", "Event", "Date"];
     rows = people.filter((p) => p.checkedIn).map((p) => [p.first, p.last, p.agency, p.email, s.course, certDate(s.date)]);
-    name = `${slug}-certificates.csv`;
+    name = eventFile(event, "Certificate list", "", "csv");
   } else if (which !== "registration") return fail("Which list: registration or certificate?");
   // What the list holds, said with every download (Andrew 3 Nov 2026: "I need to have confidence ... if I pull the new list
   // ... because I have to send it to somebody"): how many, anyone without a name, anyone without an agency and why, and
@@ -271,10 +271,10 @@ function csv(event, people, which) {
   if (which === "registration") {
     const { book, tabs } = registrationBook(event, listed);
     return new Response(book, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "content-disposition": `attachment; filename="${slug}-registration-list.xlsx"`, "cache-control": "no-store", "x-list-check": asHeader({ ...check, tabs }) } });
+      "content-disposition": disposition(eventFile(event, "Registration list", "", "xlsx")), "cache-control": "no-store", "x-list-check": asHeader({ ...check, tabs }) } });
   }
   return new Response(`﻿${head.map(cell).join(",")}\n${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store", "x-list-check": asHeader(check) } });
+    "content-disposition": disposition(name), "cache-control": "no-store", "x-list-check": asHeader(check) } });
 }
 
 /**

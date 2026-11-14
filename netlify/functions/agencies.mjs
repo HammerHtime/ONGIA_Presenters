@@ -3,6 +3,7 @@ import { getEvent, getAttendees, getMeta, putMeta } from "./lib/store.mjs";
 import { SECTORS, sectorName } from "./lib/sectors.mjs";
 import { directory, agenciesOf, agencyOf, teach, suggest, forget, editAgency, mergeAgencies, key, agencyLog, agencyWaiting, agencyBlank, everyone, PROVINCES } from "./lib/agencies.mjs";
 import { wixConfigured, wixSites, listWixGuests, listWixEvents } from "./lib/wix.mjs";
+import { eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * Agencies, one name each (Andrew 27 Oct 2026). For an event's attendee list: who came from where, under the standard
@@ -100,7 +101,7 @@ function spellingsCsv(people) {
       ...r.questions.map((q) => `${cell(`Question: ${q.question}`)},${q.count}`));
   }
   return new Response(`\ufeffAgency as typed,Registrations\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
-    "content-disposition": 'attachment; filename="ongia-agency-spellings-past-2-years.csv"', "cache-control": "no-store" } });
+    "content-disposition": disposition(eventFile(null, "Agency spellings, past 2 years", "", "csv")), "cache-control": "no-store" } });
 }
 
 async function show(people) {
@@ -204,5 +205,5 @@ async function masterCsv() {
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const rows = (await directory()).map((a) => [a.name, a.province ? PROVINCES[a.province] ?? a.province : "Federal / national", a.fr, a.sector ? sectorName(a.sector) : "", (a.domains ?? []).join(" "), (a.aliases ?? []).join(" | ")].map(cell).join(","));
   return new Response(`\ufeffAgency,Province,French name,Sector,Work email domains,Also typed as\n${rows.join("\n")}\n`, { headers: { "content-type": "text/csv; charset=utf-8",
-    "content-disposition": 'attachment; filename="ongia-agencies-master-list.csv"', "cache-control": "no-store" } });
+    "content-disposition": disposition(eventFile(null, "Agency master list", "", "csv")), "cache-control": "no-store" } });
 }
