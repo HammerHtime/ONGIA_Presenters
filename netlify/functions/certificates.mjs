@@ -1,3 +1,4 @@
+import { onlineLinks } from "./lib/welcome.mjs";
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from "./lib/store.mjs";
 import { mayCost, mayEditEvent } from "./lib/auth.mjs";
@@ -140,10 +141,13 @@ export default async (req) => {
 /** Everyone on the event's list who is or was coming, with their agency under its official name. */
 async function peopleOf(event) {
   const list = await directory().catch(() => []);
+  // Joining online, nobody scans a ticket: everyone registered for the online event counts as attending for their
+  // certificate (Andrew 14 Nov 2026: "this goes out to virtual and inperson (both community and justice)").
+  const online = onlineLinks(event);
   return (((await getAttendees(event.id)) ?? {}).people ?? [])
     .filter((p) => p.status === "ATTENDING" || p.checkedIn)
     .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", order: p.orderNumber ?? "", typed: p.asWix?.organization ?? p.organization ?? "",
-      agency: agencyOf(p, list)?.name || String(p.organization ?? "").trim(), checkedIn: !!p.checkedIn, status: p.status, group: p.group ?? "", source: p.source ?? "",
+      agency: agencyOf(p, list)?.name || String(p.organization ?? "").trim(), checkedIn: !!p.checkedIn || (online.has(p.wixEventId) && p.status === "ATTENDING"), virtual: online.has(p.wixEventId), status: p.status, group: p.group ?? "", source: p.source ?? "",
       name: [p.first, p.last].filter(Boolean).join(" ").trim() || (p.guestOf ? `Guest of ${p.guestOf}` : p.email) }))
     .sort((a, b) => (a.last || a.name).localeCompare(b.last || b.name) || a.first.localeCompare(b.first));
 }
@@ -161,7 +165,7 @@ async function view(event, people, templates) {
     lastDay: event.lastDay || event.dayOne || "",
     templates: templates.map(designCard),
     people: people.map((p) => ({ ...p, cert: issued.has(p.key) ? certCard(issued.get(p.key)) : null })),
-    counts: { coming: people.filter((p) => p.status === "ATTENDING").length, checkedIn: people.filter((p) => p.checkedIn).length, issued: issued.size },
+    counts: { coming: people.filter((p) => p.status === "ATTENDING").length, checkedIn: people.filter((p) => p.checkedIn).length, virtual: people.filter((p) => p.virtual && p.checkedIn).length, issued: issued.size },
   };
 }
 
