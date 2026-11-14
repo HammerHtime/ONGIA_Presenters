@@ -20,7 +20,7 @@ for (const e of [ev, plain]) {
   const set = await api(`/api/survey?event=${e.id}`, { method: "PUT", body: JSON.stringify({ open: true, mode: "end", sendOn: shift(-1), sessions: [{ id: "sa", day: e.dayOne, title: "Field visits", titleFr: "Visites sur le terrain", presenters: ["Jordan Avery"] }] }) });
   const stars = (n) => Object.fromEntries(["relevant", "knowledge", "expectations", "expert", "engaging", "delivery"].map((k) => [k, n]));
   for (const [i, n] of [5, 5, 4, 5].entries())
-    await fetch(`${S}/api/survey?t=${set.survey.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", lang: i === 1 ? "fr" : "en",
+    await fetch(`${S}/api/survey?t=${set.survey.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", who: "justice", lang: i === 1 ? "fr" : "en",
       about: { agency: "TPS", province: "QC", years: i, before: 0, again: 0, heard: 1 }, sessions: { sa: { ...stars(n), rebook: 0, ...(i === 0 ? { comment: "Both field tours closed the loop for me." } : {}) } },
       overall: { quality: n, pace: 1, confidence: n, variety: 4, practical: n, venue: 5, av: 4, registration: 5, food: 3, length: 1, nps: 9, topics: "Court testimony" } }) });
 }

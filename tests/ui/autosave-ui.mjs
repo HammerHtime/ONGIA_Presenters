@@ -61,9 +61,11 @@ ok("and saves once it can", (await api(`/api/welcome?event=${ev.id}`)).versions[
 await p.locator("#wl-save").locator("..").screenshot({ path: D + "autosave-saved.png" });
 
 console.log("— the food-allergy email and the survey");
-if (!(await p.locator("#replyfold").evaluate((d) => d.open))) await p.locator("#replyfold summary").first().click();
+// One email at a time on Communications (#154): the food card is picked with its button, which opens it.
+await p.locator('[data-comms="replyfold"]').click();
 await p.waitForTimeout(800);
 if (await p.locator("#rp-start").count()) { await p.locator("#rp-start").click(); await p.waitForTimeout(1200); }
+await p.locator('[data-rpp="email"]').click(); await p.waitForTimeout(300);   // one part of the card at a time: The email
 await p.locator("#rp-subject").fill(`Food allergies ${T}`);
 await p.waitForTimeout(2600);
 const R = await api(`/api/reply?event=${ev.id}`);

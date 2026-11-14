@@ -11,7 +11,10 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 await api("/api/roster");
 const wixEvents = [
   { id: "wx-itp-sep", title: "RBH ITP September", status: "UPCOMING", dayOne: "2027-09-13", lastDay: "2027-09-17", venue: "Humaniti Hotel", city: "Montreal", url: "https://www.ongia.org/event/rdhitp-sept", registered: null, linkedTo: null },
-  { id: "wx-old", title: "Gangs & Guns Symposium", status: "ENDED", dayOne: "2026-05-04", lastDay: "2026-05-06", venue: "RBC Centre", city: "Winnipeg", url: "", registered: null, linkedTo: { id: "x", title: "Gangs & Guns" } },
+  // Upcoming and already linked to a desk event: listed, but can't be picked again.
+  { id: "wx-old", title: "Gangs & Guns Symposium", status: "UPCOMING", dayOne: "2027-05-04", lastDay: "2027-05-06", venue: "RBC Centre", city: "Winnipeg", url: "", registered: null, linkedTo: { id: "x", title: "Gangs & Guns" } },
+  // Over: left out of the list (Andrew 4 Nov 2026: "I don't want to see past events", #150).
+  { id: "wx-past", title: "Spring Forum", status: "ENDED", dayOne: "2026-05-04", lastDay: "2026-05-06", venue: "Hall", city: "Regina", url: "", registered: null, linkedTo: null },
 ];
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
@@ -33,7 +36,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   await page.screenshot({ path: D + `wixnew-start-${tag}.png` });
   await page.click("#wx-pick"); await page.waitForTimeout(600);
   const items = await page.locator("#wx-list [data-wix]").evaluateAll((els) => els.map((e) => ({ t: e.innerText, d: e.disabled })));
-  ok(`${tag}: it lists the Wix events with dates, city and venue`, items.length === 2 && /RBH ITP September/.test(items[0].t) && /Montreal/.test(items[0].t) && /Humaniti Hotel/.test(items[0].t), JSON.stringify(items));
+  ok(`${tag}: it lists the upcoming Wix events with dates, city and venue, and leaves past ones out`, items.length === 2 && !items.some((x) => /Spring Forum/.test(x.t)) && /RBH ITP September/.test(items[0].t) && /Montreal/.test(items[0].t) && /Humaniti Hotel/.test(items[0].t), JSON.stringify(items));
   ok(`${tag}: one already on the desk can't be picked again, and says so`, items[1].d === true && /already on the desk/.test(items[1].t));
   await page.screenshot({ path: D + `wixnew-list-${tag}.png` });
   await page.locator('[data-wix="wx-itp-sep"]').click(); await page.waitForTimeout(500);

@@ -23,7 +23,7 @@ const tok = set.survey.token;
 const stars = (n) => Object.fromEntries(["relevant", "knowledge", "expectations", "expert", "engaging", "delivery"].map((k) => [k, n]));
 const said = "The financial investigations session changed how my unit will approach our next file.";
 for (const [i, [agency, province, n]] of [["TPS", "ON", 5], ["RCMP", "BC", 4], ["Royal Canadian Mounted Police", "AB", 5], ["Calgary Police Service", "AB", 3]].entries())
-  await fetch(`${S}/api/survey?t=${tok}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", lang: i === 1 ? "fr" : "en",
+  await fetch(`${S}/api/survey?t=${tok}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "end", who: "justice", lang: i === 1 ? "fr" : "en",
     about: { agency, province, years: i, before: 0, again: 0, heard: 1 },
     sessions: { sa: { ...stars(n), rebook: 0, ...(i === 0 ? { comment: said } : {}) }, sb: { ...stars(Math.max(2, n - 1)), rebook: 1 } },
     overall: { quality: n, pace: 1, confidence: n, variety: 4, practical: n, venue: 5, av: 4, registration: 5, food: 3, length: 1, nps: 7 + i, topics: "Drill music", ...(i === 2 ? { present: 0 } : {}) },
@@ -68,7 +68,10 @@ const xl = await bytesOf(p, () => p.locator('[data-rsdl="answers"]').click());
 ok("Download: every answer as Excel", xl.buf.slice(0, 2).toString() === "PK" && /\.xlsx$/.test(xl.name));
 ok("the would-be presenter's list is offered apart", /1 wants to present/.test(await p.locator('[data-rsdl="presenters"]').innerText()));
 
-await p.locator("#rs-analyse").click(); await p.waitForTimeout(2500);
+// The read runs on the server in the background (14 Nov 2026: a 504 with hundreds of answers); the page looks again
+// every 10 seconds until it lands.
+await p.locator("#rs-analyse").click();
+for (let i = 0; i < 50 && !/Well received/.test(await p.locator("#rsbox").innerText()); i++) await p.waitForTimeout(1000);
 const read = await p.locator("#rsbox").innerText();
 ok("Claude's read is shown, with only word-for-word quotes", /Well received/.test(read) && read.includes(said) && !/wonderful/.test(read), read.slice(0, 300));
 

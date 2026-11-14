@@ -41,6 +41,8 @@ await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTime
 await p.evaluate(() => { const d = document.getElementById("welcomefold"); if (d) d.open = true; }); await p.waitForTimeout(1200);
 
 const panel = p.locator('.wlver[data-wl="xw3"]');
+// One letter at a time (5 Nov 2026): the version buttons switch which shows; pick Virtual, as Andrew does.
+await p.locator('[data-wlv="xw3"]').click(); await p.waitForTimeout(500);
 ok("the Virtual version has its own panel", await panel.count() === 1);
 ok("written, it says it isn't sent yet and how many wait, with \"It's ready: send it\"", /Not sent yet\. 2 people waiting/.test(await panel.innerText()) && await panel.locator("[data-wlready]").isVisible(), await panel.innerText().then((t) => t.slice(-200)));
 ok("the other versions have no such button", await p.locator('.wlver[data-wl="main"] [data-wlready], .wlver[data-wl="group"] [data-wlready]').count() === 0);

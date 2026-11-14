@@ -31,7 +31,9 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(900);
   ok(`${tag}: the home page has no email rows or email wording`, (await p.locator("#queue .ibrow, .qmail").count()) === 0 && !/email\b/.test(await p.locator(".qcounts").innerText()), await p.locator(".qcounts").innerText());
   await p.click("#newevent"); await p.waitForTimeout(900);
-  ok(`${tag}: three ways to start`, (await p.locator(".starts .start").count()) === 3 && /From your website/.test(await p.locator(".starts").innerText()) && /Copy a past event/.test(await p.locator(".starts").innerText()) && /Start blank/.test(await p.locator(".starts").innerText()));
+  // Three ways to start an event, and for the president a fourth: an RBH project that isn't an event.
+  const starts = await p.locator(".starts").innerText();
+  ok(`${tag}: three ways to start, and an RBH project for the president`, (await p.locator(".starts .start").count()) === 4 && /From your website/.test(starts) && /Copy a past event/.test(starts) && /Start blank/.test(starts) && /RBH project/.test(starts), starts);
   ok(`${tag}: the way back is at the top left of the page, not in the bar`, (await p.locator("#root > .crumbs #cancel").count()) === 1 && (await p.locator("#barright #cancel").count()) === 0);
   const order = await p.evaluate(() => { const at = (sel) => [...document.querySelectorAll("#root *")].indexOf(document.querySelector(sel)); return { board: at("#bdrop"), more: at(".morehead"), rbh: at("#e-rbh"), mins: at("#e-mins") }; });
   ok(`${tag}: the board comes before More options, and the RBH settings and slot come after it`, order.board < order.more && order.more < order.rbh && order.more < order.mins, JSON.stringify(order));
