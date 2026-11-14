@@ -36,7 +36,8 @@ await putEvent({ id: "ev-other", title: "Human Trafficking Summit", city: "Toron
 const people = [
   person("a1", "Ada", "Sample", "approved", media("yes", "yes")),            // signed before the bio question: legacy
   person("b2", "Bo", "Example", "submitted", media("yes", "no", "yes")),     // public, no photo
-  person("c3", "Cy", "Private", "approved", media("no", "yes", "yes")),      // said no to public summary: never shown
+  person("c3", "Cy", "Private", "approved", media("no", "yes", "yes")),      // yes to the bio, no to the summary: shown, no talk (Melissa Tarsitano, 14 Nov 2026)
+  person("g7", "Gil", "Quiet", "approved", media("no", "yes", "no")),        // no to both: never shown
   person("d4", "Dee", "Notyet", "invited", media("yes", "yes", "yes")),      // not signed
   person("e5", "Eli", "Sentback", "returned", media("yes", "yes", "yes")),   // sent back for changes
   person("f6", "Fay", "Nobio", "approved", media("yes", "no", "no")),        // public, but said no to the bio
@@ -64,15 +65,17 @@ ok("without a page name, the button says what to do", /Website page/.test((await
 
 /* consent: the same rule as the presenter export */
 const g = (await call("event=ev-west", { method: "GET" })).body;
-ok("the desk lists who would be shown: signed and yes to public summary only", g.presenters.filter((p) => p.shown).map((p) => p.name).join(",") === "Bo Example,Fay Nobio,Ada Sample", g.presenters.filter((p) => p.shown).map((p) => p.name).join(","));
+ok("the desk lists who would be shown: signed and yes to the public biography or summary", g.presenters.filter((p) => p.shown).map((p) => p.name).sort().join(",") === "Ada Sample,Bo Example,Cy Private,Fay Nobio", g.presenters.filter((p) => p.shown).map((p) => p.name).join(","));
 const built = await buildDeskFile(west, people);
 const sp = built.file.event.speakers;
-ok("only public presenters go in (3 of 6)", sp.map((s) => s.name).join(",") === "Bo Example,Fay Nobio,Ada Sample");
+ok("only public presenters go in (4 of 7)", sp.map((s) => s.name).join(",") === "Bo Example,Fay Nobio,Cy Private,Ada Sample", sp.map((s) => s.name).join(","));
+ok("yes to the bio and no to the summary: name, organization and bio, but no talk title or description from the agreement", !!sp.find((s) => s.name === "Cy Private").bio && !built.text.includes("Cy's talk") && !built.text.includes("Cy's outline") && g.presenters.find((p) => p.name === "Cy Private").talk === "" && g.presenters.find((p) => p.name === "Cy Private").outline === "");
+ok("the desk marks it: no talk description, said no", g.presenters.find((p) => p.name === "Cy Private").summary === false);
 ok("no headshots on the CFAOC site, even for someone who said yes to public photos (Andrew 23 Oct 2026)", sp.every((s) => !s.photo) && built.photos.length === 0 && !built.text.includes("photo"));
 ok("a no to the bio means no bio, but they are still listed", !sp.find((s) => s.name === "Fay Nobio").bio);
 ok("bios become paragraphs", JSON.stringify(sp.find((s) => s.name === "Bo Example").bio) === JSON.stringify(["Bo's bio.", "Second paragraph."]));
 ok("signed before the bio question: shown, marked to ask again", built.people.find((p) => p.name === "Ada Sample").bioConsent === "legacy");
-ok("no email, phone, signature, travel or the community-partners answer", !/@example\.ca|416-555|sensitive|signature|Private|Notyet|Sentback/i.test(built.text), built.text.match(/@example\.ca|416-555|sensitive|signature|Private|Notyet|Sentback/i)?.[0]);
+ok("no email, phone, signature, travel or the community-partners answer", !/@example\.ca|416-555|sensitive|signature|Quiet|Notyet|Sentback/i.test(built.text), built.text.match(/@example\.ca|416-555|sensitive|signature|Quiet|Notyet|Sentback/i)?.[0]);
 ok("the registration link comes from Wix when none is typed", built.file.event.registerUrl === "https://www.ongia.org/event-details/cfaoc-west");
 ok("the hotel's internal contract rate is not published", !built.text.includes("$209 contract"));
 
@@ -87,7 +90,7 @@ ok("job titles come over by name, with the French already on the site, not marke
 const pv = (await call("event=ev-west&preview=1")).body;
 const said = pv.lines.join(" | ");
 ok("summary: the first update from the desk", /first update from the desk/.test(said), said);
-ok("summary: new presenters named", /2 new presenters: Bo Example, Fay Nobio/.test(said), said);
+ok("summary: new presenters named", /3 new presenters: Bo Example, Fay Nobio, Cy Private/.test(said), said);
 ok("summary: who comes off the website, by name", /1 presenter taken off the website: Hand Typed/.test(said), said);
 ok("summary: Ada's bio updated, and the photo the site had of her comes off", /1 bio updated: Ada Sample/.test(said) && /Photo taken off: Ada Sample/.test(said) && /Photos: 1 taken down/.test(said), said);
 ok("summary: the registration link brought over from the website is kept, so no change", !/Registration link/.test(said), said);
@@ -115,7 +118,7 @@ ok("and the preview says so", (await call("event=ev-west&preview=1")).body.uncha
 /* French: drafted, edited, reviewed */
 const fr = (await call("event=ev-west&french=b2")).body;
 ok("a French draft is saved, not yet reviewed", fr.web.bioFr.startsWith("FR Bo's bio") && fr.web.frReviewed === false);
-ok("no French for someone not shown", (await call("event=ev-west&french=c3")).status === 409);
+ok("no French for someone not shown", (await call("event=ev-west&french=g7")).status === 409);
 await call("event=ev-west&presenter=b2", { method: "PUT", body: { bioFr: "Biographie de Bo, revue.", frReviewed: true } });
 const pv2 = (await call("event=ev-west&preview=1")).body;
 ok("the summary after French: only the French changed, Bo no longer flagged", pv2.unchanged === false && pv2.lines.join() === "French updated for Bo Example." && !pv2.notes.join(" ").includes("Bo Example"), JSON.stringify(pv2));

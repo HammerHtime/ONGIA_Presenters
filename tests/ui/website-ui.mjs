@@ -57,7 +57,7 @@ try {
     await settings(page, W.id);
     ok(`${tag}: the CFAOC event has the Website card`, (await page.locator("#websync").count()) === 1);
     const card = () => page.locator("#websync").innerText();
-    ok(`${tag}: it lists who goes on the website and who does not, and why`, /Jenny Sample/.test(await card()) && /Pat Private \(said no to public use\)/.test(await card()) && (tag === "phone" ? /Nora Notyet \(has not signed yet\)/ : /Nora Notyet[\s\S]*not signed: name only/i).test(await card()), (await card()).slice(0, 600));
+    ok(`${tag}: it lists who goes on the website and who does not, and why`, /Jenny Sample/.test(await card()) && /Pat Private \(said no to both biography and summary\)/.test(await card()) && (tag === "phone" ? /Nora Notyet \(has not signed yet\)/ : /Nora Notyet[\s\S]*not signed: name only/i).test(await card()), (await card()).slice(0, 600));
     ok(`${tag}: fits the screen`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     if (tag === "phone") {
       await page.fill("#ws-page", "victoria"); await page.click("#ws-save"); await page.waitForTimeout(700);

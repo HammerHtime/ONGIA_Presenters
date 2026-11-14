@@ -63,8 +63,8 @@ async function show(event) {
     presenters: presenters.map((p) => {
       const c = publicConsent(p);
       return { id: p.id, name: `${p.first} ${p.last}`.trim(), organization: p.organization || "", status: p.status,
-        shown: c.in || earlyShown(p), early: earlyShown(p), bioConsent: c.bio ?? null,
-        talk: c.in ? p.submission?.talk || "" : "", bio: !c.in || c.bio === "no" ? "" : p.submission?.bio || "", outline: c.in ? p.submission?.outline || "" : "",
+        shown: c.in || earlyShown(p), early: earlyShown(p), bioConsent: c.bio ?? null, summary: c.in ? c.summary : null,
+        talk: c.in && c.summary ? p.submission?.talk || "" : "", bio: !c.in || c.bio === "no" ? "" : p.submission?.bio || "", outline: c.in && c.summary ? p.submission?.outline || "" : "",
         web: cleanPresenterWeb({}, p.web ?? {}) };
     }),
   });
@@ -95,7 +95,7 @@ async function french(event, id, client) {
   const s = p.submission ?? {};
   const web = cleanPresenterWeb({}, p.web ?? {});
   let fr;
-  try { fr = await draftFrench({ title: web.title, talk: s.talk || "", bio: c.bio === "no" ? "" : s.bio || "", outline: s.outline || "" }, { client }); }
+  try { fr = await draftFrench({ title: web.title, talk: c.summary ? s.talk || "" : "", bio: c.bio === "no" ? "" : s.bio || "", outline: c.summary ? s.outline || "" : "" }, { client }); }
   catch (e) { return fail(e.message, 502); }
   // A fresh draft has not been read by anyone yet.
   p.web = { ...web, ...fr, frReviewed: false, frDraftedAt: new Date().toISOString() };

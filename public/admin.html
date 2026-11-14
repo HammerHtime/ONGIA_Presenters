@@ -5722,7 +5722,8 @@ function renderWebsite(ev, W) {
   const f = (id, label, value, { type = "text", ph = "", hint = "", max = 200 } = {}) => `<div class="field"><label for="ws-${id}">${label}</label>
     <input id="ws-${id}" type="${type}" maxlength="${max}" value="${esc(value ?? "")}"${ph ? ` placeholder="${esc(ph)}"` : ""}>${hint ? `<p class="hint" style="margin:6px 0 0">${hint}</p>` : ""}</div>`;
   const shown = W.presenters.filter((p) => p.shown), hidden = W.presenters.filter((p) => !p.shown);
-  const why = (p) => p.status === "submitted" || p.status === "approved" ? "said no to public use" : p.status === "returned" ? "sent back for changes" : "has not signed yet";
+  // A signed presenter is on the site with a yes to their biography or their summary (Andrew 14 Nov 2026).
+  const why = (p) => p.status === "submitted" || p.status === "approved" ? "said no to both biography and summary" : p.status === "returned" ? "sent back for changes" : "has not signed yet";
   const opts = (sel) => `<option value="">No presenter</option>` + shown.map((p) => `<option value="${esc(p.id)}"${p.id === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("");
   const agRow = (r, i) => `<div class="wsag" data-wsrow="${i}">
       <div class="wsag-top"><input type="time" data-k="time" aria-label="Starts" value="${esc(r.time)}"><span aria-hidden="true">–</span><input type="time" data-k="end" aria-label="Ends" value="${esc(r.end)}"></div>
@@ -5737,7 +5738,7 @@ function renderWebsite(ev, W) {
   const person = (p) => {
     const fr = p.web, frState = p.early ? "" : !fr.bioFr && p.bio ? `<span class="pill late">no French yet</span>` : fr.frReviewed ? `<span class="pill done">French reviewed</span>` : `<span class="pill">French not reviewed</span>`;
     return `<details class="wsp" data-wsp="${esc(p.id)}"><summary><b>${esc(p.name)}</b><span class="porg">${esc(p.organization)}</span>
-        <span class="wsp-tags">${p.early ? `<span class="pill late">not signed: name only</span>` : ""}${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${frState}</span></summary>
+        <span class="wsp-tags">${p.early ? `<span class="pill late">not signed: name only</span>` : ""}${p.bioConsent === "no" ? `<span class="pill">no bio: said no</span>` : p.bioConsent === "legacy" ? `<span class="pill">bio OK from earlier agreement</span>` : ""}${p.summary === false && !p.early ? `<span class="pill">no talk description: said no</span>` : ""}${frState}</span></summary>
       <div class="row2">${f(`t-${p.id}`, "Job title", fr.title, { ph: "Supervisory Criminal Intelligence Analyst", max: 160 })}${f(`tf-${p.id}`, "Job title in French", fr.titleFr, { ph: "Analyste principal du renseignement criminel", max: 160 })}</div>
       ${f(`gf-${p.id}`, "Organization in French", fr.orgFr, { ph: p.organization ? `Leave empty to show ${p.organization}` : "", max: 200 })}
       ${p.talk ? `<div class="field"><label>Talk</label><p class="said" style="margin:0">${esc(p.talk)}</p></div>${f(`kf-${p.id}`, "Talk title in French", fr.talkFr, { max: 300 })}` : ""}
