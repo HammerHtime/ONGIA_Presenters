@@ -58,6 +58,15 @@ ok("an unknown session is refused", (await fn(new Request("http://x/api/mcintros
 const pdf = await fn(new Request("http://x/api/mcintros?event=vic&pdf=1", { headers: H }));
 const bytes = Buffer.from(await pdf.arrayBuffer());
 ok("the MC script is a PDF named for the event", pdf.status === 200 && bytes.subarray(0, 4).toString() === "%PDF" && /western-symposium-mc-script\.pdf/.test(pdf.headers.get("content-disposition")));
+// A day and a time from the MC card (Andrew 14 Nov 2026: "there's no way for me to move her to a specific time slot").
+let pv2 = await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "pd", day: "2026-11-24", time: "09:30" }) }))).json();
+ok("Kim, with no day, is given Day 1 at 9:30: she moves to Day 1, and the survey's list stays as it was", pv2.sessions.findIndex((s) => s.id === "pd") === 1 && pv2.sessions[1].time === "09:30" && pv2.sessions[1].dayN === 1, JSON.stringify(pv2.sessions.map((s) => [s.id, s.day, s.time])));
+ok("…after Ana, whose talk has no time (an untimed talk keeps its place)", pv2.sessions[0].id === "s1");
+pv2 = await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "s1", time: "11:00" }) }))).json();
+ok("Ana at 11:00 now comes after Kim at 9:30", pv2.sessions[0].id === "pd" && pv2.sessions[1].id === "s1", JSON.stringify(pv2.sessions.map((s) => [s.id, s.time])));
+pv2 = await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "s2", day: "2026-11-24" }) }))).json();
+ok("moving a talk that's on the survey to Day 1 sets its day on the survey too", (await getEvent("vic")).survey.sessions.find((s) => s.id === "s2").day === "2026-11-24");
+ok("a time that isn't a time is ignored", (await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "s2", time: "soon" }) }))).json()).sessions.find((s) => s.id === "s2").time === "");
 const { writeFile } = await import("node:fs/promises");
 const { execFileSync } = await import("node:child_process");
 await writeFile((await import("node:os")).tmpdir() + "/mc-test.pdf", bytes);
