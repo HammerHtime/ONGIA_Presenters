@@ -27,7 +27,7 @@ const STYLE = {
   blue: { A: 20, B: 65, C: 66, D: 21, E: 22, F: 30, G: 23, H: 27, I: 9 },
   lastWhite: { A: 10, B: 67, C: 68, D: 11, E: 12, F: 28, G: 13, H: 29, I: 24 },
 };
-const CATEGORY = ["", "Advertising & Promotion", "Donations", "Insurance", "Memberships", "Officer & General", "Professional Fees", "Training & Development", "Travel", "Interest & Bank Charges", "Speaker Stipend"];
+const CATEGORY = ["", "Advertising & Promotion", "Donations", "Insurance", "Memberships", "Officer & General", "Professional Fees", "Training & Development", "Travel", "Interest & Bank Charges", "Stipend"];
 
 const x = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
 /** Excel's day number for a YYYY-MM-DD date. */

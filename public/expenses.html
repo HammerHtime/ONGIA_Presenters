@@ -263,8 +263,8 @@ const store = { get: (k) => { try { return localStorage.getItem(k); } catch { re
 // A speaker stipend is paid by ONGIA: no receipt, reason or card statement (Andrew, 3 Nov 2026). Category 10, as on the server.
 const STIPEND = 10;
 const stipendLine = (l) => Number(l?.category) === STIPEND;
-const NR_INTRO = ["For something you paid for without getting a receipt. Say why, and add a screenshot of the charge on your card statement. A speaker stipend needs neither: pick Speaker Stipend as the category.",
-  "A speaker stipend needs no receipt, no reason and no card statement. Fill in who it was paid to, the amount and the event."];
+const NR_INTRO = ["For something you paid for without getting a receipt. Say why, and add a screenshot of the charge on your card statement. A stipend needs neither: pick Stipend as the category.",
+  "A stipend needs no receipt, no reason and no card statement. Fill in who it was paid to, the amount and the event."];
 const dayName = (iso) => { const d = new Date(`${iso}T12:00:00`); return d.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) }); };
 // "12,50" is twelve fifty; "1,250.00" is twelve hundred and fifty.
 const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); return Number(/^\d+,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, "")); };
@@ -713,7 +713,7 @@ function checkRow(l) {
     case "nototal": return `<div class="check wt">No total on the receipt. Type the amount.</div>`;
     case "mileage": return `<div class="check mu">${esc(l.km ?? 0)} km × ${money(l.rate)}</div>`;
     case "statement": return `<div class="check mu">No receipt: reason and card statement added</div>`;
-    case "stipend": return `<div class="check mu">Speaker stipend: no receipt needed</div>`;
+    case "stipend": return `<div class="check mu">Stipend: no receipt needed</div>`;
     case "statement-missing": return "";
     default: return "";
   }
@@ -1454,7 +1454,7 @@ async function lineSheet(c, l) {
     ${sowMover(c, l)}
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
     ${l.dupe ? `<div class="card">${dupeRow(l)}<div class="note">${esc(l.dupe.why[0].toUpperCase() + l.dupe.why.slice(1))}. ${!c?.canEdit ? (l.dupe.level === "same" ? "If it's a resubmit, send the claim back." : "Compare the two. If it's a resubmit, send the claim back.") : l.dupe.level === "same" ? "It can't be claimed again. Remove it from this claim." : "If it's a different purchase, leave it: the people approving will see this and decide."}</div></div>` : ""}
-    ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Speaker stipend: no receipt needed</div></div>` : ""}
+    ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Stipend: no receipt needed</div></div>` : ""}
     ${l.kind === "noreceipt" && !stipendLine(l) ? `<div class="card"><div class="check wt">Amount not confirmed</div><div class="note">Compare ${esc(money(l.amount))} with the charge on the card statement${l.shot ? " above" : ""}.</div></div>
       <div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
   document.body.append(el);

@@ -19,7 +19,7 @@ const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-logo-taglin
 
 const W = 792, H = 612, M = 36;                    // Letter, landscape, in points
 const NAVY = "#1b2a4a", BLUE = "#2e5090", PALE = "#ebf0f7", INK = "#12161f", MUTED = "#4a5563", RULE = "#c7ccd6", GREEN = "#2f6b4f", AMBER = "#8a5d0c", GOLD = "#b8922a";
-const CATEGORY = ["", "Advertising & Promotion", "Donations", "Insurance", "Memberships", "Officer & General", "Professional Fees", "Training & Development", "Travel", "Interest & Bank Charges", "Speaker Stipend"];
+const CATEGORY = ["", "Advertising & Promotion", "Donations", "Insurance", "Memberships", "Officer & General", "Professional Fees", "Training & Development", "Travel", "Interest & Bank Charges", "Stipend"];
 const money = (n) => (Number(n) || 0).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const day = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "");
 
@@ -80,7 +80,7 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
   head();
   let sum = 0;
   lines.forEach((l, i) => {
-    const purpose = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "", l.kind === "mileage" ? `${l.km} km × ${money(l.rate)}${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "", l.kind === "noreceipt" ? (isStipend(l) ? "Speaker stipend: no receipt needed" : "No receipt: reason and card statement attached") : "", l.comment ? `Comment: ${l.comment}` : ""].filter(Boolean).join(" · ");
+    const purpose = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "", l.kind === "mileage" ? `${l.km} km × ${money(l.rate)}${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "", l.kind === "noreceipt" ? (isStipend(l) ? "Stipend: no receipt needed" : "No receipt: reason and card statement attached") : "", l.comment ? `Comment: ${l.comment}` : ""].filter(Boolean).join(" · ");
     doc.font("Helvetica").fontSize(8.5);
     const rh = Math.max(22, doc.heightOfString(purpose, { width: cols[7][1] * scale - 8 }) + 10, doc.heightOfString(l.paidTo ?? "", { width: cols[1][1] * scale - 8 }) + 10);
     if (y + rh > H - M - 40) { footer(); doc.addPage(); band("ONGIA Expense Reimbursement Submission (continued)"); y = 72; head(); }

@@ -25,7 +25,7 @@ import { todayIso } from "./deadlines.mjs";
 /** The ten categories on ONGIA's expense claim template, in its order and its words. */
 export const CATEGORIES = [
   [1, "Advertising & Promotion"], [2, "Donations"], [3, "Insurance"], [4, "Memberships"], [5, "Officer & General"],
-  [6, "Professional Fees"], [7, "Training & Development"], [8, "Travel"], [9, "Interest & Bank Charges"], [10, "Speaker Stipend"],
+  [6, "Professional Fees"], [7, "Training & Development"], [8, "Travel"], [9, "Interest & Bank Charges"], [10, "Stipend"],
 ];
 export const categoryName = (n) => CATEGORIES.find(([k]) => k === Number(n))?.[1] ?? "";
 export const TRAVEL = 8;
@@ -347,7 +347,7 @@ Report only what is printed on it. If something is not there, say null rather th
   7 Training & Development (courses, conference registrations)
   8 Travel (hotels, flights, trains, taxis and rideshare, parking, car rental, fuel, meals while travelling)
   9 Interest & Bank Charges
-  10 Speaker Stipend (payment to a presenter)
+  10 Stipend (payment to a presenter)
 - what: what was bought, in four words or fewer, plain and lower-key ("Hotel, 3 nights", "Airport parking", "Taxi").
 - ref: the receipt, invoice, transaction, booking or confirmation number printed on it (an airline's booking reference, a hotel's folio number), exactly as printed, or null. Not a phone number, a card number or a date.
 - confidence: "high" when the figures are sharp and clear; "low" when the picture is blurry, cut off, faded or handwritten.
@@ -583,7 +583,7 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
     receipts.length ? (matched === receipts.length ? (receipts.length === 1 ? "The receipt matches what's claimed" : `All ${receipts.length} receipts match what's claimed`) : `${matched} of ${receipts.length} receipts match what's claimed`) : "",
     miles.length ? `Mileage is at ${dollars(rate)} a kilometre` : "",
     noRec.length ? (noRec.length === 1 ? "The line with no receipt has a reason and the card statement" : `The ${noRec.length} lines with no receipt each have a reason and the card statement`) : "",
-    stipends.length ? (stipends.length === 1 ? "The speaker stipend needs no receipt" : `The ${stipends.length} speaker stipends need no receipt`) : "",
+    stipends.length ? (stipends.length === 1 ? "The stipend needs no receipt" : `The ${stipends.length} stipends need no receipt`) : "",
   ].filter(Boolean);
   return { ok: notes.length === 0, notes, summary };
 }
