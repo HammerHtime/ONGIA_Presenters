@@ -16,9 +16,9 @@ export const STANDARD_LETTER = `I am writing to recognize {name}, who presented 
 
 ONGIA is a volunteer-led non-profit that provides training to police, corrections staff, educators, social workers and community partners across Canada. Our training addresses a wide range of issues affecting community safety and the people working to improve it. We bring people together to share what they know, learn from one another and take practical ideas back to the communities they serve.
 
-Presenters like {first} make this work possible. Preparing and delivering a session takes time and effort, often alongside an already demanding workload. It means taking time away from regular duties and, in many cases, travelling to share knowledge and experience with others. We recognize that commitment and do not take it for granted.
+Presenters like {first} make this work possible. Preparing and delivering a session takes time and effort, often alongside an already demanding workload. It means taking time away from regular work commitments and, in many cases, travelling to share knowledge and experience with others. We recognize that commitment and do not take it for granted.
 
-The value of this training comes from people who do the work and are willing to share what they have learned. Those experiences give others a chance to ask questions, consider a different approach and make connections with people facing similar challenges. By contributing to this event, {first} helped create that opportunity for our participants.
+The value of this training comes from people like {first} who do the work and are willing to share what they have learned. Those experiences give others a chance to ask questions, consider a different approach and make connections with people facing similar challenges. By contributing to this event, {first} helped create that opportunity for our participants.
 
 We are grateful to {first} for their preparation, professionalism and willingness to contribute, and to {organization} for supporting their participation. That support helps us continue offering practical, relevant training across the country.
 
@@ -108,7 +108,6 @@ export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = n
   while (size > 10 && height(size) > room) size -= 0.5;
   let y = 132;
   doc.font("Times-Roman").fontSize(size).fillColor(ink).text(full(on), M, y); y = doc.y + size;
-  doc.text("To whom it may concern,", M, y); y = doc.y + size * 0.8;
   doc.font("Times-Bold").text(`Re: Letter of appreciation for ${v.name}${v.organization ? `, ${v.organization}` : ""}`, M, y, { width: BODY }); y = doc.y + size * 0.8;
   doc.font("Times-Roman");
   for (const t of paras) { doc.text(t, M, y, { width: BODY, lineGap: 1.5 }); y = doc.y + size * 0.8; }

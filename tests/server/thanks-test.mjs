@@ -53,7 +53,7 @@ ok("each carries their own letter of appreciation, a one-page PDF named for them
   if (process.env.LETTER_OUT) fs.writeFileSync(process.env.LETTER_OUT, Buffer.from(ana.files[0].content, "base64"));
   let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
   if (txt) {
-    ok("the letter: one page, to whom it may concern, her name, organization, talk, event, city and day", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && /To whom it may concern/.test(txt) && /Re: Letter of appreciation for Ana Diaz, CFSEU-BC/.test(txt)
+    ok("the letter: one page, no \"to whom it may concern\", her name, organization, talk, event, city and day", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && !/To whom it may concern/.test(txt) && /from people like Ana who do the work/.test(txt) && /regular work commitments/.test(txt) && /Re: Letter of appreciation for Ana Diaz, CFSEU-BC/.test(txt)
       && /who presented “Gangs in BC” at Western Symposium in Victoria, BC on Tuesday, November 24, 2026\./.test(txt) && /to CFSEU-BC for supporting/.test(txt) && /Andrew Hammond/.test(txt), txt.slice(0, 400));
   }
   const sam = sent.find((m) => m.to === "sam@x.ca");
