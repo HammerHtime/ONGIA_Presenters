@@ -566,6 +566,11 @@
   .sbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   .sbgrid .blk{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px 16px;min-width:0}
   .sbgrid .blk.wide{grid-column:1/-1;order:-1} .sbreg .sbin{width:100%!important;max-width:110px}
+  /* Two boxes in one cell (Virtual's second price and second count) each take their own width, side by side, never on
+     top of one another (Andrew 14 Nov 2026: "Overlap, numbers bunched up"). */
+  .sbreg .two{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}.sbreg .two .sbin{width:64px!important;max-width:64px}
+  .sbreg .two small{color:var(--muted);font-size:11.5px} .blk .two{display:inline-flex;gap:6px;white-space:nowrap}
+  .wixt table{table-layout:auto}.wixt select{min-width:132px}
   .sbgrid .blk h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:16px;font-weight:700;font-family:var(--fb)}
   .sbgrid .blk h3 .n{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12.5px;display:inline-flex;align-items:center;justify-content:center}
   .sbgrid .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--sunk);font-size:14px}
@@ -11087,8 +11092,11 @@ function sbxCalc(B) {
   const first = sbxDay(B.event.dayOne, -(B.hotel.before ?? 2)), last = sbxDay(B.event.lastDay, B.hotel.after ?? 2);
   const nights = []; for (let d = first; d <= last; d = sbxDay(d, 1)) nights.push(d);
   const R = B.reg, on = (k) => R[k]?.on;
-  const inPerson = (R.inPerson.expected || 0) + (on("earlyBird") ? R.earlyBird.expected || 0 : 0);
-  const community = on("community") ? R.community.expected || 0 : 0;
+  // The plan: what's expected, or, where nothing was typed, what has sold (Andrew 14 Nov 2026: the Summit read $0
+  // revenue with 573 registered, because no Expected was ever typed).
+  const plan = (k) => Number(R[k]?.expected) || Number(R[k]?.sold) || 0;
+  const inPerson = plan("inPerson") + (on("earlyBird") ? plan("earlyBird") : 0);
+  const community = on("community") ? plan("community") : 0;
   // The team that day: everyone with a room that night or the night before, and the others (security, sponsors, VIPs).
   const team = (iso) => B.people.filter((p) => p.nights.includes(iso) || p.nights.includes(sbxDay(iso, -1))).length + (Number(B.others) || 0);
   const regs = (iso) => (days.includes(iso) ? inPerson + (on("community") && R.community.days.includes(iso) ? community : 0) : 0);
@@ -11114,14 +11122,14 @@ function sbxCalc(B) {
   const reimburse = B.people.filter((p) => p.pays === "reimbursed").map((p) => ({ name: p.name, nights: p.nights.length, amount: p.nights.length * nightCost })).filter((x) => x.nights);
   // Registration, before HST when the prices include it.
   const lines = [];
-  if (on("inPerson")) lines.push(["In person", R.inPerson.price * R.inPerson.expected]);
-  if (on("earlyBird")) lines.push(["Early bird", R.earlyBird.price * R.earlyBird.expected]);
-  if (on("community")) lines.push(["Community", R.community.price * R.community.expected]);
-  if (on("virtual")) lines.push(["Virtual", R.virtual.price * R.virtual.expected + R.virtual.priceNon * R.virtual.expectedNon]);
-  if (on("memberships")) lines.push(["Memberships", R.memberships.price * R.memberships.expected]);
+  if (on("inPerson")) lines.push(["In person", R.inPerson.price * plan("inPerson")]);
+  if (on("earlyBird")) lines.push(["Early bird", R.earlyBird.price * plan("earlyBird")]);
+  if (on("community")) lines.push(["Community", R.community.price * plan("community")]);
+  if (on("virtual")) lines.push(["Virtual", R.virtual.price * plan("virtual") + (R.virtual.priceNon || 0) * (R.virtual.expectedNon || 0)]);
+  if (on("memberships")) lines.push(["Memberships", R.memberships.price * plan("memberships")]);
   const gross = lines.reduce((n, [, v]) => n + v, 0), hstF = 1 + B.hst / 100;
   const tickets = B.pricesIncludeHst ? gross / hstF : gross;
-  const virtualNet = on("virtual") ? (R.virtual.price * R.virtual.expected + R.virtual.priceNon * R.virtual.expectedNon) / (B.pricesIncludeHst ? hstF : 1) : 0;
+  const virtualNet = on("virtual") ? (R.virtual.price * plan("virtual") + (R.virtual.priceNon || 0) * (R.virtual.expectedNon || 0)) / (B.pricesIncludeHst ? hstF : 1) : 0;
   const pledged = B.sponsors.reduce((n, s) => n + (Number(s.amount) || 0), 0), received = B.sponsors.filter((s) => s.received).reduce((n, s) => n + (Number(s.amount) || 0), 0);
   const pickup = Number(B.hotel.pickup) || 0;
   const rebate = (Number(B.hotel.rebate) || 0) * (blockNights + pickup);
@@ -11137,7 +11145,7 @@ function sbxCalc(B) {
   const breakEven = margin > 0 ? Math.ceil(inPerson - profit / margin) : null;
   const toTarget = margin > 0 && B.target ? Math.max(0, Math.ceil((B.target - profit) / margin)) : null;
   const sold = (on("inPerson") ? R.inPerson.sold || 0 : 0) + (on("earlyBird") ? R.earlyBird.sold || 0 : 0) + (on("community") ? R.community.sold || 0 : 0) + (on("virtual") ? R.virtual.sold || 0 : 0) + (on("memberships") ? R.memberships.sold || 0 : 0);
-  const expected = inPerson + community + (on("virtual") ? (R.virtual.expected || 0) + (R.virtual.expectedNon || 0) : 0) + (on("memberships") ? R.memberships.expected || 0 : 0);
+  const expected = inPerson + community + (on("virtual") ? plan("virtual") + (R.virtual.expectedNon || 0) : 0) + (on("memberships") ? plan("memberships") : 0);
   const minNights = Math.ceil(B.hotel.commitment * B.hotel.minPct / 100);
   const fbBase = meals / ((1 + ((Number(M.service) || 0) + (Number(M.admin) || 0)) / 100) * hstF);
   const paid = B.deposits.filter((d) => d.paid).reduce((n, d) => n + (Number(d.amount) || 0), 0);
@@ -11319,8 +11327,10 @@ function sbxDraw() {
   const inp = (k, v, w = 96, ph = "") => `<input class="sbin" data-k="${k}" value="${v ?? ""}" placeholder="${ph}" inputmode="decimal" style="width:${w}px">`;
   // A kind sold on Wix shows Wix's price and sales, not a box to type them in (Andrew 30 Oct 2026).
   const wixd = (k) => !!R[k]?.fromWix?.length;
+  // A second, non-member price for virtual only where the event has one (the Summit doesn't; its boxes crowded the row).
+  const NONMEM = !!(Number(R.virtual?.priceNon) && R.virtual?.fromWixNon) || !!Number(R.virtual?.expectedNon) || (!wixd("virtual") && !!Number(R.virtual?.priceNon));
   const wixv = (v) => `<b>${v}</b> <span class="src s-wix">Wix</span>`;
-  const regRow = (k, label, extra = "") => (on(k) ? `<tr><td>${label}${wixd(k) && !(R[k].fromWix.length === 1 && sameish(R[k].fromWix[0], label.replace(/<[^>]*>.*$/, ""))) ? `<small class="wixof">${esc(R[k].fromWix.join(" · "))}</small>` : ""}</td><td>${wixd(k) ? wixv(money(R[k].price)) : inp(`reg.${k}.price`, R[k].price, 80)}${extra}</td><td>${inp(`reg.${k}.expected`, R[k].expected, 70)}${k === "virtual" ? ` + ${inp("reg.virtual.expectedNon", R.virtual.expectedNon, 56)}` : ""}</td><td>${wixd(k) ? wixv(R[k].sold) : inp(`reg.${k}.sold`, R[k].sold, 70)}</td></tr>` : "");
+  const regRow = (k, label, extra = "") => (on(k) ? `<tr><td>${label}${wixd(k) && !(R[k].fromWix.length === 1 && sameish(R[k].fromWix[0], label.replace(/<[^>]*>.*$/, ""))) ? `<small class="wixof">${esc([...new Set(R[k].fromWix)].join(" · "))}</small>` : ""}</td><td>${wixd(k) ? wixv(money(R[k].price)) : inp(`reg.${k}.price`, R[k].price, 80)}${extra}</td><td>${inp(`reg.${k}.expected`, R[k].expected, 70)}${k === "virtual" && NONMEM ? `<span class="two"><small>+ non-members</small>${inp("reg.virtual.expectedNon", R.virtual.expectedNon, 56)}</span>` : ""}</td><td>${wixd(k) ? wixv(R[k].sold) : inp(`reg.${k}.sold`, R[k].sold, 70)}</td></tr>` : "");
   const W = SBX_EV ? SBX_LIVE?.wix : null;
   const wixBlock = !W ? "" : W.problem ? `<div class="wixnote bad">${esc(W.problem)}</div>`
     : !W.tickets.length ? `<div class="wixnote">The Wix event has no ticket types yet. Once it does, their prices and sales come in here.</div>`
@@ -11333,13 +11343,13 @@ function sbxDraw() {
     <div class="blk"><h3><span class="n">2</span>Hotel rooms</h3>
       <div class="row"><span>Nightly rate <span class="src s-ct">contract</span></span>${inp("hotel.rate", B.hotel.rate)}</div>
       <div class="row"><span>Tax: HST % and MAT %</span><span>${inp("hst", B.hst, 56)} ${inp("hotel.mat", B.hotel.mat, 56)}</span></div>
-      <div class="row"><span>Room block <span class="src s-ct">contract</span></span><span>${inp("hotel.commitment", B.hotel.commitment, 70)} nights, ${inp("hotel.minPct", B.hotel.minPct, 50)}% minimum</span></div>
+      <div class="row"><span>Room block <small>nights · minimum %</small> <span class="src s-ct">contract</span></span><span class="two">${inp("hotel.commitment", B.hotel.commitment, 70)} ${inp("hotel.minPct", B.hotel.minPct, 50)}</span></div>
       <div class="row"><span>Attendees' nights so far <small>from the hotel's pick-up report</small></span>${inp("hotel.pickup", B.hotel.pickup, 80, "type it")}</div>
       <div class="row"><span>Rebate per paid night <span class="src s-ct">contract</span></span>${inp("hotel.rebate", B.hotel.rebate, 56)}</div>
       <div class="row tot"><span>Rooms ONGIA pays or reimburses</span><b>${C.paidNights} nights · ${money(C.rooms)}</b></div>${rcOn("rooms") ? `<div class="row"><span>Receipts so far</span><b>${money(rcOn("rooms"))}</b></div>` : ""}</div>
     <div class="blk wide"><h3><span class="n">1</span>Registration <button class="mini" id="sbx-q" style="margin-left:auto">Registration questions</button></h3>
       <table class="sbreg"><thead><tr><th></th><th>Price</th><th>Expected</th><th>Sold so far</th></tr></thead><tbody>
-        ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", ` / ${wixd("virtual") && R.virtual.fromWixNon ? wixv(money(R.virtual.priceNon)) : inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}`)}${regRow("memberships", "Memberships")}</tbody></table>
+        ${regRow("inPerson", "In person")}${regRow("earlyBird", "Early bird")}${regRow("community", `Community <small>${R.community.days.map(sbxShort).join(", ")}</small>`)}${regRow("virtual", "Virtual", NONMEM ? `<span class="two"><small>non-members</small>${wixd("virtual") && R.virtual.fromWixNon ? wixv(money(R.virtual.priceNon)) : inp("reg.virtual.priceNon", R.virtual.priceNon, 64)}</span>` : "")}${regRow("memberships", "Memberships")}</tbody></table>
       ${wixBlock}
       <div class="row"><span>Ticket prices include HST</span><span class="pbseg"><button type="button" data-flag="pricesIncludeHst" data-v="1" class="${B.pricesIncludeHst ? "on" : ""}">Yes</button><button type="button" data-flag="pricesIncludeHst" data-v="0" class="${B.pricesIncludeHst ? "" : "on"}">No</button></span></div>
       <div class="row tot"><span>Registration comes to</span><b>${money(C.gross)}${B.pricesIncludeHst ? ` <small>· ${money(C.tickets)} after HST</small>` : ""}</b></div></div>
