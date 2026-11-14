@@ -158,5 +158,15 @@ const sheet = readCsv("First name,Last name,Email,Checked in\nA,B,a@x.ca,Yes\nC,
 ok("an imported sheet's Checked in column is read", sheet.people[0].checkedIn === true && sheet.people[1].checkedIn === false);
 ok("a sheet without one says nothing about it", !("checkedIn" in readCsv("Name,Email\nA B,a@x.ca\n").people[0]));
 
+// Joining online (Andrew 14 Nov 2026: certificates go to "virtual and inperson"): an online registrant counts as attending.
+await putEvent({ id: "sum1", title: "Summit", city: "Toronto", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], wix: { eventId: "room" },
+  wixMore: [{ eventId: "zoom", group: "Virtual", online: true }] });
+await putAttendees("sum1", { people: [p("r1", "Rae", "Room", "TPS", "rr@x.ca", { wixEventId: "room", checkedIn: true }), p("r2", "Ned", "Noshow", "TPS", "nn@x.ca", { wixEventId: "room" }),
+  p("v1", "Val", "Online", "OPP", "vo@x.ca", { wixEventId: "zoom", group: "Virtual" }), p("v2", "Wes", "Gone", "OPP", "wg@x.ca", { wixEventId: "zoom", group: "Virtual", status: "WITHDRAWN" })] });
+const sv = (await call("event=sum1")).body;
+const st = Object.fromEntries(sv.people.map((x) => [x.first, x.checkedIn]));
+ok("online registrants count, door scans count, a no-show in the room and a withdrawn online one don't", st.Rae && st.Val && !st.Ned && !("Wes" in st), JSON.stringify(st));
+ok("the count says how many are online", sv.counts.checkedIn === 2 && sv.counts.virtual === 1, JSON.stringify(sv.counts));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

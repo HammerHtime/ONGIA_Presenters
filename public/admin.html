@@ -6804,7 +6804,7 @@ function renderCerts(ev, C) {
       <td><div class="certact">${certAct(p)}</div></td></tr>`;
   const tile = (n, what) => `<div class="certtile"><b>${n}</b><span>${what}</span></div>`;
   const thumb = !tpl ? "" : tpl.builtIn ? `<img src="${esc(tpl.thumb)}" alt="">` : `<img data-design="${esc(tpl.id)}" alt="">`;
-  box.innerHTML = `<div class="certtiles">${tile(C.counts.checkedIn, "Checked in")}${tile(live.length, "Issued")}${tile(ready, "Checked in, not issued yet")}${tile(withdrawn, "Withdrawn")}</div>
+  box.innerHTML = `<div class="certtiles">${tile(C.counts.checkedIn, C.counts.virtual ? `Checked in or online (${C.counts.virtual})` : "Checked in")}${tile(live.length, "Issued")}${tile(ready, "Checked in, not issued yet")}${tile(withdrawn, "Withdrawn")}</div>
     <div class="card certset"><div class="certthumb${tpl?.landscape ? " wide" : ""}">${thumb}</div>
       <div class="certf"><span class="certk">Design</span><b>${esc(tpl?.name ?? "")}</b>
         <span><button class="linkish" id="cert-change" aria-expanded="${CERT_PICK}">${CERT_PICK ? "Close the designs" : "Change"}</button>${WHO?.canCost ? ` · <button class="linkish" id="cert-manage">Manage designs ›</button>` : ""}</span></div>
