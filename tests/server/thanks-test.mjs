@@ -5,7 +5,7 @@ process.env.RESEND_API_KEY = "test-key"; process.env.APP_URL = "https://events.e
 delete process.env.MS_MAIL_FROM;
 const sent = [];
 globalThis.fetch = async (url, init) => {
-  if (String(url).startsWith("https://api.resend.com/")) { const p = JSON.parse(init.body); sent.push({ to: String(p.to), subject: p.subject, text: p.text, html: p.html }); return Response.json({ id: "m" + sent.length }); }
+  if (String(url).startsWith("https://api.resend.com/")) { const p = JSON.parse(init.body); sent.push({ to: String(p.to), subject: p.subject, text: p.text, html: p.html, files: p.attachments ?? [] }); return Response.json({ id: "m" + sent.length }); }
   throw new Error("unexpected fetch " + url);
 };
 const F = REPO + "netlify/functions/";
@@ -19,7 +19,7 @@ const ev = { id: "vic", title: "Western Symposium", city: "Victoria, BC", dayOne
   survey: { token: "t", sessions: [{ id: "s1", day: "2026-11-24", title: "Gangs in BC", presenters: ["Ana Diaz"] }, { id: "s2", day: "2026-11-24", title: "Tobacco", presenters: ["Sam Lee"] }] } };
 await S.putEvent(ev);
 const sub = (talk) => ({ talk, bio: "b", outline: "o", phone: "1" });
-await S.putPresenter({ id: "a", eventId: "vic", first: "Ana", last: "Diaz", email: "ana@x.ca", status: "approved", submission: sub("Gangs in BC") });
+await S.putPresenter({ id: "a", eventId: "vic", first: "Ana", last: "Diaz", email: "ana@x.ca", organization: "CFSEU-BC", status: "approved", submission: sub("Gangs in BC") });
 await S.putPresenter({ id: "b", eventId: "vic", first: "Sam", last: "Lee", email: "sam@x.ca", status: "submitted", submission: sub("") });
 await S.putPresenter({ id: "c", eventId: "vic", first: "Jo", last: "Ray", email: "jo@x.ca", status: "invited" });
 await S.putPresenter({ id: "d", eventId: "vic", first: "Old", last: "One", email: "old@x.ca", status: "withdrawn", submission: sub("Gone") });
@@ -46,6 +46,21 @@ ok("Jo, with no talk title, is thanked for presenting at the event", /thank you 
 const ana = sent.find((m) => m.to === "ana@x.ca");
 ok("greeted by first name, with their talk in quotes and the day", /Hi Ana,/.test(ana.text) && /thank you for presenting “Gangs in BC” at Western Symposium on Tuesday, November 24\./.test(ana.text), ana.text.slice(0, 300));
 ok("the subject names the event", ana.subject === "Thank you for presenting at Western Symposium");
+ok("each carries their own letter of appreciation, a one-page PDF named for them", ana.files.length === 1 && ana.files[0].filename === "ONGIA letter of appreciation - Ana Diaz.pdf" && Buffer.from(ana.files[0].content, "base64").subarray(0, 4).toString() === "%PDF");
+{
+  const { execFileSync } = await import("node:child_process"); const os = await import("node:os"); const fs = await import("node:fs");
+  const f = os.tmpdir() + "/ana-letter.pdf"; fs.writeFileSync(f, Buffer.from(ana.files[0].content, "base64"));
+  if (process.env.LETTER_OUT) fs.writeFileSync(process.env.LETTER_OUT, Buffer.from(ana.files[0].content, "base64"));
+  let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
+  if (txt) {
+    ok("the letter: one page, to whom it may concern, her name, organization, talk, event, city and day", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && /To whom it may concern/.test(txt) && /Re: Letter of appreciation for Ana Diaz, CFSEU-BC/.test(txt)
+      && /who presented “Gangs in BC” at Western Symposium in Victoria, BC on Tuesday, November 24, 2026\./.test(txt) && /to CFSEU-BC for supporting/.test(txt) && /Andrew Hammond/.test(txt), txt.slice(0, 400));
+  }
+  const sam = sent.find((m) => m.to === "sam@x.ca");
+  fs.writeFileSync(f, Buffer.from(sam.files[0].content, "base64"));
+  try { const t2 = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " ");
+    ok("no organization on file: \"their organization\", and no empty comma on the Re line", /Re: Letter of appreciation for Sam Lee Sincerely|Re: Letter of appreciation for Sam Lee I am/.test(t2) && /to their organization for supporting/.test(t2), t2.slice(0, 300)); } catch {}
+}
 ok("Andrew's words are in it", /That kind of generosity is what ONGIA runs on/.test(ana.text) && /With gratitude,/.test(ana.text));
 const again = await T.sendThanksRound(ev, { now: new Date("2026-11-25T17:20:00Z"), pace: async () => {} });
 ok("nobody gets it twice", again.sent === 0 && sent.length === 3);
@@ -71,6 +86,16 @@ const t = await call("&test=1", "POST", { to: "me@x.ca" });
 ok("a test goes to the address given, marked TEST", t.status === 200 && sent.at(-1).to === "me@x.ca" && /^TEST: /.test(sent.at(-1).subject));
 const now = await (await call("&send=1", "POST", {})).json();
 ok("Send now: only Kim, added since, is owed and gets it; the others don't again", now.sent === 1 && sent.at(-1).to === "kim@x.ca", JSON.stringify(now.sent));
+v = await (await call("", "PUT", { letter: "Thanks to {name} of {organisation}." })).json();
+ok("a letter blank that isn't one is refused", v.error && /organisation/.test(v.error), JSON.stringify(v).slice(0, 200));
+v = await (await call("", "PUT", { letterOff: true })).json();
+ok("the letter switched off for this event", v.letterOn === false);
+const t2 = await call("&test=1", "POST", { to: "me@x.ca" });
+ok("then the test goes without it", t2.status === 200 && sent.at(-1).files.length === 0);
+const pdf = await call("&letter=a");
+ok("one presenter's letter downloads as a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && /Ana Diaz/.test(pdf.headers.get("content-disposition")));
+const sig = await fn(new Request("http://x/api/attmail?kind=signature", { method: "PUT", headers: H, body: JSON.stringify({ png: Buffer.from("not a png").toString("base64") }) }));
+ok("the signature store takes only a PNG", sig.status === 400);
 v = await (await call("", "PUT", { off: true })).json();
 ok("switched off", v.on === false && (await emailSchedule({ ...(await S.getEvent("vic")) }, "2026-11-14")).find((x) => x.what === "Presenter thank-you") === undefined);
 ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&kind=thanks"))).status === 401);

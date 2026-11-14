@@ -1,4 +1,5 @@
-import { listPresenters, putPresenter } from "./store.mjs";
+import { listPresenters, putPresenter, getMeta } from "./store.mjs";
+import { appreciationPdf, letterFileName, STANDARD_LETTER } from "./appreciation.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { mcSessions } from "./mcintro.mjs";
@@ -34,6 +35,20 @@ With gratitude,`,
 };
 
 export const thanksOn = (event) => event.presenterThanks?.off !== true;
+/** The letter of appreciation goes with it unless switched off for the event; its words, as saved or the standard. */
+export const letterOn = (event) => event.presenterThanks?.letterOff !== true;
+export const letterWords = (event) => event.presenterThanks?.letter || STANDARD_LETTER;
+/** Andrew's signature image, from the desk's own store (never the public repository). */
+export const SIGNATURE_KEY = "letter-signature";
+export async function signatureImage() {
+  const s = await getMeta(SIGNATURE_KEY).catch(() => null);
+  return s?.png ? Buffer.from(s.png, "base64") : null;
+}
+/** The letter for one presenter, as an email attachment. */
+export async function letterAttachment(event, v, { signature, on } = {}) {
+  const content = await appreciationPdf(event, v, { body: letterWords(event), signature, on });
+  return { filename: letterFileName(v), content, contentType: "application/pdf" };
+}
 
 /** The words: as saved on the event, or the standard. */
 export function thanksWords(event) {
@@ -62,7 +77,7 @@ export function thanksPeople(event, presenters) {
   return presenters.filter((p) => p.status !== "withdrawn").map((p) => {
     const s = sessions.find((x) => x.people.some((q) => q.id === p.id));
     return {
-      id: p.id, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", status: p.status,
+      id: p.id, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", status: p.status, organization: String(p.organization ?? "").trim(),
       talk: String(p.submission?.talk || s?.title || "").trim(), talkDay: s?.day || "",
       in: included(p), pick: p.thanksPick ?? "", sentAt: p.thanked?.at ?? null, why: p.thanked?.why ?? "",
     };
@@ -90,12 +105,14 @@ export async function sendThanksRound(event, { deadline = null, pace = pacer(), 
   const owed = view.filter((v) => (only ? v.id === only && v.email : v.in && !v.sentAt && (force || !v.why)));
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
+  const signature = letterOn(event) && owed.length ? await signatureImage() : null;
   for (const v of owed) {
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     const p = presenters.find((x) => x.id === v.id);
     try {
-      const out = await sendMail({ to: v.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, v) });
+      const attachments = letterOn(event) ? [await letterAttachment(event, v, { signature })] : [];
+      const out = await sendMail({ to: v.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, v), attachments });
       if (out.skipped) throw new Error(out.reason);
       p.thanked = { at: new Date().toISOString() };
       sent++;

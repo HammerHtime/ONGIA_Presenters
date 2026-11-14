@@ -8,7 +8,9 @@ import { getAttendees } from "./lib/store.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./lib/letters.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
-import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, STANDARD as THANKS_STANDARD, THANKS_AT } from "./lib/thanks.mjs";
+import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, STANDARD as THANKS_STANDARD, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, SIGNATURE_KEY } from "./lib/thanks.mjs";
+import { STANDARD_LETTER, letterWordsProblems, appreciationPdf, letterFileName } from "./lib/appreciation.mjs";
+import { putMeta } from "./lib/store.mjs";
 import { listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
 import { zoneOf } from "./lib/surveysend.mjs";
 import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage } from "./lib/message.mjs";
@@ -35,12 +37,26 @@ import { messageGroups, groupPeople, messagePeople, messageProblems, messageLett
  *   PUT  /api/attmail?event=…&kind=thanks                     { subject, body, standard, off } save it; { id, pick: yes|no|"" } one presenter in or out
  *   POST /api/attmail?event=…&kind=thanks&preview=1|test=1    the email as it would go / a test, marked TEST
  *   POST /api/attmail?event=…&kind=thanks&send=1[&id=…]       send now to everyone still owed it (or to one presenter); says how many are left
+ *   GET  /api/attmail?event=…&kind=thanks&letter=<id>|sample  that presenter's letter of appreciation, as a PDF
+ *        (PUT also takes { letter, letterStandard, letterOff } for the letter's words and whether it goes)
+ *   PUT  /api/attmail?kind=signature                          { png } the President's signature image, kept in the desk's store
  */
 export default async (req) => {
   await primeRoster();
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   const url = new URL(req.url);
+  // The President's signature for the letters of appreciation (Andrew 14 Nov 2026: "you can use my signature"). In the
+  // desk's own store, not the repository, which is public.
+  if (url.searchParams.get("kind") === "signature") {
+    if (req.method === "GET") return json({ saved: !!(await signatureImage()) });
+    if (req.method !== "PUT") return fail("Not allowed.", 405);
+    const b = await req.json().catch(() => ({}));
+    const png = Buffer.from(String(b.png ?? ""), "base64");
+    if (png.length < 100 || png.length > 500000 || png.subarray(1, 4).toString() !== "PNG") return fail("Send the signature as a PNG.");
+    await putMeta(SIGNATURE_KEY, { png: png.toString("base64"), at: new Date().toISOString(), by: adminWho(req)?.email ?? "the desk key" });
+    return json({ saved: true });
+  }
   const event = await getEvent(url.searchParams.get("event"));
   if (!event) return fail("No such event.", 404);
   const kind = url.searchParams.get("kind");
@@ -188,8 +204,20 @@ async function thanks(req, event, url) {
     const people = thanksPeople(event, await listPresenters(event.id));
     const letter = thanksLetter(event);
     return json({ ...thanksWords(event), standard: !event.presenterThanks?.body, on: thanksOn(event), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
-      replyTo: attendeeReplyTo(event) ?? "", people, problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event)])] });
+      replyTo: attendeeReplyTo(event) ?? "", people, problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event), ...letterWordsProblems(letterWords(event))])],
+      letter: letterWords(event), letterStandard: !event.presenterThanks?.letter, letterOn: letterOn(event), signature: !!(await signatureImage()),
+      noOrg: people.filter((p) => p.in && !p.organization).map((p) => `${p.first} ${p.last}`.trim()) });
   };
+  // One presenter's letter (or a sample), as a PDF to look at or print.
+  if (req.method === "GET" && url.searchParams.get("letter")) {
+    const id = url.searchParams.get("letter");
+    const people = thanksPeople(event, await listPresenters(event.id));
+    const v = id === "sample" ? (people.find((p) => p.in && p.talk) ?? people[0] ?? { first: "Dana", last: "Sample", talk: "Gangs in the Lower Mainland", organization: "Example Police Service" }) : people.find((p) => p.id === id);
+    if (!v) return fail("No such presenter.", 404);
+    const words = url.searchParams.get("words");
+    const pdf = await appreciationPdf(event, v, { body: words || letterWords(event), signature: await signatureImage(), on: v.sentAt?.slice(0, 10) || undefined });
+    return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="${letterFileName(v).replace(/"/g, "")}"`, "cache-control": "no-store" } });
+  }
   if (req.method === "GET") return view();
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
@@ -213,6 +241,15 @@ async function thanks(req, event, url) {
       Object.assign(next, words);
     }
     if (body.off === true) next.off = true; else if (body.off === false) delete next.off;
+    // The letter of appreciation: its words (kept only when changed from the standard) and whether it goes.
+    if (body.letterStandard === true) delete next.letter;
+    else if (body.letter !== undefined) {
+      const w = String(body.letter).replace(/\r/g, "").slice(0, 8000);
+      const wrong = letterWordsProblems(w);
+      if (wrong.length) return fail(wrong[0], 409);
+      if (w.trim() === STANDARD_LETTER.trim()) delete next.letter; else next.letter = w;
+    }
+    if (body.letterOff === true) next.letterOff = true; else if (body.letterOff === false) delete next.letterOff;
     event.presenterThanks = next;
     event.updatedAt = new Date().toISOString();
     await putEvent(event);
@@ -229,7 +266,9 @@ async function thanks(req, event, url) {
     const wrong = [...letterProblems(letter), ...eventProblems(letter, event)];
     if (wrong.length) return fail(wrong[0], 409);
     const m = renderLetter(letter, event, sample);
-    const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}` }).catch((e) => ({ skipped: true, reason: e.message }));
+    // With the letter attached, as the presenter will get it.
+    const attachments = letterOn(event) ? [await letterAttachment(event, sample, { signature: await signatureImage() })] : [];
+    const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}`, attachments }).catch((e) => ({ skipped: true, reason: e.message }));
     if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
     return json({ sent: true, to });
   }
