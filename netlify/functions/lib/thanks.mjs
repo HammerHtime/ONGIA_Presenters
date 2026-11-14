@@ -13,8 +13,8 @@ import { pacer, timeLeft } from "./bulk.mjs";
  * zone on the day after the last day, and only that day: an event that ended before this was built is not thanked
  * out of the blue. A day missed is sent with Send now.
  *
- * Who: every presenter with an address who hasn't withdrawn. Someone only invited (never signed) is left out unless
- * added on the card; anyone can be skipped there. Each is marked on their own record the moment theirs goes.
+ * Who: every presenter with an address who hasn't withdrawn, signed or not (Andrew 14 Nov 2026: "send to every
+ * presenter agreement, not just the ones who signed"); anyone can be skipped on the card. Each is marked on their own record the moment theirs goes.
  */
 export const STANDARD = {
   subject: "Thank you for presenting at {event}",
@@ -47,12 +47,10 @@ const plusDay = (iso) => new Date(Date.parse(`${iso}T12:00:00Z`) + 86400000).toI
 export const thanksDay = (event) => { const end = event.lastDay || event.dayOne; return /^\d{4}-\d{2}-\d{2}$/.test(end ?? "") ? plusDay(end) : ""; };
 export const THANKS_AT = "09:00";
 
-/** Whether a presenter is on the list: picked on the card, or else by where their agreement stands. */
+/** Whether a presenter is on the list: everyone with an address who hasn't withdrawn, unless skipped on the card. */
 export function included(p) {
   if (p.status === "withdrawn" || !p.email) return false;
-  if (p.thanksPick === "yes") return true;
-  if (p.thanksPick === "no") return false;
-  return p.status !== "invited";
+  return p.thanksPick !== "no";
 }
 
 /**
