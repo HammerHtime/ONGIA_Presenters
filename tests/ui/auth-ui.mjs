@@ -90,8 +90,12 @@ for (const [w, hgt, tag] of [[1440, 900, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: the Microsoft button leads, the key is tucked away`, await page.isVisible("#ms") && !(await page.isVisible("#k")));
   await page.click("#ms");
   await page.waitForSelector(".evcard, .empty", { timeout: 8000 });
+  // ".empty" can match the page's own "Loading…" placeholder, before the sign-in has finished: #whoami is only
+  // filled once the session is set. Wait for it, so neither check below reads the page too early.
+  await page.waitForFunction(() => /Signed in as/.test(document.getElementById("whoami")?.textContent ?? ""), null, { timeout: 5000 }).catch(() => {});
   ok(`${tag}: back from Microsoft and on the desk, with the address cleaned up`, !page.url().includes("code=") && page.url().endsWith("/admin.html"), page.url());
-  ok(`${tag}: it says who is signed in`, /Signed in as Andrew Hammond \(president@ongia\.ca\)/.test(await page.textContent("#whoami")));
+  const whoText = await page.textContent("#whoami");
+  ok(`${tag}: it says who is signed in`, /Signed in as Andrew Hammond \(president@ongia\.ca\)/.test(whoText), JSON.stringify(whoText));
   ok(`${tag}: nothing runs off the side`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.click("#admin"); await page.waitForSelector(".deskline");
   await page.screenshot({ path: OUT + `roster-${tag}.png`, fullPage: true });
