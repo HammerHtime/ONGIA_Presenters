@@ -5773,7 +5773,7 @@ function renderWebsite(ev, W) {
     <div class="actions" style="margin-top:16px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="ws-save">Save website details</button><span class="svnote">Changes save as you type. The website changes only when you press Update website.</span>
       ${!last ? `<button type="button" class="btn btn-ghost" id="ws-fill">Bring over what the website shows today</button>` : ""}</div>
     <h3 class="wsh">Presenters on the website <span class="porg">· ${shown.length} of ${W.presenters.length}</span></h3>
-    <p class="hint" style="margin:0 0 10px">Only presenters who signed and said yes to their summary on public platforms. No headshots and never contact details.</p>
+    <p class="hint" style="margin:0 0 10px">Presenters who signed and said yes, for public use, to their biography or their summary. Their talk title and description only with a yes to the summary. No headshots and never contact details.</p>
     ${shown.length ? shown.map(person).join("") : `<p class="said">Nobody yet.</p>`}
     ${shown.some((p) => !p.web.bioFr && p.bio) ? `<button type="button" class="mini" id="ws-draftall" style="margin-top:8px">Draft the missing French for everyone</button>` : ""}
     ${hidden.length ? `<p class="porg" style="margin-top:12px"><b>Not on the website:</b> ${hidden.map((p) => `${esc(p.name)} (${why(p)})`).join(", ")}.</p>` : ""}
