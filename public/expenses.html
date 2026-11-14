@@ -1240,7 +1240,7 @@ function viewScreen(target = ROOT) {
   const flags = c.status !== "draft" ? c.checks?.flags ?? {} : {};
   h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id, flags[l.id])).join("")}</div>`;
   if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, transaction number ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
-  if (c.can.del) h += `<div style="margin-top:14px">${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
+  if (c.can.del && (!mine || !["draft", "rejected"].includes(c.status))) h += `<div style="margin-top:14px"><button class="btn danger" id="delthis" type="button">Delete this claim</button></div>`;
   target.innerHTML = h;
   target.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
   // Tapping a note goes to its line, lit up for a moment.
@@ -1278,7 +1278,7 @@ function viewScreen(target = ROOT) {
     try { const out = await api(`?refile=${c.id}`, { method: "POST" }); OPEN = out.claim; toast("Filing it again. This takes a few seconds."); setTimeout(() => { if ((VIEW.name === "view" || VIEW.sel === c.id) && OPEN?.id === c.id) openClaim(c.id, { push: false, fresh: false }); }, 6000); }
     catch (er) { e.currentTarget.disabled = false; if (!er.quiet) toast(er.message, true); }
   };
-  if ($("delthis")) $("delthis").onclick = async () => { if (!confirm("Delete this test claim and its receipts?")) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); if (target !== ROOT) { OPEN = null; VIEW = { name: TAB }; } await loadHome(); if (target === ROOT) history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
+  if ($("delthis")) $("delthis").onclick = async () => { if (!confirm(`Delete ${c.owner?.name || "this"}'s ${c.month || ""} claim (${money(c.sums?.total ?? 0)})${c.status === "paid" ? ", which has been paid," : ""} with its receipts${c.filed?.folder ? " and its copy in SharePoint" : ""}?\n\nThis can't be undone.`)) return; try { await api(`?claim=${c.id}`, { method: "DELETE" }); toast("Deleted."); if (target !== ROOT) { OPEN = null; VIEW = { name: TAB }; } await loadHome(); if (target === ROOT) history.back(); } catch (e) { if (!e.quiet) toast(e.message, true); } };
 }
 /** Where the claim is filed in the Treasurer's folders on SharePoint, or why it isn't. */
 function filedCard(c) {
@@ -1608,10 +1608,8 @@ function splitScreen(kind) {
 function presidentCards(tests) {
   if (HOME.me.role !== "president") return "";
   const bt = HOME.boardTest;
-  // Testing is over (14 Nov 2026): these show only while something is left to tidy, a test claim or the board test on.
-  const left = tests || (HOME.all ?? []).some((c) => c.test || c.trial);
-  return `${left ? `<div class="card" style="margin-top:10px"><div class="k">Test claims</div><p class="note" style="margin:4px 0 10px">Left over from testing${tests ? `: ${tests} sent, plus any still being built` : ""}. Real claims aren't touched.</p>
-      <button class="btn danger" id="purge" type="button" style="border:1.5px solid var(--late)">Delete all test claims</button></div>` : ""}
+  // Testing is over (14 Nov 2026). Claims are deleted one at a time, by the President, from each claim's own screen.
+  return `
     ${bt?.on ? `<div class="card" id="boardcard"><div class="k">Board test</div>
       <p class="note" style="margin:4px 0 10px">Still on since ${esc(new Date(bt.since).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" }))}: every claim sent is marked BOARD TEST, so nobody pays one. Turn it off.</p>
       <button class="btn gold" id="bttoggle" type="button">Turn the board test off</button></div>` : ""}`;

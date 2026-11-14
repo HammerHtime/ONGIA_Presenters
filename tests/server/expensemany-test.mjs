@@ -49,5 +49,13 @@ ok("sending one leaves the other in front, still open", sent.status === 200 && (
 for (let i = 0; i < 6; i++) { const n = await call("/api/expenses?new=1", "POST", undefined, DEREK); if (n.working) await mileage(W(DEREK, n.working), 5); }
 ok("up to six open at once; a seventh is refused with why", (await call("/api/expenses?new=1", "POST", undefined, DEREK)).status === 409);
 
+// Deleting a sent claim (Andrew 14 Nov 2026: he decides, claim by claim, which were tests): the President only.
+const VPs = as("vp_operations@ongia.ca", "Jacqulyn Taylor"), PRESs = as("president@ongia.ca", "Andrew Hammond");
+ok("the VP can't delete someone's sent claim", (await call(`/api/expenses?claim=${A}`, "DELETE", undefined, VPs)).status === 403);
+ok("Derek can't delete his own claim once it's sent", (await call(`/api/expenses?claim=${A}`, "DELETE", undefined, DEREK)).status === 409 || (await call(`/api/expenses?claim=${A}`, "DELETE", undefined, DEREK)).status === 403);
+ok("the President sees Delete on it", (await call(`/api/expenses?claim=${A}`, "GET", undefined, PRESs)).claim.can.del === true);
+const gone = await call(`/api/expenses?claim=${A}`, "DELETE", undefined, PRESs);
+ok("and deleting it removes it", gone.status === 200 && !(await S.getClaim(A)), JSON.stringify(gone).slice(0, 200));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
