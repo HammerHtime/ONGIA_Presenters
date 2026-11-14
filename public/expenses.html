@@ -43,6 +43,7 @@
   [hidden]{display:none!important}
   .top{position:sticky;top:0;z-index:5;background:var(--navy-deep);color:#fff;border-bottom:3px solid var(--gold);padding:calc(10px + var(--safe-top)) 14px 10px;display:flex;align-items:center;gap:8px;min-height:54px}
   .top h1{font-family:var(--fd);font-weight:400;font-size:21px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .linkish.sheetback{display:block;margin:0 0 8px;padding:6px 0;font-weight:600;font-size:15px;text-align:left}
   .back{background:none;border:0;color:#fff;font-size:26px;line-height:1;padding:4px 10px 6px 2px;cursor:pointer;opacity:.9}
   .top .me{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:999px;width:34px;height:34px;font-size:12.5px;font-weight:700;letter-spacing:.04em;cursor:pointer;flex:none}
   .menu{position:absolute;right:12px;top:calc(100% + 6px);background:#fff;color:var(--ink);border:1px solid var(--edge);border-radius:12px;box-shadow:0 10px 30px rgba(14,26,53,.18);padding:12px 14px;width:260px;font-size:14px}
@@ -1458,7 +1459,7 @@ async function lineSheet(c, l) {
   const head = l.kind === "mileage" ? "Mileage" : l.paidTo || "Receipt";
   // On the laptop the phone's navy bar is hidden, so the line gets the desk's own band with a Back (Andrew, 8 Nov 2026).
   el.innerHTML = `${DESK ? `<div class="dband alone sheethead"><div><button class="dback" type="button" data-close>‹ Back to the claim</button><h2>${esc(head)}</h2></div></div>` : `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(head)}</h1></header>`}
-    <main>${c?.status !== "draft" && c?.checks?.flags?.[l.id] ? `<div class="say bad" style="margin:0 0 12px"><b>⚠ ${esc(c.checks.flags[l.id])}</b></div>` : ""}${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
+    <main>${DESK ? "" : `<button class="linkish sheetback" type="button" data-close>‹ Back to the claim</button>`}${c?.status !== "draft" && c?.checks?.flags?.[l.id] ? `<div class="say bad" style="margin:0 0 12px"><b>⚠ ${esc(c.checks.flags[l.id])}</b></div>` : ""}${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
@@ -1470,7 +1471,8 @@ async function lineSheet(c, l) {
       <div class="card"><div class="k">Why there's no receipt</div><div class="note quote">${esc(l.statement)}</div></div>` : ""}</main>`;
   document.body.append(el);
   history.pushState({ sheet: true }, "");
-  el.querySelector("[data-close]").onclick = () => history.back();
+  // A Back on the page itself as well as the arrow in the bar, which is easy to miss on a wide screen (Andrew 14 Nov 2026).
+  el.querySelectorAll("[data-close]").forEach((b) => { b.onclick = () => history.back(); });
   wireSowMover(el);
   const kind = l.kind === "noreceipt" ? "shot" : "file";
   if (!el.querySelector("#sheetpic")) return;
