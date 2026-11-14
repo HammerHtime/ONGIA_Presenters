@@ -15,10 +15,10 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 await fetch(`${S}/api/roster`, { headers: { "x-admin-key": "testkey" } });
 
-// A member's claim, sent: a mileage line and a receipt. It waits on the President and the Treasurer.
+// A member's claim, sent: a mileage line and a receipt. It waits on the President and the VP of Operations.
 const J = issueExpenseSession({ email: "j.healy@ongia.ca", name: "John Healy" });
 const P = issueExpenseSession({ email: "president@ongia.ca", name: "Andrew Hammond" });
-const T = issueExpenseSession({ email: "treasurer@ongia.ca", name: "Raj Jaswal" });
+const V = issueExpenseSession({ email: "vp_operations@ongia.ca", name: "Jacqulyn Taylor" });
 const xapi = async (key, p, json, method) => (await fetch(S + "/api/expenses" + p, { method: method ?? (json ? "POST" : "GET"), headers: { "x-expense-key": key, "content-type": "application/json" }, body: json ? JSON.stringify(json) : undefined })).json();
 const day = (n) => todayIso(new Date(Date.now() - n * 86400e3));
 const m = await xapi(J, "?add=mileage", { date: day(2), from: "Barrie", to: "Toronto", km: 50, purpose: "Drive to the training" });
@@ -124,7 +124,7 @@ await rail.p.locator("#side").screenshot({ path: D + "desk-expenses-rail.png" })
 await rail.ctx.close();
 
 // Tidy up: the claims made here would otherwise sit in To approve, or on My claim, for the tests that run after this one.
-await xapi(T, `?decide=${m.claim.id}`, { decision: "reject", comment: "Test claim, removed." });
+await xapi(V, `?decide=${m.claim.id}`, { decision: "reject", comment: "Test claim, removed." });
 const gone = await fetch(`${S}/api/expenses?claim=${m.claim.id}`, { method: "DELETE", headers: { "x-expense-key": J } });
 ok("the test's claim is sent back and deleted, so nothing waits on the President", gone.status === 200, String(gone.status));
 if (mine?.id && before === 0) await fetch(`${S}/api/expenses?claim=${mine.id}`, { method: "DELETE", headers: { "x-expense-key": P } });
