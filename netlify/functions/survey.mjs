@@ -91,8 +91,21 @@ export default async (req) => {
       return show(event);
     } catch (e) { return fail(e.message, 503); }
   }
+  // Claude's read runs in the background (survey-analyse-background): with hundreds of answers it outlasts a request
+  // (the Summit, 14 Nov 2026: a 504). The page asks for the results until it lands.
   if (req.method === "POST" && url.searchParams.get("analyse")) {
     if (!event.survey) return fail("Set up the survey first.", 409);
+    const origin = process.env.APP_URL || process.env.URL;
+    let started = false;
+    if (origin && process.env.ADMIN_KEY) {
+      event.survey = { ...event.survey, reading: { state: "running", at: new Date().toISOString() } };
+      await putEvent(event);
+      try { started = (await fetch(`${origin}/api/survey-analyse-background?event=${encodeURIComponent(event.id)}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY } })).status === 202; }
+      catch (e) { console.log(`survey read not started: ${e.message}`); }
+      if (started) return json({ started: true, reading: event.survey.reading });
+      const { reading, ...rest } = event.survey; event.survey = rest;
+    }
+    // No background to hand it to (a local copy): read it here.
     try {
       const R = await resultsOf(event);
       event.survey = { ...event.survey, analysis: await analyseSurvey(event, R) };
@@ -166,7 +179,7 @@ async function results(event, who = "", day = "") {
   const inDay = byDay(all, day);
   const counts = { all: inDay.length, justice: byWho(inDay, "justice").length, partner: byWho(inDay, "partner").length,
     days: Object.fromEntries(trainingDays(event).map((d) => [d, byDay(byWho(all, who), d).length])) };
-  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", day: isDay(day) ? day : "", daily: event.survey.mode === "daily", counts, analysis: event.survey.analysis ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
+  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", day: isDay(day) ? day : "", daily: event.survey.mode === "daily", counts, analysis: event.survey.analysis ?? null, reading: event.survey.reading ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
 async function download(event, which, url = null) {
@@ -338,6 +351,6 @@ async function testSend(event, to, part, who, partner = false) {
 
 
 /** The survey's numbers, with the agencies the event's registrations came from. */
-async function resultsOf(event, responses = null) {
+export async function resultsOf(event, responses = null) {
   return surveyResults(event, responses ?? await getSurveyResponses(event.id), await directory(), ((await getAttendees(event.id)) ?? {}).people ?? []);
 }

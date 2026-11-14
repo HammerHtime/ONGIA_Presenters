@@ -7733,11 +7733,30 @@ function renderResults(ev, D) {
     try { await api(`${q}&clear=1`, { method: "POST", body: JSON.stringify({ confirm: typed.trim().toUpperCase() }) }); toast("All answers cleared."); loadResults(ev); }
     catch (x) { toast(x.message); }
   };
-  $("rs-analyse").onclick = async (e) => {
-    const done = busy(e.target, "Claude is reading… (up to a minute)");
-    try { const out = await api(`${q}&analyse=1`, { method: "POST", body: "{}" }); renderResults(ev, { ...D, analysis: out.analysis }); toast("Claude has read the results."); }
-    catch (x) { toast(x.message); done(); }
+  // Claude reads on the server; the page checks every 10 seconds until the read lands (or fails), for up to 6 minutes.
+  const waitForRead = async (btn, was) => {
+    for (let i = 0; i < 36; i++) {
+      await new Promise((r) => setTimeout(r, 10000));
+      if (!document.body.contains(btn)) return;
+      const now = await api(`${q}&results=1${wq}`).catch(() => null);
+      if (!now) continue;
+      if (now.reading?.state === "failed") { toast(now.reading.why || "Claude could not read the results. Try again."); btn.disabled = false; btn.textContent = was; return; }
+      if (now.analysis?.at && now.analysis.at !== was0) { renderResults(ev, now); toast("Claude has read the results."); return; }
+    }
+    toast("Claude is taking longer than usual. Look again in a few minutes."); btn.disabled = false; btn.textContent = "Ask Claude again";
   };
+  const was0 = A?.at ?? "";
+  $("rs-analyse").onclick = async (e) => {
+    const btn = e.target, was = btn.textContent;
+    const done = busy(btn, "Claude is reading… (a minute or two)");
+    try {
+      const out = await api(`${q}&analyse=1`, { method: "POST", body: "{}" });
+      if (out.analysis) { renderResults(ev, { ...D, analysis: out.analysis }); toast("Claude has read the results."); return; }
+      waitForRead(btn, was);
+    } catch (x) { toast(x.message); done(); }
+  };
+  // Reopened while a read is under way (started in the last 10 minutes): keep waiting for it.
+  if (D.reading?.state === "running" && Date.now() - Date.parse(D.reading.at) < 600000) { const b = $("rs-analyse"); if (b) { const was = b.textContent; b.disabled = true; b.textContent = "Claude is reading…"; waitForRead(b, was); } }
   const fetchHtml = async (block = "") => {
     const res = await apiFetch(`/api${q}&infographic=1&lang=${RS_LANG}${block ? `&block=${block}` : ""}${wq}`, { headers: { "x-admin-key": KEY } });
     if (res.status === 404) return null;
