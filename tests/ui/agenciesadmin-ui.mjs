@@ -117,7 +117,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
     const added = p.locator(`[data-agrow="Test Agency ${T}"]`);
     ok("Add an agency: on the list with its province, French name and domain", /Ontario/.test(await added.innerText()) && /Agence d'essai/.test(await added.innerText()) && /testagency\.ca/.test(await added.innerText()), await added.innerText());
     const [dl] = await Promise.all([p.waitForEvent("download"), p.locator("#ag-csv").click()]);
-    ok("the master list downloads as a spreadsheet", dl.suggestedFilename() === "ongia-agencies-master-list.csv");
+    ok("the master list downloads as a spreadsheet", /^ONGIA - Agency master list - \d{4}-\d{2}-\d{2}\.csv$/.test(dl.suggestedFilename()));
     await p.locator("#ag-clear").click(); await p.waitForTimeout(1200);
     ok("Looks right, clear the list", await p.locator(".agq:not(.agwait .agq)").count() === 0 || !(await p.locator("#ag-clear").count()));
   } else {

@@ -7,6 +7,7 @@ import { VOLUNTEER_TERMS, VOLUNTEER_TERMS_VERSION } from "./lib/terms.mjs";
 import { buildAndStore, completeAgreement, requestReview, pdfKey } from "./lib/volunteers.mjs";
 import { volunteerContact } from "./lib/mail.mjs";
 import { safeFileName } from "./lib/ids.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The volunteer's own endpoint. Like the presenter's, no account and no password:
@@ -56,8 +57,8 @@ async function download(event, volunteer) {
   if (volunteer.status !== "signed") return fail("There is no signed copy yet.", 404);
   let pdf = await getPdf(pdfKey(event.id, volunteer.id)).then((b) => (b ? Buffer.from(b) : null));
   if (!pdf) pdf = await buildAndStore(event, volunteer);
-  const name = `${safeFileName(volunteer.last, "Volunteer")}_Volunteer Agreement.pdf`;
-  return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+  const name = personFile(volunteer, "Volunteer agreement", volunteer.signedAt);
+  return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": disposition(name), "cache-control": "no-store" } });
 }
 
 async function sign(req, event, volunteer) {

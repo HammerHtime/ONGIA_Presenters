@@ -47,7 +47,7 @@ const m = sent[0];
 ok("both went, one Resend message each", r.status === 200 && sent.length === 2 && r.body.results.every((x) => x.mail?.sentAt), JSON.stringify(r.body));
 ok("from ONGIA Certificates <certificates@send.ongia.ca>, replies to ongiaevents@ongia.ca, to the attendee", m.from === "ONGIA Certificates <certificates@send.ongia.ca>" && m.reply_to === "ongiaevents@ongia.ca" && JSON.stringify(m.to) === '["jt@example.ca"]', JSON.stringify({ from: m.from, reply: m.reply_to, to: m.to }));
 ok("subject in both languages", m.subject === "Your certificate: National Gang Summit 2031 / Votre certificat", m.subject);
-ok("the PDF is attached, named for the person", m.attachments?.length === 1 && m.attachments[0].filename === "Jordan Tremblay - certificate.pdf" && Buffer.from(m.attachments[0].content, "base64").subarray(0, 5).toString() === "%PDF-");
+ok("the PDF is attached, named for the person", m.attachments?.length === 1 && /^Tremblay Jordan - Certificate - \d{4}-\d{2}-\d{2}\.pdf$/.test(m.attachments[0].filename) && Buffer.from(m.attachments[0].content, "base64").subarray(0, 5).toString() === "%PDF-");
 const link = /href="(https:\/\/events\.ongia\.org\/api\/certfile\?c=[A-Z0-9-]+&amp;d=[A-Za-z0-9_-]+)"/.exec(m.html)?.[1]?.replace(/&amp;/g, "&");
 ok("English then French, greeting by first name, the dates, a download button in each language, the verify link", /Hello Jordan,/.test(m.html) && m.html.indexOf("Hello Jordan") < m.html.indexOf("Bonjour Jordan") && /November 10 to 13, 20&zwnj;31/.test(m.html) && /du 10 au 13 novembre 20&zwnj;31/.test(m.html) && /November 10 to 13, 2031/.test(m.text)
   && /Download your certificate/.test(m.html) && /Télécharger votre certificat/.test(m.html) && /verify\.html\?c=/.test(m.html) && !!link, m.html.slice(0, 300));
@@ -57,7 +57,7 @@ ok("a plain-text copy with the link", /Download your certificate: https:\/\/even
 // The download link.
 const fileReq = (u) => certfile(new Request(u));
 let f = await fileReq(link);
-ok("the link hands over the PDF", f.status === 200 && (f.headers.get("content-type") ?? "").includes("pdf") && /Jordan%20Tremblay/.test(f.headers.get("content-disposition") ?? ""));
+ok("the link hands over the PDF", f.status === 200 && (f.headers.get("content-type") ?? "").includes("pdf") && /Tremblay%20Jordan/.test(f.headers.get("content-disposition") ?? ""));
 let C = (await call("event=ngs31")).body;
 const row = (k) => C.people.find((x) => x.key === k).cert.mail;
 ok("and the list now shows Jordan downloaded it; Sam emailed, not downloaded", !!row("k1").downloadedAt && !!row("k1").sentAt && !!row("k2").sentAt && !row("k2").downloadedAt, JSON.stringify([row("k1"), row("k2")]));
@@ -102,7 +102,7 @@ ok("an event for an email we don't know is accepted and ignored", w.status === 2
 const n = sent.length;
 r = await call("event=ngs31&sample=1", { method: "POST", body: {}, who: issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) });
 const s = sent[n];
-ok("Email me a sample: to the signed-in board member, marked [Sample], a sample certificate in their name", r.status === 200 && JSON.stringify(s?.to) === '["president@ongia.ca"]' && /^\[Sample\] Your certificate/.test(s.subject) && /SAMP-LE00/.test(s.html) && s.attachments[0].filename === "Andrew Hammond - certificate.pdf", JSON.stringify(r.body));
+ok("Email me a sample: to the signed-in board member, marked [Sample], a sample certificate in their name", r.status === 200 && JSON.stringify(s?.to) === '["president@ongia.ca"]' && /^\[Sample\] Your certificate/.test(s.subject) && /SAMP-LE00/.test(s.html) && /^Hammond Andrew - Certificate - \d{4}-\d{2}-\d{2}\.pdf$/.test(s.attachments[0].filename), JSON.stringify(r.body));
 const slink = /href="(https:\/\/events\.ongia\.org\/api\/certfile\?c=SAMP-LE00&amp;d=[A-Za-z0-9_-]+)"/.exec(s.html)?.[1]?.replace(/&amp;/g, "&");
 f = await fileReq(slink);
 ok("and its download link works", f.status === 200 && (f.headers.get("content-type") ?? "").includes("pdf"));

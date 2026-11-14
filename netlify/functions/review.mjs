@@ -7,6 +7,7 @@ import { describeEvent, travelWindow, rangeProblem, formatDate } from "./lib/dea
 import { sendMail, finalCopyMail, avRequestMail, approvedNoticeMail, returnedMail, coordinatorOf, agreementRecipients } from "./lib/mail.mjs";
 import { fileAgreement } from "./lib/graph.mjs";
 import { safeFileName } from "./lib/ids.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The board member's step. Nothing is final until this runs.
@@ -194,7 +195,7 @@ async function deliver(event, presenter, pdf, origin, which) {
     ? { ...presenter.review.approver, approvedAt: presenter.review.approvedAt }
     : { name: "ONGIA", role: "", approvedAt: presenter.approvedAt };
   const coverage = COST_KEYS.filter((k) => presenter.review.ongiaCovers?.[k]).map((k) => COST_LABELS[k]);
-  const filename = `${safeFileName(presenter.last, "Presenter")}_Presenter Agreement.pdf`;
+  const filename = personFile(presenter, "Presenter agreement", presenter.review?.approvedAt || presenter.approvedAt);
   presenter.delivery ??= {};
 
   if (which.filing) {

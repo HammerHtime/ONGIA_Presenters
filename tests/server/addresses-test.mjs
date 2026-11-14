@@ -25,7 +25,7 @@ await putAttendees("adr", { people: [
   { key: "9", first: "Gone", last: "Away", email: "training@agency.example.ca", organization: "Agency", status: "NOT_ATTENDING" }] });
 
 const res = await reply(new Request("http://x/api/reply?event=adr&sheet=addresses", { headers: { "x-admin-key": "testkey" } }));
-ok("it downloads as Excel, even before the food-allergy email is set up", res.status === 200 && /shared-addresses\.xlsx/.test(res.headers.get("content-disposition") ?? ""), res.status);
+ok("it downloads as Excel, even before the food-allergy email is set up", res.status === 200 && /Shared email addresses - \d{4}-\d{2}-\d{2}\.xlsx/.test(res.headers.get("content-disposition") ?? ""), res.status);
 const bytes = Buffer.from(await res.arrayBuffer());
 if (process.env.KEEP_SHEETS) (await import("node:fs")).writeFileSync(process.env.KEEP_SHEETS + "/shared-addresses.xlsx", bytes);
 const rows = readXlsx(bytes).map((r) => r.map((c) => String(c ?? "")));

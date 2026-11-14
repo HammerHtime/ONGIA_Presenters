@@ -40,7 +40,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const [d] = await Promise.all([p.waitForEvent("download"), btn.click()]);
   const chunks = []; for await (const c of await d.createReadStream()) chunks.push(c);
   const flat = readXlsx(Buffer.concat(chunks)).map((r) => r.join(" | ")).join("\n");
-  ok(`${tag}: it downloads the spreadsheet, with its totals`, /shared-addresses\.xlsx$/.test(d.suggestedFilename()) && /Email address/.test(flat) && /1 registration coming goes to 1 email address\./.test(flat), flat);
+  ok(`${tag}: it downloads the spreadsheet, with its totals`, /Shared email addresses - \d{4}-\d{2}-\d{2}\.xlsx$/.test(d.suggestedFilename()) && /Email address/.test(flat) && /1 registration coming goes to 1 email address\./.test(flat), flat);
   // The presenters (Andrew 29 Oct 2026: "Add a button send presenters as well").
   const pres = p.locator(".rppres");
   ok(`${tag}: the card has a Presenters part, saying the email above doesn't reach them`, /Presenters[\s\S]*aren't on the Wix guest list[\s\S]*2 presenters haven't had it yet/.test(await pres.innerText()), await pres.innerText().catch(() => "none"));

@@ -7,6 +7,7 @@ import { safeFileName } from "./lib/ids.mjs";
 import { formatDate } from "./lib/deadlines.mjs";
 import { cleanRows, newVolunteer, inviteVolunteer, deliverVolunteer, completeAgreement, buildAndStore, pdfKey, volunteerCounts, VOLUNTEER_MAX } from "./lib/volunteers.mjs";
 import { guestWindow } from "./lib/rooming.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The desk's side of volunteers (the volunteer's own side is volunteer.mjs).
@@ -204,6 +205,6 @@ async function download(event, id) {
   if (v.status !== "signed") return fail("There is no signed copy yet.", 404);
   let pdf = await getPdf(pdfKey(event.id, v.id)).then((b) => (b ? Buffer.from(b) : null));
   if (!pdf) pdf = await buildAndStore(event, v);
-  const name = `${safeFileName(v.last, "Volunteer")}_Volunteer Agreement.pdf`;
-  return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+  const name = personFile(v, "Volunteer agreement", v.signedAt);
+  return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": disposition(name), "cache-control": "no-store" } });
 }

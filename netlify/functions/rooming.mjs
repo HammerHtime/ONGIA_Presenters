@@ -3,6 +3,7 @@ import { getEvent, putEvent, listPresenters, listVolunteers, getRoster } from ".
 import { roomingRows, roomingMail, changesSince, snapshot, cleanGuest, guestWindow, readRoomsCsv, typeOf, sameName } from "./lib/rooming.mjs";
 import { coordinatorOf, sendMail } from "./lib/mail.mjs";
 import { token } from "./lib/ids.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The hotel rooming list for an event.
@@ -43,8 +44,8 @@ export default async (req) => {
     if (url.searchParams.get("csv")) {
       const keys = url.searchParams.get("keys");
       const mail = roomingMail({ event, rows: pick(keys ? keys.split(",") : undefined) });
-      const name = `rooming-list-${event.title.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.csv`;
-      return new Response(mail.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+      const name = eventFile(event, "Rooming list", "", "csv");
+      return new Response(mail.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": disposition(name), "cache-control": "no-store" } });
     }
     return json(state(event, rows, waiting, board));
   }
@@ -109,7 +110,7 @@ export default async (req) => {
       const out = await sendMail({
         to, cc: lead?.email && lead.email !== to ? [lead.email] : [], replyTo: lead?.email || undefined,
         subject: mail.subject, html: mail.html, text: mail.text,
-        attachments: [{ filename: "rooming-list.csv", content: Buffer.from(mail.csv, "utf8"), contentType: "text/csv" }],
+        attachments: [{ filename: eventFile(event, "Rooming list", "", "csv"), content: Buffer.from(mail.csv, "utf8"), contentType: "text/csv" }],
       });
       if (out.skipped) return fail(`It could not be sent: ${out.reason}`, 503);
       const now = new Date().toISOString();

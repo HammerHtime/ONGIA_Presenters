@@ -46,7 +46,7 @@ ok("Jo, with no talk title, is thanked for presenting at the event", /thank you 
 const ana = sent.find((m) => m.to === "ana@x.ca");
 ok("greeted by first name, with their talk in quotes and the day", /Hi Ana,/.test(ana.text) && /thank you for presenting “Gangs in BC” at Western Symposium on Tuesday, November 24\./.test(ana.text), ana.text.slice(0, 300));
 ok("the subject names the event", ana.subject === "Thank you for presenting at Western Symposium");
-ok("each carries their own letter of appreciation, a one-page PDF named for them", ana.files.length === 1 && ana.files[0].filename === "ONGIA letter of appreciation - Ana Diaz.pdf" && Buffer.from(ana.files[0].content, "base64").subarray(0, 4).toString() === "%PDF");
+ok("each carries their own letter of appreciation, a one-page PDF named for them", ana.files.length === 1 && /^Diaz Ana - Letter of appreciation - \d{4}-\d{2}-\d{2}\.pdf$/.test(ana.files[0].filename) && Buffer.from(ana.files[0].content, "base64").subarray(0, 4).toString() === "%PDF");
 {
   const { execFileSync } = await import("node:child_process"); const os = await import("node:os"); const fs = await import("node:fs");
   const f = os.tmpdir() + "/ana-letter.pdf"; fs.writeFileSync(f, Buffer.from(ana.files[0].content, "base64"));
@@ -93,7 +93,7 @@ ok("the letter switched off for this event", v.letterOn === false);
 const t2 = await call("&test=1", "POST", { to: "me@x.ca" });
 ok("then the test goes without it", t2.status === 200 && sent.at(-1).files.length === 0);
 const pdf = await call("&letter=a");
-ok("one presenter's letter downloads as a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && /Ana Diaz/.test(pdf.headers.get("content-disposition")));
+ok("one presenter's letter downloads as a PDF", pdf.status === 200 && pdf.headers.get("content-type") === "application/pdf" && /Diaz Ana - Letter of appreciation/.test(pdf.headers.get("content-disposition")));
 const sig = await fn(new Request("http://x/api/attmail?kind=signature", { method: "PUT", headers: H, body: JSON.stringify({ png: Buffer.from("not a png").toString("base64") }) }));
 ok("the signature store takes only a PNG", sig.status === 400);
 {

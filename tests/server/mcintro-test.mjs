@@ -57,7 +57,7 @@ ok("an edit is kept as edited, and never shows out of date", put.status === 200 
 ok("an unknown session is refused", (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "zz", text: "x" }) }))).status === 404);
 const pdf = await fn(new Request("http://x/api/mcintros?event=vic&pdf=1", { headers: H }));
 const bytes = Buffer.from(await pdf.arrayBuffer());
-ok("the MC script is a PDF named for the event", pdf.status === 200 && bytes.subarray(0, 4).toString() === "%PDF" && /western-symposium-mc-script\.pdf/.test(pdf.headers.get("content-disposition")));
+ok("the MC script is a PDF named for the event", pdf.status === 200 && bytes.subarray(0, 4).toString() === "%PDF" && /Western Symposium - MC script - \d{4}-\d{2}-\d{2}\.pdf/.test(pdf.headers.get("content-disposition")));
 // A day and a time from the MC card (Andrew 14 Nov 2026: "there's no way for me to move her to a specific time slot").
 let pv2 = await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "pd", day: "2026-11-24", time: "09:30" }) }))).json();
 ok("Kim, with no day, is given Day 1 at 9:30: she moves to Day 1, and the survey's list stays as it was", pv2.sessions.findIndex((s) => s.id === "pd") === 1 && pv2.sessions[1].time === "09:30" && pv2.sessions[1].dayN === 1, JSON.stringify(pv2.sessions.map((s) => [s.id, s.day, s.time])));

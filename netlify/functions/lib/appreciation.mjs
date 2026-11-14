@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { personFile } from "./filenames.mjs";
 
 /**
  * The letter of appreciation that goes with each presenter's thank-you (Andrew 14 Nov 2026: "an attachment in PDF with
@@ -82,7 +83,7 @@ const ASSET_DIRS = [path.resolve(HERE, "../../../public/assets"), path.resolve(H
 const ASSETS = () => ASSET_DIRS.find((d) => existsSync(path.join(d, "letterhead-top.png"))) ?? ASSET_DIRS[0];
 
 /** A file name for one presenter's letter. */
-export const letterFileName = (p) => `ONGIA letter of appreciation - ${`${p.first ?? ""} ${p.last ?? ""}`.trim().replace(/[^\p{L}\p{N} .'-]/gu, "") || "presenter"}.pdf`;
+export const letterFileName = (p, on = "") => personFile(p, "Letter of appreciation", on);
 
 /** The PDF for one presenter. `on` is the letter's date (the day it goes). */
 export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = new Date().toISOString().slice(0, 10), signature = null } = {}) {

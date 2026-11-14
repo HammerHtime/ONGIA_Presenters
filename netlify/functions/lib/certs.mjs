@@ -9,6 +9,7 @@ import { getMeta, putMeta, readRaw, writeRaw } from "./store.mjs";
 import { anthropicKey } from "./contract.mjs";
 import { formatLong } from "./deadlines.mjs";
 import { directory } from "./agencies.mjs";
+import { personFile } from "./filenames.mjs";
 
 /**
  * Certificates of completion (Andrew 30 Oct 2026). The desk fills a certificate design with each person's name, their
@@ -243,8 +244,8 @@ export async function certificatePdf(rec, { origin = "", lang = "en" } = {}) {
   return Buffer.concat(chunks);
 }
 
-/** "Jordan Tremblay certificate.pdf", safe as a file name. */
-export const certFileName = (rec, lang = "en") => `${String(rec.name || "Certificate").replace(/[^\p{L}\p{N} .'-]+/gu, "").trim() || "Certificate"} - ${lang === "fr" ? "certificat" : "certificate"}.pdf`;
+/** "Tremblay Jordan - Certificate - 2026-11-12.pdf" (lib/filenames.mjs). */
+export const certFileName = (rec, lang = "en") => personFile({ name: rec.name }, lang === "fr" ? "Certificat" : "Certificate", rec.date || rec.issuedAt);
 
 /**
  * Add it to LinkedIn (Andrew 30 Oct 2026: "yes to add to linkedin"): LinkedIn's own add-a-certification link, filled in.

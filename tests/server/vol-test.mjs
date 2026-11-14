@@ -84,7 +84,7 @@ ok("reopening shows it as signed", r.volunteer.status === "signed" && r.voluntee
 console.log("— the signed copy");
 const pdfRes = await call(volunteer, `/api/volunteer?t=${vera.token}&pdf=1`, "GET", null, {});
 const pdf = Buffer.from(await pdfRes.res.arrayBuffer());
-ok("they can download it", pdfRes.status === 200 && pdfRes.res.headers.get("content-type") === "application/pdf" && /Volunteer Agreement\.pdf/.test(pdfRes.res.headers.get("content-disposition")) && pdf.slice(0, 4).toString() === "%PDF");
+ok("they can download it", pdfRes.status === 200 && pdfRes.res.headers.get("content-type") === "application/pdf" && /- Volunteer agreement - \d{4}-\d{2}-\d{2}\.pdf/.test(pdfRes.res.headers.get("content-disposition")) && pdf.slice(0, 4).toString() === "%PDF");
 ok("the desk can too", (await call(volunteers, `/api/volunteers?event=${ev.id}&id=${vera.id}&pdf=1`)).status === 200);
 ok("and it is kept", !!(await getPdf(`vol:${ev.id}:${vera.id}`)));
 writeFileSync(OUT + "volunteer-agreement.pdf", pdf);

@@ -17,6 +17,7 @@ import { describeSessions } from "./lib/topicdescribe.mjs";
 import { surveySummaryPdf, surveyResponsesXlsx, surveyContactsXlsx, surveyQrPdf, surveyPresentersPdf } from "./lib/surveyreport.mjs";
 import { infographicHtml, BLOCKS } from "./lib/infographic.mjs";
 import { slugOf } from "./lib/public.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 
@@ -193,20 +194,22 @@ async function download(event, which, url = null) {
   const who = url?.searchParams.get("who") ?? "", day = url?.searchParams.get("day") ?? "";
   const responses = byDay(byWho(await getSurveyResponses(event.id), who), day);
   const dayN = isDay(day) ? trainingDays(event).indexOf(day) + 1 : 0;
-  const base = `${slugOf(event.title) || "event"}-survey${dayN ? `-day-${dayN}` : ""}${who === "justice" ? "-justice" : who === "partner" ? "-community-partners" : ""}`;
-  const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
-  if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", `${base}-summary.pdf`);
+  // "Western Symposium - Survey day 2, justice partners - summary - 2026-11-14.pdf" (lib/filenames.mjs).
+  const base = `Survey${dayN ? ` day ${dayN}` : ""}${who === "justice" ? ", justice partners" : who === "partner" ? ", community partners" : ""}`;
+  const named = (what, ext) => eventFile(event, `${base}, ${what}`, "", ext);
+  const send = (bytes, type, name) => new Response(bytes, { headers: { "content-type": type, "content-disposition": disposition(name), "cache-control": "no-store" } });
+  if (which === "summary") return send(await surveySummaryPdf(event, await resultsOf(event, responses), event.survey.analysis ?? null), "application/pdf", named("summary", "pdf"));
   // Feedback on each presenter, one page each, or one presenter's (&session=…) (Andrew 9 Nov 2026).
   if (which === "feedback") {
     const only = /^[A-Za-z0-9_-]{1,40}$/.test(url?.searchParams.get("session") ?? "") ? url.searchParams.get("session") : "";
     const R = await resultsOf(event, responses);
     const one = only ? R.sessions.find((x) => x.id === only) : null;
     if (only && !one) return fail("That session isn't on this survey.", 404);
-    const name = one ? `${slugOf(one.presenters.join(" ")) || "presenter"}-feedback.pdf` : `${base}-presenters.pdf`;
+    const name = one ? (one.presenters.length === 1 ? personFile({ name: one.presenters[0] }, "Feedback", "") : eventFile(event, `Feedback, ${one.presenters.join(" and ")}`)) : named("feedback on each presenter", "pdf");
     return send(await surveyPresentersPdf(event, R, event.survey.analysis ?? null, { only }), "application/pdf", name);
   }
-  if (which === "answers") return send(surveyResponsesXlsx(event, responses), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-answers.xlsx`);
-  if (which === "presenters") return send(surveyContactsXlsx(event, await getSurveyContacts(event.id)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `${base}-interested-in-presenting.xlsx`);
+  if (which === "answers") return send(surveyResponsesXlsx(event, responses), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", named("answers", "xlsx"));
+  if (which === "presenters") return send(surveyContactsXlsx(event, await getSurveyContacts(event.id)), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", named("interested in presenting", "xlsx"));
   return fail("Which download: summary, answers or presenters?");
 }
 
@@ -273,15 +276,15 @@ const qrPng = (link, width = 900) => QRCode.toBuffer(link, { margin: 2, width, e
 async function qrCodes(event, which) {
   if (!event.survey) return fail("Set up the survey first.", 409);
   const days = trainingDays(event).map((day, i) => ({ day, n: i + 1 })).filter((d) => qrPart(event, d.day));
-  const base = `${slugOf(String(event.title).split(/\s*:\s*/)[0]) || "event"}-survey`;   // "national-gang-summit-survey-day-2-qr.png"
+  
   if (which === "all") {
     if (!days.length) return fail("No day has sessions yet. Pick the day for each session first.", 409);
     for (const d of days) { d.url = qrLink(event, d.day); d.png = await qrPng(d.url); }
-    return new Response(await surveyQrPdf(event, days), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${base}-qr-codes.pdf"`, "cache-control": "no-store" } });
+    return new Response(await surveyQrPdf(event, days), { headers: { "content-type": "application/pdf", "content-disposition": disposition(eventFile(event, "Survey QR codes")), "cache-control": "no-store" } });
   }
   const d = days.find((x) => x.day === which);
   if (!d) return fail("That day has no sessions to rate.", 404);
-  return new Response(await qrPng(qrLink(event, d.day), 1200), { headers: { "content-type": "image/png", "content-disposition": `attachment; filename="${base}-day-${d.n}-qr.png"`, "cache-control": "no-store" } });
+  return new Response(await qrPng(qrLink(event, d.day), 1200), { headers: { "content-type": "image/png", "content-disposition": disposition(eventFile(event, `Survey QR code, day ${d.n}`, "", "png")), "cache-control": "no-store" } });
 }
 
 async function attendeeSide(req, url, tok, pid) {

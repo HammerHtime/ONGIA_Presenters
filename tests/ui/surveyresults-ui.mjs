@@ -63,7 +63,7 @@ ok("and its answers stay with it under the new name", R.sessions.find((s) => s.i
 
 await p.locator('[data-svpart="results"]').click(); await p.waitForTimeout(300);   // the downloads are under Results
 const pdf = await bytesOf(p, () => p.locator('[data-rsdl="summary"]').click());
-ok("Download: the summary PDF", pdf.buf.slice(0, 5).toString() === "%PDF-" && /survey-summary\.pdf$/.test(pdf.name), pdf.name);
+ok("Download: the summary PDF", pdf.buf.slice(0, 5).toString() === "%PDF-" && / - Survey, summary - \d{4}-\d{2}-\d{2}\.pdf$/.test(pdf.name), pdf.name);
 const xl = await bytesOf(p, () => p.locator('[data-rsdl="answers"]').click());
 ok("Download: every answer as Excel", xl.buf.slice(0, 2).toString() === "PK" && /\.xlsx$/.test(xl.name));
 ok("the would-be presenter's list is offered apart", /1 wants to present/.test(await p.locator('[data-rsdl="presenters"]').innerText()));

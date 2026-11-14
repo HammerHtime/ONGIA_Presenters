@@ -6,6 +6,7 @@ import { mcSessions } from "./mcintro.mjs";
 import { localNow, zoneOf } from "./surveysend.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 
+
 /**
  * The thank-you to each presenter, the morning after the event ends (Andrew 14 Nov 2026: "Goes out the day after the
  * conference or training event ends, and it goes out personally to each one … set it up like we are the welcome
@@ -47,7 +48,7 @@ export async function signatureImage() {
 /** The letter for one presenter, as an email attachment. */
 export async function letterAttachment(event, v, { signature, on } = {}) {
   const content = await appreciationPdf(event, v, { body: letterWords(event), signature, on });
-  return { filename: letterFileName(v), content, contentType: "application/pdf" };
+  return { filename: letterFileName(v, on), content, contentType: "application/pdf" };
 }
 
 /** The words: as saved on the event, or the standard. */

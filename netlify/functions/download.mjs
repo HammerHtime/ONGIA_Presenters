@@ -2,6 +2,7 @@ import { fail, requireAdmin } from "./lib/http.mjs";
 import { getPdf, resolveToken, getEvent, getPresenter, getHeadshot } from "./lib/store.mjs";
 import { safeFileName } from "./lib/ids.mjs";
 import { buildAgreementPdf } from "./lib/pdf.mjs";
+import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
  * The final PDF.
@@ -42,11 +43,11 @@ export default async (req) => {
     if (!pdf) return fail("The final PDF is missing from storage.", 500);
   }
 
-  const name = `${safeFileName(presenter.last, "Presenter")}_Presenter Agreement${preview ? " (DRAFT)" : ""}.pdf`;
+  const name = personFile(presenter, preview ? "Presenter agreement (DRAFT)" : "Presenter agreement", preview ? "" : presenter.review?.approvedAt || presenter.approvedAt);
   return new Response(pdf, {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `${url.searchParams.get("inline") ? "inline" : "attachment"}; filename="${name}"`,
+      "content-disposition": disposition(name, url.searchParams.get("inline") ? "inline" : "attachment"),
       "cache-control": "no-store",
     },
   });
