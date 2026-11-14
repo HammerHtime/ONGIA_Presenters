@@ -4480,7 +4480,8 @@ function eventScreen(data) {
     b.querySelectorAll("[data-cnow]").forEach((btn) => { btn.onclick = () => comingSendNow(ev, JSON.parse(btn.dataset.cnow), btn, loadComing); });
     if (COMING_BUSY) setTimeout(() => { if (document.getElementById("comingbody") === b) loadComing(); }, 20000);
   }).catch(() => {});
-  if ((ev.lastDay || ev.dayOne || "9999") >= new Date().toLocaleDateString("en-CA")) loadComing();
+  // Always, not only until the event ends: the survey's reminders come after it (Andrew 14 Nov 2026: "no dates are coming up").
+  loadComing();
   const boardOthers = [...new Set((ev.board ?? []).filter((m) => !m.lead).map((m) => m.name || m.email))].map(esc);
   // When the lead last signed in to the desk (Andrew 21 Oct 2026): small, beside their name, never wrapping.
   const leadMember = lead ? (ROSTER ?? []).find((m) => (ev.reviewer?.email && (m.email ?? "").toLowerCase() === ev.reviewer.email.toLowerCase()) || (m.name && m.name === lead)) : null;
@@ -7581,7 +7582,8 @@ function surveyHead(ev, S) {
   const what = !x ? "One survey for the event, every presenter rated with stars, in English and French. Answers are anonymous."
     : `${daily ? `Each day · ${S.days.length} day${S.days.length === 1 ? "" : "s"}` : "Once, after the event"} · ${x.sessions.length} session${x.sessions.length === 1 ? "" : "s"} · `
       + (sent ? `sent to ${sent} · ${S.responses} answered` : daily ? (first ? `first goes ${fmtDate(first.day)} at ${fmt12(first.at)}` : "no day has an end time yet") : x.sendOn ? `goes ${fmtDate(x.sendOn)}` : "no send date yet")
-      + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · attendee emails are off");
+      + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · attendee emails are off")
+      + (S.next && x?.open ? ` · next: ${S.next.what.replace(/^Survey: ?/, "").replace(/^today's sessions$/, "today's survey") || "the survey"} ${fmtDate(S.next.date).replace(/ \d{4}$/, "")}${S.next.time ? ` at ${fmt12(S.next.time)}${S.next.tz ? ` ${S.next.tz}` : ""}` : ""} (${inDays(daysTo(S.next.date))}) to ${S.next.to}` : "");
   head.innerHTML = `<span class="dtag ${st[0]}">${esc(st[1])}</span><span class="svwhat">${esc(what)}</span>
     ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}
     ${x?.sessions?.some((r) => r.day) ? `<button type="button" class="mini gold" id="sv-qrgo">QR codes</button>` : ""}`;
