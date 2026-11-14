@@ -9,8 +9,9 @@ const guests = {
   justice: [["j1", "Jay", "Justice", "jay@example.ca"], ["j2", "Kim", "Court", "kim@example.ca"]],
   community: [["c1", "Cam", "Community", "cam@example.ca"], ["c2", "Dee", "Both", "kim@example.ca"]],   // shares an address with a justice partner
 };
+const scans = {};   // guest id → Wix's checkInDetails (the Summit's door scans, 14 Nov 2026)
 const wixGuest = (ev, [id, first, last, email]) => ({ id, eventId: ev, guestType: "RSVP", attendanceStatus: "ATTENDING", totalGuests: 1,
-  guestDetails: { firstName: first, lastName: last, email, formResponse: { inputValues: [{ inputName: "email", value: email }, { inputName: ev === "justice" ? "agency_name" : "Organization", value: `${last} Agency` }] } } });
+  guestDetails: { firstName: first, lastName: last, email, checkedIn: false, ...(scans[id] ? { checkInDetails: scans[id] } : {}), formResponse: { inputValues: [{ inputName: "email", value: email }, { inputName: ev === "justice" ? "agency_name" : "Organization", value: `${last} Agency` }] } } });
 const calls = [];
 globalThis.fetch = async (url, init) => {
   const body = JSON.parse(init.body ?? "{}");
@@ -72,6 +73,17 @@ await put("event=ngs&unlinkAlso=community");
 ok("the second Wix event can be unlinked, and the people already pulled are kept", !(await getEvent("ngs")).wixMore.length && (await getAttendees("ngs")).people.length === 4);
 await sweepWix();
 ok("and the next pull does not mark them as withdrawn", (await getAttendees("ngs")).people.find((p) => p.first === "Dee").status === "ATTENDING");
+
+// Checked in at the door: Wix leaves checkedIn false and lists the scans in checkInDetails.
+scans.j1 = [{ checkedIn: true, checkInDate: "2026-11-09T13:05:00Z", checkedInBy: "x" }, { checkedIn: true, checkInDate: "2026-11-10T12:50:00Z" }];
+scans.c1 = [{ checkedIn: false }];
+await sweepWix();
+people = (await getAttendees("ngs")).people;
+ok("a door scan in Wix's check-in details counts as checked in, with the days scanned", people.find((p) => p.first === "Jay").checkedIn === true && people.find((p) => p.first === "Jay").checkInDays.join() === "2026-11-09,2026-11-10", JSON.stringify(people.find((p) => p.first === "Jay")));
+ok("an unscanned ticket isn't", !people.find((p) => p.first === "Cam").checkedIn && !people.find((p) => p.first === "Kim").checkedIn);
+delete scans.j1;
+await sweepWix();
+ok("a check-in, once seen, stays", (await getAttendees("ngs")).people.find((p) => p.first === "Jay").checkedIn === true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

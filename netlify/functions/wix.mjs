@@ -270,6 +270,8 @@ async function absorb(eventId, guests, event = null, l = null) {
     organization: g.organization || "", status: g.status || "ATTENDING", source: "wix", wixGuestId: g.id,
     // Always said, so a row that was someone's guest stops being one when Wix's record shows whose ticket it is.
     guestOf: g.guestOf ?? "",
+    // Scanned in at the door: once seen, it stays (a later pull never takes a check-in back, nor one from a sheet).
+    ...(g.checkedIn ? { checkedIn: true, checkInDays: g.checkInDays ?? [] } : {}),
     ...(l ? { wixEventId: l.eventId, group: l.group || "" } : {}),
   }));
   // Each pull only withdraws people from its own Wix event, so a second one (or one unlinked since) is never mistaken
