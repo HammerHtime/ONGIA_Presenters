@@ -3,6 +3,7 @@ import { runSurveyRounds, surveyWorkDue } from "./lib/surveysend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { siteOrigin } from "./lib/nightly.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
+import { thanksWorkDue, runThanksRounds } from "./lib/thanks.mjs";
 
 /**
  * Every 15 minutes: send any survey part now due (Andrew 27 Oct 2026: a daily survey goes "15 minutes after the last
@@ -13,7 +14,8 @@ import { reportSends } from "./lib/sendreport.mjs";
 export default async () => {
   await primeRoster();
   const events = await listEvents();
-  if (!(await surveyWorkDue(events))) return new Response("ok");
+  // The presenter thank-yous ride along: the morning after an event, at 9:00 its own time (lib/thanks.mjs).
+  if (!(await surveyWorkDue(events)) && !(await thanksWorkDue(events))) return new Response("ok");
   const lock = await getMeta("survey-sending");
   if (lock?.at && Date.now() - Date.parse(lock.at) < 20 * 60 * 1000) return new Response("already sending");
   await putMeta("survey-sending", { at: new Date().toISOString(), hop: 0 });
@@ -28,8 +30,9 @@ export default async () => {
     console.log(`survey: sending here instead (${e.message})`);
     await putMeta("survey-sending", { at: null });
     const out = await runSurveyRounds(events, { deadline: Date.now() + 8000 });
+    out.push(...(await runThanksRounds(events, { deadline: Date.now() + 8000 }).catch((e) => [{ title: "every event", kind: "thanks", error: e.message }])));
     if (out.length) console.log(JSON.stringify(out.map(({ trouble, ...r }) => r)));
-    await reportSends("the survey", out.map((r) => ({ ...r, what: /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+    await reportSends("the survey", out.map((r) => ({ ...r, what: r.kind === "thanks" ? "The presenter thank-you" : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
     return new Response("ok");
   }
 };

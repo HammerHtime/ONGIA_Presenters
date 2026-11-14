@@ -26,6 +26,9 @@ export const BLANKS = {
   dates:      { means: "the training dates, e.g. Tue 24 Nov 2026", from: (e) => datesOf(e) },
   venue:      { means: "the venue", from: (e) => e.venue },
   city:       { means: "the city", from: (e) => e.city },
+  // The presenter thank-you (Andrew 14 Nov 2026): the talk's title, in quotes, and the day they gave it.
+  talk:       { means: "a presenter's talk title, in quotes (left out if they have none)", from: (e, p) => (p?.talk ? `“${String(p.talk).replace(/^["“”']+|["“”']+$/g, "")}”` : ""), optional: true },
+  talkDay:    { means: "the day a presenter spoke, e.g. Tuesday, November 24 (the event's dates if not known)", from: (e, p) => (p?.talkDay ? longDate(p.talkDay) : !e?.lastDay || e.lastDay === e.dayOne ? longDate(e?.dayOne) : datesOf(e)) },
   lead:       { means: "the ONGIA lead for the event", from: (e) => e.contact?.name || e.reviewer?.name },
   hotel:      { means: "the hotel's name", from: (e) => e.hotel?.name },
   hotelLink:  { means: "the hotel booking link", from: (e) => e.hotel?.link, link: true },
@@ -227,7 +230,12 @@ export function firstNameOf(raw) {
   return s.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, sep, c) => sep + c.toUpperCase());
 }
 /** Without a first name, "Hello {first}," reads "Hello," (and "Bonjour {first}," reads "Bonjour,"), not "Hello ,". */
-const withoutMissingName = (text, person) => (firstNameOf(person?.first) ? String(text ?? "") : String(text ?? "").replace(/[ \t]*\{first\}/g, ""));
+const withoutMissingName = (text, person) => {
+  let t = firstNameOf(person?.first) ? String(text ?? "") : String(text ?? "").replace(/[ \t]*\{first\}/g, "");
+  // "presenting {talk} at" reads "presenting at" for someone with no talk title.
+  if (!person?.talk) t = t.replace(/[ \t]*\{talk\}/g, "");
+  return t;
+};
 
 /** Fill the blanks. `html` escapes everything and turns web addresses into links. */
 function fill(text, event, person, { html }) {

@@ -8,6 +8,9 @@ import { getAttendees } from "./lib/store.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./lib/letters.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
+import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, STANDARD as THANKS_STANDARD, THANKS_AT } from "./lib/thanks.mjs";
+import { listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
+import { zoneOf } from "./lib/surveysend.mjs";
 import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage } from "./lib/message.mjs";
 
 /**
@@ -28,6 +31,10 @@ import { messageGroups, groupPeople, messagePeople, messageProblems, messageLett
  *   POST /api/attmail?event=…&kind=message&preview=1|test=1   the email as it would go / a test, marked TEST
  *   POST /api/attmail?event=…&kind=message&send=1             { group, subject, body } send it now, on the server
  *   POST /api/attmail?event=…&kind=message&rest=<id>          send a message already sent to anyone still owed it
+ *   GET  /api/attmail?event=…&kind=thanks                     the presenter thank-you: words, when, each presenter (Andrew 14 Nov 2026)
+ *   PUT  /api/attmail?event=…&kind=thanks                     { subject, body, standard, off } save it; { id, pick: yes|no|"" } one presenter in or out
+ *   POST /api/attmail?event=…&kind=thanks&preview=1|test=1    the email as it would go / a test, marked TEST
+ *   POST /api/attmail?event=…&kind=thanks&send=1[&id=…]       send now to everyone still owed it (or to one presenter); says how many are left
  */
 export default async (req) => {
   await primeRoster();
@@ -44,6 +51,7 @@ export default async (req) => {
   }
   if (kind === "join") return join(req, event, url);
   if (kind === "message") return message(req, event, url);
+  if (kind === "thanks") return thanks(req, event, url);
   if (!KINDS.includes(kind)) return fail("Which email?");
   if (req.method === "GET") {
     const people = await mailPeople(event, kind);
@@ -172,4 +180,63 @@ async function join(req, event, url) {
   const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}` }).catch((e) => ({ skipped: true, reason: e.message }));
   if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
   return json({ sent: true, to });
+}
+
+/** The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026). */
+async function thanks(req, event, url) {
+  const view = async () => {
+    const people = thanksPeople(event, await listPresenters(event.id));
+    const letter = thanksLetter(event);
+    return json({ ...thanksWords(event), standard: !event.presenterThanks?.body, on: thanksOn(event), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
+      replyTo: attendeeReplyTo(event) ?? "", people, problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event)])] });
+  };
+  if (req.method === "GET") return view();
+  const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
+  const body = await req.json().catch(() => ({}));
+  if (req.method === "PUT" && body.id !== undefined) {
+    const p = await getPresenter(event.id, String(body.id).slice(0, 40));
+    if (!p) return fail("No such presenter.", 404);
+    if (["yes", "no"].includes(body.pick)) p.thanksPick = body.pick; else delete p.thanksPick;
+    await putPresenter(p);
+    return view();
+  }
+  const words = body.standard === true ? { ...THANKS_STANDARD }
+    : { subject: String(body.subject ?? thanksWords(event).subject).slice(0, 200), body: String(body.body ?? thanksWords(event).body).slice(0, 20000) };
+  if (req.method === "PUT") {
+    const had = event.presenterThanks ?? {};
+    const next = { ...had };
+    // Kept only when it differs from the standard, so a change to the standard reaches every event not changed by hand.
+    if (words.subject === THANKS_STANDARD.subject && words.body === THANKS_STANDARD.body) { delete next.subject; delete next.body; }
+    else {
+      const wrong = [...letterProblems(thanksLetter(event, words)), ...eventProblems(thanksLetter(event, words), event)];
+      if (wrong.length) return fail(wrong[0], 409);
+      Object.assign(next, words);
+    }
+    if (body.off === true) next.off = true; else if (body.off === false) delete next.off;
+    event.presenterThanks = next;
+    event.updatedAt = new Date().toISOString();
+    await putEvent(event);
+    return view();
+  }
+  if (req.method !== "POST") return fail("Not allowed.", 405);
+  const letter = thanksLetter(event, words);
+  const people = thanksPeople(event, await listPresenters(event.id));
+  const sample = people.find((p) => p.in && p.talk) ?? people[0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca", talk: "Gangs in the Lower Mainland", talkDay: event.dayOne };
+  if (url.searchParams.get("preview")) { const m = renderLetter(letter, event, sample); return json({ subject: m.subject, html: m.html, problems: [...letterProblems(letter), ...eventProblems(letter, event)] }); }
+  if (url.searchParams.get("test")) {
+    const to = testAddresses(body.to);
+    if (!to.length) return fail("Put an address to send the test to.");
+    const wrong = [...letterProblems(letter), ...eventProblems(letter, event)];
+    if (wrong.length) return fail(wrong[0], 409);
+    const m = renderLetter(letter, event, sample);
+    const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}` }).catch((e) => ({ skipped: true, reason: e.message }));
+    if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
+    return json({ sent: true, to });
+  }
+  if (!url.searchParams.get("send")) return fail("Send, test or preview?");
+  // Sent here, a few at a time; the page asks again while some are left.
+  const r = await sendThanksRound(event, { force: true, deadline: Date.now() + 18000, only: url.searchParams.get("id") || null });
+  if (r.blocked) return fail(r.blocked[0], 409);
+  console.log(`thanks: sent now on ${event.id} by ${adminWho(req)?.email ?? "admin"}: ${r.sent} sent, ${r.failed} failed, ${r.left} left`);
+  return json({ ...r, ...(await (await view()).json()) });
 }
