@@ -6678,7 +6678,7 @@ const mayCertifyHere = (ev) => !WHO?.email || !!WHO?.canCost || (ev.board ?? [])
 function certsCard() {
   return `<section class="certsec" id="certsfold"><div id="certbox"><p class="porg">Loading…</p></div></section>`;
 }
-let CERT_CUT = "in", CERT_FIND = "", CERT_PICK = false;
+let CERT_CUT = "in", CERT_FIND = "", CERT_PICK = false, CERT_MAIL = "";
 async function loadCerts(ev) {
   const box = document.getElementById("certbox");
   try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`)); }
@@ -6698,7 +6698,7 @@ async function certFile(url) {
 const certAct = (p) => !p.cert ? (p.checkedIn ? `<button class="mini gold" data-certpdf="${esc(p.key)}">Issue &amp; download</button>` : `<button class="mini" data-certpdf="${esc(p.key)}">Issue anyway…</button>`)
   : p.cert.revoked ? `<button class="mini" data-certpdf="${esc(p.key)}">Issue again…</button>`
   : `<button class="mini" data-certpdf="${esc(p.key)}">Download</button><details class="certmore"><summary class="mini" aria-label="More for ${esc(p.name)}">•••</summary><div class="certmenu">
-      ${p.cert.french ? `<button type="button" data-certfr="${esc(p.key)}">Download in French</button>` : ""}<button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}"${p.email ? "" : " disabled"}>${p.cert.mail?.sentAt ? "Email it again" : "Email it"}</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
+      ${p.cert.french ? `<button type="button" data-certfr="${esc(p.key)}">Download in French</button>` : ""}<button type="button" data-certcopy="${esc(p.cert.code)}">Copy verification link</button><button type="button" data-certmail1="${esc(p.key)}"${p.email ? "" : " disabled"}>${p.cert.mail?.sentAt ? "Email it again" : "Email it"}</button><button type="button" data-certemail="${esc(p.key)}">Correct email</button><button type="button" data-certfix="${esc(p.key)}">Correct details</button><button type="button" data-certrevoke="${esc(p.key)}">Withdraw</button></div></details>`;
 /** What happened to each person's certificate email (Andrew 31 Oct 2026): sent, downloaded from the link in it, bounced, or couldn't send. */
 const mailBad = (m) => !!(m && (m.bounced || m.failed));
 const certMail = (p) => { const m = p.cert?.mail;
@@ -6809,7 +6809,13 @@ function renderCerts(ev, C) {
   const box = document.getElementById("certbox");
   if (!box) return;
   const s = C.settings, tpl = C.templates.find((t) => t.id === s.template);
-  const shown = C.people.filter((p) => CERT_CUT === "mailbad" ? mailBad(p.cert?.mail) && !p.cert.revoked : CERT_CUT === "all" || p.checkedIn);
+  // Filter by what happened to the certificate email (Andrew 14 Nov 2026: "filter the email status (bounced, delivered,
+  // not open etc)"). Downloaded is the only sign the email was opened; the rest were sent and not opened yet.
+  const mstate = (p) => !p.cert || p.cert.revoked ? "" : mailBad(p.cert.mail) ? "bad" : p.cert.mail?.downloadedAt ? "done" : p.cert.mail?.sentAt ? "wait" : "none";
+  const base = C.people.filter((p) => CERT_CUT === "mailbad" ? mailBad(p.cert?.mail) && !p.cert.revoked : CERT_CUT === "all" || p.checkedIn);
+  const mcount = (k) => base.filter((p) => mstate(p) === k).length;
+  if (CERT_MAIL && !mcount(CERT_MAIL)) CERT_MAIL = "";
+  const shown = CERT_MAIL ? base.filter((p) => mstate(p) === CERT_MAIL) : base;
   const live = C.people.filter((p) => p.cert && !p.cert.revoked);
   const ready = C.people.filter((p) => p.checkedIn && !p.cert).length, withdrawn = C.people.filter((p) => p.cert?.revoked).length;
   const row = (p) => `<tr data-certkey="${esc(p.key)}" data-find="${esc([p.name, p.email, p.agency, p.typed].join(" ").toLowerCase())}"><td><b>${esc(p.name)}</b><span class="psub">${esc(p.email)}</span></td>
@@ -6841,6 +6847,7 @@ function renderCerts(ev, C) {
     <div class="card"><div class="card-body">
     <div class="certtools"><div class="certseg" role="group" aria-label="Who to show"><button class="${CERT_CUT === "in" ? "on" : ""}" data-certcut="in">Checked in ${C.counts.checkedIn}</button>
       <button class="${CERT_CUT === "all" ? "on" : ""}" data-certcut="all">Everyone registered ${C.counts.coming}</button>${CERT_CUT === "mailbad" ? `<button class="on" data-certcut="mailbad">Bounced or couldn't send ${shown.length}</button>` : ""}</div>
+    ${base.some((p) => p.cert?.mail?.sentAt || mailBad(p.cert?.mail)) ? `<div class="filters certmailf" role="radiogroup" aria-label="Email status">${[["", "Any email", base.length], ["bad", "Bounced", mcount("bad")], ["wait", "Not opened", mcount("wait")], ["done", "Downloaded", mcount("done")], ["none", "Not emailed", mcount("none")]].filter(([k, , n]) => !k || n).map(([k, l, n]) => `<button type="button" class="fchip${CERT_MAIL === k ? " on" : ""}" data-certmailf="${k}" role="radio" aria-checked="${CERT_MAIL === k}">${l} <b>${n}</b></button>`).join("")}</div>` : ""}
     ${C.people.length ? `<input type="search" id="cert-find" class="pfind" placeholder="Find a name, email or agency…" aria-label="Find someone" value="${esc(CERT_FIND)}" autocomplete="off">` : ""}</div>
     ${!C.counts.checkedIn ? `<div class="note" style="margin-bottom:10px">Nobody is checked in yet. Check-ins from Wix arrive with the nightly sweep, or press Refresh from Wix on Who's coming. You can still issue anyone's certificate under Everyone registered.</div>` : ""}
     <div class="empty" id="cert-none" hidden>Nobody matches that.</div>
@@ -6855,6 +6862,7 @@ function renderCerts(ev, C) {
   const course = box.querySelector("#cert-course");
   if (course) course.onchange = () => save({ course: course.value, date: s.dateSet ? s.date : "" });
   box.querySelectorAll("[data-certcut]").forEach((b) => b.onclick = () => { CERT_CUT = b.dataset.certcut; renderCerts(ev, C); });
+  box.querySelectorAll("[data-certmailf]").forEach((b) => b.onclick = () => { CERT_MAIL = b.dataset.certmailf; renderCerts(ev, C); });
   box.querySelector("#cert-change").onclick = () => { CERT_PICK = !CERT_PICK; renderCerts(ev, C); };
   box.querySelector("#cert-manage")?.addEventListener("click", () => { view = { name: "admin", tab: "designs" }; keepAddress(); render(); });
   box.querySelectorAll(".certmore").forEach((d) => d.ontoggle = () => { if (d.open) box.querySelectorAll(".certmore[open]").forEach((o) => { if (o !== d) o.open = false; }); });
@@ -6914,6 +6922,22 @@ function renderCerts(ev, C) {
     const p = C.people.find((x) => x.key === b.dataset.certfix);
     if (!confirm(`Put ${p.name}'s details as they are now (name, agency, date and design) on certificate ${p.cert.code}? It keeps its number, and what it said before is kept on record.`)) return;
     try { renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}&correct=${encodeURIComponent(p.key)}`, { method: "POST", body: "{}" })); toast("Corrected. Download it again for the new PDF."); } catch (x) { toast(x.message); }
+  });
+  // A wrong address (Andrew 14 Nov 2026: a certificate bounced): corrected on the event's list, kept through every pull
+  // from Wix, then the certificate can go to the new one.
+  box.querySelectorAll("[data-certemail]").forEach((b) => b.onclick = async () => {
+    const p = C.people.find((x) => x.key === b.dataset.certemail);
+    b.closest("details").open = false;
+    const next = prompt(`${p.name}'s email address:`, p.email || ""); if (next === null) return;
+    const email = next.trim().toLowerCase(); if (!email || email === p.email) return;
+    try {
+      await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(p.key)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+      if (p.cert && !p.cert.revoked && confirm(`Saved. Email ${p.name} their certificate at ${email} now?`)) {
+        const r = (await api(`/certificates?event=${encodeURIComponent(ev.id)}&mail=1`, { method: "POST", body: JSON.stringify({ keys: [p.key], again: true }) })).results[0];
+        toast(r.error || (r.mail?.failed ? `Couldn't send: ${r.mail.failed}` : `Sent to ${email}.`));
+      } else toast("Saved. It stays through every pull from Wix.");
+    } catch (x) { toast(x.message); }
+    loadCerts(ev);
   });
   box.querySelectorAll("[data-certrevoke]").forEach((b) => b.onclick = async () => {
     const p = C.people.find((x) => x.key === b.dataset.certrevoke);
@@ -9923,7 +9947,7 @@ function attendeesCard(ev, guests) {
     const named = [p.first, p.last].filter(Boolean).join(" ");
     const name = named || (p.guestOf ? `Guest of ${p.guestOf}` : p.email || "Name not given");
     return `<tr class="grow${p.status === "WITHDRAWN" ? " out" : ""}" data-gcut="${GCUT[p.status] ?? "other"}" data-ggrp="${grpOf(p)}" data-find="${esc(`${name} ${p.email} ${p.organization ?? ""} ${p.agency ?? ""}`.toLowerCase())}">
-      <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span>${mayEdit ? `<br><button type="button" class="gfx" data-gfixone="${esc(p.key || (p.source === "wix" && p.wixGuestId ? `wix:${p.wixGuestId}` : p.email))}" data-gf="${esc(p.first ?? "")}" data-gl="${esc(p.last ?? "")}" data-go="${esc(p.organization ?? "")}">Correct</button>` : ""}</td>
+      <td class="pn"><b>${esc(name)}</b><span class="psub">${p.guestOf && named ? `guest of ${esc(p.guestOf)}` : esc(p.email || "no email of their own")}</span>${mayEdit ? `<br><button type="button" class="gfx" data-gfixone="${esc(p.key || (p.source === "wix" && p.wixGuestId ? `wix:${p.wixGuestId}` : p.email))}" data-gf="${esc(p.first ?? "")}" data-gl="${esc(p.last ?? "")}" data-go="${esc(p.organization ?? "")}" data-ge="${esc(p.email ?? "")}">Correct</button>` : ""}</td>
       <td class="go"${p.agency && p.organization && p.agency !== p.organization ? ` title="Typed as: ${esc(p.organization)}"` : ""}>${esc(p.agency || p.organization || "")}${p.fixed ? ` <span class="pill" title="Corrected on the desk, and kept through every pull. Wix has: ${esc([[p.asWix?.first, p.asWix?.last].filter(Boolean).join(" ") || "no name", p.asWix?.organization || "no organization"].join(" · "))}">corrected</span>` : ""}${p.group ? `<br><span class="pill">${esc(p.group)}</span>` : ""}</td>
       <td><span class="pill ${cls}">${esc(word)}</span></td>
       <td class="gs" title="${p.source === "wix" ? "Registered through the website" : "Added by hand or from a spreadsheet"}">${p.source === "wix" ? "Wix" : "by hand"}</td></tr>`;
@@ -10133,15 +10157,16 @@ function wireAttendees(ev) {
     box.className = "gfxform";
     box.innerHTML = `<label>First name<input value="${esc(btn.dataset.gf)}"></label><label>Last name<input value="${esc(btn.dataset.gl)}"></label>
       <label>Agency or organization<input value="${esc(btn.dataset.go)}"></label>
+      <label>Email<input type="email" value="${esc(btn.dataset.ge ?? "")}"></label>
       <div class="acts"><button type="button" class="mini gold">Save</button><button type="button" class="mini ghost">Cancel</button></div>`;
     cell.append(box); btn.hidden = true;
-    const [f, l, o] = box.querySelectorAll("input"), [save, cancel] = box.querySelectorAll("button");
+    const [f, l, o, em] = box.querySelectorAll("input"), [save, cancel] = box.querySelectorAll("button");
     o.focus();
     cancel.onclick = () => { box.remove(); btn.hidden = false; };
     save.onclick = async () => {
       save.disabled = true;
       try {
-        await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(btn.dataset.gfixone)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: f.value.trim(), last: l.value.trim(), organization: o.value.trim() }) });
+        await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(btn.dataset.gfixone)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: f.value.trim(), last: l.value.trim(), organization: o.value.trim() , email: em.value.trim()}) });
         toast("Saved. It stays through every pull from Wix.");
         render();
       } catch (e) { save.disabled = false; toast(e.message); }
