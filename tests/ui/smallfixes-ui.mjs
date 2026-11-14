@@ -24,7 +24,8 @@ let p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFact
 let errs = []; p.on("pageerror", (e) => errs.push(String(e)));
 await p.goto(`${S}/f/${set.survey.token}?lang=en`, { waitUntil: "networkidle" }); await p.waitForTimeout(700);
 // One survey for everyone since 13 Nov 2026 (#193): the attendee first says who they are, then the questions show.
-await p.locator('[data-who="justice"]').click(); await p.waitForTimeout(300);
+// Only an event that asks Justice community or Community partner shows the question (Andrew 14 Nov 2026).
+if (await p.locator('[data-who="justice"]').count()) { await p.locator('[data-who="justice"]').click(); await p.waitForTimeout(300); }
 const nps = await p.locator(".nps button").evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { top: Math.round(r.top), w: r.width }; }));
 const rows = [...new Set(nps.map((x) => x.top))];
 ok("phone: 0 to 10 on two rows, 0–5 then 6–10, each at least 44 pixels wide", nps.length === 11 && rows.length === 2 && nps.filter((x) => x.top === rows[0]).length === 6 && nps.every((x) => x.w >= 44), JSON.stringify(nps));
@@ -44,7 +45,7 @@ await p.locator("#lang").click(); await p.waitForTimeout(300);
 const other = await b.newPage({ viewport: { width: 390, height: 844 } });
 await other.goto(`${S}/f/${set.survey.token}?lang=en`, { waitUntil: "networkidle" }); await other.waitForTimeout(600);
 // Clean means back at "who are you?", nothing picked and nothing kept (the questions show once they choose).
-ok("a new tab starts clean", await other.locator('[data-who="justice"]').getAttribute("aria-pressed") !== "true" && await other.locator('[data-star="sa.relevant"][data-v="4"][aria-checked="true"]').count() === 0 && await other.locator("#kept").count() === 0);
+ok("a new tab starts clean", (await other.locator('[data-who="justice"]').count() === 0 || await other.locator('[data-who="justice"]').getAttribute("aria-pressed") !== "true") && await other.locator('[data-star="sa.relevant"][data-v="4"][aria-checked="true"]').count() === 0 && await other.locator("#kept").count() === 0);
 await other.close();
 // Once sent, the kept copy goes.
 await p.route("**/api/survey?t=*", (r) => r.request().method() === "POST" ? r.fulfill({ status: 200, contentType: "application/json", body: "{}" }) : r.continue());
@@ -52,7 +53,7 @@ await p.locator("#send").click(); await p.waitForTimeout(700);
 ok("(sent)", /Thank you|Merci/i.test(await p.locator("#root").innerText()), await p.locator("#root").innerText());
 await p.unroute("**/api/survey?t=*");
 await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(700);
-ok("once sent, nothing is kept: a reload is a fresh survey", await p.locator('[data-who="justice"]').getAttribute("aria-pressed") !== "true" && await p.locator('[data-star="sa.relevant"][data-v="4"][aria-checked="true"]').count() === 0 && await p.locator("#kept").count() === 0);
+ok("once sent, nothing is kept: a reload is a fresh survey", (await p.locator('[data-who="justice"]').count() === 0 || await p.locator('[data-who="justice"]').getAttribute("aria-pressed") !== "true") && await p.locator('[data-star="sa.relevant"][data-v="4"][aria-checked="true"]').count() === 0 && await p.locator("#kept").count() === 0);
 ok("survey: no page errors", !errs.length, errs.join(" | "));
 await p.close();
 

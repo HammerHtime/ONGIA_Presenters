@@ -7,7 +7,7 @@ import { siteUrl } from "./lib/site.mjs";
 import { trainingDays } from "./lib/agenda.mjs";
 import { directory } from "./lib/agencies.mjs";
 import { primeRoster } from "./lib/signature.mjs";
-import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage } from "./lib/survey.mjs";
+import { startingSurvey, sessionsFrom, cleanSurvey, surveyProblems, daysFor, partFor, cleanResponse, surveyForPage, asksWho } from "./lib/survey.mjs";
 import { surveyLetter, sendSurveyRound, dailyTimes, localNow, zoneOf } from "./lib/surveysend.mjs";
 import { getSurveyContacts, deleteSurveyData } from "./lib/store.mjs";
 import { surveyResults } from "./lib/surveyresults.mjs";
@@ -179,7 +179,7 @@ async function results(event, who = "", day = "") {
   const inDay = byDay(all, day);
   const counts = { all: inDay.length, justice: byWho(inDay, "justice").length, partner: byWho(inDay, "partner").length,
     days: Object.fromEntries(trainingDays(event).map((d) => [d, byDay(byWho(all, who), d).length])) };
-  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", day: isDay(day) ? day : "", daily: event.survey.mode === "daily", counts, analysis: event.survey.analysis ?? null, reading: event.survey.reading ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
+  return json({ results: R, who: ["justice", "partner"].includes(who) ? who : "", day: isDay(day) ? day : "", daily: event.survey.mode === "daily", counts, askWho: asksWho(event), analysis: event.survey.analysis ?? null, reading: event.survey.reading ?? null, blocks: BLOCKS, presenters: (await getSurveyContacts(event.id)).length });
 }
 
 async function download(event, which, url = null) {
@@ -258,7 +258,7 @@ function whichPart(event, person, asked, done) {
 function qrPart(event, day) {
   if (!trainingDays(event).includes(day)) return null;
   const sessions = (event.survey?.sessions ?? []).filter((s) => s.day === day);
-  return sessions.length ? { part: day, partner: false, who: null, about: false, days: [{ day, sessions }], overall: false } : null;
+  return sessions.length ? { part: day, askWho: asksWho(event), partner: false, who: asksWho(event) ? null : "justice", about: false, days: [{ day, sessions }], overall: false } : null;
 }
 const qrLink = (event, day) => `${siteUrl()}/f/${event.survey.token}?day=${day}`;
 const qrPng = (link, width = 900) => QRCode.toBuffer(link, { margin: 2, width, errorCorrectionLevel: "M", color: { dark: "#14264d", light: "#ffffff" } });
