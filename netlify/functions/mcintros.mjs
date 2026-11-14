@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, editGuard, text } from "./lib/http.mjs";
 import { getEvent, putEvent, listPresenters } from "./lib/store.mjs";
 import { primeRoster } from "./lib/signature.mjs";
-import { mcSessions, mcView, draftIntros, mcScriptPdf, hasBio } from "./lib/mcintro.mjs";
+import { mcSessions, mcView, draftIntros, mcScriptPdf, hasBio, setPlan } from "./lib/mcintro.mjs";
 import { slugOf } from "./lib/public.mjs";
 
 /**
@@ -9,7 +9,7 @@ import { slugOf } from "./lib/public.mjs";
  *   GET  /api/mcintros?event=…               each session in order, its presenters, whether their agreement is in, its intro
  *   POST /api/mcintros?event=…&draft=1       Claude drafts those not yet drafted, three a call; `left` says how many
  *                                            are still to do (&id=… redraft just that one)
- *   PUT  /api/mcintros?event=…               { id, text } an intro as changed by hand ("" clears it)
+ *   PUT  /api/mcintros?event=…               { id, text } an intro as changed by hand ("" clears it); { id, day, time } its slot
  *   GET  /api/mcintros?event=…&pdf=1         the MC script
  */
 const BATCH = 3;
@@ -54,6 +54,13 @@ export default async (req) => {
   if (req.method === "PUT") {
     const id = text(body.id, 40);
     if (!mcSessions(event, presenters).some((s) => s.id === id)) return fail("That session isn't on this event.", 404);
+    // The day and time only, from the MC card's Day and Time boxes.
+    if (body.text === undefined && (body.day !== undefined || body.time !== undefined)) {
+      setPlan(event, id, { day: body.day, time: body.time });
+      event.updatedAt = new Date().toISOString();
+      await putEvent(event);
+      return json(mcView(event, await listPresenters(event.id)));
+    }
     const words = text(body.text, 1500);
     if (words) kept[id] = { text: words, check: "", by: "edited", at: new Date().toISOString() };
     else delete kept[id];

@@ -45,8 +45,33 @@ export function mcSessions(event, presenters = []) {
     const people = s.presenters.map((n) => byName.get(n.toLowerCase())).filter(Boolean);
     if (people.length) out.push({ id: s.id, day: "", dayN: 0, title: s.title, people });
   }
-  // By day; sessions with no day keep their place at the end.
-  return out.map((s, i) => ({ ...s, i })).sort((a, b) => (a.dayN || 99) - (b.dayN || 99) || a.i - b.i).map(({ i, ...s }) => s);
+  // The day and time set on the MC card (Andrew 14 Nov 2026: "there's no way for me to move her to a specific time slot").
+  const plan = event.mcPlan ?? {};
+  for (const s of out) {
+    const p = plan[s.id] ?? {};
+    if (p.day && days.includes(p.day)) { s.day = p.day; s.dayN = days.indexOf(p.day) + 1; }
+    s.time = /^\d{2}:\d{2}$/.test(p.time ?? "") ? p.time : "";
+  }
+  // By day, then by time. A session with no time keeps its place after the one before it, so setting one time
+  // doesn't shuffle the rest. Sessions with no day go at the end.
+  const keyed = out.map((s, i) => ({ ...s, i }));
+  const lastTime = {};
+  for (const s of keyed) { const d = s.day || "-"; if (s.time) lastTime[d] = s.time; s.k = s.time || lastTime[d] || ""; }
+  return keyed.sort((a, b) => (a.dayN || 99) - (b.dayN || 99) || a.k.localeCompare(b.k) || a.i - b.i).map(({ i, k, ...s }) => s);
+}
+
+/** Set a session's day and time from the MC card. The day goes on the survey's session too, so both say the same. */
+export function setPlan(event, id, { day, time } = {}) {
+  const days = trainingDays(event);
+  const had = (event.mcPlan ?? {})[id] ?? {};
+  const next = { ...had };
+  if (day !== undefined) next.day = days.includes(day) ? day : "";
+  if (time !== undefined) next.time = /^\d{2}:\d{2}$/.test(String(time)) ? String(time) : "";
+  event.mcPlan = { ...(event.mcPlan ?? {}), [id]: next };
+  if (day !== undefined && event.survey?.sessions?.some((s) => s.id === id)) {
+    event.survey = { ...event.survey, sessions: event.survey.sessions.map((s) => (s.id === id ? { ...s, day: next.day } : s)) };
+  }
+  return event;
 }
 
 /** What Claude is given for one session, and its fingerprint. */
@@ -69,12 +94,12 @@ export function mcView(event, presenters) {
   const kept = event.mcIntros ?? {};
   const people = sessions.flatMap((s) => s.people).filter((p) => p.id);
   return {
-    submitted: people.filter(hasSent).length, total: people.length,
+    submitted: people.filter(hasSent).length, total: people.length, days: trainingDays(event),
     sessions: sessions.map((s) => {
       const b = briefOf(s);
       const k = kept[s.id];
       return {
-        id: s.id, day: s.day, dayN: s.dayN, title: s.title,
+        id: s.id, day: s.day, dayN: s.dayN, time: s.time ?? "", title: s.title,
         presenters: s.people.map((p) => ({ name: p.name ?? NAME(p), organization: p.organization ?? "", sent: p.id ? hasSent(p) : false, bio: !!(hasSent(p) && p.submission.bio) })),
         // Nobody on it sent a bio (Andrew 12 Nov 2026: "If no bio, then on PDF just indicate, no bio"): nothing is drafted.
         noBio: !hasBio(s),
@@ -133,6 +158,9 @@ const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-logo.png"))
 const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#c9a032", INK = "#14181f", MUTED = "#5d6577", LINE = "#e2ddcf";
 const W = 612, H = 792, M = 54, BODY = W - M * 2;
 
+/** "14:30" as "2:30 pm". */
+export const clock = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`; };
+
 /** The MC script: every session in order, its introduction in large type to read from a lectern. */
 export async function mcScriptPdf(event, view) {
   const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
@@ -169,7 +197,7 @@ export async function mcScriptPdf(event, view) {
       doc.moveTo(M, y).lineTo(M + BODY, y).lineWidth(1).strokeColor(GOLD).stroke(); y += 12;
       day = s.day;
     } else if (y + need > H - M) page();
-    doc.font("Helvetica-Bold").fontSize(15).fillColor(NAVY).text(names, M, y, { width: BODY }); y = doc.y + 2;
+    doc.font("Helvetica-Bold").fontSize(15).fillColor(NAVY).text(`${s.time ? `${clock(s.time)} · ` : ""}${names}`, M, y, { width: BODY }); y = doc.y + 2;
     doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(MUTED).text(s.title || "", M, y, { width: BODY }); y = doc.y + 8;
     doc.font("Helvetica").fontSize(14).fillColor(intro ? INK : MUTED).text(intro || (nobio ? "No bio." : "No introduction yet."), M, y, { width: BODY, lineGap: 4 }); y = doc.y + 14;
     doc.moveTo(M, y).lineTo(M + BODY, y).lineWidth(0.5).strokeColor(LINE).stroke(); y += 16;
