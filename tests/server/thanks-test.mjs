@@ -33,21 +33,22 @@ ok("switched off, not at all", !T.thanksDue({ ...ev, presenterThanks: { off: tru
 
 const people = T.thanksPeople(ev, await S.listPresenters("vic"));
 ok("withdrawn presenters aren't listed", !people.some((p) => p.id === "d") && people.length === 3);
-ok("only invited (never signed) is left out unless added", people.find((p) => p.id === "c").in === false && people.find((p) => p.id === "a").in);
+ok("everyone with an agreement, signed or only invited", people.every((p) => p.in));
 ok("a talk with no title on the agreement takes the program's", people.find((p) => p.id === "b").talk === "Tobacco");
 
 const sched = await emailSchedule(ev, "2026-11-14");
 const row = sched.find((x) => x.what === "Presenter thank-you");
-ok("Coming up lists it: Wed 25 Nov, 9:00 PT, to 2 presenters", row && row.date === "2026-11-25" && row.time === "09:00" && row.tz === "PT" && row.to === 2 && row.who === "presenters", JSON.stringify(row));
+ok("Coming up lists it: Wed 25 Nov, 9:00 PT, to 3 presenters", row && row.date === "2026-11-25" && row.time === "09:00" && row.tz === "PT" && row.to === 3 && row.who === "presenters", JSON.stringify(row));
 
 const r = await T.sendThanksRound(ev, { now: new Date("2026-11-25T17:05:00Z"), pace: async () => {} });
-ok("two sent, one each", r.sent === 2 && sent.length === 2 && sent.map((m) => m.to).sort().join() === "ana@x.ca,sam@x.ca", JSON.stringify(r));
+ok("three sent, one each, Jo too", r.sent === 3 && sent.length === 3 && sent.map((m) => m.to).sort().join() === "ana@x.ca,jo@x.ca,sam@x.ca", JSON.stringify(r));
+ok("Jo, with no talk title, is thanked for presenting at the event", /thank you for presenting at Western Symposium on/.test(sent.find((m) => m.to === "jo@x.ca").text));
 const ana = sent.find((m) => m.to === "ana@x.ca");
 ok("greeted by first name, with their talk in quotes and the day", /Hi Ana,/.test(ana.text) && /thank you for presenting “Gangs in BC” at Western Symposium on Tuesday, November 24\./.test(ana.text), ana.text.slice(0, 300));
 ok("the subject names the event", ana.subject === "Thank you for presenting at Western Symposium");
 ok("Andrew's words are in it", /That kind of generosity is what ONGIA runs on/.test(ana.text) && /With gratitude,/.test(ana.text));
 const again = await T.sendThanksRound(ev, { now: new Date("2026-11-25T17:20:00Z"), pace: async () => {} });
-ok("nobody gets it twice", again.sent === 0 && sent.length === 2);
+ok("nobody gets it twice", again.sent === 0 && sent.length === 3);
 ok("and the 15-minute check sees nothing left to do", !(await T.thanksWorkDue([ev], new Date("2026-11-25T17:20:00Z"))));
 
 // The desk: words changed for one event, someone added, a test, Send now to one.
@@ -61,12 +62,15 @@ ok("own words kept for this event", !v.standard && v.subject === "Thanks, {first
 ok("a blank that doesn't exist is refused", (await call("", "PUT", { subject: "x", body: "Hi {frist}" })).status === 409);
 v = await (await call("", "PUT", { standard: true })).json();
 ok("standard words back", v.standard && v.body === T.STANDARD.body && !(await S.getEvent("vic")).presenterThanks.body);
-v = await (await call("", "PUT", { id: "c", pick: "yes" })).json();
-ok("Jo, only invited, added by hand", v.people.find((p) => p.id === "c").in);
+await S.putPresenter({ id: "e", eventId: "vic", first: "Kim", last: "Fox", email: "kim@x.ca", status: "approved" });
+v = await (await call("", "PUT", { id: "e", pick: "no" })).json();
+ok("Kim skipped on the card", v.people.find((p) => p.id === "e").in === false);
+v = await (await call("", "PUT", { id: "e", pick: "" })).json();
+ok("and back on", v.people.find((p) => p.id === "e").in);
 const t = await call("&test=1", "POST", { to: "me@x.ca" });
 ok("a test goes to the address given, marked TEST", t.status === 200 && sent.at(-1).to === "me@x.ca" && /^TEST: /.test(sent.at(-1).subject));
 const now = await (await call("&send=1", "POST", {})).json();
-ok("Send now: only Jo is still owed, and gets it; the others don't again", now.sent === 1 && sent.at(-1).to === "jo@x.ca" && /presenting at Western Symposium/.test(sent.at(-1).text), sent.at(-1).text.slice(0, 200));
+ok("Send now: only Kim, added since, is owed and gets it; the others don't again", now.sent === 1 && sent.at(-1).to === "kim@x.ca", JSON.stringify(now.sent));
 v = await (await call("", "PUT", { off: true })).json();
 ok("switched off", v.on === false && (await emailSchedule({ ...(await S.getEvent("vic")) }, "2026-11-14")).find((x) => x.what === "Presenter thank-you") === undefined);
 ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&kind=thanks"))).status === 401);
