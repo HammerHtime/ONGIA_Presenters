@@ -148,6 +148,13 @@ ok("what's missing reads as a sentence: \"…, a and b\"", X.andList(["the date"
   ok("…but it still needs who, the amount and the date", X.lineProblems({ ...st, paidTo: "", amount: null, date: "" }).join("|") === "who it was paid to|the date|the amount");
   const ck = X.claimChecks([st], { month: "November 2026" });
   ok("Claude's check doesn't flag a stipend's amount, and says it needs no receipt", ck.ok === true && ck.summary.includes("The stipend needs no receipt"), JSON.stringify(ck));
+  // The approver's screen lights the flagged line up in red (Andrew 14 Nov 2026): each note names its line, each line its reason.
+  const off = { id: "L1", kind: "receipt", paidTo: "Esso", date: "2026-11-03", amount: 80, check: { state: "differs", total: 60 } };
+  const fine = { id: "L2", kind: "receipt", paidTo: "Tim Hortons", date: "2026-11-03", amount: 12, check: { state: "match", total: 12 } };
+  const nr = { id: "L3", kind: "noreceipt", paidTo: "Parking", date: "2026-11-03", amount: 20, category: 8, statement: "Meter", shot: { name: "s.png" } };
+  const fk = X.claimChecks([off, fine, nr], { month: "November 2026" });
+  ok("a flagged line carries its short reason; a line that matches carries none", fk.flags.L1 === "Receipt says $60.00, $80.00 claimed" && !fk.flags.L2 && fk.flags.L3 === "No receipt: amount not confirmed", JSON.stringify(fk.flags));
+  ok("and each note says which line it is about", fk.notes.length === fk.noteLines.length && fk.noteLines[0] === "L1" && fk.noteLines.includes("L3"), JSON.stringify(fk.noteLines));
   ok("any other no-receipt line still needs its reason and statement", X.lineProblems({ ...st, category: 8 }).join("|") === "a reason there's no receipt|a screenshot of the card statement");
 }
 await call(`/api/expenses?claim=${C}&line=${L4}`, "PUT", { paidTo: "Parking machine", date: "2026-11-11", amount: 18, category: 8, purpose: "Parking at the venue", statement: "The machine printed no receipt. It is on my Visa statement." }, MEMBER);

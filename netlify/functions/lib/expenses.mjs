@@ -553,27 +553,30 @@ export function submitProblems(lines, today = todayIso()) {
  * { ok: true } when there is nothing to look at; otherwise { ok: false, notes: [...] }.
  */
 export function claimChecks(lines, { month = "", earlier = [] } = {}) {
-  const notes = [];
+  // Each note says which line it is about, and each flagged line gets a short reason, so the approver's screen can
+  // light that line up in red (Andrew 14 Nov 2026: "it would be great if the actual line item was highlighted in red").
+  const notes = [], noteLines = [], flags = {};
+  const say = (l, note, short) => { notes.push(note); noteLines.push(l?.id ?? null); if (l?.id && short) (flags[l.id] ??= []).push(short); };
   const receipts = lines.filter((l) => l.kind === "receipt");
   const matched = receipts.filter((l) => l.check?.state === "match").length;
   for (const l of receipts) {
     const c = l.check ?? {};
-    if (c.state === "differs") notes.push(`${l.paidTo}: the receipt says ${dollars(c.total)}, and ${dollars(l.amount)} is claimed.`);
-    else if (c.state !== "match") notes.push(`${l.paidTo || "A receipt"}: Claude couldn't check it against the receipt. Look at the photo.`);
-    if (c.currency) notes.push(`${l.paidTo}: the receipt is in ${c.currency}. Check that ${dollars(l.amount)} is what the card was charged in Canadian dollars.`);
+    if (c.state === "differs") say(l, `${l.paidTo}: the receipt says ${dollars(c.total)}, and ${dollars(l.amount)} is claimed.`, `Receipt says ${dollars(c.total)}, ${dollars(l.amount)} claimed`);
+    else if (c.state !== "match") say(l, `${l.paidTo || "A receipt"}: Claude couldn't check it against the receipt. Look at the photo.`, "Not checked against the receipt");
+    if (c.currency) say(l, `${l.paidTo}: the receipt is in ${c.currency}. Check that ${dollars(l.amount)} is what the card was charged in Canadian dollars.`, `Receipt in ${c.currency}`);
   }
   // A card statement isn't read, so a no-receipt line's amount is unconfirmed: flagged for the approvers to look at, never
   // a reason to refuse the claim (Andrew, 3 Nov 2026: "don't reject it ... flag it as unverified amount"). Without this the
   // check said "everything checks out" though no one had compared the amount.
-  for (const l of lines) if (l.kind === "noreceipt" && !isStipend(l)) notes.push(`${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`);
-  for (const l of lines) if (l.dupe) notes.push(`${l.paidTo || "A line"}${l.date ? `, ${shortDate(l.date)}` : ""}, ${dollars(l.amount)}: ${l.dupe.level === "same" ? "already claimed" : "may already be claimed"} on ${l.dupe.where} (${l.dupe.why}).`);
-  for (const l of lines) if (!l.dupe && earlier.some((e) => sameLine(e, l))) notes.push(`${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`);
+  for (const l of lines) if (l.kind === "noreceipt" && !isStipend(l)) say(l, `${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`, "No receipt: amount not confirmed");
+  for (const l of lines) if (l.dupe) say(l, `${l.paidTo || "A line"}${l.date ? `, ${shortDate(l.date)}` : ""}, ${dollars(l.amount)}: ${l.dupe.level === "same" ? "already claimed" : "may already be claimed"} on ${l.dupe.where} (${l.dupe.why}).`, l.dupe.level === "same" ? "Already claimed" : "May already be claimed");
+  for (const l of lines) if (!l.dupe && earlier.some((e) => sameLine(e, l))) say(l, `${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`, "Claimed before");
   const [mName, mYear] = String(month).split(" ");
   const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
   if (mIdx >= 0) {
     // An item forgotten from last month is normal (Andrew's own October claim had one from September); older is worth a look.
     const start = Date.parse(`${mYear}-${String(mIdx + 1).padStart(2, "0")}-01`);
-    for (const l of lines) if (l.date && Date.parse(l.date) < start - 62 * 86400e3) notes.push(`${l.paidTo || "A line"} is dated ${shortDate(l.date)} ${l.date.slice(0, 4)}, more than two months before ${month}.`);
+    for (const l of lines) if (l.date && Date.parse(l.date) < start - 62 * 86400e3) say(l, `${l.paidTo || "A line"} is dated ${shortDate(l.date)} ${l.date.slice(0, 4)}, more than two months before ${month}.`, "More than two months old");
   }
   const noRec = lines.filter((l) => l.kind === "noreceipt" && !isStipend(l));
   const stipends = lines.filter((l) => l.kind === "noreceipt" && isStipend(l));
@@ -585,7 +588,7 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
     noRec.length ? (noRec.length === 1 ? "The line with no receipt has a reason and the card statement" : `The ${noRec.length} lines with no receipt each have a reason and the card statement`) : "",
     stipends.length ? (stipends.length === 1 ? "The stipend needs no receipt" : `The ${stipends.length} stipends need no receipt`) : "",
   ].filter(Boolean);
-  return { ok: notes.length === 0, notes, summary };
+  return { ok: notes.length === 0, notes, noteLines, flags: Object.fromEntries(Object.entries(flags).map(([k, v]) => [k, v.join(" · ")])), summary };
 }
 const dollars = (n) => `$${money(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export { dollars };

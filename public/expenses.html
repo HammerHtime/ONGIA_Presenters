@@ -70,6 +70,10 @@
   .card.lines{background:none;border:0;box-shadow:none;padding:0;display:flex;flex-direction:column;gap:8px}
   .card.lines > .line, .card.lines > .swipe{background:var(--card);border:1px solid var(--edge);border-radius:12px;box-shadow:0 1px 2px rgba(15,25,45,.06)}
   .card.lines > .line{padding:11px 12px}
+  /* A line Claude's check flagged, in red on the approver's screen (Andrew 14 Nov 2026), and lit up when its note is tapped. */
+  .line.flagged{background:#fdeeec;box-shadow:inset 4px 0 0 var(--late)}.line .flagwhy{color:var(--late);font-weight:700;font-size:13.5px;margin-top:3px}
+  .line.flash{animation:flash 1.6s ease-out}@keyframes flash{0%,40%{background:#f7c9c2}100%{background:#fdeeec}}
+  .looks li[data-goline]{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(0,0,0,.25);text-underline-offset:3px}
   .thumb{width:44px;height:56px;border-radius:6px;background:#fff;border:1px solid var(--border);flex:none;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted)}
   .thumb img{width:100%;height:100%;object-fit:cover}
   .thumb.kind{background:var(--sunk);box-shadow:none}
@@ -180,7 +184,7 @@
   .viewer .vnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:30px;cursor:pointer}
   .viewer .vnav[hidden]{display:none}.viewer .vprev{left:8px}.viewer .vnext{right:8px}
   .viewer .vcap{padding:10px 16px calc(12px + var(--safe-bottom));text-align:center;font-size:15px;line-height:1.4}
-  .viewer .vcap .flag{color:#f2c46d;font-weight:600}.viewer .vcap .tiny{color:#9fb0cc;margin-top:4px}
+  .viewer .vcap .flag{color:#f2c46d;font-weight:600}.viewer .vcap .vflag{background:#b3261e;color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;margin:0 auto 8px;display:inline-block}.viewer .vcap .tiny{color:#9fb0cc;margin-top:4px}
   .zoomin{display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in}
   .kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:14.5px}.kv:first-child{border-top:0}.kv .k2{color:var(--muted);flex:none}
   .kv .v{text-align:right;min-width:0;overflow-wrap:anywhere}
@@ -720,15 +724,15 @@ function checkRow(l) {
 }
 // The same receipt already claimed (Andrew 9 Nov 2026): red when it's certain, amber when it looks like it.
 const dupeRow = (l) => (l.dupe ? `<div class="check ${l.dupe.level === "same" ? "bad" : "wt"}">${l.dupe.level === "same" ? "Already claimed" : "May already be claimed"} on ${esc(l.dupe.where)}</div>` : "");
-function lineRow(l, claimId) {
+function lineRow(l, claimId, flag = "") {
   const pic = l.kind === "receipt"
     ? (l.file?.type === "application/pdf" ? `<div class="thumb">${ICON.pdf}</div>` : `<div class="thumb" data-thumb="${claimId}:${l.id}">${ICON.receipt}</div>`)
     : `<div class="thumb kind">${l.kind === "mileage" ? ICON.car : ICON.note}</div>`;
   const title = l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${esc(l.from || "?")} to ${esc(l.to || "?")}` : ""}` : esc(l.paidTo || (l.check?.state === "reading" ? "New receipt" : l.kind === "noreceipt" ? "No receipt" : "Receipt"));
   const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
   const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.length < 2 ? l.problems.join("") : `${l.problems.slice(0, -1).join(", ")} and ${l.problems.at(-1)}`)}</div>` : "";
-  return `<button type="button" class="line" data-line="${esc(l.id)}">${pic}
-    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${checkRow(l)}${dupeRow(l)}${needs}</div>
+  return `<button type="button" class="line${flag ? " flagged" : ""}" data-line="${esc(l.id)}">${pic}
+    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${flag ? `${l.kind === "mileage" ? checkRow(l) : ""}<div class="flagwhy">⚠ ${esc(flag)}</div>` : `${checkRow(l)}${dupeRow(l)}`}${needs}</div>
     <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
 }
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
@@ -1200,7 +1204,7 @@ function checksBox(c) {
   const k = c.checks; if (!k) return "";
   const summary = k.summary?.length ? `<div class="note" style="margin-top:2px">${k.summary.map((x) => `${esc(x)}.`).join(" ")}</div>` : "";
   if (k.ok) return `<div class="allok"><div class="tick">${ICON.tick}</div><div><b>Everything checks out.</b>${summary}<div class="note">Nothing is claimed twice.</div></div></div>`;
-  return `<div class="looks"><b>${k.notes.length === 1 ? "One thing to look at" : `${k.notes.length} things to look at`}</b>${summary}<ul>${k.notes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  return `<div class="looks"><b>${k.notes.length === 1 ? "One thing to look at" : `${k.notes.length} things to look at`}</b>${summary}<ul>${k.notes.map((x, i) => `<li${k.noteLines?.[i] ? ` data-goline="${esc(k.noteLines[i])}" title="Show this line"` : ""}>${esc(x)}</li>`).join("")}</ul></div>`;
 }
 function viewScreen(target = ROOT) {
   const c = OPEN; if (!c) return;
@@ -1247,11 +1251,17 @@ function viewScreen(target = ROOT) {
   if (fails.length) h += `<div class="say wt"><b>${fails.length === 1 ? "An email about this claim didn't go." : `${fails.length} emails about this claim didn't go.`}</b> The people below may not know about it.
     <details class="more" style="margin:6px 0 0"><summary>Which ones</summary><ul class="hist" style="padding-left:18px;margin:0">${fails.map((m) => `<li>${esc(m.to)} (${esc(m.what)}), ${esc(when(m.at))}: ${esc(m.why)}</li>`).join("")}</ul></details></div>`;
   if (c.status !== "draft") h += filedCard(c);
-  h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id)).join("")}</div>`;
+  const flags = c.status !== "draft" ? c.checks?.flags ?? {} : {};
+  h += `<div class="day">What's claimed</div><div class="card lines">${c.lines.map((l) => lineRow(l, c.id, flags[l.id])).join("")}</div>`;
   if (c.history?.length) h += `<details class="more"><summary>What's happened to it</summary><ul class="hist" style="padding-left:18px;margin:0">${c.history.map((x) => `<li>${esc(when(x.at))}: ${esc(x.what)} by ${esc(x.by)}${x.as ? ` (${esc(x.as)})` : ""}${x.comment || x.reason ? `: "${esc(x.comment || x.reason)}"` : ""}${x.ref ? `, transaction number ${esc(x.ref)}` : ""}</li>`).join("")}</ul></details>`;
   if (c.can.markTest || c.can.del) h += `<div style="margin-top:14px">${c.can.markTest ? `<button class="linkish" id="marktest" type="button">${c.test ? "This isn't a test: mark it real" : "Mark this as a test claim"}</button>` : ""}${c.can.del && !mine ? `<button class="btn danger" id="delthis" type="button">Delete this test claim</button>` : ""}</div>`;
   target.innerHTML = h;
   target.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => lineSheet(c, c.lines.find((l) => l.id === b.dataset.line)); });
+  // Tapping a note goes to its line, lit up for a moment.
+  target.querySelectorAll("[data-goline]").forEach((li) => { li.onclick = () => {
+    const row = target.querySelector(`.line[data-line="${CSS.escape(li.dataset.goline)}"]`); if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" }); row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+  }; });
   if ($("seepics")) $("seepics").onclick = () => openViewer(c, viewItems(c)[0]?.l.id);
   fillThumbs();
   const act = async (btn, path, body, done) => {
@@ -1341,7 +1351,8 @@ function openViewer(c, lineId) {
     el.querySelector("#vcount").textContent = items.length > 1 ? `${i + 1} of ${items.length}` : "";
     el.querySelector("#vprev").hidden = i === 0; el.querySelector("#vnext").hidden = i === items.length - 1;
     const l = it.l;
-    el.querySelector("#vcap").innerHTML = `<b>${esc(l.paidTo || "Receipt")}</b> · ${esc(money(l.amount ?? 0))}${l.date ? ` · ${esc(longDate(l.date))}` : ""}
+    const vf = c.status !== "draft" ? c.checks?.flags?.[l.id] : "";
+    el.querySelector("#vcap").innerHTML = `${vf ? `<div class="vflag">⚠ ${esc(vf)}</div><br>` : ""}<b>${esc(l.paidTo || "Receipt")}</b> · ${esc(money(l.amount ?? 0))}${l.date ? ` · ${esc(longDate(l.date))}` : ""}
       ${it.kind === "shot" ? `<div class="flag">Card statement · amount not confirmed</div>` : ""}
       <div class="tiny">Pinch or double-tap to zoom${items.length > 1 ? " · swipe for the next" : ""}</div>`;
     stage.innerHTML = `<div class="vmsg">Loading…</div>`;
@@ -1447,7 +1458,7 @@ async function lineSheet(c, l) {
   const head = l.kind === "mileage" ? "Mileage" : l.paidTo || "Receipt";
   // On the laptop the phone's navy bar is hidden, so the line gets the desk's own band with a Back (Andrew, 8 Nov 2026).
   el.innerHTML = `${DESK ? `<div class="dband alone sheethead"><div><button class="dback" type="button" data-close>‹ Back to the claim</button><h2>${esc(head)}</h2></div></div>` : `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(head)}</h1></header>`}
-    <main>${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
+    <main>${c?.status !== "draft" && c?.checks?.flags?.[l.id] ? `<div class="say bad" style="margin:0 0 12px"><b>⚠ ${esc(c.checks.flags[l.id])}</b></div>` : ""}${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
