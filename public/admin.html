@@ -6052,6 +6052,8 @@ function loadMc(ev) {
       } catch (x) { toast(x.message); }
       done();
     };
+    // View only: the introductions can be opened and read, and the script downloaded; nothing is drafted or saved.
+    if (ROOT.classList.contains("ro")) lockForView(box, VIEW_WHY);
   };
   api(q).then(draw).catch((x) => { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; });
 }
@@ -6243,6 +6245,8 @@ async function mountWho(ev, kind, el, { versions = 1 } = {}) {
     const qi = body.querySelector("[data-mwq]");
     qi.oninput = () => { q = qi.value.trim().toLowerCase(); const at = qi.selectionStart; draw(); const n2 = body.querySelector("[data-mwq]"); n2.focus(); try { n2.setSelectionRange(at, at); } catch {} };
     body.querySelector("[data-mwall]")?.addEventListener("click", () => { all = true; draw(); });
+    // View only: the filters and search still work; Send and Resend don't.
+    if (ROOT.classList.contains("ro")) lockForView(body, VIEW_WHY);
     body.querySelectorAll("[data-mwsend]").forEach((b) => { b.onclick = async () => {
       const p = P.find((x) => x.email === b.dataset.mwsend);
       // No "are you sure" (Andrew 7 Nov 2026: "When I click send, just send it"). One person, their own version.
@@ -8201,7 +8205,7 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  */
 // Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
 // filters, the find box, opening a person's details, the way back) still works.
-const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind";
+const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind, [data-mwf], [data-mwq], [data-mwall], [data-mcopen], [data-mc=\"pdf\"]";
 const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");

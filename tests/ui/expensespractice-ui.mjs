@@ -30,7 +30,7 @@ await p.selectOption("#f-category", "10");
 await p.fill("#f-paidTo", "Andy Bain"); await p.fill("#f-date", todayIso(new Date(Date.now() - 86400e3)));
 await p.locator("#f-amount").pressSequentially("25000"); await p.fill("#f-purpose", "Practice stipend");
 await p.click("#save"); await p.waitForSelector("#submit");
-ok("before sending, it says the claim will come back to you as each approver", /A test claim comes back to you: approve it as the President and as the Treasurer, then record a pretend payment/.test(await p.textContent("#root")), (await p.textContent("#root")).slice(-400));
+ok("before sending, it says the claim will come back to you as each approver", /A test claim comes back to you: approve it as the President and as the VP of Operations, then record a pretend payment/.test(await p.textContent("#root")), (await p.textContent("#root")).slice(-400));
 await p.click("#submit"); await p.waitForTimeout(1200);
 ok("sent: the note says it's waiting for you under To approve", /It's waiting for you under To approve/.test(await p.textContent("body")));
 
@@ -47,11 +47,11 @@ ok("opened: Practice, you're approving it as the President", /Practice: you're a
 ok("…the sign-offs read 'you, for practice', both waiting", (await p.locator(".slot", { hasText: "you, for practice" }).count()) === 2 && (await p.locator(".slot .r.wait").count()) === 2);
 await p.screenshot({ path: D + "expenses-practice-approve.png" });
 await p.click("#approve"); await p.waitForTimeout(900);
-ok("approved as the President: green, and now the Treasurer's turn, still yours", (await p.locator(".slot .r.ok").count()) === 1 && /Practice: you're approving it as the Treasurer/.test(await p.textContent("#root")));
+ok("approved as the President: green, and now the VP of Operations' turn, still yours", (await p.locator(".slot .r.ok").count()) === 1 && /Practice: you're approving it as the VP of Operations/.test(await p.textContent("#root")));
 await p.click("#approve"); await p.waitForTimeout(900);
-ok("approved as the Treasurer too: both green, and the payment is yours to record", (await p.locator(".slot .r.ok").count()) === 2 && await p.isVisible("#paybtn"));
+ok("approved as the VP of Operations too: both green, and the payment is yours to record", (await p.locator(".slot .r.ok").count()) === 2 && await p.isVisible("#paybtn"));
 ok("the payment card says it's practice and nothing is sent", /Practice: nothing is sent/.test(await p.textContent("#root")) && (await p.getAttribute("#ref", "placeholder")) === "TEST123");
-// Raj "will log in and see that I've approved it on this day and time" (Andrew, 3 Nov 2026).
+// The approvers "will log in and see that I've approved it on this day and time" (Andrew, 3 Nov 2026).
 ok("each sign-off says the day and the time it was approved", (await p.locator(".slot .tiny", { hasText: /^Approved [A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}/ }).count()) === 2, await p.locator(".slot").allInnerTexts().then((t) => t.join(" | ")));
 // The "ready to be paid" email's button: the claim opens with the cursor in the transaction number, and Confirm.
 const q = await ctx.newPage(); q.on("pageerror", (e) => errs.push(String(e)));
