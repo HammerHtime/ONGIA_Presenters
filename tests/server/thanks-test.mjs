@@ -84,6 +84,8 @@ v = await (await call("", "PUT", { id: "e", pick: "" })).json();
 ok("and back on", v.people.find((p) => p.id === "e").in);
 const t = await call("&test=1", "POST", { to: "me@x.ca" });
 ok("a test goes to the address given, marked TEST", t.status === 200 && sent.at(-1).to === "me@x.ca" && /^TEST: /.test(sent.at(-1).subject));
+const ta = await call("&test=1", "POST", { to: "pat@x.ca", as: { first: "Pat", last: "Doe", organization: "ONGIA", talk: "Youth Gangs Online" } });
+ok("a test made out to someone else: their name in the email and on the letter", ta.status === 200 && /Hi Pat,/.test(sent.at(-1).text) && /“Youth Gangs Online”/.test(sent.at(-1).text) && /^Doe Pat - Letter of appreciation/.test(sent.at(-1).files[0]?.filename ?? ""), sent.at(-1).files[0]?.filename);
 const now = await (await call("&send=1", "POST", {})).json();
 ok("Send now: only Kim, added since, is owed and gets it; the others don't again", now.sent === 1 && sent.at(-1).to === "kim@x.ca", JSON.stringify(now.sent));
 v = await (await call("", "PUT", { letter: "Thanks to {name} of {organisation}." })).json();
