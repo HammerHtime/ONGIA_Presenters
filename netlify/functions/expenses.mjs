@@ -264,7 +264,9 @@ export default async (req) => {
   /* ---- the whole claim ---- */
   if (req.method === "DELETE" && !q("line")) {
     const mineToDelete = claim.owner?.email === me.email && EDITABLE.includes(claim.status);
-    if (!mineToDelete && !(me.role === "president" && claim.test)) return fail(claim.test ? "Only the person claiming, or the President, can delete a test claim." : "You can delete a claim of yours that hasn't been approved. Once it's sent, ask the person approving to send it back first.", 403);
+    // The President decides, claim by claim, which were tests and deletes them (Andrew 14 Nov 2026: "I'll go through the
+    // claims and determine which ones we're testing and which ones are real, and I'll delete the ones accordingly").
+    if (!mineToDelete && me.role !== "president") return fail(claim.test ? "Only the person claiming, or the President, can delete a test claim." : "You can delete a claim of yours that hasn't been approved. Once it's sent, ask the person approving to send it back first.", 403);
     await deleteClaimAll(claim.id, whoKey(claim.owner?.email));
     if (claim.filed?.folder) await dropFiled(url.origin, [claim.filed]);
     return json({ ...(await home(ctx, test)), deleted: claim.id });
@@ -705,7 +707,7 @@ export async function claimView(claim, { me, aways, today, names }) {
       pay: claim.status === "approved" && payer.email === me.email,
       sendBack: claim.status === "approved" && ["president", "vp"].includes(me.role),
       unlock: claim.status === "paid" && ["president", "vp"].includes(me.role),
-      del: (editableNow) || (me.role === "president" && !!claim.test),
+      del: (editableNow) || me.role === "president",
       markTest: me.role === "president",
       refile: OFFICER_ROLES.includes(me.role) && claim.status !== "draft",
     },

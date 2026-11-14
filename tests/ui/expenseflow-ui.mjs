@@ -200,12 +200,15 @@ ok("the menu has no Test mode", (await andrew.locator("#testmode").count()) === 
 await andrew.keyboard.press("Escape").catch(() => {}); await andrew.click("#me").catch(() => {});
 await andrew.click('[data-tab="all"]');
 ok("All claims: chips with counts, the old test claim marked", /Paid \d/.test(await andrew.textContent(".chips")) && (await andrew.locator(".tile .pill.test").count()) >= 1);
-ok("with one left, the President is offered Delete all test claims, and no board test or Clear them", await andrew.isVisible("#purge") && (await andrew.locator("#bttoggle, #clrgo").count()) === 0);
+ok("no bulk delete, board test or Clear them: claims are deleted one at a time", (await andrew.locator("#purge, #bttoggle, #clrgo").count()) === 0);
 await andrew.screenshot({ path: D + "exp-all-phone.png", fullPage: true });
-await andrew.click("#purge"); await andrew.waitForFunction(() => /Deleted \d+ test claim/.test(document.querySelector(".toast")?.textContent ?? ""));
-ok("Delete all test claims: gone, the real ones stay, and the card with them", (await andrew.locator(".tile .pill.test").count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1 && (await andrew.locator("#purge").count()) === 0);
+// Andrew deletes the old test claim from its own screen (14 Nov 2026: "I'll delete the ones accordingly").
+await andrew.locator(`[data-open="${left.claim.id}"]`).first().click(); await andrew.waitForSelector("#delthis");
+await andrew.click("#delthis"); await andrew.waitForFunction(() => /Deleted/.test(document.querySelector(".toast")?.textContent ?? ""));
+await andrew.waitForTimeout(600);
+ok("Delete this claim: the test claim is gone, the real one stays", (await andrew.locator(`[data-open="${left.claim.id}"]`).count()) === 0 && (await andrew.locator(`[data-open="${CID}"]`).count()) === 1);
 await andrew.locator(`[data-open="${CID}"]`).first().click(); await andrew.waitForSelector(".slot");
-ok("…on its screen either", (await andrew.locator("#marktest").count()) === 0 && !/Mark this as a test/.test(await andrew.textContent("#root")));
+ok("a real claim has no 'Mark this as a test claim', and the President can delete it", (await andrew.locator("#marktest").count()) === 0 && await andrew.isVisible("#delthis"));
 await andrew.goBack(); await andrew.waitForTimeout(400);
 
 console.log("— on a laptop");
