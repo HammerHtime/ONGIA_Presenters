@@ -285,6 +285,9 @@ function withAnswers(guest, g) {
   return guest;
 }
 
+/** The day (in Toronto) a check-in happened. */
+const torontoDay = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+
 /** One guest, reduced to a person the desk can write to. */
 function tidyGuest(g) {
   return withAnswers(tidyGuestFields(g), g);
@@ -312,7 +315,10 @@ function tidyGuestFields(g) {
     // A ticket holder's own ticket; a buyer lists every ticket in the order (the order's real head count).
     ticketNumber: g.ticketNumber ?? "",
     tickets: (g.tickets ?? []).map((t) => t?.number).filter(Boolean),
-    checkedIn: d.checkedIn === true,
+    // Wix keeps a ticket's check-ins in checkInDetails, one per scan, and leaves checkedIn false (the Summit, 14 Nov
+    // 2026: 0 checked in on the desk while the door scanned hundreds). Either one counts; the days scanned are kept.
+    checkedIn: d.checkedIn === true || (d.checkInDetails ?? []).some((c) => c?.checkedIn === true),
+    checkInDays: [...new Set((d.checkInDetails ?? []).filter((c) => c?.checkedIn === true && c.checkInDate).map((c) => torontoDay(c.checkInDate)))].sort(),
     totalGuests: g.totalGuests ?? 1,
     // The names an RSVP gave for the people they are bringing, when the form asked for them.
     guestNames: guestNamesOf(g),
