@@ -67,6 +67,19 @@ ok("Ana at 11:00 now comes after Kim at 9:30", pv2.sessions[0].id === "pd" && pv
 pv2 = await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "s2", day: "2026-11-24" }) }))).json();
 ok("moving a talk that's on the survey to Day 1 sets its day on the survey too", (await getEvent("vic")).survey.sessions.find((s) => s.id === "s2").day === "2026-11-24");
 ok("a time that isn't a time is ignored", (await (await fn(new Request("http://x/api/mcintros?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ id: "s2", time: "soon" }) }))).json()).sessions.find((s) => s.id === "s2").time === "");
+// A program row first made from one presenter and later given to another talk: the first presenter's own talk, added
+// back, gets its own id, and setting its day leaves the other row alone (Andrew 15 Nov 2026).
+{
+  await putEvent({ id: "dup", title: "Summit", dayOne: "2026-11-09", lastDay: "2026-11-12", survey: { token: "t2", sessions: [
+    { id: "prh", day: "2026-11-09", title: "Prosecution Readiness", presenters: ["Matt H"] }] } });
+  await putPresenter({ id: "rh", eventId: "dup", first: "Robert", last: "Henry", status: "approved", submission: sub("Survivance", "b", "o") });
+  await putPresenter({ id: "mh", eventId: "dup", first: "Matt", last: "H", status: "invited" });
+  const ids = MC.mcSessions(await getEvent("dup"), await listPresenters("dup")).map((s) => s.id);
+  ok("no two program rows share an id", new Set(ids).size === ids.length && ids.includes("prh") && ids.includes("qrh"), JSON.stringify(ids));
+  const r = await (await fn(new Request("http://x/api/mcintros?event=dup", { method: "PUT", headers: H, body: JSON.stringify({ id: "qrh", day: "2026-11-11" }) }))).json();
+  const d2 = await getEvent("dup");
+  ok("setting Robert's day leaves the other talk where it was", r.sessions.find((s) => s.id === "qrh").day === "2026-11-11" && r.sessions.find((s) => s.id === "prh").day === "2026-11-09" && d2.survey.sessions[0].day === "2026-11-09");
+}
 const { writeFile } = await import("node:fs/promises");
 const { execFileSync } = await import("node:child_process");
 await writeFile((await import("node:os")).tmpdir() + "/mc-test.pdf", bytes);

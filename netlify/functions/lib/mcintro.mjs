@@ -43,7 +43,10 @@ export function mcSessions(event, presenters = []) {
   // Presenters added since the survey's list was made.
   for (const s of sessionsFrom(live.filter((p) => !seen.has(p.id)))) {
     const people = s.presenters.map((n) => byName.get(n.toLowerCase())).filter(Boolean);
-    if (people.length) out.push({ id: s.id, day: "", dayN: 0, title: s.title, people });
+    // Its own id, never one a program row already has (Andrew 15 Nov 2026: the Summit's row made from Robert Henry was
+    // later retitled for another talk, so his own talk, added back, shared its id and setting its day moved that one).
+    const id = out.some((o) => o.id === s.id) ? `q${s.id.slice(1)}` : s.id;
+    if (people.length) out.push({ id, day: "", dayN: 0, title: s.title, people });
   }
   // The day and time set on the MC card (Andrew 14 Nov 2026: "there's no way for me to move her to a specific time slot").
   const plan = event.mcPlan ?? {};
