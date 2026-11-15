@@ -16,7 +16,7 @@ export const STANDARD_LETTER = `I am writing to recognize {name}, who presented 
 
 ONGIA is a volunteer-led non-profit that provides training to police, corrections staff, educators, social workers and community partners across Canada. Our training addresses a wide range of issues affecting community safety and the people working to improve it. We bring people together to share what they know, learn from one another and take practical ideas back to the communities they serve.
 
-Presenters like {first} make this work possible. Preparing and delivering a session takes time and effort, often alongside an already demanding workload. It means taking time away from regular work commitments and, in many cases, travelling to share knowledge and experience with others. We recognize that commitment and do not take it for granted.
+Presenters such as {first} make this work possible. Preparing and delivering a session takes time and effort, often alongside an already demanding workload. It means taking time away from regular work commitments and, in many cases, travelling to share knowledge and experience with others. We recognize that commitment and do not take it for granted.
 
 The value of this training comes from people like {first} who do the work and are willing to share what they have learned. Those experiences give others a chance to ask questions, consider a different approach and make connections with people facing similar challenges. By contributing to this event, {first} helped create that opportunity for our participants.
 
