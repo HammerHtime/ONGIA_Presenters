@@ -79,7 +79,9 @@ export function thanksPeople(event, presenters) {
     const s = sessions.find((x) => x.people.some((q) => q.id === p.id));
     return {
       id: p.id, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", status: p.status, organization: String(p.organization ?? "").trim(),
-      talk: String(p.submission?.talk || s?.title || "").trim(), talkDay: s?.day || "",
+      // The program's title first (Andrew 15 Nov 2026): the one attendees saw, the same for co-presenters, and right where the
+      // agreement's box was filled with something else ("Staff Sergeant"). The agreement's when the talk isn't on the program.
+      talk: String(s?.title || p.submission?.talk || "").trim(), talkDay: s?.day || "",
       in: included(p), pick: p.thanksPick ?? "", sentAt: p.thanked?.at ?? null, why: p.thanked?.why ?? "",
     };
   });

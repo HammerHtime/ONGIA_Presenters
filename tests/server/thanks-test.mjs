@@ -35,6 +35,11 @@ const people = T.thanksPeople(ev, await S.listPresenters("vic"));
 ok("withdrawn presenters aren't listed", !people.some((p) => p.id === "d") && people.length === 3);
 ok("everyone with an agreement, signed or only invited", people.every((p) => p.in));
 ok("a talk with no title on the agreement takes the program's", people.find((p) => p.id === "b").talk === "Tobacco");
+{
+  // The program's title wins over what the agreement says (Andrew 15 Nov 2026: "Devon Archer is a staff Sergeant").
+  const odd = T.thanksPeople({ ...ev, survey: { ...ev.survey, sessions: [{ id: "s1", day: "2026-11-24", title: "Community Safety Models", presenters: ["Ana Diaz"] }] } }, await S.listPresenters("vic"));
+  ok("the program's title is used over the agreement's", odd.find((p) => p.id === "a").talk === "Community Safety Models");
+}
 
 const sched = await emailSchedule(ev, "2026-11-14");
 const row = sched.find((x) => x.what === "Presenter thank-you");
