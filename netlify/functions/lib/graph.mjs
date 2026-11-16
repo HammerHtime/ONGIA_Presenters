@@ -492,5 +492,8 @@ export async function expenseDrive() {
       try { await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}`, { method: "DELETE" }); }
       catch (e) { if (e.status !== 404) throw e; }
     },
+    /** A file's new name, in the same folder. Refused (409) if that name is taken there. */
+    rename: (id, name) => graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}?@microsoft.graph.conflictBehavior=fail`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }),
   };
 }

@@ -1,0 +1,32 @@
+import { json, fail, requireAdmin, adminWho } from "./lib/http.mjs";
+import { listClaimIds, getClaim, putClaim } from "./lib/store.mjs";
+import { renameFiled } from "./lib/expensefile.mjs";
+
+/**
+ * The claims filed before the names changed, given the new names (Andrew 16 Nov 2026: "are you able to change the naming
+ * convention for the current ones"). "Healy_November_Expense_Claim" becomes "Healy John - Expense claim - November 2026",
+ * in SharePoint and on the claim's record. Receipts keep their names.
+ *
+ *   GET  /api/expense-rename           what it would rename, and nothing changed
+ *   POST /api/expense-rename           rename them
+ */
+export default async (req) => {
+  const denied = requireAdmin(req);
+  if (denied) return fail(denied, 401);
+  const dry = req.method === "GET";
+  if (!dry && req.method !== "POST") return fail("Method not allowed.", 405);
+  const out = [];
+  for (const id of await listClaimIds()) {
+    const claim = await getClaim(id);
+    try {
+      const r = await renameFiled(claim, { dry });
+      if (!r) continue;
+      if (!dry && r.filed) { claim.filed = r.filed; await putClaim(claim); }
+      out.push({ claim: id, owner: claim.owner?.name ?? "", month: claim.month, test: !!(claim.test || claim.trial), from: r.from, to: r.to, missing: !!r.missing });
+    } catch (e) {
+      out.push({ claim: id, owner: claim?.owner?.name ?? "", month: claim?.month, from: claim?.filed?.stem, error: e.message });
+    }
+  }
+  if (!dry) console.log(`expense-rename by ${adminWho(req)?.email ?? "the desk key"}: ${JSON.stringify(out)}`);
+  return json({ dry, claims: out });
+};
