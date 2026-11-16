@@ -39,6 +39,18 @@ We are grateful to {organization} for allowing {first} the time to take part. Th
 
 We would appreciate having this letter placed on {first}’s personnel file in recognition of their contribution to ONGIA and the people we serve.`;
 
+/**
+ * A board member's letter for one event, for their employer (Andrew 16 Nov 2026: "tie it to an event specifically as
+ * well as a thank you for (work) allowing them to be on the board").
+ */
+export const EVENT_BOARD_LETTER = `I am writing to recognize {name}, a member of the Board of Directors of ONGIA, for their work on {event} in {city} on {date}.
+
+The event brought together over {attendees} participants from the justice community and our community partners across Canada. Our board plans and runs events like this one as volunteers, on top of their regular work. {first} helped make this one a success.
+
+Thank you for allowing {first} to serve on ONGIA’s board. That support makes it possible for a volunteer-led non-profit like ONGIA to keep delivering practical training across the country.
+
+We would appreciate having this letter placed on {first}’s personnel file in recognition of their contribution to ONGIA and the people we serve.`;
+
 /** The board member's letter, for their employer (Andrew 16 Nov 2026), once a year from the Admin page. */
 export const BOARD_LETTER = `I am writing to thank you for your continued support of {name}, who serves on the Board of Directors of ONGIA.
 

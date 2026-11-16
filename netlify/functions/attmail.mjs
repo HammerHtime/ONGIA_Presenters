@@ -8,7 +8,7 @@ import { getAttendees } from "./lib/store.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./lib/letters.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
-import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, SIGNATURE_KEY, KINDS as THANK_KINDS, kindOf, attendeesOver, standardLetter } from "./lib/thanks.mjs";
+import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, mailFor, SIGNATURE_KEY, KINDS as THANK_KINDS, kindOf, attendeesOver, standardLetter } from "./lib/thanks.mjs";
 import { STANDARD_LETTER, letterWordsProblems, appreciationPdf, letterFileName } from "./lib/appreciation.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { listPresenters, getPresenter, putPresenter, getVolunteer } from "./lib/store.mjs";
@@ -219,8 +219,8 @@ async function thanks(req, event, url) {
   const kind = kindOf(url.searchParams.get("who"));
   const K = THANK_KINDS[kind];
   const one = K.one;
-  const getOne = (id) => (kind === "volunteers" ? getVolunteer(event.id, id) : getPresenter(event.id, id));
-  const over = kind === "volunteers" ? await attendeesOver(event) : "";
+  const getOne = async (id) => (kind === "volunteers" ? getVolunteer(event.id, id) : kind === "board" ? (await K.list(event.id)).find((p) => p.id === String(id).toLowerCase()) : getPresenter(event.id, id));
+  const over = kind !== "presenters" ? await attendeesOver(event) : "";
   const peopleNow = async () => thanksPeople(event, await K.list(event.id), kind, over);
   const view = async () => {
     const people = await peopleNow();
@@ -283,7 +283,7 @@ async function thanks(req, event, url) {
   const letter = thanksLetter(event, words, kind);
   const people = await peopleNow();
   const sample = people.find((p) => p.in && (p.talk || kind !== "presenters")) ?? people[0] ?? stand;
-  if (url.searchParams.get("preview")) { const m = renderLetter(letter, event, sample); return json({ subject: m.subject, html: m.html, problems: [...letterProblems(letter), ...eventProblems(letter, event)] }); }
+  if (url.searchParams.get("preview")) { const m = mailFor(event, letter, sample, kind); return json({ subject: m.subject, html: m.html, problems: [...letterProblems(letter), ...eventProblems(letter, event)] }); }
   if (url.searchParams.get("test")) {
     const to = testAddresses(body.to);
     if (!to.length) return fail("Put an address to send the test to.");
@@ -295,10 +295,10 @@ async function thanks(req, event, url) {
       organization: String(body.as.organization ?? "").slice(0, 120), talk: String(body.as.talk ?? "").slice(0, 200), attendees: over,
       talkDay: /^\d{4}-\d{2}-\d{2}$/.test(body.as.talkDay ?? "") ? body.as.talkDay : kind === "presenters" ? sample.talkDay || event.dayOne : "" } : null;
     const who = as?.first ? as : sample;
-    const m = renderLetter(letter, event, who);
+    const m = mailFor(event, letter, who, kind);
     // With the letter attached, as they will get it.
     const attachments = letterOn(event, kind) ? [await letterAttachment(event, who, { signature: await signatureImage(), kind })] : [];
-    const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}`, attachments }).catch((e) => ({ skipped: true, reason: e.message }));
+    const out = await sendMail({ to, ...m, subject: `TEST: ${m.subject}`, attachments }).catch((e) => ({ skipped: true, reason: e.message }));
     if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
     return json({ sent: true, to });
   }
