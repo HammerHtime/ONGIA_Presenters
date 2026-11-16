@@ -13,7 +13,7 @@ import { STANDARD_LETTER, letterWordsProblems, appreciationPdf, letterFileName }
 import { putMeta } from "./lib/store.mjs";
 import { listPresenters, getPresenter, putPresenter, getVolunteer } from "./lib/store.mjs";
 import { zoneOf } from "./lib/surveysend.mjs";
-import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage } from "./lib/message.mjs";
+import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage, messageReplyTo } from "./lib/message.mjs";
 import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
@@ -134,7 +134,8 @@ async function message(req, event, url) {
   if (req.method === "GET") return view();
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
-  const draft = { group: String(body.group ?? event.messageDraft?.group ?? ""), subject: String(body.subject ?? "").slice(0, 200), body: String(body.body ?? "").slice(0, 20000) };
+  const draft = { group: String(body.group ?? event.messageDraft?.group ?? ""), subject: String(body.subject ?? "").slice(0, 200), body: String(body.body ?? "").slice(0, 20000),
+    ...((body.fromMe ?? event.messageDraft?.fromMe) === true ? { fromMe: true } : {}) };
   if (req.method === "PUT") { event.messageDraft = draft; await putEvent(event); return view(); }
   if (req.method !== "POST") return fail("Not allowed.", 405);
   const rest = url.searchParams.get("rest");
@@ -152,7 +153,7 @@ async function message(req, event, url) {
     const to = testAddresses(body.to);
     if (!to.length) return fail("Put an address to send the test to.");
     const out = renderLetter(messageLetter(m), event, sample);
-    const r = await sendMail({ to, replyTo: attendeeReplyTo(event), ...out, subject: `TEST: ${out.subject}` }).catch((e) => ({ skipped: true, reason: e.message }));
+    const r = await sendMail({ to, replyTo: messageReplyTo(event, m), ...out, subject: `TEST: ${out.subject}` }).catch((e) => ({ skipped: true, reason: e.message }));
     if (r.skipped) return fail(`The test couldn't be sent: ${r.reason}`, 502);
     return json({ sent: true, to });
   }
@@ -224,7 +225,7 @@ async function thanks(req, event, url) {
   const view = async () => {
     const people = await peopleNow();
     const letter = thanksLetter(event, thanksWords(event, kind), kind);
-    return json({ who: kind, ...thanksWords(event, kind), standard: !event[K.key]?.body, on: thanksOn(event, kind), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
+    return json({ who: kind, auto: THANK_KINDS[kind].auto === true, ...thanksWords(event, kind), standard: !event[K.key]?.body, on: thanksOn(event, kind), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
       replyTo: attendeeReplyTo(event) ?? "", people, attendees: over,
       problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event), ...letterWordsProblems(letterWords(event, kind))])],
       letter: letterWords(event, kind), letterStandard: !event[K.key]?.letter, letterOn: letterOn(event, kind), signature: !!(await signatureImage()),
@@ -303,7 +304,8 @@ async function thanks(req, event, url) {
   }
   if (!url.searchParams.get("send")) return fail("Send, test or preview?");
   // Sent here, a few at a time; the page asks again while some are left.
-  const r = await sendThanksRound(event, { force: true, deadline: Date.now() + 18000, only: url.searchParams.get("id") || null, kind });
+  const ids = (url.searchParams.get("ids") ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200);
+  const r = await sendThanksRound(event, { force: true, deadline: Date.now() + 18000, only: ids.length ? ids : url.searchParams.get("id") || null, kind });
   if (r.blocked) return fail(r.blocked[0], 409);
   console.log(`thanks (${kind}): sent now on ${event.id} by ${adminWho(req)?.email ?? "admin"}: ${r.sent} sent, ${r.failed} failed, ${r.left} left`);
   return json({ ...r, ...(await (await view()).json()) });

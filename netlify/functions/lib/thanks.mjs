@@ -53,11 +53,14 @@ With gratitude,`,
 
 /** Who each thank-you is for: where its settings are kept on the event, its people, and its standard words. */
 export const KINDS = {
-  presenters: { key: "presenterThanks", label: "Presenter thank-you", list: listPresenters, put: putPresenter, standard: STANDARD, letter: STANDARD_LETTER, one: "presenter" },
-  volunteers: { key: "volunteerThanks", label: "Volunteer thank-you", list: listVolunteers, put: putVolunteer, standard: VOLUNTEER_STANDARD, letter: VOLUNTEER_LETTER, one: "volunteer" },
+  presenters: { key: "presenterThanks", label: "Presenter thank-you", list: listPresenters, put: putPresenter, standard: STANDARD, letter: STANDARD_LETTER, one: "presenter", auto: true },
+  // Sent by hand, to those he ticks, when he chooses (Andrew 16 Nov 2026: "let's not auto-send … let me check off the
+  // various board members and volunteers who I want to send to at different times").
+  volunteers: { key: "volunteerThanks", label: "Volunteer thank-you", list: listVolunteers, put: putVolunteer, standard: VOLUNTEER_STANDARD, letter: VOLUNTEER_LETTER, one: "volunteer", auto: false },
 };
 const K = (kind) => KINDS[kind] ?? KINDS.presenters;
 export const kindOf = (k) => (KINDS[k] ? k : "presenters");
+export const isAuto = (kind) => K(kind).auto === true;
 
 export const thanksOn = (event, kind = "presenters") => event[K(kind).key]?.off !== true;
 /** The letter of appreciation goes with it unless switched off for the event; its words, as saved or the standard. */
@@ -123,7 +126,7 @@ export function thanksPeople(event, people, kind = "presenters", attendees = "")
 
 /** Due now: on, today is its day in the event's own time, and it's past 9:00 there. */
 export function thanksDue(event, now = new Date(), kind = "presenters") {
-  if (!thanksOn(event, kind) || event.practice) return false;
+  if (!isAuto(kind) || !thanksOn(event, kind) || event.practice) return false;
   const day = thanksDay(event);
   if (!day) return false;
   const [today, time] = localNow(event, now).split(" ");
@@ -140,7 +143,9 @@ export async function sendThanksRound(event, { deadline = null, pace = pacer(), 
   const people = await K(kind).list(event.id);
   const view = thanksPeople(event, people, kind, kind === "volunteers" ? await attendeesOver(event) : "");
   // One that failed waits for Send now rather than being tried every 15 minutes.
-  const owed = view.filter((v) => (only ? v.id === only && v.email : v.in && !v.sentAt && (force || !v.why)));
+  // `only` is one id or a list of them (the ones ticked on the card).
+  const picked = only ? new Set([].concat(only)) : null;
+  const owed = view.filter((v) => (picked ? picked.has(v.id) && v.email : v.in && !v.sentAt && (force || !v.why)));
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   const signature = letterOn(event, kind) && owed.length ? await signatureImage() : null;

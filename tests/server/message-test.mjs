@@ -76,5 +76,13 @@ ok("and only Wes gets it", out2.sent === 1 && sent.at(-1).to === "wes@example.ca
 ev = await getEvent("ngs"); ev.attendeeMail = false; await putEvent(ev);
 ok("with attendee emails off, it can't be sent", (await call("&send=1", "POST", { ...words, subject: "Another" })).status === 409);
 
+// Signed by the President himself, answers to him (Andrew 16 Nov 2026: the community partners' thank-you).
+{
+  const M = await import(REPO + "netlify/functions/lib/message.mjs");
+  (await import(REPO + "netlify/functions/lib/letters.mjs")).useRoster([{ name: "Andrew Hammond", email: "president@ongia.ca", phone: "416-230-9802" }]);
+  const L = M.messageLetter({ id: "x", group: "all", subject: "Thanks", body: "Hi {first},\n\nThank you.", fromMe: true });
+  ok("a message signed by me: the President's name and role", L.contact?.role === "President, ONGIA" && L.contact?.name === "Andrew Hammond" && /president@/i.test(L.contact?.email ?? ""), JSON.stringify(L.contact));
+  ok("…and replies go to him", /president@/i.test(M.messageReplyTo({}, { fromMe: true })));
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

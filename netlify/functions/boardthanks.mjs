@@ -88,7 +88,8 @@ export default async (req) => {
     return json({ sent: true, to });
   }
   if (!url.searchParams.get("send")) return fail("Send, test or preview?");
-  const r = await sendBoardRound({ deadline: Date.now() + 18000, only: url.searchParams.get("email") || null });
+  const emails = (url.searchParams.get("emails") ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 100);
+  const r = await sendBoardRound({ deadline: Date.now() + 18000, only: emails.length ? emails : url.searchParams.get("email") || null });
   if (r.blocked) return fail(r.blocked[0], 409);
   console.log(`boardthanks: sent by ${who?.email ?? "admin"}: ${r.sent} sent, ${r.failed} failed, ${r.left} left`);
   st = await boardState();

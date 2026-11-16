@@ -5,6 +5,7 @@ import { sendMail } from "./mail.mjs";
 import { officers } from "./expenses.mjs";
 import { signatureImage } from "./thanks.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
+import { fromMeContact } from "./message.mjs";
 
 /**
  * The thank-you to the board, once a year, sent by the President when he chooses (Andrew 16 Nov 2026: "a separate
@@ -32,7 +33,7 @@ export async function boardState() { return (await getMeta(KEY)) ?? {}; }
 export const boardWords = (st) => (st.body ? { subject: st.subject ?? BOARD_STANDARD.subject, body: st.body } : { ...BOARD_STANDARD });
 export const boardLetterWords = (st) => st.letter || BOARD_LETTER;
 /** The email as a letter the desk can draw: signed by the President, from the roster. */
-export const boardLetter = (words) => ({ id: "board-thanks", kind: "thanks", name: "Board thank-you", attachAgenda: false, ...words });
+export const boardLetter = (words) => ({ id: "board-thanks", kind: "thanks", name: "Board thank-you", attachAgenda: false, ...words, contact: fromMeContact() });
 const signedEvent = () => ({ id: "board", title: "", signature: { member: low(officers().president) } });
 
 /** Each board member, whether they're on this year's list, and whether theirs has gone. */
@@ -64,7 +65,9 @@ export async function sendBoardRound({ deadline = null, pace = pacer(), only = n
   const wrong = letterProblems(letter);
   if (wrong.length) return { blocked: wrong };
   const people = await boardPeople(st, year);
-  const owed = people.filter((v) => (only ? low(v.email) === low(only) : v.in && !v.sentAt));
+  // `only` is one address or a list of them (the ones ticked on the page).
+  const picked = only ? new Set([].concat(only).map(low)) : null;
+  const owed = people.filter((v) => (picked ? picked.has(low(v.email)) : v.in && !v.sentAt));
   const signature = await signatureImage();
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
