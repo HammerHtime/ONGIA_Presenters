@@ -1,7 +1,8 @@
 import { getAttendees, putAttendees } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { groupsOf, extrasOf } from "./welcome.mjs";
-import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
+import { letterProblems, eventProblems, renderLetter, attendeeReplyTo, attendeeSignOf } from "./letters.mjs";
+import { officers } from "./expenses.mjs";
 import { sendMail } from "./mail.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 import { markRows } from "./attmail.mjs";
@@ -43,8 +44,20 @@ export function groupPeople(event, key, people) {
   return writeableTo(rows);
 }
 
+/**
+ * Signed by the President himself, answers to him (Andrew 16 Nov 2026: the community partners' thank-you, "If you have
+ * any comments … please feel free to email me at any time"); otherwise signed and answered like the welcome letter.
+ */
+export function fromMeContact() {
+  const p = String(officers().president).toLowerCase();
+  const s = attendeeSignOf({ signature: { member: p } });
+  // Never the generic board address: if the board list couldn't be read, still the President's mailbox.
+  if (!s.member) return { name: "ONGIA President", email: p, phone: "", role: "President, ONGIA" };
+  return { name: s.name, email: s.email, phone: s.phone || "", role: "President, ONGIA" };
+}
+export const messageReplyTo = (event, m) => (m?.fromMe ? fromMeContact().email : attendeeReplyTo(event));
 export const messageLetter = (m) => ({ id: `event-msg-${m.id}`, kind: "welcome", ...(m.group === "group" ? { audience: "group" } : {}), name: "Message",
-  subject: m.subject ?? "", body: m.body ?? "", attachAgenda: false });
+  subject: m.subject ?? "", body: m.body ?? "", attachAgenda: false, ...(m.fromMe ? { contact: fromMeContact() } : {}) });
 
 /** Who it reaches, and who is still owed it. */
 export function messagePeople(event, m, people) {
@@ -65,7 +78,7 @@ export function messageProblems(event, m) {
 /** A new message, from what was typed. */
 export const newMessage = (body, who) => ({
   id: token(10), group: String(body.group ?? ""), subject: String(body.subject ?? "").slice(0, 200), body: String(body.body ?? "").slice(0, 20000),
-  at: new Date().toISOString(), by: who?.name || who?.email || "the desk key",
+  at: new Date().toISOString(), by: who?.name || who?.email || "the desk key", ...(body.fromMe === true ? { fromMe: true } : {}),
 });
 
 /** Send it to everyone in its group still owed it. On the server (attmail-send-background), in rounds of up to 13 minutes. */
@@ -84,7 +97,7 @@ export async function sendMessageRound(event, id, { deadline = null, pace = pace
     if (!timeLeft(deadline)) { left = owed.length - sent - failed; break; }
     await pace();
     try {
-      const out = await sendMail({ to: person.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, person) });
+      const out = await sendMail({ to: person.email, replyTo: messageReplyTo(event, m), ...renderLetter(letter, event, person) });
       if (out.skipped) throw new Error(out.reason);
       markRows(people, person.email, KIND(id), { sent: true });
       sent++;

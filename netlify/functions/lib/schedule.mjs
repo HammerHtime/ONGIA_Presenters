@@ -116,6 +116,7 @@ export async function emailSchedule(event, today = todayIso()) {
   const td = thanksDay(event);
   if (td && td >= today && !event.practice) {
     for (const [kind, K] of Object.entries(KINDS)) {
+      if (!K.auto) continue;
       const to = thanksPeople(event, await K.list(event.id), kind).filter((v) => v.in && !v.sentAt).length;
       out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: thanksOn(event, kind) ? "" : "won't go: switched off" });
     }

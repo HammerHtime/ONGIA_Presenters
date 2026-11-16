@@ -197,6 +197,8 @@ function signatureBlock(contact, event, lang = "en") {
   const langs = lang === "both" ? ["en", "fr"] : [lang];
   // A signature that is not a person (the board) has no "lead for" line.
   if (contact.role === "") role.en = role.fr = "";
+  // Or its own, for a person writing as themselves ("President, ONGIA").
+  else if (typeof contact.role === "string") role.en = role.fr = esc(contact.role);
   return `<div style="margin:24px 0 0;padding-top:15px;border-top:1px solid #ddd7c8;font-size:13px;color:#4a5563;line-height:1.6">
     <div style="font-weight:700;color:#12161f;font-size:14px">${esc(contact.name)}</div>
     ${role[langs[0]] ? `<div>${role[langs[0]]}</div>` : ""}

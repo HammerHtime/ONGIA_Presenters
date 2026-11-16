@@ -132,9 +132,11 @@ ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&ki
   ok("over 550: 560 coming, rounded down to the 50 below", (await T.attendeesOver(vev)) === "550" && T.overFifty(600) === "550" && T.overFifty(551) === "550" && T.overFifty(40) === "40");
   const vp = T.thanksPeople(vev, await S.listVolunteers("ngs"), "volunteers", "550");
   ok("volunteers who signed are on the list; one only invited isn't unless added", vp.find((p) => p.id === "v1").in && !vp.find((p) => p.id === "v2").in);
-  ok("both go the morning after, at 9 Toronto time", T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "volunteers") && T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "presenters"));
+  // Volunteers never go by themselves (Andrew 16 Nov 2026: "let's not auto-send … let me check off … who I want to send to").
+  ok("presenters go the morning after; volunteers never by themselves", T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "presenters") && !T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "volunteers")
+    && (await T.runThanksRounds([vev], { now: new Date("2026-11-13T14:05:00Z"), pace: async () => {} })).every((r) => r.kind !== "thanks-volunteers"));
   const n0 = sent.length;
-  const vr = await T.sendThanksRound(vev, { now: new Date("2026-11-13T14:05:00Z"), pace: async () => {}, kind: "volunteers" });
+  const vr = await T.sendThanksRound(vev, { force: true, only: ["v1"], pace: async () => {}, kind: "volunteers" });
   const mark = sent.at(-1);
   ok("one volunteer thanked, by name, with the count", vr.sent === 1 && sent.length === n0 + 1 && mark.to === "mark@x.ca" && /Hi Mark,/.test(mark.text) && /Over 550 people came through the doors/.test(mark.text) && /Thank you for volunteering at National Gang Summit/.test(mark.subject), mark.text.slice(0, 300));
   ok("with a letter named for them", /^Mazzocato Mark - Letter of appreciation - /.test(mark.files[0]?.filename ?? ""));
@@ -148,10 +150,9 @@ ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&ki
   const vcall = (q, method = "GET", body) => fn(new Request(`http://x/api/attmail?event=ngs&kind=thanks&who=volunteers${q}`, { method, headers: H, ...(body ? { body: JSON.stringify(body) } : {}) }));
   let vv = await (await vcall("")).json();
   ok("the card's volunteer side: who, the count, each volunteer", vv.who === "volunteers" && vv.attendees === "550" && vv.people.length === 2 && vv.people.find((p) => p.id === "v1").sentAt);
-  vv = await (await vcall("", "PUT", { id: "v2", pick: "yes" })).json();
-  ok("Ina, only invited, added by hand", vv.people.find((p) => p.id === "v2").in);
-  const vs = await (await vcall("&send=1", "POST", {})).json();
-  ok("Send now: only Ina is owed", vs.sent === 1 && sent.at(-1).to === "ina@x.ca");
+  ok("the card says it's sent by hand", vv.auto === false);
+  const vs = await (await vcall("&send=1&ids=v2", "POST", {})).json();
+  ok("Send to the ones ticked: Ina only, though she never signed", vs.sent === 1 && sent.at(-1).to === "ina@x.ca");
   const presentersStill = await (await fn(new Request("http://x/api/attmail?event=ngs&kind=thanks", { headers: H }))).json();
   ok("the presenters' side is its own", presentersStill.who === "presenters" && presentersStill.people.length === 0);
 }
