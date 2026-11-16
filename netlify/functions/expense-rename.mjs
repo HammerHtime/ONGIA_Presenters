@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, adminWho } from "./lib/http.mjs";
 import { listClaimIds, getClaim, putClaim } from "./lib/store.mjs";
 import { renameFiled } from "./lib/expensefile.mjs";
+import { getMeta } from "./lib/store.mjs";
 
 /**
  * The claims filed before the names changed, given the new names (Andrew 16 Nov 2026: "are you able to change the naming
@@ -9,10 +10,13 @@ import { renameFiled } from "./lib/expensefile.mjs";
  *
  *   GET  /api/expense-rename           what it would rename, and nothing changed
  *   POST /api/expense-rename           rename them
+ *   GET  /api/expense-rename?scan=1    the list of every file in the expense folders, as the last scan found it
+ *                                      (POST /api/expense-scan-background makes it)
  */
 export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
+  if (req.method === "GET" && new URL(req.url).searchParams.get("scan")) return json((await getMeta("expense-scan")) ?? { done: false, files: [] });
   const dry = req.method === "GET";
   if (!dry && req.method !== "POST") return fail("Method not allowed.", 405);
   const out = [];
