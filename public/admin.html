@@ -6006,7 +6006,7 @@ function messageCard() {
  * and the switch; under it one row per presenter: who, their talk, where it stands, and Skip / Add / Resend.
  */
 function thanksCard() {
-  return secFold("thanks", "Thank-you", "Each presenter and volunteer, the morning after the last day", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
+  return secFold("thanks", "Thank-you", "Presenters the morning after the last day; volunteers when you send it", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
 }
 async function loadThanks(ev) {
   const box = document.getElementById("thbox");
@@ -6194,8 +6194,8 @@ function loadMessage(ev) {
       <div class="field"><label for="msg-b">Message</label><textarea id="msg-b" style="min-height:200px" spellcheck="true" placeholder="Hello {first},
 
 …">${esc(d.body ?? "Hello {first},\n\n")}</textarea>
-        <p class="hint" style="margin:6px 0 0">{first} is each person's first name. A line in CAPITALS is a heading. ${d.fromMe ? "Signed by you, and replies come to you." : `Signed and answered like the welcome letter${M.replyTo ? `: replies go to ${esc(M.replyTo)}` : ""}.`}</p>
-        <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:8px 0 0;font-size:14px"><input type="checkbox" id="msg-me"${d.fromMe ? " checked" : ""} style="margin-top:3px"><span>Signed by me, replies come to me</span></label></div>
+        <p class="hint" style="margin:6px 0 0">{first} is each person's first name. A line in CAPITALS is a heading. ${d.fromMe ? "Signed by you, and replies come to you." : `Signed and answered like the welcome letter${M.replyTo ? `: replies go to ${esc(M.replyTo)}` : ""}.`}</p></div>
+      <div class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0 0;font-size:14px;text-transform:none;letter-spacing:0"><input type="checkbox" id="msg-me"${d.fromMe ? " checked" : ""} style="margin-top:3px"><label for="msg-me" style="text-transform:none;letter-spacing:0;font-size:14px;font-weight:400;color:inherit;margin:0">Signed by me, replies come to me</label></div>
       ${M.mailOn ? "" : `<div class="bad" style="margin-top:8px">Emails to attendees are off for this event, so it can't be sent. Turn them on in Settings.</div>`}
       <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini ghost" data-msg="see">See the email</button><button class="mini ghost" data-msg="test">Send me a test</button>
         <button class="mini gold" data-msg="send"${M.mailOn && !M.sending ? "" : " disabled"}>Send to ${g()?.reaches ?? 0}</button><span class="hint" data-msgsaid style="margin:0;align-self:center">${M.sending ? "Something is sending for this event now." : ""}</span></div>
