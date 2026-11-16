@@ -1,5 +1,5 @@
 import { getRoster, getMeta, putMeta } from "./store.mjs";
-import { renderLetter, letterProblems } from "./letters.mjs";
+import { renderLetter, letterProblems, attendeeSignOf } from "./letters.mjs";
 import { appreciationPdf, letterFileName, BOARD_LETTER } from "./appreciation.mjs";
 import { sendMail } from "./mail.mjs";
 import { officers } from "./expenses.mjs";
@@ -33,7 +33,20 @@ export async function boardState() { return (await getMeta(KEY)) ?? {}; }
 export const boardWords = (st) => (st.body ? { subject: st.subject ?? BOARD_STANDARD.subject, body: st.body } : { ...BOARD_STANDARD });
 export const boardLetterWords = (st) => st.letter || BOARD_LETTER;
 /** The email as a letter the desk can draw: signed by the President, from the roster. */
-export const boardLetter = (words) => ({ id: "board-thanks", kind: "thanks", name: "Board thank-you", attachAgenda: false, ...words, contact: fromMeContact() });
+export const boardLetter = (words, contact = fromMeContact()) => ({ id: "board-thanks", kind: "thanks", name: "Board thank-you", attachAgenda: false, ...words, contact });
+/**
+ * Who signs a member's thank-you: the President, but his own comes from the VP (Andrew 16 Nov 2026: "the letter for
+ * Andrew Hammond should be from Jacqulyn Taylor (VP)"). Her name and phone from the board list; no handwritten
+ * signature is kept for her, so her letter has the space for one.
+ */
+export function signerFor(v) {
+  const o = officers(), pres = low(o.president);
+  if (low(v?.email) !== pres) return { contact: fromMeContact(), replyTo: pres, image: true, lines: undefined };
+  const vp = low(o.vp), s = attendeeSignOf({ signature: { member: vp } });
+  const name = s.member ? s.name : "VP of Operations", phone = s.member ? s.phone || "" : "";
+  return { contact: { name, email: vp, phone, role: "VP of Operations, ONGIA" }, replyTo: vp, image: false,
+    lines: [name, ...(phone ? [phone] : []), "VP of Operations – ONGIA", "www.ongia.org"] };
+}
 const signedEvent = () => ({ id: "board", title: "", signature: { member: low(officers().president) } });
 
 /** Each board member, whether they're on this year's list, and whether theirs has gone. */
@@ -55,7 +68,8 @@ export async function boardPeople(st = null, year = yearNow()) {
 
 /** One member's letter for their employer. */
 export async function boardLetterPdf(v, st, { signature = null, on } = {}) {
-  return appreciationPdf(null, v, { body: boardLetterWords(st), signature, on });
+  const who = signerFor(v);
+  return appreciationPdf(null, v, { body: boardLetterWords(st), signature: who.image ? signature : null, on, ...(who.lines ? { signer: who.lines } : {}) });
 }
 
 /** Send this year's to everyone on the list still owed it, or to one address. */
@@ -77,7 +91,8 @@ export async function sendBoardRound({ deadline = null, pace = pacer(), only = n
     await pace();
     try {
       const pdf = await boardLetterPdf(v, st, { signature });
-      const out = await sendMail({ to: v.email, replyTo: officers().president, ...renderLetter(letter, signedEvent(), v), attachments: [{ filename: letterFileName(v), content: pdf, contentType: "application/pdf" }] });
+      const who = signerFor(v);
+      const out = await sendMail({ to: v.email, replyTo: who.replyTo, ...renderLetter(boardLetter(boardWords(st), who.contact), signedEvent(), v), attachments: [{ filename: letterFileName(v), content: pdf, contentType: "application/pdf" }] });
       if (out.skipped) throw new Error(out.reason);
       st.sent[year][low(v.email)] = { at: new Date().toISOString() };
       sent++;

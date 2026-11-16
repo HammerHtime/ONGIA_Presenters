@@ -16,7 +16,7 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 await S.putRoster([
   { name: "Andrew Hammond", email: "president@ongia.ca", phone: "416-230-9802" },
   { name: "John Healy", email: "j.healy@ongia.ca" },
-  { name: "Jacqulyn Taylor", email: "vp_operations@ongia.ca" },
+  { name: "Jacqulyn Taylor", email: "vp_operations@ongia.ca", phone: "905-555-0100" },
 ]);
 const fn = (await import(F + "boardthanks.mjs")).default;
 const H = { "x-admin-key": "testkey", "content-type": "application/json" };
@@ -45,7 +45,16 @@ r = await (await call("?send=1", "POST", {})).json();
 ok("nobody gets this year's twice", r.sent === 0 && sent.length === n0 + 2);
 r = await (await call(`?send=1&emails=${encodeURIComponent("president@ongia.ca")}`, "POST", {})).json();
 ok("Send to the ones ticked: Andrew only", r.sent === 1 && sent.at(-1).to === "president@ongia.ca");
-ok("signed President, ONGIA", /President, ONGIA/.test(sent.at(-1).html));
+ok("Andrew's own is signed by the VP, not by himself", /Jacqulyn Taylor/.test(sent.at(-1).html) && /VP of Operations, ONGIA/.test(sent.at(-1).html) && !/President, ONGIA/.test(sent.at(-1).html), sent.at(-1).text.slice(-300));
+{
+  const { execFileSync } = await import("node:child_process"); const fs = await import("node:fs"); const os = await import("node:os");
+  const f = os.tmpdir() + "/board-andrew.pdf"; fs.writeFileSync(f, Buffer.from(sent.at(-1).files[0].content, "base64"));
+  if (process.env.ANDREW_LETTER_OUT) fs.writeFileSync(process.env.ANDREW_LETTER_OUT, fs.readFileSync(f));
+  let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
+  if (txt) ok("…and his letter: continued support of Andrew Hammond, signed Jacqulyn Taylor, VP of Operations", /continued support of Andrew Hammond/.test(txt) && /Sincerely, Jacqulyn Taylor/.test(txt) && /VP of Operations – ONGIA/.test(txt) && !/President – ONGIA/.test(txt), txt.slice(-300));
+}
+const others = sent.filter((m) => m.to === "j.healy@ongia.ca").at(-1);
+ok("everyone else's is signed President, ONGIA", /President, ONGIA/.test(others.html));
 v = await (await call("", "PUT", { email: "president@ongia.ca", pick: "yes" })).json();
 ok("Andrew added by hand", v.people.find((p) => p.email === "president@ongia.ca").in);
 v = await (await call("", "PUT", { body: "Hi {frist}" })).json();

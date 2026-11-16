@@ -9,7 +9,7 @@ import { disposition } from "./lib/filenames.mjs";
 import { officers } from "./lib/expenses.mjs";
 import { signatureImage } from "./lib/thanks.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
-import { KEY, BOARD_STANDARD, boardState, boardWords, boardLetterWords, boardLetter, boardPeople, boardLetterPdf, sendBoardRound, signedEvent } from "./lib/boardthanks.mjs";
+import { KEY, BOARD_STANDARD, boardState, boardWords, boardLetterWords, boardLetter, boardPeople, boardLetterPdf, sendBoardRound, signedEvent, signerFor } from "./lib/boardthanks.mjs";
 
 /**
  * The board's thank-you, from the Admin page (Andrew 16 Nov 2026). The President and the VP only.
@@ -81,9 +81,10 @@ export default async (req) => {
     if (wrong.length) return fail(wrong[0], 409);
     // Made out to whoever the test goes to when they're on the board, so they see their own name.
     const me = people.find((p) => to.some((t) => t.toLowerCase() === p.email.toLowerCase())) ?? sample;
-    const m = renderLetter(letter, signedEvent(), me);
+    const who2 = signerFor(me);
+    const m = renderLetter(boardLetter(words, who2.contact), signedEvent(), me);
     const pdf = await boardLetterPdf(me, body.letter !== undefined ? { ...st, letter: String(body.letter) } : st, { signature: await signatureImage() });
-    const out = await sendMail({ to, replyTo: officers().president, ...m, subject: `TEST: ${m.subject}`, attachments: [{ filename: letterFileName(me), content: pdf, contentType: "application/pdf" }] }).catch((e) => ({ skipped: true, reason: e.message }));
+    const out = await sendMail({ to, replyTo: who2.replyTo, ...m, subject: `TEST: ${m.subject}`, attachments: [{ filename: letterFileName(me), content: pdf, contentType: "application/pdf" }] }).catch((e) => ({ skipped: true, reason: e.message }));
     if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
     return json({ sent: true, to });
   }

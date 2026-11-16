@@ -125,7 +125,8 @@ const ASSETS = () => ASSET_DIRS.find((d) => existsSync(path.join(d, "letterhead-
 export const letterFileName = (p, on = "") => personFile(p, "Letter of appreciation", on);
 
 /** The PDF for one presenter. `on` is the letter's date (the day it goes). */
-export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = new Date().toISOString().slice(0, 10), signature = null } = {}) {
+/** `signer` is the signature block's lines (the President's by default); `signature` his handwritten one, only for him. */
+export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = new Date().toISOString().slice(0, 10), signature = null, signer = SIGNER } = {}) {
   const [top, band] = await Promise.all(["letterhead-top.png", "letterhead-band.png"].map((f) => readFile(path.join(ASSETS(), f)).catch(() => null)));
   const v = letterValues(event, p);
   const W = 612, H = 792, M = 72, BODY = W - M * 2;
@@ -155,7 +156,7 @@ export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = n
   // never in the public repository. Without it, the space for a wet signature.
   if (signature) { try { doc.image(signature, M - 4, doc.y + 2, { width: 106 }); y = doc.y + 2 + 50; } catch { y = doc.y + size * 2.6; } }
   else y = doc.y + size * 2.6;
-  for (const line of SIGNER) { doc.text(line, M, y); y = doc.y; }
+  for (const line of signer) { doc.text(line, M, y); y = doc.y; }
   doc.end();
   return done;
 }
