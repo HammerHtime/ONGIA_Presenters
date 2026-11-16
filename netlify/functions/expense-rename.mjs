@@ -1,6 +1,7 @@
 import { json, fail, requireAdmin, adminWho } from "./lib/http.mjs";
 import { listClaimIds, getClaim, putClaim } from "./lib/store.mjs";
-import { renameFiled } from "./lib/expensefile.mjs";
+import { renameFiled, renameReceipts } from "./lib/expensefile.mjs";
+import { listClaimLines } from "./lib/store.mjs";
 import { getMeta } from "./lib/store.mjs";
 
 /**
@@ -24,9 +25,12 @@ export default async (req) => {
     const claim = await getClaim(id);
     try {
       const r = await renameFiled(claim, { dry });
-      if (!r) continue;
-      if (!dry && r.filed) { claim.filed = r.filed; await putClaim(claim); }
-      out.push({ claim: id, owner: claim.owner?.name ?? "", month: claim.month, test: !!(claim.test || claim.trial), from: r.from, to: r.to, missing: !!r.missing });
+      if (!dry && r?.filed) { claim.filed = r.filed; await putClaim(claim); }
+      // Its receipts: "Healy - Nov 2026 claim - Delta Hotels $658.12.jpg" (Andrew 16 Nov 2026).
+      const rr = claim?.filed ? await renameReceipts(dry && r?.to ? { ...claim, filed: { ...claim.filed, stem: r.to } } : claim, await listClaimLines(id), { dry }) : { changes: [] };
+      if (!dry && rr.changes.length) { claim.filed = rr.filed; await putClaim(claim); }
+      if (!r && !rr.changes.length) continue;
+      out.push({ claim: id, owner: claim.owner?.name ?? "", month: claim.month, test: !!(claim.test || claim.trial), from: r?.from ?? claim.filed?.stem, to: r?.to ?? claim.filed?.stem, missing: !!r?.missing, receipts: rr.changes });
     } catch (e) {
       out.push({ claim: id, owner: claim?.owner?.name ?? "", month: claim?.month, from: claim?.filed?.stem, error: e.message });
     }

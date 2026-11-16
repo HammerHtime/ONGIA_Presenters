@@ -57,10 +57,32 @@ export function claimStem(ownerName, month, n = 1) {
   return `${who} - Expense claim - ${String(month ?? "").trim()}${n > 1 ? ` (${n})` : ""}`;
 }
 const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf" };
-/** "01 2026-11-09 Delta Hotels $658.12.jpg": the number is the line's on the claim, so the folder sorts like the claim. */
+/** The end of a receipt's name: the merchant and the amount, "Delta Hotels $658.12.jpg" (a card statement says so). */
 export function receiptName(index, line, kind, type) {
   const what = kind === "shot" ? "card statement" : `$${(Number(line.amount) || 0).toFixed(2)}`;
-  return `${String(index).padStart(2, "0")} ${line.date || "undated"} ${safeFileName(String(line.paidTo || "receipt").slice(0, 60), "receipt")} ${what}.${EXT[type] ?? "bin"}`.replace(/\s+/g, " ");
+  return `${safeFileName(String(line.paidTo || "receipt").slice(0, 60), "receipt")} ${what}.${EXT[type] ?? "bin"}`.replace(/\s+/g, " ");
+}
+/**
+ * What a receipt's name starts with: the last name and which claim, "Healy - Nov 2026 claim", and "(2)" for a second
+ * claim that month (Andrew 16 Nov 2026: "name the receipts … to correspond to which claim and last name and merchant").
+ */
+export function receiptPrefix(ownerName, month, stem = "") {
+  const last = safeFileName(lastFirst({ name: ownerName }).split(" ")[0] || "Member", "Member");
+  const [m, y] = String(month ?? "").split(" ");
+  const n = Number(String(stem).match(/\((\d+)\)$/)?.[1] ?? String(stem).match(/_(\d+)$/)?.[1] ?? 1);
+  return `${last} - ${m ? m.slice(0, 3) : ""} ${y ?? ""} claim${n > 1 ? ` (${n})` : ""}`.replace(/\s+/g, " ");
+}
+/** Each receipt's full name in its claim's folder, "Healy - Nov 2026 claim - Delta Hotels $658.12.jpg"; two alike get (2). */
+export function receiptNames(claim, stem, receipts) {
+  const pre = receiptPrefix(claim.owner?.name, claim.month, stem), seen = new Map(), out = {};
+  for (const r of receipts) {
+    let name = `${pre} - ${r.name}`;
+    const k = name.toLowerCase(), n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    if (n > 1) name = name.replace(/(\.[a-z0-9]+)$/i, ` (${n})$1`);
+    out[`${r.line.id}:${r.kind}`] = name;
+  }
+  return out;
 }
 
 /** The lines in the order the claim form lists them: by date, then as they were added. */
@@ -160,6 +182,38 @@ export async function renameFiled(claim, { drive = null, dry = false } = {}) {
 }
 
 /**
+ * A filed claim's receipts given their new names where they are (Andrew 16 Nov 2026), from the claim's own lines, and
+ * the record changed to match. Returns { changes: [{ from, to }], filed } (with `dry`, what it would do). A receipt gone
+ * from SharePoint is left out of the record, so filing the claim again puts it back.
+ */
+export async function renameReceipts(claim, lines, { drive = null, dry = false } = {}) {
+  const f = claim?.filed;
+  if (!f?.receipts || !Object.keys(f.receipts).length) return { changes: [], filed: f };
+  const items = [];
+  for (const [i, l] of formOrder(lines).entries()) {
+    for (const kind of ["receipt", "shot"]) {
+      const had = f.receipts[`${l.id}:${kind}`];
+      if (!had) continue;
+      const ext = String(had.name).match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() ?? "bin";
+      const type = Object.entries(EXT).find(([, e]) => e === ext)?.[0] ?? "";
+      items.push({ line: l, kind, had, name: receiptName(i + 1, l, kind === "shot" ? "shot" : "file", type).replace(/\.bin$/, `.${ext}`) });
+    }
+  }
+  const named = receiptNames(claim, f.stem, items);
+  const changes = [], receipts = { ...f.receipts };
+  const g = dry ? null : drive ?? (await expenseDrive());
+  for (const it of items) {
+    const key = `${it.line.id}:${it.kind}`, to = named[key];
+    if (it.had.name === to) continue;
+    changes.push({ from: it.had.name, to });
+    if (dry) continue;
+    try { const r = await g.rename(it.had.id, to); receipts[key] = { ...it.had, name: r.name ?? to, url: r.webUrl ?? it.had.url }; }
+    catch (e) { if (e.status === 404) { delete receipts[key]; continue; } throw e; }
+  }
+  return { changes, filed: { ...f, receipts } };
+}
+
+/**
  * Put the claim in its folder. `prev` is what was filed before (claim.filed): the same folders and names are used
  * again, the Excel and PDF replaced, receipts added for new lines, and the desk's own copies of receipts for lines
  * that have gone (or been renumbered) deleted. Returns the new filed record. Throws on a real failure.
@@ -184,11 +238,12 @@ export async function fileClaim({ claim, docs, prev = null, drive = null }) {
   const p = await g.put(`${folder}/${stem}.pdf`, docs.pdf, "application/pdf");
   const had = { ...(prev?.receipts ?? {}) }, now = {};
   if (docs.receipts.length) await g.ensure(`${folder}/Receipts`);
+  const named = receiptNames(claim, stem, docs.receipts);
   for (const r of docs.receipts) {
     const key = `${r.line.id}:${r.kind}`;
-    if (had[key]?.name === r.name) { now[key] = had[key]; delete had[key]; continue; }
+    if (had[key]?.name === named[key]) { now[key] = had[key]; delete had[key]; continue; }
     if (had[key]?.id) { await g.remove(had[key].id); delete had[key]; }
-    const it = await g.put(`${folder}/Receipts/${r.name}`, r.bytes, r.type);
+    const it = await g.put(`${folder}/Receipts/${named[key]}`, r.bytes, r.type);
     now[key] = { id: it.id, name: it.name, url: it.webUrl };
   }
   for (const gone of Object.values(had)) if (gone?.id) await g.remove(gone.id);
