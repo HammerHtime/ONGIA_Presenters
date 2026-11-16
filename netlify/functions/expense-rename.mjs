@@ -13,11 +13,14 @@ import { getMeta } from "./lib/store.mjs";
  *   POST /api/expense-rename           rename them
  *   GET  /api/expense-rename?scan=1    the list of every file in the expense folders, as the last scan found it
  *                                      (POST /api/expense-scan-background makes it)
+ *   GET  /api/expense-rename?hand=1    the hand-filed 2025 and 2026 files and their planned names (expense-hand-background)
  */
 export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
   if (req.method === "GET" && new URL(req.url).searchParams.get("scan")) return json((await getMeta("expense-scan")) ?? { done: false, files: [] });
+  // The hand-filed 2025 and 2026 files: what Claude read and the names planned (expense-hand-background).
+  if (req.method === "GET" && new URL(req.url).searchParams.get("hand")) return json((await getMeta("expense-hand")) ?? { items: {} });
   const dry = req.method === "GET";
   if (!dry && req.method !== "POST") return fail("Method not allowed.", 405);
   const out = [];
