@@ -112,7 +112,7 @@ export function thanksPeople(event, people, kind = "presenters", attendees = "")
   return people.filter((p) => p.status !== "withdrawn").map((p) => {
     const s = sessions.find((x) => x.people.some((q) => q.id === p.id));
     return {
-      id: p.id, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", status: p.status, organization: String(p.organization ?? "").trim(),
+      id: p.id, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", status: p.status, organization: String(p.organization ?? "").trim().replace(/[\s,;:./-]+$/, ""),
       // The program's title first (Andrew 15 Nov 2026): the one attendees saw, the same for co-presenters, and right where the
       // agreement's box was filled with something else ("Staff Sergeant"). The agreement's when the talk isn't on the program.
       talk: kind === "presenters" ? String(s?.title || p.submission?.talk || "").trim() : "", talkDay: s?.day || "", attendees,

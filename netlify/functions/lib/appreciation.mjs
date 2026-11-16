@@ -78,7 +78,7 @@ export function letterValues(event, p) {
     event: eventOf(event),
     city: cityOf(event),
     date: day ? full(day, true) : event.dayOne ? `${full(event.dayOne)} to ${full(event.lastDay)}` : "",
-    organization: String(p.organization ?? "").trim(),
+    organization: String(p.organization ?? "").trim().replace(/[\s,;:./-]+$/, ""),
     attendees: String(p.attendees ?? "").trim(),
     year: String(p.year ?? new Date().getFullYear()),
   };
