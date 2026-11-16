@@ -157,6 +157,34 @@ ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&ki
   ok("the presenters' side is its own", presentersStill.who === "presenters" && presentersStill.people.length === 0);
 }
 
+// The board, per event (Andrew 16 Nov 2026: "tie it to an event specifically as well as a thank you for (work) allowing
+// them to be on the board"). By hand, from Andrew; his own from the VP.
+{
+  await S.putRoster([{ name: "Andrew Hammond", email: "president@ongia.ca", phone: "416-230-9802" }, { name: "Jacqulyn Taylor", email: "vp_operations@ongia.ca", phone: "416-859-9919" }]);
+  const ev2 = await S.getEvent("ngs");
+  ev2.board = [{ name: "Andrew Hammond", email: "president@ongia.ca" }, { name: "John Healy", email: "j.healy@ongia.ca" }, { name: "John Healy", email: "J.Healy@ongia.ca" }];
+  await S.putEvent(ev2);
+  const bcall = (q, method = "GET", body) => fn(new Request(`http://x/api/attmail?event=ngs&kind=thanks&who=board${q}`, { method, headers: H, ...(body ? { body: JSON.stringify(body) } : {}) }));
+  let bv = await (await bcall("")).json();
+  ok("the event's board members, once each, sent by hand", bv.who === "board" && bv.auto === false && bv.people.length === 2 && bv.attendees === "550", JSON.stringify(bv.people.map((p) => p.email)));
+  ok("never by themselves", !T.thanksDue(await S.getEvent("ngs"), new Date("2026-11-13T14:05:00Z"), "board"));
+  const r1 = await (await bcall("&send=1&ids=j.healy@ongia.ca", "POST", {})).json();
+  const john = sent.at(-1);
+  ok("John's: from Andrew, about the event, with the count", r1.sent === 1 && john.to === "j.healy@ongia.ca" && /Hi John,/.test(john.text) && /Over 550 people/.test(john.text) && /President, ONGIA/.test(john.html) && /Thank you for your work on National Gang Summit/.test(john.subject), john.text.slice(0, 300));
+  {
+    const { execFileSync } = await import("node:child_process"); const fs = await import("node:fs"); const os = await import("node:os");
+    const f = os.tmpdir() + "/eb-john.pdf"; fs.writeFileSync(f, Buffer.from(john.files[0].content, "base64"));
+    if (process.env.EB_LETTER_OUT) fs.writeFileSync(process.env.EB_LETTER_OUT, fs.readFileSync(f));
+    let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
+    if (txt) ok("his letter: his work on the event, and thanks for allowing him on the board; signed by Andrew", /for their work on National Gang Summit in Toronto, ON from November 9 to 12, 2026/.test(txt) && /Thank you for allowing John to serve on ONGIA’s board/.test(txt) && /President – ONGIA/.test(txt), txt.slice(0, 400));
+  }
+  const r2 = await (await bcall("&send=1&ids=president@ongia.ca", "POST", {})).json();
+  const andrew = sent.at(-1);
+  ok("Andrew's own: from Jacqulyn, VP", r2.sent === 1 && /Jacqulyn Taylor/.test(andrew.html) && /VP of Operations, ONGIA/.test(andrew.html));
+  bv = await (await bcall("")).json();
+  ok("both marked sent on the event", bv.people.every((p) => p.sentAt));
+}
+
 if (process.env.THANKS_HTML) (await import("node:fs")).writeFileSync(process.env.THANKS_HTML, ana.html);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

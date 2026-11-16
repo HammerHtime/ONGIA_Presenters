@@ -1,5 +1,6 @@
-import { listPresenters, putPresenter, listVolunteers, putVolunteer, getAttendees, getMeta } from "./store.mjs";
-import { appreciationPdf, letterFileName, STANDARD_LETTER, VOLUNTEER_LETTER } from "./appreciation.mjs";
+import { listPresenters, putPresenter, listVolunteers, putVolunteer, getAttendees, getMeta, getEvent, putEvent } from "./store.mjs";
+import { appreciationPdf, letterFileName, STANDARD_LETTER, VOLUNTEER_LETTER, EVENT_BOARD_LETTER } from "./appreciation.mjs";
+import { signerFor } from "./boardthanks.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { mcSessions } from "./mcintro.mjs";
@@ -51,11 +52,45 @@ Thank you again.
 With gratitude,`,
 };
 
+export const EVENT_BOARD_STANDARD = {
+  subject: "Thank you for your work on {event}",
+  body: `Hi {first},
+
+Thank you for everything you did to make {event} a success. Over {attendees} people came through the doors, and it took the whole board to make that happen.
+
+I've attached a letter of appreciation you can forward to your supervisor. It thanks them for supporting your work on the ONGIA board.
+
+Thank you again,`,
+};
+
+/**
+ * The board members picked for an event, as the thank-you sees them (Andrew 16 Nov 2026: "tie it to an event"). Who has
+ * had theirs is kept on the event itself (boardThanksPeople), by address.
+ */
+const low = (s) => String(s ?? "").trim().toLowerCase();
+async function listEventBoard(eventId) {
+  const ev = await getEvent(eventId);
+  const kept = ev?.boardThanksPeople ?? {};
+  const seen = new Set();
+  return (ev?.board ?? []).filter((m) => m?.email && !seen.has(low(m.email)) && seen.add(low(m.email))).map((m) => {
+    const parts = String(m.name ?? "").trim().split(/\s+/);
+    return { id: low(m.email), eventId, first: parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0] ?? "", last: parts.length > 1 ? parts.at(-1) : "",
+      email: m.email, status: "signed", organization: "", ...(kept[low(m.email)] ?? {}) };
+  });
+}
+async function putEventBoard(p) {
+  const ev = await getEvent(p.eventId);
+  if (!ev) return;
+  ev.boardThanksPeople = { ...(ev.boardThanksPeople ?? {}), [p.id]: { ...(p.thanked ? { thanked: p.thanked } : {}), ...(p.thanksPick ? { thanksPick: p.thanksPick } : {}) } };
+  await putEvent(ev);
+}
+
 /** Who each thank-you is for: where its settings are kept on the event, its people, and its standard words. */
 export const KINDS = {
   presenters: { key: "presenterThanks", label: "Presenter thank-you", list: listPresenters, put: putPresenter, standard: STANDARD, letter: STANDARD_LETTER, one: "presenter", auto: true },
   // Sent by hand, to those he ticks, when he chooses (Andrew 16 Nov 2026: "let's not auto-send … let me check off the
   // various board members and volunteers who I want to send to at different times").
+  board: { key: "eventBoardThanks", label: "Board thank-you", list: listEventBoard, put: putEventBoard, standard: EVENT_BOARD_STANDARD, letter: EVENT_BOARD_LETTER, one: "board member", auto: false, signed: true },
   volunteers: { key: "volunteerThanks", label: "Volunteer thank-you", list: listVolunteers, put: putVolunteer, standard: VOLUNTEER_STANDARD, letter: VOLUNTEER_LETTER, one: "volunteer", auto: false },
 };
 const K = (kind) => KINDS[kind] ?? KINDS.presenters;
@@ -75,7 +110,9 @@ export async function signatureImage() {
 }
 /** The letter for one person, as an email attachment. */
 export async function letterAttachment(event, v, { signature, on, kind = "presenters", body = null } = {}) {
-  const content = await appreciationPdf(event, v, { body: body ?? letterWords(event, kind), signature, on });
+  // The board's: signed by the President, his own by the VP (Andrew 16 Nov 2026).
+  const who = K(kind).signed ? signerFor(v) : null;
+  const content = await appreciationPdf(event, v, { body: body ?? letterWords(event, kind), signature: who && !who.image ? null : signature, on, ...(who?.lines ? { signer: who.lines } : {}) });
   return { filename: letterFileName(v, on), content, contentType: "application/pdf" };
 }
 
@@ -124,6 +161,13 @@ export function thanksPeople(event, people, kind = "presenters", attendees = "")
   });
 }
 
+/** One person's email: the board's is from the President (his own from the VP), with answers to whoever signs. */
+export function mailFor(event, letter, v, kind = "presenters") {
+  if (!K(kind).signed) return { replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, v) };
+  const who = signerFor(v);
+  return { replyTo: who.replyTo, ...renderLetter({ ...letter, contact: who.contact }, event, v) };
+}
+
 /** Due now: on, today is its day in the event's own time, and it's past 9:00 there. */
 export function thanksDue(event, now = new Date(), kind = "presenters") {
   if (!isAuto(kind) || !thanksOn(event, kind) || event.practice) return false;
@@ -141,7 +185,7 @@ export async function sendThanksRound(event, { deadline = null, pace = pacer(), 
   const wrong = [...letterProblems(letter), ...eventProblems(letter, event)];
   if (wrong.length) return { event: event.id, title: event.title, kind: tag, blocked: wrong };
   const people = await K(kind).list(event.id);
-  const view = thanksPeople(event, people, kind, kind === "volunteers" ? await attendeesOver(event) : "");
+  const view = thanksPeople(event, people, kind, kind !== "presenters" ? await attendeesOver(event) : "");
   // One that failed waits for Send now rather than being tried every 15 minutes.
   // `only` is one id or a list of them (the ones ticked on the card).
   const picked = only ? new Set([].concat(only)) : null;
@@ -155,7 +199,8 @@ export async function sendThanksRound(event, { deadline = null, pace = pacer(), 
     const p = people.find((x) => x.id === v.id);
     try {
       const attachments = letterOn(event, kind) ? [await letterAttachment(event, v, { signature, kind })] : [];
-      const out = await sendMail({ to: v.email, replyTo: attendeeReplyTo(event), ...renderLetter(letter, event, v), attachments });
+      const mail = mailFor(event, letter, v, kind);
+      const out = await sendMail({ to: v.email, ...mail, attachments });
       if (out.skipped) throw new Error(out.reason);
       p.thanked = { at: new Date().toISOString() };
       sent++;

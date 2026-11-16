@@ -6006,7 +6006,7 @@ function messageCard() {
  * and the switch; under it one row per presenter: who, their talk, where it stands, and Skip / Add / Resend.
  */
 function thanksCard() {
-  return secFold("thanks", "Thank-you", "Presenters the morning after the last day; volunteers when you send it", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
+  return secFold("thanks", "Thank-you", "Presenters the morning after the last day; volunteers and board when you send it", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
 }
 async function loadThanks(ev) {
   const box = document.getElementById("thbox");
@@ -6031,15 +6031,15 @@ async function loadThanks(ev) {
     const going = T.people.filter((p) => p.in && !p.sentAt), sent = T.people.filter((p) => p.sentAt);
     const shown = T.people.filter((p) => filter === "not" ? p.in && !p.sentAt : filter === "sent" ? p.sentAt : true);
     const past = T.day && T.day < new Date().toISOString().slice(0, 10);
-    const one = who === "volunteers" ? "volunteer" : "presenter";
-    box.innerHTML = `<div class="mwfil wlvbar" role="tablist" aria-label="Who" style="margin:0 0 8px">${[["presenters", "Presenters"], ["volunteers", "Volunteers"]]
+    const one = who === "volunteers" ? "volunteer" : who === "board" ? "board member" : "presenter";
+    box.innerHTML = `<div class="mwfil wlvbar" role="tablist" aria-label="Who" style="margin:0 0 8px">${[["presenters", "Presenters"], ["volunteers", "Volunteers"], ["board", "Board"]]
         .map(([k, l]) => `<button type="button" role="tab" data-thwho="${k}" class="${who === k ? "on" : ""}" aria-selected="${who === k}">${l}</button>`).join("")}</div>
       <details class="wlset" data-thset><summary><span>${!T.auto ? "<b>You send it</b>" : T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         ${T.auto ? `<label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>` : ""}
         <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
         <div class="field"><label for="th-b">The email</label><textarea id="th-b" style="min-height:260px" spellcheck="true">${esc(T.body)}</textarea>
-          <p class="hint" style="margin:4px 0 0">${who === "volunteers" ? `{first} first name · {event} the event · {attendees} how many came, rounded down (${esc(T.attendees || "none yet")})` : "{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event"}</p></div>
+          <p class="hint" style="margin:4px 0 0">${who === "board" ? `{first} first name · {event} the event · {attendees} how many came, rounded down (${esc(T.attendees || "none yet")}). From you; yours from Jacqulyn.` : who === "volunteers" ? `{first} first name · {event} the event · {attendees} how many came, rounded down (${esc(T.attendees || "none yet")})` : "{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event"}</p></div>
         <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:14px 0 10px;font-size:14px"><input type="checkbox" id="th-lon"${T.letterOn ? " checked" : ""} style="margin-top:3px"><span>Attach a letter of appreciation (PDF on letterhead, signed by Andrew) for their boss and their file</span></label>
         <div class="field"><label for="th-l">The letter</label><textarea id="th-l" style="min-height:220px" spellcheck="true">${esc(T.letter)}</textarea>
           <p class="hint" style="margin:4px 0 0">{name} · {first} · {organization} · {talk} · {event} · {city} · {date}. Dated the day it goes, signed by Andrew.${T.signature ? "" : " <b class=\"late\">No signature saved yet: it'll have room for a wet signature.</b>"}</p></div>
@@ -6058,7 +6058,7 @@ async function loadThanks(ev) {
     box.querySelectorAll("[data-thf]").forEach((b) => { b.onclick = () => { filter = b.dataset.thf; draw(T); }; });
     box.querySelectorAll("[data-thwho]").forEach((b) => { b.onclick = async () => {
       if (b.dataset.thwho === who) return;
-      who = b.dataset.thwho; q = who === "volunteers" ? `${base}&who=volunteers` : base; filter = "all"; ticked = new Set();
+      who = b.dataset.thwho; q = who === "presenters" ? base : `${base}&who=${who}`; filter = "all"; ticked = new Set();
       try { draw(await api(q)); } catch (x) { toast(x.message); }
     }; });
     box.querySelector('[data-th="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify({ ...words(), ...(T.auto ? { off: !box.querySelector("#th-on").checked } : {}), letter: box.querySelector("#th-l").value, letterOff: !box.querySelector("#th-lon").checked }) }, "Thank-you saved.");
