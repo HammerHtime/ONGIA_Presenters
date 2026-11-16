@@ -24,7 +24,8 @@ export default async (req) => {
   const mode = url.searchParams.get("mode") === "apply" ? "apply" : "plan";
   const hop = Number(url.searchParams.get("hop") || 0);
   const deadline = Date.now() + BUDGET;
-  const state = (await getMeta(KEY)) ?? { items: {} };
+  // &fresh=1 starts the plan over (nothing has been renamed yet).
+  const state = url.searchParams.get("fresh") ? { items: {} } : (await getMeta(KEY)) ?? { items: {} };
   state.items ??= {};
   const g = await expenseDrive();
   if (!g) { await putMeta(KEY, { ...state, error: "Microsoft isn't set up on this site." }); return new Response(null, { status: 202 }); }
@@ -46,9 +47,10 @@ export default async (req) => {
       const ext = (f.name.match(/\.([A-Za-z0-9]+)$/)?.[1] ?? "").toLowerCase();
       const type = READABLE[ext] ?? "";
       try {
-        const bytes = type ? await g.download(f.id).catch(() => null) : null;
+        let bytes = null, why = "";
+        if (type) { try { bytes = await g.download(f.id, type === "application/pdf" ? 20 * 1024 * 1024 : 4.5 * 1024 * 1024); if (!bytes) why = "too big to read"; } catch (e) { why = String(e.message).slice(0, 120); } }
         const facts = await readFileFacts(f, bytes, bytes ? type : "");
-        state.items[f.id] = { id: f.id, path: f.path, from: f.name, facts, seen: !!bytes };
+        state.items[f.id] = { id: f.id, path: f.path, from: f.name, facts, seen: !!bytes, ...(why ? { unseen: why } : {}) };
       } catch (e) { state.items[f.id] = { id: f.id, path: f.path, from: f.name, error: String(e.message).slice(0, 200) }; }
     };
     for (let i = 0; i < todo.length && Date.now() < deadline; i += 4) {

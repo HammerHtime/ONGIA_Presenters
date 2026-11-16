@@ -494,9 +494,10 @@ export async function expenseDrive() {
     },
     /** A file's bytes and size, by its id; null if it's bigger than `max`. */
     async download(id, max = 4.5 * 1024 * 1024) {
-      const it = await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}?$select=id,size,@microsoft.graph.downloadUrl`);
-      if (!it["@microsoft.graph.downloadUrl"] || (it.size ?? 0) > max) return null;
-      const res = await fetch(it["@microsoft.graph.downloadUrl"]);
+      const it = await graph(token, `/drives/${drive}/items/${encodeURIComponent(id)}?$select=id,size`);
+      if ((it.size ?? 0) > max) return null;
+      // The file's content: Graph answers with a redirect to a short-lived address, which fetch follows.
+      const res = await fetch(`${GRAPH}/drives/${drive}/items/${encodeURIComponent(id)}/content`, { headers: { authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error(`download ${res.status}`);
       return Buffer.from(await res.arrayBuffer());
     },
