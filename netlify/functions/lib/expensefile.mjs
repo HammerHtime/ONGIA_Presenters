@@ -8,6 +8,7 @@ import { todayIso } from "./deadlines.mjs";
 import { claimWorkbook } from "./expensexlsx.mjs";
 import { claimPdf } from "./expensepdf.mjs";
 import { officers, approversFor, roleOf, OFFICER_ROLES, ROLE_TITLE, isStipend, noHst } from "./expenses.mjs";
+import { lastFirst } from "./filenames.mjs";
 
 /**
  * Filing a claim in the Treasurer's folders on SharePoint (Andrew, 2 Nov 2026):
@@ -46,10 +47,14 @@ export function monthFolder(existing, label) {
   const re = new RegExp(`^(?:0?${i + 1}\\s*[.)-]?\\s*)?(?:${m}|${m.slice(0, 3)})\\.?,?\\s+${y}$`, "i");
   return existing.find((n) => re.test(String(n).trim())) ?? label;
 }
-/** "Healy_November_Expense_Claim", as the board names theirs; a second claim in the same month gets "_2". */
+/**
+ * "Healy John - Expense claim - November 2026", last name first like every other file the desk names (Andrew 16 Nov
+ * 2026: "make the change, keep old ones as is"); a second claim in the same month gets " (2)". A claim already filed
+ * keeps the name it was filed under (fileClaim reuses prev.stem), so the old "Healy_November_Expense_Claim" ones stay.
+ */
 export function claimStem(ownerName, month, n = 1) {
-  const last = safeFileName(String(ownerName ?? "").trim().split(/\s+/).at(-1) || "Member", "Member").replace(/\s+/g, "_");
-  return `${last}_${String(month).split(" ")[0]}_Expense_Claim${n > 1 ? `_${n}` : ""}`;
+  const who = safeFileName(lastFirst({ name: ownerName }) || "Member", "Member");
+  return `${who} - Expense claim - ${String(month ?? "").trim()}${n > 1 ? ` (${n})` : ""}`;
 }
 const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "application/pdf": "pdf" };
 /** "01 2026-11-09 Delta Hotels $658.12.jpg": the number is the line's on the claim, so the folder sorts like the claim. */

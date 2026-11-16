@@ -28,7 +28,7 @@ ok("someone new gets a folder in their own name", E.memberFolder(members, "Dana 
 ok("two folders that could be theirs: a new one rather than a guess", E.memberFolder(["Sam Lee", "Sara Lee"], "Stan Lee") === "Stan Lee");
 ok("this month as the member already names it", E.monthFolder(["October 2026", "November 2026"], "November 2026") === "November 2026" && E.monthFolder(["10. Oct 2026", "11. Nov 2026"], "November 2026") === "11. Nov 2026" && E.monthFolder(["Nov 2026"], "November 2026") === "Nov 2026");
 ok("never last year's November, nor an event folder", E.monthFolder(["November 2025", "Strat Weekend Nov 2026"], "November 2026") === "November 2026");
-ok("files are named as the board names theirs; a second claim that month is _2", E.claimStem("John Healy", "November 2026") === "Healy_November_Expense_Claim" && E.claimStem("John Healy", "November 2026", 2) === "Healy_November_Expense_Claim_2");
+ok("files are named last name first, with the month and year; a second claim that month is (2)", E.claimStem("John Healy", "November 2026") === "Healy John - Expense claim - November 2026" && E.claimStem("John Healy", "November 2026", 2) === "Healy John - Expense claim - November 2026 (2)", E.claimStem("John Healy", "November 2026"));
 ok("a receipt is named by its line, date, vendor and amount", E.receiptName(1, { date: "2026-11-09", paidTo: "Delta Hotels", amount: 658.12 }, "file", "image/jpeg") === "01 2026-11-09 Delta Hotels $658.12.jpg" && E.receiptName(4, { date: "2026-11-11", paidTo: "Green P", amount: 18 }, "shot", "image/png") === "04 2026-11-11 Green P card statement.png");
 
 console.log("— who signs where on the form");
@@ -116,7 +116,7 @@ await g.ensure(`${base}/2026/Steve Hammond/October 2026`);
 const steve = { ...claim, owner: { name: "Stephen Hammond", email: "s.hammond@ongia.ca" } };
 let filed = await E.fileClaim({ claim: steve, docs, drive: g });
 ok("filed under 2026 › Steve Hammond › a new November 2026 folder", filed.folder === `${base}/2026/Steve Hammond/November 2026` && filed.folderUrl.endsWith("/November 2026"));
-ok("the Excel and the PDF, named as the board names theirs", filed.xlsx.name === "Hammond_November_Expense_Claim.xlsx" && filed.pdf.name === "Hammond_November_Expense_Claim.pdf");
+ok("the Excel and the PDF, named last name first with the month and year", filed.xlsx.name === "Hammond Stephen - Expense claim - November 2026.xlsx" && filed.pdf.name === "Hammond Stephen - Expense claim - November 2026.pdf", filed.xlsx.name);
 ok("the receipts in a Receipts folder beside them", Object.values(filed.receipts).map((r) => r.name).sort().join("|") === "02 2026-11-09 Delta Hotels $658.12.jpg|03 2026-11-11 Green P card statement.png" && g.puts.some((p) => p.endsWith("/November 2026/Receipts/02 2026-11-09 Delta Hotels $658.12.jpg")));
 g.puts.length = 0;
 const again = await E.fileClaim({ claim: { ...steve, status: "paid" }, docs, prev: filed, drive: g });
@@ -125,7 +125,10 @@ const fewer = await E.claimDocuments({ claim, lines: [lines[0], lines[1]], names
 const third = await E.fileClaim({ claim: steve, docs: fewer, prev: again, drive: g });
 ok("a line taken off after it was sent back: its card statement comes out of the folder (the desk's own copy only)", g.removed.length === 1 && Object.keys(third.receipts).length === 1);
 const other = await E.fileClaim({ claim: { ...steve, id: "abc-2" }, docs, drive: g });
-ok("a second claim the same month doesn't overwrite the first: _2", other.xlsx.name === "Hammond_November_Expense_Claim_2.xlsx" && other.folder === third.folder);
+ok("a second claim the same month doesn't overwrite the first: (2)", other.xlsx.name === "Hammond Stephen - Expense claim - November 2026 (2).xlsx" && other.folder === third.folder, other.xlsx.name);
+// One filed before the names changed keeps its name when it's filed again (Andrew 16 Nov 2026: "keep old ones as is").
+const old = await E.fileClaim({ claim: { ...steve, status: "paid" }, docs, prev: { ...filed, stem: "Hammond_November_Expense_Claim" }, drive: g });
+ok("a claim filed under the old name keeps it when filed again", old.xlsx.name === "Hammond_November_Expense_Claim.xlsx" && old.pdf.name === "Hammond_November_Expense_Claim.pdf");
 const t = await E.fileClaim({ claim: { ...claim, test: true }, docs, drive: g });
 ok("a test claim goes under Test claims (safe to delete), never a member's folder", t.folder === `${base}/Test claims (safe to delete)/Dana Reyes/November 2026`);
 const before = g.items.size;
