@@ -28,6 +28,8 @@ export const BLANKS = {
   city:       { means: "the city", from: (e) => e.city },
   // The presenter thank-you (Andrew 14 Nov 2026): the talk's title, in quotes, and the day they gave it.
   talk:       { means: "a presenter's talk title, in quotes (left out if they have none)", from: (e, p) => (p?.talk ? `“${String(p.talk).replace(/^["“”']+|["“”']+$/g, "")}”` : ""), optional: true },
+  // The volunteer thank-you (Andrew 16 Nov 2026): the event's registrations, rounded down to the 50 below ("550").
+  attendees:  { means: "how many came, rounded down to the 50 below, e.g. 550 (for \"over 550 people\")", from: (e, p) => p?.attendees ?? "", optional: true },
   talkDay:    { means: "the day a presenter spoke, e.g. Tuesday, November 24 (the event's dates if not known)", from: (e, p) => (p?.talkDay ? longDate(p.talkDay) : !e?.lastDay || e.lastDay === e.dayOne ? longDate(e?.dayOne) : datesOf(e)) },
   lead:       { means: "the ONGIA lead for the event", from: (e) => e.contact?.name || e.reviewer?.name },
   hotel:      { means: "the hotel's name", from: (e) => e.hotel?.name },

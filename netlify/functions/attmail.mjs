@@ -8,10 +8,10 @@ import { getAttendees } from "./lib/store.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./lib/letters.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
-import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, STANDARD as THANKS_STANDARD, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, SIGNATURE_KEY } from "./lib/thanks.mjs";
+import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, SIGNATURE_KEY, KINDS as THANK_KINDS, kindOf, attendeesOver, standardLetter } from "./lib/thanks.mjs";
 import { STANDARD_LETTER, letterWordsProblems, appreciationPdf, letterFileName } from "./lib/appreciation.mjs";
 import { putMeta } from "./lib/store.mjs";
-import { listPresenters, getPresenter, putPresenter } from "./lib/store.mjs";
+import { listPresenters, getPresenter, putPresenter, getVolunteer } from "./lib/store.mjs";
 import { zoneOf } from "./lib/surveysend.mjs";
 import { messageGroups, groupPeople, messagePeople, messageProblems, messageLetter, newMessage } from "./lib/message.mjs";
 import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
@@ -34,7 +34,7 @@ import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
  *   POST /api/attmail?event=…&kind=message&preview=1|test=1   the email as it would go / a test, marked TEST
  *   POST /api/attmail?event=…&kind=message&send=1             { group, subject, body } send it now, on the server
  *   POST /api/attmail?event=…&kind=message&rest=<id>          send a message already sent to anyone still owed it
- *   GET  /api/attmail?event=…&kind=thanks                     the presenter thank-you: words, when, each presenter (Andrew 14 Nov 2026)
+ *   GET  /api/attmail?event=…&kind=thanks[&who=volunteers]    the presenter (or volunteer) thank-you: words, when, each person
  *   PUT  /api/attmail?event=…&kind=thanks                     { subject, body, standard, off } save it; { id, pick: yes|no|"" } one presenter in or out
  *   POST /api/attmail?event=…&kind=thanks&preview=1|test=1    the email as it would go / a test, marked TEST
  *   POST /api/attmail?event=…&kind=thanks&send=1[&id=…]       send now to everyone still owed it (or to one presenter); says how many are left
@@ -210,45 +210,56 @@ async function join(req, event, url) {
   return json({ sent: true, to });
 }
 
-/** The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026). */
+/**
+ * The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026), and to each volunteer (16 Nov 2026):
+ * &who=presenters (the default) or &who=volunteers picks which.
+ */
 async function thanks(req, event, url) {
+  const kind = kindOf(url.searchParams.get("who"));
+  const K = THANK_KINDS[kind];
+  const one = K.one;
+  const getOne = (id) => (kind === "volunteers" ? getVolunteer(event.id, id) : getPresenter(event.id, id));
+  const over = kind === "volunteers" ? await attendeesOver(event) : "";
+  const peopleNow = async () => thanksPeople(event, await K.list(event.id), kind, over);
   const view = async () => {
-    const people = thanksPeople(event, await listPresenters(event.id));
-    const letter = thanksLetter(event);
-    return json({ ...thanksWords(event), standard: !event.presenterThanks?.body, on: thanksOn(event), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
-      replyTo: attendeeReplyTo(event) ?? "", people, problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event), ...letterWordsProblems(letterWords(event))])],
-      letter: letterWords(event), letterStandard: !event.presenterThanks?.letter, letterOn: letterOn(event), signature: !!(await signatureImage()),
+    const people = await peopleNow();
+    const letter = thanksLetter(event, thanksWords(event, kind), kind);
+    return json({ who: kind, ...thanksWords(event, kind), standard: !event[K.key]?.body, on: thanksOn(event, kind), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
+      replyTo: attendeeReplyTo(event) ?? "", people, attendees: over,
+      problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event), ...letterWordsProblems(letterWords(event, kind))])],
+      letter: letterWords(event, kind), letterStandard: !event[K.key]?.letter, letterOn: letterOn(event, kind), signature: !!(await signatureImage()),
       noOrg: people.filter((p) => p.in && !p.organization).map((p) => `${p.first} ${p.last}`.trim()) });
   };
-  // One presenter's letter (or a sample), as a PDF to look at or print.
+  const stand = { first: "Dana", last: "Sample", email: "dana@example.ca", organization: "Example Police Service", talk: kind === "presenters" ? "Gangs in the Lower Mainland" : "", talkDay: event.dayOne, attendees: over };
+  // One person's letter (or a sample), as a PDF to look at or print.
   if (req.method === "GET" && url.searchParams.get("letter")) {
     const id = url.searchParams.get("letter");
-    const people = thanksPeople(event, await listPresenters(event.id));
-    const v = id === "sample" ? (people.find((p) => p.in && p.talk) ?? people[0] ?? { first: "Dana", last: "Sample", talk: "Gangs in the Lower Mainland", organization: "Example Police Service" }) : people.find((p) => p.id === id);
-    if (!v) return fail("No such presenter.", 404);
+    const people = await peopleNow();
+    const v = id === "sample" ? (people.find((p) => p.in && (p.talk || kind !== "presenters")) ?? people[0] ?? stand) : people.find((p) => p.id === id);
+    if (!v) return fail(`No such ${one}.`, 404);
     const words = url.searchParams.get("words");
-    const pdf = await appreciationPdf(event, v, { body: words || letterWords(event), signature: await signatureImage(), on: v.sentAt?.slice(0, 10) || undefined });
+    const pdf = await appreciationPdf(event, v, { body: words || letterWords(event, kind), signature: await signatureImage(), on: v.sentAt?.slice(0, 10) || undefined });
     return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": disposition(letterFileName(v, v.sentAt), "inline"), "cache-control": "no-store" } });
   }
   if (req.method === "GET") return view();
   const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
   const body = await req.json().catch(() => ({}));
   if (req.method === "PUT" && body.id !== undefined) {
-    const p = await getPresenter(event.id, String(body.id).slice(0, 40));
-    if (!p) return fail("No such presenter.", 404);
+    const p = await getOne(String(body.id).slice(0, 40));
+    if (!p) return fail(`No such ${one}.`, 404);
     if (["yes", "no"].includes(body.pick)) p.thanksPick = body.pick; else delete p.thanksPick;
-    await putPresenter(p);
+    await K.put(p);
     return view();
   }
-  const words = body.standard === true ? { ...THANKS_STANDARD }
-    : { subject: String(body.subject ?? thanksWords(event).subject).slice(0, 200), body: String(body.body ?? thanksWords(event).body).slice(0, 20000) };
+  const std = K.standard;
+  const words = body.standard === true ? { ...std }
+    : { subject: String(body.subject ?? thanksWords(event, kind).subject).slice(0, 200), body: String(body.body ?? thanksWords(event, kind).body).slice(0, 20000) };
   if (req.method === "PUT") {
-    const had = event.presenterThanks ?? {};
-    const next = { ...had };
+    const next = { ...(event[K.key] ?? {}) };
     // Kept only when it differs from the standard, so a change to the standard reaches every event not changed by hand.
-    if (words.subject === THANKS_STANDARD.subject && words.body === THANKS_STANDARD.body) { delete next.subject; delete next.body; }
+    if (words.subject === std.subject && words.body === std.body) { delete next.subject; delete next.body; }
     else {
-      const wrong = [...letterProblems(thanksLetter(event, words)), ...eventProblems(thanksLetter(event, words), event)];
+      const wrong = [...letterProblems(thanksLetter(event, words, kind)), ...eventProblems(thanksLetter(event, words, kind), event)];
       if (wrong.length) return fail(wrong[0], 409);
       Object.assign(next, words);
     }
@@ -259,18 +270,18 @@ async function thanks(req, event, url) {
       const w = String(body.letter).replace(/\r/g, "").slice(0, 8000);
       const wrong = letterWordsProblems(w);
       if (wrong.length) return fail(wrong[0], 409);
-      if (w.trim() === STANDARD_LETTER.trim()) delete next.letter; else next.letter = w;
+      if (w.trim() === standardLetter(kind).trim()) delete next.letter; else next.letter = w;
     }
     if (body.letterOff === true) next.letterOff = true; else if (body.letterOff === false) delete next.letterOff;
-    event.presenterThanks = next;
+    event[K.key] = next;
     event.updatedAt = new Date().toISOString();
     await putEvent(event);
     return view();
   }
   if (req.method !== "POST") return fail("Not allowed.", 405);
-  const letter = thanksLetter(event, words);
-  const people = thanksPeople(event, await listPresenters(event.id));
-  const sample = people.find((p) => p.in && p.talk) ?? people[0] ?? { first: "Dana", last: "Sample", email: "dana@example.ca", talk: "Gangs in the Lower Mainland", talkDay: event.dayOne };
+  const letter = thanksLetter(event, words, kind);
+  const people = await peopleNow();
+  const sample = people.find((p) => p.in && (p.talk || kind !== "presenters")) ?? people[0] ?? stand;
   if (url.searchParams.get("preview")) { const m = renderLetter(letter, event, sample); return json({ subject: m.subject, html: m.html, problems: [...letterProblems(letter), ...eventProblems(letter, event)] }); }
   if (url.searchParams.get("test")) {
     const to = testAddresses(body.to);
@@ -280,19 +291,20 @@ async function thanks(req, event, url) {
     // A test can be made out to someone else, so a board member sees it with their own name, organization and a talk
     // (Andrew 14 Nov 2026: "with our names, and just make up a presentation topic").
     const as = body.as && typeof body.as === "object" ? { first: String(body.as.first ?? "").slice(0, 60), last: String(body.as.last ?? "").slice(0, 60),
-      organization: String(body.as.organization ?? "").slice(0, 120), talk: String(body.as.talk ?? "").slice(0, 200), talkDay: /^\d{4}-\d{2}-\d{2}$/.test(body.as.talkDay ?? "") ? body.as.talkDay : sample.talkDay || event.dayOne } : null;
+      organization: String(body.as.organization ?? "").slice(0, 120), talk: String(body.as.talk ?? "").slice(0, 200), attendees: over,
+      talkDay: /^\d{4}-\d{2}-\d{2}$/.test(body.as.talkDay ?? "") ? body.as.talkDay : kind === "presenters" ? sample.talkDay || event.dayOne : "" } : null;
     const who = as?.first ? as : sample;
     const m = renderLetter(letter, event, who);
-    // With the letter attached, as the presenter will get it.
-    const attachments = letterOn(event) ? [await letterAttachment(event, who, { signature: await signatureImage() })] : [];
+    // With the letter attached, as they will get it.
+    const attachments = letterOn(event, kind) ? [await letterAttachment(event, who, { signature: await signatureImage(), kind })] : [];
     const out = await sendMail({ to, replyTo: attendeeReplyTo(event), ...m, subject: `TEST: ${m.subject}`, attachments }).catch((e) => ({ skipped: true, reason: e.message }));
     if (out.skipped) return fail(`The test couldn't be sent: ${out.reason}`, 502);
     return json({ sent: true, to });
   }
   if (!url.searchParams.get("send")) return fail("Send, test or preview?");
   // Sent here, a few at a time; the page asks again while some are left.
-  const r = await sendThanksRound(event, { force: true, deadline: Date.now() + 18000, only: url.searchParams.get("id") || null });
+  const r = await sendThanksRound(event, { force: true, deadline: Date.now() + 18000, only: url.searchParams.get("id") || null, kind });
   if (r.blocked) return fail(r.blocked[0], 409);
-  console.log(`thanks: sent now on ${event.id} by ${adminWho(req)?.email ?? "admin"}: ${r.sent} sent, ${r.failed} failed, ${r.left} left`);
+  console.log(`thanks (${kind}): sent now on ${event.id} by ${adminWho(req)?.email ?? "admin"}: ${r.sent} sent, ${r.failed} failed, ${r.left} left`);
   return json({ ...r, ...(await (await view()).json()) });
 }

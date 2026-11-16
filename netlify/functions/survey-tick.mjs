@@ -32,7 +32,7 @@ export default async () => {
     const out = await runSurveyRounds(events, { deadline: Date.now() + 8000 });
     out.push(...(await runThanksRounds(events, { deadline: Date.now() + 8000 }).catch((e) => [{ title: "every event", kind: "thanks", error: e.message }])));
     if (out.length) console.log(JSON.stringify(out.map(({ trouble, ...r }) => r)));
-    await reportSends("the survey", out.map((r) => ({ ...r, what: r.kind === "thanks" ? "The presenter thank-you" : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+    await reportSends("the survey", out.map((r) => ({ ...r, what: /^thanks/.test(r.kind ?? "") ? (r.kind === "thanks-volunteers" ? "The volunteer thank-you" : "The presenter thank-you") : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
     return new Response("ok");
   }
 };

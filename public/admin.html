@@ -6006,12 +6006,14 @@ function messageCard() {
  * and the switch; under it one row per presenter: who, their talk, where it stands, and Skip / Add / Resend.
  */
 function thanksCard() {
-  return secFold("thanks", "Presenter thank-you", "Each presenter, the morning after the last day", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
+  return secFold("thanks", "Thank-you", "Each presenter and volunteer, the morning after the last day", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
 }
 async function loadThanks(ev) {
   const box = document.getElementById("thbox");
   if (!box) return;
-  const q = `/attmail?event=${encodeURIComponent(ev.id)}&kind=thanks`;
+  // Presenters or volunteers (Andrew 16 Nov 2026): one at a time, picked at the top of the card.
+  const base = `/attmail?event=${encodeURIComponent(ev.id)}&kind=thanks`;
+  let who = "presenters", q = base;
   let T = null, filter = "all";
   const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
   const zoneAbbr = (zone, date) => (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(new Date(`${date}T17:00:00Z`)).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
@@ -6026,12 +6028,15 @@ async function loadThanks(ev) {
     const going = T.people.filter((p) => p.in && !p.sentAt), sent = T.people.filter((p) => p.sentAt);
     const shown = T.people.filter((p) => filter === "not" ? p.in && !p.sentAt : filter === "sent" ? p.sentAt : true);
     const past = T.day && T.day < new Date().toISOString().slice(0, 10);
-    box.innerHTML = `<details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+    const one = who === "volunteers" ? "volunteer" : "presenter";
+    box.innerHTML = `<div class="mwfil wlvbar" role="tablist" aria-label="Who" style="margin:0 0 8px">${[["presenters", "Presenters"], ["volunteers", "Volunteers"]]
+        .map(([k, l]) => `<button type="button" role="tab" data-thwho="${k}" class="${who === k ? "on" : ""}" aria-selected="${who === k}">${l}</button>`).join("")}</div>
+      <details class="wlset" data-thset><summary><span>${T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>
         <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
         <div class="field"><label for="th-b">The email</label><textarea id="th-b" style="min-height:260px" spellcheck="true">${esc(T.body)}</textarea>
-          <p class="hint" style="margin:4px 0 0">{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event</p></div>
+          <p class="hint" style="margin:4px 0 0">${who === "volunteers" ? `{first} first name · {event} the event · {attendees} how many came, rounded down (${esc(T.attendees || "none yet")})` : "{first} first name · {talk} their talk's title · {talkDay} the day they spoke · {event} the event"}</p></div>
         <label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:14px 0 10px;font-size:14px"><input type="checkbox" id="th-lon"${T.letterOn ? " checked" : ""} style="margin-top:3px"><span>Attach a letter of appreciation (PDF on letterhead, signed by Andrew) for their boss and their file</span></label>
         <div class="field"><label for="th-l">The letter</label><textarea id="th-l" style="min-height:220px" spellcheck="true">${esc(T.letter)}</textarea>
           <p class="hint" style="margin:4px 0 0">{name} · {first} · {organization} · {talk} · {event} · {city} · {date}. Dated the day it goes, signed by Andrew.${T.signature ? "" : " <b class=\"late\">No signature saved yet: it'll have room for a wet signature.</b>"}</p></div>
@@ -6041,12 +6046,17 @@ async function loadThanks(ev) {
       </div></details>
       <div class="mwfil wlvbar" role="tablist" aria-label="Show">${[["all", `All <small>${T.people.length}</small>`], ["not", `Not yet <small>${going.length}</small>`], ["sent", `Sent <small>${sent.length}</small>`]]
         .map(([k, l]) => `<button type="button" role="tab" data-thf="${k}" class="${filter === k ? "on" : ""}" aria-selected="${filter === k}">${l}</button>`).join("")}</div>
-      ${shown.length ? shown.map((p) => `<div class="mwrow"><span class="mwn" title="${esc(`${p.first} ${p.last} · ${p.talk || "no talk title"}`)}"><b>${esc(`${p.first} ${p.last}`.trim() || p.email)}</b> ${esc(p.talk || p.email)}</span>${st(p)}${btn(p)}</div>`).join("")
-        : `<p class="porg" style="margin:6px 0">${T.people.length ? "Nobody here." : "No presenters on this event yet."}</p>`}
+      ${shown.length ? shown.map((p) => `<div class="mwrow"><span class="mwn" title="${esc(`${p.first} ${p.last} · ${p.talk || "no talk title"}`)}"><b>${esc(`${p.first} ${p.last}`.trim() || p.email)}</b> ${esc(p.talk || p.organization || p.email)}</span>${st(p)}${btn(p)}</div>`).join("")
+        : `<p class="porg" style="margin:6px 0">${T.people.length ? "Nobody here." : `No ${one}s on this event yet.`}</p>`}
       ${past && going.length ? `<div class="actions" style="margin-top:10px"><button class="mini gold" data-th="now">Send now to ${going.length}</button></div>` : ""}`;
     const words = () => ({ subject: box.querySelector("#th-s").value, body: box.querySelector("#th-b").value });
     const call = async (url, opts, msg) => { try { const r = await api(url, opts); if (r.people) draw(r); if (msg) toast(typeof msg === "function" ? msg(r) : msg); return r; } catch (x) { toast(x.message); return null; } };
     box.querySelectorAll("[data-thf]").forEach((b) => { b.onclick = () => { filter = b.dataset.thf; draw(T); }; });
+    box.querySelectorAll("[data-thwho]").forEach((b) => { b.onclick = async () => {
+      if (b.dataset.thwho === who) return;
+      who = b.dataset.thwho; q = who === "volunteers" ? `${base}&who=volunteers` : base; filter = "all";
+      try { draw(await api(q)); } catch (x) { toast(x.message); }
+    }; });
     box.querySelector('[data-th="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify({ ...words(), off: !box.querySelector("#th-on").checked, letter: box.querySelector("#th-l").value, letterOff: !box.querySelector("#th-lon").checked }) }, "Thank-you saved.");
     box.querySelector('[data-th="lstd"]')?.addEventListener("click", () => { if (confirm("Put back the standard letter for this event?")) call(q, { method: "PUT", body: JSON.stringify({ letterStandard: true }) }, "Standard letter back."); });
     box.querySelector('[data-th="letter"]').onclick = async (e) => {
@@ -6073,7 +6083,7 @@ async function loadThanks(ev) {
       if (confirm(`Send the thank-you to ${p.first} ${p.last} (${p.email}) now?`)) call(`${q}&send=1&id=${encodeURIComponent(p.id)}`, { method: "POST", body: "{}" }, (r) => (r.sent ? `Sent to ${p.email}.` : `It didn't go: ${r.trouble?.[0]?.why ?? "try again"}`));
     }; });
     box.querySelector('[data-th="now"]')?.addEventListener("click", async (e) => {
-      if (!confirm(`Send the thank-you now to ${going.length} presenter${going.length === 1 ? "" : "s"}? Each gets their own, once.`)) return;
+      if (!confirm(`Send the thank-you now to ${going.length} ${one}${going.length === 1 ? "" : "s"}? Each gets their own, once.`)) return;
       e.target.disabled = true; e.target.textContent = "Sending…";
       let r; do { r = await call(`${q}&send=1`, { method: "POST", body: "{}" }); } while (r && r.left > 0 && r.sent > 0);
       if (r) toast(`${T.people.filter((p) => p.sentAt).length} sent${r.failed ? `, ${r.failed} couldn't be sent` : ""}.`);
@@ -8343,7 +8353,7 @@ const defaultPrefix = (title = "") => /ITP\b|illicit trade/i.test(title) ? "ITP"
  */
 // Only what changes something is switched off on a view-only page: looking around (the tabs, the people switch and
 // filters, the find box, opening a person's details, the way back) still works.
-const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind, [data-mwf], [data-mwq], [data-mwall], [data-thf], [data-mcopen], [data-mc=\"pdf\"]";
+const VIEW_LOOK = ".etab, [data-msgo], [data-evn-retry], [data-pseg], [data-filter], #pfind, [data-pshow], [data-pclose], .crumb, [data-gotab], [data-gcutbtn], #gfind, [data-mwf], [data-mwq], [data-mwall], [data-thf], [data-thwho], [data-mcopen], [data-mc=\"pdf\"]";
 const lockForView = (root, why) => root.querySelectorAll("button, input, select, textarea").forEach((el) => { if (el.matches(VIEW_LOOK)) return; el.disabled = true; el.title = why; });
 function makeViewOnly(why) {
   ROOT.classList.add("ro");
@@ -10974,7 +10984,7 @@ async function backupLine(host) {
 let ADMIN_BACKUP = false;
 function adminTabsHtml(active) {
   const tab = (k, label) => `<button class="atab${active === k ? " on" : ""}" data-atab="${k}" role="tab" aria-selected="${active === k}">${label}</button>`;
-  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${tab("designs", "Certificate designs")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
+  return `<div class="admintabs" role="tablist">${tab("board", "Board members")}${tab("agencies", `Agencies${attnBadge()}`)}${tab("designs", "Certificate designs")}${tab("thanks", "Thank the board")}${ADMIN_BACKUP ? tab("backup", "Backup") : ""}</div>`;
 }
 function wireAdminTabs() {
   ROOT.querySelectorAll("[data-atab]").forEach((b) => { b.onclick = () => { view = { name: "admin", tab: b.dataset.atab }; render(); }; });
@@ -10994,6 +11004,79 @@ function backupScreen(B) {
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */
 
 
+
+/*
+ * Thank the board (Andrew 16 Nov 2026: "a separate button for the board members so I can send them a thank you email,
+ * just a brief one … I've attached a thank you letter that you could forward to your … boss"). Once a year, when he
+ * presses it. One summary line that opens the words and the letter; one row per board member; Send to N.
+ */
+function boardThanksScreen(B) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const q = "/boardthanks";
+  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const draw = (out) => {
+    B = out;
+    const going = B.people.filter((p) => p.in && !p.sentAt), sent = B.people.filter((p) => p.sentAt);
+    const st = (p) => p.sentAt ? `<span class="mwst ok">Sent ${esc(shortDate(p.sentAt.slice(0, 10)).replace(/^\w+ /, ""))}</span>`
+      : p.why ? `<span class="mwst late" title="${esc(p.why)}">Failed<span class="vh">: ${esc(p.why)}</span></span>` : p.in ? `<span class="mwst wt">Not yet</span>` : `<span class="mwst">Skipped</span>`;
+    const btn = (p) => p.sentAt || p.why ? `<button type="button" class="mini ghost" data-bt1="${esc(p.email)}">${p.sentAt ? "Resend" : "Send"}</button>`
+      : `<button type="button" class="mini ghost" data-btpick="${esc(p.email)}" data-v="${p.in ? "no" : "yes"}">${p.in ? "Skip" : "Add"}</button>`;
+    ROOT.innerHTML = `${adminTabsHtml("thanks")}<div class="card" style="max-width:700px"><div class="card-head"><div><h2>Thank the board</h2>
+      <div class="s">A short email from you to each board member, with a letter on letterhead they can forward to their employer. Once a year, when you send it.</div></div></div>
+      <div class="card-body">
+        <details class="wlset" data-btset><summary><span><b>${B.year}</b>: ${sent.length} of ${sent.length + going.length} sent · from you · ${B.standard && B.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+          <div class="wlset-body">
+            <div class="field"><label for="bt-s">Subject</label><input id="bt-s" maxlength="200" value="${esc(B.subject)}"></div>
+            <div class="field"><label for="bt-b">The email</label><textarea id="bt-b" style="min-height:160px" spellcheck="true">${esc(B.body)}</textarea>
+              <p class="hint" style="margin:4px 0 0">{first} first name. Signed by you, from the board list.</p></div>
+            <div class="field"><label for="bt-l">The letter</label><textarea id="bt-l" style="min-height:200px" spellcheck="true">${esc(B.letter)}</textarea>
+              <p class="hint" style="margin:4px 0 0">{name} · {first} · {year}. Dated the day it goes, signed by you.${B.signature ? "" : " <b class=\"late\">No signature saved yet.</b>"}</p></div>
+            ${B.problems.length ? `<div class="bad" style="margin-top:8px">${esc(B.problems[0])}</div>` : ""}
+            <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-bt="save">Save</button><button class="mini ghost" data-bt="see">See the email</button><button class="mini ghost" data-bt="letter">See the letter</button><button class="mini ghost" data-bt="test">Send me a test</button>${B.standard ? "" : `<button class="mini ghost" data-bt="std">Standard email</button>`}${B.letterStandard ? "" : `<button class="mini ghost" data-bt="lstd">Standard letter</button>`}</div>
+          </div></details>
+        ${B.people.map((p) => `<div class="mwrow"><span class="mwn" title="${esc(`${p.name} · ${p.email}`)}"><b>${esc(p.name)}</b> ${esc(p.email)}</span>${st(p)}${btn(p)}</div>`).join("") || `<p class="porg">Nobody on the board list yet.</p>`}
+        ${going.length ? `<div class="actions" style="margin-top:12px"><button class="mini gold" data-bt="now">Send to ${going.length}</button></div>` : ""}
+      </div></div>
+      <dialog class="sheet rpdlg" id="btdlg"><form method="dialog">
+        <div class="sheet-head"><h2 id="btd-title">The email</h2><p class="hint" style="margin-top:6px">As a board member will see it.</p></div>
+        <div class="sheet-body"><div class="lprev"><iframe id="bt-frame" title="The board thank-you as it will be seen" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
+          <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`;
+    wireAdminTabs();
+    const words = () => ({ subject: ROOT.querySelector("#bt-s").value, body: ROOT.querySelector("#bt-b").value, letter: ROOT.querySelector("#bt-l").value });
+    const call = async (url, opts, msg) => { try { const r = await api(url, opts); if (r.people) draw(r); if (msg) toast(typeof msg === "function" ? msg(r) : msg); return r; } catch (x) { toast(x.message); return null; } };
+    ROOT.querySelector('[data-bt="save"]').onclick = () => call(q, { method: "PUT", body: JSON.stringify(words()) }, "Saved.");
+    ROOT.querySelector('[data-bt="std"]')?.addEventListener("click", () => { if (confirm("Put back the standard email?")) call(q, { method: "PUT", body: JSON.stringify({ standard: true }) }, "Standard email back."); });
+    ROOT.querySelector('[data-bt="lstd"]')?.addEventListener("click", () => { if (confirm("Put back the standard letter?")) call(q, { method: "PUT", body: JSON.stringify({ letterStandard: true }) }, "Standard letter back."); });
+    ROOT.querySelector('[data-bt="see"]').onclick = async () => {
+      const out = await call(`${q}?preview=1`, { method: "POST", body: JSON.stringify(words()) });
+      if (!out) return;
+      ROOT.querySelector("#btd-title").textContent = out.subject; ROOT.querySelector("#bt-frame").srcdoc = out.html; ROOT.querySelector("#btdlg").showModal();
+    };
+    ROOT.querySelector('[data-bt="letter"]').onclick = async (e) => {
+      const done = busy(e.target, "…");
+      try {
+        const res = await apiFetch(`/api${q}?letter=sample&words=${encodeURIComponent(ROOT.querySelector("#bt-l").value)}`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "The letter didn't load.");
+        await saveRes(res, "Letter of appreciation (sample).pdf");
+      } catch (x) { toast(x.message); }
+      done();
+    };
+    ROOT.querySelector('[data-bt="test"]').onclick = () => { const to = WHO?.email || prompt("Send the test to which address?") || ""; if (to) call(`${q}?test=1`, { method: "POST", body: JSON.stringify({ ...words(), to }) }, `Test sent to ${to}.`); };
+    ROOT.querySelectorAll("[data-btpick]").forEach((b) => { b.onclick = () => call(q, { method: "PUT", body: JSON.stringify({ email: b.dataset.btpick, pick: b.dataset.v }) }); });
+    ROOT.querySelectorAll("[data-bt1]").forEach((b) => { b.onclick = () => {
+      const p = B.people.find((x) => x.email === b.dataset.bt1);
+      if (confirm(`Send the thank-you to ${p.name} (${p.email}) now?`)) call(`${q}?send=1&email=${encodeURIComponent(p.email)}`, { method: "POST", body: "{}" }, (r) => (r.sent ? `Sent to ${p.email}.` : `It didn't go: ${r.trouble?.[0]?.why ?? "try again"}`));
+    }; });
+    ROOT.querySelector('[data-bt="now"]')?.addEventListener("click", async (e) => {
+      if (!confirm(`Send the thank-you now to ${going.length} board member${going.length === 1 ? "" : "s"}? Each gets their own, once this year.`)) return;
+      e.target.disabled = true; e.target.textContent = "Sending…";
+      let r; do { r = await call(`${q}?send=1`, { method: "POST", body: "{}" }); } while (r && r.left > 0 && r.sent > 0);
+      if (r) toast(`${B.people.filter((p) => p.sentAt).length} sent${r.failed ? `, ${r.failed} couldn't be sent` : ""}.`);
+    });
+  };
+  draw(B);
+}
 /* ---------- board roster ---------- */
 let ROSTER = [];
 let ROSTER_META = { owners: [], canGrant: false };
@@ -12914,6 +12997,7 @@ async function drawScreen() {
       if (view.name === "admin" && view.tab === "backup" && B) return backupScreen(B);
       if (view.name === "admin" && view.tab === "agencies") return agenciesScreen(await api("/agencies?master=1"));
       if (view.name === "admin" && view.tab === "designs") return designsScreen(await api("/certificates?designs=1"));
+      if (view.name === "admin" && view.tab === "thanks") return boardThanksScreen(await api("/boardthanks"));
       return rosterScreen(await loadRoster());
     }
     if (view.name === "sponsors" && SPONSORS_ON) {

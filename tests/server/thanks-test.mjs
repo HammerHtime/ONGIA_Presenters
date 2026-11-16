@@ -122,6 +122,40 @@ v = await (await call("", "PUT", { off: true })).json();
 ok("switched off", v.on === false && (await emailSchedule({ ...(await S.getEvent("vic")) }, "2026-11-14")).find((x) => x.what === "Presenter thank-you") === undefined);
 ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&kind=thanks"))).status === 401);
 
+// Volunteers (Andrew 16 Nov 2026: "a thank you letter to the volunteers, and we'll do it the same way").
+{
+  const vev = { id: "ngs", title: "National Gang Summit", city: "Toronto, ON", dayOne: "2026-11-09", lastDay: "2026-11-12" };
+  await S.putEvent(vev);
+  await S.putAttendees("ngs", { people: Array.from({ length: 562 }, (_, i) => ({ key: `k${i}`, email: `a${i}@x.ca`, first: "A", status: i < 560 ? "ATTENDING" : "NOT_ATTENDING" })) });
+  await S.putVolunteer({ id: "v1", eventId: "ngs", first: "Mark", last: "Mazzocato", email: "mark@x.ca", organization: "Peel Police", status: "signed" });
+  await S.putVolunteer({ id: "v2", eventId: "ngs", first: "Ina", last: "Vite", email: "ina@x.ca", organization: "OPP", status: "invited" });
+  ok("over 550: 560 coming, rounded down to the 50 below", (await T.attendeesOver(vev)) === "550" && T.overFifty(600) === "550" && T.overFifty(551) === "550" && T.overFifty(40) === "40");
+  const vp = T.thanksPeople(vev, await S.listVolunteers("ngs"), "volunteers", "550");
+  ok("volunteers who signed are on the list; one only invited isn't unless added", vp.find((p) => p.id === "v1").in && !vp.find((p) => p.id === "v2").in);
+  ok("both go the morning after, at 9 Toronto time", T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "volunteers") && T.thanksDue(vev, new Date("2026-11-13T14:05:00Z"), "presenters"));
+  const n0 = sent.length;
+  const vr = await T.sendThanksRound(vev, { now: new Date("2026-11-13T14:05:00Z"), pace: async () => {}, kind: "volunteers" });
+  const mark = sent.at(-1);
+  ok("one volunteer thanked, by name, with the count", vr.sent === 1 && sent.length === n0 + 1 && mark.to === "mark@x.ca" && /Hi Mark,/.test(mark.text) && /Over 550 people came through the doors/.test(mark.text) && /Thank you for volunteering at National Gang Summit/.test(mark.subject), mark.text.slice(0, 300));
+  ok("with a letter named for them", /^Mazzocato Mark - Letter of appreciation - /.test(mark.files[0]?.filename ?? ""));
+  {
+    const { execFileSync } = await import("node:child_process"); const fs = await import("node:fs"); const os = await import("node:os");
+    const f = os.tmpdir() + "/vol-letter.pdf"; fs.writeFileSync(f, Buffer.from(mark.files[0].content, "base64"));
+    if (process.env.VOL_LETTER_OUT) fs.writeFileSync(process.env.VOL_LETTER_OUT, Buffer.from(mark.files[0].content, "base64"));
+    let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
+    if (txt) ok("the volunteer's letter: one page, their name and service, the count, thanks to their employer", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && /Re: Letter of appreciation for Mark Mazzocato, Peel Police/.test(txt) && /who volunteered at National Gang Summit in Toronto, ON/.test(txt) && /over 550 participants/.test(txt) && /grateful to Peel Police for allowing Mark/.test(txt), txt.slice(0, 500));
+  }
+  const vcall = (q, method = "GET", body) => fn(new Request(`http://x/api/attmail?event=ngs&kind=thanks&who=volunteers${q}`, { method, headers: H, ...(body ? { body: JSON.stringify(body) } : {}) }));
+  let vv = await (await vcall("")).json();
+  ok("the card's volunteer side: who, the count, each volunteer", vv.who === "volunteers" && vv.attendees === "550" && vv.people.length === 2 && vv.people.find((p) => p.id === "v1").sentAt);
+  vv = await (await vcall("", "PUT", { id: "v2", pick: "yes" })).json();
+  ok("Ina, only invited, added by hand", vv.people.find((p) => p.id === "v2").in);
+  const vs = await (await vcall("&send=1", "POST", {})).json();
+  ok("Send now: only Ina is owed", vs.sent === 1 && sent.at(-1).to === "ina@x.ca");
+  const presentersStill = await (await fn(new Request("http://x/api/attmail?event=ngs&kind=thanks", { headers: H }))).json();
+  ok("the presenters' side is its own", presentersStill.who === "presenters" && presentersStill.people.length === 0);
+}
+
 if (process.env.THANKS_HTML) (await import("node:fs")).writeFileSync(process.env.THANKS_HTML, ana.html);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
