@@ -6,7 +6,7 @@ import { dailyTimes, owedFor, zoneOf, reminderDates, stillOwed, REMIND_KEY } fro
 import { HOTEL_DAYS } from "./hotel.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { onlineGroups, timesOf, joinPeople } from "./joinreminder.mjs";
-import { thanksDay, thanksOn, thanksPeople, THANKS_AT } from "./thanks.mjs";
+import { thanksDay, thanksOn, thanksPeople, THANKS_AT, KINDS } from "./thanks.mjs";
 
 /**
  * Every email the desk will send for an event on its own, from today on: the day, what it is, and how many it goes to
@@ -115,8 +115,10 @@ export async function emailSchedule(event, today = todayIso()) {
   // The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026).
   const td = thanksDay(event);
   if (td && td >= today && !event.practice) {
-    const to = thanksPeople(event, await listPresenters(event.id)).filter((v) => v.in && !v.sentAt).length;
-    out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: "Presenter thank-you", to, who: "presenters", note: thanksOn(event) ? "" : "won't go: switched off" });
+    for (const [kind, K] of Object.entries(KINDS)) {
+      const to = thanksPeople(event, await K.list(event.id), kind).filter((v) => v.in && !v.sentAt).length;
+      out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: thanksOn(event, kind) ? "" : "won't go: switched off" });
+    }
   }
   for (const x of out) if (x.time === undefined) Object.assign(x, morning(x.date));
   // Done is gone: nothing left to send on that one (today's survey once it has gone, a reminder nobody is owed).

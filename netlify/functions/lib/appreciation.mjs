@@ -24,8 +24,32 @@ We are grateful to {first} for their preparation, professionalism and willingnes
 
 We would appreciate having this letter placed on {first}’s personnel file in recognition of their contribution to ONGIA and the people we serve.`;
 
+/**
+ * The volunteer's letter (Andrew 16 Nov 2026: "thanking that volunteer for contributing their time and their away from
+ * home … thanking their service for allowing the volunteer the time … onto their work file"). {attendees} is the
+ * event's registrations rounded down to the 50 below, "550" for 562.
+ */
+export const VOLUNTEER_LETTER = `I am writing to recognize {name}, who volunteered at {event} in {city} on {date}.
+
+{event} brought together over {attendees} participants from the justice community and our community partners across Canada. An event of that size depends on its volunteers. {first} gave their own time and spent days away from home to make sure the event ran smoothly for participants and presenters.
+
+Without the work, effort and professionalism of volunteers such as {first}, this event would not have been as successful as it was.
+
+We are grateful to {organization} for allowing {first} the time to take part. That support makes it possible for ONGIA, a volunteer-led non-profit, to keep delivering practical training across the country.
+
+We would appreciate having this letter placed on {first}’s personnel file in recognition of their contribution to ONGIA and the people we serve.`;
+
+/** The board member's letter, for their employer (Andrew 16 Nov 2026), once a year from the Admin page. */
+export const BOARD_LETTER = `I am writing to thank you for your continued support of {name}, who serves on the Board of Directors of ONGIA.
+
+Over the past year, {first} has given their time and expertise to help ONGIA plan and deliver training across Canada. ONGIA has grown steadily over the last few years, and we continue to deliver important training to the justice community and our community partners. That growth depends on the people who serve on our board, and on the employers who make their participation possible.
+
+Thank you for allowing {first} to take part in and contribute to ONGIA’s work this year.
+
+We would appreciate having this letter placed on {first}’s personnel file in recognition of their contribution to ONGIA and the people we serve.`;
+
 /** The blanks a letter may use. */
-export const LETTER_BLANKS = ["name", "first", "talk", "event", "city", "date", "organization"];
+export const LETTER_BLANKS = ["name", "first", "talk", "event", "city", "date", "organization", "attendees", "year"];
 
 /** Who signs: the template's own signature block. */
 const SIGNER = ["Andrew Hammond", "416-230-9802", "President – ONGIA", "www.ongia.org"];
@@ -45,6 +69,7 @@ const eventOf = (e) => String(e?.title ?? "").trim();
 
 /** The values for one presenter. */
 export function letterValues(event, p) {
+  event = event ?? {};
   const day = p.talkDay || (!event.lastDay || event.lastDay === event.dayOne ? event.dayOne : "");
   return {
     name: `${p.first ?? ""} ${p.last ?? ""}`.trim(),
@@ -54,6 +79,8 @@ export function letterValues(event, p) {
     city: cityOf(event),
     date: day ? full(day, true) : event.dayOne ? `${full(event.dayOne)} to ${full(event.lastDay)}` : "",
     organization: String(p.organization ?? "").trim(),
+    attendees: String(p.attendees ?? "").trim(),
+    year: String(p.year ?? new Date().getFullYear()),
   };
 }
 
@@ -67,6 +94,7 @@ export function fillLetter(body, v) {
   if (!v.city) t = t.replace(/\s+in \{city\}/g, "").replace(/\s*\{city\}/g, "");
   if (!v.date) t = t.replace(/\s+on \{date\}/g, "").replace(/\s*\{date\}/g, "");
   if (!v.organization) t = t.replace(/\{organization\}/g, "their organization");
+  if (!v.attendees) t = t.replace(/\s*over \{attendees\}/g, "").replace(/\s*\{attendees\}/g, "");
   return t.replace(/\{([a-zA-Z]+)\}/g, (w, k) => (k in v ? v[k] : w));
 }
 
