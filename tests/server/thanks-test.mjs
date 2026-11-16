@@ -143,7 +143,7 @@ ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&ki
     const f = os.tmpdir() + "/vol-letter.pdf"; fs.writeFileSync(f, Buffer.from(mark.files[0].content, "base64"));
     if (process.env.VOL_LETTER_OUT) fs.writeFileSync(process.env.VOL_LETTER_OUT, Buffer.from(mark.files[0].content, "base64"));
     let txt = ""; try { txt = execFileSync("pdftotext", [f, "-"]).toString().replace(/\s+/g, " "); } catch {}
-    if (txt) ok("the volunteer's letter: one page, their name and service, the count, thanks to their employer", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && /Re: Letter of appreciation for Mark Mazzocato, Peel Police/.test(txt) && /who volunteered at National Gang Summit in Toronto, ON/.test(txt) && /over 550 participants/.test(txt) && /grateful to Peel Police for allowing Mark/.test(txt), txt.slice(0, 500));
+    if (txt) ok("the volunteer's letter: one page, their name and service, the count, thanks to their employer", /Pages:\s+1\b/.test(execFileSync("pdfinfo", [f]).toString()) && /Re: Letter of appreciation for Mark Mazzocato, Peel Police/.test(txt) && /who volunteered at National Gang Summit in Toronto, ON from November 9 to 12, 2026\./.test(txt) && /The event brought together over 550 participants/.test(txt) && /grateful to Peel Police for allowing Mark/.test(txt), txt.slice(0, 500));
   }
   const vcall = (q, method = "GET", body) => fn(new Request(`http://x/api/attmail?event=ngs&kind=thanks&who=volunteers${q}`, { method, headers: H, ...(body ? { body: JSON.stringify(body) } : {}) }));
   let vv = await (await vcall("")).json();

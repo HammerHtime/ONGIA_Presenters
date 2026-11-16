@@ -31,7 +31,7 @@ We would appreciate having this letter placed on {first}’s personnel file in r
  */
 export const VOLUNTEER_LETTER = `I am writing to recognize {name}, who volunteered at {event} in {city} on {date}.
 
-{event} brought together over {attendees} participants from the justice community and our community partners across Canada. An event of that size depends on its volunteers. {first} gave their own time and spent days away from home to make sure the event ran smoothly for participants and presenters.
+The event brought together over {attendees} participants from the justice community and our community partners across Canada. An event of that size depends on its volunteers. {first} gave their own time and spent days away from home to make sure the event ran smoothly for participants and presenters.
 
 Without the work, effort and professionalism of volunteers such as {first}, this event would not have been as successful as it was.
 
@@ -67,6 +67,14 @@ const cityOf = (e) => String(e?.city ?? "").split(",").map((s) => s.trim()).filt
 /** The event's name as a sentence carries it: "Canadian Forum … - Western Symposium" reads as typed. */
 const eventOf = (e) => String(e?.title ?? "").trim();
 
+/** "November 9 to 12, 2026", "October 30 to November 2, 2026", "December 30, 2026 to January 2, 2027". */
+function spanOf(a, b) {
+  const [ya, ma, da] = a.split("-").map(Number), [yb, mb, db] = String(b).split("-").map(Number);
+  if (!yb) return full(a);
+  if (ya !== yb) return `${full(a)} to ${full(b)}`;
+  return ma === mb ? `${MONTHS[ma - 1]} ${da} to ${db}, ${ya}` : `${MONTHS[ma - 1]} ${da} to ${MONTHS[mb - 1]} ${db}, ${ya}`;
+}
+
 /** The values for one presenter. */
 export function letterValues(event, p) {
   event = event ?? {};
@@ -77,7 +85,8 @@ export function letterValues(event, p) {
     talk: String(p.talk ?? "").replace(/^["“”']+|["“”']+$/g, "").trim(),
     event: eventOf(event),
     city: cityOf(event),
-    date: day ? full(day, true) : event.dayOne ? `${full(event.dayOne)} to ${full(event.lastDay)}` : "",
+    date: day ? full(day, true) : event.dayOne ? spanOf(event.dayOne, event.lastDay) : "",
+    span: !day && !!event.dayOne,
     organization: String(p.organization ?? "").trim().replace(/[\s,;:./-]+$/, ""),
     attendees: String(p.attendees ?? "").trim(),
     year: String(p.year ?? new Date().getFullYear()),
@@ -93,6 +102,8 @@ export function fillLetter(body, v) {
   if (!v.talk) t = t.replace(/\s*[“"]?\{talk\}[”"]?/g, "");
   if (!v.city) t = t.replace(/\s+in \{city\}/g, "").replace(/\s*\{city\}/g, "");
   if (!v.date) t = t.replace(/\s+on \{date\}/g, "").replace(/\s*\{date\}/g, "");
+  // Several days read "from November 9 to 12, 2026", not "on …".
+  if (v.span) t = t.replace(/\bon \{date\}/g, "from {date}");
   if (!v.organization) t = t.replace(/\{organization\}/g, "their organization");
   if (!v.attendees) t = t.replace(/\s*over \{attendees\}/g, "").replace(/\s*\{attendees\}/g, "");
   return t.replace(/\{([a-zA-Z]+)\}/g, (w, k) => (k in v ? v[k] : w));
