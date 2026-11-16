@@ -124,6 +124,41 @@ export function purposeOf(l) {
     l.comment ? `Comment: ${l.comment}` : ""].filter(Boolean).join(" ");
 }
 
+/** A claim filed under the old names ("Healy_November_Expense_Claim", "…_2"). */
+export const oldStem = (stem) => /_Expense_Claim(_\d+)?$/.test(String(stem ?? ""));
+
+/**
+ * Give a claim filed under the old names the new ones (Andrew 16 Nov 2026: "are you able to change the naming convention
+ * for the current ones"): its Excel and PDF renamed where they are in SharePoint, and the claim's record changed to
+ * match, so filing it again replaces those files rather than making a second pair. A second claim that month ("_2")
+ * becomes "(2)"; if that name is taken in the folder, the next number. With `dry`, says what it would do.
+ */
+export async function renameFiled(claim, { drive = null, dry = false } = {}) {
+  const f = claim?.filed;
+  if (!f?.stem || !oldStem(f.stem)) return null;
+  let n = Number(f.stem.match(/_(\d+)$/)?.[1] ?? 1);
+  const g = dry ? null : drive ?? (await expenseDrive());
+  if (!dry && !g) throw new Error("Microsoft isn't set up on this site.");
+  for (let tries = 0; tries < 10; tries++, n++) {
+    const stem = claimStem(claim.owner?.name, claim.month, n);
+    if (dry) return { from: f.stem, to: stem, folder: f.folder };
+    try {
+      const x = f.xlsx?.id ? await g.rename(f.xlsx.id, `${stem}.xlsx`) : null;
+      let p = null;
+      try { p = f.pdf?.id ? await g.rename(f.pdf.id, `${stem}.pdf`) : null; }
+      catch (e) { if (x) await g.rename(f.xlsx.id, `${f.stem}.xlsx`).catch(() => {}); throw e; }
+      return { from: f.stem, to: stem, folder: f.folder, filed: { ...f, stem,
+        xlsx: x ? { ...f.xlsx, name: x.name, url: x.webUrl ?? f.xlsx.url } : f.xlsx, pdf: p ? { ...f.pdf, name: p.name, url: p.webUrl ?? f.pdf.url } : f.pdf } };
+    } catch (e) {
+      if (e.status === 409 || e.code === "nameAlreadyExists") continue;
+      // Gone from SharePoint (moved or deleted by hand): nothing to rename, and the record is left as it was.
+      if (e.status === 404) return { from: f.stem, to: null, folder: f.folder, missing: true };
+      throw e;
+    }
+  }
+  throw new Error(`Every name for ${f.stem} is taken in its folder.`);
+}
+
 /**
  * Put the claim in its folder. `prev` is what was filed before (claim.filed): the same folders and names are used
  * again, the Excel and PDF replaced, receipts added for new lines, and the desk's own copies of receipts for lines

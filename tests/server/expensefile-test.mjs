@@ -106,6 +106,12 @@ const drive = () => {
     async ensure(folder) { let built = ""; for (const seg of folder.split("/")) { built = built ? `${built}/${seg}` : seg; if (![...items.values()].some((i) => i.path === built)) items.set(`f${++n}`, { id: `f${n}`, path: built, name: seg, folder: {}, webUrl: `https://sp/${built}` }); } return [...items.values()].find((i) => i.path === folder); },
     async put(file, bytes, type) { d.puts.push(file); const had = [...items.values()].find((i) => i.path === file); const id = had?.id ?? `i${++n}`; items.set(id, { id, path: file, name: file.split("/").at(-1), file: {}, size: bytes.length, type, webUrl: `https://sp/${file}` }); return items.get(id); },
     async remove(id) { d.removed.push(id); items.delete(id); },
+    async rename(id, name) {
+      const it = items.get(id); if (!it) throw Object.assign(new Error("gone"), { status: 404 });
+      const to = `${parent(it.path)}/${name}`;
+      if ([...items.values()].some((i) => i.path === to && i.id !== id)) throw Object.assign(new Error("taken"), { status: 409 });
+      Object.assign(it, { path: to, name, webUrl: `https://sp/${to}` }); return { id, name, webUrl: it.webUrl };
+    },
   };
   return d;
 };
@@ -129,6 +135,28 @@ ok("a second claim the same month doesn't overwrite the first: (2)", other.xlsx.
 // One filed before the names changed keeps its name when it's filed again (Andrew 16 Nov 2026: "keep old ones as is").
 const old = await E.fileClaim({ claim: { ...steve, status: "paid" }, docs, prev: { ...filed, stem: "Hammond_November_Expense_Claim" }, drive: g });
 ok("a claim filed under the old name keeps it when filed again", old.xlsx.name === "Hammond_November_Expense_Claim.xlsx" && old.pdf.name === "Hammond_November_Expense_Claim.pdf");
+// Claims filed under the old names given the new ones (Andrew 16 Nov 2026: "change the naming convention for the current ones").
+{
+  const sp = drive();
+  for (const m of members) await sp.ensure(`${base}/2026/${m}`);
+  const first = await E.fileClaim({ claim: steve, docs, drive: sp });
+  const second = await E.fileClaim({ claim: { ...steve, id: "s2" }, docs, drive: sp });
+  // As they were filed before: rename them back to the old names, as SharePoint has them today.
+  await sp.rename(first.xlsx.id, "Hammond_November_Expense_Claim.xlsx"); await sp.rename(first.pdf.id, "Hammond_November_Expense_Claim.pdf");
+  await sp.rename(second.xlsx.id, "Hammond_November_Expense_Claim_2.xlsx"); await sp.rename(second.pdf.id, "Hammond_November_Expense_Claim_2.pdf");
+  const c1 = { ...steve, filed: { ...first, stem: "Hammond_November_Expense_Claim" } }, c2 = { ...steve, id: "s2", filed: { ...second, stem: "Hammond_November_Expense_Claim_2" } };
+  const look = await E.renameFiled(c1, { dry: true });
+  ok("the preview says what it would do, and changes nothing", look.to === "Hammond Stephen - Expense claim - November 2026" && [...sp.items.values()].some((i) => i.name === "Hammond_November_Expense_Claim.xlsx"));
+  const r1 = await E.renameFiled(c1, { drive: sp }), r2 = await E.renameFiled(c2, { drive: sp });
+  const names = [...sp.items.values()].filter((i) => /Expense claim|Expense_Claim/.test(i.name)).map((i) => i.name).sort();
+  ok("both renamed in place: the first, and the second of the month as (2)", JSON.stringify(names) === JSON.stringify(["Hammond Stephen - Expense claim - November 2026 (2).pdf", "Hammond Stephen - Expense claim - November 2026 (2).xlsx", "Hammond Stephen - Expense claim - November 2026.pdf", "Hammond Stephen - Expense claim - November 2026.xlsx"]), JSON.stringify(names));
+  ok("the record follows, so filing it again replaces those files and makes no new pair", r1.filed.stem === "Hammond Stephen - Expense claim - November 2026" && r1.filed.xlsx.id === first.xlsx.id);
+  sp.puts.length = 0;
+  await E.fileClaim({ claim: { ...c1, filed: r1.filed, status: "paid" }, docs, prev: r1.filed, drive: sp });
+  ok("…and does", sp.puts.length === 2 && [...sp.items.values()].filter((i) => /Expense claim|Expense_Claim/.test(i.name)).length === 4);
+  ok("a claim already on the new names is left alone", (await E.renameFiled({ ...c1, filed: r1.filed }, { drive: sp })) === null);
+  ok("a file gone from SharePoint is reported, not invented", (await E.renameFiled({ ...c1, filed: { ...first, stem: "Hammond_November_Expense_Claim", xlsx: { id: "nope" } } }, { drive: sp })).missing === true);
+}
 const t = await E.fileClaim({ claim: { ...claim, test: true }, docs, drive: g });
 ok("a test claim goes under Test claims (safe to delete), never a member's folder", t.folder === `${base}/Test claims (safe to delete)/Dana Reyes/November 2026`);
 const before = g.items.size;
