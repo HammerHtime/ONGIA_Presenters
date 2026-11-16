@@ -29,7 +29,13 @@ ok("two folders that could be theirs: a new one rather than a guess", E.memberFo
 ok("this month as the member already names it", E.monthFolder(["October 2026", "November 2026"], "November 2026") === "November 2026" && E.monthFolder(["10. Oct 2026", "11. Nov 2026"], "November 2026") === "11. Nov 2026" && E.monthFolder(["Nov 2026"], "November 2026") === "Nov 2026");
 ok("never last year's November, nor an event folder", E.monthFolder(["November 2025", "Strat Weekend Nov 2026"], "November 2026") === "November 2026");
 ok("files are named last name first, with the month and year; a second claim that month is (2)", E.claimStem("John Healy", "November 2026") === "Healy John - Expense claim - November 2026" && E.claimStem("John Healy", "November 2026", 2) === "Healy John - Expense claim - November 2026 (2)", E.claimStem("John Healy", "November 2026"));
-ok("a receipt is named by its line, date, vendor and amount", E.receiptName(1, { date: "2026-11-09", paidTo: "Delta Hotels", amount: 658.12 }, "file", "image/jpeg") === "01 2026-11-09 Delta Hotels $658.12.jpg" && E.receiptName(4, { date: "2026-11-11", paidTo: "Green P", amount: 18 }, "shot", "image/png") === "04 2026-11-11 Green P card statement.png");
+ok("a receipt's name ends with the merchant and amount", E.receiptName(1, { date: "2026-11-09", paidTo: "Delta Hotels", amount: 658.12 }, "file", "image/jpeg") === "Delta Hotels $658.12.jpg" && E.receiptName(4, { date: "2026-11-11", paidTo: "Green P", amount: 18 }, "shot", "image/png") === "Green P card statement.png");
+ok("and starts with the last name and which claim; a second that month says (2)", E.receiptPrefix("John Healy", "November 2026", "Healy John - Expense claim - November 2026") === "Healy - Nov 2026 claim" && E.receiptPrefix("John Healy", "November 2026", "Healy John - Expense claim - November 2026 (2)") === "Healy - Nov 2026 claim (2)");
+{
+  const two = E.receiptNames({ owner: { name: "John Healy" }, month: "November 2026" }, "Healy John - Expense claim - November 2026",
+    [{ line: { id: "a" }, kind: "receipt", name: "Green P $18.00.jpg" }, { line: { id: "b" }, kind: "receipt", name: "Green P $18.00.jpg" }]);
+  ok("two receipts alike in one claim aren't given the same name", two["a:receipt"] === "Healy - Nov 2026 claim - Green P $18.00.jpg" && two["b:receipt"] === "Healy - Nov 2026 claim - Green P $18.00 (2).jpg", JSON.stringify(two));
+}
 
 console.log("— who signs where on the form");
 const names = (e) => ({ "president@ongia.ca": "Andrew Hammond", "vp_operations@ongia.ca": "Jacqulyn Taylor", "treasurer@ongia.ca": "Raj Jaswal", "executiveofficer@ongia.ca": "Peglar Artinian" }[e] ?? e);
@@ -94,7 +100,7 @@ if (ptxt !== null) ok("the PDF's HST: $75.71 inside the hotel's $658.12, $2.07 i
   ok("the Excel sheet: the mileage line's HST is 0, the others the formula", /<c r="F12" s="\d+"><v>0<\/v><\/c>/.test(sx) && sx.includes('ROUND(E13*13/113,2))</f><v>75.71</v>') && sx.includes('ROUND(E14*13/113,2))</f><v>2.07</v>'), sx.match(/<c r="F1[2-4]"[^]*?<\/c>/g)?.join(" "));
   ok("a speaker stipend has no HST either, and Food Basics' $61.77 has $7.11 in it", X.hstOf({ kind: "noreceipt", category: 10, amount: 1000 }) === 0 && X.hstOf({ kind: "mileage", amount: 279 }) === 0 && X.hstOf({ kind: "receipt", category: 5, amount: 61.77 }) === 7.11 && X.hstOf({ kind: "noreceipt", category: 5, amount: 458.74 }) === 52.78);
 }
-ok("the receipts to file, named by their line on the form", docs.receipts.map((r) => r.name).join("|") === "02 2026-11-09 Delta Hotels $658.12.jpg|03 2026-11-11 Green P card statement.png");
+ok("the receipts to file, each with its merchant and amount", docs.receipts.map((r) => r.name).join("|") === "Delta Hotels $658.12.jpg|Green P card statement.png");
 
 console.log("— filing, against a stand-in SharePoint");
 const drive = () => {
@@ -123,7 +129,7 @@ const steve = { ...claim, owner: { name: "Stephen Hammond", email: "s.hammond@on
 let filed = await E.fileClaim({ claim: steve, docs, drive: g });
 ok("filed under 2026 › Steve Hammond › a new November 2026 folder", filed.folder === `${base}/2026/Steve Hammond/November 2026` && filed.folderUrl.endsWith("/November 2026"));
 ok("the Excel and the PDF, named last name first with the month and year", filed.xlsx.name === "Hammond Stephen - Expense claim - November 2026.xlsx" && filed.pdf.name === "Hammond Stephen - Expense claim - November 2026.pdf", filed.xlsx.name);
-ok("the receipts in a Receipts folder beside them", Object.values(filed.receipts).map((r) => r.name).sort().join("|") === "02 2026-11-09 Delta Hotels $658.12.jpg|03 2026-11-11 Green P card statement.png" && g.puts.some((p) => p.endsWith("/November 2026/Receipts/02 2026-11-09 Delta Hotels $658.12.jpg")));
+ok("the receipts in a Receipts folder beside them, named for the member, the claim and the merchant", Object.values(filed.receipts).map((r) => r.name).sort().join("|") === "Hammond - Nov 2026 claim - Delta Hotels $658.12.jpg|Hammond - Nov 2026 claim - Green P card statement.png" && g.puts.some((p) => p.endsWith("/November 2026/Receipts/Hammond - Nov 2026 claim - Delta Hotels $658.12.jpg")), Object.values(filed.receipts).map((r) => r.name).join("|"));
 g.puts.length = 0;
 const again = await E.fileClaim({ claim: { ...steve, status: "paid" }, docs, prev: filed, drive: g });
 ok("filed again (approved, paid): the same two files replaced, the receipts not sent twice", g.puts.length === 2 && again.xlsx.id === filed.xlsx.id && again.stem === filed.stem && g.removed.length === 0);
@@ -154,6 +160,15 @@ ok("a claim filed under the old name keeps it when filed again", old.xlsx.name =
   sp.puts.length = 0;
   await E.fileClaim({ claim: { ...c1, filed: r1.filed, status: "paid" }, docs, prev: r1.filed, drive: sp });
   ok("…and does", sp.puts.length === 2 && [...sp.items.values()].filter((i) => /Expense claim|Expense_Claim/.test(i.name)).length === 4);
+  {
+    // Its receipts too, from the claim's own lines: renamed where they are, and the record follows.
+    const oldNames = { ...first.receipts };
+    for (const [k, v] of Object.entries(oldNames)) { const nm = k.endsWith(":shot") ? "03 2026-11-11 Green P card statement.png" : "02 2026-11-09 Delta Hotels $658.12.jpg"; await sp.rename(v.id, nm); oldNames[k] = { ...v, name: nm }; }
+    const rr = await E.renameReceipts({ ...c1, filed: { ...r1.filed, receipts: oldNames } }, lines, { drive: sp });
+    const now = [...sp.items.values()].filter((i) => /Receipts\//.test(i.path) && Object.values(oldNames).some((o) => o.id === i.id)).map((i) => i.name).sort();
+    ok("its receipts renamed where they are: last name, claim, merchant", rr.changes.length === 2 && JSON.stringify(now) === JSON.stringify(["Hammond - Nov 2026 claim - Delta Hotels $658.12.jpg", "Hammond - Nov 2026 claim - Green P card statement.png"]), JSON.stringify(now));
+    ok("…and the record follows, so filing again uploads nothing new", Object.values(rr.filed.receipts).every((x) => /^Hammond - Nov 2026 claim - /.test(x.name)));
+  }
   ok("a claim already on the new names is left alone", (await E.renameFiled({ ...c1, filed: r1.filed }, { drive: sp })) === null);
   ok("a file gone from SharePoint is reported, not invented", (await E.renameFiled({ ...c1, filed: { ...first, stem: "Hammond_November_Expense_Claim", xlsx: { id: "nope" } } }, { drive: sp })).missing === true);
 }
