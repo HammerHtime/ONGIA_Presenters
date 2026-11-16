@@ -127,7 +127,7 @@ ok("no key, no access", (await fn(new Request("http://x/api/attmail?event=vic&ki
   const vev = { id: "ngs", title: "National Gang Summit", city: "Toronto, ON", dayOne: "2026-11-09", lastDay: "2026-11-12" };
   await S.putEvent(vev);
   await S.putAttendees("ngs", { people: Array.from({ length: 562 }, (_, i) => ({ key: `k${i}`, email: `a${i}@x.ca`, first: "A", status: i < 560 ? "ATTENDING" : "NOT_ATTENDING" })) });
-  await S.putVolunteer({ id: "v1", eventId: "ngs", first: "Mark", last: "Mazzocato", email: "mark@x.ca", organization: "Peel Police", status: "signed" });
+  await S.putVolunteer({ id: "v1", eventId: "ngs", first: "Mark", last: "Mazzocato", email: "mark@x.ca", organization: "Peel Police, ", status: "signed" });
   await S.putVolunteer({ id: "v2", eventId: "ngs", first: "Ina", last: "Vite", email: "ina@x.ca", organization: "OPP", status: "invited" });
   ok("over 550: 560 coming, rounded down to the 50 below", (await T.attendeesOver(vev)) === "550" && T.overFifty(600) === "550" && T.overFifty(551) === "550" && T.overFifty(40) === "40");
   const vp = T.thanksPeople(vev, await S.listVolunteers("ngs"), "volunteers", "550");
