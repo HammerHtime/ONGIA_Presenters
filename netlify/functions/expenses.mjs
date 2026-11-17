@@ -15,8 +15,9 @@ import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, APPROVER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
+  cleanPerDiem, money,
 } from "./lib/expenses.mjs";
-import { shownLines, checksFor } from "./lib/expenseview.mjs";
+import { shownLines, checksFor, getPerDiem, perDiemFor, markPerDiem, PER_DIEM_KEY } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
 import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, presenterPaidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
 
@@ -38,6 +39,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, pre
  *   POST   /api/expenses?add=receipt[&claim=<id>][&test=1]   body = the photo or PDF; Claude starts reading it
  *   POST   /api/expenses?add=mileage|noreceipt[&claim=]  { date, km, from, to, … }
  *   PUT    /api/expenses?claim=<id>&line=<line>          what the person checked or typed
+ *   PUT    /api/expenses?perdiem=1                       { breakfast, lunch, dinner, km }: a presenter's per diem (President or VP)
  *   DELETE /api/expenses?claim=<id>&line=<line>          a line;   DELETE ?claim=<id>   the whole claim
  *   POST   /api/expenses?claim=<id>&thumb=|shot=|again=<line>
  *   POST   /api/expenses?submit=<id>                     send it for approval
@@ -127,6 +129,16 @@ export default async (req) => {
    * TEST, in the app and in its emails, so nobody pays one for real; its copies go in the Test claims folder. When the
    * test is over, Clear deletes every claim made up to the day he picks, from everyone, with its receipts and its copies.
    */
+  // A presenter's per diem (Andrew 17 Nov 2026: "They do change quarterly"): the President or the VP sets it.
+  if (req.method === "PUT" && q("perdiem")) {
+    if (!["president", "vp"].includes(me.role)) return fail("Only the President or the VP can change the per diem.", 403);
+    const had = await getPerDiem();
+    const c = cleanPerDiem(await req.json().catch(() => ({})), had);
+    if (c.problem) return fail(c.problem);
+    await putMeta(PER_DIEM_KEY, { rates: c.ok, at: now(), by: me.name });
+    return json(await home(ctx, test));
+  }
+
   if (req.method === "POST" && q("boardtest")) {
     if (me.role !== "president") return fail("Only the President can turn the board test on or off.", 403);
     const body = await req.json().catch(() => ({}));
@@ -225,7 +237,7 @@ export default async (req) => {
       await startRead(url.origin, claim.id, line.id);
     } else {
       const body = await req.json().catch(() => ({}));
-      Object.assign(line, cleanLine(kind, body, { events: await choices() }));
+      Object.assign(line, cleanLine(kind, body, { events: await choices(), rate: (await perDiemFor(claim))?.km ?? mileageRate() }));
       if (kind === "mileage") line.paidTo = me.name;
       await putClaimLine(claim.id, line);
       await touch(claim);
@@ -422,10 +434,11 @@ export default async (req) => {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Type their email address: the e-transfer goes there.");
       claim.payee = { kind: "other", name, email, organization };
       claim.history = [...(claim.history ?? []), { at: now(), what: `made for ${name}, paid directly`, by: me.name }];
+      await rerate(claim);
       await touch(claim);
       return json({ claim: await claimView(claim, ctx) });
     }
-    if (!body.presenter) { delete claim.payee; claim.history = [...(claim.history ?? []), { at: now(), what: "made the member's own claim", by: me.name }]; await touch(claim); return json({ claim: await claimView(claim, ctx) }); }
+    if (!body.presenter) { delete claim.payee; claim.history = [...(claim.history ?? []), { at: now(), what: "made the member's own claim", by: me.name }]; await rerate(claim); await touch(claim); return json({ claim: await claimView(claim, ctx) }); }
     const ev = await getEvent(text(body.event, 80));
     const p = ev ? (await listPresenters(ev.id)).find((x) => x.id === text(body.presenter, 80)) : null;
     if (!p) return fail("That presenter isn't on that event.", 404);
@@ -433,6 +446,7 @@ export default async (req) => {
     claim.payee = { kind: "presenter", name: `${p.first ?? ""} ${p.last ?? ""}`.trim(), email: String(p.email).toLowerCase(), organization: String(p.organization ?? "").trim(),
       event: ev.id, eventTitle: ev.title, presenter: p.id, covers: p.review?.ongiaCovers ?? null };
     claim.history = [...(claim.history ?? []), { at: now(), what: `made for ${claim.payee.name}, a presenter at ${ev.title}`, by: me.name }];
+    await rerate(claim);
     await touch(claim);
     return json({ claim: await claimView(claim, ctx) });
   }
@@ -638,6 +652,15 @@ async function startFiling(origin, claimId) {
     if (c) { c.filed = { ...(c.filed ?? {}), problem: "Filing to SharePoint didn't start. Press File it again.", failedAt: now() }; await putClaim(c); }
   }
 }
+/** A claim's driving at the rate for who it's for: a presenter's km rate, else the board's. Run when that changes. */
+async function rerate(claim) {
+  const rate = (await perDiemFor(claim))?.km ?? mileageRate();
+  for (const l of await listClaimLines(claim.id)) {
+    if (l.kind !== "mileage" || l.rate === rate) continue;
+    l.rate = rate; l.amount = l.km ? money(l.km * rate) : null;
+    await putClaimLine(claim.id, l);
+  }
+}
 const BOARD_TEST = "expenses-board-test";
 const boardTestNow = async () => { const b = await getMeta(BOARD_TEST); return b?.on ? { on: true, since: b.since ?? null } : null; };
 const boardTestOn = async () => !!(await boardTestNow());
@@ -713,6 +736,8 @@ async function waitingClaims() {
 /** A claim as the app shows it: every line with what Claude read folded in, the total, what's missing, who signs off. */
 export async function claimView(claim, { me, aways, today, names }) {
   const shown = await shownLines(claim);
+  const perDiem = await perDiemFor(claim);
+  markPerDiem(shown, perDiem);
   // Newest receipt first; a line with no date yet (one still being read) at the top.
   shown.sort((a, b) => (!a.date && b.date ? -1 : a.date && !b.date ? 1 : String(b.date).localeCompare(String(a.date))) || String(b.addedAt).localeCompare(String(a.addedAt)));
   const sums = claimSums(shown);
@@ -732,6 +757,9 @@ export async function claimView(claim, { me, aways, today, names }) {
   const editableNow = mine && EDITABLE.includes(claim.status);
   return {
     id: claim.id, status: claim.status, words: statusWords(claim), owner: claim.owner, payee: claim.payee ?? null, createdAt: claim.createdAt, updatedAt: claim.updatedAt,
+    // A presenter's claim: the per diem its meals are held to, and the km rate its driving is paid at.
+    perDiem: perDiem ? { breakfast: perDiem.breakfast, lunch: perDiem.lunch, dinner: perDiem.dinner, km: perDiem.km } : null,
+    rate: perDiem?.km ?? mileageRate(),
     sentAt: claim.sentAt ?? null, test: !!claim.test, trial: !!claim.trial,
     month: claim.month || monthLabel(todayIso()),
     sums, lines: shown, missing: shown.filter((l) => l.problems.length).length,
@@ -793,6 +821,7 @@ async function home(ctx, test = false) {
   const awayView = (r) => (aways[r] ? { ...aways[r], toName: names(aways[r].to), backupName: aways[r].backup ? names(aways[r].backup) : "", inForce: !!inForce(aways[r], today), mail: (aways[r].mail ?? []).map((m) => ({ ...m, to: names(m.to) })) } : null);
   return {
     me: { ...me, officer }, rate: mileageRate(), test,
+    perDiem: await getPerDiem(), canSetPerDiem: ["president", "vp"].includes(me.role),
     boardTest: await boardTestNow(),
     categories: CATEGORIES.map(([n, name]) => ({ n, name })),
     events: await choices(),

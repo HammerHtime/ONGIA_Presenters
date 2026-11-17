@@ -85,13 +85,16 @@ function itemsTable(lines, total) {
  */
 export function needsApprovalMail({ claim, lines = [], checks, waitingOn = [], acting = "", until = "", practice = false }) {
   const owner = ownerOf(claim);
-  const flagged = checks?.notes?.length ?? 0;
+  // A meal over the per diem is named on its own line below, so it isn't counted again among the things to check.
+  const flagged = (checks?.notes?.length ?? 0) - (checks?.overs?.length ?? 0);
   const out = [
     testNote(claim),
     `${esc(owner)} has submitted an expense claim for the following:`,
     coversLine(claim),
     ...itemsTable(lines, claim.total ?? claim.sums?.total ?? 0),
-    flagged ? `${count(flagged, "thing is", "things are")} flagged to check. ${flagged === 1 ? "It's" : "They're"} listed on the claim.` : "",
+    // A presenter's meal over the per diem, named here: the approvers decide whether to allow it (Andrew 17 Nov 2026).
+    checks?.overs?.length ? `<b>Over the per diem:</b> ${checks.overs.map((o) => `${esc(o.paidTo)}, ${o.meal} ${dollars(o.amount)}, ${dollars(o.over)} over the ${dollars(o.limit)} limit`).join("; ")}. It's up to you whether to allow ${checks.overs.length === 1 ? "it" : "them"}.` : "",
+    flagged > 0 ? `${checks?.overs?.length ? count(flagged, "other thing is", "other things are") : count(flagged, "thing is", "things are")} flagged to check. ${flagged === 1 ? "It's" : "They're"} listed on the claim.` : "",
     waitingOn.length ? `Waiting on approval from ${esc(andList(waitingOn))}${practice ? ` (${waitingOn.length > 1 ? "both you" : "you"}, for practice)` : ""}.` : "",
     acting ? `You're standing in for the ${esc(acting)}${until ? ` until ${esc(formatDate(until))}` : ""}.` : "",
   ];
