@@ -7309,6 +7309,7 @@ function rbhReportsScreen(D) {
     [F.survey.quality == null ? "—" : `${F.survey.quality}%`, "rated quality 4 or 5", ""],
     [n(F.agencyCount), "agencies", F.newAgencies != null ? `${F.newAgencies} new this year` : ""],
     [n(F.provinceCount), "provinces", ""],
+    ...(SP && F.value?.contribution != null ? [[`$${n(F.value.contribution)}`, "RBH's sponsorship", F.value.perPerson != null ? `$${n(F.value.perPerson)} per person reached` : ""]] : []),
   ];
   const est = I.members != null && I.campaigns != null ? I.members * I.campaigns : null;
   const busy = Object.values(YE.reports).some((r) => r.building);
@@ -7358,7 +7359,8 @@ function rbhReportsScreen(D) {
       <form class="yein" id="ye-in"><b>Typed in once a year</b>
         <label>Members in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ye-members" value="${I.members ?? ""}"></label>
         <label>${SP ? `Email campaigns with contraband tobacco messaging in ${Y}` : `Email campaigns about RBH trainings in ${Y}`}<input type="number" min="0" step="1" inputmode="numeric" id="ye-campaigns" value="${I.campaigns ?? ""}"></label>
-        ${SP ? `<label>Estimated digital reach of RBH's awareness materials<input type="number" min="0" step="1" inputmode="numeric" id="ye-reach" value="${I.reach ?? ""}"></label>` : ""}
+        ${SP ? `<label>Estimated digital reach of RBH's awareness materials<input type="number" min="0" step="1" inputmode="numeric" id="ye-reach" value="${I.reach ?? ""}"></label>
+        <label>RBH's sponsorship in ${Y} ($)${I.scheduled != null && !I.contributionTyped ? " · from the agreement" : ""}<input type="number" min="0" step="1" inputmode="numeric" id="ye-money" value="${I.contribution ?? ""}"></label>` : ""}
         <button class="mini" id="ye-save">Save</button>
         <span class="hint" id="ye-est" style="margin:0">${est != null ? `About ${n(est)} emails (members × campaigns), shown as an estimate.` : "The reports leave communications out until both are filled in."}</span></form>
       <div class="yerow">${F.held ? `<button class="mini gold" id="ye-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the year-end reports"}</button>
@@ -7391,7 +7393,8 @@ function rbhReportsScreen(D) {
   document.getElementById("ye-in").onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/reports?yearend=${Y}&inputs=1${TQ}`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value, reach: document.getElementById("ye-reach")?.value }) });
+      await api(`/reports?yearend=${Y}&inputs=1${TQ}`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value, reach: document.getElementById("ye-reach")?.value,
+        contribution: SP && Number(document.getElementById("ye-money")?.value) !== I.scheduled ? document.getElementById("ye-money")?.value : undefined }) });
       toast(SP ? "Saved. They're used the next time the sponsorship reports are made." : "Saved. They're used the next time the year-end reports are made."); render();
     } catch (x) { toast(x.message); }
   };

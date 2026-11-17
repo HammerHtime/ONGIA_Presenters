@@ -8,6 +8,8 @@ import { factsFor, newDoc, PDF_LOOK } from "./reports.mjs";
 import { formatLong } from "./deadlines.mjs";
 import { SECTORS } from "./sectors.mjs";
 import { provinceOfEvent } from "./ongiayear.mjs";
+import { readFileSync } from "node:fs";
+import nodePath from "node:path";
 
 /**
  * The RBH year end (Andrew 31 Oct 2026): an Executive Summary and a one-page infographic for the whole calendar year,
@@ -67,10 +69,20 @@ const today = () => new Date().toISOString().slice(0, 10);
 // The sponsorship report's own: its campaigns are those with contraband tobacco awareness messaging, and it has the
 // estimated digital reach the agreement lists as a KPI.
 const inputsKey = (year, track) => (trackOf(track) === "sponsor" ? `rbh:sponsor:${year}:inputs` : `rbh:yearend:${year}:inputs`);
-export const inputsOf = async (year, track = "consulting") => (await getMeta(inputsKey(year, track))) ?? { members: null, campaigns: null, reach: null };
+/**
+ * RBH's sponsorship by year, from the signed agreement and Amendment No. 1: $50,000 a year for 2025 and 2026, $75,000
+ * a year from 2027 to 2030. The desk starts each year's figure from this; Andrew can type the year's actual amount.
+ */
+export const SPONSORSHIP_SCHEDULE = { 2025: 50000, 2026: 50000, 2027: 75000, 2028: 75000, 2029: 75000, 2030: 75000 };
+export const inputsOf = async (year, track = "consulting") => {
+  const got = (await getMeta(inputsKey(year, track))) ?? { members: null, campaigns: null, reach: null };
+  if (trackOf(track) !== "sponsor") return got;
+  const scheduled = SPONSORSHIP_SCHEDULE[Number(year)] ?? null;
+  return { ...got, contribution: got.contribution ?? scheduled, contributionTyped: got.contribution != null, scheduled };
+};
 export async function putInputs(year, body, by = "desk", track = "consulting") {
   const n = (v) => (v === "" || v === null || v === undefined ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v)) : null);
-  const out = { members: n(body.members), campaigns: n(body.campaigns), ...(trackOf(track) === "sponsor" ? { reach: n(body.reach) } : {}), at: new Date().toISOString(), by };
+  const out = { members: n(body.members), campaigns: n(body.campaigns), ...(trackOf(track) === "sponsor" ? { reach: n(body.reach), contribution: n(body.contribution) } : {}), at: new Date().toISOString(), by };
   await putMeta(inputsKey(year, track), out);
   return out;
 }
@@ -94,6 +106,12 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
     g.count++; agencies.set(a.name, g);
   }
   const speakers = presenters.filter((p) => p.status !== "withdrawn");
+  // RBH's own session (Andrew 17 Nov 2026: what are they getting for their money): the survey session whose presenters
+  // include someone from RBH, by the organization on their agreement.
+  const fromRbh = speakers.filter((p) => /rothmans|\bRBH\b/i.test(String(p.organization ?? "")));
+  const rbhNames = fromRbh.map((p) => `${p.first ?? ""} ${p.last ?? ""}`.trim().toLowerCase()).filter(Boolean);
+  const listed = (x) => (Array.isArray(x) ? x : String(x ?? "").split(/,| and | & /)).map((n) => String(n).trim().toLowerCase()).filter(Boolean);
+  const rbhSession = rbhNames.length ? (survey?.sessions ?? []).find((s) => listed(s.presenters).some((n) => rbhNames.includes(n))) ?? null : null;
   return {
     id: event.id, title: event.title, city: cityOf(event), province: provinceAt(event), dayOne: event.dayOne || "", lastDay: event.lastDay || event.dayOne || "",
     days: daysOf(event), held: (event.lastDay || event.dayOne || "9") < now,
@@ -101,6 +119,8 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
     agencies: [...agencies.values()],
     survey: survey ? { answered: survey.answered, invited: survey.invited, scoring: survey.scoring, sessions: survey.sessions.slice(0, 5), comments: survey.comments, topics: survey.topics, provinces: survey.provinces } : null,
     certificates: Object.keys(certs ?? {}).length,
+    rbhPresenters: fromRbh.length,
+    rbhSession: rbhSession ? { title: rbhSession.title, titleFr: rbhSession.titleFr, n: rbhSession.n, top2: rbhSession.top2, mean: rbhSession.mean, top1: rbhSession.top1 } : null,
     presenters: speakers.length, presenterOrgs: [...new Set(speakers.map((p) => String(p.organization ?? "").trim()).filter(Boolean))],
   };
 }
@@ -168,9 +188,17 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
 
   // Where the events themselves were held (the sponsorship KPI "cities and provinces where RBH participated").
   const heldIn = [...new Set(held.map((r) => r.province).filter((c) => PROVINCES[c]))].sort();
+  // What RBH's money bought (the sponsorship report): the year's contribution over people, agencies and events.
+  const people = held.reduce((a, r) => a + r.attended, 0);
+  const money = trackOf(track) === "sponsor" && inputs.contribution != null ? inputs.contribution : null;
+  const per = (n) => (money != null && n ? Math.round(money / n) : null);
+  const rated = held.filter((r) => r.rbhSession?.n);
+  const rbhN = rated.reduce((a, r) => a + r.rbhSession.n, 0);
   return {
     year: Number(year), track: trackOf(track),
     heldInProvinces: heldIn.map((c) => ({ code: c, en: PROVINCES[c] })),
+    ...(trackOf(track) === "sponsor" ? { value: { contribution: money, contributionTyped: !!inputs.contributionTyped, perPerson: per(people), perAgency: per(agencies.size), perEvent: per(held.length),
+      rbhSessions: rated.length, rbhSessionAnswers: rbhN, rbhSessionTop2: rbhN ? Math.round(rated.reduce((a, r) => a + r.rbhSession.top2 * r.rbhSession.n, 0) / rbhN) : null } } : {}),
     trainings: rows.length, held: held.length, upcoming: rows.length - held.length,
     attendees, attendeeDays: held.reduce((a, r) => a + r.attended * r.days, 0), trainingDays: held.reduce((a, r) => a + r.days, 0),
     attendanceBasis: held.every((r) => r.basis === "checked in") ? "checked in" : held.every((r) => r.basis === "registered") ? "registered" : "mixed",
@@ -188,7 +216,8 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
     scoring, sessions,
     communications: { members: inputs.members, campaigns: inputs.campaigns, estimatedEmails: inputs.members != null && inputs.campaigns != null ? inputs.members * inputs.campaigns : null,
       ...(trackOf(track) === "sponsor" ? { digitalReach: inputs.reach ?? null } : {}) },
-    trainingsList: rows.map((r) => ({ id: r.id, title: r.title, city: r.city, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held, attended: r.held ? r.attended : null,
+    trainingsList: rows.map((r) => ({ id: r.id, title: r.title, province: r.province, agencies: r.held ? r.agencies.length : null,
+      rbhSession: r.held ? r.rbhSession ?? null : null, city: r.city, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held, attended: r.held ? r.attended : null,
       answered: r.survey?.answered ?? 0, surveyRate: r.held && r.survey?.invited ? pctOf(r.survey.answered, r.survey.invited) : null, quality: r.held ? (r.survey?.scoring?.find((s) => s.id === "quality")?.top2 ?? null) : null })),
     nextYear: { count: next.length, trainings: next },
     comments: comments.slice(0, 300), topics,
@@ -228,13 +257,19 @@ export const YE_SCHEMAS = {
     },
   },
 };
+// The sponsorship report says what RBH's money bought (Andrew 17 Nov 2026: "what are they getting for the value of their money?").
+const SPONSOR_EXEC = { ...YE_SCHEMAS.exec, required: [...YE_SCHEMAS.exec.required, "value"], properties: { ...YE_SCHEMAS.exec.properties,
+  value: LIST("Two short paragraphs on what RBH's sponsorship delivered for its money this year: its contribution, the events and audiences it was in front of in person, the different agencies and provinces, the emails and digital reach, and the cost per person and per agency reached, all from the figures given; then how RBH's own session was rated, if that figure was given.") } };
+export const schemaFor = (kind, track) => (trackOf(track) === "sponsor" && kind === "exec" ? SPONSOR_EXEC : YE_SCHEMAS[kind]);
 const LANG = { en: "English", fr: "Canadian French (as written for senior managers in Québec: natural, formal, not translated word for word)" };
 /** The sponsorship report's brief: the KPIs the sponsorship agreement lists, from ONGIA's own events where RBH presented. */
 const SPONSOR_SYSTEM = (kind, lang) => `You write the ${kind === "exec" ? "year-end sponsorship report" : "one-page year-end sponsorship infographic"} for Rothmans, Benson & Hedges (RBH), a national sponsor of ONGIA. ONGIA is a Canadian non-profit that trains law enforcement, corrections, border and justice staff on gangs, organized crime and illicit trade. RBH sponsors ONGIA's training program and presents at ONGIA's own training events on contraband tobacco and its links to organized crime. The figures are from the ONGIA events of the calendar year where RBH presented. The readers are RBH's senior leaders, and this is the annual KPI report the sponsorship agreement calls for: the people RBH presented to through ONGIA-led sessions, the cities and provinces where RBH took part, the emails to ONGIA's membership with contraband tobacco awareness messaging, the estimated digital reach, and attendance at each event.
 
 Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support.
 
-The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. The attendance figures are everyone who attended those events, so call them the attendees of the events where RBH presented; don't claim each of them sat in RBH's session. The email figure is an estimate (members times campaigns) and must be called an estimate; so is the digital reach. These events are ONGIA's own; never call them RBH trainings or say RBH funded or ran a particular event. Never mention social media. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
+The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. The attendance figures are everyone who attended those events, so call them the attendees of the events where RBH presented; don't claim each of them sat in RBH's session. The email figure is an estimate (members times campaigns) and must be called an estimate; so is the digital reach. These events are ONGIA's own; never call them RBH trainings or say RBH funded or ran a particular event.
+
+The report must answer RBH's question: what did we get for our money? Lead with value: how many events RBH presented at, in front of how many people, in how many cities and provinces, how many different agencies (each counted once across the year, however many events it came to), the estimated emails and digital reach, and the cost per person and per agency reached (figures under "value"). Being seen in person, in every province, by many different agencies is the point; say so where the figures show it. If RBH's own session was rated, say how. The contribution and cost figures are in Canadian dollars. Never mention social media. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
 
 ONGIA's requests for this document come last. Follow every one of them. They may add sections, change wording or emphasis, or leave things out; they can't change a figure or a quote's words.`;
 
@@ -253,7 +288,7 @@ export async function writeYearReport(kind, lang, facts, { requests = [], previo
   const brief = { figures: { ...facts, comments: undefined, topics: undefined }, comments: facts.comments, topicsAskedFor: facts.topics };
   const message = await api.messages.create({
     model: "claude-opus-5-5", max_tokens: 16000,
-    output_config: { effort: "medium", format: { type: "json_schema", schema: YE_SCHEMAS[kind] } },
+    output_config: { effort: "medium", format: { type: "json_schema", schema: schemaFor(kind, facts.track) } },
     system: YE_SYSTEM(kind, lang, facts.track),
     messages: [{ role: "user", content: `${JSON.stringify(brief)}${previous ? `\n\nThe current version, to keep unless the requests or new figures change it:\n${JSON.stringify(previous)}` : ""}${requests.length ? `\n\nONGIA's requests:\n${requests.map((a) => `- ${a}`).join("\n")}` : ""}${ask ? `\n\nJust now ONGIA asked: ${ask}\nSay in reply what you changed.` : ""}` }],
   });
@@ -308,7 +343,7 @@ export async function yearVersionPdf(year, kind, lang, n = null, track = "consul
   const r = (await yearReportsOf(year, track))[kind];
   const v = r?.versions?.find((x) => x.n === (n ?? r.current));
   if (!v) return null;
-  return (kind === "exec" ? yearExecPdf : yearInfoPdf)(v.content[lang], v.facts, lang, { date: v.at.slice(0, 10) });
+  return (kind === "exec" ? yearExecPdf : v.facts?.track === "sponsor" ? yearSponsorInfoPdf : yearInfoPdf)(v.content[lang], v.facts, lang, { date: v.at.slice(0, 10) });
 }
 
 /** Both languages of the current version, to the year-end folder in the library. */
@@ -398,7 +433,14 @@ const TS = {
     kWhere: "Cities and provinces where RBH participated", kWhereR: (c, p, list) => `${c} cit${c === "1" ? "y" : "ies"} in ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
     kEmails: "Emails to ONGIA's membership with contraband tobacco awareness messaging", kEmailsR: (e, m, c) => `About ${e} (an estimate: ${m} members × ${c} campaigns)`,
     kReach: "Estimated digital reach and engagement with RBH awareness materials", kReachR: (r) => `About ${r} (an estimate)`,
-    kAttend: "Event-specific attendance", tReach: "Digital reach", tReachSub: "estimated" },
+    kAttend: "Event-specific attendance", tReach: "Digital reach", tReachSub: "estimated",
+    valueHead: (y) => `What RBH's sponsorship delivered in ${y}`, measure2: "Measure", figure: "Figure",
+    vMoney: (y) => `RBH's sponsorship in ${y}`, vEvents: "Events where RBH presented in person", vEventsR: (n, c) => `${n} in ${c} cit${c === "1" ? "y" : "ies"}`,
+    vHeldIn: "Provinces where RBH presented", vPeople: "People at those events", vAgencies: "Different agencies in front of RBH (each counted once)", vAgenciesR: (n, k) => (k != null ? `${n} (${k} new this year)` : n),
+    vFrom: "Provinces the audience came from", vEmails: "Emails with contraband tobacco awareness messaging", vReach: "Estimated digital reach",
+    vPerPerson: "Cost per person reached", vPerAgency: "Cost per agency reached", vPerEvent: "Cost per event", vSession: "RBH's own session rated 4 or 5",
+    vSessionR: (t, n, k) => `${t} (${n} answers, ${k} event${k === "1" ? "" : "s"})`, estimate: "(estimate)",
+    colAgencies: "Agencies", colRbh: "RBH session", sessionNote: "RBH session: share who rated RBH's own session 4 or 5 out of 5, where RBH's presenter is on the agenda." },
   fr: { exec: "Rapport sur la commandite", partner: (y) => `La commandite de RBH à la formation de l'ONGIA · ${y}`, review: (y) => `Bilan de la commandite · ${y}`, kicker: "Résultats de la commandite",
     trainings: "Événements de l'ONGIA où RBH a présenté", colTraining: "Événement", toCome: "À venir",
     growText: (n, r) => `${n} organismes ont assisté pour la première fois à un événement de l'ONGIA où RBH a présenté; ${r} y avaient déjà assisté.`,
@@ -412,7 +454,14 @@ const TS = {
     kWhere: "Villes et provinces où RBH a participé", kWhereR: (c, p, list) => `${c} ville${c === "1" ? "" : "s"} dans ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
     kEmails: "Courriels aux membres de l'ONGIA avec un message de sensibilisation au tabac de contrebande", kEmailsR: (e, m, c) => `Environ ${e} (estimation : ${m} membres × ${c} campagnes)`,
     kReach: "Portée et engagement numériques estimés des documents de sensibilisation de RBH", kReachR: (r) => `Environ ${r} (estimation)`,
-    kAttend: "Participation par événement", tReach: "Portée numérique", tReachSub: "estimée" },
+    kAttend: "Participation par événement", tReach: "Portée numérique", tReachSub: "estimée",
+    valueHead: (y) => `Ce que la commandite de RBH a permis en ${y}`, measure2: "Mesure", figure: "Résultat",
+    vMoney: (y) => `Commandite de RBH en ${y}`, vEvents: "Événements où RBH a présenté en personne", vEventsR: (n, c) => `${n} dans ${c} ville${c === "1" ? "" : "s"}`,
+    vHeldIn: "Provinces où RBH a présenté", vPeople: "Participants à ces événements", vAgencies: "Organismes différents devant qui RBH a présenté (chacun compté une fois)", vAgenciesR: (n, k) => (k != null ? `${n} (${k} nouveaux cette année)` : n),
+    vFrom: "Provinces d'où venaient les participants", vEmails: "Courriels de sensibilisation au tabac de contrebande", vReach: "Portée numérique estimée",
+    vPerPerson: "Coût par personne jointe", vPerAgency: "Coût par organisme joint", vPerEvent: "Coût par événement", vSession: "Séance de RBH notée 4 ou 5",
+    vSessionR: (t, n, k) => `${t} (${n} réponses, ${k} événement${k === "1" ? "" : "s"})`, estimate: "(estimation)",
+    colAgencies: "Organismes", colRbh: "Séance RBH", sessionNote: "Séance RBH : part ayant noté la séance de RBH 4 ou 5 sur 5, lorsque le conférencier de RBH figure au programme." },
 };
 const textOf = (lang, f) => (f?.track === "sponsor" ? { ...T[lang], ...TS[lang] } : T[lang]);
 
@@ -427,6 +476,7 @@ const PROV_FR = { ON: "Ontario", QC: "Québec", MB: "Manitoba", SK: "Saskatchewa
   NL: "Terre-Neuve-et-Labrador", PE: "Île-du-Prince-Édouard", YT: "Yukon", NT: "Territoires du Nord-Ouest", NU: "Nunavut" };
 const provName = (p, lang) => (lang === "fr" ? PROV_FR[p.code] : p.en);
 const num = (n, lang) => (n == null ? "" : Number(n).toLocaleString(lang === "fr" ? "fr-CA" : "en-CA"));
+const money = (n, lang) => (n == null ? "" : lang === "fr" ? `${Number(n).toLocaleString("fr-CA")} $` : `$${Number(n).toLocaleString("en-CA")}`);
 const pc = (n, lang) => (n == null ? "" : lang === "fr" ? `${n} %` : `${n}%`);
 const longDate = (iso, lang) => formatLong(iso, lang, { weekday: false }) || iso;
 const MON = { en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], fr: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."] };
@@ -540,16 +590,44 @@ export async function yearExecPdf(content, f, lang, { date }) {
       [L.kAttend, L.seeTable(f.held)],
     ]);
     doc.moveDown(0.3);
+    // What RBH's money bought (Andrew 17 Nov 2026).
+    const V = f.value ?? {};
+    h2(L.valueHead(Y), 160);
+    for (const p of content.value ?? []) para(p);
+    const est = (t) => `${t} ${L.estimate}`;
+    table([{ label: L.measure2, w: 0.6 }, { label: L.figure, w: 0.4, align: "right" }], [
+      V.contribution != null ? [L.vMoney(Y), money(V.contribution, lang)] : null,
+      [L.vEvents, L.vEventsR(num(f.held, lang), num(cities, lang))],
+      provs ? [L.vHeldIn, provs] : null,
+      [L.vPeople, num(f.attendees, lang)],
+      [L.vAgencies, L.vAgenciesR(num(f.agencyCount, lang), f.newAgencies != null ? num(f.newAgencies, lang) : null)],
+      f.provinceCount ? [L.vFrom, num(f.provinceCount, lang)] : null,
+      c.estimatedEmails != null ? [L.vEmails, est(`~${num(c.estimatedEmails, lang)}`)] : null,
+      c.digitalReach != null ? [L.vReach, est(`~${num(c.digitalReach, lang)}`)] : null,
+      V.perPerson != null ? [L.vPerPerson, money(V.perPerson, lang)] : null,
+      V.perAgency != null ? [L.vPerAgency, money(V.perAgency, lang)] : null,
+      V.perEvent != null && f.held > 1 ? [L.vPerEvent, money(V.perEvent, lang)] : null,
+      V.rbhSessionTop2 != null ? [L.vSession, L.vSessionR(pc(V.rbhSessionTop2, lang), num(V.rbhSessionAnswers, lang), num(V.rbhSessions, lang))] : null,
+    ].filter(Boolean));
+    doc.moveDown(0.3);
   }
   h2(L.trainings, 120);
   const held = f.trainingsList.filter((r) => r.held);
+  if (f.track === "sponsor") {
+    // Each event: where, how many people, how many agencies, and how RBH's own session was rated.
+    const rows = f.trainingsList.map((r) => [r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.agencies != null ? num(r.agencies, lang) : "", r.rbhSession?.n ? pc(r.rbhSession.top2, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
+    rows.push([L.total, "", "", num(f.attendees, lang), num(f.agencyCount, lang), f.value?.rbhSessionTop2 != null ? pc(f.value.rbhSessionTop2, lang) : "", f.survey.quality != null ? pc(f.survey.quality, lang) : ""]);
+    table([{ label: L.colTraining, w: 0.29 }, { label: L.colCity, w: 0.12 }, { label: L.colDates, w: 0.12 }, { label: L.colAttended, w: 0.1, align: "right" }, { label: L.colAgencies, w: 0.11, align: "right" }, { label: L.colRbh, w: 0.15, align: "right" }, { label: L.colQuality, w: 0.11, align: "right" }], rows, { bold: rows.length - 1 });
+    doc.moveDown(0.3); para(L.sessionNote, { font: "i", size: 8.5, color: MUTED });
+  } else {
   const rows = f.trainingsList.map((r) => [r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.surveyRate != null ? pc(r.surveyRate, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
   rows.push([L.total, "", "", num(held.reduce((a, r) => a + (r.attended ?? 0), 0), lang), f.survey.invited ? pc(f.survey.rate, lang) : "", f.survey.quality != null ? pc(f.survey.quality, lang) : ""]);
   table([{ label: L.colTraining, w: 0.38 }, { label: L.colCity, w: 0.15 }, { label: L.colDates, w: 0.15 }, { label: L.colAttended, w: 0.11, align: "right" }, { label: L.colSurvey, w: 0.1, align: "right" }, { label: L.colQuality, w: 0.11, align: "right" }], rows, { bold: rows.length - 1 });
   doc.moveDown(0.3); para(L.note, { font: "i", size: 8.5, color: MUTED });
+  }
 
-  // Page 2: reach, communications, the survey, attendees' words.
-  doc.addPage();
+  // Page 2: reach, communications, the survey, attendees' words. (The sponsorship report runs on from its events table.)
+  if (f.track === "sponsor") room(240); else doc.addPage();
   h2(L.reach);
   for (const p of content.reach ?? []) para(p);
   if (f.provinces.length || f.topAgencies.length || f.newAgencies != null) {
@@ -712,6 +790,166 @@ export async function yearInfoPdf(content, f, lang, { date }) {
   doc.moveTo(X, fy - 7).lineTo(X + W, fy - 7).lineWidth(0.5).strokeColor(LINE).stroke();
   doc.font("r").fontSize(7).fillColor(MUTED).text(L.footInfo, X, fy, { width: W / 2, lineBreak: false });
   doc.text(L.prep(monthYear(date, lang)), X + W / 2, fy, { width: W / 2, align: "right", lineBreak: false });
+  doc.end();
+  return done;
+}
+
+/* ---------- The sponsorship infographic (Andrew 17 Nov 2026: "an infographic … that could speak to the stats, shows it in a
+   pretty cool display … what are they getting for the value of their money?"): one page, dark navy and gold like the
+   event infographics he likes, the return on RBH's money first, a map of where RBH stood in front of people, its events. ---------- */
+
+const IG = {
+  en: { kicker: (y) => `Sponsorship year in review · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", invest: (y) => `RBH's ${y} sponsorship`, bought: "put RBH in front of",
+    people: "people", agencies: "different agencies", provinces: "provinces", events: "events", province1: "province", event1: "event", agency1: "agency", inCities: (c) => `in ${c} cit${c === 1 ? "y" : "ies"}`,
+    peopleSub: "at events where RBH presented", agenciesSub: "each counted once", provincesSub: "where RBH presented", eventsSub: "RBH presented in person",
+    emails: "Emails", emailsSub: "contraband tobacco messaging", reach: "Digital reach", reachSub: "estimated", perPerson: "Per person reached", perAgency: "Per agency reached",
+    session: "RBH's session", sessionSub: "rated 4 or 5", quality: "Event quality", qualitySub: "rated 4 or 5",
+    map: "Where RBH stood in front of people", mapKey1: "RBH presented here", mapKey2: "Audience came from here", list: "The events", sectors: "Who RBH reached", ahead: (n, y) => `${n} event${n === 1 ? "" : "s"} with RBH already booked for ${y}`,
+    foot: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Prepared by ONGIA · ${d}`, toCome: "To come" },
+  fr: { kicker: (y) => `Bilan de la commandite · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", invest: (y) => `La commandite ${y} de RBH`, bought: "a placé RBH devant",
+    people: "personnes", agencies: "organismes différents", provinces: "provinces", events: "événements", province1: "province", event1: "événement", agency1: "organisme", inCities: (c) => `dans ${c} ville${c === 1 ? "" : "s"}`,
+    peopleSub: "aux événements où RBH a présenté", agenciesSub: "chacun compté une fois", provincesSub: "où RBH a présenté", eventsSub: "RBH a présenté en personne",
+    emails: "Courriels", emailsSub: "sur le tabac de contrebande", reach: "Portée numérique", reachSub: "estimée", perPerson: "Par personne jointe", perAgency: "Par organisme joint",
+    session: "Séance de RBH", sessionSub: "note de 4 ou 5", quality: "Qualité", qualitySub: "note de 4 ou 5",
+    map: "Où RBH s'est présenté devant le public", mapKey1: "RBH a présenté ici", mapKey2: "Provenance du public", list: "Les événements", sectors: "Qui RBH a joint", ahead: (n, y) => `${n} événement${n === 1 ? "" : "s"} avec RBH déjà prévu${n === 1 ? "" : "s"} en ${y}`,
+    foot: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Préparé par l'ONGIA · ${d}`, toCome: "À venir" },
+};
+let CANADA = null;
+const canadaMap = () => (CANADA ??= JSON.parse(readFileSync(PDF_LOOK.MAPFILE, "utf8")));
+const DARK_LOGO = nodePath.join(nodePath.dirname(PDF_LOOK.LOGO), "ongia-logo-tagline-dark.png");
+
+export async function yearSponsorInfoPdf(content, f, lang, { date }) {
+  const L = IG[lang], Y = f.year, V = f.value ?? {}, c = f.communications ?? {};
+  const BG = "#020d1c", PANEL = "#082040", RULE = "#5a4a20", G = "#e0b34a", GL = "#f0cd73", SOFT = "#9fb0d1", OFF = "#122a4f", AUD = "#3c5f99";
+  const { doc, done } = newDoc(`${L.kicker(Y)} — ${kindNames("sponsor").info[lang]}`);
+  const PW = doc.page.width, PH = doc.page.height, X = 34, W = PW - 68;
+  doc.page.margins.bottom = 0;
+  doc.rect(0, 0, PW, PH).fill(BG);
+  // A soft blue glow behind the top, as on the event infographics.
+  const glow = doc.radialGradient(PW / 2, 120, 10, PW / 2, 120, 380); glow.stop(0, "#173a6e", 0.55).stop(1, BG, 0);
+  doc.rect(0, 0, PW, 320).fill(glow);
+  try { doc.image(DARK_LOGO, X, 26, { height: 34 }); } catch { doc.font("b").fontSize(20).fillColor(G).text("ONGIA", X, 30); }
+  doc.font("b").fontSize(8).fillColor(G).text(L.kicker(Y).toUpperCase(), X, 32, { width: W, align: "right", characterSpacing: 1.4 });
+  doc.font("r").fontSize(7.5).fillColor(SOFT).text(L.pair, X, 45, { width: W, align: "right" });
+  doc.font("b").fontSize(24).fillColor("#ffffff").text(content.headline || L.kicker(Y), X, 78, { width: W, lineGap: -3 });
+  if (content.tagline) doc.font("i").fontSize(11).fillColor(G).text(content.tagline, X, doc.y + 2, { width: W });
+  let y = doc.y + 12;
+
+  // The investment and what it bought: the contribution, then four big figures.
+  const cities = new Set(f.trainingsList.filter((r) => r.held).map((r) => cityKey(r.city)).filter(Boolean)).size;
+  const heldIn = (f.heldInProvinces ?? []).length;
+  if (V.contribution != null) {
+    doc.roundedRect(X, y, W, 40, 4).fill(PANEL);
+    doc.rect(X, y, 4, 40).fill(G);
+    doc.font("b").fontSize(22).fillColor(G).text(money(V.contribution, lang), X + 16, y + 9, { lineBreak: false });
+    const mw = doc.widthOfString(money(V.contribution, lang));
+    doc.font("r").fontSize(10).fillColor("#ffffff").text(`${L.invest(Y)} ${L.bought}`, X + 26 + mw, y + 15, { lineBreak: false });
+    y += 48;
+  }
+  const big = [
+    [num(f.attendees, lang), L.people, L.peopleSub],
+    [num(f.agencyCount, lang), f.agencyCount === 1 ? L.agency1 : L.agencies, L.agenciesSub],
+    [num(heldIn || f.provinceCount, lang), (heldIn || f.provinceCount) === 1 ? L.province1 : L.provinces, L.provincesSub],
+    [num(f.held, lang), f.held === 1 ? L.event1 : L.events, `${L.eventsSub} · ${L.inCities(cities)}`],
+  ];
+  const gap = 8, bw = (W - gap * 3) / 4;
+  big.forEach(([n, l, sub], i) => {
+    const bx = X + i * (bw + gap);
+    doc.roundedRect(bx, y, bw, 78, 4).lineWidth(0.8).strokeColor(RULE).stroke();
+    doc.font("b").fontSize(32).fillColor(G).text(n, bx, y + 8, { width: bw, align: "center", lineBreak: false });
+    doc.font("b").fontSize(8).fillColor("#ffffff").text(l.toUpperCase(), bx + 4, y + 46, { width: bw - 8, align: "center", characterSpacing: 1, lineBreak: false });
+    doc.font("r").fontSize(7).fillColor(SOFT).text(sub, bx + 4, y + 58, { width: bw - 8, align: "center", height: 18, ellipsis: true });
+  });
+  y += 86;
+  // A second row: emails, reach, cost per person and per agency, RBH's own session; whichever are known, up to five.
+  const small = [
+    c.estimatedEmails != null ? [`~${num(c.estimatedEmails, lang)}`, L.emails, L.emailsSub] : null,
+    c.digitalReach != null ? [`~${num(c.digitalReach, lang)}`, L.reach, L.reachSub] : null,
+    V.perPerson != null ? [money(V.perPerson, lang), L.perPerson, ""] : null,
+    V.perAgency != null ? [money(V.perAgency, lang), L.perAgency, ""] : null,
+    V.rbhSessionTop2 != null ? [pc(V.rbhSessionTop2, lang), L.session, L.sessionSub] : f.survey?.quality != null ? [pc(f.survey.quality, lang), L.quality, L.qualitySub] : null,
+  ].filter(Boolean).slice(0, 5);
+  if (small.length) {
+    const sw = (W - gap * (small.length - 1)) / small.length;
+    small.forEach(([n, l, sub], i) => {
+      const sx = X + i * (sw + gap);
+      doc.roundedRect(sx, y, sw, 52, 4).fill(PANEL);
+      doc.font("b").fontSize(17).fillColor("#ffffff").text(n, sx, y + 7, { width: sw, align: "center", lineBreak: false });
+      doc.font("b").fontSize(7).fillColor(G).text(l.toUpperCase(), sx + 3, y + 29, { width: sw - 6, align: "center", characterSpacing: 0.8, lineBreak: false, height: 9, ellipsis: true });
+      if (sub) doc.font("r").fontSize(6.5).fillColor(SOFT).text(sub, sx + 3, y + 39, { width: sw - 6, align: "center", lineBreak: false, height: 9, ellipsis: true });
+    });
+    y += 62;
+  }
+
+  // The map: gold where RBH presented, blue where its audience came from.
+  const head = (t, hx, hy, hw) => { doc.font("b").fontSize(9).fillColor(G).text(t.toUpperCase(), hx, hy, { width: hw, characterSpacing: 1.2, lineBreak: false }); doc.moveTo(hx, hy + 13).lineTo(hx + hw, hy + 13).lineWidth(0.6).strokeColor(RULE).stroke(); return hy + 20; };
+  const mw = W * 0.56, M = canadaMap(), sc = mw / M.w, mh = M.h * sc;
+  let my = head(L.map, X, y, mw);
+  const presented = new Set((f.heldInProvinces ?? []).map((p) => p.code)), came = new Set((f.provinces ?? []).map((p) => p.code));
+  for (const [code, d] of Object.entries(M.paths)) {
+    doc.save(); doc.translate(X, my).scale(sc);
+    doc.path(d).lineWidth(1.2 / sc).lineJoin("round").fillAndStroke(presented.has(code) ? G : came.has(code) ? AUD : OFF, BG);
+    doc.restore();
+  }
+  // How many were at the events in each province where RBH presented, on the province.
+  const byHeld = new Map();
+  for (const r of f.trainingsList.filter((t) => t.held)) if (r.province) byHeld.set(r.province, (byHeld.get(r.province) ?? 0) + (r.attended ?? 0));
+  for (const [code, n] of byHeld) {
+    const a = M.anchors?.[code]; if (!a) continue;
+    const ax = X + a[0] * sc, ay = my + a[1] * sc;
+    doc.circle(ax, ay, 11).fill(BG); doc.circle(ax, ay, 11).lineWidth(1).strokeColor(G).stroke();
+    doc.font("b").fontSize(7.5).fillColor("#ffffff").text(num(n, lang), ax - 11, ay - 3.5, { width: 22, align: "center", lineBreak: false });
+  }
+  const ky = my + mh + 6;
+  doc.rect(X, ky, 8, 8).fill(G); doc.font("r").fontSize(7).fillColor(SOFT).text(L.mapKey1, X + 12, ky, { lineBreak: false });
+  doc.rect(X + 110, ky, 8, 8).fill(AUD); doc.text(L.mapKey2, X + 122, ky, { lineBreak: false });
+  const leftEnd = ky + 14;
+
+  // Beside the map: each event with a bar for its people, then who RBH reached by sector.
+  const rx = X + mw + 18, rw = W - mw - 18;
+  let ry = head(L.list, rx, y, rw);
+  const evs = f.trainingsList.slice(0, 9), maxA = Math.max(1, ...evs.map((r) => r.attended ?? 0));
+  for (const r of evs) {
+    doc.font("b").fontSize(8).fillColor(r.held ? "#ffffff" : SOFT).text(r.title, rx, ry, { width: rw, lineBreak: false, height: 10, ellipsis: true });
+    doc.font("r").fontSize(7).fillColor(SOFT).text(`${r.city ? `${r.city} · ` : ""}${span(r.dayOne, r.lastDay, lang)}`, rx, ry + 10, { width: rw * 0.55, lineBreak: false, height: 9, ellipsis: true });
+    if (r.held) {
+      const bx = rx + rw * 0.55, bwid = rw * 0.33;
+      doc.rect(bx, ry + 11, bwid, 6).fill(OFF); doc.rect(bx, ry + 11, Math.max(2, bwid * (r.attended ?? 0) / maxA), 6).fill(G);
+      doc.font("b").fontSize(8).fillColor("#ffffff").text(num(r.attended, lang), bx + bwid, ry + 9, { width: rw - rw * 0.55 - bwid, align: "right", lineBreak: false });
+    } else doc.font("i").fontSize(7).fillColor(SOFT).text(L.toCome, rx, ry + 10, { width: rw, align: "right", lineBreak: false });
+    ry += 25;
+  }
+  if (f.sectors?.length && ry + 30 < leftEnd + 40) {
+    ry = head(L.sectors, rx, ry + 4, rw);
+    for (const sct of f.sectors.slice(0, 5)) {
+      doc.font("r").fontSize(7.5).fillColor("#ffffff").text(lang === "fr" ? sct.fr : sct.en, rx, ry, { width: rw * 0.62, lineBreak: false, height: 9, ellipsis: true });
+      doc.rect(rx + rw * 0.64, ry + 1, rw * 0.24, 6).fill(OFF); doc.rect(rx + rw * 0.64, ry + 1, Math.max(2, rw * 0.24 * sct.pct / 100), 6).fill(GL);
+      doc.font("b").fontSize(7.5).fillColor("#ffffff").text(pc(sct.pct, lang), rx + rw * 0.88, ry, { width: rw * 0.12, align: "right", lineBreak: false });
+      ry += 13;
+    }
+  }
+  y = Math.max(leftEnd, ry) + 12;
+
+  // An attendee's words, then what's booked next year, if they fit.
+  const BOTTOM = PH - 44;
+  if (content.quote?.text) {
+    const qh = Math.min(70, doc.font("b").fontSize(11).heightOfString(`“${content.quote.text}”`, { width: W - 40 }) + 30);
+    if (y + qh < BOTTOM - 40) {
+      doc.roundedRect(X, y, W, qh, 4).fill(PANEL); doc.rect(X, y, 4, qh).fill(G);
+      doc.font("b").fontSize(11).fillColor("#ffffff").text(`“${content.quote.text}”`, X + 18, y + 10, { width: W - 40, height: qh - 26, ellipsis: true });
+      doc.font("b").fontSize(7).fillColor(G).text(`— ${String(content.quote.about).toUpperCase()}`, X + 18, y + qh - 14, { width: W - 40, height: 9, ellipsis: true, lineBreak: false, characterSpacing: 1 });
+      y += qh + 10;
+    }
+  }
+  if (f.nextYear?.count && y + 26 < BOTTOM) {
+    doc.roundedRect(X, y, W, 26, 4).lineWidth(0.8).strokeColor(RULE).stroke();
+    doc.font("b").fontSize(9).fillColor("#ffffff").text(L.ahead(f.nextYear.count, Y + 1), X + 14, y + 8.5, { width: W - 80, lineBreak: false });
+    doc.font("b").fontSize(9).fillColor(G).text(String(Y + 1), X, y + 8.5, { width: W - 14, align: "right", characterSpacing: 1.2, lineBreak: false });
+  }
+  const fy = PH - 30;
+  doc.moveTo(X, fy - 7).lineTo(X + W, fy - 7).lineWidth(0.5).strokeColor(RULE).stroke();
+  doc.font("b").fontSize(8).fillColor(G).text(L.foot, X, fy, { width: W / 2, lineBreak: false, characterSpacing: 1 });
+  doc.font("r").fontSize(7).fillColor(SOFT).text(L.prep(monthYear(date, lang)), X + W / 2, fy, { width: W / 2, align: "right", lineBreak: false });
   doc.end();
   return done;
 }
