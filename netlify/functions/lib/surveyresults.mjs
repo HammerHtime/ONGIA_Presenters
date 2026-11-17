@@ -96,7 +96,7 @@ export function surveyResults(event, responses, agencyList = [], people = []) {
     const rebook = choiceStats(rated.map((g) => g.rebook).filter((x) => x !== undefined), SESSION.find((x) => x.id === "rebook").options.en);
     return { id: s.id, day: s.day, title: s.title, titleFr: s.titleFr || "", presenters: s.presenters, n: rated.length, skipped: given.length - rated.length,
       avg: all.avg, top2: all.top2, byQ, rebook: { yes: rebook.counts[0], maybe: rebook.counts[1], no: rebook.counts[2], yesPct: rebook.pcts[0] },
-      comments: rated.map((g) => g.comment).filter(Boolean) };
+      comments: rated.map((g) => g.comment).filter((c) => /\p{L}/u.test(String(c ?? ""))) };
   });
 
   // The event overall.
