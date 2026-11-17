@@ -83,12 +83,12 @@ ok("the would-be presenters, apart", /Pat Sample/.test(pres) && /Youth outreach/
 
 // The infographic.
 const en = await (await get("&infographic=1&lang=en")).text();
-ok("the infographic shows the agencies trained, and the topics without the presenters' names", /Agencies trained/.test(en) && /different agencies/.test(en) && /Corrections, courts &amp; justice/.test(en) && !/Jordan Avery|Riley Chen/.test(en));
-ok("the infographic: title, city landmark, the 75% banner, the 4.3, agencies, topics, takeaways, the real quotes", /National Gang Summit/.test(en) && /<ellipse cx="210" cy="96"/.test(en) && />75%</.test(en) && /4\.3/.test(en) && /Royal Canadian Mounted Police/.test(en) && /Ghost Guns/.test(en) && /Pace of training/.test(en) && /changed how my unit/.test(en) && !/amazing/.test(en));
+ok("the infographic shows the agencies trained, and the topics without the presenters' names", /Service agencies attended/.test(en) && /By sector/.test(en) && /Corrections, courts &amp; justice/.test(en) && !/Jordan Avery|Riley Chen/.test(en));
+ok("the infographic: title, city landmark, the 75% banner, the 4.3, agencies, topics, takeaways, the real quotes", /National Gang Summit/.test(en) && /<ellipse cx="210" cy="96"/.test(en) && />75%</.test(en) && /4\.3/.test(en) && /Royal Canadian Mounted Police/.test(en) && /Ghost Guns/.test(en) && /rated the training 4 or 5/.test(en) && /changed how my unit/.test(en) && !/amazing/.test(en));
 const fr = await (await get("&infographic=1&lang=fr")).text();
-ok("in French: French labels, the French session title and a French date", /9 au 12 novembre 2026/.test(fr) && /Qualité globale/.test(fr) && /Organismes formés/.test(fr) && /Police et application de la loi/.test(fr) && /Suivre l'argent/.test(fr) && /Points saillants/.test(fr) && /Ontario/.test(fr));
+ok("in French: French labels, the French session title and a French date", /9 au 12 novembre 2026/.test(fr) && /Note moyenne/.test(fr) && /Organismes représentés/.test(fr) && /Police et application de la loi/.test(fr) && /Suivre l'argent/.test(fr) && /En un coup d'œil/.test(fr) && /Ontario/.test(fr));
 const sq = await (await get("&infographic=1&lang=en&block=quotes")).text();
-ok("one section as a square for social media, with the event's name on it", /class="square"/.test(sq) && /class="fit"/.test(sq) && /What participants said/.test(sq) && /ONGIA\.CA/.test(sq) && !/Key takeaways/.test(sq));
+ok("one section as a square for social media, with the event's name on it", /class="square"/.test(sq) && /class="fit"/.test(sq) && /Attendee feedback/.test(sq) && /ONGIA\.CA/.test(sq) && !/At a glance/.test(sq));
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 const asPdf = await survey(new Request("http://x/api/survey?event=ngs&pdf=1&w=1080&h=3800&name=Infographic", { method: "POST", headers: { "x-admin-key": "testkey" }, body: png }));
 const pdfBytes = Buffer.from(await asPdf.arrayBuffer());

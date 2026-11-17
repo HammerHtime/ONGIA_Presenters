@@ -63,6 +63,9 @@ export function attendedOf(event, people = []) {
   return { count: people.filter((p) => p.status === "ATTENDING").length, how: "registered" };
 }
 
+/** A comment as matched across the desk: small letters, no quote marks, single spaces. */
+export const squashText = (s) => String(s ?? "").toLowerCase().replace(/[“”"’‘']/g, "").replace(/\s+/g, " ").trim();
+
 /** Everything the reports need, from the answers kept for an event (and its registrations, for the agencies trained). */
 export function surveyResults(event, responses, agencyList = [], people = []) {
   const sessions = event.survey?.sessions ?? [];
@@ -130,7 +133,16 @@ export function surveyResults(event, responses, agencyList = [], people = []) {
       nps: { n: npsV.length, score: npsV.length ? Math.round(100 * (promoters - detractors) / npsV.length) : null, promoters, detractors, passives: npsV.length - promoters - detractors },
       where: Object.entries(where).sort((a, b) => b[1] - a[1]).map(([code, count]) => ({ code, name: PROVINCES[code], count })),
       topics: q(overall, "topics").filter(Boolean), anything: q(overall, "anything").filter(Boolean), present: q(overall, "present").filter((x) => x === 0).length },
-    headline: { avg: headline.avg, top2: headline.top2, n: headline.n },
+    headline: { avg: headline.avg, top2: headline.top2, n: headline.n, dist: headline.dist },
+    // The rating that came with each comment (the infographic shows it beside the quote, Andrew 17 Nov 2026): the
+    // stars that person gave that session, or their overall quality rating for a comment on the event.
+    commentStars: Object.fromEntries([
+      ...responses.flatMap((r) => Object.values(r.sessions ?? {}).filter((g) => !g.skipped && g.comment).map((g) => {
+        const v = STAR_IDS.map((id) => g[id]).filter((x) => typeof x === "number");
+        return [squashText(g.comment), v.length ? round1(v.reduce((a, b) => a + b, 0) / v.length) : null];
+      })),
+      ...responses.filter((r) => r.overall?.anything && typeof r.overall?.quality === "number").map((r) => [squashText(r.overall.anything), r.overall.quality]),
+    ].filter(([, v]) => v !== null)),
     trained: trainedFrom(people, agencyList),
     attended: attendedOf(event, people),
     comments: [...perSession.flatMap((s) => s.comments.map((text) => ({ text, about: s.title }))), ...q(overall, "anything").filter(Boolean).map((text) => ({ text, about: "The event overall" }))],

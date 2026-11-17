@@ -1,8 +1,10 @@
 /**
- * The one-page infographic from an event's survey (Andrew 27 Oct 2026, from his Crime at the Crossroads and Calgary
- * 2025 examples): ONGIA navy and gold on a clean background, a line drawing that stands for the city, the attendees and
- * their agencies, provinces, experience, the overall rating, the topics, the key takeaways and 4 or 5 comments. In
- * English or French. `block` draws one section on its own as a square image for social media.
+ * The one-page infographic from an event's survey, laid out like Andrew's Calgary 2025 example (17 Nov 2026): dark
+ * navy and gold, the city and year over the event's name with a line drawing of the city; how many attended (not how
+ * many answered) and from how many agencies; the sessions and days; the provinces in a ring; the agencies with a
+ * sector line; the training summary; the survey's rating split and average beside 4 or 5 comments, each with that
+ * person's rating; and an "at a glance" row. In English or French. `block` draws one section on its own as a square
+ * image for social media.
  *
  * The page is plain HTML and inline SVG, so the event page can show it, let Andrew fix any wording on it, and turn it
  * into a PNG and a PDF.
@@ -87,7 +89,7 @@ function iconFor(title) {
   return ICONS[pick ? pick[0] : "border"];
 }
 
-function donut(parts, size = 220, w = 30, center = "") {
+function donut(parts, size = 220, w = 30, center = "", track = "#ece7da") {
   const tot = parts.reduce((a, p) => a + p.v, 0) || 1, r = size / 2 - w / 2 - 2, cx = size / 2;
   let a = -Math.PI / 2;
   const arcs = parts.filter((p) => p.v > 0).map((p) => {
@@ -96,7 +98,7 @@ function donut(parts, size = 220, w = 30, center = "") {
     const d = `M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${da > Math.PI ? 1 : 0} 1 ${x2.toFixed(1)},${y2.toFixed(1)}`; a += da;
     return `<path d="${d}" stroke="${p.c}" stroke-width="${w}" fill="none"/>`;
   }).join("");
-  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${cx}" cy="${cx}" r="${r}" stroke="#ece7da" stroke-width="${w}" fill="none"/>${arcs}${center}</svg>`;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${cx}" cy="${cx}" r="${r}" stroke="${track}" stroke-width="${w}" fill="none"/>${arcs}${center}</svg>`;
 }
 const PALETTE = [NAVY, GOLD, "#3f5a8f", GOLDL, "#8a94aa", "#c9cfdc", "#e9dcb4", "#6b7a99"];
 
@@ -107,99 +109,150 @@ function stars(v) {
   return `<div style="font-size:44px;letter-spacing:4px;line-height:1">${Array.from({ length: 5 }, (_, i) => `<span style="color:${i < on ? GOLD : i === on && half ? "#d8c58f" : "#d9dde6"}">★</span>`).join("")}</div>`;
 }
 
+/* ---------- the page, laid out like Andrew's Calgary 2025 infographic (17 Nov 2026: "include all the elements that
+   are in this one and add any that you think would be great to illustrate") ---------- */
+
+// Words the new layout adds, English and French.
+const W = {
+  en: { tagline: "Bringing experts together. Sharing knowledge. Strengthening communities.", analysis: "Attendee analysis", moreThan: "More than", people: "people",
+    attendedLine: (a) => `from across the country attended${a ? `, representing over ${a} agencies` : ""}.`, sessions: "Training sessions", heldOver: "were held over", days: (n) => `${n} day${n === 1 ? "" : "s"},`,
+    oneDay: "in one day,", covering: "covering a wide range of topics.", provinces: "Province representation breakdown", agencies: "Service agencies attended", more: (n) => `…and ${n} more`,
+    bySector: "By sector", summary: "Training summary", feedback: "Attendee feedback", ratings: "Survey ratings", average: "Average rating", glance: "At a glance",
+    rated45: "rated the training 4 or 5", relevant: "found it relevant to their work", confident: "feel confident applying it", veterans: "have 16+ years' experience", recommend: "would recommend the sessions" },
+  fr: { tagline: "Rassembler les experts. Partager le savoir. Renforcer les collectivités.", analysis: "Analyse des participants", moreThan: "Plus de", people: "personnes",
+    attendedLine: (a) => `de partout au pays y ont participé${a ? `, de plus de ${a} organismes` : ""}.`, sessions: "Séances de formation", heldOver: "ont eu lieu sur", days: (n) => `${n} jour${n === 1 ? "" : "s"},`,
+    oneDay: "en une journée,", covering: "sur un large éventail de sujets.", provinces: "Répartition par province", agencies: "Organismes représentés", more: (n) => `…et ${n} autres`,
+    bySector: "Par secteur", summary: "Résumé de la formation", feedback: "Commentaires des participants", ratings: "Évaluations", average: "Note moyenne", glance: "En un coup d'œil",
+    rated45: "ont donné une note de 4 ou 5", relevant: "l'ont trouvée pertinente pour leur travail", confident: "se sentent prêts à l'appliquer", veterans: "ont 16 ans d'expérience ou plus", recommend: "recommanderaient les séances" },
+};
+const BG = "#0b1630", PANEL = "#0f1d3d", RULE = "rgba(201,160,50,.35)", SOFT = "#9fb0d1", LINEC = "#5b6f99";
+
+// Round down for "More than …": 545 is 500, 123 is 120, 93 agencies is 90.
+const downTo = (n) => (n >= 200 ? Math.floor(n / 50) * 50 : n >= 20 ? Math.floor(n / 10) * 10 : n >= 10 ? Math.floor(n / 5) * 5 : n);
+
+const BIG_ICONS = {
+  people: `<svg viewBox="0 0 120 90" width="120" height="90" fill="none" stroke="${GOLD}" stroke-width="5"><circle cx="60" cy="22" r="13"/><path d="M36 82c0-18 10-30 24-30s24 12 24 30z"/><circle cx="24" cy="32" r="10"/><path d="M6 82c0-14 8-24 18-24 5 0 9 2 12 5"/><circle cx="96" cy="32" r="10"/><path d="M114 82c0-14-8-24-18-24-5 0-9 2-12 5"/></svg>`,
+  calendar: `<svg viewBox="0 0 90 90" width="96" height="96" fill="none" stroke="${GOLD}" stroke-width="5"><rect x="8" y="16" width="74" height="64" rx="8"/><path d="M8 34h74M28 8v16M62 8v16"/><path d="M22 48h8M40 48h8M58 48h8M22 62h8M40 62h8"/><circle cx="66" cy="66" r="13" fill="${BG}"/><path d="M60 66l5 5 8-9"/></svg>`,
+  shield: `<svg viewBox="0 0 64 64" width="44" height="44" fill="none" stroke="${GOLD}" stroke-width="3.5"><path d="M32 4l24 9v17c0 16-11 26-24 31C19 56 8 46 8 30V13z"/><path d="M32 18l4 8 9 1-6 6 1 9-8-4-8 4 1-9-6-6 9-1z"/></svg>`,
+  cap: `<svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="${GOLD}" stroke-width="3.5"><path d="M4 24l28-12 28 12-28 12z"/><path d="M16 30v14c8 6 24 6 32 0V30M56 26v16"/></svg>`,
+  chat: `<svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="${GOLD}" stroke-width="3.5"><path d="M8 12h40a6 6 0 016 6v20a6 6 0 01-6 6H26l-12 10V44H8a6 6 0 01-6-6V18a6 6 0 016-6z"/><circle cx="20" cy="28" r="2.5" fill="${GOLD}"/><circle cx="30" cy="28" r="2.5" fill="${GOLD}"/><circle cx="40" cy="28" r="2.5" fill="${GOLD}"/></svg>`,
+  star: `<svg viewBox="0 0 64 64" width="40" height="40"><path d="M32 4l8 18 20 2-15 13 5 20-18-11-18 11 5-20L4 24l20-2z" fill="${GOLD}"/></svg>`,
+  hands: `<svg viewBox="0 0 160 120" width="170" height="128" fill="none" stroke="${LINEC}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><path d="M4 40l26-22 18 10M156 40l-26-22-18 10"/><path d="M30 18l-14 46 12 10M130 18l14 46-12 10"/><path d="M48 28l22 0 22 14 18-8 20 30-28 26c-4 4-10 4-13 0l-4-4-6 6c-4 4-10 3-12-1l-4-6-6 4c-4 2-9 0-10-4l-4-8-6 2c-4 1-8-2-8-6L28 74"/><path d="M70 28L46 50c-4 4 2 12 8 8l18-14 30 28"/></svg>`,
+  glance: `<svg viewBox="0 0 64 64" width="46" height="46" fill="none" stroke="${GOLD}" stroke-width="3.5"><path d="M8 54V30M24 54V18M40 54V34M56 54V10"/><path d="M4 58h56"/></svg>`,
+};
+const leaf = `<path d="M110 52l6 14 12-7-4 22 12-4-2 10 14 2-18 16 4 8-24-4v22h-4V109l-24 4 4-8-18-16 14-2-2-10 12 4-4-22 12 7z" fill="${GOLD}"/>`;
+const goldStars = (v, size = 26) => {
+  const full = Math.floor(v), half = v - full >= 0.25 && v - full < 0.75, on = full + (v - full >= 0.75 ? 1 : 0);
+  return Array.from({ length: 5 }, (_, i) => `<span style="font-size:${size}px;color:${i < on ? GOLD : i === on && half ? "#8f7a3d" : "#3a4a6e"}">★</span>`).join("");
+};
+const sessionIcon = (title) => `<svg viewBox="0 0 64 64" width="70" height="70" style="color:${LINEC}">${iconFor(title)}</svg>`;
+
 /** The sections, each a piece of HTML, so the page can draw all of them or one at a time. */
 function sections(event, R, analysis, lang, square = false) {
-  const t = L[lang];
-  const title = String(event.title ?? "").split(/\s*:\s*/)[0];
-  const subtitle = String(event.title ?? "").includes(":") ? String(event.title).split(/\s*:\s*/).slice(1).join(": ") : "";
-  const year = (event.dayOne ?? "").slice(0, 4);
+  const t = L[lang], w = W[lang];
+  const name = String(event.title ?? "").split(/\s*:\s*/)[0].replace(/^Canadian Forum Against Organized Crime\s*-\s*/i, "");
+  const city = String(event.city ?? "").split(",")[0].trim(), year = (event.dayOne ?? "").slice(0, 4);
   const when = whenOf(event.dayOne, event.lastDay, lang);
   const provName = (p) => (lang === "fr" ? PROV_FR[p.code] : p.name) ?? p.name;
-  const exp = R.years.map((y, i) => ({ l: `${y.label} ${t.years}`, v: y.pct, c: [ "#c9cfdc", GOLDL, "#3f5a8f", GOLD, NAVY][i] })).reverse();
-  const plus16 = R.years.slice(3).reduce((a, y) => a + y.pct, 0);
-  const prov = R.provinces.map((p, i) => ({ l: provName(p), v: p.pct, c: PALETTE[i % PALETTE.length] }));
-  const shown = R.agencies.filter((a) => a.known || a.count > 1).slice(0, 16);
-  const T = R.trained, listed = T ? T.agencies.slice(0, square ? 8 : 16) : [];
-  const take = [[t.rel, R.sessions.length ? avgTop2(R.sessions.map((s) => s.byQ.relevant)) : null, t.top2], [t.pace, R.overall.pace.n ? R.overall.pace.aboutRightPct : null, t.aboutRight],
-    [t.conf, R.overall.confidence?.n ? R.overall.confidence.top2 : null, t.top2], [t.variety, R.overall.variety?.n ? R.overall.variety.top2 : null, t.top2], [t.practical, R.overall.practical?.n ? R.overall.practical.top2 : null, t.top2]].filter((x) => x[1] !== null);
+  const PAL = [GOLD, "#1f3a75", "#3f5a8f", GOLDL, "#6b7fa8", "#9fb0d1", "#c9a76a", "#2c4a86"];
+  const prov = R.provinces.slice(0, 8).map((p, i) => ({ l: provName(p), v: p.pct, c: PAL[i % PAL.length] }));
+  const came = R.attended?.count || R.trained?.people || R.respondents;
+  const agN = R.trained?.count || R.agencies.length;
+  const T = R.trained;
+  const agList = T ? T.agencies.map((a) => a.name) : R.agencies.filter((a) => a.known || a.count > 1).map((a) => a.agency);
+  const shownAg = agList.slice(0, square ? 14 : 18);
   const topics = (event.survey?.sessions ?? []).filter((s) => s.title).slice(0, 8);
-  const quotes = (analysis?.quotes ?? []).slice(0, 5);
-  const h = R.headline;
-  const sec = (name, inner, style = "") => `<section data-block="${name}" class="sec" style="${style}">${inner}</section>`;
+  const days = event.dayOne ? Math.round((Date.parse(event.lastDay || event.dayOne) - Date.parse(event.dayOne)) / 86400000) + 1 : 0;
+  const quotes = (analysis?.quotes ?? []).slice(0, square ? 3 : 5);
+  const starOf = (q) => R.commentStars?.[String(q.text ?? "").toLowerCase().replace(/[“”"’‘']/g, "").replace(/\s+/g, " ").trim()]
+    ?? Object.entries(R.commentStars ?? {}).find(([k]) => k.includes(String(q.text ?? "").toLowerCase().replace(/[“”"’‘']/g, "").replace(/\s+/g, " ").trim().slice(0, 40)))?.[1];
+  const h = R.headline, dist = h.dist ?? [0, 0, 0, 0, 0], dn = dist.reduce((a, b) => a + b, 0) || 1;
+  const rec = R.sessions.filter((s) => s.n).reduce((a, s) => ({ y: a.y + s.rebook.yes, n: a.n + s.rebook.yes + s.rebook.maybe + s.rebook.no }), { y: 0, n: 0 });
+  const plus16 = R.years.slice(3).reduce((a, y) => a + y.pct, 0);
+  const glance = [[h.n ? h.top2 : null, w.rated45], [R.sessions.length ? avgTop2(R.sessions.map((s) => s.byQ.relevant)) : null, w.relevant],
+    [R.overall.confidence?.n ? R.overall.confidence.top2 : null, w.confident], [rec.n ? Math.round((100 * rec.y) / rec.n) : null, w.recommend],
+    [R.years.some((y) => y.count) ? plus16 : null, w.veterans]].filter((x) => x[0] !== null && x[0] !== undefined).slice(0, 4);
+  const head = (icon, text) => `<h2>${icon}<span>${esc(text)}</span></h2>`;
+  const sec = (key, inner, extra = "") => `<section data-block="${key}" class="sec ${extra}">${inner}</section>`;
   return {
-    event: `<div style="background:${DEEP};padding:22px 56px;border-bottom:5px solid ${GOLD}">${logo(60)}</div>
-      <div style="display:grid;grid-template-columns:1fr 420px;gap:10px;padding:40px 56px 30px;align-items:end">
-        <div><div class="h" style="font-weight:700;font-size:${title.length > 22 ? 76 : 96}px;line-height:.92;color:${NAVY}">${esc(title)}</div>
-          <div class="h" style="font-weight:700;font-size:96px;line-height:.92;color:${GOLD}">${esc(year)}</div>
-          ${subtitle ? `<div style="font-size:24px;margin-top:18px;color:${NAVY};font-weight:500">${esc(subtitle)}</div>` : ""}
-          <div class="h" style="font-size:24px;margin-top:10px;color:${MUTED}">${esc(String(event.city ?? "").split(",")[0])}${when ? ` · ${esc(when)}` : ""}</div></div>
-        <div>${skyline(event)}</div></div>
-      ${h.n ? `<div style="background:${GOLD};color:${DEEP};display:flex;align-items:center;gap:18px;padding:18px 56px"><span style="font-size:40px">★</span><span class="h" style="font-weight:700;font-size:54px">${h.top2}%</span><span class="h" style="font-size:26px;font-weight:600">${t.rated}</span></div>` : ""}`,
-    stats: sec("stats", `<div class="grid3">
-        <div><div class="label">${t.attendees}</div><div class="big">${R.attended?.count || R.trained?.people || R.respondents}</div><div style="font-size:20px;margin-top:8px">${t.answered}<br>${t.from(R.trained?.count || R.agencies.length, R.provinces.length)}</div><div class="muted" style="font-size:17px;margin-top:14px;font-style:italic">${t.tagline}</div></div>
-        <div style="text-align:center"><div class="label">${t.experience}</div>${donut(exp, 220, 30, `<text x="110" y="104" text-anchor="middle" font-family="Oswald" font-size="44" font-weight="700" fill="${NAVY}">${plus16}%</text><text x="110" y="132" text-anchor="middle" font-family="DM Sans" font-size="15" fill="${MUTED}">${t.yearsPlus}</text>`)}
-          <div class="legend" style="text-align:left">${exp.map((x) => `<div style="font-size:17px;margin:3px 0"><i style="background:${x.c}"></i>${esc(x.l)}<b style="font-size:20px">${x.v}%</b></div>`).join("")}</div></div>
-        <div style="text-align:center"><div class="label">${t.quality}</div><div class="big" style="margin-top:14px">${h.avg ?? "–"}<span style="font-size:44px;color:${NAVY}">/5</span></div><div style="margin:14px 0">${stars(h.avg)}</div>
-          <div style="font-size:19px">${t.averageRating}</div><div class="h" style="font-size:34px;font-weight:700;color:${NAVY};margin-top:14px">${h.avg ? t.words[Math.min(4, Math.max(0, Math.round(h.avg) - 1))] : ""}</div></div></div>`, "border-top:0"),
-    provinces: prov.length ? sec("provinces", `<h2>${t.provinces}</h2><div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
-        <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>${donut(prov, 330, 46)}</div>`) : "",
-    // The agencies trained, from who registered (Andrew 27 Oct 2026); without registrations, those who answered.
-    agencies: T ? sec("agencies", `<h2>${t.trained}</h2>
-        <div class="trained"><div><div class="big">${T.count}</div><div class="label">${t.differentAgencies}</div><div style="font-size:19px;margin-top:10px">${t.trainedLine(T.people)}</div></div>
-          <div>${T.sectors.map((x, i) => `<div class="sbar"><div class="sl"><span>${esc(t.sectors[x.key])}</span><b>${x.count}</b></div><div class="track"><i style="width:${Math.max(4, Math.round((100 * x.count) / T.sectors[0].count))}%;background:${[NAVY, GOLD, "#3f5a8f", GOLDL, "#8b93a5", "#c9cfdc"][i % 6]}"></i></div></div>`).join("")}</div></div>
-        <ul class="ag${listed.length <= 10 && !square ? " one" : ""}" style="margin-top:30px">${listed.map((a) => `<li>${esc(a.name)}</li>`).join("")}</ul>${T.count > listed.length ? `<div class="muted" style="font-size:18px;margin-top:12px">${t.more(T.count - listed.length)}</div>` : ""}`)
-      : shown.length ? sec("agencies", `<h2>${t.agencies}</h2><ul class="ag${shown.length <= 10 ? " one" : ""}">${shown.map((a) => `<li>${esc(a.agency)}</li>`).join("")}</ul>${R.agencies.length > shown.length ? `<div class="muted" style="font-size:18px;margin-top:12px">${t.more(R.agencies.length - shown.length)}</div>` : ""}`) : "",
-    topics: topics.length ? sec("topics", `<h2>${t.topics}</h2><div class="topics">${topics.map((s) => `<div><svg viewBox="0 0 64 64">${iconFor(s.title)}</svg><h3>${esc((lang === "fr" && s.titleFr) || s.title)}</h3>${(lang === "fr" ? s.aboutFr || s.about : s.about) ? `<p>${esc(lang === "fr" ? s.aboutFr || s.about : s.about)}</p>` : ""}</div>`).join("")}</div>`, "padding-bottom:0") : "",
-    takeaways: take.length ? sec("takeaways", `<h2>${t.takeaways}</h2>${take.map(([a, v, s]) => `<div class="take"><div class="t">${esc(a)}</div><div class="v"><b>${v}%</b><span>${s}</span></div></div>`).join("")}`) : "",
-    quotes: quotes.length ? sec("quotes", `<h2>${t.said}</h2>${quotes.map((q) => `<div class="q">“${esc(q.text)}”</div>`).join("")}`) : "",
-    foot: `<div class="foot"><div><div class="h" style="font-size:28px;font-weight:600">${t.foot}</div><div style="color:${GOLDL};font-size:18px;margin-top:4px">${t.thanks}</div></div><div class="h" style="font-size:40px;font-weight:700;color:${GOLD}">ONGIA.CA</div></div>`,
+    event: `<div class="hero"><div class="sky">${skyline(event, 520, 320)}</div>
+        <div class="kick">${esc([city, year].filter(Boolean).join(" "))}</div>
+        <div class="title" style="font-size:${name.length > 28 ? 74 : name.length > 20 ? 92 : 112}px">${esc(name)}</div>
+        <div class="rule"></div><div class="tag">${esc(w.tagline)}</div>${when ? `<div class="when">${esc(when)}</div>` : ""}</div>`,
+    stats: sec("stats", `<div class="three">
+        <div><div class="ph">${esc(w.analysis)}</div><div style="display:flex;gap:22px;align-items:center;margin-top:18px">${BIG_ICONS.people}
+          <div><div class="sm">${esc(w.moreThan)}</div><div class="num">${downTo(came)}+</div><div class="ph" style="font-size:30px;margin:0">${esc(w.people)}</div>
+          <div class="body">${esc(w.attendedLine(agN ? downTo(agN) : 0))}</div></div></div></div>
+        <div><div style="display:flex;gap:16px;align-items:center"><div class="num">${topics.length || R.sessions.length}</div><div class="h" style="font-size:38px;line-height:1;color:#fff">${esc(w.sessions)}</div></div>
+          <div class="sm" style="margin-top:20px">${esc(w.heldOver)}</div><div style="display:flex;gap:18px;align-items:center"><div class="num" style="font-size:58px;white-space:nowrap">${days > 1 ? esc(w.days(days)).toUpperCase() : esc(w.oneDay).toUpperCase()}</div>${BIG_ICONS.calendar}</div>
+          <div class="sm" style="text-transform:uppercase">${esc(w.covering)}</div></div>
+        <div><div class="ph">${esc(w.provinces)}</div><div style="display:grid;grid-template-columns:1fr 150px;gap:12px;align-items:center;margin-top:12px">
+          <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
+          ${donut(prov, 150, 24, `<circle cx="75" cy="75" r="49" fill="#e9edf5"/><g transform="translate(-7.5 5) scale(.75)">${leaf}</g>`, "#1c2a4d")}</div></div></div>`, "top"),
+    provinces: prov.length ? sec("provinces", `${head(BIG_ICONS.glance, w.provinces)}<div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
+        <div class="legend big">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
+        ${donut(prov, 330, 50, `<circle cx="165" cy="165" r="110" fill="#e9edf5"/><g transform="translate(-11 16) scale(1.6)">${leaf}</g>`, "#1c2a4d")}</div>`) : "",
+    agencies: agList.length ? sec("agencies", `${head(BIG_ICONS.shield, w.agencies)}<div style="display:grid;grid-template-columns:1fr 200px;gap:20px;align-items:center">
+        <div><ul class="ag">${shownAg.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>${agList.length > shownAg.length ? `<div class="more">${esc(w.more(agList.length - shownAg.length))}</div>` : ""}
+        ${T?.sectors?.length ? `<div class="sectors"><b>${esc(w.bySector)}:</b> ${T.sectors.map((x) => `${esc(t.sectors[x.key])} <span>${x.count}</span>`).join(" · ")}</div>` : ""}</div>
+        <div style="text-align:center;border-left:1.5px solid ${RULE};height:100%;display:flex;align-items:center;justify-content:center">${BIG_ICONS.hands}</div></div>`) : "",
+    topics: topics.length ? sec("topics", `${head(BIG_ICONS.cap, w.summary)}<div class="tgrid">${topics.map((s, i) => `<div><div style="display:flex;gap:12px;align-items:flex-start"><span class="n">${i + 1}</span>
+        <span class="tt">${esc((lang === "fr" && s.titleFr) || s.title)}</span></div>${(lang === "fr" ? s.aboutFr || s.about : s.about) ? `<p class="ab">${esc(lang === "fr" ? s.aboutFr || s.about : s.about)}</p>` : ""}<div style="text-align:center;margin-top:14px">${sessionIcon(s.title)}</div></div>`).join("")}</div>`) : "",
+    takeaways: glance.length ? sec("takeaways", `${head(BIG_ICONS.glance, w.glance)}<div class="glance" style="grid-template-columns:repeat(${glance.length},1fr)">${glance.map(([v, l]) => `<div><b>${v}%</b><span>${esc(l)}</span></div>`).join("")}</div>`) : "",
+    quotes: (h.n || quotes.length) ? sec("quotes", `${head(BIG_ICONS.chat, w.feedback)}<div class="fb">
+        ${h.n ? `<div class="box"><div class="bh">${BIG_ICONS.star}<span>${esc(w.ratings)}</span></div>
+          ${[5, 4, 3, 2, 1].map((k) => `<div class="srow"><span class="k">${k}/5</span><span class="st">${goldStars(k, 26)}</span><b>${Math.round((100 * dist[k - 1]) / dn)}%</b></div>`).join("")}
+          <div class="avg"><span>${esc(w.average)}</span><b>${h.avg ?? "–"}/5</b></div></div>` : "<div></div>"}
+        <div class="quotes">${quotes.map((q) => { const s = starOf(q); return `<div class="qq"><span class="qm">“</span><span class="qt">${esc(q.text)}</span>${s ? `<b>${s}/5</b>` : "<b></b>"}</div>`; }).join("")}</div></div>`) : "",
+    foot: `<div class="foot"><div class="h" style="font-size:34px;font-weight:600;color:${GOLD};letter-spacing:.04em">ONGIA.CA</div>${logo(64)}</div>`,
   };
 }
 const avgTop2 = (list) => { const n = list.reduce((a, s) => a + s.n, 0); return n ? Math.round(list.reduce((a, s) => a + (s.top2 * s.n), 0) / n) : null; };
 
-const CSS = `*{box-sizing:border-box} body{margin:0;background:#fff} body,#art{font-family:"DM Sans",Arial,sans-serif;color:${INK}}
-.page{width:1080px;margin:0 auto;background:#fff}
+const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{font-family:"DM Sans",Arial,sans-serif;color:#fff}
+.page{width:1080px;margin:0 auto;background:linear-gradient(180deg,#0a1328 0%,${BG} 30%,#0d1a38 100%);color:#fff}
 .h{font-family:Oswald,"Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.02em}
-.sec{padding:44px 56px;border-top:6px solid ${GOLD}}
-.sec h2{font-family:Oswald,sans-serif;font-weight:600;font-size:34px;color:${NAVY};margin:0 0 22px;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:14px}
-.sec h2:after{content:"";flex:1;height:2px;background:${GOLD};opacity:.6}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr)} .grid3>div{padding:6px 26px;border-left:1.5px solid #e2ddcf} .grid3>div:first-child{border-left:0;padding-left:0}
-.big{font-family:Oswald,sans-serif;font-weight:700;font-size:96px;line-height:.95;color:${GOLD}}
-.label{font-family:Oswald,sans-serif;font-size:22px;color:${NAVY};text-transform:uppercase;letter-spacing:.04em}
-.muted{color:${MUTED}}
-.legend div{display:flex;align-items:center;gap:12px;font-size:21px;margin:7px 0} .legend i{width:18px;height:18px;display:inline-block;flex:none} .legend b{margin-left:auto;font-family:Oswald,sans-serif;font-size:26px;color:${NAVY}}
-.topics{display:grid;grid-template-columns:repeat(4,1fr);background:${DEEP};color:#fff;margin:0 -56px;padding:30px 40px}
-.topics>div{padding:18px 16px;text-align:center;border-right:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)} .topics>div:nth-child(4n){border-right:0}
-.topics svg{color:${GOLD};width:64px;height:64px} .topics h3{font-family:Oswald,sans-serif;text-transform:uppercase;font-weight:500;font-size:20px;margin:10px 0 6px;letter-spacing:.03em} .topics p{margin:0;font-size:15px;color:#c9cfdc;line-height:1.35}
-.take{display:grid;grid-template-columns:1fr auto;border-bottom:1.5px solid #e2ddcf;padding:14px 0;align-items:center} .take:last-child{border:0}
-.take .t{font-family:Oswald,sans-serif;text-transform:uppercase;font-size:24px;color:${NAVY}} .take .v{text-align:right} .take .v b{font-family:Oswald,sans-serif;font-size:48px;color:${GOLD};display:block;line-height:1} .take .v span{font-size:15px;color:${MUTED}}
-.q{border-left:6px solid ${GOLD};background:${PALE};padding:20px 24px;margin:0 0 16px;font-size:22px;line-height:1.45}
-.ag{columns:2;column-gap:40px;font-size:20px;line-height:1.75;margin:0;padding:0;list-style:none} .ag li:before{content:"■";color:${GOLD};font-size:12px;margin-right:12px;vertical-align:3px}
-.trained{display:grid;grid-template-columns:300px 1fr;gap:44px;align-items:center}
-.sbar{margin:0 0 14px} .sl{display:flex;justify-content:space-between;gap:16px;font-size:20px} .sl b{font-family:Oswald,sans-serif;font-size:24px;color:${NAVY}}
-.track{height:14px;background:#ece6d6;border-radius:7px;overflow:hidden;margin-top:6px} .track i{display:block;height:100%;border-radius:7px}
-.foot{background:${DEEP};color:#fff;display:flex;justify-content:space-between;align-items:center;padding:30px 56px}
-.square{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;background:#fff;border-top:16px solid ${GOLD}}
+.hero{position:relative;padding:56px 52px 40px;overflow:hidden;min-height:330px}
+.hero .sky{position:absolute;right:-10px;top:10px;opacity:.55} .hero .sky svg{stroke:${LINEC}}
+.hero .kick{position:relative;font-family:Oswald,sans-serif;font-weight:600;font-size:44px;color:${GOLD};text-transform:uppercase;letter-spacing:.03em}
+.hero .title{position:relative;font-family:Oswald,sans-serif;font-weight:700;line-height:.95;text-transform:uppercase;color:#fff;max-width:900px;margin-top:4px}
+.hero .rule{position:relative;height:4px;width:640px;background:${GOLD};margin:20px 0 16px}
+.hero .tag{position:relative;font-size:19px;letter-spacing:.06em;text-transform:uppercase;font-weight:500}
+.hero .when{position:relative;font-size:18px;color:${SOFT};margin-top:6px}
+.sec{margin:0 18px;border-top:1.5px solid ${RULE};padding:34px 34px}
+.sec.top{border:1.5px solid ${RULE};padding:0;background:rgba(15,29,61,.6)}
+.sec h2{font-family:Oswald,sans-serif;font-weight:500;font-size:32px;color:${GOLD};margin:0 0 22px;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:14px}
+.three{display:grid;grid-template-columns:1fr 1fr 1.3fr} .three>div{min-width:0} .three>div{padding:28px 26px;border-left:1.5px solid ${RULE}} .three>div:first-child{border-left:0}
+.ph{font-family:Oswald,sans-serif;font-size:24px;color:${GOLD};text-transform:uppercase;letter-spacing:.03em}
+.num{font-family:Oswald,sans-serif;font-weight:700;font-size:88px;line-height:.95;color:${GOLD}}
+.three>div:first-child .num{color:#fff}
+.sm{font-family:Oswald,sans-serif;font-size:22px;letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.body{font-size:17px;line-height:1.35;margin-top:10px;color:#dfe5f2}
+.legend div{display:flex;align-items:center;gap:10px;font-size:17px;margin:5px 0} .legend i{width:14px;height:14px;display:inline-block;flex:none}
+.legend.big div{font-size:26px;margin:10px 0} .legend.big i{width:20px;height:20px} .legend.big b{font-size:30px} .legend b{margin-left:auto;font-family:Oswald,sans-serif;font-size:20px;color:#fff}
+.ag{columns:2;column-gap:34px;font-size:19px;line-height:1.7;margin:0;padding:0;list-style:none}
+.ag li{break-inside:avoid} .ag li:before{content:"•";color:${GOLD};font-size:22px;margin-right:12px}
+.more{color:${SOFT};font-size:17px;margin-top:8px} .sectors{margin-top:16px;font-size:16px;color:#dfe5f2} .sectors b{color:${GOLD};font-weight:600} .sectors span{font-family:Oswald,sans-serif;color:${GOLD};font-size:18px}
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1.5px solid ${RULE}} .tgrid>div{padding:20px 16px;border-right:1.5px solid ${RULE};border-bottom:1.5px solid ${RULE}} .tgrid>div:nth-child(4n){border-right:0}
+.tgrid .n{flex:none;background:${GOLD};color:${BG};font-family:Oswald,sans-serif;font-weight:700;font-size:24px;width:34px;height:38px;display:flex;align-items:center;justify-content:center}
+.tgrid .tt{font-size:18px;line-height:1.3} .tgrid .ab{font-size:14.5px;line-height:1.35;color:${SOFT};margin:8px 0 0}
+.glance{display:grid;gap:0} .glance>div{text-align:center;padding:8px 14px;border-left:1.5px solid ${RULE}} .glance>div:first-child{border-left:0}
+.glance b{display:block;font-family:Oswald,sans-serif;font-size:72px;color:${GOLD};line-height:1} .glance span{display:block;font-size:17px;color:#dfe5f2;margin-top:8px}
+.fb{display:grid;grid-template-columns:350px 1fr;gap:34px}
+.box{border:1.5px solid ${RULE};background:rgba(15,29,61,.8);align-self:start} .bh{display:flex;align-items:center;gap:12px;padding:20px 22px 10px;font-family:Oswald,sans-serif;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
+.srow{display:flex;align-items:center;gap:12px;padding:6px 22px} .srow .k{font-family:Oswald,sans-serif;font-size:24px;width:44px} .srow .st{flex:1;letter-spacing:1px;border-left:1.5px solid ${RULE};padding-left:12px}
+.srow b{font-family:Oswald,sans-serif;font-size:30px}
+.avg{background:${GOLD};color:${BG};display:flex;justify-content:space-between;align-items:center;padding:16px 22px;margin-top:14px} .avg span{font-family:Oswald,sans-serif;font-size:22px;text-transform:uppercase;letter-spacing:.03em} .avg b{font-family:Oswald,sans-serif;font-size:50px}
+.quotes .qq{display:grid;grid-template-columns:34px 1fr 90px;gap:10px;align-items:center;padding:14px 0;border-bottom:1.5px solid ${RULE}} .quotes .qq:last-child{border:0}
+.qm{font-family:Oswald,sans-serif;color:${GOLD};font-size:54px;line-height:.6;align-self:start} .qt{font-size:18px;line-height:1.45;color:#eef1f8}
+.qq b{font-family:Oswald,sans-serif;color:${GOLD};font-size:36px;text-align:right}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:30px 52px;border-top:1.5px solid ${RULE};margin-top:10px}
+.square{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;background:${BG};color:#fff;border-top:16px solid ${GOLD}}
 .square .fit{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;margin:0 auto;width:1080px}
 .square .badge{flex:none} .square .in{width:1080px;margin:0 auto}
-.square .sec{border-top:0;padding:40px 64px}
-.square .sec h2{font-size:58px;margin-bottom:34px} .square .sec h2:after{height:3px}
-.square .big{font-size:170px} .square .label{font-size:32px}
-.square .grid3{grid-template-columns:1fr 1fr;row-gap:36px}
-.square .grid3>div:nth-child(3){grid-column:1/3;border-left:0;padding:30px 0 0;border-top:1.5px solid #e2ddcf;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:34px;row-gap:4px}
-.square .grid3>div:nth-child(3) .big{margin:0!important;font-size:140px;white-space:nowrap} .square .grid3>div:nth-child(3)>div:nth-child(3){margin:0 0 0 10px!important;zoom:1.4}
-.square .grid3>div:nth-child(3)>div:nth-child(4){font-size:24px!important;flex-basis:100%;text-align:center} .square .grid3>div:nth-child(3) .h{font-size:46px!important;margin-top:0!important}
-.square .legend div{font-size:32px;margin:12px 0} .square .legend i{width:26px;height:26px} .square .legend b{font-size:40px}
-.square .ag{font-size:31px;line-height:1.6;column-gap:50px} .square .ag li:before{font-size:16px}
-.square .ag.one{columns:1}
-.square .topics{grid-template-columns:1fr 1fr;margin:0 -64px;padding:24px 50px} .square .topics>div{padding:26px 20px;border-right:1px solid rgba(255,255,255,.15)!important} .square .topics>div:nth-child(2n){border-right:0!important}
-.square .topics svg{width:92px;height:92px} .square .topics h3{font-size:32px} .square .topics p{font-size:22px}
-.square .take{padding:22px 0} .square .take .t{font-size:38px} .square .take .v b{font-size:76px} .square .take .v span{font-size:20px}
-.square .q{font-size:32px;padding:26px 32px;margin-bottom:22px}
-.square .trained{grid-template-columns:260px 1fr;gap:40px} .square .sl{font-size:28px} .square .sl b{font-size:34px} .square .track{height:18px}
-.square .grid3 .legend div{font-size:24px!important;margin:6px 0!important} .square .grid3 .legend b{font-size:28px!important}
-.square .grid3>div:first-child>div:nth-child(3){font-size:28px!important} .square .grid3>div:first-child>div:nth-child(4){font-size:22px!important}
-.square .grid3 svg{width:280px;height:280px}`;
+.square .sec{border:0;margin:0;padding:30px 50px} .square .sec.top{background:none}
+.square .in>section{zoom:1.3} .square .in>section[data-block="quotes"]{zoom:1.05} .square .fb{grid-template-columns:330px 1fr} .square .in>section[data-block="stats"]{zoom:1.22} .square .in>section[data-block="agencies"]{zoom:1.15} .square .in>.hero{zoom:1.2}
+.square .three{grid-template-columns:1fr 1fr} .square .three>div:nth-child(3){grid-column:1/3;border-left:0;border-top:1.5px solid ${RULE}}`;
 
 /** "November 9–12, 2026" / "9 au 12 novembre 2026"; across two months, both are named. */
 export function whenOf(first, last, lang = "en") {
@@ -218,13 +271,13 @@ export function infographicHtml(event, R, analysis, { lang = "en", block = "" } 
   const s = sections(event, R, analysis, lang === "fr" ? "fr" : "en", !!block);
   const head = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap"><style>${CSS}</style></head><body>`;
   if (block) {
-    const one = block === "event" ? s.event : s[block];
+    const one = block === "event" ? s.event + s.foot : s[block];
     if (!one) return null;
-    const small = `<div class="badge" style="background:${DEEP};color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:5px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
+    const small = `<div class="badge" style="background:#070f22;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:3px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
     return `${head}<div class="square" id="art"><div class="fit"><div class="in">${one}</div></div>${block === "event" ? "" : small}</div></body></html>`;
   }
-  return `${head}<div class="page" id="art">${s.event}${s.stats}${s.provinces}${s.agencies}${s.topics}${s.takeaways}${s.quotes}${s.foot}</div></body></html>`;
+  return `${head}<div class="page" id="art">${s.event}${s.stats}${s.agencies}${s.topics}${s.quotes}${s.takeaways}${s.foot}</div></body></html>`;
 }
 
 /** The sections that can be made into social media squares, in order, with their names. */
-export const BLOCKS = [["event", "The event"], ["stats", "Attendees, experience and rating"], ["provinces", "Provinces"], ["agencies", "Agencies"], ["topics", "Topics"], ["takeaways", "Key takeaways"], ["quotes", "What participants said"]];
+export const BLOCKS = [["event", "The event"], ["stats", "Attendees, sessions and provinces"], ["provinces", "Provinces"], ["agencies", "Agencies"], ["topics", "Topics"], ["takeaways", "At a glance"], ["quotes", "Ratings and comments"]];

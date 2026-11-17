@@ -24,8 +24,12 @@ const responses = [{ about: { agency: "TPS", province: "ON", years: 2 }, overall
   { about: { agency: "RCMP", province: "BC", years: 3 }, overall: { quality: 4 }, sessions: { s1: { relevant: 4, engaging: 4, comment: "Good content but rushed at the end." } } }];
 const R = surveyResults(ev, responses, [], people);
 const html = infographicHtml(ev, R, null, { lang: "en" });
-ok("the infographic leads with 7 attended, not 3 who answered", /<div class="big">7<\/div>/.test(html) && /attended/.test(html) && !/answered the survey/.test(html), (html.match(/<div class="big">[^<]*<\/div>/) ?? [""])[0]);
-ok("and doesn't count the ratings either", !/average of <b>/.test(html) && /average rating/.test(html));
+ok("the infographic leads with 7 attended, not 3 who answered", /<div class="num">7\+<\/div>/.test(html) && /attended/.test(html) && !/answered the survey/.test(html), (html.match(/<div class="num">[^<]*<\/div>/) ?? [""])[0]);
+// Laid out like the Calgary 2025 example (Andrew 17 Nov 2026): the rating split, the average, each quote's rating.
+ok("the ratings box shows the split and the average", /SURVEY RATINGS|Survey ratings/.test(html) && /<span class="k">5\/5<\/span>/.test(html) && /Average rating/.test(html));
+ok("the sessions and days, and the training summary", /were held over/.test(html) && /4 days,/i.test(html) && /Training summary/.test(html) && /Project Poppy/.test(html));
+ok("the provinces", /Province representation breakdown/.test(html) && /Ontario/.test(html));
+ok("and doesn't count the ratings either", !/average of <b>/.test(html) && /average rating/i.test(html));
 ok("in French too", /ont participé/.test(infographicHtml(ev, R, null, { lang: "fr" })));
 
 // Claude, stood in, sorts the comments.
