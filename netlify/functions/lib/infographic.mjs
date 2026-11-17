@@ -24,7 +24,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 const L = {
   en: { rated: "rated this training 4 or 5 out of 5", attendees: "Attendees", from: (a, p) => `from <b>${a} agenc${a === 1 ? "y" : "ies"}</b>${p ? ` across <b>${p} province${p === 1 ? "" : "s"}</b>` : ""}`,
-    answered: "answered the survey", tagline: "Building connections. Sharing intelligence. Strengthening communities.", experience: "Experience matters", yearsPlus: "16+ years", years: "years",
+    answered: "attended", averageRating: "average rating", tagline: "Building connections. Sharing intelligence. Strengthening communities.", experience: "Experience matters", yearsPlus: "16+ years", years: "years",
     quality: "Overall quality", averageOf: (n) => `average of <b>${n}</b> ratings`, provinces: "Province representation", agencies: "Agencies represented", more: (n) => `…and ${n} more.`,
     topics: "Topics trained", takeaways: "Key takeaways", said: "What participants said", foot: "Stronger together. Safer communities.", thanks: "Thank you to every participant and presenter.",
     rel: "Relevance to daily role", pace: "Pace of training", conf: "Confidence applying learnings", variety: "Variety & depth of topics", practical: "Practical strategies gained",
@@ -32,7 +32,7 @@ const L = {
     trained: "Agencies trained", differentAgencies: "different agencies", trainedLine: (n) => `<b>${n}</b> registered attendees came from them`,
     sectors: { police: "Police & law enforcement", justice: "Corrections, courts & justice", education: "Education", community: "Community & social services", government: "Government", other: "Other" } },
   fr: { rated: "ont donné à cette formation une note de 4 ou 5 sur 5", attendees: "Participants", from: (a, p) => `de <b>${a} organisme${a === 1 ? "" : "s"}</b>${p ? ` dans <b>${p} province${p === 1 ? "" : "s"}</b>` : ""}`,
-    answered: "ont répondu au sondage", tagline: "Créer des liens. Partager le renseignement. Renforcer les collectivités.", experience: "L'expérience compte", yearsPlus: "16 ans et plus", years: "ans",
+    answered: "ont participé", averageRating: "note moyenne", tagline: "Créer des liens. Partager le renseignement. Renforcer les collectivités.", experience: "L'expérience compte", yearsPlus: "16 ans et plus", years: "ans",
     quality: "Qualité globale", averageOf: (n) => `moyenne de <b>${n}</b> évaluations`, provinces: "Provinces représentées", agencies: "Organismes représentés", more: (n) => `…et ${n} autres.`,
     topics: "Sujets abordés", takeaways: "Points saillants", said: "Ce que les participants ont dit", foot: "Plus forts ensemble. Des collectivités plus sûres.", thanks: "Merci à tous les participants et présentateurs.",
     rel: "Pertinence pour le travail", pace: "Rythme de la formation", conf: "Confiance à appliquer les acquis", variety: "Variété et profondeur des sujets", practical: "Stratégies pratiques acquises",
@@ -136,11 +136,11 @@ function sections(event, R, analysis, lang, square = false) {
         <div>${skyline(event)}</div></div>
       ${h.n ? `<div style="background:${GOLD};color:${DEEP};display:flex;align-items:center;gap:18px;padding:18px 56px"><span style="font-size:40px">★</span><span class="h" style="font-weight:700;font-size:54px">${h.top2}%</span><span class="h" style="font-size:26px;font-weight:600">${t.rated}</span></div>` : ""}`,
     stats: sec("stats", `<div class="grid3">
-        <div><div class="label">${t.attendees}</div><div class="big">${R.respondents}</div><div style="font-size:20px;margin-top:8px">${t.answered}<br>${t.from(R.agencies.length, R.provinces.length)}</div><div class="muted" style="font-size:17px;margin-top:14px;font-style:italic">${t.tagline}</div></div>
+        <div><div class="label">${t.attendees}</div><div class="big">${R.attended?.count || R.trained?.people || R.respondents}</div><div style="font-size:20px;margin-top:8px">${t.answered}<br>${t.from(R.trained?.count || R.agencies.length, R.provinces.length)}</div><div class="muted" style="font-size:17px;margin-top:14px;font-style:italic">${t.tagline}</div></div>
         <div style="text-align:center"><div class="label">${t.experience}</div>${donut(exp, 220, 30, `<text x="110" y="104" text-anchor="middle" font-family="Oswald" font-size="44" font-weight="700" fill="${NAVY}">${plus16}%</text><text x="110" y="132" text-anchor="middle" font-family="DM Sans" font-size="15" fill="${MUTED}">${t.yearsPlus}</text>`)}
           <div class="legend" style="text-align:left">${exp.map((x) => `<div style="font-size:17px;margin:3px 0"><i style="background:${x.c}"></i>${esc(x.l)}<b style="font-size:20px">${x.v}%</b></div>`).join("")}</div></div>
         <div style="text-align:center"><div class="label">${t.quality}</div><div class="big" style="margin-top:14px">${h.avg ?? "–"}<span style="font-size:44px;color:${NAVY}">/5</span></div><div style="margin:14px 0">${stars(h.avg)}</div>
-          <div style="font-size:19px">${t.averageOf(h.n)}</div><div class="h" style="font-size:34px;font-weight:700;color:${NAVY};margin-top:14px">${h.avg ? t.words[Math.min(4, Math.max(0, Math.round(h.avg) - 1))] : ""}</div></div></div>`, "border-top:0"),
+          <div style="font-size:19px">${t.averageRating}</div><div class="h" style="font-size:34px;font-weight:700;color:${NAVY};margin-top:14px">${h.avg ? t.words[Math.min(4, Math.max(0, Math.round(h.avg) - 1))] : ""}</div></div></div>`, "border-top:0"),
     provinces: prov.length ? sec("provinces", `<h2>${t.provinces}</h2><div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
         <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>${donut(prov, 330, 46)}</div>`) : "",
     // The agencies trained, from who registered (Andrew 27 Oct 2026); without registrations, those who answered.

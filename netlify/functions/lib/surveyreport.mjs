@@ -7,6 +7,7 @@ import { formatDate } from "./deadlines.mjs";
 import { xlsx } from "./xlsx.mjs";
 import { ABOUT, SESSION, OVERALL, STARS } from "./survey.mjs";
 import { PROVINCES } from "./agencies.mjs";
+import { squash } from "./surveyanalysis.mjs";
 
 const SECTOR_NAMES = { police: "Police & law enforcement", justice: "Corrections, courts & justice", education: "Education", community: "Community & social services", government: "Government", other: "Other" };
 
@@ -19,6 +20,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ASSET_DIRS = [path.resolve(HERE, "../../../public/assets"), path.resolve(HERE, "../../public/assets"), path.resolve(process.cwd(), "public/assets"), "/var/task/public/assets"];
 const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-logo.png"))) ?? ASSET_DIRS[0];
 const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#c9a032", PALE = "#f6f1e4", INK = "#14181f", MUTED = "#5d6577", LINE = "#e2ddcf", RED = "#8c3b30";
+const ORANGE = "#c2650a", CRITICAL = "#c62828";
 const W = 612, H = 792, M = 44, BODY = W - M * 2;
 
 const dates = (e) => (e.dayOne ? (e.lastDay && e.lastDay !== e.dayOne ? `${formatDate(e.dayOne)} to ${formatDate(e.lastDay)}` : formatDate(e.dayOne)) : "");
@@ -228,6 +230,7 @@ export async function surveyQrPdf(event, days) {
  * comment on the session, word for word. `only` is a session id for one presenter's page; otherwise every session.
  */
 export async function surveyPresentersPdf(event, R, analysis = null, { only = "" } = {}) {
+  const TONES = event.survey?.tones?.of ?? {};
   const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
   // Every session rated so far (a day still to come has nothing to show), or the one asked for.
   const list = R.sessions.filter((s) => (only ? s.id === only : s.n > 0)).sort((a, b) => String(a.day).localeCompare(String(b.day)));
@@ -296,7 +299,10 @@ export async function surveyPresentersPdf(event, R, analysis = null, { only = ""
     if (note) { heading("Claude's note"); para(note.note); }
     heading(`Comments (${s.comments.length})`);
     if (!s.comments.length) para("No comments on this session.", { color: MUTED });
-    for (const c of s.comments) para(`“${c}”`, { size: 10, indent: 4 });
+    // Critical ones in red, mixed in orange, so they stand out (Andrew 17 Nov 2026), from Claude's sorting of the comments.
+    const tone = (c) => TONES[squash(c)] ?? "";
+    if (s.comments.some((c) => tone(c))) para("Red: critical. Orange: praise with a criticism.", { size: 8.5, color: MUTED });
+    for (const c of s.comments) para(`“${c}”`, { size: 10, indent: 4, color: tone(c) === "negative" ? CRITICAL : tone(c) === "mixed" ? ORANGE : INK });
   }
   // Page numbers and the note on where the answers come from.
   const range = doc.bufferedPageRange();

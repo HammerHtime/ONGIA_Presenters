@@ -51,6 +51,18 @@ export function trainedFrom(people, agencyList = []) {
     sectors: Object.entries(sectors).sort((a, b) => b[1] - a[1]).map(([key, count]) => ({ key, count })), agencies: all };
 }
 
+/**
+ * How many came (Andrew 17 Nov 2026: "The infographics shouldn't have the number of people who responded to the survey …
+ * Instead, how many people attended the event"): those checked in at the door, and everyone registered for an online
+ * group, as the certificates count them. An event nobody was checked in at counts everyone registered as coming.
+ */
+export function attendedOf(event, people = []) {
+  const online = new Set((event?.wixMore ?? []).filter((l) => l?.online && l.eventId).map((l) => l.eventId));
+  const came = people.filter((p) => p.checkedIn || (online.has(p.wixEventId) && p.status === "ATTENDING"));
+  if (people.some((p) => p.checkedIn)) return { count: came.length, how: "checked in" };
+  return { count: people.filter((p) => p.status === "ATTENDING").length, how: "registered" };
+}
+
 /** Everything the reports need, from the answers kept for an event (and its registrations, for the agencies trained). */
 export function surveyResults(event, responses, agencyList = [], people = []) {
   const sessions = event.survey?.sessions ?? [];
@@ -120,6 +132,7 @@ export function surveyResults(event, responses, agencyList = [], people = []) {
       topics: q(overall, "topics").filter(Boolean), anything: q(overall, "anything").filter(Boolean), present: q(overall, "present").filter((x) => x === 0).length },
     headline: { avg: headline.avg, top2: headline.top2, n: headline.n },
     trained: trainedFrom(people, agencyList),
+    attended: attendedOf(event, people),
     comments: [...perSession.flatMap((s) => s.comments.map((text) => ({ text, about: s.title }))), ...q(overall, "anything").filter(Boolean).map((text) => ({ text, about: "The event overall" }))],
   };
 }
