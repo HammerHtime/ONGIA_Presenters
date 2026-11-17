@@ -9,7 +9,7 @@
 # Filling in and signing a hotel contract (17 Nov 2026) reads the PDF with pdfjs, which loads its worker at run time;
 # esbuild can't follow that, so the package ships as it is.
 [functions."contract-sign-background"]
-  included_files = ["public/assets/**"]
+  included_files = ["public/assets/**", "node_modules/pdfjs-dist/legacy/build/**"]
   external_node_modules = ["pdfjs-dist"]
 
 # The nightly backup puts the desk as deployed (pages, functions, config) in the zip beside the data, so these two

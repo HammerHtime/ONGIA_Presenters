@@ -13,6 +13,9 @@ import { anthropicKey } from "./contract.mjs";
 
 /** Every line of text on every page, with its position (PDF points, origin bottom-left). */
 export async function pdfLines(bytes) {
+  // The worker loaded here, in the same thread: pdfjs then uses it rather than looking for its file at run time, which
+  // the deployed function didn't carry (17 Nov 2026: "Cannot find module … pdf.worker.mjs").
+  globalThis.pdfjsWorker ??= await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: false, isEvalSupported: false, disableFontFace: true, verbosity: 0 }).promise;
   const out = [];
