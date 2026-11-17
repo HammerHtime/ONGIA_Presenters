@@ -43,13 +43,13 @@ for (let i = 1; i <= 2; i++) await putSurveyResponse("sp-regina", { id: `r${i}`,
   overall: { quality: 5, confidence: 4, practical: 5, variety: 4, nps: 10, topics: "Illicit trade" } });
 
 let f = await Y.yearFacts(2026, { track: "sponsor" });
-ok("the sponsorship year: ONGIA events ticked RBH presented, not an RBH event, a plain one, a practice one or next year's", f.track === "sponsor" && f.trainings === 2 && f.held === 1 && f.trainingsList.map((t) => t.title).join() === "Prairie Training Symposium,Alberta Symposium", JSON.stringify(f.trainingsList.map((t) => t.title)));
-ok("attendees: the three checked in at Regina", f.attendees === 3 && f.attendanceBasis === "checked in", String(f.attendees));
-ok("where RBH took part: the province the event was held in, read from its city", f.heldInProvinces.length === 1 && f.heldInProvinces[0].code === "SK" && f.cities.join() === "Regina", JSON.stringify(f.heldInProvinces));
+ok("the sponsorship year: ONGIA events ticked RBH presented or had a spot, not an RBH event, a plain one, a practice one or next year's", f.track === "sponsor" && f.trainings === 3 && f.held === 2 && f.trainingsList.map((t) => t.title).join() === "Prairie Training Symposium,Fall Summit,Alberta Symposium", JSON.stringify(f.trainingsList.map((t) => t.title)));
+ok("attendees: the three checked in at Regina and the one at the Summit-like event where RBH had a spot", f.attendees === 4 && f.attendanceBasis === "checked in", String(f.attendees));
+ok("where RBH took part: the province the event was held in, read from its city", f.heldInProvinces.map((p) => p.code).join() === "ON,SK" && f.cities.join() === "Regina,Toronto", JSON.stringify(f.heldInProvinces));
 ok("next year's booking counts too", f.nextYear.count === 1);
 ok("RBH's own session is found by its presenter's organization, and its rating kept (not the other session's)", f.trainingsList[0].rbhSession?.title === "Contraband tobacco" && f.trainingsList[0].rbhSession.top2 === 100, JSON.stringify(f.trainingsList[0].rbhSession));
 ok("the year's value: speaking spots held for RBH (two: Regina presented, the Summit-like one cancelled), RBH's session rating, and no money anywhere", f.value.spots === 2 && f.value.presentedAt === 1 && f.value.cancelledSpots === 1 && f.value.rbhSessionTop2 === 100 && !/contribution|perPerson|perAgency/.test(JSON.stringify(f)), JSON.stringify(f.value));
-ok("a spot RBH couldn't present at is listed, and never counted in who RBH reached", f.cancelled.length === 1 && f.cancelled[0].title === "Fall Summit" && f.trainingsList.every((t) => t.title !== "Fall Summit") && f.attendees === 3, JSON.stringify(f.cancelled));
+ok("a spot RBH couldn't present at is counted (Andrew: \"include the summit\"), and marked so the report can say so", f.cancelled.length === 1 && f.cancelled[0].title === "Fall Summit" && f.trainingsList.find((t) => t.title === "Fall Summit")?.cancelled === true && f.value.presentedAt === 1 && f.value.spots === 2, JSON.stringify(f.cancelled));
 ok("a city typed without its province (\"Edmonton\") still finds it", (await import(F + "lib/yearend.mjs")).trainingFacts && (await Y.trainingFacts({ id: "sp-edmonton", title: "x", city: "Edmonton", dayOne: "2026-12-02" }, [])).province === "AB");
 const c = await Y.yearFacts(2026);
 ok("the trainings report still counts only RBH events", c.track === "consulting" && c.trainings === 1 && c.trainingsList[0].title === "RBH ITP Training", JSON.stringify(c.trainingsList.map((t) => t.title)));
@@ -65,7 +65,7 @@ ok("estimated emails and digital reach in the figures", f.communications.estimat
 
 // The list on Reports › RBH › Sponsorship.
 r = await call(reports, "reports", "list=1&year=2026&track=sponsor");
-ok("the sponsorship list: its events, figures and its own year-end state and folder", r.status === 200 && r.body.track === "sponsor" && r.body.rows.length === 2 && r.body.yearend.folder === "RBH/Year end 2026/Sponsorship" && r.body.yearend.reports.exec.name.en === "Sponsorship Report", JSON.stringify(r.body.yearend?.folder));
+ok("the sponsorship list: its events, figures and its own year-end state and folder", r.status === 200 && r.body.track === "sponsor" && r.body.rows.length === 3 && r.body.yearend.folder === "RBH/Year end 2026/Sponsorship" && r.body.yearend.reports.exec.name.en === "Sponsorship Report", JSON.stringify(r.body.yearend?.folder));
 r = await call(reports, "reports", "list=1&year=2026");
 ok("the trainings list is as before", r.body.track === "consulting" && r.body.rows.length === 1 && r.body.yearend.folder === "RBH/Year end 2026");
 
@@ -93,8 +93,8 @@ for (const [kind, lang] of [["exec", "en"], ["exec", "fr"], ["info", "en"]]) {
   const txt = execFileSync("pdftotext", ["-layout", file, "-"]).toString().replace(/\s+/g, " ");
   if (process.env.SPONSOR_PDF_OUT) fs.copyFileSync(file, `${process.env.SPONSOR_PDF_OUT}/sponsor-${kind}-${lang}.pdf`);
   if (kind === "exec" && lang === "en") ok("the report (en): the KPI table from the agreement, with each result", /Sponsorship Report/.test(txt) && /KPIs from the sponsorship agreement/.test(txt) && /Individuals RBH presented to/.test(txt)
-    && /What RBH's sponsorship delivered in 2026/.test(txt) && !/\$/.test(txt) && /Speaking spots ONGIA held for RBH 2 \(1 presented, 1 where RBH was unable to present\)/.test(txt) && /ONGIA also held a speaking spot for RBH at Fall Summit \(Toronto, Nov 9–12\); RBH was unable to present\./.test(txt) && /Different agencies in front of RBH \(each counted once\) 3/.test(txt) && /RBH's own session rated 4 or 5 100% \(2 answers, 1 event\)/.test(txt)
-    && /3 attendees at the events where RBH presented/.test(txt) && /1 city in 1 province \(Saskatchewan\)/.test(txt) && /About 24,000/.test(txt) && /About 12,000 \(an estimate\)/.test(txt) && /Prairie Training Symposium/.test(txt) && !/RBH training/.test(txt), txt.slice(0, 900));
+    && /What RBH's sponsorship delivered in 2026/.test(txt) && !/\$/.test(txt) && /Speaking spots ONGIA held for RBH 2 \(1 presented, 1 where RBH was unable to present\)/.test(txt) && /ONGIA held a speaking spot for RBH at Fall Summit \(Toronto, Nov 9–12\); RBH was unable to present\. Its attendees are included in the figures in this report\./.test(txt) && /Different agencies in front of RBH \(each counted once\) 4/.test(txt) && /RBH's own session rated 4 or 5 100% \(2 answers, 1 event\)/.test(txt)
+    && /4 attendees at the events where RBH presented or held a speaking spot/.test(txt) && /2 cities in 2 provinces \(Ontario, Saskatchewan\)/.test(txt) && /Events where RBH presented in person 1 in 1 city/.test(txt) && /About 24,000/.test(txt) && /About 12,000 \(an estimate\)/.test(txt) && /Prairie Training Symposium/.test(txt) && !/RBH training/.test(txt), txt.slice(0, 900));
   if (kind === "exec" && lang === "fr") ok("the report (fr): the same in French", /Rapport sur la commandite/.test(txt) && /Indicateurs de l'entente de commandite/.test(txt) && /Saskatchewan/.test(txt), txt.slice(0, 500));
   if (kind === "info") ok("the infographic: one page, the spots held for RBH, no money, its events", /Prairie Training Symposium/.test(txt) && !/\$/.test(txt) && /speaking spots held for RBH/.test(txt) && /unable to present/.test(txt) && /DIFFERENTAGENCIES/.test(txt.replace(/ /g, "")) && Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [file]).toString())[1]) === 1, txt.slice(0, 400));
   fs.unlinkSync(file);
