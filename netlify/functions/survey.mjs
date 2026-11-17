@@ -95,6 +95,13 @@ export default async (req) => {
   }
   // Claude's read runs in the background (survey-analyse-background): with hundreds of answers it outlasts a request
   // (the Summit, 14 Nov 2026: a 504). The page asks for the results until it lands.
+  // Just the comments' tones (red and orange in the presenter results), without a new read (Andrew 17 Nov 2026).
+  if (req.method === "POST" && url.searchParams.get("tones")) {
+    if (!event.survey) return fail("Set up the survey first.", 409);
+    const origin = new URL(req.url).origin;
+    const r = await fetch(`${origin}/api/survey-analyse-background?event=${encodeURIComponent(event.id)}&tones=1`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } }).catch(() => null);
+    return r && r.status < 400 ? json({ started: true }) : fail("It didn't start. Try again in a minute.", 503);
+  }
   if (req.method === "POST" && url.searchParams.get("analyse")) {
     if (!event.survey) return fail("Set up the survey first.", 409);
     const origin = process.env.APP_URL || process.env.URL;
