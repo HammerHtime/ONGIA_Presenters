@@ -797,7 +797,7 @@ const IG = {
     session: "RBH's session", sessionSub: "rated 4 or 5", quality: "Event quality", qualitySub: "rated 4 or 5",
     map: "Where RBH stood in front of people", mapKey1: "RBH presented or had a spot here", mapKey2: "Audience came from here", list: "The events", sectors: "Who RBH reached", ahead: (n, y) => `${n} event${n === 1 ? "" : "s"} with RBH already booked for ${y}`,
     foot: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Prepared by ONGIA · ${d}`, toCome: "To come" },
-  fr: { kicker: (y) => `Bilan de la commandite · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", spots: (n, p, c) => `place${n === 1 ? "" : "s"} de conférencier réservée${n === 1 ? "" : "s"} à RBH${c ? ` · ${p} présentation${p === 1 ? "" : "s"}, ${c} annulée${c === 1 ? "" : "s"}` : ""}`, cancelledTag: "Place réservée · RBH n'a pas pu présenter",
+  fr: { kicker: (y) => `Bilan de la commandite · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", spots: (n, p, c) => `place${n === 1 ? "" : "s"} de conférencier réservée${n === 1 ? "" : "s"} à RBH${c ? ` · ${p} présentation${p === 1 ? "" : "s"}, ${c} où RBH n'a pas pu présenter` : ""}`, cancelledTag: "Place réservée · RBH n'a pas pu présenter",
     people: "personnes", agencies: "organismes différents", provinces: "provinces", events: "événements", province1: "province", event1: "événement", agency1: "organisme", inCities: (c) => `dans ${c} ville${c === 1 ? "" : "s"}`,
     peopleSub: "aux événements avec une place pour RBH", agenciesSub: "chacun compté une fois", provincesSub: "où RBH avait une place", eventsSub: "RBH a présenté en personne",
     emails: "Courriels", emailsSub: "sur le tabac de contrebande", reach: "Portée numérique", reachSub: "estimée",
@@ -841,7 +841,7 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
     [num(f.attendees, lang), L.people, L.peopleSub],
     [num(f.agencyCount, lang), f.agencyCount === 1 ? L.agency1 : L.agencies, L.agenciesSub],
     [num(heldIn || f.provinceCount, lang), (heldIn || f.provinceCount) === 1 ? L.province1 : L.provinces, L.provincesSub],
-    [num(f.held, lang), f.held === 1 ? L.event1 : L.events, `${L.eventsSub} · ${L.inCities(cities)}`],
+    [num(V.presentedAt ?? f.held, lang), (V.presentedAt ?? f.held) === 1 ? L.event1 : L.events, `${L.eventsSub} · ${L.inCities(new Set(f.trainingsList.filter((r) => r.held && !r.cancelled).map((r) => cityKey(r.city)).filter(Boolean)).size)}`],
   ];
   const gap = 8, bw = (W - gap * 3) / 4;
   big.forEach(([n, l, sub], i) => {
@@ -856,7 +856,7 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   const small = [
     c.estimatedEmails != null ? [`~${num(c.estimatedEmails, lang)}`, L.emails, L.emailsSub] : null,
     c.digitalReach != null ? [`~${num(c.digitalReach, lang)}`, L.reach, L.reachSub] : null,
-    f.cities?.length > 1 ? [num(f.cities.length, lang), lang === "fr" ? "Villes" : "Cities", lang === "fr" ? "où RBH a présenté" : "where RBH presented"] : null,
+    f.cities?.length > 1 ? [num(f.cities.length, lang), lang === "fr" ? "Villes" : "Cities", f.cancelled?.length ? (lang === "fr" ? "où RBH avait une place" : "where RBH presented or had a spot") : (lang === "fr" ? "où RBH a présenté" : "where RBH presented")] : null,
     f.provinceCount > 1 ? [num(f.provinceCount, lang), "Provinces", lang === "fr" ? "d'où venait le public" : "the audience came from"] : null,
     f.newAgencies != null ? [num(f.newAgencies, lang), lang === "fr" ? "Nouveaux organismes" : "New agencies", lang === "fr" ? "cette année" : "this year"] : null,
     V.rbhSessionTop2 != null ? [pc(V.rbhSessionTop2, lang), L.session, L.sessionSub] : f.survey?.quality != null ? [pc(f.survey.quality, lang), L.quality, L.qualitySub] : null,
@@ -897,7 +897,8 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   }
   const ky = my + mh + 6;
   doc.rect(X, ky, 8, 8).fill(G); doc.font("r").fontSize(7).fillColor(SOFT).text(L.mapKey1, X + 12, ky, { lineBreak: false });
-  doc.rect(X + 110, ky, 8, 8).fill(AUD); doc.text(L.mapKey2, X + 122, ky, { lineBreak: false });
+  const k2 = X + 12 + doc.widthOfString(L.mapKey1) + 16;
+  doc.rect(k2, ky, 8, 8).fill(AUD); doc.text(L.mapKey2, k2 + 12, ky, { lineBreak: false });
   const leftEnd = ky + 14;
 
   // Beside the map: each event with a bar for its people, then who RBH reached by sector.
