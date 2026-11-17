@@ -264,7 +264,7 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .body{font-size:17px;line-height:1.35;margin-top:10px;color:#dfe5f2}
 .legend div{display:flex;align-items:center;gap:10px;font-size:17px;margin:5px 0} .legend i{width:14px;height:14px;display:inline-block;flex:none}
 .square .pwrap{display:grid;grid-template-columns:470px 1fr;gap:34px;align-items:center} .square .pwrap .pmap{width:470px} .square .pwrap .legend.two{grid-template-columns:1fr} .square .pwrap .legend.two div{font-size:19px;margin:6px 0} .square .pwrap .legend.two b{font-size:21px}
-.legend.two{display:grid;grid-template-columns:1fr 1fr;column-gap:16px} .legend.two div{font-size:15px;margin:3px 0} .legend.two b{font-size:16px} .pmap{display:block;max-width:100%;height:auto}
+.legend.two{display:grid;grid-template-columns:1fr 1fr;column-gap:16px} .legend.two div{font-size:13px;margin:3px 0;white-space:nowrap} .legend.two b{font-size:15px;padding-left:6px} .pmap{display:block;max-width:100%;height:auto}
 .legend.big div{font-size:26px;margin:10px 0} .legend.big i{width:20px;height:20px} .legend.big b{font-size:30px} .legend b{margin-left:auto;font-family:Oswald,sans-serif;font-size:20px;color:#fff}
 .ag{columns:2;column-gap:34px;font-size:19px;line-height:1.7;margin:0;padding:0;list-style:none}
 .ag li{break-inside:avoid} .ag li:before{content:"•";color:${GOLD};font-size:22px;margin-right:12px}
