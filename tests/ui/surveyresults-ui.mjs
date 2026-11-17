@@ -92,7 +92,7 @@ ok("in French", /NOTE MOYENNE|Note moyenne/.test(await frame.locator("#art").inn
 await p.locator('#rsdlg button[value="close"]').click(); await p.waitForTimeout(300);
 const zip = await bytesOf(p, () => p.locator("#rs-social").click());
 const names = [...zip.buf.toString("latin1").matchAll(/PK\x03\x04[\s\S]{26}([0-9a-z-]+\.png)/g)].map((m) => m[1]);
-ok("social media: one square per section, in a .zip, in the language picked", names.length === 7 && names.every((n) => /-fr\.png$/.test(n)), names.join(" "));
+ok("social media: one square per section, in a .zip, in the language picked", names.length === 8 && names.every((n) => /-fr\.png$/.test(n)), names.join(" "));
 // The link to share by hand, and clearing a trial run's answers (Andrew 27 Oct 2026).
 ok("the survey's own link is there to share, without the preview flag", /\/f\/[a-z0-9]+$/i.test(await p.locator("#sv-share").inputValue()), await p.locator("#sv-share").inputValue());
 await p.evaluate(() => { window.prompt = () => "clear"; });

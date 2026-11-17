@@ -30,6 +30,9 @@ ok("the ratings box shows the split and the average", /SURVEY RATINGS|Survey rat
 ok("the sessions and days, and the training summary", /were held over/.test(html) && /4 days,/i.test(html) && /Training summary/.test(html) && /Project Poppy/.test(html));
 ok("the provinces", /Province representation breakdown/.test(html) && /Ontario/.test(html));
 ok("and doesn't count the ratings either", !/average of <b>/.test(html) && /average rating/i.test(html));
+// The years-of-service bar chart, from the Kingston 2025 infographic (Andrew 17 Nov 2026).
+ok("the attendee experience chart: a bar per band, years of service, and the 16+ share", /Attendee experience/.test(html) && (html.match(/<div><b>\d+%<\/b><i style="height:/g) ?? []).length === 5 && /years of service/.test(html) && />33%<\/div>/.test(html), (html.match(/class="bars">[\s\S]{0,300}/) ?? [""])[0]);
+ok("and as a square of its own", /Attendee experience/.test(infographicHtml(ev, R, null, { lang: "en", block: "experience" }) ?? ""));
 ok("in French too", /ont participé/.test(infographicHtml(ev, R, null, { lang: "fr" })));
 
 // Claude, stood in, sorts the comments.

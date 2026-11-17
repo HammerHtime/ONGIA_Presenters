@@ -117,12 +117,12 @@ const W = {
   en: { tagline: "Bringing experts together. Sharing knowledge. Strengthening communities.", analysis: "Attendee analysis", moreThan: "More than", people: "people",
     attendedLine: (a) => `from across the country attended${a ? `, representing over ${a} agencies` : ""}.`, sessions: "Training sessions", heldOver: "were held over", days: (n) => `${n} day${n === 1 ? "" : "s"},`,
     oneDay: "in one day,", covering: "covering a wide range of topics.", provinces: "Province representation breakdown", agencies: "Service agencies attended", more: (n) => `…and ${n} more`,
-    bySector: "By sector", summary: "Training summary", feedback: "Attendee feedback", ratings: "Survey ratings", average: "Average rating", glance: "At a glance",
+    bySector: "By sector", experience: "Attendee experience", yearsOfService: "years of service", plus16: (p) => `of attendees have <b>16+ years</b> of experience`, summary: "Training summary", feedback: "Attendee feedback", ratings: "Survey ratings", average: "Average rating", glance: "At a glance",
     rated45: "rated the training 4 or 5", relevant: "found it relevant to their work", confident: "feel confident applying it", veterans: "have 16+ years' experience", recommend: "would recommend the sessions" },
   fr: { tagline: "Rassembler les experts. Partager le savoir. Renforcer les collectivités.", analysis: "Analyse des participants", moreThan: "Plus de", people: "personnes",
     attendedLine: (a) => `de partout au pays y ont participé${a ? `, de plus de ${a} organismes` : ""}.`, sessions: "Séances de formation", heldOver: "ont eu lieu sur", days: (n) => `${n} jour${n === 1 ? "" : "s"},`,
     oneDay: "en une journée,", covering: "sur un large éventail de sujets.", provinces: "Répartition par province", agencies: "Organismes représentés", more: (n) => `…et ${n} autres`,
-    bySector: "Par secteur", summary: "Résumé de la formation", feedback: "Commentaires des participants", ratings: "Évaluations", average: "Note moyenne", glance: "En un coup d'œil",
+    bySector: "Par secteur", experience: "Expérience des participants", yearsOfService: "années de service", plus16: (p) => `des participants ont <b>16 ans ou plus</b> d'expérience`, summary: "Résumé de la formation", feedback: "Commentaires des participants", ratings: "Évaluations", average: "Note moyenne", glance: "En un coup d'œil",
     rated45: "ont donné une note de 4 ou 5", relevant: "l'ont trouvée pertinente pour leur travail", confident: "se sentent prêts à l'appliquer", veterans: "ont 16 ans d'expérience ou plus", recommend: "recommanderaient les séances" },
 };
 const BG = "#0b1630", PANEL = "#0f1d3d", RULE = "rgba(201,160,50,.35)", SOFT = "#9fb0d1", LINEC = "#5b6f99";
@@ -189,6 +189,10 @@ function sections(event, R, analysis, lang, square = false) {
         <div><div class="ph">${esc(w.provinces)}</div><div style="display:grid;grid-template-columns:1fr 150px;gap:12px;align-items:center;margin-top:12px">
           <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
           ${donut(prov, 150, 24, `<circle cx="75" cy="75" r="49" fill="#e9edf5"/><g transform="translate(-7.5 5) scale(.75)">${leaf}</g>`, "#1c2a4d")}</div></div></div>`, "top"),
+    experience: R.years.some((y) => y.count) ? sec("experience", `${head(BIG_ICONS.people.replace('width="120" height="90"', 'width="56" height="42"'), w.experience)}<div class="exp">
+        <div><div class="bars">${R.years.map((y) => { const top = Math.max(...R.years.map((x) => x.pct)) || 1; return `<div><b>${y.pct}%</b><i style="height:${Math.max(3, Math.round((210 * y.pct) / top))}px"></i><span>${esc(y.label)}</span></div>`; }).join("")}</div>
+          <div class="axis">${esc(w.yearsOfService)}</div></div>
+        <div class="callout"><div class="num">${plus16}%</div><div class="body" style="font-size:20px">${w.plus16(plus16)}</div></div></div>`) : "",
     provinces: prov.length ? sec("provinces", `${head(BIG_ICONS.glance, w.provinces)}<div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
         <div class="legend big">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
         ${donut(prov, 330, 50, `<circle cx="165" cy="165" r="110" fill="#e9edf5"/><g transform="translate(-11 16) scale(1.6)">${leaf}</g>`, "#1c2a4d")}</div>`) : "",
@@ -233,6 +237,10 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .ag{columns:2;column-gap:34px;font-size:19px;line-height:1.7;margin:0;padding:0;list-style:none}
 .ag li{break-inside:avoid} .ag li:before{content:"•";color:${GOLD};font-size:22px;margin-right:12px}
 .more{color:${SOFT};font-size:17px;margin-top:8px} .sectors{margin-top:16px;font-size:16px;color:#dfe5f2} .sectors b{color:${GOLD};font-weight:600} .sectors span{font-family:Oswald,sans-serif;color:${GOLD};font-size:18px}
+.exp{display:grid;grid-template-columns:1fr 300px;gap:40px;align-items:end} .bars{display:flex;gap:26px;align-items:flex-end;height:270px;border-bottom:2px solid ${RULE};padding:0 10px}
+.bars>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%} .bars i{display:block;width:100%;background:${GOLD}} .bars b{font-family:Oswald,sans-serif;font-size:28px;margin-bottom:8px}
+.bars span{position:relative;top:0;order:3;font-family:Oswald,sans-serif;font-size:22px;color:#dfe5f2;margin-top:10px;height:0;overflow:visible;white-space:nowrap} .axis{text-align:center;color:${SOFT};font-size:16px;margin-top:44px}
+.callout{border-left:1.5px solid ${RULE};padding:0 0 40px 34px} .callout b{color:${GOLD}}
 .tgrid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1.5px solid ${RULE}} .tgrid>div{padding:20px 16px;border-right:1.5px solid ${RULE};border-bottom:1.5px solid ${RULE}} .tgrid>div:nth-child(4n){border-right:0}
 .tgrid .n{flex:none;background:${GOLD};color:${BG};font-family:Oswald,sans-serif;font-weight:700;font-size:24px;width:34px;height:38px;display:flex;align-items:center;justify-content:center}
 .tgrid .tt{font-size:18px;line-height:1.3} .tgrid .ab{font-size:14.5px;line-height:1.35;color:${SOFT};margin:8px 0 0}
@@ -276,8 +284,8 @@ export function infographicHtml(event, R, analysis, { lang = "en", block = "" } 
     const small = `<div class="badge" style="background:#070f22;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:3px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
     return `${head}<div class="square" id="art"><div class="fit"><div class="in">${one}</div></div>${block === "event" ? "" : small}</div></body></html>`;
   }
-  return `${head}<div class="page" id="art">${s.event}${s.stats}${s.agencies}${s.topics}${s.quotes}${s.takeaways}${s.foot}</div></body></html>`;
+  return `${head}<div class="page" id="art">${s.event}${s.stats}${s.experience}${s.agencies}${s.topics}${s.quotes}${s.takeaways}${s.foot}</div></body></html>`;
 }
 
 /** The sections that can be made into social media squares, in order, with their names. */
-export const BLOCKS = [["event", "The event"], ["stats", "Attendees, sessions and provinces"], ["provinces", "Provinces"], ["agencies", "Agencies"], ["topics", "Topics"], ["takeaways", "At a glance"], ["quotes", "Ratings and comments"]];
+export const BLOCKS = [["event", "The event"], ["stats", "Attendees, sessions and provinces"], ["experience", "Years of experience"], ["provinces", "Provinces"], ["agencies", "Agencies"], ["topics", "Topics"], ["takeaways", "At a glance"], ["quotes", "Ratings and comments"]];
