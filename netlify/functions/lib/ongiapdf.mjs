@@ -22,7 +22,7 @@ const T = {
   en: { colon: ": ", prepared: "Prepared for", forWho: "Funders, partners and ONGIA's board", by: "Prepared by", byWho: "ONGIA | Andrew Hammond, President", date: "Date",
     review: (y) => `Year in review · ${y}`, org: "Organization for National Gang Information & Awareness", kicker: "Our year in numbers", page: "Page", of: "of",
     foot: (k, y) => `${k} ${y} · ONGIA`, footInfo: "ONGIA · WWW.ONGIA.ORG", prep: (d) => `Prepared by ONGIA · ${d}`,
-    trained: "People trained", events: "Trainings and events", agencies: "Agencies", provinces: "Provinces and territories", contacts: "Contacts", rating: "Average rating",
+    trained: "People trained", events: "Trainings and events", agencies: "Agencies", provinces: "Provinces and territories", contacts: "Members", rating: "Average rating",
     days: "Training days", presenters: "Presenters", newAg: "New agencies", cities: "Cities",
     glance: "At a glance", eventsHead: "Trainings and events", who: "Who we trained", said: "What attendees said", highlights: "Highlights of the year", ahead: (y) => `Looking ahead to ${y}`,
     colEvent: "Event", colCity: "City", colDates: "Dates", colPeople: "People", colRating: "Rating", total: "Total", toCome: "To come",
@@ -34,15 +34,15 @@ const T = {
     sectorNote: (n, of) => `Sectors cover ${n} of ${of} people: those whose agency is on ONGIA's agency list.`,
     topicNote: "People at the events that covered each topic; one event can cover several.",
     booked: (n, p, y) => `${n} event${n === 1 ? "" : "s"} already on the ${y} calendar${p ? `, in ${p} province${p === 1 ? "" : "s"}` : ""}.`, lookingAhead: "Looking ahead:",
-    growText: (n, r) => `${n} agencies came to an ONGIA event for the first time this year; ${r} had come before.`, contactsText: (c) => `ONGIA's contact list holds ${c} people.`,
+    growText: (n, r) => `${n} agencies came to an ONGIA event for the first time this year; ${r} had come before.`, contactsText: (c) => `ONGIA has ${c} members.`,
     presentersText: (p, o) => `${p} presenters from ${o} organizations.`, presenterOrgs: "Presenters by organization", ratingText: (m, t, n) => `Average rating ${m} out of 5; ${t}% rated the training 4 or 5 (${n} answers).`,
     held: (h, u) => (u ? `${h} held, ${u} to come` : `${h} held`), outOf5: "/5", more: (n) => `+ ${n} more`, unknownTopics: "Topics are grouped from the events' session titles.",
     byYear: "People trained each year", provShortCard: "Provinces", trainingsCard: "Trainings", inPerson: "in person", virtual: "virtual", toDate: "to date", ratingYears: "Average rating each year (out of 5)", ratingNote: (n) => `From ${n} attendee survey answers on SurveyMonkey; years without a survey are left blank.`, registered: "registered, still to come", fewer: "fewer", more2: "more people trained",
-    subSplit: (a, b) => `${a} in person · ${b} virtual`, subHeld: (h, u, r) => (u ? `${h} held · ${u} to come${r ? ` (${r} registered)` : ""}` : `all ${h} held`), subNew: (n) => `${n} new this year`, subNetwork: "ONGIA's network", subAnswers: (n) => `${n} survey answers`, subDays: (n) => `${n} attendee-days`, subCities: (c) => c, subOrgs: (n) => `from ${n} organizations` },
+    subSplit: (a, b) => `${a} in person · ${b} virtual`, subHeld: (h, u, r) => (u ? `${h} held · ${u} to come${r ? ` (${r} registered)` : ""}` : `all ${h} held`), subNew: (n) => `${n} new this year`, subNetwork: "ONGIA's membership", subAnswers: (n) => `${n} survey answers`, subDays: (n) => `${n} attendee-days`, subCities: (c) => c, subOrgs: (n) => `from ${n} organizations` },
   fr: { colon: " : ", prepared: "Préparé pour", forWho: "Bailleurs de fonds, partenaires et conseil d'administration de l'ONGIA", by: "Préparé par", byWho: "ONGIA | Andrew Hammond, président", date: "Date",
     review: (y) => `Bilan de l'année · ${y}`, org: "Organization for National Gang Information & Awareness", kicker: "Notre année en chiffres", page: "Page", of: "de",
     foot: (k, y) => `${k} ${y} · ONGIA`, footInfo: "ONGIA · WWW.ONGIA.ORG", prep: (d) => `Préparé par l'ONGIA · ${d}`,
-    trained: "Personnes formées", events: "Formations et événements", agencies: "Organismes", provinces: "Provinces et territoires", contacts: "Contacts", rating: "Note moyenne",
+    trained: "Personnes formées", events: "Formations et événements", agencies: "Organismes", provinces: "Provinces et territoires", contacts: "Membres", rating: "Note moyenne",
     days: "Jours de formation", presenters: "Conférenciers", newAg: "Nouveaux organismes", cities: "Villes",
     glance: "En un coup d'œil", eventsHead: "Formations et événements", who: "Qui nous avons formé", said: "Ce que disent les participants", highlights: "Faits saillants de l'année", ahead: (y) => `Perspectives pour ${y}`,
     colEvent: "Événement", colCity: "Ville", colDates: "Dates", colPeople: "Personnes", colRating: "Note", total: "Total", toCome: "À venir",
@@ -54,11 +54,11 @@ const T = {
     sectorNote: (n, of) => `Les secteurs couvrent ${n} des ${of} personnes : celles dont l'organisme figure sur la liste de l'ONGIA.`,
     topicNote: "Personnes présentes aux événements ayant abordé chaque sujet; un événement peut en aborder plusieurs.",
     booked: (n, p, y) => `${n} événement${n === 1 ? "" : "s"} déjà au calendrier ${y}${p ? `, dans ${p} province${p === 1 ? "" : "s"}` : ""}.`, lookingAhead: "Perspectives :",
-    growText: (n, r) => `${n} organismes ont participé à un événement de l'ONGIA pour la première fois cette année; ${r} y avaient déjà participé.`, contactsText: (c) => `La liste de contacts de l'ONGIA compte ${c} personnes.`,
+    growText: (n, r) => `${n} organismes ont participé à un événement de l'ONGIA pour la première fois cette année; ${r} y avaient déjà participé.`, contactsText: (c) => `L'ONGIA compte ${c} membres.`,
     presentersText: (p, o) => `${p} conférenciers provenant de ${o} organisations.`, presenterOrgs: "Conférenciers par organisation", ratingText: (m, t, n) => `Note moyenne de ${m} sur 5; ${t} % ont noté la formation 4 ou 5 (${n} réponses).`,
     held: (h, u) => (u ? `${h} tenus, ${u} à venir` : `${h} tenus`), outOf5: "/5", more: (n) => `+ ${n} autres`, unknownTopics: "Les sujets sont regroupés à partir des titres des séances.",
     byYear: "Personnes formées chaque année", provShortCard: "Provinces", trainingsCard: "Formations", inPerson: "en personne", virtual: "virtuel", toDate: "à ce jour", ratingYears: "Note moyenne chaque année (sur 5)", ratingNote: (n) => `D'après ${n} réponses aux sondages SurveyMonkey; les années sans sondage restent vides.`, registered: "inscrits, à venir", fewer: "moins", more2: "plus de personnes formées",
-    subSplit: (a, b) => `${a} en personne · ${b} en virtuel`, subHeld: (h, u, r) => (u ? `${h} tenus · ${u} à venir${r ? ` (${r} inscrits)` : ""}` : `les ${h} tenus`), subNew: (n) => `${n} nouveaux cette année`, subNetwork: "Le réseau de l'ONGIA", subAnswers: (n) => `${n} réponses au sondage`, subDays: (n) => `${n} jours-participants`, subCities: (c) => c, subOrgs: (n) => `de ${n} organisations` },
+    subSplit: (a, b) => `${a} en personne · ${b} en virtuel`, subHeld: (h, u, r) => (u ? `${h} tenus · ${u} à venir${r ? ` (${r} inscrits)` : ""}` : `les ${h} tenus`), subNew: (n) => `${n} nouveaux cette année`, subNetwork: "Réseau de membres", subAnswers: (n) => `${n} réponses au sondage`, subDays: (n) => `${n} jours-participants`, subCities: (c) => c, subOrgs: (n) => `de ${n} organisations` },
 };
 const PROV_FR = { ON: "Ontario", QC: "Québec", MB: "Manitoba", SK: "Saskatchewan", AB: "Alberta", BC: "Colombie-Britannique", NS: "Nouvelle-Écosse", NB: "Nouveau-Brunswick",
   NL: "Terre-Neuve-et-Labrador", PE: "Île-du-Prince-Édouard", YT: "Yukon", NT: "Territoires du Nord-Ouest", NU: "Nunavut" };
@@ -211,8 +211,15 @@ function yearColumns(doc, years, x, y, w, h, { lang = "en", current = null } = {
     if (hv) doc.roundedRect(bx, base - hi - hv, bw, hv, hc ? 0 : Math.min(3, hv / 2)).fill(SOFT_GOLD);
     if (hi && hv) doc.rect(bx, base - hi - 0.6, bw, 1.2).fill("#ffffff");
     if (hc) { doc.roundedRect(bx + 0.5, base - hi - hv - hc + 0.5, bw - 1, hc - 1, Math.min(3, hc / 2)).lineWidth(1).dash(2, { space: 1.5 }).stroke(NAVY); doc.undash(); }
-    doc.font("b").fontSize(8.6).fillColor(INK).text(num(r.people, lang), x + i * cw, base - hi - hv - 12, { width: cw, align: "center", lineBreak: false });
-    if (hc) doc.font("b").fontSize(7.4).fillColor(NAVY).text(`+${num(r.toCome, lang)}`, x + i * cw, base - hi - hv - hc - 11, { width: cw, align: "center", lineBreak: false });
+    // The total above the bar; with people still to come, "+63" beside it on the same line, above the outlined block
+    // (Nov 2026: drawn separately, the two overlapped when the block was short).
+    if (!hc) doc.font("b").fontSize(8.6).fillColor(INK).text(num(r.people, lang), x + i * cw, base - hi - hv - 12, { width: cw, align: "center", lineBreak: false });
+    else {
+      const a = num(r.people, lang), b = `+${num(r.toCome, lang)}`;
+      const wa = doc.font("b").fontSize(8.6).widthOfString(a), wb = doc.font("b").fontSize(7.4).widthOfString(b), sx = x + i * cw + (cw - wa - 3 - wb) / 2, ty = base - hi - hv - hc - 12;
+      doc.font("b").fontSize(8.6).fillColor(INK).text(a, sx, ty, { lineBreak: false });
+      doc.font("b").fontSize(7.4).fillColor(NAVY).text(b, sx + wa + 3, ty + 1, { lineBreak: false });
+    }
     const now = String(r.year) === String(current);
     doc.font(now ? "b" : "r").fontSize(8).fillColor(now ? NAVY : MUTED).text(String(r.year), x + i * cw, base + 4, { width: cw, align: "center", lineBreak: false });
     if (now) doc.font("r").fontSize(6.5).fillColor(MUTED).text(L.toDate, x + i * cw, base + 13, { width: cw, align: "center", lineBreak: false });

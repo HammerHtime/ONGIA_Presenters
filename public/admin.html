@@ -7488,7 +7488,7 @@ function ongiaReportsScreen(D) {
         ${D.reading?.state === "failed" && !reading ? `<span class="bad-t">The last reading didn't work: ${esc(D.reading.why || "")}</span>` : ""}</div>
       <div class="yegrid">${tiles.map(([b, l, sub]) => `<div><b>${b}</b><span>${esc(l)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
       ${D.mayChange ? `<form class="yein" id="ong-in"><b>Typed in once a year</b>
-        <label>Contacts in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ong-contacts" value="${I.contacts ?? ""}"></label>
+        <label>ONGIA members<input type="number" min="0" step="1" inputmode="numeric" id="ong-contacts" value="${I.contacts ?? ""}"></label>
         <button class="mini" id="ong-save">Save</button><span class="hint" style="margin:0">Everything else is counted from Wix and the desk.</span></form>` : ""}
       <div class="yerow">${!D.mayChange ? `<span class="hint" style="margin:0">The president and the VP of operations make and change these reports.</span>`
         : F.held ? `<button class="mini gold" id="ong-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the reports"}</button>

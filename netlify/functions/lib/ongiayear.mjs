@@ -325,7 +325,7 @@ const QUOTE = { type: "object", additionalProperties: false, required: ["comment
 const REPLY = S("One or two sentences to ONGIA's president on what you changed this time, or empty when nothing was asked.");
 export const ONG_SCHEMAS = {
   impact: { type: "object", additionalProperties: false, required: ["glance", "who", "quotes", "highlights", "lookAhead", "reply"], properties: {
-    glance: LIST("Two short paragraphs: what ONGIA delivered this year (events, people trained, agencies, provinces, contacts), then how it was received, with the figures given."),
+    glance: LIST("Two short paragraphs: what ONGIA delivered this year (events, people trained, agencies, provinces, members), then how it was received, with the figures given."),
     who: LIST("One or two short paragraphs on who ONGIA trained: sectors, provinces and the agencies sending the most people."),
     quotes: { type: "array", items: QUOTE, description: "Two to four attendee comments by id; empty if no comments were given." },
     highlights: LIST("Three to five bullets, each a short bold lead phrase ending in a full stop, then one sentence resting on a figure given."),
@@ -334,7 +334,7 @@ export const ONG_SCHEMAS = {
     intro: LIST("One or two short paragraphs on how far ONGIA's work reached this year."),
     provinces: S("One or two sentences on reach by province and territory, from the figures given."),
     sectors: S("One or two sentences on the sectors trained; empty if no sector figures were given."),
-    growth: S("One or two sentences on growth: new and returning agencies, contacts; empty if those figures are missing."), reply: REPLY } },
+    growth: S("One or two sentences on growth: new and returning agencies, members; empty if those figures are missing."), reply: REPLY } },
   program: { type: "object", additionalProperties: false, required: ["intro", "topics", "presenters", "ratings", "askedNext", "recommendations", "reply"], properties: {
     intro: LIST("One or two short paragraphs on the year's training program: how many events, training days, where."),
     topics: S("One or two sentences on the topics trained on, from the topics given."),
@@ -353,7 +353,7 @@ export const ONG_SYSTEM = (kind, lang) => `You write ONGIA's ${WHAT[kind]} for o
 
 Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support. Plain text only: no markdown, no asterisks, no headings inside the text.
 
-The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. "People trained" counts those who came to events that have taken place. Ratings come from attendee surveys (ONGIA's own, or SurveyMonkey for past years): "rating.n" is how many answered, "survey.rate" the share who answered among the people at the trainings that had a survey (survey.invited; not everyone trained, since some trainings had no survey, so never call it a share of all people trained), and "rating.fromStatements" how many of the rated trainings asked agree/disagree statements instead of one overall question. "history" gives each year's people and rating, and "rated" is how many of that year's trainings the rating rests on; compare years only with that caveat, and do not call a year the best or highest when earlier years rest on one or two trainings. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
+The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. "People trained" counts those who came to events that have taken place. "contacts" is the number of ONGIA's members: always call them members, never contacts. Ratings come from attendee surveys (ONGIA's own, or SurveyMonkey for past years): "rating.n" is how many answered, "survey.rate" the share who answered among the people at the trainings that had a survey (survey.invited; not everyone trained, since some trainings had no survey, so never call it a share of all people trained), and "rating.fromStatements" how many of the rated trainings asked agree/disagree statements instead of one overall question. "history" gives each year's people and rating, and "rated" is how many of that year's trainings the rating rests on; compare years only with that caveat, and do not call a year the best or highest when earlier years rest on one or two trainings. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
 
 ONGIA's requests for this document come last. Follow every one of them. They may add sections, change wording or emphasis, or leave things out; they can't change a figure or a quote's words.`;
 
