@@ -2779,10 +2779,12 @@ function eventFormScreen(existing = null) {
         </div>
       </div>
       <div class="morehead"><b>More options</b><span>All of these can be set or changed later, on Edit event.</span></div>
-      ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" || ev?.rbhPresented ? " open" : ""}>
-        <summary>RBH${ev?.rbhPresented ? " · RBH presented" : ev?.kind === "rbh" ? " event" : ""}</summary>
+      ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" || ev?.rbhPresented || ev?.rbhCancelled ? " open" : ""}>
+        <summary>RBH${ev?.rbhPresented ? " · RBH presented" : ev?.rbhCancelled ? " · RBH had a spot" : ev?.kind === "rbh" ? " event" : ""}</summary>
         <label class="attest noproj" id="e-rbhpres-row" style="margin-top:10px"${ev?.kind === "rbh" ? " hidden" : ""}><input type="checkbox" id="e-rbhpres"${ev?.rbhPresented ? " checked" : ""}>
           <span><b>RBH presented at this event.</b> One of ONGIA's own events. It counts in RBH's yearly sponsorship report.</span></label>
+        <label class="attest noproj" id="e-rbhcanc-row" style="margin-top:6px"${ev?.kind === "rbh" ? " hidden" : ""}><input type="checkbox" id="e-rbhcanc"${ev?.rbhCancelled ? " checked" : ""}>
+          <span><b>RBH had a spot but couldn't present.</b> Listed in the report as a spot held for RBH, not counted in who it reached.</span></label>
         <p class="hint" style="margin-top:10px">For an event run for RBH, apart from ONGIA's own training. It gets a statement of work and a final invoice,
           which only the president and the VP can see. The province decides which sales tax goes on them.</p>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-rbh"${ev?.kind === "rbh" ? " checked" : ""}><span><b>This is an RBH event.</b></span></label>
@@ -3082,7 +3084,9 @@ function eventFormScreen(existing = null) {
   };
   if (ev?.project) setProject(true);
   // An RBH event is RBH's own; "RBH presented" is only for ONGIA's events, so it hides when the event is made an RBH one.
-  if ($("e-rbh") && $("e-rbhpres-row")) $("e-rbh").addEventListener("change", () => { $("e-rbhpres-row").hidden = $("e-rbh").checked; });
+  if ($("e-rbh") && $("e-rbhpres-row")) $("e-rbh").addEventListener("change", () => { $("e-rbhpres-row").hidden = $("e-rbhcanc-row").hidden = $("e-rbh").checked; });
+  // Presented, or had a spot but couldn't: one or the other.
+  if ($("e-rbhpres") && $("e-rbhcanc")) { $("e-rbhpres").addEventListener("change", () => { if ($("e-rbhpres").checked) $("e-rbhcanc").checked = false; }); $("e-rbhcanc").addEventListener("change", () => { if ($("e-rbhcanc").checked) $("e-rbhpres").checked = false; }); }
   if ($("pj-pick")) $("pj-pick").onclick = () => { startOn("pj-pick"); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); setProject(true); $("e-title").focus(); };
   ["wx-pick", "cp-pick"].forEach((id) => $(id)?.addEventListener("click", () => setProject(false)));
   if ($("bl-pick")) $("bl-pick").onclick = () => { startOn("bl-pick"); setProject(false); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); $("e-title").focus(); };
@@ -3176,6 +3180,7 @@ function eventFormScreen(existing = null) {
     attendeeMail: $("e-amail")?.checked === true,
     kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
     rbhPresented: $("e-rbhpres") ? $("e-rbhpres").checked === true && !$("e-rbh")?.checked : undefined,
+    rbhCancelled: $("e-rbhcanc") ? $("e-rbhcanc").checked === true && !$("e-rbhpres")?.checked && !$("e-rbh")?.checked : undefined,
     project: ROOT.querySelector(".card[data-project]") ? true : ev?.project ? false : undefined,
     province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
     talkOnFile: $("e-talkfile")?.checked === true,
@@ -4610,7 +4615,7 @@ function eventScreen(data) {
 
   // A practice event says so across the top, so nobody mistakes it for the real one (audit, 30 Oct 2026).
   ROOT.innerHTML = `<div class="evhead hasnav">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
-    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ev.rbhPresented ? `<span class="tag">RBH presented</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
+    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ev.rbhPresented ? `<span class="tag">RBH presented</span>` : ev.rbhCancelled ? `<span class="tag">RBH had a spot</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         ${ev.city || ev.venue ? `<span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>` : ""}
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
@@ -7309,7 +7314,7 @@ function rbhReportsScreen(D) {
     [F.survey.quality == null ? "—" : `${F.survey.quality}%`, "rated quality 4 or 5", ""],
     [n(F.agencyCount), "agencies", F.newAgencies != null ? `${F.newAgencies} new this year` : ""],
     [n(F.provinceCount), "provinces", ""],
-    ...(SP && F.value?.contribution != null ? [[`$${n(F.value.contribution)}`, "RBH's sponsorship", F.value.perPerson != null ? `$${n(F.value.perPerson)} per person reached` : ""]] : []),
+    ...(SP && F.value?.cancelledSpots ? [[n(F.value.spots), "spots held for RBH", `${F.value.cancelledSpots} where RBH couldn't present`]] : []),
   ];
   const est = I.members != null && I.campaigns != null ? I.members * I.campaigns : null;
   const busy = Object.values(YE.reports).some((r) => r.building);
@@ -7341,7 +7346,8 @@ function rbhReportsScreen(D) {
   const spRows = SP ? D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button><span class="psub">${esc(r.city)}</span></td>
       <td data-l="Date">${esc(dates(r))}</td><td data-l="Attended">${r.held ? n(r.attended) : `<span class="hint" style="margin:0">To come</span>`}</td>
       <td data-l="Survey">${r.answered ? `${r.answered} answers${r.surveyRate != null ? `<span class="psub">${r.surveyRate}%</span>` : ""}` : `<span class="hint" style="margin:0">None yet</span>`}</td>
-      <td data-l="Rated 4 or 5">${r.quality != null ? `${r.quality}%` : "—"}</td></tr>`).join("") : "";
+      <td data-l="Rated 4 or 5">${r.quality != null ? `${r.quality}%` : "—"}</td></tr>`).join("") + (F.cancelled ?? []).map((r) => `<tr><td data-l=""><b>${esc(r.title)}</b><span class="psub">${esc(r.city)}</span></td>
+      <td data-l="Date">${esc(dates(r))}</td><td data-l="Attended" colspan="3"><span class="hint" style="margin:0">Spot held · RBH couldn't present</span></td></tr>`).join("") : "";
   const rows = SP ? "" : D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button>${r.practice ? ` <span class="pill grey">Practice</span>` : ""}<span class="psub">${esc(r.city)}</span></td>
       <td data-l="Date">${esc(dates(r))}</td>
       <td data-l="Survey">${r.invited ? `${r.answered} of ${r.invited}<span class="psub">${Math.round((100 * r.answered) / r.invited)}%</span>` : r.answered ? `${r.answered} answers` : `<span class="hint" style="margin:0">${r.survey ? "Not sent yet" : "No survey"}</span>`}</td>
@@ -7359,8 +7365,7 @@ function rbhReportsScreen(D) {
       <form class="yein" id="ye-in"><b>Typed in once a year</b>
         <label>Members in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ye-members" value="${I.members ?? ""}"></label>
         <label>${SP ? `Email campaigns with contraband tobacco messaging in ${Y}` : `Email campaigns about RBH trainings in ${Y}`}<input type="number" min="0" step="1" inputmode="numeric" id="ye-campaigns" value="${I.campaigns ?? ""}"></label>
-        ${SP ? `<label>Estimated digital reach of RBH's awareness materials<input type="number" min="0" step="1" inputmode="numeric" id="ye-reach" value="${I.reach ?? ""}"></label>
-        <label>RBH's sponsorship in ${Y} ($)${I.scheduled != null && !I.contributionTyped ? " · from the agreement" : ""}<input type="number" min="0" step="1" inputmode="numeric" id="ye-money" value="${I.contribution ?? ""}"></label>` : ""}
+        ${SP ? `<label>Estimated digital reach of RBH's awareness materials<input type="number" min="0" step="1" inputmode="numeric" id="ye-reach" value="${I.reach ?? ""}"></label>` : ""}
         <button class="mini" id="ye-save">Save</button>
         <span class="hint" id="ye-est" style="margin:0">${est != null ? `About ${n(est)} emails (members × campaigns), shown as an estimate.` : "The reports leave communications out until both are filled in."}</span></form>
       <div class="yerow">${F.held ? `<button class="mini gold" id="ye-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the year-end reports"}</button>
@@ -7368,7 +7373,7 @@ function rbhReportsScreen(D) {
         : `<span class="hint" style="margin:0">${SP ? `They can be made once an ONGIA event in ${Y} where RBH presented has taken place.` : `They can be made once an RBH training in ${Y} has taken place.`}</span>`}</div>
       <div class="yedocs">${doc("exec")}${doc("info")}</div>
     </section>
-    ${SP ? (D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Event</th><th>Date</th><th>Attended</th><th>Survey</th><th>Rated 4 or 5</th></tr></thead><tbody>${spRows}</tbody></table></div>
+    ${SP ? (D.rows.length || F.cancelled?.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Event</th><th>Date</th><th>Attended</th><th>Survey</th><th>Rated 4 or 5</th></tr></thead><tbody>${spRows}</tbody></table></div>
       <p class="hint">To add an event, open it, choose <b>Edit event</b>, and tick <b>RBH presented</b> under RBH.</p>`
       : `<p class="hint">No ONGIA events in ${Y} are ticked yet. Open an event, choose <b>Edit event</b>, and tick <b>RBH presented</b> under RBH.</p>`)
     : D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Training</th><th>Date</th><th>Survey</th><th>Executive Summary</th><th>Infographic</th><th>OneDrive</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -7393,8 +7398,7 @@ function rbhReportsScreen(D) {
   document.getElementById("ye-in").onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/reports?yearend=${Y}&inputs=1${TQ}`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value, reach: document.getElementById("ye-reach")?.value,
-        contribution: SP && Number(document.getElementById("ye-money")?.value) !== I.scheduled ? document.getElementById("ye-money")?.value : undefined }) });
+      await api(`/reports?yearend=${Y}&inputs=1${TQ}`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value, reach: document.getElementById("ye-reach")?.value }) });
       toast(SP ? "Saved. They're used the next time the sponsorship reports are made." : "Saved. They're used the next time the year-end reports are made."); render();
     } catch (x) { toast(x.message); }
   };
