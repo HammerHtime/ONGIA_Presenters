@@ -783,8 +783,8 @@ function claimScreen() {
   // Who the claim is for (Andrew 17 Nov 2026): the member's own, or a presenter's receipts sent to them; the presenter is paid.
   const mineToEdit = !c || ["draft", "rejected"].includes(c.status);
   const forWho = !mineToEdit ? "" : c?.payee
-    ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>, a presenter at ${esc(c.payee.eventTitle)}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button></div>`
-    : `<p class="tiny" style="margin:-4px 2px 12px"><button class="linkish" id="forchg" type="button">Claiming a presenter's expenses for them?</button></p>`;
+    ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>${c.payee.kind === "other" ? (c.payee.organization ? `, ${esc(c.payee.organization)}` : "") : `, a presenter at ${esc(c.payee.eventTitle)}`}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button></div>`
+    : `<p class="tiny" style="margin:-4px 2px 12px"><button class="linkish" id="forchg" type="button">Claiming for a presenter or someone else?</button></p>`;
   const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
   // Swipe a line left to delete it, as on any phone (Andrew 5 Nov 2026): a red Delete shows behind it; tap it to remove.
   const list = [...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => `<div class="swipe" data-swl="${esc(l.id)}"><button type="button" class="swdel" tabindex="-1" aria-hidden="true">Delete</button>${lineRow(l, c.id)}</div>`).join("")}</div>`).join("");
@@ -920,10 +920,18 @@ function catOptions(sel) {
 async function pickPresenter(c) {
   const box = document.createElement("dialog");
   box.className = "ppdlg";
+  // A presenter, or someone else (Andrew 17 Nov 2026: "somebody who made cups for me or made some merchandise").
+  const other = c?.payee?.kind === "other";
   box.innerHTML = `<form method="dialog"><h2 style="margin:0 0 6px">Who is this claim for?</h2>
-    <p class="tiny" style="margin:0 0 12px">For a presenter who sent you their receipts. ONGIA pays them directly, by e-transfer to the email on their agreement.</p>
+    <p class="tiny" style="margin:0 0 10px">ONGIA pays them directly, by e-transfer. Each line still says what it was for.</p>
+    <div class="chips pptabs" role="tablist" style="margin:0 0 12px"><button type="button" role="tab" data-pptab="p" class="${other ? "" : "on"}">Presenter</button><button type="button" role="tab" data-pptab="o" class="${other ? "on" : ""}">Someone else</button></div>
+    <div id="pp-p"${other ? " hidden" : ""}>
     <div class="field"><label for="pp-ev">Event</label><select id="pp-ev">${eventOptions(c?.payee?.event ?? "", c?.payee?.eventTitle)}</select></div>
-    <div class="field"><label for="pp-who">Presenter</label><select id="pp-who" disabled><option value="">Choose the event first</option></select></div>
+    <div class="field"><label for="pp-who">Presenter</label><select id="pp-who" disabled><option value="">Choose the event first</option></select></div></div>
+    <div id="pp-o"${other ? "" : " hidden"}>
+    <div class="field"><label for="pp-name">Their name</label><input id="pp-name" autocomplete="off" value="${esc(other ? c.payee.name : "")}"></div>
+    <div class="field"><label for="pp-email">Their email (the e-transfer goes here)</label><input id="pp-email" type="email" autocomplete="off" value="${esc(other ? c.payee.email : "")}"></div>
+    <div class="field"><label for="pp-org">Business name (if any)</label><input id="pp-org" autocomplete="off" value="${esc(other ? c.payee.organization ?? "" : "")}"></div></div>
     <div id="pp-say" class="tiny" style="margin:0 0 10px"></div>
     <button class="btn gold" id="pp-save" type="button" disabled>Make it their claim</button>
     ${c?.payee ? `<button class="btn ghost" id="pp-mine" type="button" style="margin-top:8px">Make it my own claim</button>` : ""}
@@ -931,7 +939,15 @@ async function pickPresenter(c) {
   document.body.append(box); box.showModal();
   box.addEventListener("close", () => box.remove());
   const ev = box.querySelector("#pp-ev"), who = box.querySelector("#pp-who"), save = box.querySelector("#pp-save"), say = box.querySelector("#pp-say");
-  let list = [];
+  let list = [], mode = other ? "o" : "p";
+  const nm = box.querySelector("#pp-name"), em = box.querySelector("#pp-email"), org = box.querySelector("#pp-org");
+  const otherOk = () => nm.value.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim());
+  const sync = () => { save.disabled = mode === "o" ? !otherOk() : !list.find((x) => x.id === who.value); if (mode === "o") say.textContent = otherOk() ? `Paid to ${em.value.trim()}.` : ""; };
+  box.querySelectorAll("[data-pptab]").forEach((t) => t.onclick = () => {
+    mode = t.dataset.pptab; box.querySelectorAll("[data-pptab]").forEach((x) => x.classList.toggle("on", x === t));
+    box.querySelector("#pp-p").hidden = mode !== "p"; box.querySelector("#pp-o").hidden = mode !== "o"; say.textContent = ""; sync();
+  });
+  [nm, em].forEach((i) => i.addEventListener("input", sync));
   const load = async () => {
     who.disabled = save.disabled = true; say.textContent = "";
     if (!ev.value) { who.innerHTML = `<option value="">Choose the event first</option>`; return; }
@@ -952,7 +968,8 @@ async function pickPresenter(c) {
       await api(`?claim=${encodeURIComponent(id)}&for=1`, { method: "PUT", json: body }); box.close(); HOME = await api(TESTMODE() ? "?test=1" : ""); claimScreen(); toast(done); }
     catch (x) { say.textContent = x.message; }
   };
-  save.onclick = () => send({ event: ev.value, presenter: who.value }, "It's their claim now. ONGIA pays them directly.");
+  save.onclick = () => send(mode === "o" ? { other: { name: nm.value.trim(), email: em.value.trim(), organization: org.value.trim() } } : { event: ev.value, presenter: who.value }, "It's their claim now. ONGIA pays them directly.");
+  if (mode === "o") sync();
   box.querySelector("#pp-mine")?.addEventListener("click", () => send({}, "It's your own claim again."));
 }
 function eventOptions(sel, title) {
@@ -1216,7 +1233,7 @@ const pillWord = (c) => (c.status === "approved" ? "Approved" : c.status === "su
 const COVERS_WORDS = { transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" };
 /** What a presenter's agreement says ONGIA covers, for whoever approves or pays their claim. */
 const coversText = (p) => { if (!p?.covers) return "Their agreement doesn't say what ONGIA covers."; const on = Object.entries(p.covers).filter(([, v]) => v).map(([k]) => COVERS_WORDS[k] ?? k); return on.length ? `Their agreement says ONGIA covers ${on.join(", ")}.` : "Their agreement says ONGIA covers none of their costs."; };
-const claimRow = (c, extra = "") => tile(c, c.payee?.name ? `${c.payee.name} (presenter)` : c.owner?.name ?? "", [c.month, extra || c.words].filter(Boolean).join(" · "), pillWord(c));
+const claimRow = (c, extra = "") => tile(c, c.payee?.name ? `${c.payee.name}${c.payee.kind === "other" ? "" : " (presenter)"}` : c.owner?.name ?? "", [c.month, extra || c.words].filter(Boolean).join(" · "), pillWord(c));
 const tiles = (html) => `<div class="tlist">${html}</div>`;
 function wireRows() { ROOT.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openClaim(b.dataset.open); }); }
 async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
@@ -1251,8 +1268,8 @@ function viewScreen(target = ROOT) {
   const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
   let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>`
     : c.trial && !HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST CLAIM.</b> Part of testing the app: no money is sent, and it's filed only under Test claims.</div>` : "";
-  if (c.payee) h += `<div class="card forcard"><div class="k">For a presenter</div><div style="font-weight:600;font-size:17px">${esc(c.payee.name)}</div>
-    <div class="note">${esc([c.payee.organization, c.payee.eventTitle].filter(Boolean).join(" · "))}</div><div class="note" style="margin-top:4px">${esc(coversText(c.payee))}</div></div>`;
+  if (c.payee) h += `<div class="card forcard"><div class="k">${c.payee.kind === "other" ? "For someone else" : "For a presenter"}</div><div style="font-weight:600;font-size:17px">${esc(c.payee.name)}</div>
+    <div class="note">${esc([c.payee.organization, c.payee.eventTitle].filter(Boolean).join(" · "))}</div>${c.payee.kind === "other" ? `<div class="note" style="margin-top:4px">Not a presenter or a board member. Each line says what it was for.</div>` : `<div class="note" style="margin-top:4px">${esc(coversText(c.payee))}</div>`}</div>`;
   h += `<div class="card"><div class="k">${c.payee ? "Sent by" : "From"}</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
@@ -1273,7 +1290,7 @@ function viewScreen(target = ROOT) {
   else if (myDone && c.status === "submitted") h += `<div class="bigbtns"><button class="btn green" type="button" disabled>${ICON.tick}<span>Approved</span></button><button class="btn dim" type="button" disabled>✕<span>Send back</span></button></div>
     <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. ${waitingOn.length > 1 ? "When both have approved" : "Once approved"}, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
-      <div class="note" style="margin:0 0 10px">${c.payee ? `To <b>${esc(c.payee.name)}</b>, the presenter (${esc(c.payee.email)}). Not to ${esc(c.owner?.name)}, who sent it.` : `To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}`}</div>
+      <div class="note" style="margin:0 0 10px">${c.payee ? `To <b>${esc(c.payee.name)}</b>${c.payee.kind === "other" ? "" : ", the presenter"} (${esc(c.payee.email)}). Not to ${esc(c.owner?.name)}, who sent it.` : `To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}`}</div>
       ${c.payer.practice || c.trial ? `<div class="say mu" style="margin:0 0 10px">${c.trial ? "Board test: don't send any money." : "Practice: nothing is sent."} Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
       <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice || c.trial ? "TEST123" : "As the bank shows it"}"></div>
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>

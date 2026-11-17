@@ -56,8 +56,9 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
   // A presenter's claim (Andrew 17 Nov 2026): who it's for, who to pay, and what their agreement says ONGIA covers.
   if (claim.payee?.name) {
     const on = Object.entries(claim.payee.covers ?? {}).filter(([, v]) => v).map(([k]) => ({ transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" }[k] ?? k));
-    kv(M, "For (presenter)", `${claim.payee.name}${claim.payee.organization ? `, ${claim.payee.organization}` : ""}`); kv(M + 360, "Pay by e-transfer to", claim.payee.email); y += 18;
-    kv(M, "Event", claim.payee.eventTitle); kv(M + 360, "ONGIA covers", claim.payee.covers ? (on.join(", ") || "none of their costs") : "not on their agreement"); y += 18;
+    const other = claim.payee.kind === "other";
+    kv(M, other ? "For" : "For (presenter)", `${claim.payee.name}${claim.payee.organization ? `, ${claim.payee.organization}` : ""}`); kv(M + 360, "Pay by e-transfer to", claim.payee.email); y += 18;
+    if (!other) { kv(M, "Event", claim.payee.eventTitle); kv(M + 360, "ONGIA covers", claim.payee.covers ? (on.join(", ") || "none of their costs") : "not on their agreement"); y += 18; }
   }
   kv(M, "Submitted by", claim.owner?.name); kv(M + 360, "Date sent", day(claim.submittedAt)); y += 18;
   kv(M, "Claim for", claim.month); kv(M + 360, "Status", { submitted: "Waiting for approval", approved: "Approved, waiting for payment", paid: "Paid", rejected: "Sent back", draft: "Not sent" }[claim.status] ?? claim.status); y += 22;

@@ -62,5 +62,18 @@ ok("John's email says it went to Parm", /paid the expense claim you made for Par
 const { claimStem } = await import(F + "lib/expensefile.mjs");
 ok("it's filed under the presenter's name", /^Dhesi Parm - Expense claim - /.test(claimStem(after.payee.name, after.month)));
 
+// Someone who is neither a presenter nor a board member (Andrew 17 Nov 2026: cups, merchandise): a name and an email.
+r = await call("/api/expenses?add=noreceipt", "POST", { paidTo: "Mugs & More", date: day(-3), amount: 180, category: 1, purpose: "Printed cups for the Summit", statement: "Paid in cash at pickup; no receipt." }, JOHN);
+const O = r.claim.id;
+r = await call(`/api/expenses?claim=${O}&for=1`, "PUT", { other: { name: "Sam Rivers", email: "nope" } }, JOHN);
+ok("someone else needs a real email, for the e-transfer", r.status === 400 && /email address/.test(r.error), JSON.stringify(r));
+r = await call(`/api/expenses?claim=${O}&for=1`, "PUT", { other: { name: "Sam Rivers", email: "Sam@Example.ca", organization: "Rivers Print Shop" } }, JOHN);
+ok("the claim is made Sam's: name, email, business; no event", r.status === 200 && r.claim.payee.kind === "other" && r.claim.payee.email === "sam@example.ca" && r.claim.payee.organization === "Rivers Print Shop" && !r.claim.payee.event, JSON.stringify(r.claim?.payee));
+const oc = await S.getClaim(O);
+const om = M.needsApprovalMail({ claim: oc, lines: [], checks: null });
+ok("the approvers see who it's for, that they're not a presenter or board member, and who sent it", /Expense claim for Sam Rivers \(sent by John Healy\)/.test(om.subject) && /who isn't a presenter or a board member/.test(om.text), om.subject);
+const opm = M.presenterPaidMail({ claim: { ...oc, total: 180 }, paid: { ref: "CA77QQ", date: day(0) } });
+ok("their paid email: no event, no presenter wording", /ONGIA has paid you/.test(opm.subject) && /\$180\.00/.test(opm.text) && !/presenting|event/i.test(opm.text), opm.text);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -26,7 +26,7 @@ const key = await p.evaluate(() => localStorage.getItem("ongia-exp-session"));
 await fetch(`${S}/api/expenses?add=mileage`, { method: "POST", headers: { "x-expense-key": key, "content-type": "application/json" }, body: JSON.stringify({ date: "2026-11-02", from: "Nanaimo", to: "Victoria", km: 110, purpose: "Drive to present" }) });
 await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(1000);
 
-ok("the claim being built has one small line for a presenter's claim", await p.locator("#forchg", { hasText: "Claiming a presenter's expenses for them?" }).isVisible());
+ok("the claim being built has one small line for a presenter's claim", await p.locator("#forchg", { hasText: "Claiming for a presenter or someone else?" }).isVisible());
 await p.click("#forchg"); await p.waitForTimeout(300);
 ok("it asks for the event, then the presenter", await p.locator("dialog.ppdlg #pp-ev").isVisible() && await p.locator("#pp-who").isDisabled());
 await p.selectOption("#pp-ev", ev.id); await p.waitForTimeout(1200);
@@ -40,7 +40,7 @@ ok("nothing scrolls sideways", await p.evaluate(() => document.documentElement.s
 if (D) await p.screenshot({ path: D + "expensepresenter-claim.png" });
 await p.click("#forchg"); await p.waitForTimeout(300);
 await p.click("#pp-mine"); await p.waitForTimeout(1500);
-ok("…and it can be made John's own claim again", await p.locator("#forchg", { hasText: "Claiming a presenter's expenses for them?" }).isVisible() && !(await p.locator(".say.forwho").count()));
+ok("…and it can be made John's own claim again", await p.locator("#forchg", { hasText: "Claiming for a presenter or someone else?" }).isVisible() && !(await p.locator(".say.forwho").count()));
 // Another member with nothing on a claim yet picks the presenter first (Andrew 17 Nov 2026: "I submit yes for presenter.
 // I select the event … a list of presenters"): the claim is started for the presenter, then receipts are added.
 const p2 = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
@@ -48,11 +48,19 @@ await p2.addInitScript(([t, me]) => { localStorage.setItem("ongia-exp-session", 
   [issueExpenseSession({ email: "d.sullivan@ongia.ca", name: "Derek Sullivan" }), { email: "d.sullivan@ongia.ca", name: "Derek Sullivan" }]);
 p2.on("pageerror", (e) => errs.push(String(e)));
 await p2.goto(`${S}/expenses`, { waitUntil: "networkidle" }); await p2.waitForTimeout(1000);
-ok("with nothing added yet, the presenter link is there", await p2.locator("#forchg", { hasText: "Claiming a presenter's expenses for them?" }).isVisible());
+ok("with nothing added yet, the presenter link is there", await p2.locator("#forchg", { hasText: "Claiming for a presenter or someone else?" }).isVisible());
 await p2.click("#forchg"); await p2.waitForTimeout(300);
 await p2.selectOption("#pp-ev", ev.id); await p2.waitForTimeout(1200);
 await p2.selectOption("#pp-who", { label: "Parm Dhesi · Vancouver Police Department" }); await p2.click("#pp-save"); await p2.waitForTimeout(1800);
 ok("choosing him first starts the claim as his, ready for the receipts", /For Parm Dhesi, a presenter at/.test(await p2.locator(".say.forwho").innerText().catch(() => "")) && await p2.locator("#addcam").isVisible());
+// Someone else: a name and an email, no event (cups, merchandise).
+await p2.click("#forchg"); await p2.waitForTimeout(300);
+await p2.click('[data-pptab="o"]');
+ok("Someone else asks for a name, an email and a business name, not an event", await p2.locator("#pp-name").isVisible() && await p2.locator("#pp-email").isVisible() && await p2.locator("#pp-ev").isHidden());
+await p2.fill("#pp-name", "Sam Rivers"); await p2.fill("#pp-email", "sam@example.ca"); await p2.fill("#pp-org", "Rivers Print Shop");
+if (D) await p2.locator("dialog.ppdlg").screenshot({ path: D + "expensepresenter-other.png" });
+await p2.click("#pp-save"); await p2.waitForTimeout(1800);
+ok("the claim then says it's for Sam, paid to his email", /For Sam Rivers, Rivers Print Shop\. The e-transfer goes to sam@example\.ca/.test(await p2.locator(".say.forwho").innerText().catch(() => "")));
 ok("no script errors", !errs.length, errs.join(" | "));
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);

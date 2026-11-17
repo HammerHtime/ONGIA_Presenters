@@ -126,7 +126,7 @@ export async function claimDocuments({ claim, lines, names, checks, getFile }) {
   const ordered = formOrder(lines);
   const signers = signersOf(claim, names);
   const xlsx = claimWorkbook(await readTemplate(), {
-    submittedBy: claim.payee?.name ? `${claim.payee.name} (presenter), sent by ${claim.owner?.name ?? ""}` : claim.owner?.name ?? "", submitted: claim.submittedAt ? todayIso(new Date(claim.submittedAt)) : todayIso(),
+    submittedBy: claim.payee?.name ? `${claim.payee.name}${claim.payee.kind === "other" ? "" : " (presenter)"}, sent by ${claim.owner?.name ?? ""}` : claim.owner?.name ?? "", submitted: claim.submittedAt ? todayIso(new Date(claim.submittedAt)) : todayIso(),
     signers, txn: claim.paid?.ref ?? "", paidDate: claim.paid?.date ?? "",
     lines: ordered.map((l) => ({ paidTo: l.paidTo, date: l.date, amount: l.amount, category: l.category, purpose: purposeOf(l), noHst: noHst(l) })),
   });
@@ -226,7 +226,7 @@ export async function fileClaim({ claim, docs, prev = null, drive = null }) {
   const root = claim.test || claim.trial ? `${base}/${TEST_FOLDER}` : `${base}/${String(claim.month).split(" ")[1]}`;
   const folderNames = async (p) => ((await g.children(p)) ?? []).filter((k) => k.folder).map((k) => k.name);
   // A presenter's claim (Andrew 17 Nov 2026) goes in the year's Presenters folder, under the presenter's name.
-  const member = prev?.member ?? (claim.payee?.name ? "Presenters" : memberFolder(await folderNames(root), claim.owner?.name ?? "Member"));
+  const member = prev?.member ?? (claim.payee?.name ? (claim.payee.kind === "other" ? "Others" : "Presenters") : memberFolder(await folderNames(root), claim.owner?.name ?? "Member"));
   const who = claim.payee?.name || claim.owner?.name;
   const month = prev?.month ?? monthFolder(await folderNames(`${root}/${member}`), claim.month);
   const folder = `${root}/${member}/${month}`;

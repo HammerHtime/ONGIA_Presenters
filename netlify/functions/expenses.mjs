@@ -34,7 +34,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, pre
  *   GET    /api/expenses?claim=<id>                      one claim, with Claude's check and who signs off
  *   GET    /api/expenses?claim=<id>&file=<line>[&kind=thumb|shot]   a receipt, its small picture, or the card statement
  *   GET    /api/expenses?presenters=<eventId>            that event's presenters, for a claim made for one of them
- *   PUT    /api/expenses?claim=<id>&for=1                { event, presenter } (or {} to make it the member's own again)
+ *   PUT    /api/expenses?claim=<id>&for=1                { event, presenter } | { other: { name, email, organization } } | {} (the member's own)
  *   POST   /api/expenses?add=receipt[&claim=<id>][&test=1]   body = the photo or PDF; Claude starts reading it
  *   POST   /api/expenses?add=mileage|noreceipt[&claim=]  { date, km, from, to, … }
  *   PUT    /api/expenses?claim=<id>&line=<line>          what the person checked or typed
@@ -414,6 +414,17 @@ export default async (req) => {
     const no = editable(claim);
     if (no) return fail(no, 409);
     const body = await req.json().catch(() => ({}));
+    // Someone who is neither a presenter nor a board member (Andrew 17 Nov 2026: "somebody who made cups for me or made
+    // some merchandise"): their name and email, typed; the e-transfer goes to them.
+    if (body.other) {
+      const name = text(body.other.name, 120), email = text(body.other.email, 200).toLowerCase(), organization = text(body.other.organization, 160);
+      if (!name) return fail("Type the name of the person ONGIA is paying.");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Type their email address: the e-transfer goes there.");
+      claim.payee = { kind: "other", name, email, organization };
+      claim.history = [...(claim.history ?? []), { at: now(), what: `made for ${name}, paid directly`, by: me.name }];
+      await touch(claim);
+      return json({ claim: await claimView(claim, ctx) });
+    }
     if (!body.presenter) { delete claim.payee; claim.history = [...(claim.history ?? []), { at: now(), what: "made the member's own claim", by: me.name }]; await touch(claim); return json({ claim: await claimView(claim, ctx) }); }
     const ev = await getEvent(text(body.event, 80));
     const p = ev ? (await listPresenters(ev.id)).find((x) => x.id === text(body.presenter, 80)) : null;
@@ -750,7 +761,7 @@ export async function claimView(claim, { me, aways, today, names }) {
 
 // A claim in a list. Paid claims carry the day they were paid and what is on them (Andrew 3 Nov 2026: "the date and the
 // amount obviously will show the day it was paid out"); an approved one, the day it was approved.
-const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, payee: c.payee ? { name: c.payee.name, eventTitle: c.payee.eventTitle } : null, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, trial: !!c.trial,
+const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, payee: c.payee ? { name: c.payee.name, kind: c.payee.kind ?? "presenter", eventTitle: c.payee.eventTitle } : null, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, trial: !!c.trial,
   approvedAt: c.approvedAt ?? null, paidOn: c.paid?.date ?? null, sums: c.sums ? { receipts: c.sums.receipts ?? 0, mileage: c.sums.mileage ?? 0, noreceipt: c.sums.noreceipt ?? 0 } : null, ...extra });
 
 async function home(ctx, test = false) {
