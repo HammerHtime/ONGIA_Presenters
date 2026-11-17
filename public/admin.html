@@ -1323,7 +1323,12 @@
   .ctrow .ctwhat{font-size:14px} .ctrow .ctwhat b{font-weight:700}
   .ctrow .ctquote{grid-column:2;font-size:12.5px;color:var(--muted);font-style:italic;overflow-wrap:anywhere}
   .ctrow .ctwarn{grid-column:2;font-size:12.5px;color:var(--late)}
-  .ctnote{font-size:13px;background:var(--card);border-left:3px solid var(--gold);padding:8px 12px;border-radius:0 10px 10px 0;margin:0 0 12px}
+  .ctissues{margin:12px 0 0;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:#fff} .ctissues>b{display:block;font-size:13px;margin:0 0 4px}
+  .cti{font-size:13.5px;line-height:1.45;padding:3px 0;display:flex;gap:8px} .cti span{flex:none;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;width:42px;padding-top:1px}
+  .cti.fix span{color:var(--late)} .cti.check span{color:var(--wait)} .cti i{color:var(--muted);font-style:normal}
+  .ctsign{margin:12px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px} .ctsignrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .ctsignrow label{display:flex;align-items:center;gap:6px;font-size:13.5px} .ctsignrow select{padding:5px 8px;font-size:13.5px}
+.ctnote{font-size:13px;background:var(--card);border-left:3px solid var(--gold);padding:8px 12px;border-radius:0 10px 10px 0;margin:0 0 12px}
   /* All clear: green, and it must win over the red of the problems box it sits in. */
   .lok,.lprobs .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
 
@@ -12516,12 +12521,28 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
             <p class="hint" id="ct-said" style="margin:8px 0 0"></p>`
           : `<p class="hint" style="margin:10px 0 0">Claude read it and found no dates to act on.${found.notes ? ` Its note: ${esc(found.notes)}` : ""}</p>`;
         body._rows = rows;
+        // What Claude flagged before signing (Andrew 17 Nov 2026: "Have claude flag issues").
+        const iss = found.issues ?? [];
+        if (iss.length) html += `<div class="ctissues"><b>Before you sign</b>${iss.map((i) => `<div class="cti ${i.level}"><span>${i.level === "fix" ? "Fix" : "Check"}</span>${esc(i.text)}${i.page ? ` <i>(page ${i.page})</i>` : ""}</div>`).join("")}</div>`;
+      }
+      // Fill in and sign: his name, title, date, initials, Bonvoy details and signature, by Claude, on a copy.
+      if (ev && file && /\.pdf$/i.test(file.name) && !(WHO?.email && WHO.email.toLowerCase() !== "president@ongia.ca")) {
+        const sg = st.sign;
+        if (sg?.state === "signing") html += `<div class="ctsign"><span class="spin" aria-hidden="true"></span> <b>Claude is filling it in and signing it…</b> <span class="hint" style="margin:0">usually under a minute</span></div>`;
+        else if (sg?.state === "done" && !sg.stale) html += `<div class="ctsign"><b>Signed ${esc(when(sg.at))}</b> · <a href="#" data-ct="signed">Download the signed copy</a> · <a href="#" data-ct="resign">Sign again</a>
+            <div class="hint" style="margin:4px 0 0">${esc([...new Set((sg.filled ?? []).map((f) => f.what))].join(", "))}. Check it, then send it to the hotel yourself.</div>
+            ${sg.missing?.length ? `<div class="ctwarn" style="margin-top:4px">Do by hand: ${esc(sg.missing.join("; "))}.</div>` : ""}</div>`;
+        else html += `<div class="ctsign">${sg?.state === "failed" ? `<div class="ctwarn" style="margin:0 0 6px">The last try didn't work: ${esc(sg.why)}</div>` : ""}${sg?.stale ? `<div class="hint" style="margin:0 0 6px">A different contract was uploaded since the last signed copy.</div>` : ""}
+            <div class="ctsignrow"><label>Payment <select id="ct-pay"><option value="">Leave blank</option><option value="card">Credit card</option><option value="cheque">Cheque or EFT</option><option value="cash">Cash</option></select></label>
+            <label class="ctbv"><input type="checkbox" id="ct-bonvoy" checked> Add my Bonvoy</label>
+            <button type="button" class="mini gold" data-ct="sign">Fill in and sign</button></div>
+            <div class="hint" style="margin:4px 0 0">Your name, title, date, initials, Bonvoy name and number from Settings, and your signature, on a copy. The original stays as it is.</div></div>`;
       }
     }
     body.innerHTML = html;
     wire();
     // Keep asking while it reads — but only while this form is still on screen.
-    if (r?.state === "reading") timer = setTimeout(() => { if (document.body.contains(body)) load(); }, 3000);
+    if (r?.state === "reading" || st.sign?.state === "signing") timer = setTimeout(() => { if (document.body.contains(body)) load(); }, 3000);
     tick();
   };
 
@@ -12623,6 +12644,19 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
         const what = a.dataset.ct;
         if (what === "pick") picker.click();
         if (what === "fill") fill();
+        if (what === "sign" || what === "resign") {
+          const pay = body.querySelector("#ct-pay")?.value ?? "", bonvoy = body.querySelector("#ct-bonvoy")?.checked ?? true;
+          if (what === "resign" && !confirm("Fill it in and sign it again? The signed copy is replaced; the original stays as it is.")) return;
+          if (what === "sign" && !confirm(`Claude will put your name, title, today's date, your initials${bonvoy ? ", your Bonvoy name and number" : ""}${pay ? ` and the form of payment` : ""}, and your signature on a copy of this contract. Nothing is sent. Go ahead?`)) return;
+          try { draw(await api(`${q}&sign=1`, { method: "POST", body: JSON.stringify({ payment: what === "resign" ? "" : pay, bonvoy }) })); } catch (err) { toast(err.message); }
+        }
+        if (what === "signed") {
+          try {
+            const res = await apiFetch(`/api${q}&signed=1`, { headers: { "x-admin-key": KEY } });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Could not download it (${res.status})`);
+            await saveRes(res, "contract-signed.pdf");
+          } catch (err) { toast(err.message); }
+        }
         if (what === "again") { try { draw(await api(`${q}&again=1`, { method: "POST" })); } catch (err) { toast(err.message); } }
         if (what === "open") {
           try {

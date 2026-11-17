@@ -259,6 +259,14 @@ export async function contractInfo(eventId) {
   return got ? { name: got.metadata?.name ?? "hotel-contract.pdf", size: got.metadata?.size ?? null, uploadedAt: got.metadata?.uploadedAt ?? null } : null;
 }
 
+/** The filled-in, signed copy of an event's hotel contract (17 Nov 2026), kept beside the original, never over it. */
+export async function putSignedContract(eventId, bytes, meta) { await store().set(`contractsigned:${eventId}`, bytes, { metadata: meta }); }
+export async function getSignedContract(eventId) {
+  const got = await store().getWithMetadata(`contractsigned:${eventId}`, { type: "arrayBuffer" });
+  return got ? { bytes: got.data, name: got.metadata?.name ?? "hotel-contract-signed.pdf", at: got.metadata?.at ?? null } : null;
+}
+export const getContractSign = (eventId) => read(`contractsign:${eventId}`);
+export const putContractSign = (eventId, value) => write(`contractsign:${eventId}`, value);
 export const getContractRead = (eventId) => read(`contractread:${eventId}`);
 export const putContractRead = (eventId, value) => write(`contractread:${eventId}`, value);
 

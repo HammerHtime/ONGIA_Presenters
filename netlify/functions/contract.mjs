@@ -1,7 +1,7 @@
 import { isDocx } from "./lib/contract.mjs";
 import { json, fail, requireAdmin, adminWho, fileName, editGuard } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
-import { getEvent, putEvent, putContract, getContract, contractInfo, getContractRead, putContractRead, deleteKey } from "./lib/store.mjs";
+import { getEvent, putEvent, putContract, getContract, contractInfo, getContractRead, putContractRead, deleteKey, getSignedContract, getContractSign, putContractSign } from "./lib/store.mjs";
 import { anthropicKey } from "./lib/contract.mjs";
 
 /**
@@ -46,6 +46,11 @@ export default async (req) => {
   const ask = draft ? `draft=${encodeURIComponent(draft)}` : `event=${encodeURIComponent(eventId)}`;
 
   if (req.method === "GET") {
+    if (url.searchParams.get("signed")) {
+      const doc = await getSignedContract(eventId);
+      if (!doc) return fail("It hasn't been filled in and signed yet.", 404);
+      return new Response(doc.bytes, { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${doc.name.replace(/[^\w.\- ]+/g, "_")}"`, "cache-control": "no-store" } });
+    }
     if (url.searchParams.get("file")) {
       const doc = await getContract(eventId);
       if (!doc) return fail("No contract has been uploaded for this event.", 404);
@@ -59,6 +64,25 @@ export default async (req) => {
   }
 
   if (req.method === "POST") {
+    // Fill in and sign (Andrew 17 Nov 2026: "when I want to sign and add bonvoy, claude does it"). His signature is his:
+    // only his own sign-in, or the desk's key, may put it on a contract.
+    if (url.searchParams.get("sign")) {
+      const who = adminWho(req);
+      if (!(who?.key === true || String(who?.email ?? "").toLowerCase() === "president@ongia.ca")) return fail("Only the President can sign a contract with his signature.", 403);
+      const doc = await contractInfo(eventId);
+      if (!doc) return fail("Upload the contract first.", 404);
+      if (!/\.pdf$/i.test(doc.name)) return fail("Only a PDF can be filled in and signed here. Ask the hotel for the PDF.", 409);
+      const body = await req.json().catch(() => ({}));
+      const payment = ["cash", "card", "cheque"].includes(body.payment) ? body.payment : "";
+      const now = await getContractSign(eventId);
+      if (now?.state === "signing" && Date.now() - Date.parse(now.startedAt) < STALE_MS) return fail("It's being filled in now.", 409);
+      await putContractSign(eventId, { state: "signing", startedAt: new Date().toISOString(), payment, bonvoy: body.bonvoy !== false, by: who?.email || "desk" });
+      try {
+        const r = await fetch(`${url.origin}/api/contract-sign-background?${ask}`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } });
+        if (r.status >= 400) throw new Error(`the signer answered ${r.status}`);
+      } catch (e) { await putContractSign(eventId, { state: "failed", at: new Date().toISOString(), why: `It couldn't be started (${e.message}). Try again.` }); }
+      return json(await status(eventId, event), 202);
+    }
     if (url.searchParams.get("again")) {
       if (!(await contractInfo(eventId))) return fail("There is no contract on file to read again. Upload it first.", 404);
       return start(eventId, ask, url.origin, (await contractInfo(eventId)).name);
@@ -102,7 +126,9 @@ async function start(eventId, ask, origin, name) {
 }
 
 async function status(eventId, event = null) {
-  const [file, read] = await Promise.all([contractInfo(eventId), getContractRead(eventId)]);
+  const [file, read, signRaw] = await Promise.all([contractInfo(eventId), getContractRead(eventId), getContractSign(eventId)]);
+  let sign = signRaw ?? null;
+  if (sign?.state === "signing" && Date.now() - Date.parse(sign.startedAt) > STALE_MS) sign = { state: "failed", why: "Filling it in took too long and was stopped. Try again." };
   let r = read ?? null;
   // Created while Claude was still reading the draft: the answer lands on the
   // draft, so carry it over the first time anyone looks.
@@ -121,5 +147,7 @@ async function status(eventId, event = null) {
   if (r?.state === "reading" && Date.now() - Date.parse(r.startedAt) > STALE_MS) {
     r = { state: "failed", why: "Reading the contract took too long and was stopped. Press Read it again.", name: r.name };
   }
-  return { file, read: r };
+  // A signed copy made from an earlier upload is out of date once a different contract is uploaded.
+  if (sign?.state === "done" && file?.uploadedAt && sign.from && sign.from !== file.uploadedAt) sign = { ...sign, stale: true };
+  return { file, read: r, sign };
 }
