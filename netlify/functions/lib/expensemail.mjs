@@ -21,10 +21,12 @@ function mail(claim, subject, heading, lines, button) {
   return { subject: `${tag(claim)}${subject}`, html, text };
 }
 // A claim made for a presenter names them, and who made it: "Parm Dhesi (presenter, sent by John Healy)".
-const ownerOf = (c) => (c?.payee?.name ? `${c.payee.name} (presenter, sent by ${c?.owner?.name ?? "a board member"})` : c?.owner?.name ?? "A board member");
+const isOther = (c) => c?.payee?.kind === "other";
+const ownerOf = (c) => (c?.payee?.name ? `${c.payee.name} (${isOther(c) ? "" : "presenter, "}sent by ${c?.owner?.name ?? "a board member"})` : c?.owner?.name ?? "A board member");
 const COVERS = { transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" };
 const coversLine = (c) => {
   if (!c?.payee) return "";
+  if (isOther(c)) return `For ${esc(c.payee.name)}${c.payee.organization ? `, ${esc(c.payee.organization)}` : ""}, who isn't a presenter or a board member. Each line says what it was for.`;
   const on = Object.entries(c.payee.covers ?? {}).filter(([, v]) => v).map(([k]) => COVERS[k] ?? k);
   return `For ${esc(c.payee.name)}${c.payee.organization ? `, ${esc(c.payee.organization)}` : ""}, a presenter at ${esc(c.payee.eventTitle ?? "")}. ${c.payee.covers ? (on.length ? `Their agreement says ONGIA covers ${esc(on.join(", "))}.` : "Their agreement says ONGIA covers none of their costs.") : "Their agreement doesn't say what ONGIA covers."}`;
 };
@@ -127,7 +129,7 @@ export function toPayMail({ claim, approvedBy = [], acting = "", practice = fals
     testNote(claim),
     `The expense claim for ${esc(owner)} has been approved by ${esc(andList(approvedBy))} and is ready to be paid.`,
     coversLine(claim),
-    `<b>${dollars(claim.total ?? 0)}</b> by e-transfer to ${esc(claim.payee?.email || claim.owner?.email || owner)}${claim.payee ? ` (${esc(claim.payee.name)}, the presenter)` : ""}`,
+    `<b>${dollars(claim.total ?? 0)}</b> by e-transfer to ${esc(claim.payee?.email || claim.owner?.email || owner)}${claim.payee ? ` (${esc(claim.payee.name)}${isOther(claim) ? "" : ", the presenter"})` : ""}`,
     practice ? "Practice: nothing is sent. Type any transaction number, like TEST123." : claim?.trial ? "Don't send any money: type any transaction number, like TEST123, and it locks as a paid claim does." : "",
     acting ? `You're standing in for the ${esc(acting)}, who records the payments.` : "",
   ];
@@ -155,12 +157,13 @@ export function presenterPaidMail({ claim, paid }) {
   const lines = [
     testNote(claim),
     `Hello ${esc(first)},`,
-    `ONGIA has reimbursed your expenses for ${esc(p.eventTitle ?? "the event")}: <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`,
+    isOther(claim) ? `ONGIA has paid you <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`
+      : `ONGIA has reimbursed your expenses for ${esc(p.eventTitle ?? "the event")}: <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`,
     `Transaction number: <b>${esc(paid.ref)}</b>`,
     `${esc(claim.owner?.name ?? "A board member")} sent the claim for you. If anything looks wrong, reply to this email.`,
-    "Thank you again for presenting.",
+    isOther(claim) ? "Thank you." : "Thank you again for presenting.",
   ];
-  return mail(claim, `Your expenses for ${p.eventTitle ?? "the event"} have been paid`, "Your expenses have been paid", lines, null);
+  return mail(claim, isOther(claim) ? "ONGIA has paid you" : `Your expenses for ${p.eventTitle ?? "the event"} have been paid`, isOther(claim) ? "You've been paid" : "Your expenses have been paid", lines, null);
 }
 
 /** To the VP and the President when a paid claim is unlocked. */
