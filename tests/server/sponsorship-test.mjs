@@ -24,7 +24,7 @@ const call = async (fn, path, qs, { method = "GET", body } = {}) => {
 const sessions = [{ id: "s1", day: "2026-05-05", title: "Contraband tobacco", presenters: [] }];
 await putEvent({ id: "sp-regina", title: "Prairie Training Symposium", city: "Regina, SK", dayOne: "2026-05-05", lastDay: "2026-05-06", rbhPresented: true, board: [],
   survey: { token: "tokspregina12", open: true, mode: "end", sessions } });
-await putEvent({ id: "sp-edmonton", title: "Alberta Symposium", city: "Edmonton, AB", dayOne: "2026-12-02", rbhPresented: true, board: [] });
+await putEvent({ id: "sp-edmonton", title: "Alberta Symposium", city: "Edmonton", dayOne: "2026-12-02", rbhPresented: true, board: [] });
 await putEvent({ id: "sp-plain", title: "Ontario Symposium", city: "Toronto, ON", dayOne: "2026-06-01", board: [] });
 await putEvent({ id: "sp-rbh", kind: "rbh", title: "RBH ITP Training", city: "Montréal, QC", province: "QC", dayOne: "2026-04-01", rbhPresented: true, board: [] });
 await putEvent({ id: "sp-practice", title: "Practice Symposium", practice: true, city: "Regina, SK", dayOne: "2026-03-01", rbhPresented: true, board: [] });
@@ -41,6 +41,7 @@ ok("the sponsorship year: ONGIA events ticked RBH presented, not an RBH event, a
 ok("attendees: the three checked in at Regina", f.attendees === 3 && f.attendanceBasis === "checked in", String(f.attendees));
 ok("where RBH took part: the province the event was held in, read from its city", f.heldInProvinces.length === 1 && f.heldInProvinces[0].code === "SK" && f.cities.join() === "Regina", JSON.stringify(f.heldInProvinces));
 ok("next year's booking counts too", f.nextYear.count === 1);
+ok("a city typed without its province (\"Edmonton\") still finds it", (await import(F + "lib/yearend.mjs")).trainingFacts && (await Y.trainingFacts({ id: "sp-edmonton", title: "x", city: "Edmonton", dayOne: "2026-12-02" }, [])).province === "AB");
 const c = await Y.yearFacts(2026);
 ok("the trainings report still counts only RBH events", c.track === "consulting" && c.trainings === 1 && c.trainingsList[0].title === "RBH ITP Training", JSON.stringify(c.trainingsList.map((t) => t.title)));
 

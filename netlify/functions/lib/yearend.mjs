@@ -7,6 +7,7 @@ import { certIndex } from "./certs.mjs";
 import { factsFor, newDoc, PDF_LOOK } from "./reports.mjs";
 import { formatLong } from "./deadlines.mjs";
 import { SECTORS } from "./sectors.mjs";
+import { provinceOfEvent } from "./ongiayear.mjs";
 
 /**
  * The RBH year end (Andrew 31 Oct 2026): an Executive Summary and a one-page infographic for the whole calendar year,
@@ -49,8 +50,9 @@ const isRbh = (e) => e?.kind === "rbh" && !e?.practice;
 /** An ONGIA event of its own where RBH presented: counted in the sponsorship report. */
 export const rbhPresentedAt = (e) => e?.kind !== "rbh" && e?.rbhPresented === true && !e?.practice && !e?.project;
 const inTrack = (track) => (trackOf(track) === "sponsor" ? rbhPresentedAt : isRbh);
-// "Regina, SK" → SK: where an ONGIA event was held, for the provinces where RBH took part.
-const provinceAt = (e) => (e.province && PROVINCES[e.province] ? e.province : (/,\s*([A-Za-z]{2})\.?\s*$/.exec(String(e.city ?? ""))?.[1] ?? "").toUpperCase());
+// Where an event was held, for the provinces where RBH took part: its province, "Regina, SK", or the city alone
+// ("Regina", as ONGIA's own events are typed), from the cities ONGIA trains in (lib/ongiayear.mjs).
+const provinceAt = (e) => provinceOfEvent(e);
 const daysOf = (e) => {
   const a = Date.parse(e.dayOne), b = Date.parse(e.lastDay || e.dayOne);
   return Number.isFinite(a) && Number.isFinite(b) && b >= a ? Math.round((b - a) / 86400000) + 1 : 1;
