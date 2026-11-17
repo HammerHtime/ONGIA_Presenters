@@ -63,6 +63,7 @@ export default async (req) => {
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
+    if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
     if (url.searchParams.get("lead")) return setLead(id, body);
     if (url.searchParams.get("room")) return setRoom(id, body);
     const presenterId = url.searchParams.get("presenter");
@@ -185,6 +186,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // One of ONGIA's own events where RBH presented (Andrew 17 Nov 2026): it counts in RBH's annual sponsorship KPI
     // report. Never on an RBH event, which is RBH's own and is counted in the other report.
     rbhPresented: !canCost || body.rbhPresented === undefined ? (event.rbhPresented ?? false) : body.rbhPresented === true,
+    // …or had a spot there but couldn't present (the National Gang Summit, 2026): listed as a spot held for RBH, not reach.
+    rbhCancelled: !canCost || body.rbhCancelled === undefined ? (event.rbhCancelled ?? false) : body.rbhCancelled === true,
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
     invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),
     // Which saved letter each automatic email uses, and the survey's address.
@@ -196,7 +199,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     updatedAt: new Date().toISOString(),
   });
   // A project has its statement of work and invoice, and nothing for attendees or presenters to be emailed.
-  if (event.kind === "rbh") event.rbhPresented = false;
+  if (event.kind === "rbh") { event.rbhPresented = false; event.rbhCancelled = false; }
+  if (event.rbhPresented) event.rbhCancelled = false;
   if (project) Object.assign(event, { project: true, attendeeMail: false, noDeadlines: true });
   else delete event.project;
 
@@ -341,6 +345,23 @@ async function setRbh(id, body, canCost) {
   }
   await putEvent(event);
   return json({ event, canCost: true });
+}
+
+/**
+ * RBH at one of ONGIA's own events, on its own (Andrew 17 Nov 2026): { spot: "presented" | "cancelled" | "" }. Changes
+ * nothing else on the event, so it can be set without saving the whole Edit event form.
+ */
+async function setRbhSpot(id, body, canCost) {
+  if (!canCost) return fail("Only the president and the VP of operations can change this.", 403);
+  const event = id && (await getEvent(id));
+  if (!event) return fail("No such event.", 404);
+  if (event.kind === "rbh") return fail("This is an RBH event; it's counted in the RBH trainings report.", 409);
+  const spot = ["presented", "cancelled"].includes(body.spot) ? body.spot : "";
+  event.rbhPresented = spot === "presented";
+  event.rbhCancelled = spot === "cancelled";
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, rbhPresented: event.rbhPresented, rbhCancelled: event.rbhCancelled });
 }
 
 async function updateEvent(id, body, canCost) {
