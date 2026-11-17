@@ -30,7 +30,7 @@ const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["hotelName", "city", "rate", "arrival", "departure", "meetingFirst", "meetingLast", "dates", "money", "notes"],
+  required: ["hotelName", "city", "rate", "arrival", "departure", "meetingFirst", "meetingLast", "dates", "money", "notes", "issues"],
   properties: {
     // The API takes at most 16 fields that may be null (7 Nov 2026: 17 made every contract read fail), so the three
     // text answers and the page are "" and 0 when not given; cleanFound reads those as not given.
@@ -75,6 +75,12 @@ const SCHEMA = {
       },
     },
     notes: { type: "string" },
+    // What Andrew should look at before signing (17 Nov 2026: "Have claude flag issues").
+    issues: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["level", "text", "page"],
+        properties: { level: { type: "string", enum: ["fix", "check"] }, text: { type: "string" }, page: { type: "integer" } } },
+    },
   },
 };
 
@@ -94,6 +100,8 @@ Date kinds:
 For each date, quote the contract's own words in "quote" (one sentence at most) and give the page number if you can tell (0 if you can't). Leave "hotelName", "city" or "rate" as an empty string if the contract doesn't give it. Write "what" in plain English, under twelve words. When the contract gives a deadline relative to arrival ("30 days prior to arrival"), work out the calendar date from the contract's arrival date and say so in "what". Leave out the nights of the stay themselves and the date the contract was signed. Give "rate" as an attendee booking a room should see it, because it goes into emails to attendees: the price, the room type and "plus taxes" (naming the taxes briefly if the contract lists them), under 100 characters. Never put commissions, rebates, attrition or any other term between ONGIA and the hotel in "rate"; if the rate includes a commission, say so in "notes" instead.
 
 In "money", give the numbers ONGIA's own budget needs, each as a plain number with no currency sign: "roomRate" the nightly group rate before tax (the lowest if room types differ); "roomTaxPct" any municipal or destination accommodation tax as a percentage (not HST or GST); "blockNights" the total room nights in the block; "minimumPct" the share of the block ONGIA must fill without penalty, as a percentage; "fbMinimum" the food and beverage minimum before tax and service; "servicePct" and "adminPct" the service charge and administration fee on food as percentages; "rebatePerNight" any rebate per paid room night to ONGIA; "facilityFee" a meeting room or facility fee that applies if the minimums are not met. Leave any the contract does not state as null; never guess one.
+
+In "issues", list what ONGIA's president should know before signing, most important first, each one plain sentence, with the page (0 if you can't tell). "fix" is something wrong or missing that must be sorted before or when signing: ONGIA's details given wrongly (ONGIA's are: Andrew Hammond, President; president@ongia.ca; (416) 230-9802; 12612 Hwy 50, Unit 12A, Bolton, ON L7E 1T6), dates or numbers that don't match the event, an offer or hold that expires soon (give the date), and every blank ONGIA must fill: the Marriott Bonvoy or loyalty section, signature, name, title, date, electronic-signature box, initials, the form of payment. "check" is a term worth a second look: attrition and how many rooms must be used, cancellation charges and when they rise, food and beverage minimums, deposits, who pays (master account or each guest), commissions to a third party, anything unusual. Don't repeat the dates list; don't list ordinary boilerplate.
 
 Never give a date the contract does not support. If something is unclear — two different cut-off dates, a deadline with no date, a year that does not match the event — say so briefly in "notes"; otherwise leave "notes" empty.`;
 
@@ -166,6 +174,8 @@ export function tidy(raw, event, today = todayIso()) {
     dates,
     money: cleanMoney(raw?.money),
     notes: clip(raw?.notes, 800),
+    issues: (Array.isArray(raw?.issues) ? raw.issues : []).filter((i) => i && ["fix", "check"].includes(i.level) && String(i.text ?? "").trim())
+      .slice(0, 20).map((i) => ({ level: i.level, text: clip(i.text, 300), page: Number.isInteger(i.page) && i.page > 0 ? i.page : null })),
   };
 }
 
