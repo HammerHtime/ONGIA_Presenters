@@ -303,7 +303,7 @@ function blocksOf(body) {
 
 const H = {
   heading: "margin:26px 0 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#b8922a;font-weight:700;border-bottom:1px solid #ddd7c8;padding-bottom:6px",
-  day: "display:block;font-size:16px;font-weight:700;color:#1a2f5e;margin:0 0 2px",
+  day: "font-size:16px;font-weight:700;color:#1a2f5e",
   p: "margin:0 0 14px;line-height:1.55",
   ul: "margin:4px 0 16px;padding-left:20px;line-height:1.5",
   li: "margin:0 0 5px",
@@ -320,15 +320,15 @@ function bodyHtmlOf(body, event, person) {
         `<p style="margin:0 0 14px;font-size:13px;color:#767f92;word-break:break-all;overflow-wrap:anywhere">${esc(href)}</p>`;
     }
     if (b.type === "schedule") {
-      return scheduleLines(event).map((x) => `<p style="${H.p}"><strong style="${H.day}">${esc(x.day)}</strong>${esc(x.what)}</p>`).join("");
+      return scheduleLines(event).map((x) => `<p style="${H.p}"><strong style="${H.day}">${esc(x.day)}</strong>${x.what ? `<br>${esc(x.what)}` : ""}</p>`).join("");
     }
     return b.runs.map((run) => {
       if (run.bullet) return `<ul style="${H.ul}">${run.lines.map((l) => `<li style="${H.li}">${htmlOf(l, event, person)}</li>`).join("")}</ul>`;
       const parts = run.lines.map((l) => (DAYLINE.test(l) ? `<strong style="${H.day}">${htmlOf(l.trim(), event, person)}</strong>` : htmlOf(l, event, person)));
-      // A day heading is followed by its description with no <br> between: the
-      // heading is already its own line.
+      // A day heading then its description, a real <br> between (Outlook ignores display:block on <strong>, and ran
+      // "Tuesday, November 24" into "Harbour Room").
       let out = "";
-      parts.forEach((part, i) => { out += part; if (i < parts.length - 1 && !DAYLINE.test(run.lines[i])) out += "<br>"; });
+      parts.forEach((part, i) => { out += part; if (i < parts.length - 1) out += "<br>"; });
       return `<p style="${H.p}">${out}</p>`;
     }).join("");
   }).join("");

@@ -241,20 +241,24 @@ export function layout({ heading, lines = [], bodyHtml = null, button, buttons =
   // certificate email came up underlined), and is asked to keep these colours rather than invert them in dark mode.
   // The viewport line and the text-size lock stop phone mail apps from blowing
   // up paragraphs while leaving tables and buttons small beside them.
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="format-detection" content="date=no,address=no,telephone=no"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font-size:inherit!important;font-weight:inherit!important;line-height:inherit!important}</style></head><body style="margin:0;background:#f2efe8;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
-  <div style="max-width:560px;margin:0 auto;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;overflow:hidden">
-    <div style="background:${C.bar};color:#fff;padding:18px 24px;border-bottom:3px solid ${C.rule};text-align:center">
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="format-detection" content="date=no,address=no,telephone=no"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font-size:inherit!important;font-weight:inherit!important;line-height:inherit!important}</style></head><body style="margin:0;background:#f2efe8;padding:0;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#12161f;-webkit-text-size-adjust:100%;text-size-adjust:100%">
+  <!-- Tables with the colour on the cell (Andrew 17 Nov 2026, "I hate the rows format"): Outlook on Windows paints a
+       div's background only behind its text, so the page colour showed between paragraphs as stripes. -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f2efe8" style="background:#f2efe8;border-collapse:collapse"><tr><td align="center" style="padding:24px 12px">
+  <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" bgcolor="#fafaf7" style="width:100%;max-width:560px;background:#fafaf7;border:1px solid #ddd7c8;border-radius:22px;border-collapse:separate;overflow:hidden">
+    <tr><td bgcolor="${C.bar}" style="background:${C.bar};color:#fff;padding:18px 24px;border-bottom:3px solid ${C.rule};text-align:center;border-radius:21px 21px 0 0">
       ${siteUrl() ? `<img src="${siteUrl()}/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="204" height="52" style="display:block;margin:0 auto;border:0;height:52px;width:204px">`
         : `<div style="font-size:20px;font-weight:700;letter-spacing:.06em">ONGIA<span style="color:${C.tag}">.</span></div>
       <div style="margin-top:8px;font-size:9.5px;line-height:1.3;color:${C.tag};letter-spacing:.1em;text-transform:uppercase">Knowledge · Network · Impact</div>`}
-    </div>
-    <div style="padding:24px;font-size:15px">
+    </td></tr>
+    <tr><td bgcolor="#fafaf7" style="background:#fafaf7;padding:24px;font-size:15px;color:#12161f;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;border-radius:0 0 21px 21px">
       <h1 style="font-size:22px;margin:0 0 16px;color:${C.head}">${esc(heading)}</h1>
       ${paras}${cta}${extra}
       ${footer ? `<p style="margin:20px 0 0;font-size:13px;color:#767f92;line-height:1.5">${footer}</p>` : ""}
       ${contact ? signatureBlock(contact, event, lang) : ""}
-    </div>
-  </div></body></html>`;
+    </td></tr>
+  </table>
+  </td></tr></table></body></html>`;
 }
 
 // The text copy of an email is read as text: "&amp;" in a title has to come back as "&".
