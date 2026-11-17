@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, editGuard, adminWho, text } from "./lib/http.mjs";
 import { getEvent, listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { mayEditEvent } from "./lib/auth.mjs";
-import { yearFacts, yearState, yearReportsOf, putYearReports, yearVersionPdf, fileYearReport, yearFileName, inputsOf, putInputs, rbhYears, yearOf, YE_KINDS } from "./lib/yearend.mjs";
+import { yearFacts, yearState, yearReportsOf, putYearReports, yearVersionPdf, fileYearReport, yearFileName, inputsOf, putInputs, rbhYears, yearOf, YE_KINDS, trackOf, rbhPresentedAt } from "./lib/yearend.mjs";
 import { KINDS, reportsOf, putReports, standingOf, putStanding, versionPdf, fileNameOf, factsFor, halfBack, fileReport } from "./lib/reports.mjs";
 import { randomBytes } from "node:crypto";
 import { ongiaYearFacts, ongState, ongReportsOf, putOngReports, ongVersionPdf, fileOngReport, ongFileName, ongInputsOf, putOngInputs, ongYears, ONG_KINDS } from "./lib/ongiayear.mjs";
@@ -22,7 +22,8 @@ import { ongiaYearFacts, ongState, ongReportsOf, putOngReports, ongVersionPdf, f
  *   POST /api/reports?standing=1&kind=…&remove=<id>
  * Admin › RBH reports (Andrew 31 Oct 2026): every RBH training's reports for a year, and the year-end pair.
  *   GET  /api/reports?list=1[&year=Y]                       every RBH training that year with its reports, the year's figures, the two typed-in figures, the year-end reports
- *   PUT  /api/reports?yearend=Y&inputs=1                    { members, campaigns } typed in once a year
+ *   PUT  /api/reports?yearend=Y&inputs=1                    { members, campaigns[, reach] } typed in once a year
+ *   …&track=sponsor on any yearend or rbh call: the sponsorship KPI report (ONGIA events where RBH presented)
  *   GET  /api/reports?yearend=Y                              the year-end reports' state
  *   GET  /api/reports?yearend=Y&kind=exec|info&lang=en|fr&pdf=1[&v=n]
  *   POST /api/reports?yearend=Y&kind=…&build=1 | ask=1 { text, lang } | remove=<id> | revert=<n> | final=1 { final }
@@ -129,9 +130,16 @@ const thisYear = () => new Date().toISOString().slice(0, 4);
 /** Every RBH training of a year with where its reports stand, the year's figures, and the year-end reports. */
 async function rbhList(q) {
   const events = await listEvents();
-  const years = rbhYears(events);
+  const track = trackOf(q("track"));
+  const years = [...new Set([...rbhYears(events), ...events.filter((e) => rbhPresentedAt(e) && yearOf(e)).map(yearOf)])].sort();
   const year = /^\d{4}$/.test(q("year") ?? "") ? q("year") : thisYear();
   const today = new Date().toISOString().slice(0, 10);
+  // The sponsorship report's events: ONGIA's own, ticked "RBH presented"; no per-event RBH reports, just their figures.
+  if (track === "sponsor") {
+    const facts = await yearFacts(year, { events, track });
+    return json({ year: Number(year), years, track, rows: facts.trainingsList.map((r) => ({ ...r, held: r.held })), facts: { ...facts, comments: undefined, topics: undefined, commentCount: facts.comments.length },
+      inputs: await inputsOf(year, track), yearend: await yearState(year, facts, track) });
+  }
   const mine = events.filter((e) => e.kind === "rbh" && yearOf(e) === year).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
   const rows = await Promise.all(mine.map(async (e) => ({
     id: e.id, title: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "", lastDay: e.lastDay || e.dayOne || "", practice: !!e.practice,
@@ -139,7 +147,7 @@ async function rbhList(q) {
     ...(await state(e).catch((x) => ({ error: x.message, answered: 0, invited: 0, reports: null }))),
   })));
   const facts = await yearFacts(year, { events });
-  return json({ year: Number(year), years, rows, facts: { ...facts, comments: undefined, topics: undefined, commentCount: facts.comments.length },
+  return json({ year: Number(year), years, track, rows, facts: { ...facts, comments: undefined, topics: undefined, commentCount: facts.comments.length },
     inputs: await inputsOf(year), yearend: await yearState(year, facts) });
 }
 
@@ -147,37 +155,37 @@ async function rbhList(q) {
 async function yearend(req, q) {
   const year = q("yearend");
   if (!/^\d{4}$/.test(year)) return fail("Which year?");
-  const kind = q("kind");
+  const kind = q("kind"), track = trackOf(q("track"));
   if (req.method === "GET" && q("pdf")) {
     if (!YE_KINDS[kind]) return fail("Which report?");
     const lang = q("lang") === "fr" ? "fr" : "en";
-    const bytes = await yearVersionPdf(year, kind, lang, q("v") ? Number(q("v")) : null);
+    const bytes = await yearVersionPdf(year, kind, lang, q("v") ? Number(q("v")) : null, track);
     if (!bytes) return fail("That report hasn't been made yet.", 404);
-    const name = yearFileName(kind, lang, year);
+    const name = yearFileName(kind, lang, year, track);
     return new Response(bytes, { headers: { "content-type": "application/pdf", "cache-control": "no-store",
       "content-disposition": `inline; filename="${encodeURIComponent(name)}"; filename*=UTF-8''${encodeURIComponent(name)}` } });
   }
-  if (req.method === "GET") return json(await yearState(year));
+  if (req.method === "GET") return json(await yearState(year, null, track));
   // The year end belongs to no one event: the desk key, the president and the VP of operations change it.
   if (!mayEditEvent(adminWho(req), { board: [] })) return fail("Only the president and the VP of operations can change the year-end reports.", 403);
   const body = await req.json().catch(() => ({}));
   const who = adminWho(req).email || "desk";
   if (req.method === "PUT" && q("inputs")) {
-    await putInputs(year, body, who);
-    return json({ inputs: await inputsOf(year), yearend: await yearState(year) });
+    await putInputs(year, body, who, track);
+    return json({ inputs: await inputsOf(year, track), yearend: await yearState(year, null, track) });
   }
   if (req.method !== "POST" || !YE_KINDS[kind]) return fail("Which report?");
-  const all = await yearReportsOf(year);
+  const all = await yearReportsOf(year, track);
   const r = { versions: [], current: 0, requests: [], chat: [], final: false, ...(all[kind] ?? {}) };
-  const save = (next) => putYearReports(year, { ...all, [kind]: next });
+  const save = (next) => putYearReports(year, { ...all, [kind]: next }, track);
   const start = async (job) => {
     await save({ ...r, building: { at: new Date().toISOString(), why: job.reason }, error: null, ...(job.patch ?? {}) });
-    await kick(req, { yearend: year, kind, ...job, patch: undefined });
+    await kick(req, { yearend: year, kind, track, ...job, patch: undefined });
   };
   if (q("build")) {
     if (r.building && Date.now() - Date.parse(r.building.at) < 6 * 60000) return fail("It is being made now.", 409);
-    const f = await yearFacts(year);
-    if (!f.held) return fail(`No RBH training in ${year} has taken place yet.`, 409);
+    const f = await yearFacts(year, { track });
+    if (!f.held) return fail(track === "sponsor" ? `No ONGIA event in ${year} where RBH presented has taken place yet.` : `No RBH training in ${year} has taken place yet.`, 409);
     await start({ reason: "asked" });
   } else if (q("ask")) {
     const said = text(body.text, 1500);
@@ -194,11 +202,11 @@ async function yearend(req, q) {
     const n = Number(q("revert"));
     if (!r.versions.some((v) => v.n === n)) return fail("No such version.", 404);
     await save({ ...r, current: n, chat: [...r.chat, { who: "claude", text: `Back to version ${n}.`, at: new Date().toISOString(), version: n }] });
-    await fileYearReport(year, kind).catch(() => {});
+    await fileYearReport(year, kind, { track }).catch(() => {});
   } else if (q("final")) {
     await save({ ...r, final: !!body.final, finalAt: body.final ? new Date().toISOString() : null });
   } else return fail("Expected build, ask, remove, revert or final.");
-  return json(await yearState(year));
+  return json(await yearState(year, null, track));
 }
 
 /* ---------- Reports › ONGIA ---------- */

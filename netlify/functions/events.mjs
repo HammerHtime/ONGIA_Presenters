@@ -182,6 +182,9 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // invoice (only the president and the VP see them), and the province says which sales tax applies.
     // Only someone who may see the costs can make an event an RBH event, unmake it, or change its tax and numbering.
     kind: !canCost || body.kind === undefined ? (event.kind ?? "") : (body.kind === "rbh" ? "rbh" : ""),
+    // One of ONGIA's own events where RBH presented (Andrew 17 Nov 2026): it counts in RBH's annual sponsorship KPI
+    // report. Never on an RBH event, which is RBH's own and is counted in the other report.
+    rbhPresented: !canCost || body.rbhPresented === undefined ? (event.rbhPresented ?? false) : body.rbhPresented === true,
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
     invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),
     // Which saved letter each automatic email uses, and the survey's address.
@@ -193,6 +196,7 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     updatedAt: new Date().toISOString(),
   });
   // A project has its statement of work and invoice, and nothing for attendees or presenters to be emailed.
+  if (event.kind === "rbh") event.rbhPresented = false;
   if (project) Object.assign(event, { project: true, attendeeMail: false, noDeadlines: true });
   else delete event.project;
 

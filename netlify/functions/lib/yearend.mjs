@@ -23,14 +23,34 @@ export const YE_KINDS = {
   exec: { en: "Executive Summary", fr: "Sommaire exécutif" },
   info: { en: "Infographic", fr: "Infographie" },
 };
+/**
+ * Two reports for RBH (Andrew 17 Nov 2026), from two signed agreements:
+ * - "consulting": the trainings ONGIA runs for RBH under the consulting agreement (RBH ITP, the RBH Organized Crime
+ *   symposiums and the like: events marked as RBH events). The year end as it was first built.
+ * - "sponsor": the annual KPI report the sponsorship agreement asks for: ONGIA's own events where RBH presented
+ *   (Edmonton, Regina and the like), each ticked "RBH presented" on its Edit event page.
+ */
+export const TRACKS = ["consulting", "sponsor"];
+export const trackOf = (t) => (t === "sponsor" ? "sponsor" : "consulting");
+const SPONSOR_KINDS = {
+  exec: { en: "Sponsorship Report", fr: "Rapport sur la commandite" },
+  info: { en: "Sponsorship Infographic", fr: "Infographie de la commandite" },
+};
+export const kindNames = (track) => (trackOf(track) === "sponsor" ? SPONSOR_KINDS : YE_KINDS);
 // Where the year-end PDFs are filed in the SharePoint library; {year} is replaced. RBH_YEAREND_FOLDER changes it.
-export const yearFolder = (year) => (process.env.RBH_YEAREND_FOLDER || "RBH/Year end {year}").replace("{year}", String(year));
-export const yearFileName = (kind, lang, year) => `${YE_KINDS[kind][lang]} ${year}.pdf`;
+// The sponsorship report goes in a folder of its own inside it.
+export const yearFolder = (year, track = "consulting") => (process.env.RBH_YEAREND_FOLDER || "RBH/Year end {year}").replace("{year}", String(year)) + (trackOf(track) === "sponsor" ? "/Sponsorship" : "");
+export const yearFileName = (kind, lang, year, track = "consulting") => `${kindNames(track)[kind][lang]} ${year}.pdf`;
 
 const SPONSOR = "Rothmans, Benson & Hedges";
 const pctOf = (a, b) => (b ? Math.round((100 * a) / b) : 0);
 export const yearOf = (e) => String(e?.dayOne ?? "").slice(0, 4);
 const isRbh = (e) => e?.kind === "rbh" && !e?.practice;
+/** An ONGIA event of its own where RBH presented: counted in the sponsorship report. */
+export const rbhPresentedAt = (e) => e?.kind !== "rbh" && e?.rbhPresented === true && !e?.practice && !e?.project;
+const inTrack = (track) => (trackOf(track) === "sponsor" ? rbhPresentedAt : isRbh);
+// "Regina, SK" → SK: where an ONGIA event was held, for the provinces where RBH took part.
+const provinceAt = (e) => (e.province && PROVINCES[e.province] ? e.province : (/,\s*([A-Za-z]{2})\.?\s*$/.exec(String(e.city ?? ""))?.[1] ?? "").toUpperCase());
 const daysOf = (e) => {
   const a = Date.parse(e.dayOne), b = Date.parse(e.lastDay || e.dayOne);
   return Number.isFinite(a) && Number.isFinite(b) && b >= a ? Math.round((b - a) / 86400000) + 1 : 1;
@@ -42,11 +62,14 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /* ---------- The two figures typed in once a year ---------- */
 
-export const inputsOf = async (year) => (await getMeta(`rbh:yearend:${year}:inputs`)) ?? { members: null, campaigns: null };
-export async function putInputs(year, body, by = "desk") {
+// The sponsorship report's own: its campaigns are those with contraband tobacco awareness messaging, and it has the
+// estimated digital reach the agreement lists as a KPI.
+const inputsKey = (year, track) => (trackOf(track) === "sponsor" ? `rbh:sponsor:${year}:inputs` : `rbh:yearend:${year}:inputs`);
+export const inputsOf = async (year, track = "consulting") => (await getMeta(inputsKey(year, track))) ?? { members: null, campaigns: null, reach: null };
+export async function putInputs(year, body, by = "desk", track = "consulting") {
   const n = (v) => (v === "" || v === null || v === undefined ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v)) : null);
-  const out = { members: n(body.members), campaigns: n(body.campaigns), at: new Date().toISOString(), by };
-  await putMeta(`rbh:yearend:${year}:inputs`, out);
+  const out = { members: n(body.members), campaigns: n(body.campaigns), ...(trackOf(track) === "sponsor" ? { reach: n(body.reach) } : {}), at: new Date().toISOString(), by };
+  await putMeta(inputsKey(year, track), out);
   return out;
 }
 
@@ -70,7 +93,7 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
   }
   const speakers = presenters.filter((p) => p.status !== "withdrawn");
   return {
-    id: event.id, title: event.title, city: cityOf(event), province: event.province || "", dayOne: event.dayOne || "", lastDay: event.lastDay || event.dayOne || "",
+    id: event.id, title: event.title, city: cityOf(event), province: provinceAt(event), dayOne: event.dayOne || "", lastDay: event.lastDay || event.dayOne || "",
     days: daysOf(event), held: (event.lastDay || event.dayOne || "9") < now,
     registered: people.length, attended: came.length, basis: tookAttendance ? "checked in" : "registered",
     agencies: [...agencies.values()],
@@ -83,25 +106,27 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
 /* ---------- The year ---------- */
 
 /** Every figure the year-end reports may state, for one calendar year. */
-export async function yearFacts(year, { events = null, now = today() } = {}) {
+export async function yearFacts(year, { events = null, now = today(), track = "consulting" } = {}) {
+  track = trackOf(track);
+  const counts = inTrack(track);
   const all = events ?? (await listEvents());
   const list = await directory().catch(() => []);
-  const mine = all.filter((e) => isRbh(e) && yearOf(e) === String(year)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
+  const mine = all.filter((e) => counts(e) && yearOf(e) === String(year)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""));
   const rows = await Promise.all(mine.map((e) => trainingFacts(e, list, { now })));
   // Agencies seen at RBH trainings in earlier years, to tell new ones from returning ones.
-  const earlierEvents = all.filter((e) => isRbh(e) && yearOf(e) && yearOf(e) < String(year));
+  const earlierEvents = all.filter((e) => counts(e) && yearOf(e) && yearOf(e) < String(year));
   let earlier = null;
   if (earlierEvents.length) {
     earlier = new Set();
     for (const e of earlierEvents) for (const a of (await trainingFacts(e, list, { now })).agencies) earlier.add(a.agency);
   }
-  const next = all.filter((e) => isRbh(e) && yearOf(e) === String(Number(year) + 1)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""))
+  const next = all.filter((e) => counts(e) && yearOf(e) === String(Number(year) + 1)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""))
     .map((e) => ({ title: e.title, city: cityOf(e), dayOne: e.dayOne }));
-  return combineYear(year, rows, { earlier, next, inputs: await inputsOf(year) });
+  return combineYear(year, rows, { earlier, next, inputs: await inputsOf(year, track), track });
 }
 
 /** The year's figures from its trainings' figures (trainingFacts), the agencies seen before, next year's bookings and the typed-in figures. */
-export function combineYear(year, rows, { earlier = null, next = [], inputs = { members: null, campaigns: null } } = {}) {
+export function combineYear(year, rows, { earlier = null, next = [], inputs = { members: null, campaigns: null }, track = "consulting" } = {}) {
   const held = rows.filter((r) => r.held);
 
   // Agencies and provinces reached, from those who came to trainings that have happened.
@@ -139,8 +164,11 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
   const attendees = held.reduce((a, r) => a + r.attended, 0);
   const q = (id) => scoring.find((s) => s.id === id) ?? null;
 
+  // Where the events themselves were held (the sponsorship KPI "cities and provinces where RBH participated").
+  const heldIn = [...new Set(held.map((r) => r.province).filter((c) => PROVINCES[c]))].sort();
   return {
-    year: Number(year),
+    year: Number(year), track: trackOf(track),
+    heldInProvinces: heldIn.map((c) => ({ code: c, en: PROVINCES[c] })),
     trainings: rows.length, held: held.length, upcoming: rows.length - held.length,
     attendees, attendeeDays: held.reduce((a, r) => a + r.attended * r.days, 0), trainingDays: held.reduce((a, r) => a + r.days, 0),
     attendanceBasis: held.every((r) => r.basis === "checked in") ? "checked in" : held.every((r) => r.basis === "registered") ? "registered" : "mixed",
@@ -156,8 +184,9 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
     presenterOrgs: [...new Set(held.flatMap((r) => r.presenterOrgs))].length,
     survey: { answered, invited, rate: pctOf(answered, invited), quality: q("quality")?.top2 ?? null, practical: q("practical")?.top2 ?? null, confidence: q("confidence")?.top2 ?? null },
     scoring, sessions,
-    communications: { members: inputs.members, campaigns: inputs.campaigns, estimatedEmails: inputs.members != null && inputs.campaigns != null ? inputs.members * inputs.campaigns : null },
-    trainingsList: rows.map((r) => ({ title: r.title, city: r.city, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held, attended: r.held ? r.attended : null,
+    communications: { members: inputs.members, campaigns: inputs.campaigns, estimatedEmails: inputs.members != null && inputs.campaigns != null ? inputs.members * inputs.campaigns : null,
+      ...(trackOf(track) === "sponsor" ? { digitalReach: inputs.reach ?? null } : {}) },
+    trainingsList: rows.map((r) => ({ id: r.id, title: r.title, city: r.city, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held, attended: r.held ? r.attended : null,
       answered: r.survey?.answered ?? 0, surveyRate: r.held && r.survey?.invited ? pctOf(r.survey.answered, r.survey.invited) : null, quality: r.held ? (r.survey?.scoring?.find((s) => s.id === "quality")?.top2 ?? null) : null })),
     nextYear: { count: next.length, trainings: next },
     comments: comments.slice(0, 300), topics,
@@ -198,7 +227,16 @@ export const YE_SCHEMAS = {
   },
 };
 const LANG = { en: "English", fr: "Canadian French (as written for senior managers in Québec: natural, formal, not translated word for word)" };
-export const YE_SYSTEM = (kind, lang) => `You write the ${kind === "exec" ? "year-end executive summary" : "one-page year-end infographic"} of ONGIA's partnership with Rothmans, Benson & Hedges (RBH). ONGIA is a Canadian non-profit that trains law enforcement, corrections, border and justice staff on organized crime and illicit trade; RBH funds a program of trainings with it. The readers are RBH's senior leaders, and the document shows them what the partnership delivered over the calendar year.
+/** The sponsorship report's brief: the KPIs the sponsorship agreement lists, from ONGIA's own events where RBH presented. */
+const SPONSOR_SYSTEM = (kind, lang) => `You write the ${kind === "exec" ? "year-end sponsorship report" : "one-page year-end sponsorship infographic"} for Rothmans, Benson & Hedges (RBH), a national sponsor of ONGIA. ONGIA is a Canadian non-profit that trains law enforcement, corrections, border and justice staff on gangs, organized crime and illicit trade. RBH sponsors ONGIA's training program and presents at ONGIA's own training events on contraband tobacco and its links to organized crime. The figures are from the ONGIA events of the calendar year where RBH presented. The readers are RBH's senior leaders, and this is the annual KPI report the sponsorship agreement calls for: the people RBH presented to through ONGIA-led sessions, the cities and provinces where RBH took part, the emails to ONGIA's membership with contraband tobacco awareness messaging, the estimated digital reach, and attendance at each event.
+
+Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support.
+
+The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. The attendance figures are everyone who attended those events, so call them the attendees of the events where RBH presented; don't claim each of them sat in RBH's session. The email figure is an estimate (members times campaigns) and must be called an estimate; so is the digital reach. These events are ONGIA's own; never call them RBH trainings or say RBH funded or ran a particular event. Never mention social media. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
+
+ONGIA's requests for this document come last. Follow every one of them. They may add sections, change wording or emphasis, or leave things out; they can't change a figure or a quote's words.`;
+
+export const YE_SYSTEM = (kind, lang, track = "consulting") => trackOf(track) === "sponsor" ? SPONSOR_SYSTEM(kind, lang) : `You write the ${kind === "exec" ? "year-end executive summary" : "one-page year-end infographic"} of ONGIA's partnership with Rothmans, Benson & Hedges (RBH). ONGIA is a Canadian non-profit that trains law enforcement, corrections, border and justice staff on organized crime and illicit trade; RBH funds a program of trainings with it. The readers are RBH's senior leaders, and the document shows them what the partnership delivered over the calendar year.
 
 Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no superlatives the figures don't support.
 
@@ -214,7 +252,7 @@ export async function writeYearReport(kind, lang, facts, { requests = [], previo
   const message = await api.messages.create({
     model: "claude-opus-5-5", max_tokens: 16000,
     output_config: { effort: "medium", format: { type: "json_schema", schema: YE_SCHEMAS[kind] } },
-    system: YE_SYSTEM(kind, lang),
+    system: YE_SYSTEM(kind, lang, facts.track),
     messages: [{ role: "user", content: `${JSON.stringify(brief)}${previous ? `\n\nThe current version, to keep unless the requests or new figures change it:\n${JSON.stringify(previous)}` : ""}${requests.length ? `\n\nONGIA's requests:\n${requests.map((a) => `- ${a}`).join("\n")}` : ""}${ask ? `\n\nJust now ONGIA asked: ${ask}\nSay in reply what you changed.` : ""}` }],
   });
   if (message.stop_reason === "refusal") throw new Error("Claude would not write this report.");
@@ -238,15 +276,17 @@ export function keepHonestYear(kind, out, facts) {
 /* ---------- Kept on the desk: versions, requests, the chat ---------- */
 
 const blank = () => ({ versions: [], current: 0, requests: [], chat: [], final: false });
-export const yearReportsOf = async (year) => (await getMeta(`reports:yearend:${year}`)) ?? {};
-export const putYearReports = (year, r) => putMeta(`reports:yearend:${year}`, r);
+const reportsKey = (year, track) => (trackOf(track) === "sponsor" ? `reports:yearend-sponsor:${year}` : `reports:yearend:${year}`);
+export const yearReportsOf = async (year, track = "consulting") => (await getMeta(reportsKey(year, track))) ?? {};
+export const putYearReports = (year, r, track = "consulting") => putMeta(reportsKey(year, track), r);
 
 /** Make one year-end report again (both languages) and keep it as a new version. */
-export async function buildYearReport(year, kind, { reason = "asked", ask = "", lang = "both", client = null, facts = null, now = new Date() } = {}) {
-  const all = await yearReportsOf(year);
+export async function buildYearReport(year, kind, { reason = "asked", ask = "", lang = "both", client = null, facts = null, now = new Date(), track = "consulting" } = {}) {
+  track = trackOf(track);
+  const all = await yearReportsOf(year, track);
   const r = { ...blank(), ...(all[kind] ?? {}) };
-  const f = facts ?? (await yearFacts(year));
-  if (!f.held) throw new Error(`No RBH training in ${year} has taken place yet.`);
+  const f = facts ?? (await yearFacts(year, { track }));
+  if (!f.held) throw new Error(track === "sponsor" ? `No ONGIA event in ${year} where RBH presented has taken place yet.` : `No RBH training in ${year} has taken place yet.`);
   const prev = r.versions.find((v) => v.n === r.current) ?? null;
   const forLang = (l) => r.requests.filter((q) => q.lang === "both" || q.lang === l).map((q) => q.text);
   const redo = (l) => !prev || reason !== "asked-change" || lang === "both" || lang === l;
@@ -258,47 +298,48 @@ export async function buildYearReport(year, kind, { reason = "asked", ask = "", 
   r.versions = [...r.versions, version].slice(-12);
   r.current = n;
   if (ask) r.chat = [...r.chat, { who: "claude", text: (lang === "fr" ? fr.reply : en.reply) || (lang === "fr" ? "C'est fait." : "Done."), at: now.toISOString(), version: n }].slice(-80);
-  await putYearReports(year, { ...(await yearReportsOf(year)), [kind]: r });
+  await putYearReports(year, { ...(await yearReportsOf(year, track)), [kind]: r }, track);
   return version;
 }
 
-export async function yearVersionPdf(year, kind, lang, n = null) {
-  const r = (await yearReportsOf(year))[kind];
+export async function yearVersionPdf(year, kind, lang, n = null, track = "consulting") {
+  const r = (await yearReportsOf(year, track))[kind];
   const v = r?.versions?.find((x) => x.n === (n ?? r.current));
   if (!v) return null;
   return (kind === "exec" ? yearExecPdf : yearInfoPdf)(v.content[lang], v.facts, lang, { date: v.at.slice(0, 10) });
 }
 
 /** Both languages of the current version, to the year-end folder in the library. */
-export async function fileYearReport(year, kind, { file = null } = {}) {
+export async function fileYearReport(year, kind, { file = null, track = "consulting" } = {}) {
   const put = file ?? (await import("./graph.mjs")).fileLibraryDocument;
-  const r = (await yearReportsOf(year))[kind];
+  const r = (await yearReportsOf(year, track))[kind];
   const out = {};
   for (const lang of ["en", "fr"]) {
     try {
-      const bytes = await yearVersionPdf(year, kind, lang);
-      const got = await put({ folder: yearFolder(year), name: yearFileName(kind, lang, year), bytes, contentType: "application/pdf" });
+      const bytes = await yearVersionPdf(year, kind, lang, null, track);
+      const got = await put({ folder: yearFolder(year, track), name: yearFileName(kind, lang, year, track), bytes, contentType: "application/pdf" });
       out[lang] = got.skipped ? { skipped: got.reason } : { url: got.url, folderUrl: got.folderUrl, at: new Date().toISOString(), version: r.current };
     } catch (e) { out[lang] = { error: e.message }; }
   }
-  const now = await yearReportsOf(year);
-  await putYearReports(year, { ...now, [kind]: { ...now[kind], filed: out } });
+  const now = await yearReportsOf(year, track);
+  await putYearReports(year, { ...now, [kind]: { ...now[kind], filed: out } }, track);
   return out;
 }
 
 /** Where both year-end reports stand, the shape the event reports use. */
-export async function yearState(year, facts = null) {
-  const all = await yearReportsOf(year);
-  const f = facts ?? (await yearFacts(year));
+export async function yearState(year, facts = null, track = "consulting") {
+  track = trackOf(track);
+  const all = await yearReportsOf(year, track);
+  const f = facts ?? (await yearFacts(year, { track }));
   const one = (kind) => {
     const r = all[kind] ?? {};
     const cur = r.versions?.find((v) => v.n === r.current);
-    return { name: YE_KINDS[kind], made: !!cur, current: r.current ?? 0, final: !!r.final, finalAt: r.finalAt ?? null, building: r.building ?? null, error: r.error ?? null,
+    return { name: kindNames(track)[kind], made: !!cur, current: r.current ?? 0, final: !!r.final, finalAt: r.finalAt ?? null, building: r.building ?? null, error: r.error ?? null,
       version: cur ? { n: cur.n, at: cur.at, reason: cur.reason, answered: cur.answered, invited: cur.invited } : null,
       versions: (r.versions ?? []).map((v) => ({ n: v.n, at: v.at, reason: v.reason, answered: v.answered })), requests: r.requests ?? [], chat: r.chat ?? [], filed: r.filed ?? null,
       newSince: cur ? Math.max(0, f.survey.answered - cur.answered) : 0 };
   };
-  return { year: Number(year), answered: f.survey.answered, invited: f.survey.invited, held: f.held, folder: yearFolder(year),
+  return { year: Number(year), track, answered: f.survey.answered, invited: f.survey.invited, held: f.held, folder: yearFolder(year, track),
     reports: Object.fromEntries(Object.keys(YE_KINDS).map((k) => [k, one(k)])) };
 }
 
@@ -339,6 +380,40 @@ const T = {
     tConf: "Confiance", tConfSub: "pour l'appliquer", tCerts: "Certificats", tCertsSub: "délivrés", want: "Les participants souhaitent", wantSub: "Selon les commentaires",
     lookingAhead: "Perspectives :", footInfo: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Préparé par l'ONGIA · ${d}`, footExec: (y) => `Sommaire exécutif de fin d'année ${y} · ONGIA et RBH`, more: (n) => `+ ${n} autres` },
 };
+// The sponsorship report's own words (Andrew 17 Nov 2026): ONGIA's events where RBH presented, never "RBH trainings",
+// and the KPI table the sponsorship agreement lists.
+const TS = {
+  en: { exec: "Sponsorship Report", partner: (y) => `RBH's sponsorship of ONGIA training · ${y}`, review: (y) => `Sponsorship year in review · ${y}`, kicker: "Sponsorship results",
+    trainings: "ONGIA events where RBH presented", colTraining: "Event", toCome: "To come",
+    growText: (n, r) => `${n} agencies attended an ONGIA event with RBH presenting for the first time; ${r} had attended one before.`,
+    comm: (m, c, e, y) => (m != null && c != null ? `ONGIA sent ${c} email campaigns with contraband tobacco awareness messaging to its ${m} members in ${y}, about ${e} emails (an estimate: members × campaigns).`
+      : m != null ? `ONGIA's member database holds ${m} members.` : c != null ? `ONGIA sent ${c} email campaigns with contraband tobacco awareness messaging in ${y}.` : ""),
+    booked: (n, y) => `${n} ONGIA event${n === 1 ? "" : "s"} with RBH presenting already booked for ${y}.`,
+    tTrainings: "Events", tTraining1: "Event", tTrained: "Attendees", tTrainedSub: (b) => (b === "registered" ? "registered" : "at events with RBH"),
+    footExec: (y) => `Sponsorship Report ${y} · ONGIA and RBH`,
+    kpis: "KPIs from the sponsorship agreement", kpi: "KPI", result: "Result", notYet: "Not entered yet", seeTable: (n) => `${n} event${n === 1 ? "" : "s"}; see the table below`,
+    kPeople: "Individuals RBH presented to through ONGIA-led sessions", kPeopleR: (a) => `${a} attendees at the events where RBH presented`,
+    kWhere: "Cities and provinces where RBH participated", kWhereR: (c, p, list) => `${c} cit${c === "1" ? "y" : "ies"} in ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
+    kEmails: "Emails to ONGIA's membership with contraband tobacco awareness messaging", kEmailsR: (e, m, c) => `About ${e} (an estimate: ${m} members × ${c} campaigns)`,
+    kReach: "Estimated digital reach and engagement with RBH awareness materials", kReachR: (r) => `About ${r} (an estimate)`,
+    kAttend: "Event-specific attendance", tReach: "Digital reach", tReachSub: "estimated" },
+  fr: { exec: "Rapport sur la commandite", partner: (y) => `La commandite de RBH à la formation de l'ONGIA · ${y}`, review: (y) => `Bilan de la commandite · ${y}`, kicker: "Résultats de la commandite",
+    trainings: "Événements de l'ONGIA où RBH a présenté", colTraining: "Événement", toCome: "À venir",
+    growText: (n, r) => `${n} organismes ont assisté pour la première fois à un événement de l'ONGIA où RBH a présenté; ${r} y avaient déjà assisté.`,
+    comm: (m, c, e, y) => (m != null && c != null ? `L'ONGIA a envoyé ${c} campagnes de courriels de sensibilisation au tabac de contrebande à ses ${m} membres en ${y}, soit environ ${e} courriels (estimation : membres × campagnes).`
+      : m != null ? `La base de données de l'ONGIA compte ${m} membres.` : c != null ? `L'ONGIA a envoyé ${c} campagnes de courriels de sensibilisation au tabac de contrebande en ${y}.` : ""),
+    booked: (n, y) => `${n} événement${n === 1 ? "" : "s"} de l'ONGIA avec une présentation de RBH déjà prévu${n === 1 ? "" : "s"} en ${y}.`,
+    tTrainings: "Événements", tTraining1: "Événement", tTrained: "Participants", tTrainedSub: (b) => (b === "registered" ? "inscrits" : "aux événements avec RBH"),
+    footExec: (y) => `Rapport sur la commandite ${y} · ONGIA et RBH`,
+    kpis: "Indicateurs de l'entente de commandite", kpi: "Indicateur", result: "Résultat", notYet: "Pas encore saisi", seeTable: (n) => `${n} événement${n === 1 ? "" : "s"}; voir le tableau ci-dessous`,
+    kPeople: "Personnes auxquelles RBH a présenté dans le cadre des séances de l'ONGIA", kPeopleR: (a) => `${a} participants aux événements où RBH a présenté`,
+    kWhere: "Villes et provinces où RBH a participé", kWhereR: (c, p, list) => `${c} ville${c === "1" ? "" : "s"} dans ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
+    kEmails: "Courriels aux membres de l'ONGIA avec un message de sensibilisation au tabac de contrebande", kEmailsR: (e, m, c) => `Environ ${e} (estimation : ${m} membres × ${c} campagnes)`,
+    kReach: "Portée et engagement numériques estimés des documents de sensibilisation de RBH", kReachR: (r) => `Environ ${r} (estimation)`,
+    kAttend: "Participation par événement", tReach: "Portée numérique", tReachSub: "estimée" },
+};
+const textOf = (lang, f) => (f?.track === "sponsor" ? { ...T[lang], ...TS[lang] } : T[lang]);
+
 // The survey's training measures, in a few words for the table (the questions themselves are long).
 const MEASURE = {
   quality: { en: "Overall quality of the training", fr: "Qualité globale de la formation" },
@@ -367,7 +442,7 @@ const lead = (t) => { const m = /^(.{3,90}?[.:])\s+(.+)$/s.exec(String(t)); retu
 
 /** The two rows of infographic tiles (navy, then gold), and the first five for the summary. */
 function tilesOf(f, lang) {
-  const L = T[lang];
+  const L = textOf(lang, f);
   const navy = [
     { big: num(f.trainings, lang), label: f.trainings === 1 ? L.tTraining1 : L.tTrainings, sub: L.tCities(new Set(f.trainingsList.map((t) => cityKey(t.city)).filter(Boolean)).size) },
     { big: num(f.attendees, lang), label: L.tTrained, sub: L.tTrainedSub(f.attendanceBasis) },
@@ -377,10 +452,11 @@ function tilesOf(f, lang) {
   const c = f.communications;
   const gold = [
     c.estimatedEmails != null ? { big: `~${num(c.estimatedEmails, lang)}`, label: L.tEmails, sub: L.tEmailsSub(num(c.members, lang)) } : null,
+    f.track === "sponsor" && c.digitalReach != null ? { big: `~${num(c.digitalReach, lang)}`, label: L.tReach, sub: L.tReachSub } : null,
     f.survey.quality != null ? { big: pc(f.survey.quality, lang), label: L.tQuality, sub: L.tQualitySub } : null,
     f.survey.confidence != null ? { big: pc(f.survey.confidence, lang), label: L.tConf, sub: L.tConfSub } : null,
     f.certificates ? { big: num(f.certificates, lang), label: L.tCerts, sub: L.tCertsSub } : null,
-  ].filter(Boolean);
+  ].filter(Boolean).slice(0, 4);
   return { navy, gold };
 }
 function tile(doc, t, x, y, w, h, goldTile, big = 24) {
@@ -391,7 +467,7 @@ function tile(doc, t, x, y, w, h, goldTile, big = 24) {
 }
 
 export async function yearExecPdf(content, f, lang, { date }) {
-  const L = T[lang], Y = f.year;
+  const L = textOf(lang, f), Y = f.year;
   const { doc, done } = newDoc(`${L.exec} ${Y}`);
   const W = doc.page.width - 108, X = 54;
   let first = true;
@@ -450,6 +526,19 @@ export async function yearExecPdf(content, f, lang, { date }) {
   const { navy, gold } = tilesOf(f, lang);
   const five = [...navy, ...(f.survey.quality != null ? [gold.find((g) => g.label === L.tQuality)] : [])];
   room(76); { const y = doc.y + 4, gap = 6, tw = (W - gap * (five.length - 1)) / five.length; five.forEach((t, i) => tile(doc, { ...t, sub: t.label === L.tQuality ? t.sub : "" }, X + i * (tw + gap), y, tw, 60, t.label === L.tQuality, 22)); doc.y = y + 68; doc.x = X; }
+  if (f.track === "sponsor") {
+    const c = f.communications, cities = new Set(f.trainingsList.filter((r) => r.held).map((r) => cityKey(r.city)).filter(Boolean)).size;
+    const provs = (f.heldInProvinces ?? []).map((p) => (lang === "fr" ? PROV_FR[p.code] : p.en)).join(", ");
+    h2(L.kpis, 150);
+    table([{ label: L.kpi, w: 0.5 }, { label: L.result, w: 0.5 }], [
+      [L.kPeople, L.kPeopleR(num(f.attendees, lang))],
+      [L.kWhere, L.kWhereR(num(cities, lang), num((f.heldInProvinces ?? []).length, lang), provs)],
+      [L.kEmails, c.estimatedEmails != null ? L.kEmailsR(num(c.estimatedEmails, lang), num(c.members, lang), num(c.campaigns, lang)) : L.notYet],
+      [L.kReach, c.digitalReach != null ? L.kReachR(num(c.digitalReach, lang)) : L.notYet],
+      [L.kAttend, L.seeTable(f.held)],
+    ]);
+    doc.moveDown(0.3);
+  }
   h2(L.trainings, 120);
   const held = f.trainingsList.filter((r) => r.held);
   const rows = f.trainingsList.map((r) => [r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.surveyRate != null ? pc(r.surveyRate, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
@@ -529,8 +618,8 @@ export async function yearExecPdf(content, f, lang, { date }) {
 }
 
 export async function yearInfoPdf(content, f, lang, { date }) {
-  const L = T[lang], Y = f.year;
-  const { doc, done } = newDoc(`${L.review(Y)} — ${YE_KINDS.info[lang]}`);
+  const L = textOf(lang, f), Y = f.year;
+  const { doc, done } = newDoc(`${L.review(Y)} — ${kindNames(f.track).info[lang]}`);
   const X = 36, W = doc.page.width - 72, BOTTOM = doc.page.height - 50;
   doc.page.margins.bottom = 0;   // one page: the footer sits below the usual margin and must not start another
   doc.image(LOGO, X, 26, { height: 38 });
