@@ -29,9 +29,9 @@ ok("and saving it changed keeps the change", changed.sessions[0].about === "Chan
 
 const R = { respondents: 3, responses: 3, headline: { n: 0 }, years: [], provinces: [], agencies: [], trained: null, sessions: [], overall: { pace: {}, topics: [] }, comments: [] };
 const html = infographicHtml({ ...event, survey: had }, R, null, { lang: "en", block: "topics" });
-ok("the infographic shows it under the title", /<h3>Project Poppy<\/h3><p>A human trafficking investigation<\/p>/.test(html), (html.match(/<h3>[\s\S]{0,120}/) || [""])[0]);
+ok("the infographic shows it under the title", /<span class="tt">Project Poppy<\/span><\/div><p class="ab">A human trafficking investigation<\/p>/.test(html), (html.match(/<span class="tt">[\s\S]{0,120}/) || [""])[0]);
 const fr = infographicHtml({ ...event, survey: had }, R, null, { lang: "fr", block: "topics" });
-ok("in French, the French line", /<p>Une enquête<\/p>/.test(fr));
+ok("in French, the French line", /<p class="ab">Une enquête<\/p>/.test(fr));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

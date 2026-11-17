@@ -88,7 +88,7 @@ await p.locator('#rsdlg button[value="close"]').click(); await p.waitForTimeout(
 
 await p.locator('[data-rslang="fr"]').click(); await p.waitForTimeout(300);
 await p.locator("#rs-info").click(); await p.waitForTimeout(2500);
-ok("in French", /QUALITÉ GLOBALE|Qualité globale/.test(await frame.locator("#art").innerText()));
+ok("in French", /NOTE MOYENNE|Note moyenne/.test(await frame.locator("#art").innerText()));
 await p.locator('#rsdlg button[value="close"]').click(); await p.waitForTimeout(300);
 const zip = await bytesOf(p, () => p.locator("#rs-social").click());
 const names = [...zip.buf.toString("latin1").matchAll(/PK\x03\x04[\s\S]{26}([0-9a-z-]+\.png)/g)].map((m) => m[1]);
