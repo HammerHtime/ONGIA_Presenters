@@ -32,15 +32,15 @@ export default async (req) => {
 
 /** The RBH year-end Executive Summary or infographic (Admin › RBH reports), made and filed the same way. */
 async function yearEnd(job) {
-  const year = String(job.yearend);
-  const settle = async (patch) => { const all = await yearReportsOf(year); await putYearReports(year, { ...all, [job.kind]: { ...all[job.kind], building: null, ...patch } }); };
+  const year = String(job.yearend), track = job.track === "sponsor" ? "sponsor" : "consulting";
+  const settle = async (patch) => { const all = await yearReportsOf(year, track); await putYearReports(year, { ...all, [job.kind]: { ...all[job.kind], building: null, ...patch } }, track); };
   try {
-    await buildYearReport(year, job.kind, { reason: job.reason || "asked", ask: job.ask || "", lang: job.lang || "both" });
+    await buildYearReport(year, job.kind, { reason: job.reason || "asked", ask: job.ask || "", lang: job.lang || "both", track });
     await settle({ error: null });
-    await fileYearReport(year, job.kind);
+    await fileYearReport(year, job.kind, { track });
   } catch (e) {
     console.error("year-end report failed", year, job.kind, e?.message);
-    const all = await yearReportsOf(year);
+    const all = await yearReportsOf(year, track);
     const chat = job.ask ? [...(all[job.kind]?.chat ?? []), { who: "claude", text: `That didn't work: ${e.message}`, at: new Date().toISOString(), error: true }] : all[job.kind]?.chat;
     await settle({ error: e.message, chat });
   }

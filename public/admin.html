@@ -2779,8 +2779,10 @@ function eventFormScreen(existing = null) {
         </div>
       </div>
       <div class="morehead"><b>More options</b><span>All of these can be set or changed later, on Edit event.</span></div>
-      ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" ? " open" : ""}>
-        <summary>RBH event</summary>
+      ${ev?.hotelCostsHidden || WHO?.canCost === false ? "" : `<details class="settings" style="margin-top:4px"${ev?.kind === "rbh" || ev?.rbhPresented ? " open" : ""}>
+        <summary>RBH${ev?.rbhPresented ? " · RBH presented" : ev?.kind === "rbh" ? " event" : ""}</summary>
+        <label class="attest noproj" id="e-rbhpres-row" style="margin-top:10px"${ev?.kind === "rbh" ? " hidden" : ""}><input type="checkbox" id="e-rbhpres"${ev?.rbhPresented ? " checked" : ""}>
+          <span><b>RBH presented at this event.</b> One of ONGIA's own events. It counts in RBH's yearly sponsorship report.</span></label>
         <p class="hint" style="margin-top:10px">For an event run for RBH, apart from ONGIA's own training. It gets a statement of work and a final invoice,
           which only the president and the VP can see. The province decides which sales tax goes on them.</p>
         <label class="attest" style="margin-top:10px"><input type="checkbox" id="e-rbh"${ev?.kind === "rbh" ? " checked" : ""}><span><b>This is an RBH event.</b></span></label>
@@ -3079,6 +3081,8 @@ function eventFormScreen(existing = null) {
     if (on && $("e-rbh")) { $("e-rbh").checked = true; $("e-rbh").closest("details").open = true; }
   };
   if (ev?.project) setProject(true);
+  // An RBH event is RBH's own; "RBH presented" is only for ONGIA's events, so it hides when the event is made an RBH one.
+  if ($("e-rbh") && $("e-rbhpres-row")) $("e-rbh").addEventListener("change", () => { $("e-rbhpres-row").hidden = $("e-rbh").checked; });
   if ($("pj-pick")) $("pj-pick").onclick = () => { startOn("pj-pick"); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); setProject(true); $("e-title").focus(); };
   ["wx-pick", "cp-pick"].forEach((id) => $(id)?.addEventListener("click", () => setProject(false)));
   if ($("bl-pick")) $("bl-pick").onclick = () => { startOn("bl-pick"); setProject(false); ["wx-list", "cp-list"].forEach((id) => { $(id).hidden = true; }); $("e-title").focus(); };
@@ -3171,6 +3175,7 @@ function eventFormScreen(existing = null) {
     surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
     attendeeMail: $("e-amail")?.checked === true,
     kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
+    rbhPresented: $("e-rbhpres") ? $("e-rbhpres").checked === true && !$("e-rbh")?.checked : undefined,
     project: ROOT.querySelector(".card[data-project]") ? true : ev?.project ? false : undefined,
     province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
     talkOnFile: $("e-talkfile")?.checked === true,
@@ -4605,7 +4610,7 @@ function eventScreen(data) {
 
   // A practice event says so across the top, so nobody mistakes it for the real one (audit, 30 Oct 2026).
   ROOT.innerHTML = `<div class="evhead hasnav">${ev.practice ? `<div class="practband" role="note"><b>Practice event.</b> Made-up people for trying things out. Nothing on it is ever emailed, and it stays off the calendar.</div>` : ""}<section class="evband">
-    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
+    <div class="bhead"><div><h2>${esc(ev.title)}${ev.kind === "rbh" ? `<span class="tag">${ev.project ? "RBH project" : "RBH"}</span>` : ev.rbhPresented ? `<span class="tag">RBH presented</span>` : ""}${ev.practice ? `<span class="tag practice">Practice</span>` : ""}</h2>
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         ${ev.city || ev.venue ? `<span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>` : ""}
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
@@ -7291,12 +7296,15 @@ function rbhReportsScreen(D) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const F = D.facts, Y = D.year, YE = D.yearend, I = D.inputs ?? {};
+  // Two reports (Andrew 17 Nov 2026): the trainings ONGIA runs for RBH, and the sponsorship KPI report from ONGIA's own
+  // events where RBH presented.
+  const SP = D.track === "sponsor", TQ = SP ? "&track=sponsor" : "";
   const n = (v) => (v == null ? "—" : Number(v).toLocaleString("en-CA"));
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }); };
   const dates = (r) => { const a = fmtDate(r.dayOne), b = r.lastDay && r.lastDay !== r.dayOne ? fmtDate(r.lastDay) : ""; return b ? `${a} – ${b}` : a; };
   const tiles = [
-    [n(F.trainings), "RBH trainings", F.upcoming ? `${F.held} held, ${F.upcoming} to come` : F.trainings ? "all held" : ""],
-    [n(F.attendees), "people trained", F.attendanceBasis === "registered" ? "registered" : F.held ? "checked in" : ""],
+    [n(F.trainings), SP ? "events with RBH" : "RBH trainings", F.upcoming ? `${F.held} held, ${F.upcoming} to come` : F.trainings ? "all held" : ""],
+    [n(F.attendees), SP ? "attended" : "people trained", F.attendanceBasis === "registered" ? "registered" : F.held ? "checked in" : ""],
     [n(F.survey.answered), "survey answers", F.survey.invited ? `${F.survey.rate}% of ${n(F.survey.invited)}` : ""],
     [F.survey.quality == null ? "—" : `${F.survey.quality}%`, "rated quality 4 or 5", ""],
     [n(F.agencyCount), "agencies", F.newAgencies != null ? `${F.newAgencies} new this year` : ""],
@@ -7308,7 +7316,7 @@ function rbhReportsScreen(D) {
   const doc = (kind) => {
     const r = YE.reports[kind], v = r.version;
     const filed = r.filed && ["en", "fr"].every((l) => r.filed[l]?.url);
-    return `<div class="yedoc"><b>${esc(r.name.en)} · year end</b>
+    return `<div class="yedoc"><b>${esc(r.name.en)}${SP ? "" : " · year end"}</b>
       ${r.building ? `<span class="rpstate wait"><span class="spin" aria-hidden="true"></span> Claude is writing it… two or three minutes</span>`
         : v ? `<span class="pill done">Version ${v.n}</span>${r.final ? ` <span class="pill done">Final</span>` : ""}<span class="l">Updated ${esc(when(v.at))} · ${v.answered} survey answers</span>
           <span class="l"><button class="linkish" data-yeopen="${kind}|en">English</button> · <button class="linkish" data-yeopen="${kind}|fr">Français</button> · <button class="linkish" data-yeopen="${kind}|en">Ask for a change</button>
@@ -7329,32 +7337,44 @@ function rbhReportsScreen(D) {
     return `<span class="pill idle">Not made yet</span><span class="l"><button class="linkish" data-rbhev="${esc(row.id)}">Make it on its Survey tab</button></span>`;
   };
   const folder = (row) => { const f = ["exec", "info"].map((k) => row.reports?.[k]?.filed?.en?.folderUrl).find(Boolean); return f ? `<a href="${esc(f)}" target="_blank" rel="noopener">Survey folder</a>` : `<span class="hint" style="margin:0">Not filed yet</span>`; };
-  const rows = D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button>${r.practice ? ` <span class="pill grey">Practice</span>` : ""}<span class="psub">${esc(r.city)}</span></td>
+  const spRows = SP ? D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button><span class="psub">${esc(r.city)}</span></td>
+      <td data-l="Date">${esc(dates(r))}</td><td data-l="Attended">${r.held ? n(r.attended) : `<span class="hint" style="margin:0">To come</span>`}</td>
+      <td data-l="Survey">${r.answered ? `${r.answered} answers${r.surveyRate != null ? `<span class="psub">${r.surveyRate}%</span>` : ""}` : `<span class="hint" style="margin:0">None yet</span>`}</td>
+      <td data-l="Rated 4 or 5">${r.quality != null ? `${r.quality}%` : "—"}</td></tr>`).join("") : "";
+  const rows = SP ? "" : D.rows.map((r) => `<tr><td data-l=""><button class="linkish rbhname" data-rbhev="${esc(r.id)}"><b>${esc(r.title)}</b></button>${r.practice ? ` <span class="pill grey">Practice</span>` : ""}<span class="psub">${esc(r.city)}</span></td>
       <td data-l="Date">${esc(dates(r))}</td>
       <td data-l="Survey">${r.invited ? `${r.answered} of ${r.invited}<span class="psub">${Math.round((100 * r.answered) / r.invited)}%</span>` : r.answered ? `${r.answered} answers` : `<span class="hint" style="margin:0">${r.survey ? "Not sent yet" : "No survey"}</span>`}</td>
       <td data-l="Executive Summary"><div class="rpcell">${cell(r, "exec")}</div></td><td data-l="Infographic"><div class="rpcell">${cell(r, "info")}</div></td><td data-l="OneDrive">${folder(r)}</td></tr>`).join("");
   ROOT.innerHTML = `${reportsTabsHtml("rbh")}
-    <div class="agtop"><div><h2 class="agh">RBH reports</h2><p class="s">Every RBH training's Executive Summary and infographic, in English and French, and the year-end pair that sums up the year for RBH.</p></div></div>
+    <div class="agtop"><div><h2 class="agh">RBH reports</h2><p class="s">${SP ? "RBH's yearly sponsorship report: ONGIA's own events where RBH presented, against the KPIs in the sponsorship agreement."
+      : "Every RBH training's Executive Summary and infographic, in English and French, and the year-end pair that sums up the year for RBH."}</p></div></div>
+    <div class="rbhyr" role="tablist" aria-label="Report"><button class="chip${SP ? " rbhoff" : " solid"}" data-rbhtrack="" aria-selected="${!SP}">RBH trainings</button><button class="chip${SP ? " solid" : " rbhoff"}" data-rbhtrack="sponsor" aria-selected="${SP}">Sponsorship</button></div>
     <div class="rbhyr" role="tablist" aria-label="Year">${D.years.map((y) => `<button class="chip${String(y) === String(Y) ? " solid" : " rbhoff"}" data-rbhyear="${y}" aria-selected="${String(y) === String(Y)}">${y}</button>`).join("")}</div>
     <section class="ye">
-      <h3>${Y} year end</h3>
-      <div class="s">An Executive Summary and an infographic for January to December ${Y}, in English and French, built from every RBH training's figures and surveys. Filed to OneDrive under ${esc(YE.folder)}.</div>
+      <h3>${Y} ${SP ? "sponsorship report" : "year end"}</h3>
+      <div class="s">${SP ? `A report and an infographic for January to December ${Y}, in English and French, from the ONGIA events ticked "RBH presented". Filed to OneDrive under ${esc(YE.folder)}.`
+        : `An Executive Summary and an infographic for January to December ${Y}, in English and French, built from every RBH training's figures and surveys. Filed to OneDrive under ${esc(YE.folder)}.`}</div>
       <div class="yegrid">${tiles.map(([b, l, sub]) => `<div><b>${b}</b><span>${esc(l)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
       <form class="yein" id="ye-in"><b>Typed in once a year</b>
         <label>Members in ONGIA's database<input type="number" min="0" step="1" inputmode="numeric" id="ye-members" value="${I.members ?? ""}"></label>
-        <label>Email campaigns about RBH trainings in ${Y}<input type="number" min="0" step="1" inputmode="numeric" id="ye-campaigns" value="${I.campaigns ?? ""}"></label>
+        <label>${SP ? `Email campaigns with contraband tobacco messaging in ${Y}` : `Email campaigns about RBH trainings in ${Y}`}<input type="number" min="0" step="1" inputmode="numeric" id="ye-campaigns" value="${I.campaigns ?? ""}"></label>
+        ${SP ? `<label>Estimated digital reach of RBH's awareness materials<input type="number" min="0" step="1" inputmode="numeric" id="ye-reach" value="${I.reach ?? ""}"></label>` : ""}
         <button class="mini" id="ye-save">Save</button>
         <span class="hint" id="ye-est" style="margin:0">${est != null ? `About ${n(est)} emails (members × campaigns), shown as an estimate.` : "The reports leave communications out until both are filled in."}</span></form>
       <div class="yerow">${F.held ? `<button class="mini gold" id="ye-make"${busy ? " disabled" : ""}>${made ? "Make them again" : "Make the year-end reports"}</button>
         <span class="hint" style="margin:0">Claude takes two or three minutes. Change them afterwards by asking, as with a training's reports.</span>`
-        : `<span class="hint" style="margin:0">They can be made once an RBH training in ${Y} has taken place.</span>`}</div>
+        : `<span class="hint" style="margin:0">${SP ? `They can be made once an ONGIA event in ${Y} where RBH presented has taken place.` : `They can be made once an RBH training in ${Y} has taken place.`}</span>`}</div>
       <div class="yedocs">${doc("exec")}${doc("info")}</div>
     </section>
-    ${D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Training</th><th>Date</th><th>Survey</th><th>Executive Summary</th><th>Infographic</th><th>OneDrive</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${SP ? (D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Event</th><th>Date</th><th>Attended</th><th>Survey</th><th>Rated 4 or 5</th></tr></thead><tbody>${spRows}</tbody></table></div>
+      <p class="hint">To add an event, open it, choose <b>Edit event</b>, and tick <b>RBH presented</b> under RBH.</p>`
+      : `<p class="hint">No ONGIA events in ${Y} are ticked yet. Open an event, choose <b>Edit event</b>, and tick <b>RBH presented</b> under RBH.</p>`)
+    : D.rows.length ? `<div class="agtable"><table class="agl rbhl"><thead><tr><th>Training</th><th>Date</th><th>Survey</th><th>Executive Summary</th><th>Infographic</th><th>OneDrive</th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="hint">A training's reports are made the night half its surveys are back, and each night after that until marked final. Practice trainings are listed here to try things on, but never count in the year end.</p>`
       : `<p class="hint">No RBH trainings in ${Y}.</p>`}`;
   wireReportsTabs();
-  ROOT.querySelectorAll("[data-rbhyear]").forEach((b) => b.onclick = () => { view = { name: "reports", sub: "rbh", year: b.dataset.rbhyear }; render(); });
+  ROOT.querySelectorAll("[data-rbhyear]").forEach((b) => b.onclick = () => { view = { name: "reports", sub: "rbh", year: b.dataset.rbhyear, track: view.track }; render(); });
+  ROOT.querySelectorAll("[data-rbhtrack]").forEach((b) => b.onclick = () => { view = { name: "reports", sub: "rbh", year: view.year, track: b.dataset.rbhtrack }; render(); });
   ROOT.querySelectorAll("[data-rbhev]").forEach((b) => b.onclick = () => { view = { name: "event", eventId: b.dataset.rbhev, tab: "survey" }; render(); });
   ROOT.querySelectorAll("[data-rbhopen]").forEach((b) => b.onclick = () => {
     const [id, kind, lang] = b.dataset.rbhopen.split("|"), row = D.rows.find((r) => r.id === id);
@@ -7362,25 +7382,25 @@ function rbhReportsScreen(D) {
   });
   ROOT.querySelectorAll("[data-yeopen]").forEach((b) => b.onclick = () => {
     const [kind, lang] = b.dataset.yeopen.split("|");
-    reportViewer({ id: `yearend-${Y}`, title: `RBH ${Y}` }, kind, lang, { q: `/reports?yearend=${Y}&kind=${kind}`, state: `/reports?yearend=${Y}`, name: `RBH year end ${Y}`, standing: false, refresh: () => {}, closed: () => render() });
+    reportViewer({ id: `yearend-${Y}${SP ? "-sponsor" : ""}`, title: `RBH ${Y}` }, kind, lang, { q: `/reports?yearend=${Y}&kind=${kind}${TQ}`, state: `/reports?yearend=${Y}${TQ}`, name: SP ? `RBH sponsorship ${Y}` : `RBH year end ${Y}`, standing: false, refresh: () => {}, closed: () => render() });
   });
   ROOT.querySelectorAll("[data-yefinal]").forEach((b) => b.onclick = async () => {
     const [kind, on] = b.dataset.yefinal.split("|");
-    try { await api(`/reports?yearend=${Y}&kind=${kind}&final=1`, { method: "POST", body: JSON.stringify({ final: on === "1" }) }); toast(on === "1" ? "Marked final." : "No longer final."); render(); } catch (x) { toast(x.message); }
+    try { await api(`/reports?yearend=${Y}&kind=${kind}&final=1${TQ}`, { method: "POST", body: JSON.stringify({ final: on === "1" }) }); toast(on === "1" ? "Marked final." : "No longer final."); render(); } catch (x) { toast(x.message); }
   });
   document.getElementById("ye-in").onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/reports?yearend=${Y}&inputs=1`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value }) });
-      toast("Saved. They're used the next time the year-end reports are made."); render();
+      await api(`/reports?yearend=${Y}&inputs=1${TQ}`, { method: "PUT", body: JSON.stringify({ members: document.getElementById("ye-members").value, campaigns: document.getElementById("ye-campaigns").value, reach: document.getElementById("ye-reach")?.value }) });
+      toast(SP ? "Saved. They're used the next time the sponsorship reports are made." : "Saved. They're used the next time the year-end reports are made."); render();
     } catch (x) { toast(x.message); }
   };
   const mk = document.getElementById("ye-make");
   if (mk) mk.onclick = async () => {
-    if (made && !confirm(`Make both ${Y} year-end reports again with the latest figures? Each becomes a new version; the earlier ones are kept.`)) return;
+    if (made && !confirm(`Make both ${Y} ${SP ? "sponsorship" : "year-end"} reports again with the latest figures? Each becomes a new version; the earlier ones are kept.`)) return;
     mk.disabled = true;
     try {
-      for (const kind of ["exec", "info"]) await api(`/reports?yearend=${Y}&kind=${kind}&build=1`, { method: "POST", body: "{}" });
+      for (const kind of ["exec", "info"]) await api(`/reports?yearend=${Y}&kind=${kind}&build=1${TQ}`, { method: "POST", body: "{}" });
       render();
     } catch (x) { toast(x.message); mk.disabled = false; }
   };
@@ -13003,7 +13023,7 @@ async function drawScreen() {
     if (view.name === "admin" && view.tab === "rbh") { view = { name: "reports", sub: "rbh", year: view.year }; return render(); }
     if (view.name === "reports") {
       // Reports (Andrew 1 Nov 2026): ONGIA's year, and RBH's (moved here from Admin).
-      if (view.sub === "rbh") return rbhReportsScreen(await api(`/reports?list=1${view.year ? `&year=${encodeURIComponent(view.year)}` : ""}`));
+      if (view.sub === "rbh") return rbhReportsScreen(await api(`/reports?list=1${view.year ? `&year=${encodeURIComponent(view.year)}` : ""}${view.track === "sponsor" ? "&track=sponsor" : ""}`));
       return ongiaReportsScreen(await api(`/reports?ongia=${encodeURIComponent(view.year || String(new Date().getFullYear()))}`));
     }
     if (view.name === "roster" || view.name === "admin") {
