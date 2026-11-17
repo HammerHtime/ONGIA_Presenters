@@ -21,7 +21,7 @@ const LOGO_FILE = [path.resolve(HERE, "../../../public/assets"), path.resolve(HE
 const LOGO = LOGO_FILE ? `data:image/png;base64,${readFileSync(LOGO_FILE).toString("base64")}` : "";
 const logo = (h) => LOGO ? `<img src="${LOGO}" alt="ONGIA" style="height:${h}px;width:${Math.round(h * 1000 / 255)}px;display:block">` : `<span class="h" style="font-weight:700;font-size:${h * 0.8}px;letter-spacing:.12em;color:#fff">ONGIA</span>`;
 
-const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#c9a032", GOLDL = "#e2bf5c", PALE = "#f6f1e4", INK = "#14181f", MUTED = "#5d6577";
+const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#e0b34a", GOLDL = "#f0cd73", PALE = "#f6f1e4", INK = "#14181f", MUTED = "#5d6577";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const L = {
@@ -125,7 +125,7 @@ const W = {
     bySector: "Par secteur", experience: "Expérience des participants", yearsOfService: "années de service", plus16: (p) => `des participants ont <b>16 ans ou plus</b> d'expérience`, summary: "Résumé de la formation", feedback: "Commentaires des participants", ratings: "Évaluations", average: "Note moyenne", glance: "En un coup d'œil",
     rated45: "ont donné une note de 4 ou 5", relevant: "l'ont trouvée pertinente pour leur travail", confident: "se sentent prêts à l'appliquer", veterans: "ont 16 ans d'expérience ou plus", recommend: "recommanderaient les séances" },
 };
-const BG = "#0b1630", PANEL = "#0f1d3d", RULE = "rgba(201,160,50,.35)", SOFT = "#9fb0d1", LINEC = "#5b6f99";
+const BG = "#020d1c", PANEL = "#06182f", RULE = "rgba(224,179,74,.32)", SOFT = "#9fb0d1", LINEC = "#5b6f99";
 
 // Round down for "More than …": 545 is 500, 123 is 120, 93 agencies is 90.
 const downTo = (n) => (n >= 200 ? Math.floor(n / 50) * 50 : n >= 20 ? Math.floor(n / 10) * 10 : n >= 10 ? Math.floor(n / 5) * 5 : n);
@@ -214,7 +214,7 @@ function sections(event, R, analysis, lang, square = false) {
 const avgTop2 = (list) => { const n = list.reduce((a, s) => a + s.n, 0); return n ? Math.round(list.reduce((a, s) => a + (s.top2 * s.n), 0) / n) : null; };
 
 const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{font-family:"DM Sans",Arial,sans-serif;color:#fff}
-.page{width:1080px;margin:0 auto;background:linear-gradient(180deg,#0a1328 0%,${BG} 30%,#0d1a38 100%);color:#fff}
+.page{width:1080px;margin:0 auto;background:radial-gradient(ellipse 70% 14% at 50% 12%,rgba(28,72,128,.38),transparent),radial-gradient(ellipse 80% 10% at 30% 52%,rgba(22,58,104,.30),transparent),radial-gradient(ellipse 80% 10% at 60% 82%,rgba(22,58,104,.26),transparent),linear-gradient(180deg,#010915 0%,#03132a 35%,#020c1b 70%,#03152b 100%);color:#fff}
 .h{font-family:Oswald,"Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.02em}
 .hero{position:relative;padding:56px 52px 40px;overflow:hidden;min-height:330px}
 .hero .sky{position:absolute;right:-10px;top:10px;opacity:.55} .hero .sky svg{stroke:${LINEC}}
@@ -224,7 +224,7 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .hero .tag{position:relative;font-size:19px;letter-spacing:.06em;text-transform:uppercase;font-weight:500}
 .hero .when{position:relative;font-size:18px;color:${SOFT};margin-top:6px}
 .sec{margin:0 18px;border-top:1.5px solid ${RULE};padding:34px 34px}
-.sec.top{border:1.5px solid ${RULE};padding:0;background:rgba(15,29,61,.6)}
+.sec.top{border:1.5px solid ${RULE};padding:0;background:rgba(6,26,52,.55)}
 .sec h2{font-family:Oswald,sans-serif;font-weight:500;font-size:32px;color:${GOLD};margin:0 0 22px;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:14px}
 .three{display:grid;grid-template-columns:1fr 1fr 1.3fr} .three>div{min-width:0} .three>div{padding:28px 26px;border-left:1.5px solid ${RULE}} .three>div:first-child{border-left:0}
 .ph{font-family:Oswald,sans-serif;font-size:24px;color:${GOLD};text-transform:uppercase;letter-spacing:.03em}
@@ -247,15 +247,15 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .glance{display:grid;gap:0} .glance>div{text-align:center;padding:8px 14px;border-left:1.5px solid ${RULE}} .glance>div:first-child{border-left:0}
 .glance b{display:block;font-family:Oswald,sans-serif;font-size:72px;color:${GOLD};line-height:1} .glance span{display:block;font-size:17px;color:#dfe5f2;margin-top:8px}
 .fb{display:grid;grid-template-columns:350px 1fr;gap:34px}
-.box{border:1.5px solid ${RULE};background:rgba(15,29,61,.8);align-self:start} .bh{display:flex;align-items:center;gap:12px;padding:20px 22px 10px;font-family:Oswald,sans-serif;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
+.box{border:1.5px solid ${RULE};background:rgba(4,20,42,.85);align-self:start} .bh{display:flex;align-items:center;gap:12px;padding:20px 22px 10px;font-family:Oswald,sans-serif;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
 .srow{display:flex;align-items:center;gap:12px;padding:6px 22px} .srow .k{font-family:Oswald,sans-serif;font-size:24px;width:44px} .srow .st{flex:1;letter-spacing:1px;border-left:1.5px solid ${RULE};padding-left:12px}
 .srow b{font-family:Oswald,sans-serif;font-size:30px}
-.avg{background:${GOLD};color:${BG};display:flex;justify-content:space-between;align-items:center;padding:16px 22px;margin-top:14px} .avg span{font-family:Oswald,sans-serif;font-size:22px;text-transform:uppercase;letter-spacing:.03em} .avg b{font-family:Oswald,sans-serif;font-size:50px}
+.avg{background:linear-gradient(90deg,#c0922f,${GOLD} 55%,${GOLDL});color:${BG};display:flex;justify-content:space-between;align-items:center;padding:16px 22px;margin-top:14px} .avg span{font-family:Oswald,sans-serif;font-size:22px;text-transform:uppercase;letter-spacing:.03em} .avg b{font-family:Oswald,sans-serif;font-size:50px}
 .quotes .qq{display:grid;grid-template-columns:34px 1fr 90px;gap:10px;align-items:center;padding:14px 0;border-bottom:1.5px solid ${RULE}} .quotes .qq:last-child{border:0}
 .qm{font-family:Oswald,sans-serif;color:${GOLD};font-size:54px;line-height:.6;align-self:start} .qt{font-size:18px;line-height:1.45;color:#eef1f8}
 .qq b{font-family:Oswald,sans-serif;color:${GOLD};font-size:36px;text-align:right}
 .foot{display:flex;justify-content:space-between;align-items:center;padding:30px 52px;border-top:1.5px solid ${RULE};margin-top:10px}
-.square{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;background:${BG};color:#fff;border-top:16px solid ${GOLD}}
+.square{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(ellipse 80% 40% at 50% 40%,rgba(28,72,128,.32),transparent),${BG};color:#fff;border-top:16px solid ${GOLD}}
 .square .fit{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;margin:0 auto;width:1080px}
 .square .badge{flex:none} .square .in{width:1080px;margin:0 auto}
 .square .sec{border:0;margin:0;padding:30px 50px} .square .sec.top{background:none}
@@ -281,7 +281,7 @@ export function infographicHtml(event, R, analysis, { lang = "en", block = "" } 
   if (block) {
     const one = block === "event" ? s.event + s.foot : s[block];
     if (!one) return null;
-    const small = `<div class="badge" style="background:#070f22;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:3px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
+    const small = `<div class="badge" style="background:#010915;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:20px 56px;border-top:3px solid ${GOLD}">${logo(52)}<span class="h" style="font-size:22px;letter-spacing:.06em;text-align:right">${esc(String(event.title).split(/\s*:\s*/)[0])}${event.dayOne ? ` · ${event.dayOne.slice(0, 4)}` : ""}<br><b style="font-size:26px;color:${GOLD}">ONGIA.CA</b></span></div>`;
     return `${head}<div class="square" id="art"><div class="fit"><div class="in">${one}</div></div>${block === "event" ? "" : small}</div></body></html>`;
   }
   return `${head}<div class="page" id="art">${s.event}${s.stats}${s.experience}${s.agencies}${s.topics}${s.quotes}${s.takeaways}${s.foot}</div></body></html>`;
