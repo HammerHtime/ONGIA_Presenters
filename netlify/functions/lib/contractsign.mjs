@@ -150,7 +150,9 @@ export async function fillContract(bytes, lines, placed, values, signature = nul
   if (placed.signature && signature) {
     const l = byId.get(placed.signature), p = spot(l);
     const img = await pdf.embedPng(signature);
-    const h = 26, w = (img.width / img.height) * h;
+    // As tall as the room above the line allows (up to 26pt), so it never rides into the line above.
+    const above = lines.filter((x) => x.page === l.page && x.y > l.y + 2).reduce((m, x) => Math.min(m, x.y - l.y), 999);
+    const h = Math.max(14, Math.min(26, above - 6)), w = (img.width / img.height) * h;
     pages[l.page - 1].drawImage(img, { x: p.x, y: l.y - 4, width: Math.min(w, 170), height: Math.min(w, 170) === w ? h : (170 / w) * h });
     filled.push({ what: "Signature", page: l.page, text: "signed" });
   } else if (placed.signature) write(placed.signature, values.name, "Signature (typed)");
