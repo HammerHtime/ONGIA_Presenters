@@ -101,6 +101,7 @@ for (const [kind, lang] of [["exec", "en"], ["exec", "fr"], ["info", "en"], ["in
   const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [file]).toString())[1]);
   if (kind === "exec") ok(`Executive Summary (${lang}): a PDF with the trainings, the totals and the communications`, p.type === "application/pdf" && /ITP Week/.test(txt) && /60[ ,  ]?000/.test(txt) && /Toronto Police Service/.test(txt) && pages >= 2, `${pages} pages`);
   else ok(`infographic (${lang}): one page, with the tiles and the booking for 2027`, p.type === "application/pdf" && pages === 1 && /2027/.test(txt) && /ITP Week/.test(txt), `${pages} pages`);
+  if (process.env.YE_PDF_OUT) fs.copyFileSync(file, `${process.env.YE_PDF_OUT}/yearend-${kind}-${lang}.pdf`);
   fs.unlinkSync(file);
 }
 ok("a report not made yet is a 404", (await call("yearend=2025&kind=exec&lang=en&pdf=1")).status === 404);

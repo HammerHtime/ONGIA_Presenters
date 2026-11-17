@@ -13,11 +13,37 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { provinceOfEvent } from "./ongiayear.mjs";
 
 // The ONGIA logo with its tagline (white leaf, gold letters, for a dark background), inside the page so the picture made from it has it too.
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LOGO_FILE = [path.resolve(HERE, "../../../public/assets"), path.resolve(HERE, "../../public/assets"), path.resolve(process.cwd(), "public/assets"), "/var/task/public/assets"]
   .map((d) => path.join(d, "ongia-logo-tagline-dark.png")).find((f) => existsSync(f));
+// Canada's provinces, already projected (the same map the year reports use), for the province map.
+const MAP_FILE = [path.resolve(HERE, "../../../public/assets"), path.resolve(HERE, "../../public/assets"), path.resolve(process.cwd(), "public/assets"), "/var/task/public/assets"]
+  .map((d) => path.join(d, "canada-map.json")).find((f) => existsSync(f));
+const CANADA = MAP_FILE ? JSON.parse(readFileSync(MAP_FILE, "utf8")) : null;
+/**
+ * The province map (Andrew 17 Nov 2026: "I like … how you color the map and then highlight in yellow the actual
+ * province with the number. Let's do that with everyone"): the provinces the audience came from in blue, deeper for a
+ * bigger share; the province the event was held in, gold, with how many came on a badge just off it.
+ */
+function provinceMap(host, shares, came, width, badgeScale = 1) {
+  if (!CANADA) return "";
+  const k = 1000 / width, max = Math.max(1, ...Object.values(shares));
+  const mix = (t) => { const a = [0x1d, 0x3f, 0x72], b = [0x72, 0x9c, 0xdc]; return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(",")})`; };
+  const fill = (code) => (code === host ? GOLD : shares[code] ? mix(Math.sqrt(shares[code] / max)) : "#122a4f");
+  const paths = Object.entries(CANADA.paths).map(([code, d]) => `<path d="${d}" fill="${fill(code)}" stroke="#020d1c" stroke-width="${(1.6 * k).toFixed(1)}" stroke-linejoin="round"/>`).join("");
+  let badge = "";
+  const a = CANADA.anchors?.[host];
+  if (a && came) {
+    const z = k * badgeScale, r = 17 * z, bx = Math.min(CANADA.w - r - 4, a[0] + 26 * z), by = Math.max(r + 4, a[1] - 30 * z);
+    badge = `<line x1="${a[0]}" y1="${a[1]}" x2="${bx}" y2="${by}" stroke="${GOLDL}" stroke-width="${1.4 * z}"/><circle cx="${a[0]}" cy="${a[1]}" r="${2.6 * z}" fill="${GOLDL}"/>
+      <circle cx="${bx}" cy="${by}" r="${r}" fill="#020d1c" stroke="${GOLD}" stroke-width="${1.8 * z}"/>
+      <text x="${bx}" y="${by + 5.2 * z}" text-anchor="middle" font-family="Oswald,Arial Narrow,sans-serif" font-weight="700" font-size="${15 * z}" fill="#fff">${came}</text>`;
+  }
+  return `<svg class="pmap" viewBox="0 0 ${CANADA.w} ${CANADA.h}" width="${width}" height="${Math.round((width * CANADA.h) / CANADA.w)}">${paths}${badge}</svg>`;
+}
 const LOGO = LOGO_FILE ? `data:image/png;base64,${readFileSync(LOGO_FILE).toString("base64")}` : "";
 const logo = (h) => LOGO ? `<img src="${LOGO}" alt="ONGIA" style="height:${h}px;width:${Math.round(h * 1000 / 255)}px;display:block">` : `<span class="h" style="font-weight:700;font-size:${h * 0.8}px;letter-spacing:.12em;color:#fff">ONGIA</span>`;
 
@@ -155,7 +181,12 @@ function sections(event, R, analysis, lang, square = false) {
   const when = whenOf(event.dayOne, event.lastDay, lang);
   const provName = (p) => (lang === "fr" ? PROV_FR[p.code] : p.name) ?? p.name;
   const PAL = [GOLD, "#1f3a75", "#3f5a8f", GOLDL, "#6b7fa8", "#9fb0d1", "#c9a76a", "#2c4a86"];
-  const prov = R.provinces.slice(0, 8).map((p, i) => ({ l: provName(p), v: p.pct, c: PAL[i % PAL.length] }));
+  const host = provinceOfEvent(event);
+  const shares = Object.fromEntries(R.provinces.filter((p) => p.code).map((p) => [p.code, p.pct]));
+  const shareMax = Math.max(1, ...Object.values(shares));
+  const blue = (v) => { const a = [0x1d, 0x3f, 0x72], b = [0x72, 0x9c, 0xdc], t = Math.sqrt(v / shareMax); return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(",")})`; };
+  void PAL;
+  const prov = R.provinces.slice(0, 8).map((p) => ({ l: provName(p), v: p.pct, c: p.code === host ? GOLD : blue(p.pct) }));
   const came = R.attended?.count || R.trained?.people || R.respondents;
   const agN = R.trained?.count || R.agencies.length;
   const T = R.trained;
@@ -186,16 +217,15 @@ function sections(event, R, analysis, lang, square = false) {
         <div><div style="display:flex;gap:16px;align-items:center"><div class="num">${topics.length || R.sessions.length}</div><div class="h" style="font-size:38px;line-height:1;color:#fff">${esc(w.sessions)}</div></div>
           <div class="sm" style="margin-top:20px">${esc(w.heldOver)}</div><div style="display:flex;gap:18px;align-items:center"><div class="num" style="font-size:58px;white-space:nowrap">${days > 1 ? esc(w.days(days)).toUpperCase() : esc(w.oneDay).toUpperCase()}</div>${BIG_ICONS.calendar}</div>
           <div class="sm" style="text-transform:uppercase">${esc(w.covering)}</div></div>
-        <div><div class="ph">${esc(w.provinces)}</div><div style="display:grid;grid-template-columns:1fr 150px;gap:12px;align-items:center;margin-top:12px">
-          <div class="legend">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
-          ${donut(prov, 150, 24, `<circle cx="75" cy="75" r="49" fill="#e9edf5"/><g transform="translate(-7.5 5) scale(.75)">${leaf}</g>`, "#1c2a4d")}</div></div></div>`, "top"),
+        <div><div class="ph">${esc(w.provinces)}</div><div class="pwrap"><div style="margin-top:10px">${provinceMap(host, shares, came, 330)}</div>
+          <div class="legend two" style="margin-top:6px">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div></div></div></div>`, "top"),
     experience: R.years.some((y) => y.count) ? sec("experience", `${head(BIG_ICONS.people.replace('width="120" height="90"', 'width="56" height="42"'), w.experience)}<div class="exp">
         <div><div class="bars">${R.years.map((y) => { const top = Math.max(...R.years.map((x) => x.pct)) || 1; return `<div><b>${y.pct}%</b><i style="height:${Math.max(3, Math.round((210 * y.pct) / top))}px"></i><span>${esc(y.label)}</span></div>`; }).join("")}</div>
           <div class="axis">${esc(w.yearsOfService)}</div></div>
         <div class="callout"><div class="num">${plus16}%</div><div class="body" style="font-size:20px">${w.plus16(plus16)}</div></div></div>`) : "",
-    provinces: prov.length ? sec("provinces", `${head(BIG_ICONS.glance, w.provinces)}<div style="display:grid;grid-template-columns:1fr 330px;gap:40px;align-items:center">
-        <div class="legend big">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div>
-        ${donut(prov, 330, 50, `<circle cx="165" cy="165" r="110" fill="#e9edf5"/><g transform="translate(-11 16) scale(1.6)">${leaf}</g>`, "#1c2a4d")}</div>`) : "",
+    provinces: prov.length ? sec("provinces", `${head(BIG_ICONS.glance, w.provinces)}<div style="display:grid;grid-template-columns:1fr 300px;gap:30px;align-items:center">
+        ${provinceMap(host, shares, came, 640, 2)}
+        <div class="legend big">${prov.map((x) => `<div><i style="background:${x.c}"></i>${esc(x.l)}<b>${x.v}%</b></div>`).join("")}</div></div>`) : "",
     agencies: agList.length ? sec("agencies", `${head(BIG_ICONS.shield, w.agencies)}<div style="display:grid;grid-template-columns:1fr 200px;gap:20px;align-items:center">
         <div><ul class="ag">${shownAg.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>${agList.length > shownAg.length ? `<div class="more">${esc(w.more(agList.length - shownAg.length))}</div>` : ""}
         ${T?.sectors?.length ? `<div class="sectors"><b>${esc(w.bySector)}:</b> ${T.sectors.map((x) => `${esc(t.sectors[x.key])} <span>${x.count}</span>`).join(" · ")}</div>` : ""}</div>
@@ -233,6 +263,8 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .sm{font-family:Oswald,sans-serif;font-size:22px;letter-spacing:.03em;text-transform:uppercase;color:#fff}
 .body{font-size:17px;line-height:1.35;margin-top:10px;color:#dfe5f2}
 .legend div{display:flex;align-items:center;gap:10px;font-size:17px;margin:5px 0} .legend i{width:14px;height:14px;display:inline-block;flex:none}
+.square .pwrap{display:grid;grid-template-columns:470px 1fr;gap:34px;align-items:center} .square .pwrap .pmap{width:470px} .square .pwrap .legend.two{grid-template-columns:1fr} .square .pwrap .legend.two div{font-size:19px;margin:6px 0} .square .pwrap .legend.two b{font-size:21px}
+.legend.two{display:grid;grid-template-columns:1fr 1fr;column-gap:16px} .legend.two div{font-size:15px;margin:3px 0} .legend.two b{font-size:16px} .pmap{display:block;max-width:100%;height:auto}
 .legend.big div{font-size:26px;margin:10px 0} .legend.big i{width:20px;height:20px} .legend.big b{font-size:30px} .legend b{margin-left:auto;font-family:Oswald,sans-serif;font-size:20px;color:#fff}
 .ag{columns:2;column-gap:34px;font-size:19px;line-height:1.7;margin:0;padding:0;list-style:none}
 .ag li{break-inside:avoid} .ag li:before{content:"•";color:${GOLD};font-size:22px;margin-right:12px}
@@ -259,7 +291,7 @@ const CSS = `*{box-sizing:border-box} body{margin:0;background:${BG}} body,#art{
 .square .fit{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;margin:0 auto;width:1080px}
 .square .badge{flex:none} .square .in{width:1080px;margin:0 auto}
 .square .sec{border:0;margin:0;padding:30px 50px} .square .sec.top{background:none}
-.square .in>section{zoom:1.3} .square .in>section[data-block="quotes"]{zoom:1.05} .square .fb{grid-template-columns:330px 1fr} .square .in>section[data-block="stats"]{zoom:1.22} .square .in>section[data-block="agencies"]{zoom:1.15} .square .in>.hero{zoom:1.2}
+.square .in>section{zoom:1.3} .square .in>section[data-block="quotes"]{zoom:1.05} .square .fb{grid-template-columns:330px 1fr} .square .in>section[data-block="stats"]{zoom:1.02} .square .in>section[data-block="agencies"]{zoom:1.15} .square .in>.hero{zoom:1.2}
 .square .three{grid-template-columns:1fr 1fr} .square .three>div:nth-child(3){grid-column:1/3;border-left:0;border-top:1.5px solid ${RULE}}`;
 
 /** "November 9–12, 2026" / "9 au 12 novembre 2026"; across two months, both are named. */

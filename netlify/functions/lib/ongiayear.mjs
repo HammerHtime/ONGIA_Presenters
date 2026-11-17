@@ -76,7 +76,9 @@ export async function putOngInputs(year, body, by = "desk") {
 export async function eventFacts(event, list, { now = today() } = {}) {
   const [stored, survey, presenters] = await Promise.all([getAttendees(event.id), event.survey ? factsFor(event).catch(() => null) : null, listPresenters(event.id).catch(() => [])]);
   const people = writeableTo(stored?.people ?? []);
-  const tookAttendance = people.some((p) => typeof p.checkedIn === "boolean");
+  // An event set to count everyone registered as attended (Andrew 17 Nov 2026, Regina 2026: "just take the 178 as
+  // checked in") does; otherwise those checked in, where the desk took attendance.
+  const tookAttendance = !event.countRegistered && people.some((p) => typeof p.checkedIn === "boolean");
   const came = tookAttendance ? people.filter((p) => p.checkedIn === true) : people;
   const agencies = new Map();
   for (const p of came) {
@@ -93,7 +95,7 @@ export async function eventFacts(event, list, { now = today() } = {}) {
   return {
     id: event.id, title: event.title, kind: event.kind || "", city: cityOf(event), province: provinceOfEvent(event),
     dayOne: event.dayOne || "", lastDay: event.lastDay || event.dayOne || "", days: daysOf(event), held: (event.lastDay || event.dayOne || "9") < now,
-    registered: people.length, attended: came.length, basis: tookAttendance ? "checked in" : "registered",
+    registered: people.length, attended: came.length, basis: tookAttendance || event.countRegistered ? "checked in" : "registered",
     agencies: [...agencies.values()], unmatched: came.length - [...agencies.values()].reduce((a, g) => a + g.count, 0),
     survey: survey && survey.answered ? { answered: survey.answered, invited: survey.invited, quality: quality ? { n: quality.n, mean: quality.mean, top2: quality.top2 } : null,
       scoring: survey.scoring, sessions: survey.sessions.slice(0, 6), comments: survey.comments, topics: survey.topics } : null,

@@ -58,6 +58,7 @@ export function trainedFrom(people, agencyList = []) {
  */
 export function attendedOf(event, people = []) {
   const online = new Set((event?.wixMore ?? []).filter((l) => l?.online && l.eventId).map((l) => l.eventId));
+  if (event?.countRegistered) return { count: people.filter((p) => p.status === "ATTENDING").length, how: "registered" };
   const came = people.filter((p) => p.checkedIn || (online.has(p.wixEventId) && p.status === "ATTENDING"));
   if (people.some((p) => p.checkedIn)) return { count: came.length, how: "checked in" };
   return { count: people.filter((p) => p.status === "ATTENDING").length, how: "registered" };

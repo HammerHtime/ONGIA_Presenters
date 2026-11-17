@@ -2740,6 +2740,7 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
       </div>
       <div class="field noproj"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
+      <label class="attest noproj" style="margin-top:12px"><input type="checkbox" id="e-countreg"${ev?.countRegistered ? " checked" : ""}><span><b>Count everyone registered as attended.</b> For an event whose check-in list is short of who came. Reports and infographics use it.</span></label>
       ${SPONSORS_ON ? `<label class="attest noproj" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>` : ""}
       <div class="row2">
         <div class="field"><label for="e-day1">Day one of training</label><input id="e-day1" type="date" value="${v("dayOne")}"></div>
@@ -3190,6 +3191,7 @@ function eventFormScreen(existing = null) {
     // No tick on the form means "we are not saying", not "no" — otherwise
     // every save would clear the flag on an event that had it set.
     sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
+    countRegistered: $("e-countreg") ? $("e-countreg").checked === true : undefined,
     contractDraft: draftId ?? undefined,
   });
   // An event that exists saves as you go (Andrew 29 Oct 2026); a new one is made only when Create event is pressed.
