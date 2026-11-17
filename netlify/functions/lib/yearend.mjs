@@ -51,9 +51,11 @@ export const yearOf = (e) => String(e?.dayOne ?? "").slice(0, 4);
 const isRbh = (e) => e?.kind === "rbh" && !e?.practice;
 /** An ONGIA event of its own where RBH presented: counted in the sponsorship report. */
 export const rbhPresentedAt = (e) => e?.kind !== "rbh" && e?.rbhPresented === true && !e?.rbhCancelled && !e?.practice && !e?.project;
-/** An ONGIA event where RBH had a speaking spot but couldn't present: a spot ONGIA held for RBH, not reach. */
+/** An ONGIA event where RBH had a speaking spot but couldn't present: counted, and said so in the report. */
 export const rbhSpotCancelled = (e) => e?.kind !== "rbh" && e?.rbhCancelled === true && !e?.practice && !e?.project;
-const inTrack = (track) => (trackOf(track) === "sponsor" ? rbhPresentedAt : isRbh);
+// The sponsorship report counts the events where RBH presented and those where it held a spot but couldn't present
+// (Andrew 17 Nov 2026, the National Gang Summit: "I think we include the summit as well"), the latter said plainly.
+const inTrack = (track) => (trackOf(track) === "sponsor" ? (e) => rbhPresentedAt(e) || rbhSpotCancelled(e) : isRbh);
 // Where an event was held, for the provinces where RBH took part: its province, "Regina, SK", or the city alone
 // ("Regina", as ONGIA's own events are typed), from the cities ONGIA trains in (lib/ongiayear.mjs).
 const provinceAt = (e) => provinceOfEvent(e);
@@ -112,7 +114,7 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
     agencies: [...agencies.values()],
     survey: survey ? { answered: survey.answered, invited: survey.invited, scoring: survey.scoring, sessions: survey.sessions.slice(0, 5), comments: survey.comments, topics: survey.topics, provinces: survey.provinces } : null,
     certificates: Object.keys(certs ?? {}).length,
-    rbhPresenters: fromRbh.length,
+    rbhPresenters: fromRbh.length, cancelled: event.rbhCancelled === true,
     rbhSession: rbhSession ? { title: rbhSession.title, titleFr: rbhSession.titleFr, n: rbhSession.n, top2: rbhSession.top2, mean: rbhSession.mean, top1: rbhSession.top1 } : null,
     presenters: speakers.length, presenterOrgs: [...new Set(speakers.map((p) => String(p.organization ?? "").trim()).filter(Boolean))],
   };
@@ -137,16 +139,14 @@ export async function yearFacts(year, { events = null, now = today(), track = "c
   }
   const next = all.filter((e) => counts(e) && yearOf(e) === String(Number(year) + 1)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""))
     .map((e) => ({ title: e.title, city: cityOf(e), dayOne: e.dayOne }));
-  // ONGIA events where RBH had a speaking spot but couldn't present (Andrew 17 Nov 2026, the National Gang Summit): listed
-  // as spots ONGIA held for RBH, never counted in who RBH reached.
-  const cancelled = track === "sponsor" ? all.filter((e) => rbhSpotCancelled(e) && yearOf(e) === String(year)).sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? ""))
-    .map((e) => ({ title: e.title, city: cityOf(e), province: provinceAt(e), dayOne: e.dayOne || "", lastDay: e.lastDay || e.dayOne || "" })) : [];
-  return combineYear(year, rows, { earlier, next, inputs: await inputsOf(year, track), track, cancelled });
+  return combineYear(year, rows, { earlier, next, inputs: await inputsOf(year, track), track });
 }
 
 /** The year's figures from its trainings' figures (trainingFacts), the agencies seen before, next year's bookings and the typed-in figures. */
-export function combineYear(year, rows, { earlier = null, next = [], inputs = { members: null, campaigns: null }, track = "consulting", cancelled = [] } = {}) {
+export function combineYear(year, rows, { earlier = null, next = [], inputs = { members: null, campaigns: null }, track = "consulting" } = {}) {
   const held = rows.filter((r) => r.held);
+  // Where RBH had a spot but couldn't present: counted, and named in the report.
+  const cancelled = held.filter((r) => r.cancelled).map((r) => ({ title: r.title, city: r.city, province: r.province, dayOne: r.dayOne, lastDay: r.lastDay }));
 
   // Agencies and provinces reached, from those who came to trainings that have happened.
   const agencies = new Map();
@@ -191,7 +191,7 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
   return {
     year: Number(year), track: trackOf(track),
     heldInProvinces: heldIn.map((c) => ({ code: c, en: PROVINCES[c] })),
-    ...(trackOf(track) === "sponsor" ? { cancelled, value: { spots: held.length + cancelled.length, presentedAt: held.length, cancelledSpots: cancelled.length,
+    ...(trackOf(track) === "sponsor" ? { cancelled, value: { spots: held.length, presentedAt: held.length - cancelled.length, cancelledSpots: cancelled.length,
       rbhSessions: rated.length, rbhSessionAnswers: rbhN, rbhSessionTop2: rbhN ? Math.round(rated.reduce((a, r) => a + r.rbhSession.top2 * r.rbhSession.n, 0) / rbhN) : null } } : {}),
     trainings: rows.length, held: held.length, upcoming: rows.length - held.length,
     attendees, attendeeDays: held.reduce((a, r) => a + r.attended * r.days, 0), trainingDays: held.reduce((a, r) => a + r.days, 0),
@@ -210,7 +210,7 @@ export function combineYear(year, rows, { earlier = null, next = [], inputs = { 
     scoring, sessions,
     communications: { members: inputs.members, campaigns: inputs.campaigns, estimatedEmails: inputs.members != null && inputs.campaigns != null ? inputs.members * inputs.campaigns : null,
       ...(trackOf(track) === "sponsor" ? { digitalReach: inputs.reach ?? null } : {}) },
-    trainingsList: rows.map((r) => ({ id: r.id, title: r.title, province: r.province, agencies: r.held ? r.agencies.length : null,
+    trainingsList: rows.map((r) => ({ id: r.id, title: r.title, province: r.province, cancelled: !!r.cancelled, agencies: r.held ? r.agencies.length : null,
       rbhSession: r.held ? r.rbhSession ?? null : null, city: r.city, dayOne: r.dayOne, lastDay: r.lastDay, days: r.days, held: r.held, attended: r.held ? r.attended : null,
       answered: r.survey?.answered ?? 0, surveyRate: r.held && r.survey?.invited ? pctOf(r.survey.answered, r.survey.invited) : null, quality: r.held ? (r.survey?.scoring?.find((s) => s.id === "quality")?.top2 ?? null) : null })),
     nextYear: { count: next.length, trainings: next },
@@ -263,7 +263,7 @@ Write in ${LANG[lang]}. Plain, confident, specific. No hype, no filler, no super
 
 The figures you are given are the only figures that exist. Use them exactly; never compute, round differently, total, or invent one. If a figure is missing or null, leave the point out rather than guess. The attendance figures are everyone who attended those events, so call them the attendees of the events where RBH presented; don't claim each of them sat in RBH's session. The email figure is an estimate (members times campaigns) and must be called an estimate; so is the digital reach. These events are ONGIA's own; never call them RBH trainings or say RBH funded or ran a particular event.
 
-The report must answer RBH's question: what did the sponsorship deliver? Lead with value: how many speaking spots ONGIA held for RBH and how many events RBH presented at, in front of how many people, in how many cities and provinces, how many different agencies (each counted once across the year, however many events it came to), and the estimated emails and digital reach. Being seen in person, in every province, by many different agencies is the point; say so where the figures show it. If RBH's own session was rated, say how. Where RBH had a spot but couldn't present ("cancelled"), say only that ONGIA held a spot for RBH there and RBH was unable to present; give no reason, and never count those events in who RBH reached. Never state, estimate or imply any amount of money, cost, price or value in dollars. Never mention social media. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
+The report must answer RBH's question: what did the sponsorship deliver? Lead with value: how many speaking spots ONGIA held for RBH and how many events RBH presented at, in front of how many people, in how many cities and provinces, how many different agencies (each counted once across the year, however many events it came to), and the estimated emails and digital reach. Being seen in person, in every province, by many different agencies is the point; say so where the figures show it. If RBH's own session was rated, say how. Where RBH had a spot but couldn't present (listed under "cancelled"), its audience is included in the figures: say plainly that ONGIA held a speaking spot for RBH there and RBH was unable to present, and give no reason. Never state, estimate or imply any amount of money, cost, price or value in dollars. Never mention social media. Never name or identify an attendee. For quotes, give only the id of a comment; the desk prints its exact words in the language it was written in.
 
 ONGIA's requests for this document come last. Follow every one of them. They may add sections, change wording or emphasis, or leave things out; they can't change a figure or a quote's words.`;
 
@@ -423,7 +423,7 @@ const TS = {
     tTrainings: "Events", tTraining1: "Event", tTrained: "Attendees", tTrainedSub: (b) => (b === "registered" ? "registered" : "at events with RBH"),
     footExec: (y) => `Sponsorship Report ${y} · ONGIA and RBH`,
     kpis: "KPIs from the sponsorship agreement", kpi: "KPI", result: "Result", notYet: "Not entered yet", seeTable: (n) => `${n} event${n === 1 ? "" : "s"}; see the table below`,
-    kPeople: "Individuals RBH presented to through ONGIA-led sessions", kPeopleR: (a) => `${a} attendees at the events where RBH presented`,
+    kPeople: "Individuals RBH presented to through ONGIA-led sessions", kPeopleR: (a, c) => `${a} attendees at the events where RBH presented${c ? " or held a speaking spot" : ""}`,
     kWhere: "Cities and provinces where RBH participated", kWhereR: (c, p, list) => `${c} cit${c === "1" ? "y" : "ies"} in ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
     kEmails: "Emails to ONGIA's membership with contraband tobacco awareness messaging", kEmailsR: (e, m, c) => `About ${e} (an estimate: ${m} members × ${c} campaigns)`,
     kReach: "Estimated digital reach and engagement with RBH awareness materials", kReachR: (r) => `About ${r} (an estimate)`,
@@ -432,7 +432,7 @@ const TS = {
     vSpots: "Speaking spots ONGIA held for RBH", vSpotsR: (n, p, c) => `${n} (${p} presented${c !== "0" ? `, ${c} where RBH was unable to present` : ""})`, vEvents: "Events where RBH presented in person", vEventsR: (n, c) => `${n} in ${c} cit${c === "1" ? "y" : "ies"}`,
     vHeldIn: "Provinces where RBH presented", vPeople: "People at those events", vAgencies: "Different agencies in front of RBH (each counted once)", vAgenciesR: (n, k) => (k != null ? `${n} (${k} new this year)` : n),
     vFrom: "Provinces the audience came from", vEmails: "Emails with contraband tobacco awareness messaging", vReach: "Estimated digital reach",
-    cancelledNote: (list) => `ONGIA also held a speaking spot for RBH at ${list}; RBH was unable to present.`, vSession: "RBH's own session rated 4 or 5",
+    cancelledNote: (list) => `ONGIA held a speaking spot for RBH at ${list}; RBH was unable to present. Its attendees are included in the figures in this report.`, vSession: "RBH's own session rated 4 or 5",
     vSessionR: (t, n, k) => `${t} (${n} answers, ${k} event${k === "1" ? "" : "s"})`, estimate: "(estimate)",
     colAgencies: "Agencies", colRbh: "RBH session", sessionNote: "RBH session: share who rated RBH's own session 4 or 5 out of 5, where RBH's presenter is on the agenda." },
   fr: { exec: "Rapport sur la commandite", partner: (y) => `La commandite de RBH à la formation de l'ONGIA · ${y}`, review: (y) => `Bilan de la commandite · ${y}`, kicker: "Résultats de la commandite",
@@ -444,7 +444,7 @@ const TS = {
     tTrainings: "Événements", tTraining1: "Événement", tTrained: "Participants", tTrainedSub: (b) => (b === "registered" ? "inscrits" : "aux événements avec RBH"),
     footExec: (y) => `Rapport sur la commandite ${y} · ONGIA et RBH`,
     kpis: "Indicateurs de l'entente de commandite", kpi: "Indicateur", result: "Résultat", notYet: "Pas encore saisi", seeTable: (n) => `${n} événement${n === 1 ? "" : "s"}; voir le tableau ci-dessous`,
-    kPeople: "Personnes auxquelles RBH a présenté dans le cadre des séances de l'ONGIA", kPeopleR: (a) => `${a} participants aux événements où RBH a présenté`,
+    kPeople: "Personnes auxquelles RBH a présenté dans le cadre des séances de l'ONGIA", kPeopleR: (a, c) => `${a} participants aux événements où RBH a présenté${c ? " ou avait une place de conférencier" : ""}`,
     kWhere: "Villes et provinces où RBH a participé", kWhereR: (c, p, list) => `${c} ville${c === "1" ? "" : "s"} dans ${p} province${p === "1" ? "" : "s"}${list ? ` (${list})` : ""}`,
     kEmails: "Courriels aux membres de l'ONGIA avec un message de sensibilisation au tabac de contrebande", kEmailsR: (e, m, c) => `Environ ${e} (estimation : ${m} membres × ${c} campagnes)`,
     kReach: "Portée et engagement numériques estimés des documents de sensibilisation de RBH", kReachR: (r) => `Environ ${r} (estimation)`,
@@ -453,7 +453,7 @@ const TS = {
     vSpots: "Places de conférencier réservées à RBH par l'ONGIA", vSpotsR: (n, p, c) => `${n} (${p} présentation${p === "1" ? "" : "s"}${c !== "0" ? `, ${c} où RBH n'a pas pu présenter` : ""})`, vEvents: "Événements où RBH a présenté en personne", vEventsR: (n, c) => `${n} dans ${c} ville${c === "1" ? "" : "s"}`,
     vHeldIn: "Provinces où RBH a présenté", vPeople: "Participants à ces événements", vAgencies: "Organismes différents devant qui RBH a présenté (chacun compté une fois)", vAgenciesR: (n, k) => (k != null ? `${n} (${k} nouveaux cette année)` : n),
     vFrom: "Provinces d'où venaient les participants", vEmails: "Courriels de sensibilisation au tabac de contrebande", vReach: "Portée numérique estimée",
-    cancelledNote: (list) => `L'ONGIA a aussi réservé une place de conférencier à RBH à ${list}; RBH n'a pas pu présenter.`, vSession: "Séance de RBH notée 4 ou 5",
+    cancelledNote: (list) => `L'ONGIA a réservé une place de conférencier à RBH à ${list}; RBH n'a pas pu présenter. Ses participants sont inclus dans les chiffres de ce rapport.`, vSession: "Séance de RBH notée 4 ou 5",
     vSessionR: (t, n, k) => `${t} (${n} réponses, ${k} événement${k === "1" ? "" : "s"})`, estimate: "(estimation)",
     colAgencies: "Organismes", colRbh: "Séance RBH", sessionNote: "Séance RBH : part ayant noté la séance de RBH 4 ou 5 sur 5, lorsque le conférencier de RBH figure au programme." },
 };
@@ -576,7 +576,7 @@ export async function yearExecPdf(content, f, lang, { date }) {
     const provs = (f.heldInProvinces ?? []).map((p) => (lang === "fr" ? PROV_FR[p.code] : p.en)).join(", ");
     h2(L.kpis, 150);
     table([{ label: L.kpi, w: 0.5 }, { label: L.result, w: 0.5 }], [
-      [L.kPeople, L.kPeopleR(num(f.attendees, lang))],
+      [L.kPeople, L.kPeopleR(num(f.attendees, lang), f.cancelled?.length)],
       [L.kWhere, L.kWhereR(num(cities, lang), num((f.heldInProvinces ?? []).length, lang), provs)],
       [L.kEmails, c.estimatedEmails != null ? L.kEmailsR(num(c.estimatedEmails, lang), num(c.members, lang), num(c.campaigns, lang)) : L.notYet],
       [L.kReach, c.digitalReach != null ? L.kReachR(num(c.digitalReach, lang)) : L.notYet],
@@ -590,7 +590,7 @@ export async function yearExecPdf(content, f, lang, { date }) {
     const est = (t) => `${t} ${L.estimate}`;
     table([{ label: L.measure2, w: 0.6 }, { label: L.figure, w: 0.4, align: "right" }], [
       V.cancelledSpots ? [L.vSpots, L.vSpotsR(num(V.spots, lang), num(V.presentedAt, lang), num(V.cancelledSpots, lang))] : null,
-      [L.vEvents, L.vEventsR(num(f.held, lang), num(cities, lang))],
+      [L.vEvents, L.vEventsR(num(f.value?.presentedAt ?? f.held, lang), num(new Set(f.trainingsList.filter((r) => r.held && !r.cancelled).map((r) => cityKey(r.city)).filter(Boolean)).size, lang))],
       provs ? [L.vHeldIn, provs] : null,
       [L.vPeople, num(f.attendees, lang)],
       [L.vAgencies, L.vAgenciesR(num(f.agencyCount, lang), f.newAgencies != null ? num(f.newAgencies, lang) : null)],
@@ -605,11 +605,11 @@ export async function yearExecPdf(content, f, lang, { date }) {
   const held = f.trainingsList.filter((r) => r.held);
   if (f.track === "sponsor") {
     // Each event: where, how many people, how many agencies, and how RBH's own session was rated.
-    const rows = f.trainingsList.map((r) => [r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.agencies != null ? num(r.agencies, lang) : "", r.rbhSession?.n ? pc(r.rbhSession.top2, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
+    const rows = f.trainingsList.map((r) => [r.cancelled ? `${r.title} *` : r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.agencies != null ? num(r.agencies, lang) : "", r.rbhSession?.n ? pc(r.rbhSession.top2, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
     rows.push([L.total, "", "", num(f.attendees, lang), num(f.agencyCount, lang), f.value?.rbhSessionTop2 != null ? pc(f.value.rbhSessionTop2, lang) : "", f.survey.quality != null ? pc(f.survey.quality, lang) : ""]);
     table([{ label: L.colTraining, w: 0.29 }, { label: L.colCity, w: 0.12 }, { label: L.colDates, w: 0.12 }, { label: L.colAttended, w: 0.1, align: "right" }, { label: L.colAgencies, w: 0.11, align: "right" }, { label: L.colRbh, w: 0.15, align: "right" }, { label: L.colQuality, w: 0.11, align: "right" }], rows, { bold: rows.length - 1 });
     doc.moveDown(0.3); para(L.sessionNote, { font: "i", size: 8.5, color: MUTED });
-    if (f.cancelled?.length) para(L.cancelledNote(f.cancelled.map((e) => `${e.title} (${[e.city, span(e.dayOne, e.lastDay, lang)].filter(Boolean).join(", ")})`).join("; ")));
+    if (f.cancelled?.length) para("* " + L.cancelledNote(f.cancelled.map((e) => `${e.title} (${[e.city, span(e.dayOne, e.lastDay, lang)].filter(Boolean).join(", ")})`).join("; ")));
   } else {
   const rows = f.trainingsList.map((r) => [r.title, r.city, span(r.dayOne, r.lastDay, lang), r.held ? num(r.attended, lang) : L.toCome, r.surveyRate != null ? pc(r.surveyRate, lang) : "", r.quality != null ? pc(r.quality, lang) : ""]);
   rows.push([L.total, "", "", num(held.reduce((a, r) => a + (r.attended ?? 0), 0), lang), f.survey.invited ? pc(f.survey.rate, lang) : "", f.survey.quality != null ? pc(f.survey.quality, lang) : ""]);
@@ -790,19 +790,19 @@ export async function yearInfoPdf(content, f, lang, { date }) {
    event infographics he likes, the return on RBH's money first, a map of where RBH stood in front of people, its events. ---------- */
 
 const IG = {
-  en: { kicker: (y) => `Sponsorship year in review · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", spots: (n, p, c) => `speaking spot${n === 1 ? "" : "s"} held for RBH${c ? ` · presented at ${p}, unable to present at ${c}` : ""}`, cancelledTag: "Spot held · RBH unable to present",
+  en: { kicker: (y) => `Sponsorship year in review · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", spots: (n, p, c) => `speaking spot${n === 1 ? "" : "s"} held for RBH${c ? ` · presented at ${p}, unable to present at ${c}` : ""}`, cancelledTag: "Spot held for RBH · unable to present",
     people: "people", agencies: "different agencies", provinces: "provinces", events: "events", province1: "province", event1: "event", agency1: "agency", inCities: (c) => `in ${c} cit${c === 1 ? "y" : "ies"}`,
-    peopleSub: "at events where RBH presented", agenciesSub: "each counted once", provincesSub: "where RBH presented", eventsSub: "RBH presented in person",
+    peopleSub: "at events where RBH presented or had a spot", agenciesSub: "each counted once", provincesSub: "where RBH presented or had a spot", eventsSub: "RBH presented in person",
     emails: "Emails", emailsSub: "contraband tobacco messaging", reach: "Digital reach", reachSub: "estimated",
     session: "RBH's session", sessionSub: "rated 4 or 5", quality: "Event quality", qualitySub: "rated 4 or 5",
-    map: "Where RBH stood in front of people", mapKey1: "RBH presented here", mapKey2: "Audience came from here", list: "The events", sectors: "Who RBH reached", ahead: (n, y) => `${n} event${n === 1 ? "" : "s"} with RBH already booked for ${y}`,
+    map: "Where RBH stood in front of people", mapKey1: "RBH presented or had a spot here", mapKey2: "Audience came from here", list: "The events", sectors: "Who RBH reached", ahead: (n, y) => `${n} event${n === 1 ? "" : "s"} with RBH already booked for ${y}`,
     foot: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Prepared by ONGIA · ${d}`, toCome: "To come" },
   fr: { kicker: (y) => `Bilan de la commandite · ${y}`, pair: "Rothmans, Benson & Hedges × ONGIA", spots: (n, p, c) => `place${n === 1 ? "" : "s"} de conférencier réservée${n === 1 ? "" : "s"} à RBH${c ? ` · ${p} présentation${p === 1 ? "" : "s"}, ${c} annulée${c === 1 ? "" : "s"}` : ""}`, cancelledTag: "Place réservée · RBH n'a pas pu présenter",
     people: "personnes", agencies: "organismes différents", provinces: "provinces", events: "événements", province1: "province", event1: "événement", agency1: "organisme", inCities: (c) => `dans ${c} ville${c === 1 ? "" : "s"}`,
-    peopleSub: "aux événements où RBH a présenté", agenciesSub: "chacun compté une fois", provincesSub: "où RBH a présenté", eventsSub: "RBH a présenté en personne",
+    peopleSub: "aux événements avec une place pour RBH", agenciesSub: "chacun compté une fois", provincesSub: "où RBH avait une place", eventsSub: "RBH a présenté en personne",
     emails: "Courriels", emailsSub: "sur le tabac de contrebande", reach: "Portée numérique", reachSub: "estimée",
     session: "Séance de RBH", sessionSub: "note de 4 ou 5", quality: "Qualité", qualitySub: "note de 4 ou 5",
-    map: "Où RBH s'est présenté devant le public", mapKey1: "RBH a présenté ici", mapKey2: "Provenance du public", list: "Les événements", sectors: "Qui RBH a joint", ahead: (n, y) => `${n} événement${n === 1 ? "" : "s"} avec RBH déjà prévu${n === 1 ? "" : "s"} en ${y}`,
+    map: "Où RBH s'est présenté devant le public", mapKey1: "RBH a présenté ou avait une place ici", mapKey2: "Provenance du public", list: "Les événements", sectors: "Qui RBH a joint", ahead: (n, y) => `${n} événement${n === 1 ? "" : "s"} avec RBH déjà prévu${n === 1 ? "" : "s"} en ${y}`,
     foot: "ONGIA · WWW.ONGIA.CA", prep: (d) => `Préparé par l'ONGIA · ${d}`, toCome: "À venir" },
 };
 let CANADA = null;
@@ -903,15 +903,15 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   // Beside the map: each event with a bar for its people, then who RBH reached by sector.
   const rx = X + mw + 18, rw = W - mw - 18;
   let ry = head(L.list, rx, y, rw);
-  const evs = [...f.trainingsList, ...(f.cancelled ?? []).map((e) => ({ ...e, held: false, cancelled: true }))].sort((a, b) => (a.dayOne ?? "").localeCompare(b.dayOne ?? "")).slice(0, 9), maxA = Math.max(1, ...evs.map((r) => r.attended ?? 0));
+  const evs = f.trainingsList.slice(0, 9), maxA = Math.max(1, ...evs.map((r) => r.attended ?? 0));
   for (const r of evs) {
     doc.font("b").fontSize(8).fillColor(r.held ? "#ffffff" : SOFT).text(r.title, rx, ry, { width: rw, lineBreak: false, height: 10, ellipsis: true });
-    doc.font("r").fontSize(7).fillColor(SOFT).text(`${r.city ? `${r.city} · ` : ""}${span(r.dayOne, r.lastDay, lang)}`, rx, ry + 10, { width: rw * 0.55, lineBreak: false, height: 9, ellipsis: true });
+    doc.font(r.cancelled ? "i" : "r").fontSize(7).fillColor(r.cancelled ? GL : SOFT).text(r.cancelled ? L.cancelledTag : `${r.city ? `${r.city} · ` : ""}${span(r.dayOne, r.lastDay, lang)}`, rx, ry + 10, { width: rw * 0.55, lineBreak: false, height: 9, ellipsis: true });
     if (r.held) {
       const bx = rx + rw * 0.55, bwid = rw * 0.33;
       doc.rect(bx, ry + 11, bwid, 6).fill(OFF); doc.rect(bx, ry + 11, Math.max(2, bwid * (r.attended ?? 0) / maxA), 6).fill(G);
       doc.font("b").fontSize(8).fillColor("#ffffff").text(num(r.attended, lang), bx + bwid, ry + 9, { width: rw - rw * 0.55 - bwid, align: "right", lineBreak: false });
-    } else doc.font("i").fontSize(7).fillColor(SOFT).text(r.cancelled ? L.cancelledTag : L.toCome, rx + rw * 0.4, ry + 10, { width: rw * 0.6, align: "right", lineBreak: false, height: 9, ellipsis: true });
+    } else doc.font("i").fontSize(7).fillColor(SOFT).text(L.toCome, rx + rw * 0.4, ry + 10, { width: rw * 0.6, align: "right", lineBreak: false, height: 9, ellipsis: true });
     ry += 25;
   }
   if (f.sectors?.length && ry + 30 < leftEnd + 40) {
