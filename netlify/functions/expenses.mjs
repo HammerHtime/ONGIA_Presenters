@@ -8,7 +8,7 @@ import { sendExpenseMail } from "./lib/mail.mjs";
 import {
   getRoster, putRoster, listEvents, getClaim, putClaim, listClaimLines, getClaimLine, putClaimLine, deleteClaimLine,
   getClaimRead, putClaimRead, putClaimFile, getClaimFile, markMine, listMineIds, markWaiting, listWaitingIds, listClaimIds,
-  deleteClaimAll, getAway, putAway, deleteAway, getMeta, putMeta, getSow,
+  deleteClaimAll, getAway, putAway, deleteAway, getMeta, putMeta, getSow, getEvent, listPresenters,
 } from "./lib/store.mjs";
 import { syncClaimToSow } from "./lib/sowexpense.mjs";
 import {
@@ -18,7 +18,7 @@ import {
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
-import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
+import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, presenterPaidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
 
 /**
  * ONGIA Expenses: a board member's expense claims (see lib/expenses.mjs). Signed in with the member's own ONGIA
@@ -33,6 +33,8 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, unl
  *   GET    /api/expenses[?test=1]                        home: my claim being built, my others, what waits on me
  *   GET    /api/expenses?claim=<id>                      one claim, with Claude's check and who signs off
  *   GET    /api/expenses?claim=<id>&file=<line>[&kind=thumb|shot]   a receipt, its small picture, or the card statement
+ *   GET    /api/expenses?presenters=<eventId>            that event's presenters, for a claim made for one of them
+ *   PUT    /api/expenses?claim=<id>&for=1                { event, presenter } (or {} to make it the member's own again)
  *   POST   /api/expenses?add=receipt[&claim=<id>][&test=1]   body = the photo or PDF; Claude starts reading it
  *   POST   /api/expenses?add=mileage|noreceipt[&claim=]  { date, km, from, to, … }
  *   PUT    /api/expenses?claim=<id>&line=<line>          what the person checked or typed
@@ -173,6 +175,17 @@ export default async (req) => {
     const { claim, problem } = await loadNamed();
     if (problem) return problem;
     return json({ claim: await claimView(claim, ctx) });
+  }
+
+  // A claim made for a presenter (Andrew 17 Nov 2026: presenters send a board member their receipts; "payout goes
+  // directly to presenter"): the event's presenters to pick from, those not withdrawn.
+  if (req.method === "GET" && q("presenters")) {
+    const ev = await getEvent(text(q("presenters"), 80));
+    if (!ev) return fail("No such event.", 404);
+    const list = (await listPresenters(ev.id)).filter((p) => p.status !== "withdrawn")
+      .map((p) => ({ id: p.id, name: `${p.first ?? ""} ${p.last ?? ""}`.trim(), organization: String(p.organization ?? "").trim(), email: p.email ?? "" }))
+      .filter((p) => p.name).sort((a, b) => a.name.localeCompare(b.name));
+    return json({ event: { id: ev.id, title: ev.title }, presenters: list });
   }
 
   if (req.method === "GET") return json(await home(ctx, test));
@@ -370,7 +383,11 @@ export default async (req) => {
     claim.history = [...(claim.history ?? []), { at: now(), what: "paid and locked", by: me.name, ref }];
     await putClaim(claim);
     await markWaiting(claim.id, false);
-    await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
+    // A presenter's claim: they're told it's paid, and the member who made it for them gets the same note.
+    if (claim.payee?.email) {
+      await note(claim, "paid", await tell(claim.payee.email, presenterPaidMail({ claim, paid: claim.paid }), claim.owner?.email || me.email));
+      await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
+    } else await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
   }
@@ -390,6 +407,23 @@ export default async (req) => {
     for (const e of tellTo) await note(claim, "unlocked", await tell(e, unlockedMail({ claim, by: me.name, reason }), me.email));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
+  }
+
+  // Who the claim is for: the member themself, or a presenter of one of the events (the e-transfer goes to them).
+  if (req.method === "PUT" && q("for")) {
+    const no = editable(claim);
+    if (no) return fail(no, 409);
+    const body = await req.json().catch(() => ({}));
+    if (!body.presenter) { delete claim.payee; claim.history = [...(claim.history ?? []), { at: now(), what: "made the member's own claim", by: me.name }]; await touch(claim); return json({ claim: await claimView(claim, ctx) }); }
+    const ev = await getEvent(text(body.event, 80));
+    const p = ev ? (await listPresenters(ev.id)).find((x) => x.id === text(body.presenter, 80)) : null;
+    if (!p) return fail("That presenter isn't on that event.", 404);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email ?? "")) return fail("That presenter has no email address on their agreement, so they can't be paid by e-transfer. Add it on the event's People tab first.", 409);
+    claim.payee = { kind: "presenter", name: `${p.first ?? ""} ${p.last ?? ""}`.trim(), email: String(p.email).toLowerCase(), organization: String(p.organization ?? "").trim(),
+      event: ev.id, eventTitle: ev.title, presenter: p.id, covers: p.review?.ongiaCovers ?? null };
+    claim.history = [...(claim.history ?? []), { at: now(), what: `made for ${claim.payee.name}, a presenter at ${ev.title}`, by: me.name }];
+    await touch(claim);
+    return json({ claim: await claimView(claim, ctx) });
   }
 
   /* ---- one line ---- */
@@ -686,7 +720,7 @@ export async function claimView(claim, { me, aways, today, names }) {
   const myslot = claim.status === "submitted" ? slots.find((s) => !s.done && s.me) : null;
   const editableNow = mine && EDITABLE.includes(claim.status);
   return {
-    id: claim.id, status: claim.status, words: statusWords(claim), owner: claim.owner, createdAt: claim.createdAt, updatedAt: claim.updatedAt,
+    id: claim.id, status: claim.status, words: statusWords(claim), owner: claim.owner, payee: claim.payee ?? null, createdAt: claim.createdAt, updatedAt: claim.updatedAt,
     sentAt: claim.sentAt ?? null, test: !!claim.test, trial: !!claim.trial,
     month: claim.month || monthLabel(todayIso()),
     sums, lines: shown, missing: shown.filter((l) => l.problems.length).length,
@@ -716,7 +750,7 @@ export async function claimView(claim, { me, aways, today, names }) {
 
 // A claim in a list. Paid claims carry the day they were paid and what is on them (Andrew 3 Nov 2026: "the date and the
 // amount obviously will show the day it was paid out"); an approved one, the day it was approved.
-const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, trial: !!c.trial,
+const summary = (c, names, extra = {}) => ({ id: c.id, owner: { name: c.owner?.name, email: c.owner?.email }, payee: c.payee ? { name: c.payee.name, eventTitle: c.payee.eventTitle } : null, status: c.status, words: statusWords(c), month: c.month ?? "", total: c.total ?? null, sentAt: c.sentAt ?? null, test: !!c.test, trial: !!c.trial,
   approvedAt: c.approvedAt ?? null, paidOn: c.paid?.date ?? null, sums: c.sums ? { receipts: c.sums.receipts ?? 0, mileage: c.sums.mileage ?? 0, noreceipt: c.sums.noreceipt ?? 0 } : null, ...extra });
 
 async function home(ctx, test = false) {
@@ -756,7 +790,7 @@ async function home(ctx, test = false) {
     others: await Promise.all(open.filter((c) => c !== current).map(async (c) => {
       const ls = await listClaimLines(c.id);
       const evs = [...new Set(ls.map((l) => l.eventTitle).filter(Boolean))];
-      return summary(c, names, { lines: ls.length, sum: Math.round(ls.reduce((t, l) => t + (Number(l.amount) || 0), 0) * 100) / 100, about: evs[0] ?? "", createdAt: c.createdAt ?? null });
+      return summary(c, names, { lines: ls.length, sum: Math.round(ls.reduce((t, l) => t + (Number(l.amount) || 0), 0) * 100) / 100, about: c.payee?.name || evs[0] || "", createdAt: c.createdAt ?? null });
     })),
     month: monthLabel(today),
     approvers: approversFor(me.email).map((r) => ROLE_TITLE[r]),

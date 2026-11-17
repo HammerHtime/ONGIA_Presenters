@@ -74,7 +74,7 @@ export function receiptPrefix(ownerName, month, stem = "") {
 }
 /** Each receipt's full name in its claim's folder, "Healy - Nov 2026 claim - Delta Hotels $658.12.jpg"; two alike get (2). */
 export function receiptNames(claim, stem, receipts) {
-  const pre = receiptPrefix(claim.owner?.name, claim.month, stem), seen = new Map(), out = {};
+  const pre = receiptPrefix(claim.payee?.name || claim.owner?.name, claim.month, stem), seen = new Map(), out = {};
   for (const r of receipts) {
     let name = `${pre} - ${r.name}`;
     const k = name.toLowerCase(), n = (seen.get(k) ?? 0) + 1;
@@ -126,7 +126,7 @@ export async function claimDocuments({ claim, lines, names, checks, getFile }) {
   const ordered = formOrder(lines);
   const signers = signersOf(claim, names);
   const xlsx = claimWorkbook(await readTemplate(), {
-    submittedBy: claim.owner?.name ?? "", submitted: claim.submittedAt ? todayIso(new Date(claim.submittedAt)) : todayIso(),
+    submittedBy: claim.payee?.name ? `${claim.payee.name} (presenter), sent by ${claim.owner?.name ?? ""}` : claim.owner?.name ?? "", submitted: claim.submittedAt ? todayIso(new Date(claim.submittedAt)) : todayIso(),
     signers, txn: claim.paid?.ref ?? "", paidDate: claim.paid?.date ?? "",
     lines: ordered.map((l) => ({ paidTo: l.paidTo, date: l.date, amount: l.amount, category: l.category, purpose: purposeOf(l), noHst: noHst(l) })),
   });
@@ -162,7 +162,7 @@ export async function renameFiled(claim, { drive = null, dry = false } = {}) {
   const g = dry ? null : drive ?? (await expenseDrive());
   if (!dry && !g) throw new Error("Microsoft isn't set up on this site.");
   for (let tries = 0; tries < 10; tries++, n++) {
-    const stem = claimStem(claim.owner?.name, claim.month, n);
+    const stem = claimStem(claim.payee?.name || claim.owner?.name, claim.month, n);
     if (dry) return { from: f.stem, to: stem, folder: f.folder };
     try {
       const x = f.xlsx?.id ? await g.rename(f.xlsx.id, `${stem}.xlsx`) : null;
@@ -225,14 +225,16 @@ export async function fileClaim({ claim, docs, prev = null, drive = null }) {
   // A board-test claim (Andrew 3 Nov 2026) is filed with the test claims, never in the year's real folders.
   const root = claim.test || claim.trial ? `${base}/${TEST_FOLDER}` : `${base}/${String(claim.month).split(" ")[1]}`;
   const folderNames = async (p) => ((await g.children(p)) ?? []).filter((k) => k.folder).map((k) => k.name);
-  const member = prev?.member ?? memberFolder(await folderNames(root), claim.owner?.name ?? "Member");
+  // A presenter's claim (Andrew 17 Nov 2026) goes in the year's Presenters folder, under the presenter's name.
+  const member = prev?.member ?? (claim.payee?.name ? "Presenters" : memberFolder(await folderNames(root), claim.owner?.name ?? "Member"));
+  const who = claim.payee?.name || claim.owner?.name;
   const month = prev?.month ?? monthFolder(await folderNames(`${root}/${member}`), claim.month);
   const folder = `${root}/${member}/${month}`;
   const dir = await g.ensure(folder);
   let stem = prev?.stem;
   if (!stem) {
     const taken = new Set(((await g.children(folder)) ?? []).map((k) => k.name.toLowerCase()));
-    for (let n = 1; !stem; n++) if (!taken.has(`${claimStem(claim.owner?.name, claim.month, n)}.xlsx`.toLowerCase())) stem = claimStem(claim.owner?.name, claim.month, n);
+    for (let n = 1; !stem; n++) if (!taken.has(`${claimStem(who, claim.month, n)}.xlsx`.toLowerCase())) stem = claimStem(who, claim.month, n);
   }
   const x = await g.put(`${folder}/${stem}.xlsx`, docs.xlsx, XLSX);
   const p = await g.put(`${folder}/${stem}.pdf`, docs.pdf, "application/pdf");

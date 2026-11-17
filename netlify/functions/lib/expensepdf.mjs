@@ -25,7 +25,7 @@ const day = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).to
 
 export async function claimPdf({ claim, signers = [], lines = [], checks = null, receipts = [] }) {
   const logo = await readFile(path.join(ASSETS, "ongia-logo-tagline-dark.png")).catch(() => null);
-  const doc = new PDFDocument({ size: "LETTER", layout: "landscape", margin: M, info: { Title: `ONGIA expense claim: ${claim.owner?.name ?? ""}, ${claim.month ?? ""}`, Author: "ONGIA Expenses" } });
+  const doc = new PDFDocument({ size: "LETTER", layout: "landscape", margin: M, info: { Title: `ONGIA expense claim: ${claim.payee?.name ?? claim.owner?.name ?? ""}, ${claim.month ?? ""}`, Author: "ONGIA Expenses" } });
   const chunks = [];
   doc.on("data", (c) => chunks.push(c));
   const done = new Promise((r) => doc.on("end", r));
@@ -53,6 +53,12 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
     doc.font("Helvetica-Bold").fontSize(8.5).fillColor(MUTED).text(label, x, y, { width: 110, lineBreak: false });
     doc.font("Helvetica").fontSize(10).fillColor(INK).text(value || "—", x + 112, y - 1, { width: w - 112, lineBreak: false, ellipsis: true });
   };
+  // A presenter's claim (Andrew 17 Nov 2026): who it's for, who to pay, and what their agreement says ONGIA covers.
+  if (claim.payee?.name) {
+    const on = Object.entries(claim.payee.covers ?? {}).filter(([, v]) => v).map(([k]) => ({ transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" }[k] ?? k));
+    kv(M, "For (presenter)", `${claim.payee.name}${claim.payee.organization ? `, ${claim.payee.organization}` : ""}`); kv(M + 360, "Pay by e-transfer to", claim.payee.email); y += 18;
+    kv(M, "Event", claim.payee.eventTitle); kv(M + 360, "ONGIA covers", claim.payee.covers ? (on.join(", ") || "none of their costs") : "not on their agreement"); y += 18;
+  }
   kv(M, "Submitted by", claim.owner?.name); kv(M + 360, "Date sent", day(claim.submittedAt)); y += 18;
   kv(M, "Claim for", claim.month); kv(M + 360, "Status", { submitted: "Waiting for approval", approved: "Approved, waiting for payment", paid: "Paid", rejected: "Sent back", draft: "Not sent" }[claim.status] ?? claim.status); y += 22;
   // The sign-offs, as on the template: each officer's row, the name that signed, the date.

@@ -115,6 +115,7 @@
   .say.wt{background:var(--wait-bg);color:var(--wait);border:1px solid #e5c98c}
   .say.ok{background:var(--done-bg);color:var(--done);border:1px solid #9cc7b0}
   .say.mu{background:var(--sunk);color:var(--ink-mid)}
+  .say.forwho{background:var(--sunk);color:var(--ink)} .say.forwho .linkish{display:inline;margin:0;padding:0 2px} .ppdlg{border:0;border-radius:16px;padding:18px;width:calc(100% - 32px);max-width:420px;background:var(--paper);color:var(--ink)} .ppdlg::backdrop{background:rgba(10,20,40,.45)} .ppdlg h2{font-size:19px}
   .calc{font-size:14px;color:var(--ink-mid);margin:-2px 0 12px;font-variant-numeric:tabular-nums}
   .calc b{font-size:17px;color:var(--ink)}
   .shotbox{display:flex;align-items:center;gap:10px}
@@ -767,7 +768,7 @@ function claimScreen() {
       <div class="note quote">"${esc(back.comment)}"</div><div class="tiny" style="margin-top:6px">Change what's needed below, then send it again.</div></div>` : "";
   // Each open claim as a chip, to switch between them; "+ Another" starts a new one (Andrew 14 Nov 2026).
   // Numbered in the order they were started; named for their event once a line says which.
-  const openAll = c ? [{ id: c.id, createdAt: c.createdAt ?? "", about: evs[0] ?? "", status: c.status, n: lines.length, sum: c.sums?.total ?? 0, on: true },
+  const openAll = c ? [{ id: c.id, createdAt: c.createdAt ?? "", about: c.payee?.name || evs[0] || "", status: c.status, n: lines.length, sum: c.sums?.total ?? 0, on: true },
     ...(HOME?.others ?? []).map((o) => ({ id: o.id, createdAt: o.createdAt ?? "", about: o.about, status: o.status, n: o.lines, sum: o.sum }))] : [];
   const order = [...openAll].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))).map((x) => x.id);
   const chipName = (x) => `<span class="nm">${esc(x.about || (x.status === "rejected" ? "Sent back" : `Claim ${order.indexOf(x.id) + 1}`))}</span> · ${x.n ? money(x.sum) : "empty"}`;
@@ -779,6 +780,11 @@ function claimScreen() {
       <div class="big">${money(c?.sums.total ?? 0)}</div>
       <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : DESK ? "Nothing added yet. Drop your first receipt on the right." : "Nothing added yet. Take a photo of your first receipt."}</div>
     </div>`;
+  // Who the claim is for (Andrew 17 Nov 2026): the member's own, or a presenter's receipts sent to them; the presenter is paid.
+  const mineToEdit = c && ["draft", "rejected"].includes(c.status);
+  const forWho = !mineToEdit ? "" : c.payee
+    ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>, a presenter at ${esc(c.payee.eventTitle)}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button></div>`
+    : `<p class="tiny" style="margin:-4px 2px 12px"><button class="linkish" id="forchg" type="button">Claiming a presenter's expenses for them?</button></p>`;
   const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
   // Swipe a line left to delete it, as on any phone (Andrew 5 Nov 2026): a red Delete shows behind it; tap it to remove.
   const list = [...groups].map(([d, ls]) => `<div class="day">${d ? esc(dayName(d)) : "Not dated yet"}</div><div class="card lines">${ls.map((l) => `<div class="swipe" data-swl="${esc(l.id)}"><button type="button" class="swdel" tabindex="-1" aria-hidden="true">Delete</button>${lineRow(l, c.id)}</div>`).join("")}</div>`).join("");
@@ -791,12 +797,12 @@ function claimScreen() {
       <p class="tiny${DESK ? "" : " center"}" style="margin:6px 4px 0">Receipts and all, nothing to upload again. Test mode goes off.</p>` : "";
   const del = c && (lines.length || (HOME?.others ?? []).length) ? `<button class="btn danger" id="delclaim" type="button" style="margin-top:18px${DESK ? ";width:auto" : ""}">${back ? "Withdraw this claim" : "Delete this claim"}</button>` : "";
   ROOT.innerHTML = DESK
-    ? `${testBar()}${sentBack}<div class="dclaim"><div>${switcher}${run}${waiting}${list}${send}${toReal}${others}${del}${sentList()}</div>
+    ? `${testBar()}${sentBack}<div class="dclaim"><div>${switcher}${run}${forWho}${waiting}${list}${send}${toReal}${others}${del}${sentList()}</div>
       <div class="card dadd"><div class="dh">Add to this claim</div>
         <div class="drop" id="drop"><b>Drop receipts here</b><div class="tiny">Photos or PDFs, several at once. Claude reads each one.</div><button class="btn gold small" id="addpick" type="button">Choose files</button></div>
         <div class="row2"><button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button><button class="btn ghost" id="addnone" type="button">${ICON.note}<span>No receipt</span></button></div></div></div>`
     : `${testBar()}${badgeCard()}
-    ${sentBack}${switcher}${run}${waiting}
+    ${sentBack}${switcher}${run}${forWho}${waiting}
     <button class="btn gold" id="addcam" type="button">${ICON.camera}<span>Take a photo of a receipt</span></button>
     <div class="row2">
       <button class="btn ghost" id="addmile" type="button">${ICON.car}<span>Mileage</span></button>
@@ -812,6 +818,7 @@ function claimScreen() {
   $("addmile").onclick = () => openNew("mileage");
   $("addnone").onclick = () => openNew("noreceipt");
   if ($("retry")) $("retry").onclick = () => flushOutbox();
+  if ($("forchg")) $("forchg").onclick = () => pickPresenter(c);
   if ($("submit")) $("submit").onclick = submitClaim;
   if ($("delclaim")) $("delclaim").onclick = deleteClaim;
   // The claim on screen is always in view in the row of chips.
@@ -908,6 +915,41 @@ function openLine(id) {
 const lineNow = () => (EDIT?.lineId ? HOME?.current?.lines.find((x) => x.id === EDIT.lineId) : null);
 function catOptions(sel) {
   return `<option value="">Choose a category</option>` + (HOME?.categories ?? []).map((c) => `<option value="${c.n}" ${Number(sel) === c.n ? "selected" : ""}>${c.n} · ${esc(c.name)}</option>`).join("");
+}
+/** Make the claim on screen a presenter's (or the member's own again): the event, then its presenter. */
+async function pickPresenter(c) {
+  const box = document.createElement("dialog");
+  box.className = "ppdlg";
+  box.innerHTML = `<form method="dialog"><h2 style="margin:0 0 6px">Who is this claim for?</h2>
+    <p class="tiny" style="margin:0 0 12px">For a presenter who sent you their receipts. ONGIA pays them directly, by e-transfer to the email on their agreement.</p>
+    <div class="field"><label for="pp-ev">Event</label><select id="pp-ev">${eventOptions(c.payee?.event ?? "", c.payee?.eventTitle)}</select></div>
+    <div class="field"><label for="pp-who">Presenter</label><select id="pp-who" disabled><option value="">Choose the event first</option></select></div>
+    <div id="pp-say" class="tiny" style="margin:0 0 10px"></div>
+    <button class="btn gold" id="pp-save" type="button" disabled>Make it their claim</button>
+    ${c.payee ? `<button class="btn ghost" id="pp-mine" type="button" style="margin-top:8px">Make it my own claim</button>` : ""}
+    <button class="btn ghost" value="cancel" style="margin-top:8px">Cancel</button></form>`;
+  document.body.append(box); box.showModal();
+  box.addEventListener("close", () => box.remove());
+  const ev = box.querySelector("#pp-ev"), who = box.querySelector("#pp-who"), save = box.querySelector("#pp-save"), say = box.querySelector("#pp-say");
+  let list = [];
+  const load = async () => {
+    who.disabled = save.disabled = true; say.textContent = "";
+    if (!ev.value) { who.innerHTML = `<option value="">Choose the event first</option>`; return; }
+    who.innerHTML = `<option value="">Loading…</option>`;
+    try {
+      list = (await api(`?presenters=${encodeURIComponent(ev.value)}`)).presenters ?? [];
+      who.innerHTML = list.length ? `<option value="">Choose the presenter</option>` + list.map((p) => `<option value="${esc(p.id)}"${c.payee?.presenter === p.id ? " selected" : ""}>${esc(p.name)}${p.organization ? ` · ${esc(p.organization)}` : ""}</option>`).join("") : `<option value="">No presenters on this event</option>`;
+      who.disabled = !list.length; save.disabled = !who.value;
+    } catch (x) { who.innerHTML = `<option value="">Couldn't load them</option>`; say.textContent = x.message; }
+  };
+  ev.onchange = load; if (ev.value) load();
+  who.onchange = () => { const p = list.find((x) => x.id === who.value); save.disabled = !p; say.textContent = p ? (p.email ? `Paid to ${p.email}.` : "No email on their agreement, so they can't be paid by e-transfer yet.") : ""; };
+  const send = async (body, done) => {
+    try { await api(`?claim=${encodeURIComponent(c.id)}&for=1`, { method: "PUT", json: body }); box.close(); HOME = await api(TESTMODE() ? "?test=1" : ""); claimScreen(); toast(done); }
+    catch (x) { say.textContent = x.message; }
+  };
+  save.onclick = () => send({ event: ev.value, presenter: who.value }, "It's their claim now. ONGIA pays them directly.");
+  box.querySelector("#pp-mine")?.addEventListener("click", () => send({}, "It's your own claim again."));
 }
 function eventOptions(sel, title) {
   const evs = HOME?.events ?? [];
@@ -1167,7 +1209,10 @@ const ICON_LOCK = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" s
 const todayHere = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 /* Someone's claim in a list, as its own tile: who, the amount, the month and a word on where it stands. */
 const pillWord = (c) => (c.status === "approved" ? "Approved" : c.status === "submitted" ? "Waiting" : c.words);
-const claimRow = (c, extra = "") => tile(c, c.owner?.name ?? "", [c.month, extra || c.words].filter(Boolean).join(" · "), pillWord(c));
+const COVERS_WORDS = { transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" };
+/** What a presenter's agreement says ONGIA covers, for whoever approves or pays their claim. */
+const coversText = (p) => { if (!p?.covers) return "Their agreement doesn't say what ONGIA covers."; const on = Object.entries(p.covers).filter(([, v]) => v).map(([k]) => COVERS_WORDS[k] ?? k); return on.length ? `Their agreement says ONGIA covers ${on.join(", ")}.` : "Their agreement says ONGIA covers none of their costs."; };
+const claimRow = (c, extra = "") => tile(c, c.payee?.name ? `${c.payee.name} (presenter)` : c.owner?.name ?? "", [c.month, extra || c.words].filter(Boolean).join(" · "), pillWord(c));
 const tiles = (html) => `<div class="tlist">${html}</div>`;
 function wireRows() { ROOT.querySelectorAll("[data-open]").forEach((b) => { b.onclick = () => openClaim(b.dataset.open); }); }
 async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
@@ -1202,7 +1247,9 @@ function viewScreen(target = ROOT) {
   const waitingOn = c.slots.filter((s) => !s.done).map((s) => s.name);
   let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>`
     : c.trial && !HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST CLAIM.</b> Part of testing the app: no money is sent, and it's filed only under Test claims.</div>` : "";
-  h += `<div class="card"><div class="k">From</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
+  if (c.payee) h += `<div class="card forcard"><div class="k">For a presenter</div><div style="font-weight:600;font-size:17px">${esc(c.payee.name)}</div>
+    <div class="note">${esc([c.payee.organization, c.payee.eventTitle].filter(Boolean).join(" · "))}</div><div class="note" style="margin-top:4px">${esc(coversText(c.payee))}</div></div>`;
+  h += `<div class="card"><div class="k">${c.payee ? "Sent by" : "From"}</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
     <div style="margin-top:4px"><span class="pill ${PILL[c.status] ?? "mu"}">${esc(c.words)}</span></div></div>`;
@@ -1222,7 +1269,7 @@ function viewScreen(target = ROOT) {
   else if (myDone && c.status === "submitted") h += `<div class="bigbtns"><button class="btn green" type="button" disabled>${ICON.tick}<span>Approved</span></button><button class="btn dim" type="button" disabled>✕<span>Send back</span></button></div>
     <div class="card"><div class="k">Next</div><div class="note">Waiting for ${esc(waitingOn.join(" and "))}. ${waitingOn.length > 1 ? "When both have approved" : "Once approved"}, ${esc(c.payer.name)} sends the e-transfer.</div></div>`;
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
-      <div class="note" style="margin:0 0 10px">To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}</div>
+      <div class="note" style="margin:0 0 10px">${c.payee ? `To <b>${esc(c.payee.name)}</b>, the presenter (${esc(c.payee.email)}). Not to ${esc(c.owner?.name)}, who sent it.` : `To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}`}</div>
       ${c.payer.practice || c.trial ? `<div class="say mu" style="margin:0 0 10px">${c.trial ? "Board test: don't send any money." : "Practice: nothing is sent."} Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
       <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice || c.trial ? "TEST123" : "As the bank shows it"}"></div>
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>

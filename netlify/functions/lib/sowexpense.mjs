@@ -54,7 +54,7 @@ export async function syncClaimToSow(claim, lines, { origin = "" } = {}) {
       if (same) { same.source = { ...source, linked: true }; changed = true; continue; }
       const id = itemId(claim.id, line.id);
       const file = line.kind === "receipt" ? await getClaimFile("file", claim.id, line.id).catch(() => null) : null;
-      const item = { id, lineId: line.sowLineId, otherNote: "", ...c, ...(claim.owner?.email ? { paidBy: { email: claim.owner.email, name: claim.owner.name } } : {}),
+      const item = { id, lineId: line.sowLineId, otherNote: "", ...c, ...(claim.payee?.email ? { paidBy: { email: claim.payee.email, name: claim.payee.name } } : claim.owner?.email ? { paidBy: { email: claim.owner.email, name: claim.owner.name } } : {}),
         name: file?.name ?? null, type: file?.type ?? null, size: file?.bytes?.byteLength ?? 0,
         addedBy: claim.owner?.name ?? "", addedAt: new Date().toISOString(), confirmedAt: new Date().toISOString(), confirmedBy: "expense claim, approved", readBy: "claim", source };
       if (file) {
