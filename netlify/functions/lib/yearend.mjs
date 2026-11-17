@@ -91,7 +91,9 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
   ]);
   const people = writeableTo(stored?.people ?? []);
   // Checked in where the desk took attendance; otherwise everyone registered as attending.
-  const tookAttendance = people.some((p) => typeof p.checkedIn === "boolean");
+  // An event set to count everyone registered as attended (Andrew 17 Nov 2026, Regina 2026: "just take the 178 as
+  // checked in") does; otherwise those checked in, where the desk took attendance.
+  const tookAttendance = !event.countRegistered && people.some((p) => typeof p.checkedIn === "boolean");
   const came = tookAttendance ? people.filter((p) => p.checkedIn === true) : people;
   const agencies = new Map();
   for (const p of came) {
@@ -110,7 +112,7 @@ export async function trainingFacts(event, list, { now = today() } = {}) {
   return {
     id: event.id, title: event.title, city: cityOf(event), province: provinceAt(event), dayOne: event.dayOne || "", lastDay: event.lastDay || event.dayOne || "",
     days: daysOf(event), held: (event.lastDay || event.dayOne || "9") < now,
-    registered: people.length, attended: came.length, basis: tookAttendance ? "checked in" : "registered",
+    registered: people.length, attended: came.length, basis: tookAttendance || event.countRegistered ? "checked in" : "registered",
     agencies: [...agencies.values()],
     survey: survey ? { answered: survey.answered, invited: survey.invited, scoring: survey.scoring, sessions: survey.sessions.slice(0, 5), comments: survey.comments, topics: survey.topics, provinces: survey.provinces } : null,
     certificates: Object.keys(certs ?? {}).length,
@@ -737,8 +739,11 @@ export async function yearInfoPdf(content, f, lang, { date }) {
   let ry = y;
   if (f.provinces.length) {
     ry = h3(2, L.byProvince, rx, y);
+    // The map, as on the event infographics (Andrew 17 Nov 2026: "let's do that with everyone"): where the trainings
+    // were held in gold with how many came, where attendees came from in blue.
+    ry = provinceMapPdf(doc, { x: rx, y: ry, w: rw, f, bg: "#ffffff", off: "#e7ebf3", light: true }) + 8;
     const maxP = Math.max(1, ...f.provinces.map((p) => p.count));
-    for (const p of f.provinces.slice(0, 13)) {
+    for (const p of f.provinces.slice(0, 6)) {
       doc.font("r").fontSize(8).fillColor(INK).text(provName(p, lang), rx, ry + 1, { width: rw - 100, lineBreak: false, height: 10, ellipsis: true });
       doc.rect(rx + rw - 96, ry + 1, 64, 9).fill("#e9e6de"); doc.rect(rx + rw - 96, ry + 1, Math.max(2, 64 * p.count / maxP), 9).fill(GOLD);
       doc.font("b").fontSize(8).fillColor(INK).text(num(p.count, lang), rx + rw - 28, ry + 1, { width: 28, align: "right", lineBreak: false });
@@ -948,6 +953,29 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   doc.font("r").fontSize(7).fillColor(SOFT).text(L.prep(monthYear(date, lang)), X + W / 2, fy, { width: W / 2, align: "right", lineBreak: false });
   doc.end();
   return done;
+}
+
+/** The province map on a PDF page: held-in provinces gold with their people, audience provinces blue. Returns the bottom. */
+function provinceMapPdf(doc, { x, y, w, f, bg, off, light = false }) {
+  const M = canadaMap(), sc = w / M.w, h = M.h * sc, G = "#e0b34a", GL = "#f0cd73";
+  const held = new Map();
+  for (const r of f.trainingsList.filter((t) => t.held)) if (r.province) held.set(r.province, (held.get(r.province) ?? 0) + (r.attended ?? 0));
+  const came = new Map((f.provinces ?? []).map((p) => [p.code, p.count])), max = Math.max(1, ...came.values());
+  const lo = light ? [0xc3, 0xd0, 0xe6] : [0x1d, 0x3f, 0x72], hi = light ? [0x3c, 0x5f, 0x99] : [0x72, 0x9c, 0xdc];
+  const blue = (n) => { const t = Math.sqrt(n / max); return "#" + lo.map((v, i) => Math.round(v + (hi[i] - v) * t).toString(16).padStart(2, "0")).join(""); };
+  for (const [code, d] of Object.entries(M.paths)) {
+    doc.save(); doc.translate(x, y).scale(sc);
+    doc.path(d).lineWidth(1.2 / sc).lineJoin("round").fillAndStroke(held.has(code) ? G : came.get(code) ? blue(came.get(code)) : off, bg);
+    doc.restore();
+  }
+  for (const [code, n] of held) {
+    const a = M.anchors?.[code]; if (!a) continue;
+    const ax = x + a[0] * sc, ay = y + a[1] * sc, bx = Math.min(x + w - 12, ax + 20), by = Math.max(y + 12, ay - 22);
+    doc.moveTo(ax, ay).lineTo(bx, by).lineWidth(0.8).strokeColor(light ? "#b8902f" : GL).stroke(); doc.circle(ax, ay, 1.6).fill(light ? "#b8902f" : GL);
+    doc.circle(bx, by, 10).fill(light ? NAVY : bg); doc.circle(bx, by, 10).lineWidth(1).strokeColor(G).stroke();
+    doc.font("b").fontSize(7).fillColor("#ffffff").text(num(n, "en"), bx - 10, by - 3.3, { width: 20, align: "center", lineBreak: false });
+  }
+  return y + h;
 }
 
 /* ---------- The list on Admin › RBH reports ---------- */

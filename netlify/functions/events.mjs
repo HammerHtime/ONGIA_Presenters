@@ -64,6 +64,7 @@ export default async (req) => {
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
+    if (url.searchParams.get("countregistered")) return setCountRegistered(id, body);
     if (url.searchParams.get("lead")) return setLead(id, body);
     if (url.searchParams.get("room")) return setRoom(id, body);
     const presenterId = url.searchParams.get("presenter");
@@ -187,6 +188,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // report. Never on an RBH event, which is RBH's own and is counted in the other report.
     rbhPresented: !canCost || body.rbhPresented === undefined ? (event.rbhPresented ?? false) : body.rbhPresented === true,
     // …or had a spot there but couldn't present (the National Gang Summit, 2026): listed as a spot held for RBH, not reach.
+    // Count everyone registered as attended, where the check-in list is short of who came (Andrew 17 Nov 2026, Regina).
+    countRegistered: body.countRegistered === undefined ? (event.countRegistered ?? false) : body.countRegistered === true,
     rbhCancelled: !canCost || body.rbhCancelled === undefined ? (event.rbhCancelled ?? false) : body.rbhCancelled === true,
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
     invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),
@@ -362,6 +365,16 @@ async function setRbhSpot(id, body, canCost) {
   event.updatedAt = new Date().toISOString();
   await putEvent(event);
   return json({ ok: true, rbhPresented: event.rbhPresented, rbhCancelled: event.rbhCancelled });
+}
+
+/** "Count everyone registered as attended" on its own (Andrew 17 Nov 2026, Regina), without the whole Edit event form. */
+async function setCountRegistered(id, body) {
+  const event = id && (await getEvent(id));
+  if (!event) return fail("No such event.", 404);
+  event.countRegistered = body.on === true;
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, countRegistered: event.countRegistered });
 }
 
 async function updateEvent(id, body, canCost) {

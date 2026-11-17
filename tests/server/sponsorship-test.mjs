@@ -119,5 +119,11 @@ e = await getEvent("sp-next");
 ok("…and presented, one or the other", e.rbhPresented === true && e.rbhCancelled === false);
 ok("not on an RBH event", (await call(events, "events", "id=sp-rbh&rbhspot=1", { method: "PUT", body: { spot: "presented" } })).status === 409);
 
+// Count everyone registered as attended (Andrew 17 Nov 2026, Regina: "just take the 178 as checked in").
+r = await call(events, "events", "id=sp-regina&countregistered=1", { method: "PUT", body: { on: true } });
+f = await Y.yearFacts(2026, { track: "sponsor" });
+ok("an event set to count everyone registered counts the one not checked in too, as checked in", r.status === 200 && f.trainingsList[0].attended === 4 && f.trainingsList[0].title === "Prairie Training Symposium" && f.attendanceBasis === "checked in", JSON.stringify(f.trainingsList[0]));
+await call(events, "events", "id=sp-regina&countregistered=1", { method: "PUT", body: { on: false } });
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
