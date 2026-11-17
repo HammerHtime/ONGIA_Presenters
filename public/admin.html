@@ -10319,8 +10319,15 @@ function wireAttendees(ev) {
     save.onclick = async () => {
       save.disabled = true;
       try {
-        await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(btn.dataset.gfixone)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: f.value.trim(), last: l.value.trim(), organization: o.value.trim() , email: em.value.trim()}) });
-        toast("Saved. It stays through every pull from Wix.");
+        const out = await api(`/attendees?event=${encodeURIComponent(ev.id)}&key=${encodeURIComponent(btn.dataset.gfixone)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: f.value.trim(), last: l.value.trim(), organization: o.value.trim() , email: em.value.trim()}) });
+        // Their certificate was updated with it (Andrew 17 Nov 2026); offer to email it, never send on its own.
+        const c = out?.certificate;
+        if (c && c.email && confirm(`Saved. ${c.name}'s certificate now says ${c.agency}, with the same number.\n\nEmail it to ${c.email}${c.emailedBefore ? " again" : ""}?`)) {
+          try {
+            const r = (await api(`/certificates?event=${encodeURIComponent(ev.id)}&mail=1`, { method: "POST", body: JSON.stringify({ keys: [c.key], again: true }) })).results?.[0] ?? {};
+            toast(r.error || (r.mail?.failed ? `Saved, but the email couldn't send: ${r.mail.failed}` : `Saved, and the certificate was sent to ${c.email}.`));
+          } catch (x) { toast(`Saved, but the email didn't go: ${x.message}`); }
+        } else toast(c ? `Saved. ${c.name}'s certificate now says ${c.agency}.` : "Saved. It stays through every pull from Wix.");
         render();
       } catch (e) { save.disabled = false; toast(e.message); }
     };

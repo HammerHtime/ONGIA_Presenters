@@ -51,6 +51,17 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   ok(`${tag}: saving shows it on the list`, /Helpers Youth Services of Niagara/.test(await p.locator("body").innerText()));
   const reg2 = await regList(ev.id);
   ok(`${tag}: and in the download`, /Stone\|Avery\|Helpers Youth Services of Niagara/.test(reg2));
+  // A certificate already issued follows the correction (Andrew 17 Nov 2026), and the desk offers to email it, never sends it.
+  const key = (await api(`/api/certificates?event=${ev.id}`)).people.find((x) => x.first === "Avery").key;
+  await fetch(`${S}/api/certificates?event=${ev.id}&pdf=${encodeURIComponent(key)}&anyway=1`, { headers: { "x-admin-key": "testkey" } });
+  const row2 = p.locator("tr.grow", { hasText: "Avery" });
+  await row2.locator("[data-gfixone]").click(); await p.waitForTimeout(300);
+  await row2.locator(".gfxform input").nth(2).fill("Niagara Regional Police Service");
+  let asked = "";
+  p.once("dialog", async (d) => { asked = d.message(); await d.dismiss(); });
+  await row2.locator(".gfxform button", { hasText: "Save" }).click(); await p.waitForTimeout(2500);
+  const cert = (await api(`/api/certificates?event=${ev.id}`)).people.find((x) => x.key === key).cert;
+  ok(`${tag}: a correction updates their certificate (same number) and asks before emailing it`, cert.corrected === 1 && /certificate now says Niagara Regional Police Service, with the same number/.test(asked) && /Email it to avery\.stone@helpers\.example\.org\?/.test(asked) && !cert.mail?.sentAt, asked);
   // The download says what it holds, beside the button.
   await p.locator("details.dlmenu summary").click(); await p.waitForTimeout(200);
   const [dl] = await Promise.all([p.waitForEvent("download"), p.locator('[data-glist="registration"]').click()]);

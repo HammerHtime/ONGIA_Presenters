@@ -1,4 +1,5 @@
-import { json, fail, isEmail, requireAdmin, text, editGuard } from "./lib/http.mjs";
+import { json, fail, isEmail, requireAdmin, text, editGuard, adminWho } from "./lib/http.mjs";
+import { certIndex, certRecord, issue, certSettings, templatesFor } from "./lib/certs.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
 import { readCsv, merge, tally, writeableTo, keyOf, correct } from "./lib/attendees.mjs";
 import { letterDue } from "./lib/sendletters.mjs";
@@ -134,6 +135,8 @@ async function correctOne(req, event, rowKey) {
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const p = (stored.people ?? []).find((x) => keyOf(x) === row);
   if (!p) return fail("That person isn't on this list.", 404);
+  // Their certificate is found by the key it was issued under: their ticket, or the address they had before this.
+  const certKey = p.key || p.email;
   const fixed = { ...(p.fixed ?? {}) };
   for (const f of ["first", "last", "organization"]) if (body[f] !== undefined) fixed[f] = text(body[f], 160);
   // A wrong address (Andrew 14 Nov 2026: a certificate bounced, and fixing it in Wix didn't reach the ticket): corrected
@@ -151,7 +154,21 @@ async function correctOne(req, event, rowKey) {
   else Object.assign(p, fixed, { fixed, correctedAt: new Date().toISOString() });
   await putAttendees(event.id, { ...stored, people: stored.people });
   const list = await directory().catch(() => []);
-  return json({ ok: true, person: { ...p, agency: agencyOf(p, list)?.name ?? "" } });
+  const agency = agencyOf(p, list)?.name || String(p.organization ?? "").trim();
+  // A certificate already issued follows the correction (Andrew 17 Nov 2026: "instead of it automatically linking back
+  // to the data set that holds the people information"): same number and QR code, what it said before kept in its
+  // history, as Correct details on the Certificates tab does. Emailing it again stays a click of his.
+  let certificate = null;
+  const code = (await certIndex(event.id))[certKey];
+  const rec = code ? await certRecord(code) : null;
+  if (rec && !rec.revokedAt) {
+    const name = [p.first, p.last].filter(Boolean).join(" ").trim() || rec.name;
+    if (name !== rec.name || agency !== rec.agency) {
+      await issue(event, { key: certKey, email: p.email ?? "" }, { name, agency, settings: certSettings(event, await templatesFor(event)), by: adminWho(req)?.email || "desk", correct: true });
+      certificate = { key: certKey, name, agency, email: p.email ?? "", emailedBefore: !!rec.mail?.sentAt };
+    }
+  }
+  return json({ ok: true, person: { ...p, agency }, certificate });
 }
 
 async function removeOne(event, email, key) {
