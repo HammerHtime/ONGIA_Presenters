@@ -51,6 +51,35 @@ export function mileageRate() {
 }
 
 export const money = (n) => Math.round(Number(n) * 100) / 100;
+
+/**
+ * A presenter's per diem (Andrew 17 Nov 2026): presenters who eat off site are allowed so much a meal, and the km rate
+ * for driving. Board members have no per diem. The rates change quarterly, so the President or the VP sets them in the
+ * app (meta:expenses-per-diem); these are the ones he gave. A meal over its rate is flagged for the approvers, never
+ * refused: "it'll be up to the approvers to determine if they will allow it or not."
+ */
+export const MEALS = ["breakfast", "lunch", "dinner"];
+export const MEAL_NAME = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
+export const PER_DIEM_DEFAULT = { breakfast: 29.95, lunch: 30.55, dinner: 62.7, km: 0.66 };
+/** Rates as typed, tidied: each a positive amount, else the one it had. */
+export function cleanPerDiem(body, had = PER_DIEM_DEFAULT) {
+  const out = {};
+  for (const k of [...MEALS, "km"]) {
+    const v = Number(String(body?.[k] ?? "").replace(/[$,\s]/g, ""));
+    const max = k === "km" ? 5 : 1000;
+    if (body?.[k] !== undefined && !(Number.isFinite(v) && v > 0 && v < max)) return { problem: `${k === "km" ? "The km rate" : MEAL_NAME[k]} needs an amount, like ${k === "km" ? "0.66" : "29.95"}.` };
+    out[k] = body?.[k] !== undefined ? (k === "km" ? Math.round(v * 1000) / 1000 : money(v)) : Number(had?.[k] ?? PER_DIEM_DEFAULT[k]);
+  }
+  return { ok: out };
+}
+/** How far a presenter's meal is over its per diem, or null. */
+export function overPerDiem(line, perDiem) {
+  if (!perDiem || !MEALS.includes(line?.meal) || !(Number(line?.amount) > 0)) return null;
+  const limit = Number(perDiem[line.meal]);
+  if (!(limit > 0)) return null;
+  const over = money(Number(line.amount) - limit);
+  return over > 0.004 ? { meal: line.meal, limit, over } : null;
+}
 const lc = (v) => String(v ?? "").trim().toLowerCase();
 
 /* ---------- who is who ---------- */
@@ -189,6 +218,8 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate(), had =
     purpose: str(body?.purpose, 240),
     // Comments (Andrew 5 Nov 2026): optional, for what it was for and why, in the person's own words.
     comment: body?.comment !== undefined ? str(body.comment, 1000) : str(had?.comment, 1000),
+    // Which meal, on a presenter's claim, to match against the per diem. "none" is a person saying it isn't one.
+    meal: body?.meal !== undefined ? ([...MEALS, "none"].includes(body.meal) ? body.meal : "") : [...MEALS, "none"].includes(had?.meal) ? had.meal : "",
   };
   // An RBH event with a statement of work: which of its lines this goes under. Asked for, never left to guess; a
   // suggestion from what it is (a flight goes under On Site Management) fills an empty one.
@@ -226,7 +257,7 @@ export function viewLine(line, read) {
   const f = read?.state === "done" ? read.found : null;
   if (line.kind === "receipt" && f?.isReceipt !== false && f) {
     const fill = (k, val) => { if ((v[k] === "" || v[k] === null || v[k] === undefined) && val !== "" && val !== null && val !== undefined) { v[k] = val; v.fromRead.push(k); } };
-    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what); fill("ref", f.ref);
+    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what); fill("ref", f.ref); fill("meal", f.meal);
   }
   v.check = receiptCheck(v, read);
   v.problems = lineProblems(v);
@@ -314,7 +345,7 @@ const nullable = (schema) => ({ anyOf: [schema, { type: "null" }] });
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["isReceipt", "vendor", "date", "total", "tax", "currency", "category", "what", "ref", "confidence", "notes"],
+  required: ["isReceipt", "vendor", "date", "total", "tax", "currency", "category", "what", "ref", "meal", "confidence", "notes"],
   properties: {
     isReceipt: { type: "boolean" },
     vendor: nullable({ type: "string" }),
@@ -325,6 +356,7 @@ const SCHEMA = {
     category: nullable({ type: "integer", enum: CATEGORIES.map(([k]) => k) }),
     what: nullable({ type: "string" }),
     ref: nullable({ type: "string" }),
+    meal: nullable({ type: "string", enum: MEALS }),
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     notes: nullable({ type: "string" }),
   },
@@ -350,6 +382,7 @@ Report only what is printed on it. If something is not there, say null rather th
   10 Stipend (payment to a presenter)
 - what: what was bought, in four words or fewer, plain and lower-key ("Hotel, 3 nights", "Airport parking", "Taxi").
 - ref: the receipt, invoice, transaction, booking or confirmation number printed on it (an airline's booking reference, a hotel's folio number), exactly as printed, or null. Not a phone number, a card number or a date.
+- meal: for a restaurant, café or food receipt, which meal it was: "breakfast", "lunch" or "dinner", by the time printed on it (before 11 am breakfast, 11 am to 4 pm lunch, after 4 pm dinner), else by what was bought. null for anything that isn't a meal, or a grocery shop.
 - confidence: "high" when the figures are sharp and clear; "low" when the picture is blurry, cut off, faded or handwritten.
 - notes: one short sentence if anything is odd (a tip written in by hand, a refund, two receipts in one photo, a foreign currency, a date that is hard to read). Otherwise null.
 If this is not a receipt or an invoice at all, set isReceipt to false and leave the rest null.`;
@@ -375,6 +408,7 @@ export function tidyRead(raw) {
     category: CATEGORIES.some(([k]) => k === Number(raw?.category)) ? Number(raw.category) : null,
     what: str(raw?.what, 60),
     ref: str(raw?.ref, 40),
+    meal: MEALS.includes(raw?.meal) ? raw.meal : null,
     confidence: ["high", "medium", "low"].includes(raw?.confidence) ? raw.confidence : "low",
     notes: str(raw?.notes, 240),
   };
@@ -552,7 +586,7 @@ export function submitProblems(lines, today = todayIso()) {
  * dates outside the claim's month, foreign currency. `earlier` are lines on the person's other sent claims.
  * { ok: true } when there is nothing to look at; otherwise { ok: false, notes: [...] }.
  */
-export function claimChecks(lines, { month = "", earlier = [] } = {}) {
+export function claimChecks(lines, { month = "", earlier = [], perDiem = null } = {}) {
   // Each note says which line it is about, and each flagged line gets a short reason, so the approver's screen can
   // light that line up in red (Andrew 14 Nov 2026: "it would be great if the actual line item was highlighted in red").
   const notes = [], noteLines = [], flags = {};
@@ -571,6 +605,14 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
   for (const l of lines) if (l.kind === "noreceipt" && !isStipend(l)) say(l, `${l.paidTo || "A line with no receipt"}: no receipt, so ${dollars(l.amount)} isn't confirmed. Check it against the card statement.`, "No receipt: amount not confirmed");
   for (const l of lines) if (l.dupe) say(l, `${l.paidTo || "A line"}${l.date ? `, ${shortDate(l.date)}` : ""}, ${dollars(l.amount)}: ${l.dupe.level === "same" ? "already claimed" : "may already be claimed"} on ${l.dupe.where} (${l.dupe.why}).`, l.dupe.level === "same" ? "Already claimed" : "May already be claimed");
   for (const l of lines) if (!l.dupe && earlier.some((e) => sameLine(e, l))) say(l, `${l.paidTo || "A line"}, ${shortDate(l.date)}, ${dollars(l.amount)}: the same amount to the same place on the same day was claimed before.`, "Claimed before");
+  // A presenter's meal over its per diem: flagged, never refused; the approvers decide (Andrew 17 Nov 2026).
+  const meals = perDiem ? lines.filter((l) => MEALS.includes(l.meal)) : [];
+  const overs = [];
+  for (const l of meals) {
+    const o = overPerDiem(l, perDiem);
+    if (o) overs.push({ id: l.id ?? null, paidTo: l.paidTo || "A meal", date: l.date || "", amount: money(l.amount), ...o });
+    if (o) say(l, `${l.paidTo || "A meal"}${l.date ? `, ${shortDate(l.date)}` : ""}: ${dollars(l.amount)} for ${o.meal}, ${dollars(o.over)} over the ${dollars(o.limit)} per diem. Up to you whether to allow it.`, `Over the ${o.meal} per diem by ${dollars(o.over)}`);
+  }
   const [mName, mYear] = String(month).split(" ");
   const mIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(mName);
   if (mIdx >= 0) {
@@ -586,9 +628,10 @@ export function claimChecks(lines, { month = "", earlier = [] } = {}) {
     receipts.length ? (matched === receipts.length ? (receipts.length === 1 ? "The receipt matches what's claimed" : `All ${receipts.length} receipts match what's claimed`) : `${matched} of ${receipts.length} receipts match what's claimed`) : "",
     miles.length ? `Mileage is at ${dollars(rate)} a kilometre` : "",
     noRec.length ? (noRec.length === 1 ? "The line with no receipt has a reason and the card statement" : `The ${noRec.length} lines with no receipt each have a reason and the card statement`) : "",
+    meals.length && !meals.some((l) => overPerDiem(l, perDiem)) ? (meals.length === 1 ? "The meal is within the per diem" : `All ${meals.length} meals are within the per diem`) : "",
     stipends.length ? (stipends.length === 1 ? "The stipend needs no receipt" : `The ${stipends.length} stipends need no receipt`) : "",
   ].filter(Boolean);
-  return { ok: notes.length === 0, notes, noteLines, flags: Object.fromEntries(Object.entries(flags).map(([k, v]) => [k, v.join(" · ")])), summary };
+  return { ok: notes.length === 0, notes, noteLines, overs, flags: Object.fromEntries(Object.entries(flags).map(([k, v]) => [k, v.join(" · ")])), summary };
 }
 const dollars = (n) => `$${money(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export { dollars };

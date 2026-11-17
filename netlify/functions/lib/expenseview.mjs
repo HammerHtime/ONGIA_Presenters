@@ -1,5 +1,5 @@
-import { getClaim, listClaimLines, getClaimRead, listMineIds } from "./store.mjs";
-import { viewLine, claimChecks, monthLabel, whoKey } from "./expenses.mjs";
+import { getClaim, listClaimLines, getClaimRead, listMineIds, getMeta } from "./store.mjs";
+import { viewLine, claimChecks, monthLabel, whoKey, PER_DIEM_DEFAULT, overPerDiem } from "./expenses.mjs";
 import { todayIso } from "./deadlines.mjs";
 
 /**
@@ -18,6 +18,22 @@ export async function shownLines(claim) {
   });
 }
 
+/** A presenter's per diem as set in the app (the President or the VP changes it each quarter), else the one Andrew gave. */
+export const PER_DIEM_KEY = "expenses-per-diem";
+export async function getPerDiem() {
+  const s = await getMeta(PER_DIEM_KEY).catch(() => null);
+  return { ...PER_DIEM_DEFAULT, ...(s?.rates ?? {}), setAt: s?.at ?? null, setBy: s?.by ?? "" };
+}
+/** The per diem a claim is held to: a presenter's claim only. Board members have none. */
+export async function perDiemFor(claim) {
+  return claim?.payee?.kind === "presenter" ? getPerDiem() : null;
+}
+/** Each meal over its per diem marked on the line itself, so it shows while the claim is being built too. */
+export function markPerDiem(lines, perDiem) {
+  for (const l of lines) { const o = overPerDiem(l, perDiem); if (o) l.overPerDiem = o; else delete l.overPerDiem; }
+  return lines;
+}
+
 /** Claude's check, with the person's other sent claims of the last 13 months to catch the same thing claimed twice. */
 export async function checksFor(claim, lines) {
   const earlier = [];
@@ -26,5 +42,5 @@ export async function checksFor(claim, lines) {
     const c = await getClaim(id);
     if (c && c.status !== "draft" && !c.test && Date.now() - Date.parse(c.sentAt ?? c.createdAt) < 400 * 86400e3) earlier.push(...(await listClaimLines(id)));
   }
-  return claimChecks(lines, { month: claim.month || monthLabel(todayIso()), earlier });
+  return claimChecks(lines, { month: claim.month || monthLabel(todayIso()), earlier, perDiem: await perDiemFor(claim) });
 }

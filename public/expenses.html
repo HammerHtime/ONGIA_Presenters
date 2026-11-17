@@ -469,20 +469,21 @@ let DESK_LANDED = false;
 // In the Briefing Room: what each officer does, under the title.
 const ROLE_LINE = { president: "You approve claims as the President", treasurer: "You see every claim as the Treasurer", vp: "You approve claims, and record the payments, as the VP of Operations" };
 function deskHead({ title, back, tabs }) {
-  ROOT.dataset.screen = tabs ? "tab" : EDIT ? "editor" : VIEW.name === "away" ? "away" : "view";
+  ROOT.dataset.screen = tabs ? "tab" : EDIT ? "editor" : ["away", "perdiem"].includes(VIEW.name) ? "away" : "view";
   const keys = deskTabs();
   const vp = HOME?.me?.role === "vp";
   // The VP's first job is paying claims, so her tab says so (approvals that wait on her show there too).
   const LABEL = { claim: "My claim", past: "Paid claims", approve: vp ? "To pay" : "To approve", all: "All claims" };
   const n = (HOME?.toApprove?.length ?? 0) + (HOME?.toPay?.length ?? 0);
   const sub = HOME ? [HOME.month, ROLE_LINE[HOME.me?.role] || "Your expense claims", ...(HOME.standingIn ?? []).map((x) => `${x.backup ? "Second person" : "Standing in"} for the ${x.title} until ${longDate(x.until)}`)].filter(Boolean).join(" · ") : "";
-  const acts = HOME ? `${HOME.away && tabs ? `<button class="mini" id="dAway" type="button">Going away?</button>` : ""}
+  const acts = HOME ? `${HOME.canSetPerDiem && tabs ? `<button class="mini" id="dPd" type="button">Per diem</button>` : ""}${HOME.away && tabs ? `<button class="mini" id="dAway" type="button">Going away?</button>` : ""}
     ${tabs ? `<button class="mini gold" id="dAdd" type="button">Add receipts</button>` : ""}` : "";
   $("dhead").innerHTML = `<div class="dband${tabs ? "" : " alone"}"><div>${back ? `<button class="dback" id="dBack" type="button">‹ Back</button>` : ""}<h2>${esc(tabs ? "Expenses" : title)}</h2><div class="sub">${esc(tabs ? sub : "Expenses")}</div></div><div class="dacts">${acts}</div></div>
     ${tabs ? `<nav class="dtabs" role="tablist" aria-label="Expenses">${keys.map((k) => `<button type="button" class="dtab${TAB === k ? " on" : ""}" data-tab="${k}"${TAB === k ? ' aria-current="page"' : ""}>${LABEL[k]}${k === "approve" && n ? `<span class="n" aria-label="${n} waiting">${n}</span>` : ""}</button>`).join("")}</nav>` : ""}`;
   $("dhead").querySelectorAll("[data-tab]").forEach((b) => { b.onclick = () => { TAB = b.dataset.tab; VIEW = { name: TAB }; EDIT = null; OPEN = null; render(); window.scrollTo(0, 0); }; });
   if ($("dBack")) $("dBack").onclick = () => history.back();
   if ($("dAway")) $("dAway").onclick = openAway;
+  if ($("dPd")) $("dPd").onclick = openPerDiem;
   if ($("dAdd")) $("dAdd").onclick = () => { if (TAB !== "claim" || VIEW.name !== "claim") { TAB = "claim"; VIEW = { name: "claim" }; OPEN = null; render(); } $("pick").click(); };
   if ($("dTest")) $("dTest").onclick = async () => {
     if (TESTMODE()) store.del("ongia-exp-test"); else store.set("ongia-exp-test", "1");
@@ -515,8 +516,10 @@ $("me").onclick = (e) => {
   m.innerHTML = `<p class="who">Signed in as <b>${esc(ME?.name)}</b><br>${esc(ME?.email)}${ME?.title && ME.title !== "Board member" ? `<br>${esc(ME.title)}` : ""}</p>
     ${badgeRow()}
     ${HOME?.away ? `<button class="btn ghost" id="awaybtn" type="button" style="margin-bottom:10px">Going away? Hand off approvals</button>` : ""}
+    ${HOME?.canSetPerDiem ? `<button class="btn ghost" id="pdbtn" type="button" style="margin-bottom:10px">Presenter per diem</button>` : ""}
     <button class="btn ghost" id="signout" type="button">Sign out</button>`;
   if ($("awaybtn")) $("awaybtn").onclick = openAway;
+  if ($("pdbtn")) $("pdbtn").onclick = openPerDiem;
   if ($("badgemenu")) $("badgemenu").onclick = async (ev) => { ev.stopPropagation(); ev.currentTarget.disabled = true; await allowBadge(); $("badgerow").outerHTML = badgeRow(); };
   $("signout").onclick = () => { signOut(); signInScreen(); };
 };
@@ -706,6 +709,15 @@ function paintBadge() {
   tellDesk({ count: n });
   try { if ("setAppBadge" in navigator) (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {}); } catch { /* not offered here */ }
 }
+/*
+ * A presenter's per diem (Andrew 17 Nov 2026): on a claim made for a presenter each meal says which it was, and one over
+ * its rate is flagged for the approvers in amber. Never refused: they decide. Board members have no per diem.
+ */
+const MEALS = [["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]];
+const RATE = () => (EDIT?.claimId && HOME?.current?.id === EDIT.claimId ? HOME.current.rate : null) ?? HOME?.current?.rate ?? HOME?.rate;
+const forPresenter = (c = HOME?.current) => c?.payee?.kind === "presenter";
+const perDiemText = (pd) => (pd ? `Breakfast ${money(pd.breakfast)} · Lunch ${money(pd.lunch)} · Dinner ${money(pd.dinner)} · ${money(pd.km)}/km` : "");
+const overRow = (l) => (l.overPerDiem ? `<div class="check wt">Over the ${esc(l.overPerDiem.meal)} per diem by ${money(l.overPerDiem.over)}</div>` : "");
 function checkRow(l) {
   const c = l.check ?? {};
   switch (c.state) {
@@ -733,7 +745,7 @@ function lineRow(l, claimId, flag = "") {
   const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
   const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.length < 2 ? l.problems.join("") : `${l.problems.slice(0, -1).join(", ")} and ${l.problems.at(-1)}`)}</div>` : "";
   return `<button type="button" class="line${flag ? " flagged" : ""}" data-line="${esc(l.id)}">${pic}
-    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${flag ? `${l.kind === "mileage" ? checkRow(l) : ""}<div class="flagwhy">⚠ ${esc(flag)}</div>` : `${checkRow(l)}${dupeRow(l)}`}${needs}</div>
+    <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${flag ? `${l.kind === "mileage" ? checkRow(l) : ""}<div class="flagwhy">⚠ ${esc(flag)}</div>` : `${checkRow(l)}${dupeRow(l)}${overRow(l)}`}${needs}</div>
     <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
 }
 const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
@@ -783,7 +795,7 @@ function claimScreen() {
   // Who the claim is for (Andrew 17 Nov 2026): the member's own, or a presenter's receipts sent to them; the presenter is paid.
   const mineToEdit = !c || ["draft", "rejected"].includes(c.status);
   const forWho = !mineToEdit ? "" : c?.payee
-    ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>${c.payee.kind === "other" ? (c.payee.organization ? `, ${esc(c.payee.organization)}` : "") : `, a presenter at ${esc(c.payee.eventTitle)}`}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button></div>`
+    ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>${c.payee.kind === "other" ? (c.payee.organization ? `, ${esc(c.payee.organization)}` : "") : `, a presenter at ${esc(c.payee.eventTitle)}`}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button>${c.perDiem ? `<div class="tiny" style="margin-top:4px">Per diem: ${esc(perDiemText(c.perDiem))}</div>` : ""}</div>`
     : `<p class="tiny" style="margin:-4px 2px 12px"><button class="linkish" id="forchg" type="button">Claiming for a presenter or someone else?</button></p>`;
   const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
   // Swipe a line left to delete it, as on any phone (Andrew 5 Nov 2026): a red Delete shows behind it; tap it to remove.
@@ -992,7 +1004,7 @@ function editorScreen() {
   const foreign = l.check?.currency ? `<div class="say wt">This receipt is in ${esc(l.check.currency)}. Claim what your card was charged in Canadian dollars, from your card statement.</div>` : "";
   ROOT.innerHTML = `
     ${k === "receipt" ? `<div class="preview"><button class="pic" id="pic" type="button" aria-label="See the whole receipt">${isPdf ? ICON.pdf : ICON.receipt}</button><div id="readsay">${readSay}</div></div>` : ""}
-    ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">Kilometres you drove your own car for ONGIA, paid to you at ${money(HOME.rate)} a kilometre.</p>` : ""}
+    ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">${forPresenter() ? `Kilometres ${esc(HOME.current.payee.name)} drove for ONGIA, at the presenter rate of ${money(RATE())} a kilometre.` : `Kilometres you drove your own car for ONGIA, paid to you at ${money(RATE())} a kilometre.`}</p>` : ""}
     ${k === "noreceipt" ? `<p class="note" id="nrintro" style="margin:0 0 12px">${NR_INTRO[stipendLine(l) ? 1 : 0]}</p>` : ""}
     <div id="sayslot"></div>
     ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
@@ -1003,6 +1015,9 @@ function editorScreen() {
         : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="numeric" autocomplete="off" value="${esc(tillText(l.amount))}" placeholder="$0.00"></div>`}
     </div>
     ${k === "receipt" ? `<div id="matchrow" style="margin:-4px 0 10px"></div>${foreign}` : ""}
+    ${k !== "mileage" && forPresenter() ? `<div class="field"><div class="lab"><span>Meal</span>${readMark(l, "meal")}</div><div class="chips" id="f-mealrow" role="radiogroup" aria-label="Which meal">
+      ${[["none", "Not a meal"], ...MEALS].map(([v, n]) => `<button type="button" role="radio" data-meal="${v}" aria-checked="${(l.meal || "none") === v}" class="${(l.meal || "none") === v ? "on" : ""}">${esc(n)}</button>`).join("")}</div>
+      <input type="hidden" id="f-meal" value="${esc(l.meal || "")}"><div id="perdiemrow"></div></div>` : ""}
     ${k === "mileage" ? `<div class="two"><div class="field"><label for="f-from">From</label><input id="f-from" autocomplete="off" value="${esc(l.from ?? "")}" placeholder="Barrie"></div>
       <div class="field"><label for="f-to">To</label><input id="f-to" autocomplete="off" value="${esc(l.to ?? "")}" placeholder="Toronto"></div></div>
       <div class="calc" id="calc"></div>` : ""}
@@ -1022,6 +1037,10 @@ function editorScreen() {
     el.addEventListener("input", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); document.querySelector(`[data-readmark="${id}"]`)?.remove(); liveChecks(); });
     el.addEventListener("change", () => { EDIT.dirty = true; EDIT.touched.add(id === "event" ? "eventId" : id); liveChecks(); });
   }
+  ROOT.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => {
+    ROOT.querySelectorAll("[data-meal]").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-checked", String(on)); });
+    $("f-meal").value = b.dataset.meal; EDIT.dirty = true; EDIT.touched.add("meal"); document.querySelector('[data-readmark="meal"]')?.remove(); liveChecks();
+  }; });
   drawSow(l);
   for (const id of ["event", "category", "paidTo", "purpose"]) $(`f-${id}`)?.addEventListener("change", () => drawSow(lineNow() ?? {}));
   $("save").onclick = () => saveLine({ leave: true });
@@ -1074,7 +1093,15 @@ function liveChecks() {
   const l = lineNow();
   if ($("calc")) {
     const km = parseMoney($("f-km").value);
-    $("calc").innerHTML = km > 0 ? `${km} km × ${money(HOME.rate)} = <b>${money(Math.round(km * HOME.rate * 100) / 100)}</b>, paid to you` : `At ${money(HOME.rate)} a kilometre, paid to you`;
+    const r = RATE(), who = forPresenter() ? `paid to ${esc(HOME.current.payee.name)}` : "paid to you";
+    $("calc").innerHTML = km > 0 ? `${km} km × ${money(r)} = <b>${money(Math.round(km * r * 100) / 100)}</b>, ${who}` : `At ${money(r)} a kilometre, ${who}`;
+  }
+  if ($("perdiemrow")) {
+    const pd = HOME.current?.perDiem, meal = $("f-meal").value, amt = $("f-amount").value.trim() === "" ? null : parseMoney($("f-amount").value);
+    const lim = pd && MEALS.some(([m]) => m === meal) ? Number(pd[meal]) : null;
+    $("perdiemrow").innerHTML = lim === null ? "" : amt !== null && amt - lim > 0.004
+      ? `<div class="check wt" style="margin-top:6px">Over the ${esc(meal)} per diem (${money(lim)}) by ${money(Math.round((amt - lim) * 100) / 100)}. It still goes; the approvers decide.</div>`
+      : `<div class="check mu" style="margin-top:6px">Per diem for ${esc(meal)}: ${money(lim)}</div>`;
   }
   if ($("matchrow") && l) {
     const total = l.read?.found?.total;
@@ -1092,6 +1119,7 @@ function refreshEditor() {
     const el = $(`f-${k}`);
     if (!el || EDIT.touched.has(k) || el.value) continue;
     el.value = k === "amount" ? tillText(l[k]) : l[k];
+    if (k === "meal") ROOT.querySelectorAll("[data-meal]").forEach((x) => { const on = x.dataset.meal === l.meal; x.classList.toggle("on", on); x.setAttribute("aria-checked", String(on)); });
     const lab = el.closest(".field")?.querySelector("label");
     if (lab && !lab.querySelector(".read")) lab.insertAdjacentHTML("beforeend", `<span class="read" data-readmark="${k}">read</span>`);
   }
@@ -1110,6 +1138,7 @@ function formValues() {
   const num = (s) => (String(s).trim() === "" ? "" : parseMoney(s));
   return { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), km: num(v("km")), from: v("from"), to: v("to"),
     category: v("category"), eventId: v("event"), purpose: v("purpose"), comment: v("comment"), statement: v("statement"),
+    ...($("f-meal") ? { meal: v("meal") } : {}),
     ...($("f-sow") ? { sowLineId: v("sow") } : {}) };
 }
 async function saveLine({ leave = false } = {}) {
@@ -1269,7 +1298,7 @@ function viewScreen(target = ROOT) {
   let h = c.test ? `<div class="testbar"><b>TEST CLAIM.</b> Practice: every step comes back to whoever made it. Nothing is paid, it's filed only under Test claims, and it can be deleted.</div>`
     : c.trial && !HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST CLAIM.</b> Part of testing the app: no money is sent, and it's filed only under Test claims.</div>` : "";
   if (c.payee) h += `<div class="card forcard"><div class="k">${c.payee.kind === "other" ? "For someone else" : "For a presenter"}</div><div style="font-weight:600;font-size:17px">${esc(c.payee.name)}</div>
-    <div class="note">${esc([c.payee.organization, c.payee.eventTitle].filter(Boolean).join(" · "))}</div>${c.payee.kind === "other" ? `<div class="note" style="margin-top:4px">Not a presenter or a board member. Each line says what it was for.</div>` : `<div class="note" style="margin-top:4px">${esc(coversText(c.payee))}</div>`}</div>`;
+    <div class="note">${esc([c.payee.organization, c.payee.eventTitle].filter(Boolean).join(" · "))}</div>${c.payee.kind === "other" ? `<div class="note" style="margin-top:4px">Not a presenter or a board member. Each line says what it was for.</div>` : `<div class="note" style="margin-top:4px">${esc(coversText(c.payee))}</div>`}${c.perDiem ? `<div class="note" style="margin-top:4px">Per diem: ${esc(perDiemText(c.perDiem))}</div>` : ""}</div>`;
   h += `<div class="card"><div class="k">${c.payee ? "Sent by" : "From"}</div><div style="font-weight:600;font-size:17px">${esc(c.owner?.name)}${c.owner?.role && c.owner.role !== "member" ? ` · ${esc({ president: "President", vp: "VP", treasurer: "Treasurer" }[c.owner.role])}` : ""}</div>
     <div class="note">${esc([c.month, countsOf(c.sums)].filter(Boolean).join(" · "))}</div>
     <div class="big" style="font-family:var(--fd);font-size:30px;margin-top:4px">${money(c.sums.total)}</div>
@@ -1577,6 +1606,25 @@ function awayScreen() {
   ROOT.innerHTML = h;
   for (const r of roles) wireAway(r);
 }
+/* A presenter's per diem (Andrew 17 Nov 2026: "They do change quarterly"): the President or the VP sets it here. */
+const openPerDiem = () => { $("menu").hidden = true; VIEW = { name: "perdiem" }; history.pushState({ perdiem: true }, ""); render(); window.scrollTo(0, 0); };
+function perDiemScreen() {
+  chrome({ title: "Presenter per diem", back: true, tabs: false });
+  const pd = HOME.perDiem;
+  const box = (k, n) => `<div class="field"><label for="pd-${k}">${n}</label><input id="pd-${k}" inputmode="decimal" autocomplete="off" value="${esc(k === "km" ? String(pd[k]) : Number(pd[k]).toFixed(2))}"></div>`;
+  ROOT.innerHTML = `${testBar()}<div class="card"><div class="k">Presenters only</div>
+    <p class="note" style="margin:4px 0 12px">A presenter's meal over its rate is flagged for the approvers, not refused. Their driving is paid at the km rate. Board members have no per diem.</p>
+    <div class="two">${box("breakfast", "Breakfast")}${box("lunch", "Lunch")}</div>
+    <div class="two">${box("dinner", "Dinner")}${box("km", "Km rate (Ontario)")}</div>
+    <button class="btn navy" id="pdsave" type="button">Save</button>
+    <p class="tiny" style="margin:8px 0 0">${pd.setAt ? `Set ${esc(when(pd.setAt))} by ${esc(pd.setBy)}.` : "Rates as of Nov 17, 2026."} Change them each quarter.</p></div>`;
+  $("pdsave").onclick = async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    const body = Object.fromEntries(["breakfast", "lunch", "dinner", "km"].map((k) => [k, $(`pd-${k}`).value]));
+    try { HOME = await api(`?perdiem=1${TESTMODE() ? "&test=1" : ""}`, { method: "PUT", json: body }); toast("Per diem saved."); history.back(); }
+    catch (er) { btn.disabled = false; if (!er.quiet) toast(er.message, true); }
+  };
+}
 const openAway = () => { $("menu").hidden = true; VIEW = { name: "away" }; history.pushState({ away: true }, ""); render(); window.scrollTo(0, 0); };
 function awayCard(r, isMe) {
   const d = HOME.away[r];
@@ -1737,6 +1785,7 @@ function render() {
   if (VIEW.name === "past") return pastScreen();
   if (VIEW.name === "approve" && HOME.tabs.includes("approve")) return approveScreen();
   if (VIEW.name === "away" && HOME.away) return awayScreen();
+  if (VIEW.name === "perdiem" && HOME.canSetPerDiem) return perDiemScreen();
   if (VIEW.name === "all" && HOME.tabs.includes("all")) return allScreen();
   return claimScreen();
 }
