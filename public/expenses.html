@@ -781,8 +781,8 @@ function claimScreen() {
       <div class="s">${lines.length ? esc([countsOf(c.sums), evs.slice(0, 2).join(", ") + (evs.length > 2 ? ` and ${evs.length - 2} more` : "")].filter(Boolean).join(" · ")) : DESK ? "Nothing added yet. Drop your first receipt on the right." : "Nothing added yet. Take a photo of your first receipt."}</div>
     </div>`;
   // Who the claim is for (Andrew 17 Nov 2026): the member's own, or a presenter's receipts sent to them; the presenter is paid.
-  const mineToEdit = c && ["draft", "rejected"].includes(c.status);
-  const forWho = !mineToEdit ? "" : c.payee
+  const mineToEdit = !c || ["draft", "rejected"].includes(c.status);
+  const forWho = !mineToEdit ? "" : c?.payee
     ? `<div class="say forwho"><b>For ${esc(c.payee.name)}</b>, a presenter at ${esc(c.payee.eventTitle)}. The e-transfer goes to ${esc(c.payee.email)}. <button class="linkish" id="forchg" type="button">Change</button></div>`
     : `<p class="tiny" style="margin:-4px 2px 12px"><button class="linkish" id="forchg" type="button">Claiming a presenter's expenses for them?</button></p>`;
   const waiting = WAITING ? `<div class="say wt">${WAITING} photo${WAITING === 1 ? " is" : "s are"} kept on this phone, waiting for a signal. ${WAITING === 1 ? "It goes" : "They go"} as soon as you're back online. <button class="linkish" id="retry" type="button" style="display:inline;margin:0;padding:0">Try now</button></div>` : "";
@@ -818,7 +818,7 @@ function claimScreen() {
   $("addmile").onclick = () => openNew("mileage");
   $("addnone").onclick = () => openNew("noreceipt");
   if ($("retry")) $("retry").onclick = () => flushOutbox();
-  if ($("forchg")) $("forchg").onclick = () => pickPresenter(c);
+  if ($("forchg")) $("forchg").onclick = () => pickPresenter(c ?? null);
   if ($("submit")) $("submit").onclick = submitClaim;
   if ($("delclaim")) $("delclaim").onclick = deleteClaim;
   // The claim on screen is always in view in the row of chips.
@@ -922,11 +922,11 @@ async function pickPresenter(c) {
   box.className = "ppdlg";
   box.innerHTML = `<form method="dialog"><h2 style="margin:0 0 6px">Who is this claim for?</h2>
     <p class="tiny" style="margin:0 0 12px">For a presenter who sent you their receipts. ONGIA pays them directly, by e-transfer to the email on their agreement.</p>
-    <div class="field"><label for="pp-ev">Event</label><select id="pp-ev">${eventOptions(c.payee?.event ?? "", c.payee?.eventTitle)}</select></div>
+    <div class="field"><label for="pp-ev">Event</label><select id="pp-ev">${eventOptions(c?.payee?.event ?? "", c?.payee?.eventTitle)}</select></div>
     <div class="field"><label for="pp-who">Presenter</label><select id="pp-who" disabled><option value="">Choose the event first</option></select></div>
     <div id="pp-say" class="tiny" style="margin:0 0 10px"></div>
     <button class="btn gold" id="pp-save" type="button" disabled>Make it their claim</button>
-    ${c.payee ? `<button class="btn ghost" id="pp-mine" type="button" style="margin-top:8px">Make it my own claim</button>` : ""}
+    ${c?.payee ? `<button class="btn ghost" id="pp-mine" type="button" style="margin-top:8px">Make it my own claim</button>` : ""}
     <button class="btn ghost" value="cancel" style="margin-top:8px">Cancel</button></form>`;
   document.body.append(box); box.showModal();
   box.addEventListener("close", () => box.remove());
@@ -938,14 +938,18 @@ async function pickPresenter(c) {
     who.innerHTML = `<option value="">Loading…</option>`;
     try {
       list = (await api(`?presenters=${encodeURIComponent(ev.value)}`)).presenters ?? [];
-      who.innerHTML = list.length ? `<option value="">Choose the presenter</option>` + list.map((p) => `<option value="${esc(p.id)}"${c.payee?.presenter === p.id ? " selected" : ""}>${esc(p.name)}${p.organization ? ` · ${esc(p.organization)}` : ""}</option>`).join("") : `<option value="">No presenters on this event</option>`;
+      who.innerHTML = list.length ? `<option value="">Choose the presenter</option>` + list.map((p) => `<option value="${esc(p.id)}"${c?.payee?.presenter === p.id ? " selected" : ""}>${esc(p.name)}${p.organization ? ` · ${esc(p.organization)}` : ""}</option>`).join("") : `<option value="">No presenters on this event</option>`;
       who.disabled = !list.length; save.disabled = !who.value;
     } catch (x) { who.innerHTML = `<option value="">Couldn't load them</option>`; say.textContent = x.message; }
   };
   ev.onchange = load; if (ev.value) load();
   who.onchange = () => { const p = list.find((x) => x.id === who.value); save.disabled = !p; say.textContent = p ? (p.email ? `Paid to ${p.email}.` : "No email on their agreement, so they can't be paid by e-transfer yet.") : ""; };
   const send = async (body, done) => {
-    try { await api(`?claim=${encodeURIComponent(c.id)}&for=1`, { method: "PUT", json: body }); box.close(); HOME = await api(TESTMODE() ? "?test=1" : ""); claimScreen(); toast(done); }
+    try {
+      // Nothing added yet: the presenter is chosen first, so the claim is started for them now.
+      let id = c?.id;
+      if (!id) { const h = await api(`?new=1${TESTMODE() ? "&test=1" : ""}`, { method: "POST" }); id = h.working; store.set("ongia-exp-working", id); }
+      await api(`?claim=${encodeURIComponent(id)}&for=1`, { method: "PUT", json: body }); box.close(); HOME = await api(TESTMODE() ? "?test=1" : ""); claimScreen(); toast(done); }
     catch (x) { say.textContent = x.message; }
   };
   save.onclick = () => send({ event: ev.value, presenter: who.value }, "It's their claim now. ONGIA pays them directly.");
