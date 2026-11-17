@@ -1,7 +1,7 @@
 import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
 import { deskOwners, isOwner } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
-import { getRoster, putRoster } from "./lib/store.mjs";
+import { getRoster, putRoster, listEvents, putEvent } from "./lib/store.mjs";
 
 /**
  * The board roster the event form picks from. Seeded once from the ONGIA
@@ -51,12 +51,13 @@ export default async (req) => {
     const who = adminWho(req);
     const canGrant = who.key === true || isOwner(who.email);
     const before = new Map(((await getRoster()) ?? []).map((m) => [String(m.email).toLowerCase(), m]));
-    const members = [];
+    const members = [], moved = [];
     for (const row of rows.slice(0, 100)) {
       const name = text(row.name, 120), email = text(row.email, 200);
       if (!name || !isEmail(email)) return fail(`"${name || email}" needs a name and a valid email.`);
       // `was` is the address they had before this save, when it is being changed.
       const was = before.get(String(text(row.was, 200) || email).toLowerCase()) ?? before.get(email.toLowerCase());
+      if (was && String(was.email).toLowerCase() !== email.toLowerCase()) moved.push({ from: String(was.email).toLowerCase(), to: email, name });
       // The Marriott Bonvoy number goes on the rooming list beside their name (Andrew 29 Oct 2026).
       members.push({ name, email, phone: formatPhone(text(row.phone, 60)), bonvoy: text(row.bonvoy, 40).replace(/[^0-9A-Za-z]/g, "").slice(0, 20), sponsorLead: row.sponsorLead === true,
         desk: canGrant ? row.desk === true : was?.desk === true,
@@ -75,7 +76,29 @@ export default async (req) => {
     const leadAt = members.findIndex((m) => m.sponsorLead);
     members.forEach((m, i) => { m.sponsorLead = i === leadAt; });
     await putRoster(members);
-    return json({ members, owners: deskOwners(), canGrant });
+    // A board member's address changed here follows them onto every event they're on (Andrew 17 Nov 2026: Tyler's
+    // was mistyped, and three events kept the wrong one): the board list, the lead's reviewer and contact, who is told.
+    const updated = moved.length ? await moveAddresses(moved) : [];
+    return json({ members, owners: deskOwners(), canGrant, ...(updated.length ? { eventsUpdated: updated } : {}) });
   }
   return fail("Method not allowed.", 405);
 };
+
+/** Each { from, to } address swapped on every event's board, reviewer, contact and notify list. Returns the events changed. */
+async function moveAddresses(moved) {
+  const map = new Map(moved.map((m) => [m.from, m.to]));
+  const swap = (e) => map.get(String(e ?? "").toLowerCase()) ?? e;
+  const changed = [];
+  for (const ev of await listEvents()) {
+    const hit = (ev.board ?? []).some((m) => map.has(String(m.email ?? "").toLowerCase())) || map.has(String(ev.reviewer?.email ?? "").toLowerCase()) || map.has(String(ev.contact?.email ?? "").toLowerCase()) || (ev.notify ?? []).some((e) => map.has(String(e).toLowerCase()));
+    if (!hit) continue;
+    ev.board = (ev.board ?? []).map((m) => ({ ...m, email: swap(m.email) }));
+    if (ev.reviewer?.email) ev.reviewer = { ...ev.reviewer, email: swap(ev.reviewer.email) };
+    if (ev.contact?.email) ev.contact = { ...ev.contact, email: swap(ev.contact.email) };
+    if (Array.isArray(ev.notify)) ev.notify = ev.notify.map(swap);
+    ev.updatedAt = new Date().toISOString();
+    await putEvent(ev);
+    changed.push({ id: ev.id, title: ev.title });
+  }
+  return changed;
+}
