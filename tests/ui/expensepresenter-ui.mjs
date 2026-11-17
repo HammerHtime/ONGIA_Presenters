@@ -41,6 +41,18 @@ if (D) await p.screenshot({ path: D + "expensepresenter-claim.png" });
 await p.click("#forchg"); await p.waitForTimeout(300);
 await p.click("#pp-mine"); await p.waitForTimeout(1500);
 ok("…and it can be made John's own claim again", await p.locator("#forchg", { hasText: "Claiming a presenter's expenses for them?" }).isVisible() && !(await p.locator(".say.forwho").count()));
+// Another member with nothing on a claim yet picks the presenter first (Andrew 17 Nov 2026: "I submit yes for presenter.
+// I select the event … a list of presenters"): the claim is started for the presenter, then receipts are added.
+const p2 = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+await p2.addInitScript(([t, me]) => { localStorage.setItem("ongia-exp-session", t); localStorage.setItem("ongia-exp-me", JSON.stringify(me)); },
+  [issueExpenseSession({ email: "d.sullivan@ongia.ca", name: "Derek Sullivan" }), { email: "d.sullivan@ongia.ca", name: "Derek Sullivan" }]);
+p2.on("pageerror", (e) => errs.push(String(e)));
+await p2.goto(`${S}/expenses`, { waitUntil: "networkidle" }); await p2.waitForTimeout(1000);
+ok("with nothing added yet, the presenter link is there", await p2.locator("#forchg", { hasText: "Claiming a presenter's expenses for them?" }).isVisible());
+await p2.click("#forchg"); await p2.waitForTimeout(300);
+await p2.selectOption("#pp-ev", ev.id); await p2.waitForTimeout(1200);
+await p2.selectOption("#pp-who", { label: "Parm Dhesi · Vancouver Police Department" }); await p2.click("#pp-save"); await p2.waitForTimeout(1800);
+ok("choosing him first starts the claim as his, ready for the receipts", /For Parm Dhesi, a presenter at/.test(await p2.locator(".say.forwho").innerText().catch(() => "")) && await p2.locator("#addcam").isVisible());
 ok("no script errors", !errs.length, errs.join(" | "));
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);
