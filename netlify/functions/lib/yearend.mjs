@@ -856,14 +856,16 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   const small = [
     c.estimatedEmails != null ? [`~${num(c.estimatedEmails, lang)}`, L.emails, L.emailsSub] : null,
     c.digitalReach != null ? [`~${num(c.digitalReach, lang)}`, L.reach, L.reachSub] : null,
-    f.cities?.length ? [num(f.cities.length, lang), lang === "fr" ? "Villes" : "Cities", lang === "fr" ? "où RBH a présenté" : "where RBH presented"] : null,
+    f.cities?.length > 1 ? [num(f.cities.length, lang), lang === "fr" ? "Villes" : "Cities", lang === "fr" ? "où RBH a présenté" : "where RBH presented"] : null,
+    f.provinceCount > 1 ? [num(f.provinceCount, lang), "Provinces", lang === "fr" ? "d'où venait le public" : "the audience came from"] : null,
     f.newAgencies != null ? [num(f.newAgencies, lang), lang === "fr" ? "Nouveaux organismes" : "New agencies", lang === "fr" ? "cette année" : "this year"] : null,
     V.rbhSessionTop2 != null ? [pc(V.rbhSessionTop2, lang), L.session, L.sessionSub] : f.survey?.quality != null ? [pc(f.survey.quality, lang), L.quality, L.qualitySub] : null,
   ].filter(Boolean).slice(0, 5);
   if (small.length) {
-    const sw = (W - gap * (small.length - 1)) / small.length;
+    // Never wider than a quarter of the page each, centred, so one or two figures don't stretch across it.
+    const sw = Math.min((W - gap * 3) / 4, (W - gap * (small.length - 1)) / small.length), off = (W - (sw * small.length + gap * (small.length - 1))) / 2;
     small.forEach(([n, l, sub], i) => {
-      const sx = X + i * (sw + gap);
+      const sx = X + off + i * (sw + gap);
       doc.roundedRect(sx, y, sw, 52, 4).fill(PANEL);
       doc.font("b").fontSize(17).fillColor("#ffffff").text(n, sx, y + 7, { width: sw, align: "center", lineBreak: false });
       doc.font("b").fontSize(7).fillColor(G).text(l.toUpperCase(), sx + 3, y + 29, { width: sw - 6, align: "center", characterSpacing: 0.8, lineBreak: false, height: 9, ellipsis: true });
@@ -887,9 +889,11 @@ export async function yearSponsorInfoPdf(content, f, lang, { date }) {
   for (const r of f.trainingsList.filter((t) => t.held)) if (r.province) byHeld.set(r.province, (byHeld.get(r.province) ?? 0) + (r.attended ?? 0));
   for (const [code, n] of byHeld) {
     const a = M.anchors?.[code]; if (!a) continue;
-    const ax = X + a[0] * sc, ay = my + a[1] * sc;
-    doc.circle(ax, ay, 11).fill(BG); doc.circle(ax, ay, 11).lineWidth(1).strokeColor(G).stroke();
-    doc.font("b").fontSize(7.5).fillColor("#ffffff").text(num(n, lang), ax - 11, ay - 3.5, { width: 22, align: "center", lineBreak: false });
+    // The count sits just off the province on a thin line, so a small one (New Brunswick, PEI) still shows its gold.
+    const ax = X + a[0] * sc, ay = my + a[1] * sc, bx = Math.min(X + mw - 12, ax + 22), by = Math.max(my + 12, ay - 24);
+    doc.moveTo(ax, ay).lineTo(bx, by).lineWidth(0.8).strokeColor(GL).stroke(); doc.circle(ax, ay, 1.8).fill(GL);
+    doc.circle(bx, by, 11).fill(BG); doc.circle(bx, by, 11).lineWidth(1).strokeColor(G).stroke();
+    doc.font("b").fontSize(7.5).fillColor("#ffffff").text(num(n, lang), bx - 11, by - 3.5, { width: 22, align: "center", lineBreak: false });
   }
   const ky = my + mh + 6;
   doc.rect(X, ky, 8, 8).fill(G); doc.font("r").fontSize(7).fillColor(SOFT).text(L.mapKey1, X + 12, ky, { lineBreak: false });
