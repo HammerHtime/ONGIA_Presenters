@@ -44,7 +44,7 @@ function jobFor(event, kind, today) {
 export const MAIL_OFF = "emails to attendees are off for this event";
 
 export function letterDue(event, kind, today = todayIso()) {
-  if (event.attendeeMail !== true) return { due: false, why: MAIL_OFF };
+  if (event.attendeeMail !== true || event.quiet === true) return { due: false, why: MAIL_OFF };
   // The welcome letter goes only as written and saved on the event's Communications tab (Andrew 27 Oct 2026: "I need
   // the one place to write the letters"). A saved letter picked on the event form the old way is where its words
   // start from there, and never goes by itself.
@@ -195,7 +195,7 @@ export async function runLetterRounds(events, opts = {}) {
     }
     // The housekeeping questions, once sent from the event page: anyone who registers afterwards gets them the next
     // night, up to the reply-by date. Only while automatic emails to attendees are on.
-    if (event.reply?.sentAt && event.attendeeMail === true) {
+    if (event.reply?.sentAt && event.attendeeMail === true && event.quiet !== true) {
       let justSent = [];
       try { const r = await sendReplyRound(event, opts); justSent = r.sentTo ?? []; out.push({ event: event.id, title: event.title, kind: "reply", ...r }); }
       catch (e) { out.push({ event: event.id, title: event.title, kind: "reply", error: e.message }); }

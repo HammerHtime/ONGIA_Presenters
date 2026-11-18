@@ -474,7 +474,7 @@ export async function fileReport(event, kind, { file = null } = {}) {
  */
 export async function runReports({ client = null, file = null, events = null } = {}) {
   const out = [];
-  for (const event of (events ?? (await listEvents())).filter((e) => e.kind === "rbh" && e.survey)) {
+  for (const event of (events ?? (await listEvents())).filter((e) => e.kind === "rbh" && e.survey && e.quiet !== true)) {
     try {
       const f = await factsFor(event);
       const all = await reportsOf(event.id);

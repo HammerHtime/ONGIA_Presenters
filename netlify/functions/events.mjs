@@ -24,6 +24,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   POST   /api/events                      create an event
  *   PUT    /api/events?id=…                 update an event's details (deadlines re-derive)
  *   PUT    /api/events?id=…&attendeeMail=1  { on: true|false } — attendee emails on or off, nothing else
+ *   PUT    /api/events?id=…&quiet=1         { on: true|false } — Nothing automatic: nothing goes by itself for this event
  *   DELETE /api/events?id=…                 delete an event and everything under it
  *   POST   /api/events?id=…&add=1           add presenters to an event; a row with from: { event, presenter } brings their
  *                                            bio, talk, outline and phone (and website extras) over from that event
@@ -62,6 +63,7 @@ export default async (req) => {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
+    if (url.searchParams.get("quiet")) return setQuiet(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
     if (url.searchParams.get("countregistered")) return setCountRegistered(id, body);
@@ -106,11 +108,31 @@ async function setAttendeeMail(id, body) {
   if (typeof body.on !== "boolean") return fail("Say on or off.");
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
+  if (body.on && event.quiet === true) return fail("Nothing automatic is on for this event. Turn it off first, in the event's settings.", 409);
   event.attendeeMail = body.on;
   event.attendeeMailChangedAt = new Date().toISOString();
   event.updatedAt = event.attendeeMailChangedAt;
   await putEvent(event);
   return json({ ok: true, attendeeMail: event.attendeeMail });
+}
+
+/**
+ * Nothing automatic (Andrew 18 Nov 2026, the RBH VIP Event: "turn off all automation… I don't need reminders. I don't
+ * need survey. I don't even need certificates."). While on, nothing goes by itself for this event: no presenter or
+ * volunteer chases, no attendee emails, survey or thank-yous, no RBH reports, and it is left out of the board's
+ * reminder emails and the Monday summary. Turning it on turns attendee emails off too; turning it off leaves them off.
+ * Anything sent by hand still goes.
+ */
+async function setQuiet(id, body) {
+  if (typeof body.on !== "boolean") return fail("Say on or off.");
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  event.quiet = body.on;
+  if (body.on) event.attendeeMail = false;
+  event.quietChangedAt = new Date().toISOString();
+  event.updatedAt = event.quietChangedAt;
+  await putEvent(event);
+  return json({ ok: true, quiet: event.quiet, attendeeMail: event.attendeeMail });
 }
 
 /** ONGIA's filing convention: the training library, then year, then "year City". */
@@ -176,6 +198,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // dates, so nothing chases them by date. Every other event keeps both, off by default.
     talkOnFile: body.talkOnFile === undefined ? (event.talkOnFile ?? false) : body.talkOnFile === true,
     noDeadlines: body.noDeadlines === undefined ? (event.noDeadlines ?? false) : body.noDeadlines === true,
+    // Nothing automatic: see setQuiet. Off on every event unless ticked.
+    quiet: body.quiet === undefined ? (event.quiet ?? false) : body.quiet === true,
     // A paragraph of Andrew's own for this event's presenter invitation (and its "Email again"),
     // in English and, if he gives one, French. Empty on every event unless he writes it.
     inviteNote: body.inviteNote === undefined ? (event.inviteNote ?? "") : text(body.inviteNote, 1500),
@@ -206,6 +230,7 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   if (event.rbhPresented) event.rbhCancelled = false;
   if (project) Object.assign(event, { project: true, attendeeMail: false, noDeadlines: true });
   else delete event.project;
+  if (event.quiet) event.attendeeMail = false;
 
   // Board members on this event: any number, exactly one lead. The lead
   // reviews and signs; everyone picked is notified. Older clients that still

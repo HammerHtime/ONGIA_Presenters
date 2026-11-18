@@ -21,7 +21,7 @@ const dayBefore = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOStri
 
 /** Which reminder, if any, is due for this event today. */
 export function hotelDueToday(event, today = todayIso()) {
-  if (event?.attendeeMail !== true) return null;        // emails to attendees are off for this event
+  if (event?.attendeeMail !== true || event?.quiet === true) return null; // emails to attendees are off for this event
   const h = event?.hotel;
   if (!h?.cutoff || !h?.link) return null;
   if (today > h.cutoff) return null;                    // the block has closed

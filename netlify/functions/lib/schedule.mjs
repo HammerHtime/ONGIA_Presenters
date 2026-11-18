@@ -26,7 +26,9 @@ export async function emailSchedule(event, today = todayIso()) {
   const off = event.attendeeMail !== true;
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
   const writeable = writeableTo(people);
-  const offNote = off ? "won't go: attendee emails are off" : "";
+  // Nothing automatic (events.mjs setQuiet): every row says it won't go by itself. Send now still works.
+  const QUIET = event.quiet === true ? "won't go by itself: Nothing automatic is on" : "";
+  const offNote = QUIET || (off ? "won't go: attendee emails are off" : "");
 
   // The welcome letter, each version, until everyone has it.
   const job = welcomeJob(event, today);
@@ -52,7 +54,7 @@ export async function emailSchedule(event, today = todayIso()) {
     if (date < today) continue;
     const ready = !!event.joinReminder?.[g.key]?.readyAt;
     out.push({ date, time: time.slice(0, 5), tz: zoneAbbr(t.zone, date), what: `How to join online: reminder (${g.label})`, to: joinPeople(event, g.key, people).owed.length, who: "attendees",
-      note: offNote ? "" : ready ? "" : "not marked ready yet", ...(ready ? { now: { type: "join", key: g.key } } : {}) });
+      note: QUIET || (offNote ? "" : ready ? "" : "not marked ready yet"), ...(ready ? { now: { type: "join", key: g.key } } : {}) });
   }
 
   // The food-allergy reminders: to everyone in the room who had the email and hasn't answered.
@@ -103,13 +105,13 @@ export async function emailSchedule(event, today = todayIso()) {
     const owed = presenters.filter((p) => p.mail?.length && !["submitted", "approved", "arranged", "withdrawn"].includes(p.status)).length;
     if (owed) for (const d of PRESENTER_DAYS) {
       const on = before(event.deadlines.agreement, d);
-      if (on >= today) out.push({ date: on, what: d ? `Agreement reminder (${d} day${d === 1 ? "" : "s"} before it's due)` : "Agreement reminder (due today)", to: owed, who: "presenters", note: "", now: { type: "presenters" } });
+      if (on >= today) out.push({ date: on, what: d ? `Agreement reminder (${d} day${d === 1 ? "" : "s"} before it's due)` : "Agreement reminder (due today)", to: owed, who: "presenters", note: QUIET, now: { type: "presenters" } });
     }
     // Then, once it's overdue: every 3 days for two weeks, then weekly (lib/reminders.mjs), until the event.
     if (owed) for (let n = 1; n <= 60; n++) {
       const on = before(event.deadlines.agreement, -n);
       if (on < today || (n <= 14 ? n % 3 : n % 7) || (event.dayOne && on >= event.dayOne)) continue;
-      out.push({ date: on, what: `Agreement reminder (${n} days overdue)`, to: owed, who: "presenters", note: "", now: { type: "presenters" } });
+      out.push({ date: on, what: `Agreement reminder (${n} days overdue)`, to: owed, who: "presenters", note: QUIET, now: { type: "presenters" } });
     }
   }
   // The thank-you to each presenter, the morning after the event (Andrew 14 Nov 2026).
@@ -118,7 +120,7 @@ export async function emailSchedule(event, today = todayIso()) {
     for (const [kind, K] of Object.entries(KINDS)) {
       if (!K.auto) continue;
       const to = thanksPeople(event, await K.list(event.id), kind).filter((v) => v.in && !v.sentAt).length;
-      out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: thanksOn(event, kind) ? "" : "won't go: switched off" });
+      out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: QUIET || (thanksOn(event, kind) ? "" : "won't go: switched off") });
     }
   }
   for (const x of out) if (x.time === undefined) Object.assign(x, morning(x.date));
