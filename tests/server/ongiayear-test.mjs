@@ -68,6 +68,13 @@ for (let i = 1; i <= 3; i++) await putSurveyResponse("o-sym", { id: `r${i}`, at:
   sessions: { s1: { relevant: 5, knowledge: 5, expectations: 5, expert: 5, engaging: 5, delivery: 5, rebook: 0, comment: i === 1 ? "Very practical day." : "" } },
   overall: { quality: i === 3 ? 3 : 5, confidence: 4, practical: 5, variety: 4, nps: 10, topics: "Court testimony" } });
 await Y.putOngInputs(2026, { contacts: 6092 }, "test");
+// ONGIA's members by province and agency (Andrew 18 Nov 2026), from the member list: made-up cards, counts only.
+const card = (email, provinceOfWork = "", region = "") => ({ email, provinceOfWork, company: "", region });
+const mem = await Y.refreshMembers({ contacts: [card("a@x.ca", "Toronto Police Service"), card("b@x.ca", "Toronto Police Service"), card("c@x.ca", "SPVM"), card("d@rcmp-grc.gc.ca", "RCMP"),
+  card("e@gmail.com"), card("f@gmail.com", "", "CA-NS"), card("g@ontario.ca")] });
+ok("members are counted by province: the agency's, or the address on the card", mem.total === 7 && mem.provinces.find((p) => p.code === "ON")?.count === 3 && mem.provinces.find((p) => p.code === "QC")?.count === 1 && mem.provinces.find((p) => p.code === "NS")?.count === 1, JSON.stringify(mem.provinces));
+ok("federal agencies have no province and are counted apart; a personal email with nothing typed isn't placed", mem.federal === 1 && mem.unknown === 1 && mem.placed === 5, JSON.stringify(mem));
+ok("and by agency, most members first", mem.agencies[0].agency === "Toronto Police Service" && mem.agencies[0].count === 2 && mem.withAgency >= 4, JSON.stringify(mem.agencies));
 
 let f = await Y.ongiaYearFacts(2026);
 ok("the year: three events in 2026 of any kind (RBH included), two held, one to come; not the practice one, 2025 or 2027", f.events === 3 && f.held === 2 && f.upcoming === 1, JSON.stringify(f.eventsList.map((e) => e.title)));
@@ -129,6 +136,7 @@ for (const kind of ["impact", "reach", "program", "info"]) for (const lang of ["
   fs.writeFileSync(file, await ongPdf(kind, v.content[lang], v.facts, lang, { date: "2027-01-08" }));
   const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [file]).toString())[1]);
   const text = execFileSync("pdftotext", ["-layout", file, "-"]).toString();
+  if (kind === "reach") ok(`the ${lang} reach report shows the members by province and the agencies with the most members`, lang === "en" ? /ONGIA.s members/.test(text) && /ONGIA has 7 members\. 5 work for an agency in one of 3 provinces/.test(text) && /more members/.test(text) && /Toronto Police Service\s+2/.test(text) : /L.ONGIA compte 7 membres/.test(text) && /plus de membres/.test(text), text.slice(-1500));
   if (kind === "info") ok(`the ${lang} infographic is one page with the six tiles and the province map`, pages === 1 && /6[,  ]?092/.test(text) && /\bON\b/.test(text) && /QC/.test(text), `${pages} pages`);
   else ok(`the ${lang} ${kind} report is drawn (${pages} pages), with the year's figures`, pages >= 1 && pages <= 5 && text.includes("2026") && (kind === "program" ? /\b3\b/.test(text) : /\b7\b/.test(text)), text.slice(0, 200));
 }

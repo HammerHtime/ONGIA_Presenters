@@ -6,6 +6,7 @@ import { directory, agencyOf, PROVINCES } from "./agencies.mjs";
 import { SECTORS, sortAgencies } from "./sectors.mjs";
 import { factsFor } from "./reports.mjs";
 import { yearTrainings, refreshYear } from "./history.mjs";
+import { listWixContacts } from "./wix.mjs";
 
 /**
  * ONGIA's year (Andrew 1 Nov 2026: "Add 3 different reports you think would be good for ONGIA to create each year as a
@@ -67,6 +68,43 @@ export async function putOngInputs(year, body, by = "desk") {
   const contacts = v === "" || v === null || v === undefined ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v)) : null;
   const out = { contacts, at: new Date().toISOString(), by };
   await putMeta(`ongia:year:${year}:inputs`, out);
+  return out;
+}
+
+/* ---------- ONGIA's members, by province and by agency ---------- */
+
+/**
+ * Where ONGIA's members are and who they work for (Andrew 18 Nov 2026: "have the map show the number of ONGIA members
+ * by province. This will show people the depth of our members. And maybe add a sideways bar graph showing where our
+ * members are from agency wise"). Worked out from the member list on the website: each member's agency from what they
+ * typed (the list's "Province of work" box holds the agency's name) or, failing that, their work email; the province is
+ * the agency's, or the address on their card. Federal and national agencies have no province and are counted apart.
+ * Counts only: no names, no addresses.
+ */
+export function memberStats(contacts, list) {
+  const byProv = new Map(), byAgency = new Map();
+  let federal = 0, placed = 0, withAgency = 0;
+  for (const c of contacts) {
+    const a = agencyOf({ organization: c.provinceOfWork || c.company, email: c.email }, list);
+    if (a) { withAgency++; const g = byAgency.get(a.name) ?? { agency: a.name, fr: a.fr || "", province: a.province || "", count: 0 }; g.count++; byAgency.set(a.name, g); }
+    const region = /^CA-([A-Z]{2})$/.exec(c.region ?? "")?.[1] ?? "";
+    const prov = a?.province || (PROVINCES[region] ? region : "");
+    if (prov && PROVINCES[prov]) { placed++; byProv.set(prov, (byProv.get(prov) ?? 0) + 1); }
+    else if (a) federal++;
+  }
+  return {
+    total: contacts.length, placed, federal, unknown: contacts.length - placed - federal, withAgency, agencyCount: byAgency.size,
+    provinces: [...byProv.entries()].map(([code, count]) => ({ code, en: PROVINCES[code], count })).sort((x, y) => y.count - x.count),
+    agencies: [...byAgency.values()].sort((x, y) => y.count - x.count).slice(0, 15),
+  };
+}
+const MEMBERS = "ongia:members";
+export const membersOf = async () => (await getMeta(MEMBERS)) ?? null;
+/** Read the member list again and keep the counts (when the reports are made: it takes a few seconds). */
+export async function refreshMembers({ contacts = null } = {}) {
+  const all = contacts ?? (await listWixContacts({ site: "1" }));
+  const out = { ...memberStats(all, await directory().catch(() => [])), at: new Date().toISOString() };
+  await putMeta(MEMBERS, out);
   return out;
 }
 
@@ -216,6 +254,7 @@ export async function ongiaYearFacts(year, { events = null, now = today() } = {}
   }
   const next = all.filter((e) => counts(e) && yearOf(e) === String(Number(year) + 1));
   const out = combineOngia(year, rows, { earlier, next, inputs: await ongInputsOf(year), topics: await topicsOf(year) });
+  out.members = await membersOf().catch(() => null);
   if (keptNext) out.nextYear = { count: keptNext.count, provinces: new Set((keptNext.cities ?? []).map((c) => provinceOfEvent({ city: c })).filter(Boolean)).size };
   // People trained each year since 2021, from the kept readings: for this year, those at trainings held so far, and apart
   // from them the people registered for the trainings still to come.
@@ -399,6 +438,7 @@ export async function buildOngReport(year, kind, { reason = "asked", ask = "", l
   if (refresh) {
     await sortAgencies({ client }).catch((e) => console.log(`sectors: ${e.message}`));
     await refreshYear(year).catch((e) => console.log(`history: couldn't read ${year} from Wix (${e.message}); using the last reading`));
+    await refreshMembers().catch((e) => console.log(`members: couldn't read the member list from Wix (${e.message}); using the last count`));
     const { rows } = await yearRows(year);
     await groupTopics(year, rows, { client }).catch((e) => console.log(`topics: ${e.message}`));
   }
