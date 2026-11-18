@@ -88,7 +88,7 @@ export function joinPeople(event, key, people) {
 /** Whether it's time: marked ready, its time come, and not more than an hour into the first session. */
 export function joinDue(event, key, now = new Date()) {
   const t = timesOf(event, key);
-  if (!t || !event.joinReminder?.[key]?.readyAt) return false;
+  if (!t || !event.joinReminder?.[key]?.readyAt || event.quiet === true) return false;
   return now >= new Date(t.sendAt) && now < new Date(Date.parse(t.startAt) + 3600e3);
 }
 

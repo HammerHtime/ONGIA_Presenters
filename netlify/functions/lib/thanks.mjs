@@ -170,7 +170,7 @@ export function mailFor(event, letter, v, kind = "presenters") {
 
 /** Due now: on, today is its day in the event's own time, and it's past 9:00 there. */
 export function thanksDue(event, now = new Date(), kind = "presenters") {
-  if (!isAuto(kind) || !thanksOn(event, kind) || event.practice) return false;
+  if (!isAuto(kind) || !thanksOn(event, kind) || event.practice || event.quiet === true) return false;
   const day = thanksDay(event);
   if (!day) return false;
   const [today, time] = localNow(event, now).split(" ");

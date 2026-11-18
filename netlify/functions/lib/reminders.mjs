@@ -61,6 +61,7 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
   for (const event of (await listEvents()).filter((e) => !e.practice)) {
     if (onlyEvent && event.id !== onlyEvent) continue;
     if (event.lastDay < today) continue; // past events are history, not work
+    if (event.quiet === true) continue;  // Nothing automatic: no chases, and left out of the digests
     const ev = describeEvent(event);
     const due = event.deadlines.agreement;
     const dayOffset = daysBetween(due, today); // negative before the due date
