@@ -28,8 +28,8 @@ const T = {
     colEvent: "Event", colCity: "City", colDates: "Dates", colPeople: "People", colRating: "Rating", total: "Total", toCome: "To come",
     byProvince: "People trained by province and territory", bySector: "Who we trained, by sector", topics: "Topics we trained on", byMonth: "Trainings and events by month",
     members: "ONGIA's members", membersByProvince: "Members by province", membersByAgency: "Agencies with the most members",
-    membersText: (m) => `ONGIA has ${m.total} members. ${m.placed} work for an agency in one of ${m.provs} provinces and territories, shown on the map.`,
-    membersNote: (m) => [m.federal ? `${m.federal} members work for federal or national agencies, which have no province, and aren't on the map.` : "", m.unknown ? `For ${m.unknown} more, the province isn't known yet: they joined with a personal email, or their agency isn't on ONGIA's agency list.` : ""].filter(Boolean).join(" "),
+    membersText: (m) => `ONGIA has ${m.total} members. ${m.placed} work for an agency in one of ${m.provs} provinces and territories, shown on the map as each one's share of all members.`,
+    membersNote: (m) => [m.federal ? `A further ${m.federal} of members work for federal or national agencies, which have no province, and aren't on the map.` : "", m.unknown ? `For the remaining ${m.unknown}, the province isn't known yet: they joined with a personal email, or their agency isn't on ONGIA's agency list.` : ""].filter(Boolean).join(" "),
     moreMembers: "more members",
     growing: "Growing network", topAgencies: "Agencies sending the most people", colAgency: "Agency", colProvince: "Province or territory", colSector: "Sector",
     reach: "Reach", sectors: "Sectors", growth: "Growth", program: "The program", presentersHead: "Presenters", ratings: "How it was rated", askedNext: "What attendees asked for next",
@@ -52,8 +52,8 @@ const T = {
     colEvent: "Événement", colCity: "Ville", colDates: "Dates", colPeople: "Personnes", colRating: "Note", total: "Total", toCome: "À venir",
     byProvince: "Personnes formées par province et territoire", bySector: "Qui nous avons formé, par secteur", topics: "Sujets abordés", byMonth: "Formations et événements par mois",
     members: "Les membres de l'ONGIA", membersByProvince: "Membres par province", membersByAgency: "Organismes comptant le plus de membres",
-    membersText: (m) => `L'ONGIA compte ${m.total} membres. ${m.placed} travaillent pour un organisme situé dans l'une de ${m.provs} provinces et territoires, indiqués sur la carte.`,
-    membersNote: (m) => [m.federal ? `${m.federal} membres travaillent pour des organismes fédéraux ou nationaux, sans province, et ne figurent pas sur la carte.` : "", m.unknown ? `Pour ${m.unknown} autres, la province n'est pas encore connue : ils se sont inscrits avec une adresse courriel personnelle, ou leur organisme ne figure pas sur la liste d'organismes de l'ONGIA.` : ""].filter(Boolean).join(" "),
+    membersText: (m) => `L'ONGIA compte ${m.total} membres. ${m.placed} travaillent pour un organisme situé dans l'une de ${m.provs} provinces et territoires; la carte indique la part de chacune parmi tous les membres.`,
+    membersNote: (m) => [m.federal ? `Une autre tranche de ${m.federal} des membres travaille pour des organismes fédéraux ou nationaux, sans province, et ne figure pas sur la carte.` : "", m.unknown ? `Pour les ${m.unknown} restants, la province n'est pas encore connue : ils se sont inscrits avec une adresse courriel personnelle, ou leur organisme ne figure pas sur la liste d'organismes de l'ONGIA.` : ""].filter(Boolean).join(" "),
     moreMembers: "plus de membres",
     growing: "Un réseau qui grandit", topAgencies: "Organismes ayant envoyé le plus de personnes", colAgency: "Organisme", colProvince: "Province ou territoire", colSector: "Secteur",
     reach: "Portée", sectors: "Secteurs", growth: "Croissance", program: "Le programme", presentersHead: "Conférenciers", ratings: "Évaluation", askedNext: "Ce que les participants souhaitent ensuite",
@@ -143,7 +143,7 @@ function tileRow(doc, items, x, y, w, h = 62, { per = 3, gap = 8 } = {}) {
 /* ---------- Charts ---------- */
 
 /** Horizontal bars: the label, a rounded bar on a soft track, the value just past the bar's end; the leading row in gold. */
-function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 17, color = NAVY, lang = "en", max = null, size = 8.5, lead = true } = {}) {
+function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 17, color = NAVY, lang = "en", max = null, size = 8.5, lead = true, fmt = null } = {}) {
   const mx = max ?? Math.max(1, ...rows.map((r) => r.value));
   const barX = x + labelW + 8, barW = w - labelW - 8 - 36, bh = Math.min(8, rowH - 8);
   rows.forEach((r, i) => {
@@ -151,14 +151,14 @@ function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 17, color = NAVY, lang
     doc.font(top ? "b" : "r").fontSize(size).fillColor(INK).text(plain(r.label), x, y + (rowH - size) / 2 - 1, { width: labelW, lineBreak: false, height: size + 3, ellipsis: true });
     doc.roundedRect(barX, y + (rowH - bh) / 2, barW, bh, bh / 2).fill(TRACK);
     doc.roundedRect(barX, y + (rowH - bh) / 2, len, bh, bh / 2).fill(top ? GOLD : color);
-    doc.font("b").fontSize(size).fillColor(INK).text(num(r.value, lang), barX + len + 5, y + (rowH - size) / 2 - 1, { width: 40, lineBreak: false });
+    doc.font("b").fontSize(size).fillColor(INK).text(fmt ? fmt(r.value) : num(r.value, lang), barX + len + 5, y + (rowH - size) / 2 - 1, { width: 40, lineBreak: false });
     y += rowH;
   });
   return y;
 }
 
 /** The map of Canada, each province and territory shaded by people trained (light to dark), the number on those with any. */
-function tileMap(doc, provinces, x, y, w, lang, more = null) {
+function tileMap(doc, provinces, x, y, w, lang, more = null, fmt = null) {
   const M = canada(), by = new Map(provinces.map((p) => [p.code, p.count]));
   const mx = Math.max(1, ...provinces.map((p) => p.count));
   const step = (v) => (v ? Math.min(4, 1 + Math.floor((Math.log10(v + 1) / Math.log10(mx + 1)) * 3.999)) : 0);
@@ -170,7 +170,7 @@ function tileMap(doc, provinces, x, y, w, lang, more = null) {
     const v = by.get(code); if (!v) continue;
     let px = x + ax * s, py = y + ay * s;
     if (OUT[code]) { const dx = OUT[code][0] * M.w * s * 1.0, dy = OUT[code][1] * M.h * s * 1.0; doc.moveTo(px, py).lineTo(px + dx, py + dy).lineWidth(0.6).stroke(MUTED); doc.circle(px, py, 1.4).fill(NAVY); px += dx; py += dy; }
-    const t = num(v, lang), fs = w > 220 ? 8 : 7, tw = doc.font("b").fontSize(fs).widthOfString(t) + 9, light = step(v) >= 3 && !OUT[code];
+    const t = fmt ? fmt(v) : num(v, lang), fs = w > 220 ? 8 : 7, tw = doc.font("b").fontSize(fs).widthOfString(t) + 9, light = step(v) >= 3 && !OUT[code];
     doc.roundedRect(px - tw / 2, py - fs + 1, tw, fs + 6, (fs + 6) / 2).fill(light ? "#ffffff" : NAVY);
     doc.font("b").fontSize(fs).fillColor(light ? NAVY : "#ffffff").text(t, px - tw / 2, py - fs + 3.4, { width: tw, align: "center", lineBreak: false });
   }
@@ -426,12 +426,15 @@ async function reachPdf(c, f, lang, { date }) {
   // ONGIA's members: where they are (the map) and who they work for (Andrew 18 Nov 2026).
   const m = f.members;
   if (m?.provinces?.length) {
-    const n = { total: num(m.total, lang), placed: num(m.placed, lang), provs: num(m.provinces.length, lang), federal: m.federal ? num(m.federal, lang) : "", unknown: m.unknown ? num(m.unknown, lang) : "" };
+    // Each province as its share of all members (Andrew 18 Nov 2026: "instead of numbers in each province (we have the
+    // total number of members listed) show the percentage"); under one percent says so, never 0%.
+    const pct = (v) => { const p = (v / Math.max(1, m.total)) * 100; return p > 0 && p < 1 ? (lang === "fr" ? "< 1 %" : "<1%") : `${Math.round(p)}${lang === "fr" ? " %" : "%"}`; };
+    const n = { total: num(m.total, lang), placed: pct(m.placed), provs: num(m.provinces.length, lang), federal: m.federal ? pct(m.federal) : "", unknown: m.unknown ? pct(m.unknown) : "" };
     F.h2(L.members, 300);
     F.para(L.membersText(n));
     F.h3(L.membersByProvince, 240);
     const rows = m.provinces.map((p) => ({ label: provName(p.code, lang), value: p.count }));
-    F.chart(Math.max(230, rows.length * 17 + 12), (x, y, w) => { const end = tileMap(doc, m.provinces, x, y, w * 0.6, lang, L.moreMembers); const e2 = hbars(doc, rows, x + w * 0.63, y + 6, w * 0.37, { labelW: 98, rowH: 17, lang }); return Math.max(end, e2); });
+    F.chart(Math.max(230, rows.length * 17 + 12), (x, y, w) => { const end = tileMap(doc, m.provinces, x, y, w * 0.6, lang, L.moreMembers, pct); const e2 = hbars(doc, rows, x + w * 0.63, y + 6, w * 0.37, { labelW: 98, rowH: 17, lang, fmt: pct }); return Math.max(end, e2); });
     if (L.membersNote(n)) F.para(L.membersNote(n), { size: 8.5, color: MUTED, font: "i" });
     const ag = (m.agencies ?? []).slice(0, 12);
     if (ag.length) {
