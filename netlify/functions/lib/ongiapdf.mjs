@@ -27,6 +27,10 @@ const T = {
     glance: "At a glance", eventsHead: "Trainings and events", who: "Who we trained", said: "What attendees said", highlights: "Highlights of the year", ahead: (y) => `Looking ahead to ${y}`,
     colEvent: "Event", colCity: "City", colDates: "Dates", colPeople: "People", colRating: "Rating", total: "Total", toCome: "To come",
     byProvince: "People trained by province and territory", bySector: "Who we trained, by sector", topics: "Topics we trained on", byMonth: "Trainings and events by month",
+    members: "ONGIA's members", membersByProvince: "Members by province", membersByAgency: "Agencies with the most members",
+    membersText: (m) => `ONGIA has ${m.total} members. ${m.placed} work for an agency in one of ${m.provs} provinces and territories, shown on the map.`,
+    membersNote: (m) => [m.federal ? `${m.federal} members work for federal or national agencies, which have no province, and aren't on the map.` : "", m.unknown ? `${m.unknown} joined with a personal email, so their province and agency aren't known.` : ""].filter(Boolean).join(" "),
+    moreMembers: "more members",
     growing: "Growing network", topAgencies: "Agencies sending the most people", colAgency: "Agency", colProvince: "Province or territory", colSector: "Sector",
     reach: "Reach", sectors: "Sectors", growth: "Growth", program: "The program", presentersHead: "Presenters", ratings: "How it was rated", askedNext: "What attendees asked for next",
     recs: "For next year", bestSessions: "Highest-rated sessions", colSession: "Session", colTop2: "Rated 4 or 5", colAnswers: "Answers", measure: "Measure",
@@ -47,6 +51,10 @@ const T = {
     glance: "En un coup d'œil", eventsHead: "Formations et événements", who: "Qui nous avons formé", said: "Ce que disent les participants", highlights: "Faits saillants de l'année", ahead: (y) => `Perspectives pour ${y}`,
     colEvent: "Événement", colCity: "Ville", colDates: "Dates", colPeople: "Personnes", colRating: "Note", total: "Total", toCome: "À venir",
     byProvince: "Personnes formées par province et territoire", bySector: "Qui nous avons formé, par secteur", topics: "Sujets abordés", byMonth: "Formations et événements par mois",
+    members: "Les membres de l'ONGIA", membersByProvince: "Membres par province", membersByAgency: "Organismes comptant le plus de membres",
+    membersText: (m) => `L'ONGIA compte ${m.total} membres. ${m.placed} travaillent pour un organisme situé dans l'une de ${m.provs} provinces et territoires, indiqués sur la carte.`,
+    membersNote: (m) => [m.federal ? `${m.federal} membres travaillent pour des organismes fédéraux ou nationaux, sans province, et ne figurent pas sur la carte.` : "", m.unknown ? `${m.unknown} se sont inscrits avec une adresse courriel personnelle : leur province et leur organisme ne sont pas connus.` : ""].filter(Boolean).join(" "),
+    moreMembers: "plus de membres",
     growing: "Un réseau qui grandit", topAgencies: "Organismes ayant envoyé le plus de personnes", colAgency: "Organisme", colProvince: "Province ou territoire", colSector: "Secteur",
     reach: "Portée", sectors: "Secteurs", growth: "Croissance", program: "Le programme", presentersHead: "Conférenciers", ratings: "Évaluation", askedNext: "Ce que les participants souhaitent ensuite",
     recs: "Pour l'an prochain", bestSessions: "Séances les mieux notées", colSession: "Séance", colTop2: "Note de 4 ou 5", colAnswers: "Réponses", measure: "Mesure",
@@ -150,7 +158,7 @@ function hbars(doc, rows, x, y, w, { labelW = 150, rowH = 17, color = NAVY, lang
 }
 
 /** The map of Canada, each province and territory shaded by people trained (light to dark), the number on those with any. */
-function tileMap(doc, provinces, x, y, w, lang) {
+function tileMap(doc, provinces, x, y, w, lang, more = null) {
   const M = canada(), by = new Map(provinces.map((p) => [p.code, p.count]));
   const mx = Math.max(1, ...provinces.map((p) => p.count));
   const step = (v) => (v ? Math.min(4, 1 + Math.floor((Math.log10(v + 1) / Math.log10(mx + 1)) * 3.999)) : 0);
@@ -170,7 +178,7 @@ function tileMap(doc, provinces, x, y, w, lang) {
   doc.font("r").fontSize(7).fillColor(MUTED).text(L.fewer, x, ly - 1, { lineBreak: false });
   const lx = x + doc.widthOfString(L.fewer) + 5;
   RAMP.forEach((c, i) => doc.roundedRect(lx + i * 21, ly, 19, 6, 1.5).fill(c));
-  doc.font("r").fontSize(7).fillColor(MUTED).text(L.more2, lx + 5 * 21 + 4, ly - 1, { lineBreak: false });
+  doc.font("r").fontSize(7).fillColor(MUTED).text(more ?? L.more2, lx + 5 * 21 + 4, ly - 1, { lineBreak: false });
   return ly + 12;
 }
 
@@ -414,6 +422,22 @@ async function reachPdf(c, f, lang, { date }) {
     F.h2(L.topAgencies, 120);
     F.table([{ label: L.colAgency, w: 0.5 }, { label: L.colProvince, w: 0.22 }, { label: L.colSector, w: 0.18 }, { label: L.colPeople, w: 0.1, align: "right" }],
       f.topAgencies.slice(0, 12).map((a) => [a.agency, a.province ? provName(a.province, lang) : "—", a.sector ? sectorLabel(f.sectors.find((s) => s.id === a.sector) ?? { en: a.sector, fr: a.sector }, lang) : "", num(a.count, lang)]));
+  }
+  // ONGIA's members: where they are (the map) and who they work for (Andrew 18 Nov 2026).
+  const m = f.members;
+  if (m?.provinces?.length) {
+    const n = { total: num(m.total, lang), placed: num(m.placed, lang), provs: num(m.provinces.length, lang), federal: m.federal ? num(m.federal, lang) : "", unknown: m.unknown ? num(m.unknown, lang) : "" };
+    F.h2(L.members, 300);
+    F.para(L.membersText(n));
+    F.h3(L.membersByProvince, 240);
+    const rows = m.provinces.map((p) => ({ label: provName(p.code, lang), value: p.count }));
+    F.chart(Math.max(230, rows.length * 17 + 12), (x, y, w) => { const end = tileMap(doc, m.provinces, x, y, w * 0.6, lang, L.moreMembers); const e2 = hbars(doc, rows, x + w * 0.63, y + 6, w * 0.37, { labelW: 98, rowH: 17, lang }); return Math.max(end, e2); });
+    if (L.membersNote(n)) F.para(L.membersNote(n), { size: 8.5, color: MUTED, font: "i" });
+    const ag = (m.agencies ?? []).slice(0, 12);
+    if (ag.length) {
+      F.h3(L.membersByAgency, ag.length * 17 + 30);
+      F.chart(ag.length * 17, (x, y, w) => hbars(doc, ag.map((a) => ({ label: lang === "fr" && a.fr ? a.fr : a.agency, value: a.count })), x, y, w, { labelW: 230, rowH: 17, lang }));
+    }
   }
   if (c.growth || f.newAgencies != null || f.contacts != null) {
     F.h2(L.growth, 70);
