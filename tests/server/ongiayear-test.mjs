@@ -136,7 +136,7 @@ for (const kind of ["impact", "reach", "program", "info"]) for (const lang of ["
   fs.writeFileSync(file, await ongPdf(kind, v.content[lang], v.facts, lang, { date: "2027-01-08" }));
   const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [file]).toString())[1]);
   const text = execFileSync("pdftotext", ["-layout", file, "-"]).toString();
-  if (kind === "reach") ok(`the ${lang} reach report shows the members by province and the agencies with the most members`, lang === "en" ? /ONGIA.s members/.test(text) && /ONGIA has 7 members\. 5 work for an agency in one of 3 provinces/.test(text) && /more members/.test(text) && /Toronto Police Service\s+2/.test(text) : /L.ONGIA compte 7 membres/.test(text) && /plus de membres/.test(text), text.slice(-1500));
+  if (kind === "reach") ok(`the ${lang} reach report shows the members by province and the agencies with the most members`, lang === "en" ? /ONGIA.s members/.test(text) && /ONGIA has 7 members\. 71% work for an agency in one of 3 provinces/.test(text) && /more members/.test(text) && /Ontario\s+43%/.test(text) && /Toronto Police Service\s+2/.test(text) : /L.ONGIA compte 7 membres/.test(text) && /plus de membres/.test(text), text.slice(-1500));
   if (kind === "info") ok(`the ${lang} infographic is one page with the six tiles and the province map`, pages === 1 && /6[,  ]?092/.test(text) && /\bON\b/.test(text) && /QC/.test(text), `${pages} pages`);
   else ok(`the ${lang} ${kind} report is drawn (${pages} pages), with the year's figures`, pages >= 1 && pages <= 5 && text.includes("2026") && (kind === "program" ? /\b3\b/.test(text) : /\b7\b/.test(text)), text.slice(0, 200));
 }
