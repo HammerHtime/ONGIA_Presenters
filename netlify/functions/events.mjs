@@ -270,6 +270,12 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   }
   event.board = board;
   event.reviewer = { name: lead.name, email: lead.email, phone: lead.phone };
+  // The volunteer lead, kept as a copy when picked, follows the roster by name (Andrew 19 Nov 2026: the Summit's still
+  // had Peglar's old address). Board contact details come from the roster.
+  if (event.volunteerLead?.name) {
+    const r = ((await getRoster()) ?? []).find((m) => String(m.name ?? "").toLowerCase().replace(/\s+/g, " ").trim() === String(event.volunteerLead.name).toLowerCase().replace(/\s+/g, " ").trim());
+    if (r?.email) event.volunteerLead = { ...event.volunteerLead, email: r.email, phone: r.phone || event.volunteerLead.phone || "" };
+  }
   // The lead IS the ONGIA contact: the name, address and number on the agreement,
   // and where replies go. The number comes from that person's entry on the board
   // list and nowhere else, so it cannot be typed against the wrong person — which
