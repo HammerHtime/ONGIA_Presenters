@@ -1626,6 +1626,12 @@
   .pseg button{appearance:none;border:0;background:none;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
   .pseg button b{font-weight:500;color:var(--muted);margin-left:3px}
   .pseg button.on{background:var(--navy);color:#fff} .pseg button.on b{color:rgba(255,255,255,.75)}
+  .phead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px} .phead .pseg{margin:0}
+  .pxl{display:inline-flex;align-items:center;gap:6px;flex:none;border:1.5px solid var(--edge);border-radius:999px;background:var(--card);padding:6px 14px 6px 11px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
+  .pxl svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .pxl:hover{border-color:var(--navy);color:var(--navy)} .pxl:disabled{opacity:.55;cursor:progress} .pxl[hidden]{display:none}
+  .pxl-n{display:none}
+  @media (max-width:760px){.pxl-w{display:none} .pxl-n{display:inline-flex;gap:5px;padding:7px 11px 7px 9px;font-size:12.5px} .pxl-n[hidden]{display:none} .phead .pseg{flex:1} .ptools .pfind{flex:1 1 120px;min-width:0;padding:8px 12px}}
   .pview[hidden]{display:none}
   .pbody{padding-top:14px}
   .pdates{display:flex;gap:4px 18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px} .pdates b{color:var(--ink)}
@@ -4584,6 +4590,10 @@ function eventScreen(data) {
       </div></div>`
     + checklistCard(ev, checklist);
   const pv = (k, html) => `<div class="pview" data-pview="${k}"${k === pview || allTabs ? "" : " hidden"}>${html}</div>`;
+  // Every presenter's name and agency, for name badges and ID cards (Andrew 19 Nov 2026: "Download to Excel … not just
+  // on a line on its own"). On a computer it sits at the end of the Presenters / Volunteers / Who's coming row; on a
+  // phone, where that row is full, beside the search box.
+  const pxlBtn = (cls, hide = false) => `<button type="button" class="pxl ${cls}" data-pxlsx title="Every presenter's name and agency, for name badges and ID cards"${hide ? " hidden" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download to Excel</button>`;
   const panel = (k, html) => `<section class="etabp" data-panel="${k}"${k === tab || allTabs ? "" : " hidden"}>${html}</section>`;
 
   // The key numbers as tiles (Andrew 21 Oct 2026). A tile turns red at the edge only when something is behind.
@@ -4664,7 +4674,7 @@ function eventScreen(data) {
     <nav class="etabs evnav" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav>
     ${blockedHtml}<div class="comingtop" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>${comingCard}</div>${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
     + panel("overview", overviewHtml)
-    + panel("people", `<div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>`
+    + panel("people", `<div class="phead"><div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>${presenters.length ? pxlBtn("pxl-w", pview !== "presenters") : ""}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
     <div class="card-body pbody">
       ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 12px">${[
@@ -4674,7 +4684,7 @@ function eventScreen(data) {
       ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address with <b>Correct or remove</b>, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
-      <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="Find a presenter…" aria-label="Find a presenter" autocomplete="off">` : ""}<div class="filters">${chips}</div>${presenters.length ? `<button class="mini" id="p-xlsx" title="Every presenter's name and agency, as an Excel sheet">Excel</button>` : ""}</div>
+      <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="${innerWidth <= 760 ? "Find a name…" : "Find a presenter…"}" aria-label="Find a presenter" autocomplete="off">` : ""}${presenters.length ? pxlBtn("pxl-n") : ""}<div class="filters">${chips}</div></div>
       <div class="pbulk" id="pbulk"${sel.size ? "" : " hidden"}><b id="pbulk-n">${sel.size} selected</b>
         <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
         <span class="pbnote">Approving is always one at a time</span></div>
@@ -4875,6 +4885,7 @@ function eventScreen(data) {
     b.onclick = () => {
       view = { ...view, pview: b.dataset.pseg }; keepAddress();
       ROOT.querySelectorAll("[data-pview]").forEach((d) => { d.hidden = d.dataset.pview !== b.dataset.pseg; });
+      ROOT.querySelectorAll(".pxl-w").forEach((x) => { x.hidden = b.dataset.pseg !== "presenters"; });
       ROOT.querySelectorAll("[data-pseg]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", String(x === b)); });
       syncSide();
     };
@@ -4937,8 +4948,7 @@ function eventScreen(data) {
     catch { prompt("Copy these addresses:", list); }
   };
   // Every presenter's name and agency as an Excel sheet (Andrew 19 Nov 2026).
-  const pXlsx = document.getElementById("p-xlsx");
-  if (pXlsx) pXlsx.onclick = async () => {
+  ROOT.querySelectorAll("[data-pxlsx]").forEach((pXlsx) => { pXlsx.onclick = async () => {
     pXlsx.disabled = true;
     try {
       const res = await apiFetch(`/api/events?id=${encodeURIComponent(ev.id)}&presentersheet=1`, { headers: { "x-admin-key": KEY } });
@@ -4946,7 +4956,7 @@ function eventScreen(data) {
       await saveRes(res, "presenters.xlsx");
     } catch (x) { toast(x.message); }
     pXlsx.disabled = false;
-  };
+  }; });
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
   // A tile opens its tab, cut to what is missing, and brings the work into view.
