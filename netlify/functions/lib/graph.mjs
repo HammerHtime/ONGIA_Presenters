@@ -165,7 +165,15 @@ export async function resolveFolderInput(input) {
     if (!graphConfigured()) throw new Error("That's a sharing link; the app needs its Microsoft credentials to resolve it — paste the folder path instead.");
     const token = await accessToken();
     const encoded = "u!" + Buffer.from(raw).toString("base64url");
-    const item = await graph(token, `/shares/${encoded}/driveItem?$select=id,name,webUrl,folder,parentReference`);
+    // The app's Microsoft grant is the board site only (Sites.Selected), and Microsoft won't open a "Copy link"
+    // sharing link under it (Andrew 19 Nov 2026: "Share url does not point to a drive item or no permission"). Say
+    // what to paste instead rather than passing on Microsoft's words.
+    let item;
+    try { item = await graph(token, `/shares/${encoded}/driveItem?$select=id,name,webUrl,folder,parentReference`); }
+    catch (e) {
+      if (e.status >= 500) throw e;
+      throw new Error("SharePoint won't let the Briefing Room open a \"Copy link\" link. Open the folder in SharePoint, copy the address from the top of the browser and paste that instead, or type the folder's path (e.g. ONGIA Board/ONGIA Training/2027/Calgary 2027/Presentations).");
+    }
     if (!item.folder) throw new Error("That link points at a file, not a folder.");
     const parentPath = decodeURIComponent((item.parentReference?.path ?? "").split("root:")[1] ?? "");
     return { path: normaliseFolder(`${parentPath}/${item.name}`), url: item.webUrl };

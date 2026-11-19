@@ -2790,7 +2790,7 @@ function eventFormScreen(existing = null) {
         <p class="hint" id="folderhint" style="margin:6px 0 0"></p>
         <div class="field noproj" style="margin:14px 0 0"><label for="e-matfolder">Folder for presenters' slides <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional)</span></label>
           <input id="e-matfolder" value="${esc(ev?.materialsFolderUrl || ev?.materialsFolderPath || "")}" placeholder="Leave blank to use the event folder, or e.g. 2026/Toronto 2026/Presentations">
-          <p class="hint" style="margin:6px 0 0">Where the slides presenters upload are saved. Paste a SharePoint folder link, or type a path; it is made if it isn't there, and the presenters' upload link points to it. Agreements still go to the event folder.</p></div>
+          <p class="hint" style="margin:6px 0 0">Where the slides presenters upload are saved. Paste the folder's address from the browser bar (not a "Copy link" link), or type a path; it is made if it isn't there, and the presenters' upload link points to it. Agreements still go to the event folder.</p></div>
         <p class="hint noproj" style="margin:10px 0 0"><a href="#" id="adv-toggle">I already have an upload link for this folder</a></p>
         <div id="adv" hidden>
           <div class="field" style="margin:12px 0 0"><label for="e-upload">Presenter upload link</label>
