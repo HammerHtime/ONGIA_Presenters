@@ -22,7 +22,7 @@ const JOHN = as("j.healy@ongia.ca", "John Healy"), PRES = as("president@ongia.ca
 
 // The rates he gave, until someone changes them.
 let r = await call("/api/expenses", "GET", undefined, JOHN);
-ok("the rates Andrew gave: breakfast $29.95, lunch $30.55, dinner $62.70, $0.66/km", r.perDiem.breakfast === 29.95 && r.perDiem.lunch === 30.55 && r.perDiem.dinner === 62.7 && r.perDiem.km === 0.66, JSON.stringify(r.perDiem));
+ok("the meal rates Andrew gave: breakfast $29.95, lunch $30.55, dinner $62.70; kilometres are not part of the per diem", r.perDiem.breakfast === 29.95 && r.perDiem.lunch === 30.55 && r.perDiem.dinner === 62.7 && r.perDiem.km === undefined, JSON.stringify(r.perDiem));
 ok("a board member can't change them", r.canSetPerDiem === false && (await call("/api/expenses?perdiem=1", "PUT", { lunch: 99 }, JOHN)).status === 403);
 r = await call("/api/expenses?perdiem=1", "PUT", { breakfast: "29.95", lunch: "abc", dinner: "62.70", km: "0.66" }, PRES);
 ok("a rate that isn't an amount is refused, saying which", r.status === 400 && /Lunch/.test(r.error), JSON.stringify(r));
@@ -40,7 +40,7 @@ ok("his driving is at the board's rate", r.claim.lines.find((l) => l.kind === "m
 // Now made for a presenter: the same lines are held to the per diem, and the driving moves to $0.66.
 r = await call(`/api/expenses?claim=${OWN}&for=1`, "PUT", { event: "pd-ev", presenter: "p1" }, JOHN);
 const mi = r.claim.lines.find((l) => l.kind === "mileage");
-ok("made Dana's: the driving is re-rated to $0.66 a km ($66.00 for 100 km)", mi.rate === 0.66 && mi.amount === 66 && r.claim.rate === 0.66, JSON.stringify(mi));
+ok("made Dana's: her driving stays at ONGIA's one mileage rate, the same as a board member's", mi.rate === X.mileageRate() && mi.amount === X.money(100 * X.mileageRate()) && r.claim.rate === X.mileageRate() && r.claim.perDiem.km === undefined, JSON.stringify(mi));
 ok("and the $80 dinner is flagged, $17.30 over, on the line itself", r.claim.lines.find((l) => l.meal === "dinner")?.overPerDiem?.over === 17.3, JSON.stringify(r.claim.lines));
 const C = OWN;
 r = await call(`/api/expenses?add=noreceipt&claim=${C}`, "POST", { paidTo: "Tim Hortons", date: day(-5), amount: 12.4, category: 8, purpose: "Breakfast", meal: "breakfast", statement: "No receipt." }, JOHN);
@@ -65,7 +65,7 @@ ok("the approvers' email names it: the place, the meal, how far over and the lim
 
 // The quarter changes: the VP raises dinner to $85; the same claim is now within it.
 r = await call("/api/expenses?perdiem=1", "PUT", { breakfast: "30", lunch: "$31.00", dinner: "85", km: "0.68" }, VP);
-ok("the VP can change the rates, and who did is kept", r.status === 200 && r.perDiem.dinner === 85 && r.perDiem.lunch === 31 && r.perDiem.km === 0.68 && r.perDiem.setBy === "Jacqulyn Taylor", JSON.stringify(r.perDiem));
+ok("the VP can change the rates, and who did is kept", r.status === 200 && r.perDiem.dinner === 85 && r.perDiem.lunch === 31 && r.perDiem.km === undefined && r.perDiem.setBy === "Jacqulyn Taylor", JSON.stringify(r.perDiem));
 r = await call(`/api/expenses?claim=${C}`, "GET", undefined, PRES);
 ok("held to the new rates, nothing is over now; the check says the meals are within it", !(r.claim.checks.notes ?? []).some((n) => /per diem/.test(n)) && r.claim.checks.summary.some((s) => /All 3 meals are within the per diem/.test(s)), JSON.stringify(r.claim.checks));
 

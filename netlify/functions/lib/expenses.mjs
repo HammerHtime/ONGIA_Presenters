@@ -53,22 +53,23 @@ export function mileageRate() {
 export const money = (n) => Math.round(Number(n) * 100) / 100;
 
 /**
- * A presenter's per diem (Andrew 17 Nov 2026): presenters who eat off site are allowed so much a meal, and the km rate
- * for driving. Board members have no per diem. The rates change quarterly, so the President or the VP sets them in the
+ * A presenter's per diem (Andrew 17 Nov 2026): presenters who eat off site are allowed so much a meal.
+ * Board members have no per diem. The rates change quarterly, so the President or the VP sets them in the
  * app (meta:expenses-per-diem); these are the ones he gave. A meal over its rate is flagged for the approvers, never
  * refused: "it'll be up to the approvers to determine if they will allow it or not."
  */
 export const MEALS = ["breakfast", "lunch", "dinner"];
 export const MEAL_NAME = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
-export const PER_DIEM_DEFAULT = { breakfast: 29.95, lunch: 30.55, dinner: 62.7, km: 0.66 };
+// Meals only (Andrew 19 Nov 2026: "let's leave the kilometers out of the meal per diem"): a presenter's driving is paid
+// at ONGIA's one mileage rate, as a board member's is.
+export const PER_DIEM_DEFAULT = { breakfast: 29.95, lunch: 30.55, dinner: 62.7 };
 /** Rates as typed, tidied: each a positive amount, else the one it had. */
 export function cleanPerDiem(body, had = PER_DIEM_DEFAULT) {
   const out = {};
-  for (const k of [...MEALS, "km"]) {
+  for (const k of MEALS) {
     const v = Number(String(body?.[k] ?? "").replace(/[$,\s]/g, ""));
-    const max = k === "km" ? 5 : 1000;
-    if (body?.[k] !== undefined && !(Number.isFinite(v) && v > 0 && v < max)) return { problem: `${k === "km" ? "The km rate" : MEAL_NAME[k]} needs an amount, like ${k === "km" ? "0.66" : "29.95"}.` };
-    out[k] = body?.[k] !== undefined ? (k === "km" ? Math.round(v * 1000) / 1000 : money(v)) : Number(had?.[k] ?? PER_DIEM_DEFAULT[k]);
+    if (body?.[k] !== undefined && !(Number.isFinite(v) && v > 0 && v < 1000)) return { problem: `${MEAL_NAME[k]} needs an amount, like 29.95.` };
+    out[k] = body?.[k] !== undefined ? money(v) : Number(had?.[k] ?? PER_DIEM_DEFAULT[k]);
   }
   return { ok: out };
 }

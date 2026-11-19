@@ -22,7 +22,9 @@ export async function shownLines(claim) {
 export const PER_DIEM_KEY = "expenses-per-diem";
 export async function getPerDiem() {
   const s = await getMeta(PER_DIEM_KEY).catch(() => null);
-  return { ...PER_DIEM_DEFAULT, ...(s?.rates ?? {}), setAt: s?.at ?? null, setBy: s?.by ?? "" };
+  const r = s?.rates ?? {};
+  // Meals only: a km rate kept from before 19 Nov 2026 is left out.
+  return { breakfast: r.breakfast ?? PER_DIEM_DEFAULT.breakfast, lunch: r.lunch ?? PER_DIEM_DEFAULT.lunch, dinner: r.dinner ?? PER_DIEM_DEFAULT.dinner, setAt: s?.at ?? null, setBy: s?.by ?? "" };
 }
 /** The per diem a claim is held to: a presenter's claim only. Board members have none. */
 export async function perDiemFor(claim) {
