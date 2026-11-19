@@ -20,7 +20,7 @@ const bytes = Buffer.from(await r.arrayBuffer());
 ok("it comes back as an Excel file named for the event", r.status === 200 && /spreadsheetml/.test(r.headers.get("content-type")) && /Presenters - \d{4}-\d{2}-\d{2}\.xlsx/.test(decodeURIComponent(r.headers.get("content-disposition"))) && bytes.subarray(0, 2).toString() === "PK", r.headers.get("content-disposition"));
 const rows = readXlsx(bytes).map((x) => x.map((c) => String(c ?? "")));
 const at = rows.findIndex((x) => x[0] === "Name" && x[1] === "Agency");
-ok("two columns: Name and Agency", at >= 0, JSON.stringify(rows.slice(0, 5)));
+ok("made to import (he prints ID cards from it): Name and Agency are row 1, with nothing above them, and the first presenter is row 2", at === 0 && rows[1][0] === "Lee Adams", JSON.stringify(rows.slice(0, 3)));
 const body = rows.slice(at + 1).filter((x) => x[0]);
 ok("first and last name together in one column, the agency in the next, by last name; a blank agency stays blank", JSON.stringify(body) === JSON.stringify([["Lee Adams", ""], ["Marc Exemple", "Service de police de la Ville de Montréal"], ["Dana Sample", "Windsor Police Service"]]), JSON.stringify(body));
 ok("someone who withdrew is left off", !body.some((x) => /Gone/.test(x[0])));
