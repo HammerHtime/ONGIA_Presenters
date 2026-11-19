@@ -42,7 +42,7 @@ const pid = (await xp(`?presenters=${ev.id}`)).presenters[0].id;
 await xp(`?claim=${C}&for=1`, { method: "PUT", body: JSON.stringify({ event: ev.id, presenter: pid }) });
 await p.reload({ waitUntil: "networkidle" }); await p.waitForTimeout(900);
 const fw = await p.locator(".say.forwho").innerText();
-ok("the claim shows Dana's per diem under who it's for", /Per diem: Breakfast \$29\.95 · Lunch \$30\.55 · Dinner \$62\.70 · \$0\.66\/km/.test(fw), fw);
+ok("the claim shows Dana's per diem under who it's for", /Per diem: Breakfast \$29\.95 · Lunch \$30\.55 · Dinner \$62\.70$/m.test(fw.trim()) && !/km/.test(fw), fw);
 await p.click(`[data-line="${keg}"]`); await p.waitForTimeout(700);
 ok("a line on a presenter's claim asks which meal, in one row of short chips", await p.locator("#f-mealrow").isVisible() && (await p.locator("#f-mealrow button").allInnerTexts()).join("|") === "Not a meal|Breakfast|Lunch|Dinner"
   && await p.evaluate(() => { const bs = [...document.querySelectorAll("#f-mealrow button")]; return new Set(bs.map((x) => Math.round(x.getBoundingClientRect().top))).size === 1; }));
@@ -80,7 +80,7 @@ if (D) await q.screenshot({ path: D + "perdiem-approve.png", fullPage: true });
 await q.goto(`${S}/expenses`, { waitUntil: "networkidle" }); await q.waitForTimeout(1000);
 await q.click("#me"); await q.waitForTimeout(200);
 await q.click("#pdbtn"); await q.waitForTimeout(500);
-ok("the menu opens Presenter per diem, with the four rates", await q.locator("#pd-dinner").inputValue() === "62.70" && await q.locator("#pd-km").inputValue() === "0.66");
+ok("the menu opens Presenter per diem, with the three meal rates and no kilometres", await q.locator("#pd-dinner").inputValue() === "62.70" && await q.locator("#pd-km").count() === 0);
 ok("nothing scrolls sideways on the rates screen", await q.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
 if (D) await q.screenshot({ path: D + "perdiem-rates.png" });
 await q.fill("#pd-dinner", "65.00"); await q.click("#pdsave"); await q.waitForTimeout(1200);

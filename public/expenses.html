@@ -716,7 +716,7 @@ function paintBadge() {
 const MEALS = [["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]];
 const RATE = () => (EDIT?.claimId && HOME?.current?.id === EDIT.claimId ? HOME.current.rate : null) ?? HOME?.current?.rate ?? HOME?.rate;
 const forPresenter = (c = HOME?.current) => c?.payee?.kind === "presenter";
-const perDiemText = (pd) => (pd ? `Breakfast ${money(pd.breakfast)} · Lunch ${money(pd.lunch)} · Dinner ${money(pd.dinner)} · ${money(pd.km)}/km` : "");
+const perDiemText = (pd) => (pd ? `Breakfast ${money(pd.breakfast)} · Lunch ${money(pd.lunch)} · Dinner ${money(pd.dinner)}` : "");
 const overRow = (l) => (l.overPerDiem ? `<div class="check wt">Over the ${esc(l.overPerDiem.meal)} per diem by ${money(l.overPerDiem.over)}</div>` : "");
 function checkRow(l) {
   const c = l.check ?? {};
@@ -1004,7 +1004,7 @@ function editorScreen() {
   const foreign = l.check?.currency ? `<div class="say wt">This receipt is in ${esc(l.check.currency)}. Claim what your card was charged in Canadian dollars, from your card statement.</div>` : "";
   ROOT.innerHTML = `
     ${k === "receipt" ? `<div class="preview"><button class="pic" id="pic" type="button" aria-label="See the whole receipt">${isPdf ? ICON.pdf : ICON.receipt}</button><div id="readsay">${readSay}</div></div>` : ""}
-    ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">${forPresenter() ? `Kilometres ${esc(HOME.current.payee.name)} drove for ONGIA, at the presenter rate of ${money(RATE())} a kilometre.` : `Kilometres you drove your own car for ONGIA, paid to you at ${money(RATE())} a kilometre.`}</p>` : ""}
+    ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">${forPresenter() ? `Kilometres ${esc(HOME.current.payee.name)} drove for ONGIA, at ${money(RATE())} a kilometre.` : `Kilometres you drove your own car for ONGIA, paid to you at ${money(RATE())} a kilometre.`}</p>` : ""}
     ${k === "noreceipt" ? `<p class="note" id="nrintro" style="margin:0 0 12px">${NR_INTRO[stipendLine(l) ? 1 : 0]}</p>` : ""}
     <div id="sayslot"></div>
     ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
@@ -1611,16 +1611,16 @@ const openPerDiem = () => { $("menu").hidden = true; VIEW = { name: "perdiem" };
 function perDiemScreen() {
   chrome({ title: "Presenter per diem", back: true, tabs: false });
   const pd = HOME.perDiem;
-  const box = (k, n) => `<div class="field"><label for="pd-${k}">${n}</label><input id="pd-${k}" inputmode="decimal" autocomplete="off" value="${esc(k === "km" ? String(pd[k]) : Number(pd[k]).toFixed(2))}"></div>`;
+  const box = (k, n) => `<div class="field"><label for="pd-${k}">${n}</label><input id="pd-${k}" inputmode="decimal" autocomplete="off" value="${esc(Number(pd[k]).toFixed(2))}"></div>`;
   ROOT.innerHTML = `${testBar()}<div class="card"><div class="k">Presenters only</div>
-    <p class="note" style="margin:4px 0 12px">A presenter's meal over its rate is flagged for the approvers, not refused. Their driving is paid at the km rate. Board members have no per diem.</p>
+    <p class="note" style="margin:4px 0 12px">A presenter's meal over its rate is flagged for the approvers, not refused. Mileage isn't part of it. Board members have no per diem.</p>
     <div class="two">${box("breakfast", "Breakfast")}${box("lunch", "Lunch")}</div>
-    <div class="two">${box("dinner", "Dinner")}${box("km", "Km rate (Ontario)")}</div>
+    ${box("dinner", "Dinner")}
     <button class="btn navy" id="pdsave" type="button">Save</button>
     <p class="tiny" style="margin:8px 0 0">${pd.setAt ? `Set ${esc(when(pd.setAt))} by ${esc(pd.setBy)}.` : "Rates as of Nov 17, 2026."} Change them each quarter.</p></div>`;
   $("pdsave").onclick = async (e) => {
     const btn = e.currentTarget; btn.disabled = true;
-    const body = Object.fromEntries(["breakfast", "lunch", "dinner", "km"].map((k) => [k, $(`pd-${k}`).value]));
+    const body = Object.fromEntries(["breakfast", "lunch", "dinner"].map((k) => [k, $(`pd-${k}`).value]));
     try { HOME = await api(`?perdiem=1${TESTMODE() ? "&test=1" : ""}`, { method: "PUT", json: body }); toast("Per diem saved."); history.back(); }
     catch (er) { btn.disabled = false; if (!er.quiet) toast(er.message, true); }
   };

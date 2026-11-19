@@ -39,7 +39,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, pre
  *   POST   /api/expenses?add=receipt[&claim=<id>][&test=1]   body = the photo or PDF; Claude starts reading it
  *   POST   /api/expenses?add=mileage|noreceipt[&claim=]  { date, km, from, to, … }
  *   PUT    /api/expenses?claim=<id>&line=<line>          what the person checked or typed
- *   PUT    /api/expenses?perdiem=1                       { breakfast, lunch, dinner, km }: a presenter's per diem (President or VP)
+ *   PUT    /api/expenses?perdiem=1                       { breakfast, lunch, dinner }: a presenter's meal per diem (President or VP)
  *   DELETE /api/expenses?claim=<id>&line=<line>          a line;   DELETE ?claim=<id>   the whole claim
  *   POST   /api/expenses?claim=<id>&thumb=|shot=|again=<line>
  *   POST   /api/expenses?submit=<id>                     send it for approval
@@ -237,7 +237,7 @@ export default async (req) => {
       await startRead(url.origin, claim.id, line.id);
     } else {
       const body = await req.json().catch(() => ({}));
-      Object.assign(line, cleanLine(kind, body, { events: await choices(), rate: (await perDiemFor(claim))?.km ?? mileageRate() }));
+      Object.assign(line, cleanLine(kind, body, { events: await choices(), rate: mileageRate() }));
       if (kind === "mileage") line.paidTo = me.name;
       await putClaimLine(claim.id, line);
       await touch(claim);
@@ -654,7 +654,7 @@ async function startFiling(origin, claimId) {
 }
 /** A claim's driving at the rate for who it's for: a presenter's km rate, else the board's. Run when that changes. */
 async function rerate(claim) {
-  const rate = (await perDiemFor(claim))?.km ?? mileageRate();
+  const rate = mileageRate();
   for (const l of await listClaimLines(claim.id)) {
     if (l.kind !== "mileage" || l.rate === rate) continue;
     l.rate = rate; l.amount = l.km ? money(l.km * rate) : null;
@@ -757,9 +757,9 @@ export async function claimView(claim, { me, aways, today, names }) {
   const editableNow = mine && EDITABLE.includes(claim.status);
   return {
     id: claim.id, status: claim.status, words: statusWords(claim), owner: claim.owner, payee: claim.payee ?? null, createdAt: claim.createdAt, updatedAt: claim.updatedAt,
-    // A presenter's claim: the per diem its meals are held to, and the km rate its driving is paid at.
-    perDiem: perDiem ? { breakfast: perDiem.breakfast, lunch: perDiem.lunch, dinner: perDiem.dinner, km: perDiem.km } : null,
-    rate: perDiem?.km ?? mileageRate(),
+    // A presenter's claim: the per diem its meals are held to. Driving is at ONGIA's one mileage rate.
+    perDiem: perDiem ? { breakfast: perDiem.breakfast, lunch: perDiem.lunch, dinner: perDiem.dinner } : null,
+    rate: mileageRate(),
     sentAt: claim.sentAt ?? null, test: !!claim.test, trial: !!claim.trial,
     month: claim.month || monthLabel(todayIso()),
     sums, lines: shown, missing: shown.filter((l) => l.problems.length).length,
