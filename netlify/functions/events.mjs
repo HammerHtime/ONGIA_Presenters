@@ -10,6 +10,8 @@ import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
 import { deadlinesFor, formatDate, offsetsOf, offsetsProblem } from "./lib/deadlines.mjs";
 import { ensureEventFolder, resolveFolderInput, inspectSharingLink, createUploadLink, graphConfigured } from "./lib/graph.mjs";
 import { sendMail, invitationMail, coordinatorOf } from "./lib/mail.mjs";
+import { xlsx } from "./lib/xlsx.mjs";
+import { eventFile, disposition } from "./lib/filenames.mjs";
 import { describeEvent, travelWindow, rangeProblem } from "./lib/deadlines.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { PROVINCES, cleanPrefix, redactEvent, withoutOffers, guessProvince, defaultPrefix } from "./lib/sow.mjs";
@@ -46,6 +48,7 @@ export default async (req) => {
   const canCost = mayCost(who);
 
   if (req.method === "GET" && url.searchParams.get("people")) return pastPresenters(url.searchParams.get("for"));
+  if (req.method === "GET" && id && url.searchParams.get("presentersheet")) return presenterSheet(id);
   if (req.method === "GET") return id ? showEvent(id, canCost, who) : showList(canCost, who);
   // What this board member has now seen on a tab: anyone who can open the event, view-only too.
   if (req.method === "PUT" && id && url.searchParams.get("seen")) return markSeen(id, who, await req.json().catch(() => null));
@@ -395,6 +398,23 @@ async function setRbhSpot(id, body, canCost) {
 }
 
 /** "Count everyone registered as attended" on its own (Andrew 17 Nov 2026, Regina), without the whole Edit event form. */
+/**
+ * An event's presenters as an Excel sheet (Andrew 19 Nov 2026: "download all the presenters into an Excel sheet. One
+ * column is first name and last name in the same column. And the next column would have their agency"). Everyone
+ * still presenting, by last name; someone who withdrew is left off.
+ */
+async function presenterSheet(id) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  const people = (await listPresenters(id)).filter((p) => p.status !== "withdrawn")
+    .sort((a, b) => String(a.last ?? "").localeCompare(String(b.last ?? ""), "en", { sensitivity: "base" }) || String(a.first ?? "").localeCompare(String(b.first ?? ""), "en", { sensitivity: "base" }));
+  const bytes = xlsx({ sheet: "Presenters", title: `${event.title}: presenters`, subtitle: `${people.length} presenter${people.length === 1 ? "" : "s"}`,
+    columns: [{ head: "Name", width: 34 }, { head: "Agency", width: 54 }],
+    rows: people.map((p) => [`${String(p.first ?? "").trim()} ${String(p.last ?? "").trim()}`.trim(), String(p.organization ?? "").trim()]) });
+  return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "content-disposition": disposition(eventFile(event, "Presenters", "", "xlsx")), "cache-control": "no-store" } });
+}
+
 async function setCountRegistered(id, body) {
   const event = id && (await getEvent(id));
   if (!event) return fail("No such event.", 404);
