@@ -90,18 +90,18 @@ ok("the running total: $770.18", (await total(phone)) === "$770.18");
 
 console.log("— mileage");
 await phone.click("#addmile");
-ok("the mileage screen says what it pays", (await phone.textContent("#title")) === "Mileage" && /paid to you at \$0\.62 a kilometre/.test(await phone.textContent("#root")));
+ok("the mileage screen says what it pays", (await phone.textContent("#title")) === "Mileage" && /paid to you at \$0\.66 a kilometre/.test(await phone.textContent("#root")));
 // Andrew, 3 Nov 2026: a new mileage line starts on today's date (the phone's own day), and can still be changed.
 const phoneToday = await phone.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
 ok("a new mileage line starts on today's date", (await phone.inputValue("#f-date")) === phoneToday, `${await phone.inputValue("#f-date")} vs ${phoneToday}`);
 await phone.fill("#f-date", day(-1)); await phone.fill("#f-km", "312"); await phone.fill("#f-from", "Barrie"); await phone.fill("#f-to", "Toronto");
-ok("312 km works out on the screen as $193.44", /312 km × \$0\.62 = \$193\.44/.test(await phone.textContent("#calc")));
+ok("312 km works out on the screen as $205.92", /312 km × \$0\.66 = \$205\.92/.test(await phone.textContent("#calc")));
 ok("its category starts as Travel", (await phone.inputValue("#f-category")) === "8");
 await phone.selectOption("#f-event", ev.id); await phone.fill("#f-purpose", "Drive to the Summit");
 await phone.screenshot({ path: D + "exp-mileage-phone.png" });
 await phone.click("#save"); await phone.waitForSelector("#running");
-ok("added: $963.62", (await total(phone)) === "$963.62");
-ok("its line says the sum", /Mileage: Barrie to Toronto/.test(await phone.textContent("#root")) && /312 km × \$0\.62/.test(await phone.textContent("#root")));
+ok("added: $976.10", (await total(phone)) === "$976.10");
+ok("its line says the sum", /Mileage: Barrie to Toronto/.test(await phone.textContent("#root")) && /312 km × \$0\.66/.test(await phone.textContent("#root")));
 await phone.locator(".line", { hasText: "Barrie to Toronto" }).click(); await phone.waitForSelector("#f-date");
 ok("opened again, it keeps the date that was chosen, not today's", (await phone.inputValue("#f-date")) === day(-1), await phone.inputValue("#f-date"));
 await phone.goBack(); await phone.waitForSelector("#running");
@@ -123,7 +123,7 @@ ok("once it's chosen, the line is saved once, with what was typed, and the state
 ok("the card statement shows as added", /Added/.test(await phone.textContent("#shotbox")));
 await phone.screenshot({ path: D + "exp-noreceipt-phone.png" });
 await phone.click("#save"); await phone.waitForSelector("#running");
-ok("added: $981.62, and the line says the statement is there", (await total(phone)) === "$981.62" && /No receipt: reason and card statement added/.test(await phone.textContent("#root")));
+ok("added: $994.10, and the line says the statement is there", (await total(phone)) === "$994.10" && /No receipt: reason and card statement added/.test(await phone.textContent("#root")));
 ok("nothing on the claim still needs anything", (await phone.locator(".needs").count()) === 0);
 ok("lines are grouped by day, newest first", (await phone.locator(".day").count()) === 2);
 ok("the running card counts them", /2 receipts, 1 mileage, 1 with no receipt · Gang Summit/.test(await phone.textContent("#running")));
@@ -150,12 +150,12 @@ await phone.evaluate(() => window.dispatchEvent(new Event("online")));
 await phone.waitForFunction(() => !document.querySelector(".say.wt") && /Tim Hortons|New receipt/.test(document.getElementById("root").textContent), null, { timeout: 15000 });
 ok("back online it is sent by itself and shows on the claim", (await phone.locator(".line").count()) === 5);
 await phone.waitForFunction(() => /Tim Hortons/.test(document.getElementById("root").textContent), null, { timeout: 15000 });
-ok("Claude reads it once it has arrived: $1,027.82", (await total(phone)) === "$1,027.82");
+ok("Claude reads it once it has arrived: $1,040.30", (await total(phone)) === "$1,040.30");
 
 console.log("— taking a line off");
 await phone.locator(".line", { hasText: "Tim Hortons" }).click();
 await phone.click("#remove"); await phone.waitForSelector("#running");
-ok("removed: back to $981.62", (await total(phone)) === "$981.62" && (await phone.locator(".line").count()) === 4);
+ok("removed: back to $994.10", (await total(phone)) === "$994.10" && (await phone.locator(".line").count()) === 4);
 
 console.log("— the other tabs");
 await phone.click('[data-tab="past"]');

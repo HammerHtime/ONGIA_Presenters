@@ -22,7 +22,11 @@ function mail(claim, subject, heading, lines, button) {
 }
 // A claim made for a presenter names them, and who made it: "Parm Dhesi (presenter, sent by John Healy)".
 const isOther = (c) => c?.payee?.kind === "other";
-const ownerOf = (c) => (c?.payee?.name ? `${c.payee.name} (${isOther(c) ? "" : "presenter, "}sent by ${c?.owner?.name ?? "a board member"})` : c?.owner?.name ?? "A board member");
+// A presenter's own claim, made by their link (lib/presenterexpense.mjs), says so: nobody on the board sent it.
+const isSelf = (c) => !!c?.self?.link;
+const ownerOf = (c) => (isSelf(c) ? `${c.payee?.name ?? "A presenter"} (presenter, sent by their own link)` : c?.payee?.name ? `${c.payee.name} (${isOther(c) ? "" : "presenter, "}sent by ${c?.owner?.name ?? "a board member"})` : c?.owner?.name ?? "A board member");
+/** Where the person claiming opens their claim: the app, or for a presenter's own claim, their link. */
+const ownLink = (c) => (isSelf(c) ? c.self.link : claimLink(c.id));
 const COVERS = { transport: "transport", hotel: "hotel", meals: "meals", other: "other costs" };
 const coversLine = (c) => {
   if (!c?.payee) return "";
@@ -109,7 +113,7 @@ export function sentBackMail({ claim, by, comment }) {
     quote(comment),
     "Change what's needed and send it again. Nothing on it is lost.",
   ];
-  return mail(claim, `Your ${claim.month} expense claim was sent back`, "Your expense claim was sent back", lines, { label: "Open my claim", href: claimLink(claim.id) });
+  return mail(claim, `Your ${claim.month} expense claim was sent back`, "Your expense claim was sent back", lines, { label: "Open my claim", href: ownLink(claim) });
 }
 
 /** To the person claiming, once both have approved. `approvedBy`: "the President", or "Raj Jaswal for the Treasurer". */
@@ -117,9 +121,9 @@ export function approvedMail({ claim, approvedBy = [], payer, practice = false }
   const lines = [
     testNote(claim),
     `Your expense claim for ${esc(claim.month)}, <b>${dollars(claim.total ?? 0)}</b>, has been approved by ${esc(andList(approvedBy))}.`,
-    practice ? "Next, record a pretend payment on it, as the VP would." : `${esc(payer)} will send the e-transfer.`,
+    practice ? "Next, record a pretend payment on it, as the VP would." : isSelf(claim) ? `${esc(payer)} will send the e-transfer to ${esc(claim.payee?.email ?? "your email address")}.` : `${esc(payer)} will send the e-transfer.`,
   ];
-  return mail(claim, `Your ${claim.month} expense claim is approved`, "Your expense claim is approved", lines, { label: "See the claim", href: claimLink(claim.id) });
+  return mail(claim, `Your ${claim.month} expense claim is approved`, "Your expense claim is approved", lines, { label: "See the claim", href: ownLink(claim) });
 }
 
 /**
@@ -163,7 +167,7 @@ export function presenterPaidMail({ claim, paid }) {
     isOther(claim) ? `ONGIA has paid you <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`
       : `ONGIA has reimbursed your expenses for ${esc(p.eventTitle ?? "the event")}: <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`,
     `Transaction number: <b>${esc(paid.ref)}</b>`,
-    `${esc(claim.owner?.name ?? "A board member")} sent the claim for you. If anything looks wrong, reply to this email.`,
+    isSelf(claim) ? "If anything looks wrong, reply to this email." : `${esc(claim.owner?.name ?? "A board member")} sent the claim for you. If anything looks wrong, reply to this email.`,
     isOther(claim) ? "Thank you." : "Thank you again for presenting.",
   ];
   return mail(claim, isOther(claim) ? "ONGIA has paid you" : `Your expenses for ${p.eventTitle ?? "the event"} have been paid`, isOther(claim) ? "You've been paid" : "Your expenses have been paid", lines, null);

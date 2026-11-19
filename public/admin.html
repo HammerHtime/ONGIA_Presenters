@@ -1328,6 +1328,12 @@
   .cti.fix span{color:var(--late)} .cti.check span{color:var(--wait)} .cti i{color:var(--muted);font-style:normal}
   .ctsign{margin:12px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px} .ctsignrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
   .ctsignrow label{display:flex;align-items:center;gap:6px;font-size:13.5px} .ctsignrow select{padding:5px 8px;font-size:13.5px}
+.pxmeals{display:flex;gap:16px;flex-wrap:wrap;font-size:14px} .pxmeals label{display:flex;align-items:center;gap:6px}
+  .pxhead{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0 0 6px} .pxlist{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+  .pxrow{display:flex;gap:8px;align-items:center;min-height:38px;padding:4px 10px;border-bottom:1px solid var(--line);font-size:14px} .pxrow:last-child{border-bottom:0}
+  .pxrow .pxn{flex:1 0 34%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600} .pxrow .pxs{flex:0 1 auto;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pxrow .mini{flex:none;padding:4px 9px;font-size:13px}
+  .pxhead .mini{flex:none;white-space:nowrap}
+  .pxs.ok{color:var(--done)} .pxs.wt{color:var(--wait)} .pxs.bad{color:var(--late)} .pxs.mu{color:var(--muted)}
 .ctnote{font-size:13px;background:var(--card);border-left:3px solid var(--gold);padding:8px 12px;border-radius:0 10px 10px 0;margin:0 0 12px}
   /* All clear: green, and it must win over the red of the problems box it sits in. */
   .lok,.lprobs .lok{background:var(--done-bg);border:1px solid var(--done);color:var(--done);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
@@ -2813,6 +2819,12 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-invnotefr">The same paragraph in French <span style="text-transform:none;letter-spacing:0;font-family:var(--fb)">(optional; left empty, the French half goes without it)</span></label>
           <textarea id="e-invnotefr" maxlength="1500" style="min-height:90px">${esc(ev?.inviteNoteFr ?? "")}</textarea></div>
       </details>
+      <details class="settings noproj" style="margin-top:16px" id="px-box">
+        <summary>Presenter expenses${["breakfast", "lunch", "dinner"].some((m) => ev?.mealsProvided?.[m]) ? ` · ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).join(", ")} provided` : ""}</summary>
+        <div class="lab" style="margin:10px 0 4px">Meals this event serves its presenters (no per diem for these)</div>
+        <div class="pxmeals">${[["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]].map(([m, n]) => `<label><input type="checkbox" id="e-meal-${m}"${ev?.mealsProvided?.[m] ? " checked" : ""}> ${n}</label>`).join("")}</div>
+        ${ev ? `<div id="px-body" style="margin-top:12px"><p class="hint" style="margin:0">Loading the presenters…</p></div>` : `<p class="hint" style="margin:10px 0 0">Save the event first; each presenter's expense link shows here.</p>`}
+      </details>
       <details class="settings noproj" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
         <summary>Hotel and room block</summary>
         <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
@@ -2917,6 +2929,7 @@ function eventFormScreen(existing = null) {
   // On a new event the contract is held as a draft until Create, then becomes the event's.
   const draftId = ev ? null : Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, "0")).join("");
   wireContract(ev, { $, showHotelHint, draftId });
+  wirePresenterExpenses(ev, $);
 
   // Letters written for one kind of training appear only once the title says
   // it is that kind. Whatever is picked stays picked while the title is typed.
@@ -3207,6 +3220,7 @@ function eventFormScreen(existing = null) {
     // every save would clear the flag on an event that had it set.
     sponsorsWelcome: SPONSORS_ON ? $("e-sponsors")?.checked === true : undefined,
     countRegistered: $("e-countreg") ? $("e-countreg").checked === true : undefined,
+    mealsProvided: $("e-meal-breakfast") ? { breakfast: $("e-meal-breakfast").checked, lunch: $("e-meal-lunch").checked, dinner: $("e-meal-dinner").checked } : undefined,
     contractDraft: draftId ?? undefined,
   });
   // An event that exists saves as you go (Andrew 29 Oct 2026); a new one is made only when Create event is pressed.
@@ -12449,6 +12463,38 @@ async function invite(eventId, presenterIds, remind) {
  * up as a ticked list. "Put these in the form" fills the hotel boxes — nothing is
  * saved until Andrew presses Save changes, so every date passes his eye first.
  */
+/*
+ * Presenter expenses on Edit event (Andrew 19 Nov 2026): each presenter's own link to claim their expenses with no
+ * sign-in ("I will manually send the link out. But I would like a button to send"). One line each: the name, where
+ * their claim stands, Copy and Send. Send all emails everyone who hasn't been sent it. Nothing goes until he presses.
+ */
+function wirePresenterExpenses(ev, $) {
+  const body = $("px-body");
+  if (!ev || !body) return;
+  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  const draw = (d) => {
+    const rows = d.presenters ?? [], unsent = rows.filter((p) => p.email && !p.sentAt).length;
+    const state = (p) => (p.claim ? [p.claim.status === "paid" ? "ok" : p.claim.status === "draft" ? "mu" : "wt", `${{ draft: "Started", submitted: "Sent in", rejected: "Sent back", approved: "Approved", paid: "Paid" }[p.claim.status] ?? p.claim.status}${p.claim.total ? ` $${Number(p.claim.total).toFixed(2)}` : ""}`]
+      : p.failed ? ["bad", "Didn't send"] : !p.email ? ["bad", "No email"] : p.sentAt ? ["mu", `Sent ${day(p.sentAt)}`] : ["mu", "Not sent"]);
+    body.innerHTML = `<div class="pxhead"><span class="hint" style="margin:0">${d.deadline ? `Links work until ${esc(day(d.deadline))}.` : "One link each."}</span>${unsent ? `<button type="button" class="mini gold" data-pxall>Send to ${unsent}</button>` : ""}</div>
+      ${rows.length ? `<div class="pxlist">${rows.map((p) => { const [c, t] = state(p); return `<div class="pxrow"><span class="pxn" title="${esc(p.email)}">${esc(p.name)}</span><span class="pxs ${c}"${p.failed ? ` title="${esc(p.failed)}"` : ""}>${esc(t)}</span><button type="button" class="mini" data-pxcopy="${esc(p.link)}">Copy</button><button type="button" class="mini" data-pxsend="${esc(p.id)}"${p.email ? "" : " disabled"}>${p.sentAt ? "Resend" : "Send"}</button></div>`; }).join("")}</div>` : `<p class="hint" style="margin:8px 0 0">No presenters on this event yet.</p>`}`;
+    body.querySelectorAll("[data-pxcopy]").forEach((b) => { b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.pxcopy); b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1500); } catch { prompt("Copy this link:", b.dataset.pxcopy); } }; });
+    const send = async (b, q, ask) => {
+      if (!confirm(ask)) return;
+      b.disabled = true;
+      try { const out = await api(`/presenter-expenses?event=${encodeURIComponent(ev.id)}&send=1${q}`, { method: "POST" }); toast(out.failed?.length ? `${out.sent} sent. ${out.failed.length} didn't go: ${out.failed.map((f) => f.name).join(", ")}.` : `${out.sent} sent.`); draw({ ...d, presenters: out.presenters }); }
+      catch (e) { b.disabled = false; toast(e.message); }
+    };
+    body.querySelectorAll("[data-pxsend]").forEach((b) => { const p = rows.find((x) => x.id === b.dataset.pxsend); b.onclick = () => send(b, `&presenter=${encodeURIComponent(p.id)}`, `Email ${p.name} (${p.email}) their expense link now?`); });
+    const all = body.querySelector("[data-pxall]");
+    if (all) all.onclick = () => send(all, "", `Email the expense link to the ${unsent} presenter${unsent === 1 ? "" : "s"} who ${unsent === 1 ? "hasn't" : "haven't"} been sent it?`);
+  };
+  let loaded = false;
+  const load = async () => { if (loaded) return; loaded = true; try { draw(await api(`/presenter-expenses?event=${encodeURIComponent(ev.id)}&links=1`)); } catch (e) { loaded = false; body.innerHTML = `<p class="hint" style="margin:0">Couldn't load the presenters: ${esc(e.message)}</p>`; } };
+  // Loaded when the section is opened, not with every Edit event.
+  const box = $("px-box");
+  if (box.open) load(); else box.addEventListener("toggle", () => { if (box.open) load(); });
+}
 function wireContract(ev, { $, showHotelHint, draftId = null }) {
   const body = $("ct-body"), picker = $("ct-file");
   if (!body || !picker) return;

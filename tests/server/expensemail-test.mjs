@@ -51,7 +51,7 @@ ok("from ONGIA Expenses on send.ongia.ca, not the speakers' mailbox", ask.every(
 ok("subject: Expense claim for John Healy", ask.every((x) => x.subject === "Expense claim for John Healy"), ask[0]?.subject);
 ok("a reply goes to John, not to the sending address", ask.every((x) => x.replyTo === "j.healy@ongia.ca"));
 const a = ask[0]?.text ?? "";
-ok("John Healy has submitted an expense claim for the following: each item on its own line with its amount, oldest first, and the total", /John Healy has submitted an expense claim for the following:\n\nMileage: Barrie to Toronto   \$62\.00\nSpeaker Stipend   \$250\.00\nGreen P   \$18\.00   \?\nTotal   \$330\.00/.test(a), a);
+ok("John Healy has submitted an expense claim for the following: each item on its own line with its amount, oldest first, and the total", /John Healy has submitted an expense claim for the following:\n\nMileage: Barrie to Toronto   \$66\.00\nSpeaker Stipend   \$250\.00\nGreen P   \$18\.00   \?\nTotal   \$334\.00/.test(a), a);
 ok("…mileage and the stipend have no receipt to check, so no mark; the card statement's amount isn't confirmed: ? in amber, with a key", /<td[^>]*>\?<\/td>|>\?<\/span>/.test(ask[0].html) && /#8a5d0c/.test(ask[0].html) && /\? couldn't be verified/.test(a) && !/#a33328|#2f6b4f/.test(ask[0].html));
 ok("Waiting on approval from President Andrew Hammond and VP of Operations Jacqulyn Taylor", /Waiting on approval from President Andrew Hammond and VP of Operations Jacqulyn Taylor\./.test(a), a);
 ok("Review, straight to the claim", new RegExp(`Review: https://events\\.example\\.org/expenses#claim=${C}`).test(a) && />Review</.test(ask[0].html));
@@ -80,7 +80,7 @@ await call(`/api/expenses?decide=${C}`, "POST", { decision: "approve" }, VP);
 const pay = since(k).find((x) => x.to === "vp_operations@ongia.ca"), told = since(k).find((x) => x.to === "j.healy@ongia.ca");
 ok("the VP: Expense claim for John Healy, from ONGIA Expenses, a reply to John", pay?.subject === "Expense claim for John Healy" && pay.from === "ONGIA Expenses <expenses@send.ongia.ca>" && pay.replyTo === "j.healy@ongia.ca", JSON.stringify(pay && { s: pay.subject, f: pay.from, r: pay.replyTo }));
 ok("…The expense claim for John Healy has been approved by the President and the VP of Operations and is ready to be paid", /The expense claim for John Healy has been approved by the President and the VP of Operations and is ready to be paid\./.test(pay?.text ?? ""), pay?.text);
-ok("…how much, to whom, and Record the payment to the claim", /\$330\.00 by e-transfer to j\.healy@ongia\.ca/.test(pay?.text ?? "") && new RegExp(`Record the payment: https://events\\.example\\.org/expenses#claim=${C}`).test(pay?.text ?? ""));
+ok("…how much, to whom, and Record the payment to the claim", /\$334\.00 by e-transfer to j\.healy@ongia\.ca/.test(pay?.text ?? "") && new RegExp(`Record the payment: https://events\\.example\\.org/expenses#claim=${C}`).test(pay?.text ?? ""));
 ok("…and short: no list of items, no paragraph of instructions", !/Mileage: Barrie/.test(pay?.text ?? "") && (pay?.text ?? "").split("\n").filter((l) => l.trim()).length <= 7, pay?.text);
 ok("John: approved, a reply going to the VP who pays it", told?.subject === "Your " + (await S.getClaim(C)).month + " expense claim is approved" && /approved by the President and the VP of Operations/.test(told.text) && told.replyTo === "vp_operations@ongia.ca", JSON.stringify(told && { s: told.subject, r: told.replyTo }));
 

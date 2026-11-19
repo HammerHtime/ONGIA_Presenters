@@ -41,7 +41,7 @@ ok("a date that hasn't come yet stops it (a day's grace for further east)", s.st
 await call(`/api/expenses?claim=${C}&line=${NL}`, "PUT", { paidTo: "Green P", date: day(-1), amount: 18, category: 8, purpose: "Parking", statement: "No receipt from the machine; it is on my Visa." }, JOHN);
 s = await call(`/api/expenses?submit=${C}`, "POST", {}, JOHN);
 ok("complete, it goes: waiting for the President and the VP", s.status === 200 && s.claim.status === "submitted" && s.claim.slots.map((x) => `${x.title}:${x.name}`).join() === "President:Andrew Hammond,VP of Operations:Jacqulyn Taylor", JSON.stringify(s.claim?.slots));
-ok("its total and month are kept on it: 312 km × $0.62 + $18 = $211.44", s.claim.sums.total === 211.44 && (await S.getClaim(C)).total === 211.44 && /\d{4}$/.test((await S.getClaim(C)).month));
+ok("its total and month are kept on it: 312 km × $0.66 + $18 = $223.92", s.claim.sums.total === 223.92 && (await S.getClaim(C)).total === 223.92 && /\d{4}$/.test((await S.getClaim(C)).month));
 ok("once sent John can't change it", (await call(`/api/expenses?claim=${C}&line=${NL}`, "PUT", { amount: 1 }, JOHN)).status === 409);
 ok("each approver was emailed (here no mail is set up, so it's recorded as not sent, for the officers to see)", (await S.getClaim(C)).mail.filter((x) => x.what === "to approve").map((x) => x.to).sort().join() === "president@ongia.ca,vp_operations@ongia.ca" && (await claimOf(C, PRES)).mailFailed.length === 2);
 ok("John doesn't see the email detail", (await claimOf(C, JOHN)).mailFailed.length === 0);
@@ -55,7 +55,7 @@ ok("John's home: nothing being built, the sent claim under past, waiting", hj.cu
 ok("another board member can't open it", (await call(`/api/expenses?claim=${C}`, "GET", undefined, DEREK)).status === 403);
 ok("Peglar can't either, while he isn't standing in for anyone", (await call(`/api/expenses?claim=${C}`, "GET", undefined, PEG)).status === 403);
 const chk = (await claimOf(C, PRES)).checks;
-ok("the approver gets Claude's check with it, in sentences", chk.summary.join(". ") === "Mileage is at $0.62 a kilometre. The line with no receipt has a reason and the card statement", JSON.stringify(chk.summary));
+ok("the approver gets Claude's check with it, in sentences", chk.summary.join(". ") === "Mileage is at $0.66 a kilometre. The line with no receipt has a reason and the card statement", JSON.stringify(chk.summary));
 // Andrew, 3 Nov 2026: a card statement's amount can't be confirmed; it is flagged for the approvers, and the claim still goes.
 ok("…and the no-receipt amount is flagged as not confirmed, not passed as checked", chk.ok === false && chk.notes.length === 1 && chk.notes[0] === "Green P: no receipt, so $18.00 isn't confirmed. Check it against the card statement.", JSON.stringify(chk.notes));
 
@@ -75,7 +75,7 @@ ok("John was emailed", (await S.getClaim(C)).mail.some((x) => x.what === "sent b
 ok("it no longer waits on anyone", !(await home(PRES)).toApprove.some((c) => c.id === C) && !(await home(VP)).toApprove.some((c) => c.id === C));
 await call(`/api/expenses?claim=${C}&line=${NL}`, "DELETE", undefined, JOHN);
 s = await call(`/api/expenses?submit=${C}`, "POST", {}, JOHN);
-ok("John takes the parking off and sends it again: $193.44, both sign-offs fresh", s.claim.status === "submitted" && s.claim.sums.total === 193.44 && s.claim.slots.every((x) => !x.done) && (await S.getClaim(C)).round === 2);
+ok("John takes the parking off and sends it again: $205.92, both sign-offs fresh", s.claim.status === "submitted" && s.claim.sums.total === 205.92 && s.claim.slots.every((x) => !x.done) && (await S.getClaim(C)).round === 2);
 ok("the history tells the story", (await S.getClaim(C)).history.map((x) => x.what).join() === "sent,approved,sent back,sent again");
 
 console.log("— approved, then paid by the VP");

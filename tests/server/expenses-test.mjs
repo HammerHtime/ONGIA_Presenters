@@ -61,7 +61,7 @@ ok("without Microsoft set up, signing in says so", (await call("/api/expenses?si
 
 console.log("— an empty start");
 let h = await call("/api/expenses", "GET", undefined, MEMBER);
-ok("a member with no claim yet: no current claim, the rate, ten categories, their name off the roster", h.status === 200 && h.current === null && h.rate === 0.62 && h.categories.length === 10 && h.me.name === "John Healy" && h.me.title === "Board member" && h.me.officer === false && h.tabs.join() === "claim,past");
+ok("a member with no claim yet: no current claim, the rate, ten categories, their name off the roster", h.status === 200 && h.current === null && h.rate === 0.66 && h.categories.length === 10 && h.me.name === "John Healy" && h.me.title === "Board member" && h.me.officer === false && h.tabs.join() === "claim,past");
 ok("it says who will approve", h.approvers.join() === "President,VP of Operations", h.approvers.join());
 const day = (n) => new Date(Date.now() + n * 86400e3).toISOString().slice(0, 10);
 const mkEvent = async (extra) => (await (await events(new Request("http://localhost/api/events", { method: "POST", headers: H, body: JSON.stringify({ title: "National Gang Summit", city: "Toronto, ON", venue: "V", dayOne: day(5), lastDay: day(7), invite: false, board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], presenters: [], ...extra }) }))).json()).event;
@@ -123,11 +123,11 @@ ok("a file that isn't a picture or a PDF is refused, in words", ups.status === 4
 console.log("— mileage, typed in");
 let m = await call("/api/expenses?add=mileage", "POST", { date: "2026-11-10", from: "Barrie", to: "Toronto", km: 312, eventId: evSummit.id, purpose: "Drive to the Summit" }, MEMBER);
 l = m.claim.lines.find((x) => x.id === m.line);
-ok("312 km at $0.62 is $193.44, paid to the member, under Travel", m.status === 201 && l.amount === 193.44 && l.paidTo === "John Healy" && l.category === 8 && l.rate === 0.62 && l.check.state === "mileage" && l.problems.length === 0);
+ok("312 km at $0.66 is $205.92, paid to the member, under Travel", m.status === 201 && l.amount === 205.92 && l.paidTo === "John Healy" && l.category === 8 && l.rate === 0.66 && l.check.state === "mileage" && l.problems.length === 0);
 const L3 = m.line;
 process.env.EXPENSE_MILEAGE_RATE = "0.70";
 m = await call(`/api/expenses?claim=${C}&line=${L3}`, "PUT", { date: "2026-11-10", from: "Barrie", to: "Toronto", km: 300, purpose: "Drive to the Summit" }, MEMBER);
-ok("a change of rate later doesn't change a line already made: 300 km is still at $0.62", m.claim.lines.find((x) => x.id === L3).amount === 186);
+ok("a change of rate later doesn't change a line already made: 300 km is still at $0.66", m.claim.lines.find((x) => x.id === L3).amount === 198);
 delete process.env.EXPENSE_MILEAGE_RATE;
 ok("a paid-to typed on a mileage line is ignored: it is always the member", (await call(`/api/expenses?claim=${C}&line=${L3}`, "PUT", { date: "2026-11-10", from: "Barrie", to: "Toronto", km: 312, paidTo: "Someone Else", purpose: "Drive" }, MEMBER)).claim.lines.find((x) => x.id === L3).paidTo === "John Healy");
 
@@ -166,9 +166,9 @@ ok("the statement is kept as written", /on my Visa statement/.test(l.statement))
 
 console.log("— the running total");
 v = (await call(`/api/expenses?claim=${C}`, "GET", undefined, MEMBER)).claim;
-ok("receipts + mileage + no receipt: 658.12 + 100 + 193.44 + 18 = 969.56", v.sums.total === 969.56 && v.sums.lines === 4 && v.sums.receipts === 2 && v.sums.mileage === 1 && v.sums.noreceipt === 1, JSON.stringify(v.sums));
+ok("receipts + mileage + no receipt: 658.12 + 100 + 205.92 + 18 = 982.04", v.sums.total === 982.04 && v.sums.lines === 4 && v.sums.receipts === 2 && v.sums.mileage === 1 && v.sums.noreceipt === 1, JSON.stringify(v.sums));
 ok("newest first", v.lines.map((x) => x.date).join() === "2026-11-11,2026-11-11,2026-11-10,2026-11-09");
-ok("the home screen shows the same claim and total", (await call("/api/expenses", "GET", undefined, MEMBER)).current.sums.total === 969.56);
+ok("the home screen shows the same claim and total", (await call("/api/expenses", "GET", undefined, MEMBER)).current.sums.total === 982.04);
 
 console.log("— two receipts at the same moment");
 const fresh = as("i.artinian@ongia.ca", "Inis Artinian");

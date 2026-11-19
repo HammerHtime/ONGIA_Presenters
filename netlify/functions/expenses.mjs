@@ -19,6 +19,7 @@ import {
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor, getPerDiem, perDiemFor, markPerDiem, PER_DIEM_KEY } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
+import { isSelfOwner } from "./lib/presenterexpense.mjs";
 import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, presenterPaidMail, unlockedMail, handoffMail } from "./lib/expensemail.mjs";
 
 /**
@@ -366,8 +367,8 @@ export default async (req) => {
       // "Approved by the President and the VP of Operations"; a stand-in is named.
       const approvedBy = after.map((s) => { const g = fresh[`signed_${s.role}`]; return g?.for && !practice ? `${g.name} for the ${g.for}` : `the ${ROLE_TITLE[s.role]}`; });
       const payer = payerFor(fresh, aways, today);
-      await note(fresh, "approved", await tell(fresh.owner?.email, approvedMail({ claim: fresh, approvedBy, payer: names(payer.email), practice }), payer.email));
-      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvedBy, acting: payer.for ? ROLE_TITLE[PAYER] : "", practice }), fresh.owner?.email));
+      await note(fresh, "approved", await tell(ownerTo(fresh), approvedMail({ claim: fresh, approvedBy, payer: names(payer.email), practice }), payer.email));
+      await note(fresh, "to pay", await tell(payer.email, toPayMail({ claim: fresh, approvedBy, acting: payer.for ? ROLE_TITLE[PAYER] : "", practice }), ownerTo(fresh)));
       await startFiling(url.origin, claim.id);
     }
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -397,8 +398,9 @@ export default async (req) => {
     await markWaiting(claim.id, false);
     // A presenter's claim: they're told it's paid, and the member who made it for them gets the same note.
     if (claim.payee?.email) {
-      await note(claim, "paid", await tell(claim.payee.email, presenterPaidMail({ claim, paid: claim.paid }), claim.owner?.email || me.email));
-      await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
+      await note(claim, "paid", await tell(claim.payee.email, presenterPaidMail({ claim, paid: claim.paid }), isSelfOwner(claim.owner?.email) ? me.email : claim.owner?.email || me.email));
+      // A presenter's own claim has no board member behind it to tell.
+      if (!isSelfOwner(claim.owner?.email)) await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
     } else await note(claim, "paid", await tell(claim.owner?.email, paidMail({ claim, payer: me.name, paid: claim.paid }), me.email));
     await startFiling(url.origin, claim.id);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
@@ -677,6 +679,9 @@ async function dropFiled(origin, records) {
   } catch (e) { console.error("expense unfiling did not start", e?.message); }
 }
 
+/** Who is told about their own claim: the member, or for a presenter's own claim (by their link), the presenter. */
+const ownerTo = (c) => (isSelfOwner(c?.owner?.email) ? c?.payee?.email ?? "" : c?.owner?.email);
+
 /** Send one email and say what happened; a failure is kept, never thrown. A reply goes to `replyTo`, a person. */
 async function tell(to, message, replyTo = "") {
   if (!to) return { to: "", ok: false, why: "Nobody to send it to." };
@@ -709,7 +714,7 @@ async function askApprovers(claim, { aways, today, names }) {
   for (const email of [...new Set(open.map((s) => s.email))]) {
     const s = open.find((x) => x.email === email);
     const d = s.for ? aways[s.role] : null;
-    await note(claim, "to approve", await tell(email, needsApprovalMail({ claim, lines: view.lines, checks, waitingOn, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", practice: !!s.practice }), claim.owner?.email));
+    await note(claim, "to approve", await tell(email, needsApprovalMail({ claim, lines: view.lines, checks, waitingOn, acting: s.for ? ROLE_TITLE[s.role] : "", until: d?.until ?? "", practice: !!s.practice }), ownerTo(claim)));
   }
 }
 
@@ -725,7 +730,7 @@ async function sendBack(claim, { me, aways, today, names }, role, acting, commen
   // No longer approved: its receipts come off the events' statements of work until it is approved again.
   await syncSow(claim);
   const by = acting ? `${me.name}, standing in for the ${ROLE_TITLE[role]},` : `${me.name} (${ROLE_TITLE[role] ?? "approving"})`;
-  await note(claim, "sent back", await tell(claim.owner?.email, sentBackMail({ claim, by, comment: why }), me.email));
+  await note(claim, "sent back", await tell(ownerTo(claim), sentBackMail({ claim, by, comment: why }), me.email));
   return json({ claim: await claimView(await getClaim(claim.id), { me, aways, today, names }) });
 }
 
