@@ -1,4 +1,4 @@
-import { listPresenters, putPresenter, listVolunteers, putVolunteer, getAttendees, getMeta, getEvent, putEvent } from "./store.mjs";
+import { listPresenters, putPresenter, listVolunteers, putVolunteer, getAttendees, getMeta, getEvent, putEvent, getRoster } from "./store.mjs";
 import { appreciationPdf, letterFileName, STANDARD_LETTER, VOLUNTEER_LETTER, EVENT_BOARD_LETTER } from "./appreciation.mjs";
 import { signerFor } from "./boardthanks.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
@@ -72,11 +72,22 @@ async function listEventBoard(eventId) {
   const ev = await getEvent(eventId);
   const kept = ev?.boardThanksPeople ?? {};
   const seen = new Set();
-  return (ev?.board ?? []).filter((m) => m?.email && !seen.has(low(m.email)) && seen.add(low(m.email))).map((m) => {
+  return rosterBoard(ev?.board ?? [], (await getRoster()) ?? []).filter((m) => m?.email && !seen.has(low(m.email)) && seen.add(low(m.email))).map((m) => {
     const parts = String(m.name ?? "").trim().split(/\s+/);
     return { id: low(m.email), eventId, first: parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0] ?? "", last: parts.length > 1 ? parts.at(-1) : "",
       email: m.email, status: "signed", organization: "", ...(kept[low(m.email)] ?? {}) };
   });
+}
+/**
+ * An event's board as the roster has it (Andrew 19 Nov 2026: "The board thank you letters still has Peglar old email";
+ * the Summit's board held Peglar twice, once at an address that no longer exists, and the thank-you bounced). Board
+ * contact details come from the roster: a member whose name is on the roster takes the roster's address, so an old
+ * copy kept on an event folds into the current one. Anyone not on the roster stays as entered.
+ */
+export function rosterBoard(board, roster) {
+  const name = (s) => low(s).replace(/\s+/g, " ");
+  const byName = new Map(roster.filter((r) => r?.name && r?.email).map((r) => [name(r.name), r]));
+  return board.map((m) => { const r = byName.get(name(m?.name)); return r ? { ...m, email: r.email } : m; });
 }
 async function putEventBoard(p) {
   const ev = await getEvent(p.eventId);

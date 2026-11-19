@@ -232,3 +232,21 @@ Leads: a version-not-ready state blocking the whole round (the virtual letter
 was marked ready after Nov 4), or the catch-up lock held. Fix: read the
 welcome-tick and welcome-catchup-background logs for Nov 4–8, then add a check that
 names anyone owed the letter for more than an hour while it is due.
+
+---
+
+## Board thank-you to Peglar bounced (Summit, 19 Nov 2026)
+
+**What failed.** The Summit's board thank-you went to p.artinian@ongia.ca at
+12:15 pm on 19 Nov and bounced ("couldn't be delivered"). That address no longer
+exists. Peglar's thank-you also went to executiveofficer@ongia.ca, which is
+correct, so the message did arrive once.
+
+**Why.** The Summit's board list held Peglar twice: once at the roster's
+address and once at the old one. Saving an event has folded duplicates to the
+roster address since 5 Nov, but the Summit hadn't been saved since. The
+thank-you read the stored list as it was.
+
+**Fix.** The board thank-you now takes every address from the roster by name,
+for every event, so an old copy can't be emailed again. The Summit's board list
+was re-saved, which cleaned it. Nothing needs resending.
