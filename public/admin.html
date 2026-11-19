@@ -4666,7 +4666,7 @@ function eventScreen(data) {
       ${sendFailed.length ? `<div class="sendfail"><b>${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} could not be sent.</b>
         <div style="margin-top:6px">${sendFailed.map((p) => `${esc(p.first)} ${esc(p.last)} — ${esc(p.lastSendError.why)}`).join("<br>")}</div>
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address with <b>Correct or remove</b>, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
-      <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="Find a presenter…" aria-label="Find a presenter" autocomplete="off">` : ""}<div class="filters">${chips}</div></div>
+      <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="Find a presenter…" aria-label="Find a presenter" autocomplete="off">` : ""}<div class="filters">${chips}</div>${presenters.length ? `<button class="mini" id="p-xlsx" title="Every presenter's name and agency, as an Excel sheet">Excel</button>` : ""}</div>
       <div class="pbulk" id="pbulk"${sel.size ? "" : " hidden"}><b id="pbulk-n">${sel.size} selected</b>
         <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
         <span class="pbnote">Approving is always one at a time</span></div>
@@ -4927,6 +4927,17 @@ function eventScreen(data) {
     const list = presenters.filter((p) => sel.has(p.id)).map((p) => p.email).join("; ");
     try { await navigator.clipboard.writeText(list); toast(`Copied ${sel.size} address${sel.size === 1 ? "" : "es"}. Paste them into Outlook.`); }
     catch { prompt("Copy these addresses:", list); }
+  };
+  // Every presenter's name and agency as an Excel sheet (Andrew 19 Nov 2026).
+  const pXlsx = document.getElementById("p-xlsx");
+  if (pXlsx) pXlsx.onclick = async () => {
+    pXlsx.disabled = true;
+    try {
+      const res = await apiFetch(`/api/events?id=${encodeURIComponent(ev.id)}&presentersheet=1`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Download failed (${res.status})`);
+      await saveRes(res, "presenters.xlsx");
+    } catch (x) { toast(x.message); }
+    pXlsx.disabled = false;
   };
   const bulkClear = document.getElementById("pbulk-clear");
   if (bulkClear) bulkClear.onclick = () => { sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar(); };
