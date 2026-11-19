@@ -73,7 +73,7 @@ export function xlsxBook(specs) {
 }
 
 /** One sheet's XML, and the row its headings are on (repeated at the top of every printed page). */
-function sheetOf({ title, subtitle = "", summary = [], columns, rows, footer = [], landscape = false }) {
+function sheetOf({ title, subtitle = "", summary = [], columns, rows, footer = [], landscape = false, plain = false }) {
   const n = columns.length, last = col(n - 1);
   const cell = (r, c, v, s) => (v === null || v === undefined || v === "" ? `<c r="${col(c)}${r}" s="${s}"/>`
     : typeof v === "number" ? `<c r="${col(c)}${r}" s="${s}"><v>${v}</v></c>`
@@ -81,11 +81,15 @@ function sheetOf({ title, subtitle = "", summary = [], columns, rows, footer = [
   const line = (r, values, s, extra = "") => `<row r="${r}"${extra}>${columns.map((_, c) => cell(r, c, values[c], s)).join("")}</row>`;
   let r = 0;
   const out = [];
-  out.push(`<row r="${++r}">${cell(r, 0, title, 1)}</row>`);
-  out.push(`<row r="${++r}">${cell(r, 0, subtitle, 2)}</row>`);
   const merged = [];
-  if (summary.length) { r++; for (const s of summary) { out.push(`<row r="${++r}">${cell(r, 0, s, 0)}</row>`); merged.push(`A${r}:${last}${r}`); } }
-  r++; // a blank line under the title, as on Andrew's sheet
+  // `plain`: a sheet another program reads (Andrew 19 Nov 2026: the presenters, imported to print ID cards). The
+  // headings are row 1 and the data starts on row 2: no title, no line under it, nothing above.
+  if (!plain) {
+    out.push(`<row r="${++r}">${cell(r, 0, title, 1)}</row>`);
+    out.push(`<row r="${++r}">${cell(r, 0, subtitle, 2)}</row>`);
+    if (summary.length) { r++; for (const s of summary) { out.push(`<row r="${++r}">${cell(r, 0, s, 0)}</row>`); merged.push(`A${r}:${last}${r}`); } }
+    r++; // a blank line under the title, as on Andrew's sheet
+  }
   // The header row is as tall as its longest heading wraps to: 32.1 (two lines, as on Andrew's sheet) at least.
   const headLines = Math.max(2, ...columns.map((c) => String(c.head).split("\n").reduce((n, part) => n + Math.max(1, Math.ceil(part.length / ((c.width ?? 16) * 0.95))), 0)));
   out.push(line(++r, columns.map((c) => c.head), 3, ` ht="${Math.max(32.1, headLines * 14.5 + 3).toFixed(1)}" customHeight="1"`));

@@ -408,7 +408,8 @@ async function presenterSheet(id) {
   if (!event) return fail("No such event.", 404);
   const people = (await listPresenters(id)).filter((p) => p.status !== "withdrawn")
     .sort((a, b) => String(a.last ?? "").localeCompare(String(b.last ?? ""), "en", { sensitivity: "base" }) || String(a.first ?? "").localeCompare(String(b.first ?? ""), "en", { sensitivity: "base" }));
-  const bytes = xlsx({ sheet: "Presenters", title: `${event.title}: presenters`, subtitle: `${people.length} presenter${people.length === 1 ? "" : "s"}`,
+  // Made to be imported (he prints their ID cards from it): the headings on row 1, one presenter a row, nothing else.
+  const bytes = xlsx({ sheet: "Presenters", plain: true,
     columns: [{ head: "Name", width: 34 }, { head: "Agency", width: 54 }],
     rows: people.map((p) => [`${String(p.first ?? "").trim()} ${String(p.last ?? "").trim()}`.trim(), String(p.organization ?? "").trim()]) });
   return new Response(bytes, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
