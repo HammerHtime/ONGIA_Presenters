@@ -36,7 +36,7 @@
     --ink:#12161f; --ink-mid:#2c3448; --muted:#596176;
     --navy:#1a2f5e; --navy-deep:#0e1a35;
     --gold:#b8922a; --gold-light:#d9ae4b; --gold-pale:#f4ecd6;
-    --border:#ddd7c8; --hair:rgba(18,22,31,.10);
+    --border:#ddd7c8; --hair:rgba(18,22,31,.10); --line:var(--hair);
     /* The line around a card or a row. Deliberately darker than --border,
        which stays soft for buttons, inputs and chips. */
     --edge:#bfb49a; --lift:0 1px 3px rgba(14,26,53,.07);
@@ -1938,6 +1938,13 @@
   .rbhl .rbhname{text-align:left;padding:0}
   /* Reports (Andrew 1 Nov 2026): ONGIA | RBH, the year's figures, the four ONGIA reports. */
   .rptabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+  .dlwrap{max-width:760px} .dlhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px} .dlhead h1{margin:0;font-size:22px} .dlhead select{flex:1 1 240px;min-width:0;max-width:100%;padding:6px 8px;font-size:14px}
+  .dllist{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+  .dlg{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--card);padding:5px 10px;border-bottom:1px solid var(--line)}
+  .dlrow{display:flex;gap:8px;align-items:center;min-height:38px;padding:3px 10px;border-bottom:1px solid var(--line);font-size:14px} .dllist>.dlrow:last-child{border-bottom:0}
+  .dlrow .dlw{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600} .dlrow .dlf{flex:none;font-size:13px;color:var(--muted);white-space:nowrap}
+  .dlrow .dlno{flex:none;font-size:12.5px;color:var(--muted);font-style:italic;white-space:nowrap} .dlrow .mini{flex:none;padding:4px 10px;font-size:13px}
+  @media (max-width:520px){.dlrow .dlf{display:none}}
   .rcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .rcard{border:1px solid var(--edge);border-radius:16px;background:#fff;padding:14px 16px;display:grid;grid-template-columns:50px minmax(0,1fr);gap:4px 14px;min-width:0}
   .rcard .th{grid-row:1/4;width:50px;height:64px;border-radius:6px;background:#eef1f7;display:grid;place-items:center}.rcard .th svg{width:24px;height:24px;fill:none;stroke:var(--navy);stroke-width:1.8}
@@ -2337,6 +2344,7 @@ const SIDE_ICON = {
   events: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
   year: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',
   reports: '<path d="M5 20V11M12 20V4M19 20v-7"/>',
+  downloads: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   letters: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   sows: '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/>',
@@ -2427,11 +2435,11 @@ function drawSide() {
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
-    <div class="snav">${item("eventsnav", "events", "Events")}${item("theyear", "year", "The year")}${item("reportsnav", "reports", "Reports")}${item("letters", "letters", "Letters")}${item("admin", "admin", "Admin", "", attnBadge())}
+    <div class="snav">${item("eventsnav", "events", "Events")}${item("theyear", "year", "The year")}${item("reportsnav", "reports", "Reports")}${item("downloadsnav", "downloads", "Downloads")}${item("letters", "letters", "Letters")}${item("admin", "admin", "Admin", "", attnBadge())}
       ${more.length ? `<button type="button" class="sn snmore" id="snmore" aria-expanded="false" aria-controls="smore"><svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON.more}</svg><span>More</span></button><div class="smore" id="smore">${more.join("")}</div>` : ""}</div>
     <div class="sme"><i aria-hidden="true">${esc(initials)}</i><div><b>${esc(who || "Signed in with the key")}</b><span>${esc(sideRole())}</span></div></div>`;
   const go = (id, v) => { const b = document.getElementById(id); if (b) b.onclick = () => { view = v; render(); }; };
-  go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("letters", { name: "letters" });
+  go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("downloadsnav", { name: "downloads" }); go("letters", { name: "letters" });
   go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
   const xb = document.getElementById("expensesnav");
@@ -7481,6 +7489,76 @@ const ONG_WHAT = {
   program: "Topics we trained on, presenters and their ratings, events by month, and what attendees asked to learn next.",
   info: "One page with the year's numbers and charts, for sponsor packages, the website and the board.",
 };
+/*
+ * Downloads (Andrew 19 Nov 2026: "We have a reports and then maybe downloads on the left-hand side, but we still keep
+ * the button to export or download on each page as well … keep everything tight"). Every file an event can give, one
+ * line each: what it is, who it's for, Download. Each runs the same download as its button beside the data, so the two
+ * never drift apart. A file the event can't give yet says so in place of the button.
+ */
+function defaultDownloadEvent(events) {
+  const t = todayIso(), live = events.filter((e) => e.kind !== "project" && !e.practice);
+  // The event on now or just past (people download after it), else the next one, else the latest.
+  const past = live.filter((e) => (e.dayOne || "") <= t).sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)));
+  const next = live.filter((e) => (e.dayOne || "") > t).sort((a, b) => String(a.dayOne).localeCompare(String(b.dayOne)));
+  const recent = past.find((e) => (Date.parse(t) - Date.parse(e.lastDay || e.dayOne)) / 864e5 <= 14);
+  return recent ?? next[0] ?? past[0] ?? null;
+}
+function downloadsScreen(events, D, ct = null) {
+  BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
+  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
+  const ev = D?.event ?? null, P = (D?.presenters ?? []).filter((p) => p.status !== "withdrawn");
+  const enc = encodeURIComponent, id = ev ? enc(ev.id) : "";
+  const opts = [...events].filter((e) => e.kind !== "project").sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)))
+    .map((e) => `<option value="${esc(e.id)}"${e.id === ev?.id ? " selected" : ""}>${esc(e.title)}${e.dayOne ? ` · ${esc(fmtDate(e.dayOne))}` : ""}</option>`).join("");
+  // [what it is, who it's for, the address, the name if the file comes without one, why not yet ("" when it can)]
+  const groups = !ev ? [] : [
+    ["People", [
+      ["Presenters: name and agency", "ID cards", `/events?id=${id}&presentersheet=1`, "presenters.xlsx", P.length ? "" : "No presenters yet"],
+      ["Registration list", "Check-in", `/certificates?event=${id}&csv=registration`, "Registration list.xlsx", ev.wix ? "" : "Not linked to Wix"],
+      ["Checked in, for certificates", "Certificates", `/certificates?event=${id}&csv=certificate`, "list.csv", ev.wix ? "" : "Not linked to Wix"],
+      ["Who shares an email address", "Wix clean-up", `/reply?event=${id}&sheet=addresses`, "Shared email addresses.xlsx", ev.wix ? "" : "Not linked to Wix"],
+      ...(WHO?.canCost ? [["Presenter bios and photos", "Website", `/export?event=${id}`, "presenters.zip", P.length ? "" : "No presenters yet"]] : []),
+    ]],
+    ["Program", [
+      ["Agenda", "Print", `/agenda?event=${id}&file=1`, "agenda.pdf", ev.agendaFile ? "" : "No agenda uploaded"],
+      ["MC script", "MC", `/mcintros?event=${id}&pdf=1`, "MC script.pdf", P.length ? "" : "No presenters yet"],
+    ]],
+    ["Venue", [
+      ["Dietary list", "Hotel", `/reply?event=${id}&sheet=dietary`, "Dietary list.xlsx", ev.reply ? "" : "Questions not set up"],
+      ["Socials list", "Hotel", `/reply?event=${id}&sheet=socials`, "Socials.xlsx", (ev.reply?.socials ?? []).length ? "" : "No socials asked"],
+      ["Rooming list", "Hotel", `/rooming?event=${id}&csv=1`, "Rooming list.csv", ev.hotel?.name || (ev.roomingGuests ?? []).length ? "" : "No hotel yet"],
+      ["Hotel contract", "Records", `/contract?event=${id}&file=1`, "contract.pdf", ct?.file ? "" : "None uploaded"],
+      ["Hotel contract, signed", "Hotel", `/contract?event=${id}&signed=1`, "contract-signed.pdf", ct?.sign?.state === "done" ? "" : "Not signed yet"],
+    ]],
+    ["Survey", [
+      ["QR codes, all days", "Print", `/survey?event=${id}&qr=all`, "Survey QR codes.pdf", ev.survey ? "" : "No survey"],
+      ["Results summary", "Board", `/survey?event=${id}&download=summary`, "Survey.pdf", ev.survey ? "" : "No survey"],
+      ["Every answer", "Analysis", `/survey?event=${id}&download=answers`, "Survey answers.xlsx", ev.survey ? "" : "No survey"],
+      ["Who'd like to present", "Next event", `/survey?event=${id}&download=presenters`, "Survey presenters.xlsx", ev.survey ? "" : "No survey"],
+    ]],
+    ...(WHO?.canCost && ev.kind === "rbh" ? [["RBH", [
+      ["Statement of work", "RBH", `/sow?event=${id}&doc=sow`, "SOW.pdf", ""],
+      ["Invoice", "RBH", `/sow?event=${id}&doc=invoice`, "Invoice.pdf", ""],
+    ]]] : []),
+  ];
+  let n = 0;
+  const rows = groups.map(([g, items]) => `<div class="dlg">${esc(g)}</div>${items.map(([what, why, path, name, no]) => { const i = n++; return `<div class="dlrow"><span class="dlw">${esc(what)}</span><span class="dlf">${esc(why)}</span>${no ? `<span class="dlno">${esc(no)}</span>` : `<button type="button" class="mini" data-dl="${i}">Download</button>`}</div>`; }).join("")}`).join("");
+  const flat = groups.flatMap(([, items]) => items);
+  ROOT.innerHTML = `<div class="dlwrap"><div class="dlhead"><h1>Downloads</h1><select id="dl-ev" aria-label="Event">${opts}</select></div>
+    ${ev ? `<div class="dllist">${rows}</div><p class="porg" style="margin:8px 2px 0">The same files have their own button where the information lives on the event.</p>` : `<p class="porg">No events yet.</p>`}</div>`;
+  document.getElementById("dl-ev").onchange = (e) => { view = { name: "downloads", eventId: e.target.value }; render(); };
+  ROOT.querySelectorAll("[data-dl]").forEach((b) => { b.onclick = async () => {
+    const [, , path, name] = flat[Number(b.dataset.dl)];
+    const was = b.textContent; b.disabled = true; b.textContent = "…";
+    try {
+      const res = await apiFetch(`/api${path}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `This event has nothing to download here yet (${res.status}).`);
+      await saveRes(res, name);
+    } catch (x) { toast(x.message); }
+    b.disabled = false; b.textContent = was;
+  }; });
+}
+
 function ongiaReportsScreen(D) {
   clearTimeout(ONG_POLL);
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
@@ -13138,6 +13216,12 @@ async function drawScreen() {
     if (view.name === "letters") {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);
       return lettersScreen(data, events, view.pick ?? null);
+    }
+    if (view.name === "downloads") {
+      const { events } = await api("/events");
+      const id = view.eventId && events.some((e) => e.id === view.eventId) ? view.eventId : defaultDownloadEvent(events)?.id;
+      const [D, ct] = id ? await Promise.all([api(`/events?id=${encodeURIComponent(id)}`), api(`/contract?event=${encodeURIComponent(id)}`).catch(() => null)]) : [null, null];
+      return downloadsScreen(events, D, ct);
     }
     if (view.name === "admin" && view.tab === "rbh") { view = { name: "reports", sub: "rbh", year: view.year }; return render(); }
     if (view.name === "reports") {
