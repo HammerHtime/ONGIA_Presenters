@@ -16,6 +16,8 @@ await S.putEvent({ id: "re-lead", title: "Regina", board: [{ name: "Tyler Zrymia
   reviewer: { name: "Tyler Zrymiak", email: OLD }, contact: { name: "Tyler Zrymiak", email: OLD }, notify: ["president@ongia.ca"] });
 await S.putEvent({ id: "re-member", title: "Windsor", board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }, { name: "Tyler Zrymiak", email: OLD }],
   reviewer: { name: "Andrew Hammond", email: "president@ongia.ca" }, contact: { name: "Andrew Hammond", email: "president@ongia.ca" }, notify: [OLD] });
+await S.putEvent({ id: "re-vol", title: "Summit", board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }],
+  reviewer: { name: "Andrew Hammond", email: "president@ongia.ca" }, notify: [], volunteerLead: { name: "Tyler Zrymiak", email: OLD, phone: "" } });
 await S.putEvent({ id: "re-none", title: "Other", board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }], notify: [] });
 const now = (await call("GET")).members;
 const r = await call("PUT", { members: now.map((m) => (m.email === OLD ? { ...m, email: NEW, was: OLD } : m)) });
@@ -23,6 +25,7 @@ ok("the roster takes the new address", r.members.some((m) => m.email === NEW) &&
 const lead = await S.getEvent("re-lead"), mem = await S.getEvent("re-member"), none = await S.getEvent("re-none");
 ok("where he leads: board, reviewer and contact all carry the new address, still lead", lead.board[0].email === NEW && lead.board[0].lead === true && lead.reviewer.email === NEW && lead.contact.email === NEW, JSON.stringify(lead));
 ok("where he's a member: board and who is told", mem.board[1].email === NEW && mem.notify.includes(NEW) && !mem.notify.includes(OLD));
-ok("an event he isn't on is untouched, and the answer names the two changed", !none.updatedAt && r.eventsUpdated?.map((e) => e.id).sort().join() === "re-lead,re-member", JSON.stringify(r.eventsUpdated));
+ok("where he's the volunteer lead: the new address", (await S.getEvent("re-vol")).volunteerLead.email === NEW);
+ok("an event he isn't on is untouched, and the answer names the three changed", !none.updatedAt && r.eventsUpdated?.map((e) => e.id).sort().join() === "re-lead,re-member,re-vol", JSON.stringify(r.eventsUpdated));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

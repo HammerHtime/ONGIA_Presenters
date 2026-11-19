@@ -84,17 +84,19 @@ export default async (req) => {
   return fail("Method not allowed.", 405);
 };
 
-/** Each { from, to } address swapped on every event's board, reviewer, contact and notify list. Returns the events changed. */
+/** Each { from, to } address swapped on every event's board, reviewer, contact, notify list and volunteer lead. Returns the events changed. */
 async function moveAddresses(moved) {
   const map = new Map(moved.map((m) => [m.from, m.to]));
   const swap = (e) => map.get(String(e ?? "").toLowerCase()) ?? e;
   const changed = [];
   for (const ev of await listEvents()) {
-    const hit = (ev.board ?? []).some((m) => map.has(String(m.email ?? "").toLowerCase())) || map.has(String(ev.reviewer?.email ?? "").toLowerCase()) || map.has(String(ev.contact?.email ?? "").toLowerCase()) || (ev.notify ?? []).some((e) => map.has(String(e).toLowerCase()));
+    const hit = (ev.board ?? []).some((m) => map.has(String(m.email ?? "").toLowerCase())) || map.has(String(ev.reviewer?.email ?? "").toLowerCase()) || map.has(String(ev.contact?.email ?? "").toLowerCase()) || map.has(String(ev.volunteerLead?.email ?? "").toLowerCase()) || (ev.notify ?? []).some((e) => map.has(String(e).toLowerCase()));
     if (!hit) continue;
     ev.board = (ev.board ?? []).map((m) => ({ ...m, email: swap(m.email) }));
     if (ev.reviewer?.email) ev.reviewer = { ...ev.reviewer, email: swap(ev.reviewer.email) };
     if (ev.contact?.email) ev.contact = { ...ev.contact, email: swap(ev.contact.email) };
+    // The volunteer lead is a copy too (Andrew 19 Nov 2026: Peglar's old address was still the Summit's volunteer lead).
+    if (ev.volunteerLead?.email) ev.volunteerLead = { ...ev.volunteerLead, email: swap(ev.volunteerLead.email) };
     if (Array.isArray(ev.notify)) ev.notify = ev.notify.map(swap);
     ev.updatedAt = new Date().toISOString();
     await putEvent(ev);
