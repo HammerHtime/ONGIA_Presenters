@@ -13,7 +13,7 @@ import { todayIso } from "./deadlines.mjs";
  *
  * Three kinds of line:
  *   receipt    a photo or a PDF of the receipt
- *   mileage    typed in by hand: kilometres at the mileage rate ($0.62/km), paid to the board member
+ *   mileage    typed in by hand: kilometres at the mileage rate ($0.66/km), paid to the board member
  *   noreceipt  a written statement of why there is no receipt, with a screenshot of the card statement
  *
  * Who signs off (Andrew, 13 Nov 2026: "remove the treasurer from the approvals. Just the vp and myself"): every claim
@@ -47,7 +47,8 @@ export const hstOf = (l) => (noHst(l) || !Number.isFinite(Number(l?.amount)) ? 0
 /** Dollars per kilometre. EXPENSE_MILEAGE_RATE replaces it if the board changes the rate. */
 export function mileageRate() {
   const r = Number(process.env.EXPENSE_MILEAGE_RATE);
-  return Number.isFinite(r) && r > 0 && r < 5 ? r : 0.62;
+  // The federal government's rate for Ontario, for everyone (Andrew 19 Nov 2026: "Keep mileage at .66 cents").
+  return Number.isFinite(r) && r > 0 && r < 5 ? r : 0.66;
 }
 
 export const money = (n) => Math.round(Number(n) * 100) / 100;
@@ -118,6 +119,8 @@ export function approversFor(email) {
 export function mayClaim(email, roster) {
   const e = lc(email);
   if (!e) return false;
+  // A presenter's own claim, by their link (lib/presenterexpense.mjs): the session is the desk's to issue, never theirs.
+  if (e.endsWith("@presenters.ongia.invalid")) return true;
   if (roleOf(e) !== "member") return true;
   return (roster ?? []).some((m) => lc(m.email) === e);
 }
@@ -609,6 +612,9 @@ export function claimChecks(lines, { month = "", earlier = [], perDiem = null } 
   // A presenter's meal over its per diem: flagged, never refused; the approvers decide (Andrew 17 Nov 2026).
   const meals = perDiem ? lines.filter((l) => MEALS.includes(l.meal)) : [];
   const overs = [];
+  // A meal the event itself served has no per diem (Andrew 19 Nov 2026): flagged for the approvers, never refused.
+  const served = perDiem?.provided ?? [];
+  for (const l of meals) if (served.includes(l.meal)) say(l, `${l.paidTo || "A meal"}${l.date ? `, ${shortDate(l.date)}` : ""}: ${dollars(l.amount)} for ${l.meal}, but ${l.meal} was provided at the event, so there's no per diem for it. Up to you whether to allow it.`, `${MEAL_NAME[l.meal]} was provided at the event`);
   for (const l of meals) {
     const o = overPerDiem(l, perDiem);
     if (o) overs.push({ id: l.id ?? null, paidTo: l.paidTo || "A meal", date: l.date || "", amount: money(l.amount), ...o });

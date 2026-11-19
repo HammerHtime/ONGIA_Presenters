@@ -214,6 +214,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     // …or had a spot there but couldn't present (the National Gang Summit, 2026): listed as a spot held for RBH, not reach.
     // Count everyone registered as attended, where the check-in list is short of who came (Andrew 17 Nov 2026, Regina).
     countRegistered: body.countRegistered === undefined ? (event.countRegistered ?? false) : body.countRegistered === true,
+    // The meals this event serves its presenters (Andrew 19 Nov 2026): no per diem for those, on a presenter's claim.
+    mealsProvided: body.mealsProvided === undefined ? (event.mealsProvided ?? null) : { breakfast: body.mealsProvided?.breakfast === true, lunch: body.mealsProvided?.lunch === true, dinner: body.mealsProvided?.dinner === true },
     rbhCancelled: !canCost || body.rbhCancelled === undefined ? (event.rbhCancelled ?? false) : body.rbhCancelled === true,
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
     invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),

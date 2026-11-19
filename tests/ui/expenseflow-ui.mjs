@@ -76,7 +76,7 @@ ok("John has nothing waiting on him: no badge", (await john.evaluate(() => windo
 await andrew.click('[data-tab="approve"]');
 await andrew.locator(`[data-open="${CID}"]`).click();
 await andrew.waitForSelector("#approve");
-ok("Approve a claim: who, how much, Claude's check", (await andrew.textContent("#title")) === "Approve a claim" && /John Healy/.test(await andrew.textContent("#root")) && /\$211\.44/.test(await andrew.textContent("#root")) && /One thing to look at/.test(await andrew.textContent(".looks")) && /Green P parking: no receipt, so \$18\.00 isn't confirmed/.test(await andrew.textContent(".looks")));
+ok("Approve a claim: who, how much, Claude's check", (await andrew.textContent("#title")) === "Approve a claim" && /John Healy/.test(await andrew.textContent("#root")) && /\$223\.92/.test(await andrew.textContent("#root")) && /One thing to look at/.test(await andrew.textContent(".looks")) && /Green P parking: no receipt, so \$18\.00 isn't confirmed/.test(await andrew.textContent(".looks")));
 await andrew.screenshot({ path: D + "exp-approve-phone.png", fullPage: true });
 await andrew.click("#approve");
 await andrew.waitForSelector(".stamp");
@@ -117,7 +117,7 @@ ok("a claim sent back to John puts 1 on his icon", (await john.evaluate(() => wi
 ok("My claim: the reason at the top, the total, Send it again", /Sent back by Jacqulyn Taylor/.test(await john.textContent(".sentback")) && /covered by the venue/.test(await john.textContent(".sentback")) && (await john.textContent("#submit")) === "Send it again" && /sent back/.test(await john.textContent("#running .k")));
 await john.screenshot({ path: D + "exp-sentback-phone.png", fullPage: true });
 await john.locator(".line", { hasText: "Green P" }).click(); await john.click("#remove"); await john.waitForSelector("#running");
-ok("the parking off: $193.44", (await john.textContent("#running .big")) === "$193.44");
+ok("the parking off: $205.92", (await john.textContent("#running .big")) === "$205.92");
 await john.click("#submit"); await john.waitForSelector(".slot");
 ok("sent again", /Waiting for approval/.test(await john.textContent("#root")));
 

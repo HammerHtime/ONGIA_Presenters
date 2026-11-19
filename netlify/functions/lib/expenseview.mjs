@@ -1,4 +1,4 @@
-import { getClaim, listClaimLines, getClaimRead, listMineIds, getMeta } from "./store.mjs";
+import { getClaim, listClaimLines, getClaimRead, listMineIds, getMeta, getEvent } from "./store.mjs";
 import { viewLine, claimChecks, monthLabel, whoKey, PER_DIEM_DEFAULT, overPerDiem } from "./expenses.mjs";
 import { todayIso } from "./deadlines.mjs";
 
@@ -28,11 +28,18 @@ export async function getPerDiem() {
 }
 /** The per diem a claim is held to: a presenter's claim only. Board members have none. */
 export async function perDiemFor(claim) {
-  return claim?.payee?.kind === "presenter" ? getPerDiem() : null;
+  if (claim?.payee?.kind !== "presenter") return null;
+  const pd = await getPerDiem();
+  // The meals their event served (its setting on Edit event): no per diem for those.
+  const ev = claim.payee.event ? await getEvent(claim.payee.event).catch(() => null) : null;
+  return { ...pd, provided: ["breakfast", "lunch", "dinner"].filter((m) => ev?.mealsProvided?.[m] === true) };
 }
 /** Each meal over its per diem marked on the line itself, so it shows while the claim is being built too. */
 export function markPerDiem(lines, perDiem) {
-  for (const l of lines) { const o = overPerDiem(l, perDiem); if (o) l.overPerDiem = o; else delete l.overPerDiem; }
+  for (const l of lines) {
+    const o = overPerDiem(l, perDiem); if (o) l.overPerDiem = o; else delete l.overPerDiem;
+    if (perDiem?.provided?.includes(l.meal)) l.mealProvided = true; else delete l.mealProvided;
+  }
   return lines;
 }
 

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Your expenses · ONGIA</title>
+<link rel="icon" href="/assets/expenses-favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#0e1a35">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  /* A presenter's own expense claim, by the link ONGIA sends after an event (Andrew 19 Nov 2026). The look is the
+     Expenses app's; there is no sign-in, no tabs and nothing but this one claim. */
+  :root{color-scheme:light;--paper:#f2efe8;--card:#fafaf7;--sunk:#edeae2;--ink:#12161f;--muted:#596176;--navy:#1a2f5e;--navy-deep:#0e1a35;--gold:#b8922a;--border:#ddd7c8;--edge:#bfb49a;
+    --done:#2f6b4f;--done-bg:#e2efe7;--wait:#8a5d0c;--wait-bg:#f8ecd5;--late:#a33328;--late-bg:#f7e3e0;--fd:"DM Serif Display",Georgia,serif;--fb:"DM Sans",system-ui,sans-serif;--fl:"Oswald","DM Sans",sans-serif}
+  *{box-sizing:border-box} html,body{margin:0} body{background:var(--paper);color:var(--ink);font-family:var(--fb);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+  header{background:var(--navy-deep);color:#fff;border-bottom:3px solid var(--gold);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  header h1{font-family:var(--fd);font-weight:400;font-size:22px;margin:0} header button{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:999px;padding:5px 11px;font:500 13px var(--fb);cursor:pointer}
+  main{max-width:560px;margin:0 auto;padding:14px 16px calc(40px + env(safe-area-inset-bottom))}
+  .k{font-family:var(--fl);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .run{background:var(--navy-deep);color:#fff;border-radius:16px;padding:14px 16px;margin:0 0 12px} .run .k{color:#b9c2d6} .run .big{font-family:var(--fd);font-size:36px;line-height:1.1} .run .s{color:#d7dcea;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:12px 14px;margin:0 0 12px}
+  details.pd{background:var(--sunk);border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:14.5px} details.pd summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline} details.pd summary::-webkit-details-marker{display:none}
+  details.pd summary b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600} details.pd summary span{color:var(--navy);text-decoration:underline;font-size:13.5px;flex:none} details.pd p{margin:8px 0 0}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;border-radius:999px;border:1px solid var(--edge);background:#fff;color:var(--ink);font:600 17px var(--fb);cursor:pointer;padding:0 16px}
+  .btn.gold{background:var(--gold);border-color:var(--gold)} .btn.navy{background:var(--navy);border-color:var(--navy);color:#fff} .btn.danger{background:none;border:0;color:var(--late);min-height:40px;font-size:15px} .btn:disabled{opacity:.55}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 0}
+  .linkish{background:none;border:0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;padding:6px 0;display:block;margin:6px auto 0}
+  .day{font-family:var(--fl);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 2px 6px}
+  .lines{padding:0;overflow:hidden} .line{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);padding:9px 12px;font:inherit;color:inherit;cursor:pointer;min-height:38px}
+  .line:last-child{border-bottom:0} .line .w{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600} .line .st{flex:none;font-size:13px;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .line .amt{flex:none;font-weight:700;font-variant-numeric:tabular-nums} .st.ok{color:var(--done)} .st.wt{color:var(--wait)} .st.bad{color:var(--late)} .st.mu{color:var(--muted)}
+  .say{border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:15px} .say.ok{background:var(--done-bg);color:#1d4a35} .say.wt{background:var(--wait-bg);color:#5f4007} .say.bad{background:var(--late-bg);color:#7a231b} .say.mu{background:var(--sunk)}
+  .tiny{font-size:13px;color:var(--muted)} .center{text-align:center}
+  dialog{border:0;border-radius:16px;padding:16px;width:calc(100% - 28px);max-width:440px;background:var(--paper);color:var(--ink)} dialog::backdrop{background:rgba(10,20,40,.5)} dialog h2{font-family:var(--fd);font-weight:400;font-size:21px;margin:0 0 10px}
+  .field{margin:0 0 10px} .field label,.lab{display:block;font-size:13px;color:var(--muted);margin:0 0 4px} .field input{width:100%;min-height:46px;border:1px solid var(--edge);border-radius:10px;padding:0 12px;font:inherit;background:#fff}
+  .chips{display:flex;gap:6px;flex-wrap:wrap} .chips button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:7px 11px;font:500 13.5px var(--fb);min-height:38px;cursor:pointer} .chips button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .note{font-size:13.5px;margin-top:6px} .note.wt{color:var(--wait)} .note.mu{color:var(--muted)}
+  .pic{display:block;max-width:100%;max-height:200px;margin:0 auto 10px;border-radius:10px;border:1px solid var(--border)}
+  .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--navy-deep);color:#fff;padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);z-index:9} .toast.bad{background:var(--late)}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px} @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header><h1 id="h1">Your expenses</h1><button type="button" id="lang" hidden>Français</button></header>
+<main id="root"><p class="tiny center" style="margin-top:30px"><span class="spin"></span></p></main>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="pick" accept="image/*,application/pdf" multiple hidden>
+<script>
+const [, , EV, PR, KEY] = location.pathname.split("/");
+const Q = `?e=${encodeURIComponent(EV ?? "")}&p=${encodeURIComponent(PR ?? "")}&k=${encodeURIComponent(KEY ?? "")}`;
+const $ = (id) => document.getElementById(id), ROOT = $("root");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let D = null, LANG = "en", timer = null;
+const T = {
+  en: { title: "Your expenses", other: "Français", total: "Your claim", none: "Nothing added yet", photo: "Take a photo of a receipt", choose: "or choose a photo or PDF", mileage: "Mileage", perdiem: "Meal per diem", details: "Details", send: "Send for approval",
+    sendNote: "It goes to ONGIA's President and VP of Operations. Once it's sent it can't be changed, unless they send it back.", items: "What you're claiming", reading: "Reading…", check: "Tap to check", needs: "Needs the amount",
+    over: (m, x) => `Over by ${x}`, provided: (m) => `${m} provided`, ok: "Ready", unread: "Type it in", paidTo: "Paid to", date: "Date", amount: "Amount", meal: "Meal", notMeal: "Not a meal", save: "Save", remove: "Remove", cancel: "Cancel",
+    km: "Kilometres", from: "From", to: "To", add: "Add", kmNote: (r) => `Your own vehicle, at ${r} a kilometre.`, overNote: (m, l, x) => `Over the ${m} per diem (${l}) by ${x}. You can still send it; ONGIA decides whether to allow it.`, withinNote: (m, l) => `Per diem for ${m}: ${l}`,
+    providedNote: (m) => `${m} was provided at the event, so there's no per diem for it. You can still send it; ONGIA decides whether to allow it.`, meals: { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" }, lower: { breakfast: "breakfast", lunch: "lunch", dinner: "dinner" },
+    sent: (d) => `Sent ${d}. ONGIA's President and VP of Operations will review it.`, approved: (e) => `Approved. The e-transfer will go to ${e}.`, paid: (d, r, e) => `Paid ${d} by e-transfer to ${e}. Transaction number ${r}.`, back: (by) => `Sent back${by ? ` by ${by}` : ""}:`, backFix: "Change what's needed, then send it again.",
+    closed: (d) => `This link took claims until ${d}. Please contact ONGIA.`, until: (d) => `You can add to it until ${d}.`, payTo: (e) => `You'll be paid by e-transfer to ${e}.`, for: (n, e) => `${n} · ${e}`, saved: "Saved.", sentToast: "Sent. Thank you.", confirmSend: "Send your claim to ONGIA for approval?", confirmRemove: "Remove this from your claim?", mileageRow: (a, b) => `Mileage${a || b ? `: ${a || "?"} to ${b || "?"}` : ""}`, receipt: "Receipt", sending: "Sending…", adding: "Adding your receipt…" },
+  fr: { title: "Vos dépenses", other: "English", total: "Votre réclamation", none: "Rien d'ajouté pour l'instant", photo: "Photographier un reçu", choose: "ou choisir une photo ou un PDF", mileage: "Kilométrage", perdiem: "Indemnité de repas", details: "Détails", send: "Envoyer pour approbation",
+    sendNote: "Elle est envoyée au président et à la vice-présidente aux opérations de l'ONGIA. Une fois envoyée, elle ne peut plus être modifiée, sauf si elle vous est retournée.", items: "Ce que vous réclamez", reading: "Lecture…", check: "Touchez pour vérifier", needs: "Montant requis",
+    over: (m, x) => `${x} en trop`, provided: (m) => `${m} fourni`, ok: "Prêt", unread: "À saisir", paidTo: "Payé à", date: "Date", amount: "Montant", meal: "Repas", notMeal: "Pas un repas", save: "Enregistrer", remove: "Retirer", cancel: "Annuler",
+    km: "Kilomètres", from: "De", to: "À", add: "Ajouter", kmNote: (r) => `Votre propre véhicule, à ${r} le kilomètre.`, overNote: (m, l, x) => `Au-delà de l'indemnité pour ${m} (${l}) de ${x}. Vous pouvez quand même l'envoyer; l'ONGIA décidera.`, withinNote: (m, l) => `Indemnité pour ${m} : ${l}`,
+    providedNote: (m) => `${m} était fourni à l'événement : aucune indemnité pour ce repas. Vous pouvez quand même l'envoyer; l'ONGIA décidera.`, meals: { breakfast: "Déjeuner", lunch: "Dîner", dinner: "Souper" }, lower: { breakfast: "le déjeuner", lunch: "le dîner", dinner: "le souper" },
+    sent: (d) => `Envoyée le ${d}. Le président et la vice-présidente aux opérations de l'ONGIA l'examineront.`, approved: (e) => `Approuvée. Le virement Interac sera envoyé à ${e}.`, paid: (d, r, e) => `Payée le ${d} par virement Interac à ${e}. Numéro de transaction ${r}.`, back: (by) => `Retournée${by ? ` par ${by}` : ""} :`, backFix: "Modifiez ce qu'il faut, puis envoyez-la de nouveau.",
+    closed: (d) => `Ce lien acceptait les réclamations jusqu'au ${d}. Veuillez communiquer avec l'ONGIA.`, until: (d) => `Vous pouvez y ajouter jusqu'au ${d}.`, payTo: (e) => `Vous serez payé par virement Interac à ${e}.`, for: (n, e) => `${n} · ${e}`, saved: "Enregistré.", sentToast: "Envoyée. Merci.", confirmSend: "Envoyer votre réclamation à l'ONGIA pour approbation?", confirmRemove: "Retirer ceci de votre réclamation?", mileageRow: (a, b) => `Kilométrage${a || b ? ` : ${a || "?"} à ${b || "?"}` : ""}`, receipt: "Reçu", sending: "Envoi…", adding: "Ajout de votre reçu…" },
+};
+const L = () => T[LANG];
+const money = (n) => (n === null || n === undefined || n === "" ? "" : LANG === "fr" ? `${Number(n).toFixed(2).replace(".", ",")} $` : `$${Number(n).toFixed(2)}`);
+const longDay = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T12:00:00`).toLocaleDateString(LANG === "fr" ? "fr-CA" : "en-CA", { month: "long", day: "numeric", year: "numeric" }) : "");
+function toast(msg, bad = false) { document.querySelector(".toast")?.remove(); const t = document.createElement("div"); t.className = `toast${bad ? " bad" : ""}`; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3800); }
+async function api(path = "", init = {}) {
+  const res = await fetch(`/api/presenter-expenses${Q}${path}`, init);
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(out.error ?? `Something went wrong (${res.status}).`); e.problems = out.problems; throw e; }
+  return out;
+}
+/* A photo made small on the phone before it goes, as the Expenses app does: a 12-megapixel photo is far more than a receipt needs. */
+async function shrink(file) {
+  if (!/^image\//.test(file.type) && !/\.(jpe?g|png|heic|heif|webp)$/i.test(file.name)) return { blob: file, name: file.name || "receipt.pdf" };
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const s = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    const big = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+    return { blob: big && (big.size < file.size || !/jpe?g|png/i.test(file.type)) ? big : file, name: (file.name || "receipt").replace(/\.[^.]+$/, "") + ".jpg" };
+  } catch { return { blob: file, name: file.name || "receipt.jpg" }; }
+  finally { URL.revokeObjectURL(url); }
+}
+async function addFiles(files) {
+  for (const f of files) {
+    toast(L().adding);
+    try { const { blob, name } = await shrink(f); D = await api("&add=receipt", { method: "POST", headers: { "content-type": blob.type || f.type || "image/jpeg", "x-file-name": encodeURIComponent(name), "x-upload-id": `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}` }, body: blob }); render(); }
+    catch (e) { toast(e.message, true); }
+  }
+}
+$("cam").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+$("pick").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+$("lang").onclick = () => { LANG = LANG === "fr" ? "en" : "fr"; render(); };
+
+function statusOf(l) {
+  const t = L();
+  if (l.check?.state === "reading") return ["mu", `<span class="spin"></span> ${t.reading}`];
+  if (l.kind !== "mileage" && !(l.amount > 0)) return ["wt", l.read?.state === "failed" || l.check?.state === "unread" ? t.unread : t.needs];
+  if (l.mealProvided) return ["wt", t.provided(t.meals[l.meal])];
+  if (l.overPerDiem) return ["wt", t.over(t.lower[l.overPerDiem.meal], money(l.overPerDiem.over))];
+  if (l.kind === "mileage") return ["mu", `${l.km ?? 0} km`];
+  if (l.fromRead?.length) return ["mu", t.check];
+  return ["ok", t.ok];
+}
+function render() {
+  clearTimeout(timer);
+  const t = L(), c = D.claim, lines = c?.lines ?? [];
+  document.documentElement.lang = LANG; $("h1").textContent = t.title; $("lang").hidden = false; $("lang").textContent = t.other; document.title = `${t.title} · ONGIA`;
+  const pd = D.perDiem, blurb = D.blurb[LANG] ?? D.blurb.en;
+  const rates = ["breakfast", "lunch", "dinner"].filter((m) => !D.provided.includes(m)).map((m) => `${t.meals[m]} ${money(pd[m])}`).join(" · ") || blurb[1];
+  let h = `<div class="run"><div class="k">${esc(t.total)}</div><div class="big">${money(c?.sums?.total ?? 0)}</div><div class="s">${esc(t.for(D.presenter.name, D.event.title))}</div></div>`;
+  if (c?.status === "rejected" && c.rejected) h += `<div class="say bad"><b>${esc(t.back(c.rejected.by))}</b> "${esc(c.rejected.comment)}"<br>${esc(t.backFix)}</div>`;
+  if (c?.status === "submitted") h += `<div class="say ok">${esc(t.sent(longDay(c.sentAt)))} ${esc(t.payTo(D.presenter.email))}</div>`;
+  if (c?.status === "approved") h += `<div class="say ok">${esc(t.approved(D.presenter.email))}</div>`;
+  if (c?.status === "paid" && c.paid) h += `<div class="say ok">${esc(t.paid(longDay(c.paid.date), c.paid.ref, D.presenter.email))}</div>`;
+  const canEdit = c ? c.canEdit : D.open;
+  if (!D.open && !c) h += `<div class="say wt">${esc(t.closed(longDay(D.deadline)))}</div>`;
+  h += `<details class="pd"><summary><b>${esc(t.perdiem)}: ${esc(rates)}</b><span>${esc(t.details)}</span></summary>${blurb.map((p) => `<p>${esc(p)}</p>`).join("")}</details>`;
+  if (canEdit) h += `<button class="btn gold" id="bcam" type="button">${esc(t.photo)}</button>
+    <div class="two"><button class="btn" id="bkm" type="button">${esc(t.mileage)}</button><button class="btn" id="bpick" type="button">PDF / photo</button></div>
+    <p class="tiny center" style="margin:8px 0 0">${esc(t.payTo(D.presenter.email))}${D.deadline ? ` ${esc(t.until(longDay(D.deadline)))}` : ""}</p>`;
+  if (lines.length) {
+    h += `<div class="day">${esc(t.items)}</div><div class="card lines">${lines.map((l) => { const [cls, st] = statusOf(l); return `<button type="button" class="line" data-line="${esc(l.id)}"><span class="w">${esc(l.kind === "mileage" ? t.mileageRow(l.from, l.to) : l.paidTo || t.receipt)}</span><span class="st ${cls}">${st}</span><span class="amt">${money(l.amount)}</span></button>`; }).join("")}</div>`;
+    if (canEdit) h += `<div id="problems"></div><button class="btn navy" id="send" type="button">${esc(t.send)}</button><p class="tiny center" style="margin:8px 4px 0">${esc(t.sendNote)}</p>`;
+  } else if (canEdit) h += `<p class="tiny center" style="margin-top:18px">${esc(t.none)}</p>`;
+  ROOT.innerHTML = h;
+  if ($("bcam")) $("bcam").onclick = () => $("cam").click();
+  if ($("bpick")) $("bpick").onclick = () => $("pick").click();
+  if ($("bkm")) $("bkm").onclick = () => editLine(null, "mileage");
+  ROOT.querySelectorAll("[data-line]").forEach((b) => { b.onclick = () => editLine(lines.find((l) => l.id === b.dataset.line)); });
+  if ($("send")) $("send").onclick = send;
+  if (c?.reading || lines.some((l) => l.check?.state === "reading")) timer = setTimeout(async () => { if (document.querySelector("dialog[open]")) return render(); try { D = await api(); } catch { /* try again next time */ } render(); }, 3000);
+}
+async function send() {
+  if (!confirm(L().confirmSend)) return;
+  const b = $("send"); b.disabled = true; b.textContent = L().sending;
+  try { D = await api("&submit=1", { method: "POST" }); toast(L().sentToast); render(); window.scrollTo(0, 0); }
+  catch (e) { b.disabled = false; b.textContent = L().send; $("problems").innerHTML = `<div class="say bad">${(e.problems?.length ? e.problems : [e.message]).map(esc).join("<br>")}</div>`; }
+}
+function editLine(l, kind = l?.kind) {
+  const t = L(), canEdit = D.claim ? D.claim.canEdit : D.open, isKm = kind === "mileage";
+  document.querySelector("dialog")?.remove();
+  const d = document.createElement("dialog");
+  const meal = l?.meal || "none";
+  d.innerHTML = `<h2>${esc(isKm ? t.mileage : l?.paidTo || t.receipt)}</h2>
+    ${!isKm && l?.file && l.file.type !== "application/pdf" ? `<img class="pic" alt="" src="/api/presenter-expenses${Q}&file=${encodeURIComponent(l.id)}">` : ""}
+    ${isKm ? `<p class="note mu" style="margin:0 0 10px">${esc(t.kmNote(money(D.rate)))}</p>
+      <div class="two" style="margin:0"><div class="field"><label for="x-date">${esc(t.date)}</label><input id="x-date" type="date" value="${esc(l?.date ?? D.event.dayOne ?? "")}"></div><div class="field"><label for="x-km">${esc(t.km)}</label><input id="x-km" inputmode="decimal" value="${esc(l?.km ?? "")}"></div></div>
+      <div class="two" style="margin:0"><div class="field"><label for="x-from">${esc(t.from)}</label><input id="x-from" value="${esc(l?.from ?? "")}"></div><div class="field"><label for="x-to">${esc(t.to)}</label><input id="x-to" value="${esc(l?.to ?? "")}"></div></div>`
+    : `<div class="field"><label for="x-paidTo">${esc(t.paidTo)}</label><input id="x-paidTo" value="${esc(l?.paidTo ?? "")}"></div>
+      <div class="two" style="margin:0"><div class="field"><label for="x-date">${esc(t.date)}</label><input id="x-date" type="date" value="${esc(l?.date ?? "")}"></div><div class="field"><label for="x-amount">${esc(t.amount)}</label><input id="x-amount" inputmode="decimal" value="${l?.amount === null || l?.amount === undefined ? "" : Number(l.amount).toFixed(2)}"></div></div>
+      <div class="field"><div class="lab">${esc(t.meal)}</div><div class="chips" id="x-meals">${[["none", t.notMeal], ...["breakfast", "lunch", "dinner"].map((m) => [m, t.meals[m]])].map(([v, n]) => `<button type="button" data-meal="${v}" class="${meal === v ? "on" : ""}">${esc(n)}</button>`).join("")}</div><div id="x-note"></div></div>`}
+    ${canEdit ? `<button class="btn gold" id="x-save" type="button">${esc(l ? t.save : t.add)}</button>${l ? `<button class="btn danger" id="x-del" type="button">${esc(t.remove)}</button>` : ""}` : ""}
+    <button class="linkish" id="x-close" type="button">${esc(t.cancel)}</button>`;
+  document.body.appendChild(d); d.showModal();
+  let picked = meal;
+  const num = (v) => { const n = Number(String(v ?? "").replace(/[$\s]/g, "").replace(",", ".")); return String(v ?? "").trim() === "" || !Number.isFinite(n) ? "" : n; };
+  const note = () => {
+    const el = d.querySelector("#x-note"); if (!el) return;
+    const amt = num(d.querySelector("#x-amount").value), lim = ["breakfast", "lunch", "dinner"].includes(picked) ? Number(D.perDiem[picked]) : null;
+    el.innerHTML = lim === null ? "" : D.provided.includes(picked) ? `<div class="note wt">${esc(t.providedNote(t.meals[picked]))}</div>`
+      : amt !== "" && amt - lim > 0.004 ? `<div class="note wt">${esc(t.overNote(t.lower[picked], money(lim), money(Math.round((amt - lim) * 100) / 100)))}</div>` : `<div class="note mu">${esc(t.withinNote(t.lower[picked], money(lim)))}</div>`;
+  };
+  d.querySelectorAll("[data-meal]").forEach((b) => { b.onclick = () => { picked = b.dataset.meal; d.querySelectorAll("[data-meal]").forEach((x) => x.classList.toggle("on", x === b)); note(); }; });
+  d.querySelector("#x-amount")?.addEventListener("input", note); note();
+  d.querySelector("#x-close").onclick = () => d.remove();
+  d.addEventListener("close", () => d.remove());
+  if (d.querySelector("#x-save")) d.querySelector("#x-save").onclick = async (e) => {
+    const v = (id) => d.querySelector(`#x-${id}`)?.value ?? "";
+    const body = isKm ? { date: v("date"), km: num(v("km")), from: v("from"), to: v("to") } : { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), meal: picked };
+    e.currentTarget.disabled = true;
+    try { D = await api(l ? `&line=${encodeURIComponent(l.id)}` : "&add=mileage", { method: l ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); d.remove(); toast(t.saved); render(); }
+    catch (er) { e.currentTarget.disabled = false; toast(er.message, true); }
+  };
+  if (d.querySelector("#x-del")) d.querySelector("#x-del").onclick = async () => {
+    if (!confirm(t.confirmRemove)) return;
+    try { D = await api(`&line=${encodeURIComponent(l.id)}`, { method: "DELETE" }); d.remove(); render(); } catch (er) { toast(er.message, true); }
+  };
+}
+(async () => {
+  try { D = await api(); LANG = D.presenter.language === "fr" ? "fr" : "en"; render(); }
+  catch (e) { ROOT.innerHTML = `<div class="say bad" style="margin-top:20px">${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

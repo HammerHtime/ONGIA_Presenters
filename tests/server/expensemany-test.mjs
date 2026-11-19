@@ -34,7 +34,7 @@ const A = a.claim.id;
 let h = await call("/api/expenses?new=1", "POST", undefined, W(DEREK, A));
 const B = h.working;
 ok("Another claim starts a second, empty one, and puts it in front", h.current.id === B && B !== A && h.current.lines.length === 0 && h.others.length === 1 && h.others[0].id === A, JSON.stringify({ cur: h.current?.id, B, others: h.others }));
-ok("the first is listed to switch back to, with its line and total", h.others[0].lines === 1 && h.others[0].sum === 31, JSON.stringify(h.others[0]));
+ok("the first is listed to switch back to, with its line and total", h.others[0].lines === 1 && h.others[0].sum === 33, JSON.stringify(h.others[0]));
 ok("asking again while the new one is empty gives that same one, not a third", (await call("/api/expenses?new=1", "POST", undefined, W(DEREK, A))).working === B);
 // A line added without naming the claim lands on the one being worked on, saved at once.
 let m = await mileage(W(DEREK, B), 10);

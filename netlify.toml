@@ -31,6 +31,12 @@
   to = "/volunteer.html"
   status = 200
 
+# A presenter's own expense claim, by the link they are sent after an event.
+[[redirects]]
+  from = "/x/*"
+  to = "/presenter-expenses.html"
+  status = 200
+
 # The housekeeping questions sent to an event's attendees (food allergies, socials).
 [[redirects]]
   from = "/q/*"
