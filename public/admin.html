@@ -7505,21 +7505,31 @@ const ONG_WHAT = {
  * line each: what it is, who it's for, Download. Each runs the same download as its button beside the data, so the two
  * never drift apart. A file the event can't give yet says so in place of the button.
  */
-function defaultDownloadEvent(events) {
-  const t = todayIso(), live = events.filter((e) => e.kind !== "project" && !e.practice);
-  // The event on now or just past (people download after it), else the next one, else the latest.
-  const past = live.filter((e) => (e.dayOne || "") <= t).sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)));
-  const next = live.filter((e) => (e.dayOne || "") > t).sort((a, b) => String(a.dayOne).localeCompare(String(b.dayOne)));
-  const recent = past.find((e) => (Date.parse(t) - Date.parse(e.lastDay || e.dayOne)) / 864e5 <= 14);
-  return recent ?? next[0] ?? past[0] ?? null;
+// The events Downloads offers (Andrew 19 Nov 2026: "the very first one is going to be the next event and then followed in
+// chronological order … I don't know if I need to see events that happened like months ago"). What's coming, soonest
+// first, then anything held in the last 30 days (survey results and certificates come after). Older events keep their
+// own buttons on their page.
+const DL_BACK_DAYS = 30;
+function downloadEvents(events) {
+  const t = todayIso(), from = new Date(Date.parse(t) - DL_BACK_DAYS * 864e5).toISOString().slice(0, 10);
+  const live = events.filter((e) => e.kind !== "project" && !e.project && !e.practice && e.dayOne);
+  const end = (e) => e.lastDay || e.dayOne;
+  const coming = live.filter((e) => end(e) >= t).sort((a, b) => a.dayOne.localeCompare(b.dayOne));
+  const held = live.filter((e) => end(e) < t && end(e) >= from).sort((a, b) => b.dayOne.localeCompare(a.dayOne));
+  return { coming, held };
 }
+function defaultDownloadEvent(events) { const { coming, held } = downloadEvents(events); return coming[0] ?? held[0] ?? null; }
 function downloadsScreen(events, D, ct = null) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const ev = D?.event ?? null, P = (D?.presenters ?? []).filter((p) => p.status !== "withdrawn");
   const enc = encodeURIComponent, id = ev ? enc(ev.id) : "";
-  const opts = [...events].filter((e) => e.kind !== "project").sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)))
-    .map((e) => `<option value="${esc(e.id)}"${e.id === ev?.id ? " selected" : ""}>${esc(e.title)}${e.dayOne ? ` · ${esc(fmtDate(e.dayOne))}` : ""}</option>`).join("");
+  const { coming, held } = downloadEvents(events);
+  const opt = (e) => `<option value="${esc(e.id)}"${e.id === ev?.id ? " selected" : ""}>${esc(e.title)} · ${esc(fmtDate(e.dayOne))}</option>`;
+  // An older event opened from elsewhere still shows as chosen.
+  const other = ev && ![...coming, ...held].some((e) => e.id === ev.id) ? `<option value="${esc(ev.id)}" selected>${esc(ev.title)}${ev.dayOne ? ` · ${esc(fmtDate(ev.dayOne))}` : ""}</option>` : "";
+  const opts = other + (coming.length ? `<optgroup label="Coming up">${coming.map(opt).join("")}</optgroup>` : "")
+    + (held.length ? `<optgroup label="Just held">${held.map(opt).join("")}</optgroup>` : "");
   // [what it is, who it's for, the address, the name if the file comes without one, why not yet ("" when it can)]
   const groups = !ev ? [] : [
     ["People", [

@@ -25,8 +25,15 @@ const nav = a.locator("#downloadsnav");
 ok("Downloads is in the left nav", await nav.count() === 1);
 await a.evaluate(() => document.getElementById("downloadsnav").click()); await a.waitForTimeout(1500);
 const chosen = await a.locator("#dl-ev").inputValue();
-const held = (await api("/api/events")).events.find((e) => e.id === chosen);
-ok("it opens on an event just held", held && held.dayOne === iso(-2), chosen);
+const all = (await api("/api/events")).events.filter((e) => !e.project && e.kind !== "project" && !e.practice && e.dayOne);
+const today = iso(0), end = (e) => e.lastDay || e.dayOne;
+const next = all.filter((e) => end(e) >= today).sort((x, y) => x.dayOne.localeCompare(y.dayOne))[0];
+ok("it opens on the next event", !next || chosen === next.id, `${chosen} vs ${next?.id}`);
+const order = await a.evaluate(() => [...document.querySelectorAll("#dl-ev optgroup")].map((g) => [g.label, [...g.querySelectorAll("option")].map((o) => o.value)]));
+const days = Object.fromEntries(all.map((e) => [e.id, e.dayOne]));
+const coming = order.find(([l]) => l === "Coming up")?.[1] ?? [], held = order.find(([l]) => l === "Just held")?.[1] ?? [];
+ok("Coming up first, soonest first", order[0]?.[0] === "Coming up" && coming.every((id, i) => !i || days[coming[i - 1]] <= days[id]), JSON.stringify(order).slice(0, 300));
+ok("then Just held, latest first, nothing older than 30 days", held.includes(ev.id) && held.every((id) => days[id] >= iso(-31)) && held.every((id, i) => !i || days[held[i - 1]] >= days[id]));
 if (chosen !== ev.id) { await a.selectOption("#dl-ev", ev.id); await a.waitForTimeout(1500); }
 const body = await a.locator("#root").innerText();
 ok("grouped: People, Program, Venue, Survey", ["PEOPLE", "PROGRAM", "VENUE", "SURVEY"].every((g) => body.toUpperCase().includes(g)));
