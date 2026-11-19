@@ -235,7 +235,7 @@ names anyone owed the letter for more than an hour while it is due.
 
 ---
 
-## Board thank-you to Peglar bounced (Summit, 19 Nov 2026)
+## 13. Board thank-you to Peglar bounced (Summit, 19 Nov 2026)
 
 **What failed.** The Summit's board thank-you went to p.artinian@ongia.ca at
 12:15 pm on 19 Nov and bounced ("couldn't be delivered"). That address no longer
