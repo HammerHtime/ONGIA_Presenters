@@ -24,7 +24,8 @@ import expenses from "./expenses.mjs";
  *   POST   …&submit=1                                       send it for approval
  *   For the desk (admin key):
  *   GET    /api/presenter-expenses?event=<id>&links=1       each presenter's link, whether it was emailed, and their claim
- *   POST   /api/presenter-expenses?event=<id>&send=1[&presenter=<id>]   email the link (to one, or to all not yet sent)
+ *   POST   /api/presenter-expenses?event=<id>&send=1[&presenter=<id>|&presenters=<id,id,…>]   email the link (to one, to
+ *          those ticked on the presenters list, or to all not yet sent)
  */
 const SENT = (eventId) => `presenter-expenses:sent:${eventId}`;
 const nameOf = (p) => `${p.first ?? ""} ${p.last ?? ""}`.trim() || "Presenter";
@@ -145,8 +146,11 @@ async function desk(req, url, q) {
   if (req.method === "GET") return json({ event: { id: event.id, title: event.title }, deadline, provided: mealsProvidedOf(event), presenters: await rows() });
   if (req.method === "POST" && q("send")) {
     const only = text(q("presenter"), 80);
-    const to = presenters.filter((p) => hasEmail(p) && (only ? p.id === only : !sent[p.id]?.ok));
+    // The ones ticked on the presenters list (Andrew 20 Nov 2026: "click a checkbox, and then send … the expense link").
+    const ticked = new Set(String(q("presenters") ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200));
+    const to = presenters.filter((p) => hasEmail(p) && (only ? p.id === only : ticked.size ? ticked.has(p.id) : !sent[p.id]?.ok));
     if (only && !to.length) return fail("That presenter has no email address on their agreement.", 409);
+    if (ticked.size && !to.length) return fail("None of those presenters has an email address on their agreement.", 409);
     const perDiem = await getPerDiem();
     let ok = 0; const failed = [];
     for (const p of to) {

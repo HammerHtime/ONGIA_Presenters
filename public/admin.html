@@ -1648,7 +1648,8 @@
   .pfind{flex:1 1 200px;max-width:320px;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;background:#fff}
   .pbulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--navy-deep);color:#fff;border-radius:14px;padding:9px 14px;margin:0 0 10px;font-size:14px}
   .pbulk[hidden]{display:none}
-  .pbulk .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
+  .pbulk .mini{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)} .pbulk .pbc-x{display:none}
+  @media (max-width:520px){.pbulk{gap:6px;padding:8px 10px} .pbulk .mini{padding:5px 10px;font-size:13px} .pbulk .pbnote{display:none} .pbulk .pbc-t{display:none} .pbulk .pbc-x{display:inline}}
   .pbnote{margin-left:auto;font-size:12.5px;opacity:.75}
   .playout.withdrawer{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
   .pdslot{display:contents}
@@ -3265,7 +3266,7 @@ function eventFormScreen(existing = null) {
         said.push(`<b>${n} presenter${n === 1 ? " wasn't" : "s weren't"} added.</b> ${out.rejected.map((r) => `${esc([r.row?.first, r.row?.last].filter(Boolean).join(" ") || "A row")}: ${esc(r.why)}`).join(" ")}${ok ? ` The other ${ok} ${ok === 1 ? "was" : "were"} added.` : ""}`);
         rows.push(...out.rejected.map((r) => [r.row?.first, r.row?.last, r.row?.email, r.row?.organization].map((v) => String(v ?? "").trim()).join(", ")));
       }
-      if (out.notSent?.length) said.push(`<b>Added, but not emailed:</b> ${out.notSent.map((r) => `${esc(r.name)}: ${esc(r.why)}`).join(" ")} Use <b>Email their link</b> under People once it's sorted.`);
+      if (out.notSent?.length) said.push(`<b>Added, but not emailed:</b> ${out.notSent.map((r) => `${esc(r.name)}: ${esc(r.why)}`).join(" ")} Use <b>Send agreement link</b> under People once it's sorted.`);
       // From a Wix event: link it now, which pulls the registered guests straight away.
       if (!ev && wixPick) {
         try {
@@ -4686,7 +4687,7 @@ function eventScreen(data) {
         <div style="margin-top:6px;color:var(--ink-mid)">Fix the address with <b>Correct or remove</b>, or the email settings, then use <b>Email link</b> on their row.</div></div>` : ""}
       <div class="ptools">${presenters.length > 6 ? `<input type="search" id="pfind" class="pfind" placeholder="${innerWidth <= 760 ? "Find a name…" : "Find a presenter…"}" aria-label="Find a presenter" autocomplete="off">` : ""}${presenters.length ? pxlBtn("pxl-n") : ""}<div class="filters">${chips}</div></div>
       <div class="pbulk" id="pbulk"${sel.size ? "" : " hidden"}><b id="pbulk-n">${sel.size} selected</b>
-        <button class="mini" id="pbulk-mail">Email their link</button><button class="mini" id="pbulk-copy">Copy email addresses</button><button class="mini" id="pbulk-clear">Clear</button>
+        <button class="mini" id="pbulk-mail">Send agreement link</button><button class="mini" id="pbulk-exp">Send expense link</button><button class="mini" id="pbulk-copy">Copy emails</button><button class="mini" id="pbulk-clear" aria-label="Clear"><span class="pbc-t">Clear</span><span class="pbc-x" aria-hidden="true">✕</span></button>
         <span class="pbnote">Approving is always one at a time</span></div>
       <div class="ptwrap">${show.length
         ? `<table class="ptable"><thead><tr><th class="pc"><input type="checkbox" id="pselall" aria-label="Select everyone shown"></th><th class="thn">Presenter</th><th class="tha">Agreement</th><th class="thm">Materials</th><th class="thr">Room</th><th class="thx">Next</th><th class="thd"></th></tr></thead><tbody>${rows}</tbody></table>`
@@ -4940,6 +4941,35 @@ function eventScreen(data) {
     if (!confirm(`Email their agreement link to ${due.length} presenter${due.length === 1 ? "" : "s"}?${skip ? `\n\n${skip} who already signed will be left out.` : ""}`)) return;
     sel.clear();
     await invite(ev.id, due.map((p) => p.id), due.some((p) => (p.mail ?? []).some((m) => m.type !== "called")));
+  };
+  // Each ticked presenter's own expense link (Andrew 20 Nov 2026: "I don't want this auto send. I want to be able to look
+  // at the presenters, click a checkbox, and then send … the expense link"). It asks first, names who has had it
+  // already, and warns when the event hasn't said which meals it served, since the per diem in the email depends on it.
+  const bulkExp = document.getElementById("pbulk-exp");
+  if (bulkExp) bulkExp.onclick = async () => {
+    const chosen = presenters.filter((p) => sel.has(p.id) && p.status !== "withdrawn");
+    const withMail = chosen.filter((p) => p.email);
+    if (!withMail.length) return toast("None of those presenters has an email address.");
+    bulkExp.disabled = true;
+    let links = null;
+    try { links = await api(`/presenter-expenses?event=${encodeURIComponent(ev.id)}&links=1`); } catch {}
+    bulkExp.disabled = false;
+    const had = new Map((links?.presenters ?? []).filter((p) => p.sentAt).map((p) => [p.id, p.sentAt]));
+    const again = withMail.filter((p) => had.has(p.id)).length, noMail = chosen.length - withMail.length;
+    const meals = ["breakfast", "lunch", "dinner"].filter((m) => links?.provided?.[m] ?? ev.mealsProvided?.[m]);
+    const ask = [`Email the expense link to ${withMail.length} presenter${withMail.length === 1 ? "" : "s"}?`,
+      again ? `${again} ${again === 1 ? "has" : "have"} had it before and will get it again.` : "",
+      noMail ? `${noMail} with no email address will be left out.` : "",
+      meals.length ? `Meals the event served, so no per diem: ${meals.join(", ")}.` : "This event hasn't said which meals it served, so the email offers the per diem for all three. To change that, tick them under Edit event › Presenter expenses first."]
+      .filter(Boolean).join("\n\n");
+    if (!confirm(ask)) return;
+    bulkExp.disabled = true;
+    try {
+      const out = await api(`/presenter-expenses?event=${encodeURIComponent(ev.id)}&send=1&presenters=${encodeURIComponent(withMail.map((p) => p.id).join(","))}`, { method: "POST" });
+      toast(out.failed?.length ? `${out.sent} sent. ${out.failed.length} didn't go: ${out.failed.map((f) => f.name).join(", ")}.` : `Expense link sent to ${out.sent}.`);
+      sel.clear(); ROOT.querySelectorAll("[data-psel]").forEach((cb) => { cb.checked = false; cb.closest("tr")?.classList.remove("sel"); }); if (selAll) selAll.checked = false; bulkBar();
+    } catch (x) { toast(x.message); }
+    bulkExp.disabled = false;
   };
   const bulkCopy = document.getElementById("pbulk-copy");
   if (bulkCopy) bulkCopy.onclick = async () => {
