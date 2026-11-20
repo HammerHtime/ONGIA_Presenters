@@ -91,7 +91,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const copied = await p.evaluate(() => window.__copied);
   ok(`${tag}: Copy email addresses copies both, ready for Outlook`, /ada\.sample/.test(copied ?? "") && /bo\.example/.test(copied ?? "") && /; /.test(copied ?? ""), copied);
   await p.locator("#pbulk-mail").click(); await p.waitForTimeout(1500);
-  ok(`${tag}: Email their link asks first, then sends to just those two`, /Email their agreement link to 2 presenters/.test(asked) && invited?.presenterIds?.length === 2, JSON.stringify(invited));
+  ok(`${tag}: Send agreement link asks first, then sends to just those two`, /Email their agreement link to 2 presenters/.test(asked) && invited?.presenterIds?.length === 2, JSON.stringify(invited));
   invited = null;
   await p.locator('[data-tab="people"]').click().catch(() => {}); await p.waitForTimeout(200);
   ok(`${tag}: after sending, nothing is left ticked`, (await p.locator("[data-psel]:checked").count()) === 0 && !(await p.locator("#pbulk").isVisible()));
