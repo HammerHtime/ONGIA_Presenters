@@ -43,7 +43,8 @@ r = await call(budget, `/api/budget?event=${ev.id}`);
 ok("once the contract is read, its amounts and dates are there for the budget", r.live.contract.money.roomRate === 179 && r.live.hotel.rate === 179 && r.live.contract.money.blockNights === 120 && r.live.contract.dates[0].what === "First deposit", JSON.stringify(r.live.contract));
 
 const B = { v: 1, asked: true, reg: { inPerson: { on: true, price: 450, expected: 120 } }, people: [{ id: "x", name: "Pat Example", nights: [] }] };
-r = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B });
+ok("a save with no version number (an old tab) is asked to reload, not saved", (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B })).status === 409);
+r = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B, rev: 0 });
 ok("saved, and there on the next open", r.status === 200 && (await call(budget, `/api/budget?event=${ev.id}`)).budget.reg.inPerson.price === 450);
 ok("a lead, who never sees the money, is refused it", (await call(budget, `/api/budget?event=${ev.id}`, "GET", undefined, LEAD)).status === 403 && (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B }, LEAD)).status === 403);
 // Two people on the same budget (audit, 30 Oct 2026): a save made from an older copy is turned back, not written over.
@@ -57,7 +58,7 @@ ok("the VP's, made from the copy before it, is turned back and says who changed 
 ok("and the president's change is still what's kept", (await call(budget, `/api/budget?event=${ev.id}`)).budget.reg.inPerson.price === 475);
 const v2 = await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 150 } } }, rev: a.rev }, VP);
 ok("once the VP has the latest, their change saves", v2.status === 200 && v2.rev === a.rev + 1 && (await call(budget, `/api/budget?event=${ev.id}`)).by === "Barb Konkle");
-ok("a page opened before this change, sending no number, still saves", (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 150 } } } })).status === 200);
+ok("a page opened before this change, sending no number, is asked to reload (audit, 21 Nov 2026)", (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { ...B, reg: { inPerson: { on: true, price: 475, expected: 150 } } } })).status === 409);
 ok("nonsense isn't kept",(await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: [1] })).status === 400 && (await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: { x: "y".repeat(410_000) } })).status === 413);
 r = await call(budget, `/api/budget?event=${ev.id}`, "DELETE");
 ok("Start over clears it and hands back the records to start again from", r.status === 200 && r.live?.event && (await call(budget, `/api/budget?event=${ev.id}`)).budget === null);
@@ -86,7 +87,7 @@ const rbh = (await call(events, "/api/events", "POST", { title: `RBH Budget ${T}
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }] })).event;
 ok("an RBH event's money stays on its statement of work", (await call(budget, `/api/budget?event=${rbh.id}`)).status === 409);
 
-await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B });
+await call(budget, `/api/budget?event=${ev.id}`, "PUT", { budget: B, rev: (await call(budget, `/api/budget?event=${ev.id}`, "GET")).rev });
 await call(events, `/api/events?id=${ev.id}`, "DELETE");
 ok("deleting the event deletes its budget", !(await getMeta(`budget:${ev.id}`)));
 await call(events, `/api/events?id=${rbh.id}`, "DELETE");

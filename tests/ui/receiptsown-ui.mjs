@@ -19,7 +19,7 @@ const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ ti
 const PRES = { "x-admin-key": issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), "content-type": "application/json" };
 // A budget with one line under Everything else, as if Andrew had typed it.
 const got = await (await fetch(`${S}/api/budget?event=${ev.id}`, { headers: PRES })).json();
-await fetch(`${S}/api/budget?event=${ev.id}`, { method: "PUT", headers: PRES, body: JSON.stringify({ budget: { v: 1, asked: true, eventId: ev.id, event: got.live.event, taxName: "HST",
+await fetch(`${S}/api/budget?event=${ev.id}`, { method: "PUT", headers: PRES, body: JSON.stringify({ rev: got.rev ?? 0, budget: { v: 1, asked: true, eventId: ev.id, event: got.live.event, taxName: "HST",
   reg: { inPerson: { on: true, price: 300, expected: 80, sold: 0 }, earlyBird: { on: false, price: 0, expected: 0, sold: 0 }, community: { on: false, price: 0, expected: 0, sold: 0, days: [] }, virtual: { on: false, price: 0, priceNon: 0, expected: 0, expectedNon: 0, sold: 0 }, memberships: { on: false, price: 0, expected: 0, sold: 0 } },
   pricesIncludeHst: true, hst: 13, target: 0, hotel: { rate: 189, mat: 0, commitment: 0, minPct: 80, pickup: null, rebate: 0, before: 3, after: 1 }, people: [], others: 0,
   meals: { breakfast: 0, break: 0, lunch: 0, dinner: 0, noShow: 10, service: 0, admin: 0, fbMin: 0, cells: {}, boardExtra: {} },

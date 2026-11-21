@@ -47,7 +47,10 @@ export default async (req) => {
     let body; try { body = JSON.parse(raw); } catch { return fail("Expected { budget }."); }
     if (!body?.budget || typeof body.budget !== "object" || Array.isArray(body.budget)) return fail("Expected { budget }.");
     const had = await getMeta(key(id)), rev = had?.rev ?? 0;
-    if (Number.isInteger(body.rev) && body.rev !== rev)
+    // Every page sends the number it opened (audit, 21 Nov 2026): one that doesn't is an old tab, and it could overwrite
+    // newer work, so it's asked to reload rather than saved.
+    if (!Number.isInteger(body.rev)) return json({ error: "This page is out of date. Reload it, then make the change again.", conflict: { rev, at: had?.at ?? null, by: had?.byName ?? had?.by ?? null } }, 409);
+    if (body.rev !== rev)
       return json({ error: `${had?.byName || had?.by || "Someone"} changed this budget since you opened it.`, conflict: { rev, at: had?.at ?? null, by: had?.byName ?? had?.by ?? null } }, 409);
     const who = adminWho(req);
     await putMeta(key(id), { budget: body.budget, rev: rev + 1, at: new Date().toISOString(), by: who?.email ?? null, byName: who?.name ?? null });

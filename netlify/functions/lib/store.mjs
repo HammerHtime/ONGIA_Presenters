@@ -51,6 +51,18 @@ export async function writeMerged(key, value) {
   const merged = { ...current };
   for (const k of new Set([...Object.keys(before), ...Object.keys(value)])) {
     if (JSON.stringify(before[k]) === JSON.stringify(value[k])) continue;      // not changed by this writer: keep theirs
+    // A group of details (the hotel: name, rate, cut-off…) is merged a field at a time too (audit, 21 Nov 2026), so two
+    // board members changing different hotel details at once keep both changes, not just the last one saved.
+    const plain = (o) => o && typeof o === "object" && !Array.isArray(o);
+    if (plain(before[k]) && plain(value[k]) && plain(current[k])) {
+      const inner = { ...current[k] };
+      for (const f of new Set([...Object.keys(before[k]), ...Object.keys(value[k])])) {
+        if (JSON.stringify(before[k][f]) === JSON.stringify(value[k][f])) continue;
+        if (value[k][f] === undefined) delete inner[f]; else inner[f] = value[k][f];
+      }
+      merged[k] = inner;
+      continue;
+    }
     if (value[k] === undefined) delete merged[k]; else merged[k] = value[k];
   }
   await write(key, merged);
