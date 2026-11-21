@@ -242,7 +242,16 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate(), had =
     if (out.category === null) out.category = TRAVEL;
   } else {
     out.paidTo = str(body?.paidTo, 120);
-    out.amount = amountOf(body?.amount);
+    // A refund (Andrew 21 Nov 2026: "I cancelled one of my Air Canada flights that was refunded to my credit card … so
+    // it minuses that amount from one of my claims"): typed as the amount refunded, kept below zero, so every total,
+    // the PDF, the spreadsheet and what the Treasurer pays all take it off. It names the expense it refunds when that
+    // was claimed here.
+    out.refund = body?.refund !== undefined ? body.refund === true : had?.refund === true;
+    const typed = body?.amount === "" || body?.amount === null || body?.amount === undefined ? null : Math.abs(Number(body.amount));
+    const a = amountOf(typed);
+    out.amount = a === null ? null : out.refund ? -a : a;
+    const ro = body?.refundOf !== undefined ? body.refundOf : had?.refundOf;
+    out.refundOf = out.refund && ro && typeof ro === "object" && str(ro.label, 200) ? { claimId: str(ro.claimId, 80), lineId: str(ro.lineId, 80), label: str(ro.label, 200) } : null;
   }
   if (kind === "noreceipt") out.statement = String(body?.statement ?? "").replace(/[ \t]+/g, " ").trim().slice(0, 1500);
   if (sowLines?.length && !out.sowLineId && body?.sowLineId === undefined) {
@@ -261,7 +270,7 @@ export function viewLine(line, read) {
   const f = read?.state === "done" ? read.found : null;
   if (line.kind === "receipt" && f?.isReceipt !== false && f) {
     const fill = (k, val) => { if ((v[k] === "" || v[k] === null || v[k] === undefined) && val !== "" && val !== null && val !== undefined) { v[k] = val; v.fromRead.push(k); } };
-    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total); fill("category", f.category); fill("purpose", f.what); fill("ref", f.ref); fill("meal", f.meal);
+    fill("paidTo", f.vendor); fill("date", f.date); fill("amount", f.total === null || f.total === undefined ? f.total : line.refund ? -Math.abs(f.total) : f.total); fill("category", f.category); fill("purpose", f.what); fill("ref", f.ref); fill("meal", f.meal);
   }
   v.check = receiptCheck(v, read);
   v.problems = lineProblems(v);
@@ -284,7 +293,7 @@ export function receiptCheck(line, read) {
   if (f?.total === null || f?.total === undefined) return { state: "nototal" };
   if (line.amount === null || line.amount === undefined) return { state: "noamount", total: f.total };
   const foreign = f.currency && f.currency !== "CAD" ? f.currency : "";
-  if (Math.abs(money(line.amount) - money(f.total)) < 0.005) return { state: "match", total: f.total, ...(foreign ? { currency: foreign } : {}) };
+  if (Math.abs(Math.abs(money(line.amount)) - Math.abs(money(f.total))) < 0.005) return { state: "match", total: f.total, ...(foreign ? { currency: foreign } : {}) };
   return { state: "differs", total: f.total, ...(foreign ? { currency: foreign } : {}) };
 }
 
@@ -305,7 +314,7 @@ export function lineProblems(v) {
   if (v.kind === "mileage") {
     if (!v.km) p.push("the kilometres");
     if (!v.from || !v.to) p.push("where from and to");
-  } else if (!(v.amount > 0)) p.push("the amount");
+  } else if (!(v.refund ? v.amount < 0 : v.amount > 0)) p.push(v.refund ? "the amount refunded" : "the amount");
   if (!v.category) p.push("a category");
   if (!v.purpose && !v.eventId) p.push("what it was for");
   if (v.sowNeeded && !v.sowLineId) p.push("which line of the event's statement of work");
@@ -320,7 +329,9 @@ export function lineProblems(v) {
 export function claimSums(lines) {
   const total = money((lines ?? []).reduce((n, l) => n + (Number(l.amount) || 0), 0));
   const count = (k) => (lines ?? []).filter((l) => l.kind === k).length;
-  return { total, lines: (lines ?? []).length, receipts: count("receipt"), mileage: count("mileage"), noreceipt: count("noreceipt") };
+  const refunds = (lines ?? []).filter((l) => l.refund);
+  return { total, lines: (lines ?? []).length, receipts: count("receipt"), mileage: count("mileage"), noreceipt: count("noreceipt"),
+    refunds: refunds.length, refunded: money(refunds.reduce((n, l) => n + Math.abs(Number(l.amount) || 0), 0)) };
 }
 
 /** "November 2026" for a date, in Toronto time: the month a claim is filed under. */
@@ -574,6 +585,9 @@ export function submitProblems(lines, today = todayIso()) {
   const latest = new Date(Date.parse(`${today}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
   for (const l of lines) if (l.date && l.date > latest) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")} is dated ${shortDate(l.date)}, which hasn't come yet. Check the date.`);
   if (lines.some((l) => l.check?.state === "reading")) p.push("Claude is still reading a receipt. Give it a moment.");
+  // Refunds come off what ONGIA pays; a claim can't come to less than nothing.
+  const sum = money(lines.reduce((n, l) => n + (Number(l.amount) || 0), 0));
+  if (sum < 0) p.push(`The refunds come to more than the expenses, so the total is ${dollars(sum)}. Put the refund on a claim with other expenses, or talk to the Treasurer.`);
   for (const l of lines) if (l.problems?.length) p.push(`${l.paidTo || (l.kind === "mileage" ? "A mileage line" : "A line")}${l.date ? ` (${shortDate(l.date)})` : ""} still needs ${andList(l.problems)}.`);
   const seen = [];
   for (const l of lines) {
@@ -640,7 +654,7 @@ export function claimChecks(lines, { month = "", earlier = [], perDiem = null } 
   ].filter(Boolean);
   return { ok: notes.length === 0, notes, noteLines, overs, flags: Object.fromEntries(Object.entries(flags).map(([k, v]) => [k, v.join(" · ")])), summary };
 }
-const dollars = (n) => `$${money(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const dollars = (n) => `${money(n) < 0 ? "\u2212" : ""}$${Math.abs(money(n)).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export { dollars };
 
 /** What a claim is waiting for, in words for its list row. */

@@ -15,7 +15,7 @@ import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, APPROVER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
-  cleanPerDiem, money,
+  cleanPerDiem, money, dollars, shortDate,
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor, getPerDiem, perDiemFor, markPerDiem, PER_DIEM_KEY } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
@@ -199,6 +199,22 @@ export default async (req) => {
       .map((p) => ({ id: p.id, name: `${p.first ?? ""} ${p.last ?? ""}`.trim(), organization: String(p.organization ?? "").trim(), email: p.email ?? "" }))
       .filter((p) => p.name).sort((a, b) => a.name.localeCompare(b.name));
     return json({ event: { id: ev.id, title: ev.title }, presenters: list });
+  }
+
+  // What a refund can be a refund of (Andrew 21 Nov 2026): the lines on this person's approved and paid claims, newest
+  // first, each with a label to keep on the refund ("Air Canada, 3 Oct, $650.00, October 2026 claim").
+  if (req.method === "GET" && q("refundable")) {
+    const mine = (await Promise.all((await listMineIds(whoKey(me.email))).map(getClaim))).filter((c) => c && ["approved", "paid"].includes(c.status) && !c.test);
+    const out = [];
+    for (const c of mine.sort((a, b) => String(b.sentAt ?? "").localeCompare(String(a.sentAt ?? "")))) {
+      for (const l of await listClaimLines(c.id)) {
+        if (l.refund || !(Number(l.amount) > 0) || l.kind === "mileage") continue;
+        const label = `${l.paidTo || "Receipt"}, ${l.date ? shortDate(l.date) : "no date"}, ${dollars(l.amount)}, ${c.month || "earlier"} claim`;
+        out.push({ claimId: c.id, lineId: l.id, label, paidTo: l.paidTo ?? "", date: l.date ?? "", amount: l.amount, category: l.category ?? null,
+          eventId: l.eventId ?? "", eventTitle: l.eventTitle ?? "", status: c.status });
+      }
+    }
+    return json({ lines: out.slice(0, 80) });
   }
 
   if (req.method === "GET") return json(await home(ctx, test));
