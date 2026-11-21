@@ -343,6 +343,9 @@
   .pill.hold{background:var(--wait-bg);color:var(--wait);border:1px dashed var(--wait)}
   .pill.hold::before{content:"🔓";width:auto;height:auto;background:none;font-size:11px}
   .tent{display:block;font-size:12px;color:var(--wait);font-weight:600;font-style:italic;white-space:nowrap}
+  .hfrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 14px 0} .hfrow .hfl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+  @media (max-width:640px){.hfrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px 10px 0} .hfrow::-webkit-scrollbar{display:none} .hfrow .fchip{flex:none;white-space:nowrap} .evt td.h.nohs{display:none}}
+  .hst{font-size:13.5px;font-weight:600;white-space:nowrap} .hst.ok{color:var(--done)} .hst.wt{color:var(--wait)} .hst.mu{color:var(--muted)}
   .lockline{margin:10px 12px 0;padding:10px 14px;border-radius:12px;background:var(--wait-bg);color:var(--ink-mid);font-size:14px;line-height:1.5}
   .lockline.ok{background:var(--done-bg);color:var(--done)}
   .lockbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--wait-bg);border:1px dashed var(--wait);color:var(--ink-mid);font-size:14px}
@@ -2654,16 +2657,26 @@ function homeConsole(events, upcoming, inbox) {
 const contractJob = (ev) => (ev.tasks ?? []).find((t) => /^contract signed/i.test(t.what ?? ""));
 const hotelLocked = (ev) => { const j = contractJob(ev); return !!j && (j.done || j.na); };
 
-/** The upcoming events, one row each: dates, how many have signed, final materials, and what is next. */
+/*
+ * Where each event's hotel stands (Andrew 21 Nov 2026: "I need a way to see which events the contract has been signed …
+ * contracts signed and that event and date is good to go"). Confirmed: the contract is signed and the date is set.
+ * Signed · confirm?: signed in the app but not yet marked confirmed. Contract in: uploaded, not signed. No contract.
+ */
+const hotelState = (ev) => ev.project ? null
+  : hotelLocked(ev) ? { k: "ok", t: "Confirmed", f: "confirmed" }
+  : ev.contract === "signed" ? { k: "wt", t: "Signed · confirm?", f: "signed" }
+  : ev.contract === "in" ? { k: "wt", t: "Contract in", f: "open" }
+  : { k: "mu", t: "No contract", f: "open" };
+const HOTEL_F = () => { try { return sessionStorage.getItem("ongia-hotel-f") || "all"; } catch { return "all"; } };
+/** The upcoming events, one row each: dates, the hotel, how many have signed, final materials, and what is next. */
 function eventsTable(upcoming) {
   const today = todayIso();
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
-  const rows = upcoming.map((ev) => {
+  const rows = upcoming.filter((ev) => { const f = HOTEL_F(); return f === "all" || hotelState(ev)?.f === f; }).map((ev) => {
     const c = ev.counts ?? {}, a = ev.attention ?? {};
     const total = c.total ?? 0, signed = (c.approved ?? 0) + (c.arranged ?? 0), mf = ev.materials?.final ?? 0;
     const pct = total ? Math.round((signed / total) * 100) : 0;
-    const pills = [], open = !hotelLocked(ev) && !ev.project;
-    if (open) pills.push(`<span class="pill hold">Hotel not signed</span>`);
+    const pills = [], open = !hotelLocked(ev) && !ev.project, hs = hotelState(ev);
     // The main room (Andrew 30 Oct 2026: "Nearly full badge please"): as the event page's tile counts it.
     const room = roomFill(ev, ev.registered ?? 0, ev.presenterCount ?? 0);
     if (room?.cls === "full") pills.push(`<span class="pill late" title="${room.att} registered for ${room.max} attendee seats">Full${room.left < 0 ? `: ${-room.left} over` : ""}</span>`);
@@ -2675,7 +2688,7 @@ function eventsTable(upcoming) {
     const outN = (a.outstanding ?? []).length;
     if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
     if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
-    if (pills.length === (open ? 1 : 0)) {
+    if (!pills.length) {
       const nx = [["Agreements due", due], ["Final materials due", ev.noDeadlines ? null : ev.deadlines?.final], ["Training starts", ev.dayOne]].find(([, d]) => d && days(d) >= 0);
       if (nx) pills.push(`<span class="pill grey">${esc(nx[0])} ${esc(fmtDate(nx[1]).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}</span>`);
     }
@@ -2685,22 +2698,26 @@ function eventsTable(upcoming) {
     const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
-      <td class="d">${dates}${open ? `<span class="tent">held, not locked</span>` : ""}</td>
+      <td class="d">${dates}</td>
+      <td class="h${hs ? "" : " nohs"}">${hs ? `<span class="hst ${hs.k}">${hs.k === "ok" ? "✓ " : ""}${hs.t}</span>` : `<span class="hst mu">—</span>`}</td>
       <td class="g"><span class="gbar"><i style="width:${pct}%"></i></span>${signed} of ${total} <span class="lab">signed</span></td>
       <td class="m">${mf} of ${total} <span class="lab">final materials</span></td>
       <td class="n">${pills.join(" ")}</td>
       <td class="o"><span class="mini">Open</span></td></tr>`;
   }).join("");
-  const notSigned = upcoming.filter((ev) => !hotelLocked(ev)).length;
-  const lockLine = !upcoming.length ? "" : notSigned
-    ? `<div class="lockline"><b>${notSigned} of ${upcoming.length}</b> upcoming event${upcoming.length === 1 ? "" : "s"} ${notSigned === 1 ? "has" : "have"} no signed hotel contract yet, so ${notSigned === 1 ? "its dates" : "their dates"} can still move. ${notSigned === 1 ? "It's" : "They're"} marked <span class="pill hold">Hotel not signed</span>. Hold off on ticket sales and presenters until the contract is signed.</div>`
-    : `<div class="lockline ok">Every upcoming event has a signed hotel contract.</div>`;
+  // One row of chips that filter the list by the hotel (the old sentence about how many are unsigned, made clickable).
+  const hf = HOTEL_F(), hsAll = upcoming.map(hotelState).filter(Boolean);
+  const nOf = (f) => hsAll.filter((h) => h.f === f).length;
+  const chips = [["all", "All", upcoming.length], ["confirmed", "Confirmed", nOf("confirmed")], ["signed", "To confirm", nOf("signed")], ["open", "Not signed", nOf("open")]]
+    .filter(([k, , n]) => k === "all" || n).map(([k, l, n]) => `<button type="button" class="fchip${hf === k ? " on" : ""}" data-hf="${k}">${l} <b>${n}</b></button>`).join("");
+  const lockLine = !upcoming.length ? "" : `<div class="hfrow" role="group" aria-label="Show by hotel"><span class="hfl">Hotel</span>${chips}</div>`;
   return `<div class="card" id="upcoming"><div class="card-head"><div><h2>Upcoming events</h2><div class="s">Click a row to open it</div></div></div>
     ${lockLine}
-    <table class="evt"><thead><tr><th>Event</th><th>Dates</th><th>Agreements signed</th><th>Final materials</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <table class="evt"><thead><tr><th>Event</th><th>Dates</th><th>Hotel</th><th>Agreements signed</th><th>Final materials</th><th>Next</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function wireHomeConsole() {
+  ROOT.querySelectorAll("[data-hf]").forEach((b) => { b.onclick = () => { try { sessionStorage.setItem("ongia-hotel-f", b.dataset.hf); } catch {} render(); }; });
   ROOT.querySelectorAll("[data-qtab]").forEach((b) => { b.onclick = () => { try { sessionStorage.setItem("ongia-queue-tab", b.dataset.qtab); } catch {} render(); }; });
   ROOT.querySelectorAll("[data-qscope]").forEach((b) => { b.onclick = () => { try { localStorage.setItem("ongia-queue-scope", b.dataset.qscope); } catch {} render(); }; });
   const pair = (v) => { const [ev, ids] = v.split("|"); return [ev, ids ? ids.split(",") : []]; };
