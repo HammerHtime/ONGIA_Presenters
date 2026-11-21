@@ -13373,18 +13373,19 @@ async function drawScreen() {
         EMAIL_ON ? soft("email", api(`/inbox?event=${encodeURIComponent(view.eventId)}`)) : null,
         EMAIL_ON ? api("/events").catch(() => ({ events: [] })) : null,   // every event, only for filing email to another event
         soft("volunteers", api(`/volunteers?event=${encodeURIComponent(view.eventId)}`)),
-        api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`).catch(() => null),   // the sheet check: refused (so hidden) for anyone but the president and the VP
+        soft("the logistics sheet check", api(`/sheetcheck?event=${encodeURIComponent(view.eventId)}`)),   // refused (so hidden) for anyone but the president and the VP; a server failure says so
         loadRoster(),   // the board, for the volunteer lead picker
       ]);
-      EV_FAILED = failed;
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
-      const sow = data.event?.kind === "rbh" ? await api(`/sow?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      const sow = data.event?.kind === "rbh" ? await soft("the RBH costing", api(`/sow?event=${encodeURIComponent(view.eventId)}`)) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       // Every event has them now (Andrew 30 Oct 2026); on ONGIA's own events they're optional.
-      const receipts = data.event ? await api(`/receipts?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      const receipts = data.event ? await soft("the receipts", api(`/receipts?event=${encodeURIComponent(view.eventId)}`)) : null;
       // ONGIA's own events: the budget, for the president and the VP (anyone else is refused, so it stays hidden).
-      const budget = data.event && data.event.kind !== "rbh" && data.canCost ? await api(`/budget?event=${encodeURIComponent(view.eventId)}`).catch(() => null) : null;
+      const budget = data.event && data.event.kind !== "rbh" && data.canCost ? await soft("the budget", api(`/budget?event=${encodeURIComponent(view.eventId)}`)) : null;
+      // Refused (not theirs to see) stays hidden; anything else that failed is named at the top (audit, 21 Nov 2026).
+      EV_FAILED = failed;
       const out = eventScreen({ ...data, sow, receipts, budget, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });
       freshen(view.eventId, { guests, materials, event: data.event, canEdit: data.canEdit });
       return out;
