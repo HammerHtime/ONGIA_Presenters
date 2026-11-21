@@ -33,7 +33,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1200);
   // One email at a time on Communications (#154): pick the food card, as Andrew does.
-  await p.locator('[data-comms="replyfold"]').click(); await p.waitForTimeout(400);
+  await p.locator('#mailsum [data-msgo="replyfold"]').click(); await p.waitForTimeout(400);
   ok(`${tag}: the card says how the registrations reach fewer addresses`, /403 registrations go to 380 email addresses: 19 share an email address with someone else on the list[\s\S]*4 have no email address/.test(await p.locator("#replybox").innerText()));
   const btn = p.locator('[data-rpsheet="addresses"]');
   ok(`${tag}: with a button for the list`, await btn.isVisible());

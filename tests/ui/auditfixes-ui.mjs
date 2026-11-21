@@ -79,7 +79,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: three rows, in date order: food allergies, welcome letter, survey`, /Food allergies[\s\S]*Welcome letter[\s\S]*Survey/.test(text), text);
   ok(`${tag}: the welcome letter says it won't go until it's saved`, /Not saved: won't go/i.test(text));
   ok(`${tag}: food allergies is ready for you to send, the survey ready but emails are off`, /Ready: you press Send/i.test(text) && /Ready, but emails are off/i.test(text));
-  ok(`${tag}: the line under the heading says the automatic emails are off`, /Automatic emails are off/.test(await p.locator("#mailsum-s").innerText()));
+  ok(`${tag}: the switch's line says the automatic emails are off`, /Automatic emails: Off/.test(await p.locator(".mailsum .mailsw").innerText()));
+  ok(`${tag}: every email is one line, Message and Thank-you included`, /Message/.test(text) && /Thank-you/.test(text) && await p.evaluate(() => [...document.querySelectorAll("#mailsum .mlrow")].every((r) => r.getBoundingClientRect().height <= 46)));
   ok(`${tag}: fits the screen`, await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await sum.scrollIntoViewIfNeeded();
   await p.locator(".mailsum").screenshot({ path: D + `auditfix-mailsum-${tag}.png` });
@@ -93,7 +94,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
 await api(`/api/events?id=${ev.id}&attendeeMail=1`, { method: "PUT", body: JSON.stringify({ on: true }) });
 p = await open(`#event/${ev.id}`);
 await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1200);
-ok("with emails switched on, the survey says it sends itself", /Ready: sends itself/i.test(await p.locator("#mailsum").innerText()) && !/Automatic emails are off/.test(await p.locator("#mailsum-s").innerText()), (await p.locator(".mailsum").innerText()).replace(/\s+/g, " "));
+ok("with emails switched on, the survey says it sends itself", /Ready: sends itself/i.test(await p.locator("#mailsum").innerText()) && /Automatic emails: On/.test(await p.locator(".mailsum .mailsw").innerText()), (await p.locator(".mailsum").innerText()).replace(/\s+/g, " "));
 await p.close();
 
 console.log("— the agreement review: a Decide bar on a phone");

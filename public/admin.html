@@ -6112,6 +6112,9 @@ function drawMailSum(ev) {
     const k = b.dataset.msgo;
     if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
     commsShow(k);
+    // On a phone the email opens below the list, often off the screen: bring its top up into view.
+    const card = document.getElementById(k), r = card?.getBoundingClientRect();
+    if (r && (r.top > innerHeight - 120 || r.top < 0)) window.scrollTo({ top: r.top + scrollY - (innerWidth < 900 ? 130 : 20), behavior: "smooth" });
   }; });
 }
 
