@@ -27,14 +27,18 @@ for (const [w, h] of [[390, 844], [1280, 900]]) {
   await a.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "people" })), { waitUntil: "networkidle" }); await a.waitForTimeout(2000);
   ok(`${w}: the bar is hidden until someone is ticked`, await a.locator("#pbulk").isHidden());
   await a.locator(`[data-psel="${ids.Dana}"]`).check(); await a.locator(`[data-psel="${ids.Sam}"]`).check(); await a.waitForTimeout(200);
-  ok(`${w}: two ticked: Send expense link beside Send agreement link`, await a.locator("#pbulk-exp").isVisible() && (await a.locator("#pbulk-exp").innerText()).trim() === "Send expense link" && (await a.locator("#pbulk-mail").innerText()).trim() === "Send agreement link");
+  const [lm, le] = w < 500 ? ["Agreement", "Expenses"] : ["Send agreement link", "Send expense link"];
+  ok(`${w}: two ticked: ${le} beside ${lm}`, await a.locator("#pbulk-exp").isVisible() && (await a.locator("#pbulk-exp").innerText()).trim() === le && (await a.locator("#pbulk-mail").innerText()).trim() === lm
+    && await a.locator("#pbulk-exp").getAttribute("aria-label") === "Send expense link", await a.locator("#pbulk").innerText());
+  ok(`${w}: the count says 2`, (await a.locator("#pbulk-n .pbn").innerText()).trim() === "2");
+  ok(`${w}: everything on the bar is on one line`, await a.evaluate(() => new Set([...document.querySelectorAll("#pbulk > *")].filter((e) => getComputedStyle(e).display !== "none").map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2) / 4 | 0)).size === 1));
   // Ticked from far down the list, the bar is right there on screen, above the phone's menu (Andrew 21 Nov 2026).
   await a.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await a.waitForTimeout(300);
   const bar = await a.locator("#pbulk").boundingBox(), vh = a.viewportSize().height;
   const navTop = w < 900 ? (await a.locator(".side").boundingBox()).y : vh;
   ok(`${w}: the bar floats on screen wherever you are, above the menu`, bar.y >= 0 && bar.y + bar.height <= navTop + 1, JSON.stringify({ bar, navTop }));
   if (w < 500) ok(`${w}: each presenter is two lines`, await a.evaluate(() => [...document.querySelectorAll("tr.prow")].every((r) => r.getBoundingClientRect().height <= 100)));
-  if (w < 500) ok(`${w}: the two sends sit side by side`, Math.abs((await a.locator("#pbulk-mail").boundingBox()).y - (await a.locator("#pbulk-exp").boundingBox()).y) < 3);
+  ok(`${w}: the bar is one line high`, (await a.locator("#pbulk").boundingBox()).height < 64);
   if (w < 500 && D) { await a.locator("#pbulk").scrollIntoViewIfNeeded(); await a.locator("#pbulk").screenshot({ path: D + "expenselink-bar.png" }); }
   await a.locator("#pbulk-exp").click(); await a.waitForTimeout(2500);
   ok(`${w}: it asks first, and says the event hasn't named its meals`, /Email the expense link to 2 presenters\?/.test(asked) && /hasn't said which meals it served/.test(asked), asked);
