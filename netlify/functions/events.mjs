@@ -3,7 +3,7 @@ import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
 import { putEvent, getEvent, listEvents, putPresenter, listPresenters, getPresenter, deleteKey, getRoster, deleteSurveyData,
   getContract, putContract, getContractRead, putContractRead, getInbox, listVolunteers, getSow, getReceipts, getReplies,
-  countSurveyResponses, getSeen, putSeen, getAttendees } from "./lib/store.mjs";
+  countSurveyResponses, getSeen, putSeen, getAttendees, contractInfo, getContractSign } from "./lib/store.mjs";
 import { tally } from "./lib/attendees.mjs";
 import { inboxCounts, inboxConfigured, inboxForList, UNFILED } from "./lib/inbox.mjs";
 import { eventId, token, reference, safeFileName } from "./lib/ids.mjs";
@@ -651,6 +651,11 @@ async function createFolder(id) {
   }
 }
 
+async function contractState(id) {
+  const [file, sign] = await Promise.all([contractInfo(id).catch(() => null), getContractSign(id).catch(() => null)]);
+  return file ? (sign?.state === "done" ? "signed" : "in") : null;
+}
+
 async function showList(canCost = true, viewer = { key: true }) {
   const events = await listEvents();
   const withCounts = await Promise.all(
@@ -676,6 +681,10 @@ async function showList(canCost = true, viewer = { key: true }) {
         inboxItems: canCost || event.kind !== "rbh" ? inboxForList(box) : withoutOffers(inboxForList(box)),
         // Enough to name a problem on the dashboard without opening the event.
         attention: attentionOf(people),
+        // Where the hotel contract stands, for the list's Hotel column (Andrew 21 Nov 2026: "I need a way to see which
+        // events the contract has been signed and locked in"): "signed" in the app, "in" (uploaded), or null. An RBH
+        // event's contract is the president's and the VP's, so others see only whether it's locked.
+        contract: canCost || event.kind !== "rbh" ? await contractState(event.id) : null,
       };
     })
   );
