@@ -140,7 +140,7 @@ export async function claimDocuments({ claim, lines, names, checks, getFile }) {
 }
 /** What goes in the template's Purpose column: what it was for, the event, and for mileage the trip. */
 export function purposeOf(l) {
-  return [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "",
+  return [l.refund ? `Refund${l.refundOf?.label ? ` of ${l.refundOf.label}` : ""}:` : "", l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "",
     l.kind === "mileage" ? `${l.km} km at $${Number(l.rate).toFixed(2)}/km${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "",
     l.kind === "noreceipt" ? (isStipend(l) ? "(stipend: no receipt needed)" : "(no receipt: reason and card statement attached)") : "",
     l.comment ? `Comment: ${l.comment}` : ""].filter(Boolean).join(" ");

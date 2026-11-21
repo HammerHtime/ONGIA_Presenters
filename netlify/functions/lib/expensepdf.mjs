@@ -89,11 +89,11 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
   lines.forEach((l, i) => {
     const purpose = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? `(${l.eventTitle})` : "", l.kind === "mileage" ? `${l.km} km × ${money(l.rate)}${l.from || l.to ? `, ${l.from} to ${l.to}` : ""}` : "", l.kind === "noreceipt" ? (isStipend(l) ? "Stipend: no receipt needed" : "No receipt: reason and card statement attached") : "", l.comment ? `Comment: ${l.comment}` : ""].filter(Boolean).join(" · ");
     doc.font("Helvetica").fontSize(8.5);
-    const rh = Math.max(22, doc.heightOfString(purpose, { width: cols[7][1] * scale - 8 }) + 10, doc.heightOfString(l.paidTo ?? "", { width: cols[1][1] * scale - 8 }) + 10);
+    const rh = Math.max(22, doc.heightOfString(purpose, { width: cols[7][1] * scale - 8 }) + 10, doc.heightOfString(`${l.paidTo ?? ""}${l.refund ? " (refund)" : ""}`, { width: cols[1][1] * scale - 8 }) + 10);
     if (y + rh > H - M - 40) { footer(); doc.addPage(); band("ONGIA Expense Reimbursement Submission (continued)"); y = 72; head(); }
     if (i % 2 === 0) doc.rect(M, y, W - M * 2, rh).fill(PALE);
     const amount = Number(l.amount) || 0; sum += amount;
-    const cells = [String(i + 1), l.paidTo ?? "", day(l.date), money(amount), money(hstOf(l)), String(l.category ?? ""), CATEGORY[Number(l.category)] ?? "", purpose];
+    const cells = [String(i + 1), `${l.paidTo ?? ""}${l.refund ? " (refund)" : ""}`, day(l.date), money(amount), money(hstOf(l)), String(l.category ?? ""), CATEGORY[Number(l.category)] ?? "", purpose];
     cells.forEach((t, j) => doc.font("Helvetica").fontSize(8.5).fillColor(INK).text(t, xs[j] + 4, y + 5, { width: cols[j][1] * scale - 8, align: cols[j][2] ?? "left" }));
     doc.moveTo(M, y + rh).lineTo(W - M, y + rh).lineWidth(0.4).strokeColor(RULE).stroke();
     y += rh;
@@ -121,7 +121,7 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
     doc.addPage();
     band(r.kind === "shot" ? `Line ${r.index}: card statement` : `Line ${r.index}: receipt`);
     const l = r.line ?? {};
-    doc.font("Helvetica-Bold").fontSize(11).fillColor(INK).text(`${l.paidTo ?? ""} · ${day(l.date)} · ${money(l.amount)}`, M, 68, { width: W - M * 2, lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(11).fillColor(INK).text(`${l.paidTo ?? ""}${l.refund ? " (refund)" : ""} · ${day(l.date)} · ${money(l.amount)}`, M, 68, { width: W - M * 2, lineBreak: false });
     let top = 88;
     if (r.kind === "shot" && l.statement) {
       doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(`Why there's no receipt: ${l.statement}`, M, top, { width: W - M * 2 });

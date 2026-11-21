@@ -85,6 +85,8 @@
   .swipe.going{opacity:.4;pointer-events:none}
   .line .s{font-size:13px;color:var(--muted);margin-top:1px}
   .amt{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;font-size:15.5px}
+  .amt.rf{color:var(--done,#2f6b4f)} .rftag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--done,#2f6b4f);background:rgba(47,107,79,.1);border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+  .rfbox{border:1.5px dashed rgba(47,107,79,.45);border-radius:12px;padding:10px 12px;margin:0 0 12px;background:rgba(47,107,79,.05)}
   .check{font-size:12.5px;margin-top:3px;display:flex;align-items:center;gap:4px}
   .check.ok{color:var(--done)}.check.wt{color:var(--wait)}.check.bad{color:var(--late)}.check.mu{color:var(--muted)}
   .needs{font-size:12.5px;color:var(--wait);margin-top:2px}
@@ -279,7 +281,7 @@ const parseMoney = (s) => { const t = String(s ?? "").replace(/[$\s]/g, ""); ret
  * decimal ... and it should show as a $"). The digits fill in from the cents: 4 2 5 0 reads $42.50, and backspace takes
  * the last digit off. The phone shows its number pad. A pasted amount with its own decimal point is read as written.
  */
-const tillText = (n) => (n === null || n === undefined || n === "" || !Number.isFinite(Number(n)) ? "" : "$" + Number(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const tillText = (n) => (n === null || n === undefined || n === "" || !Number.isFinite(Number(n)) ? "" : "$" + Math.abs(Number(n)).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 function tillBox(el) {
   if (!el) return;
   el.addEventListener("input", (e) => {
@@ -741,14 +743,16 @@ function lineRow(l, claimId, flag = "") {
   const pic = l.kind === "receipt"
     ? (l.file?.type === "application/pdf" ? `<div class="thumb">${ICON.pdf}</div>` : `<div class="thumb" data-thumb="${claimId}:${l.id}">${ICON.receipt}</div>`)
     : `<div class="thumb kind">${l.kind === "mileage" ? ICON.car : ICON.note}</div>`;
-  const title = l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${esc(l.from || "?")} to ${esc(l.to || "?")}` : ""}` : esc(l.paidTo || (l.check?.state === "reading" ? "New receipt" : l.kind === "noreceipt" ? "No receipt" : "Receipt"));
-  const sub = [l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
+  const title = (l.refund ? `<span class="rftag">Refund</span>` : "") + (l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${esc(l.from || "?")} to ${esc(l.to || "?")}` : ""}` : esc(l.paidTo || (l.check?.state === "reading" ? "New receipt" : l.kind === "noreceipt" ? "No receipt" : "Receipt")));
+  const ofLabel = String(l.refundOf?.label ?? ""), lead = `${l.paidTo || ""}, `;
+  const of = l.refund && ofLabel ? `Of ${l.paidTo && ofLabel.startsWith(lead) ? ofLabel.slice(lead.length) : ofLabel}` : "";
+  const sub = [of, of && /^refund\b/i.test(l.purpose ?? "") ? "" : l.purpose, l.eventTitle && l.eventTitle !== l.purpose ? l.eventTitle : ""].filter(Boolean).map(esc).join(" · ");
   const needs = l.problems?.length && l.check?.state !== "reading" ? `<div class="needs">Still needs ${esc(l.problems.length < 2 ? l.problems.join("") : `${l.problems.slice(0, -1).join(", ")} and ${l.problems.at(-1)}`)}</div>` : "";
   return `<button type="button" class="line${flag ? " flagged" : ""}" data-line="${esc(l.id)}">${pic}
     <div style="flex:1;min-width:0"><div class="w">${title}</div>${sub ? `<div class="s">${sub}</div>` : ""}${flag ? `${l.kind === "mileage" ? checkRow(l) : ""}<div class="flagwhy">⚠ ${esc(flag)}</div>` : `${checkRow(l)}${dupeRow(l)}${overRow(l)}`}${needs}</div>
-    <div class="amt">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
+    <div class="amt${l.refund ? " rf" : ""}">${l.amount === null || l.amount === undefined ? "" : money(l.amount)}</div></button>`;
 }
-const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : ""].filter(Boolean).join(", ");
+const countsOf = (sums) => [sums?.receipts ? `${sums.receipts} receipt${sums.receipts === 1 ? "" : "s"}` : "", sums?.mileage ? `${sums.mileage} mileage` : "", sums?.noreceipt ? `${sums.noreceipt} with no receipt` : "", sums?.refunds ? `less ${money(sums.refunded)} refunded` : ""].filter(Boolean).join(", ");
 const firstName = (n) => String(n ?? "").split(" ")[0];
 const when = (iso) => new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 const boardBar = () => (HOME?.boardTest?.on ? `<div class="testbar"><b>BOARD TEST.</b> Claims sent now are part of testing the app, so no money is sent.</div>` : "");
@@ -1007,12 +1011,17 @@ function editorScreen() {
     ${k === "mileage" ? `<p class="note" style="margin:0 0 12px">${forPresenter() ? `Kilometres ${esc(HOME.current.payee.name)} drove for ONGIA, at ${money(RATE())} a kilometre.` : `Kilometres you drove your own car for ONGIA, paid to you at ${money(RATE())} a kilometre.`}</p>` : ""}
     ${k === "noreceipt" ? `<p class="note" id="nrintro" style="margin:0 0 12px">${NR_INTRO[stipendLine(l) ? 1 : 0]}</p>` : ""}
     <div id="sayslot"></div>
+    ${k !== "mileage" && !forPresenter() ? `<div class="field"><div class="chips" id="f-rfrow" role="radiogroup" aria-label="Expense or refund">
+      ${[["0", "Expense"], ["1", "Refund"]].map(([v, n]) => `<button type="button" role="radio" data-rf="${v}" aria-checked="${(l.refund ? "1" : "0") === v}" class="${(l.refund ? "1" : "0") === v ? "on" : ""}">${n}</button>`).join("")}</div>
+      <input type="hidden" id="f-refund" value="${l.refund ? "1" : "0"}"></div>
+      <div class="rfbox" id="rfbox"${l.refund ? "" : " hidden"}><div class="field" style="margin:0 0 6px"><label for="f-refundof">Refund of</label><select id="f-refundof"><option value="">Loading your paid claims…</option></select></div>
+      <div class="note">Money you got back for something ONGIA already paid you for, like a cancelled flight. It comes off this claim's total. Attach the refund email, or the credit on your card statement.</div></div>` : ""}
     ${k !== "mileage" ? `<div class="field"><label for="f-paidTo"><span>Paid to</span>${readMark(l, "paidTo")}</label><input id="f-paidTo" autocomplete="off" value="${esc(l.paidTo ?? "")}" placeholder="${k === "noreceipt" ? "Who you paid" : "The business"}"></div>` : ""}
     <div class="two">
       <div class="field"><label for="f-date"><span>Date</span>${readMark(l, "date")}</label><input id="f-date" type="date" value="${esc(l.date ?? (k === "mileage" && !EDIT.lineId ? todayHere() : ""))}"></div>
       ${k === "mileage"
         ? `<div class="field"><label for="f-km"><span>Kilometres</span></label><input id="f-km" inputmode="decimal" autocomplete="off" value="${esc(l.km ?? "")}" placeholder="0"></div>`
-        : `<div class="field"><label for="f-amount"><span>${k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="numeric" autocomplete="off" value="${esc(tillText(l.amount))}" placeholder="$0.00"></div>`}
+        : `<div class="field"><label for="f-amount"><span id="f-amountlab">${l.refund ? "Amount refunded" : k === "receipt" ? "Total" : "Amount"}</span>${readMark(l, "amount")}</label><input id="f-amount" inputmode="numeric" autocomplete="off" value="${esc(tillText(l.amount))}" placeholder="$0.00"></div>`}
     </div>
     ${k === "receipt" ? `<div id="matchrow" style="margin:-4px 0 10px"></div>${foreign}` : ""}
     ${k !== "mileage" && forPresenter() ? `<div class="field"><div class="lab"><span>Meal</span>${readMark(l, "meal")}</div><div class="chips" id="f-mealrow" role="radiogroup" aria-label="Which meal">
@@ -1043,6 +1052,7 @@ function editorScreen() {
   }; });
   drawSow(l);
   for (const id of ["event", "category", "paidTo", "purpose"]) $(`f-${id}`)?.addEventListener("change", () => drawSow(lineNow() ?? {}));
+  wireRefund(l, k);
   $("save").onclick = () => saveLine({ leave: true });
   if ($("remove")) $("remove").onclick = removeLine;
   if ($("again")) $("again").onclick = readAgain;
@@ -1107,7 +1117,7 @@ function liveChecks() {
     const total = l.read?.found?.total;
     const typed = $("f-amount").value.trim() === "" ? null : parseMoney($("f-amount").value);
     $("matchrow").innerHTML = total === null || total === undefined || l.read?.found?.isReceipt === false ? ""
-      : typed !== null && Math.abs(typed - total) < 0.005 ? `<div class="check ok">${ICON.tick} Matches the receipt</div>`
+      : typed !== null && Math.abs(Math.abs(typed) - Math.abs(total)) < 0.005 ? `<div class="check ok">${ICON.tick} Matches the receipt</div>`
       : `<div class="check wt">The receipt says ${money(total)}</div>`;
   }
 }
@@ -1118,7 +1128,7 @@ function refreshEditor() {
   for (const k of l.fromRead ?? []) {
     const el = $(`f-${k}`);
     if (!el || EDIT.touched.has(k) || el.value) continue;
-    el.value = k === "amount" ? tillText(l[k]) : l[k];
+    el.value = k === "amount" ? tillText(l[k]) : l[k];   // a refund's shows its size; Refund gives the minus
     if (k === "meal") ROOT.querySelectorAll("[data-meal]").forEach((x) => { const on = x.dataset.meal === l.meal; x.classList.toggle("on", on); x.setAttribute("aria-checked", String(on)); });
     const lab = el.closest(".field")?.querySelector("label");
     if (lab && !lab.querySelector(".read")) lab.insertAdjacentHTML("beforeend", `<span class="read" data-readmark="${k}">read</span>`);
@@ -1133,12 +1143,62 @@ function refreshEditor() {
   }
   liveChecks();
 }
+/*
+ * A refund (Andrew 21 Nov 2026: "I cancelled one of my Air Canada flights that was refunded to my credit card … so it
+ * minuses that amount from one of my claims"). Expense | Refund on the line; for a refund, which paid line it reverses
+ * (picking one fills who, the category and the event), and the amount typed as what came back.
+ */
+let REFUNDABLE = null;
+function refundOfPicked() {
+  const sel = $("f-refundof"); if (!sel || $("f-refund")?.value !== "1") return null;
+  if (sel.value === "other" || !sel.value) return null;
+  const x = (REFUNDABLE ?? []).find((r) => `${r.claimId}:${r.lineId}` === sel.value);
+  return x ? { claimId: x.claimId, lineId: x.lineId, label: x.label } : lineNow()?.refundOf ?? null;
+}
+function wireRefund(l, k) {
+  if (!$("f-rfrow")) return;
+  const fill = async () => {
+    const sel = $("f-refundof");
+    try { if (!REFUNDABLE) REFUNDABLE = (await api("?refundable=1")).lines ?? []; } catch { REFUNDABLE = []; }
+    const had = l.refundOf ? `${l.refundOf.claimId}:${l.refundOf.lineId}` : "";
+    const known = REFUNDABLE.some((r) => `${r.claimId}:${r.lineId}` === had);
+    sel.innerHTML = `<option value="">Choose what was refunded</option>` + REFUNDABLE.map((r) => `<option value="${esc(`${r.claimId}:${r.lineId}`)}"${`${r.claimId}:${r.lineId}` === had ? " selected" : ""}>${esc(r.label)}</option>`).join("")
+      + (had && !known ? `<option value="${esc(had)}" selected>${esc(l.refundOf.label)}</option>` : "")
+      + `<option value="other">Not on a claim here (say what in "What it was for")</option>`;
+  };
+  const set = (on) => {
+    $("f-refund").value = on ? "1" : "0";
+    ROOT.querySelectorAll("[data-rf]").forEach((x) => { const is = x.dataset.rf === (on ? "1" : "0"); x.classList.toggle("on", is); x.setAttribute("aria-checked", String(is)); });
+    $("rfbox").hidden = !on;
+    $("f-amountlab").textContent = on ? "Amount refunded" : k === "receipt" ? "Total" : "Amount";
+    if (k === "noreceipt") {
+      if ($("nrintro")) $("nrintro").textContent = on ? "Money that came back to your card for something ONGIA paid you for. Say where the refund shows, and add a screenshot of the credit on your card statement." : NR_INTRO[stipendLine({ category: $("f-category").value }) ? 1 : 0];
+      const lab = document.querySelector('label[for="f-statement"]'); if (lab) lab.textContent = on ? "Where does the refund show?" : "Why is there no receipt?";
+      $("f-statement").placeholder = on ? "Refunded to my Visa on Nov 15 when the flight was cancelled." : "The parking machine didn't print one. The charge is on my Visa.";
+      const sa = document.querySelector("#shotadd span"); if (sa) sa.textContent = on ? "Add a screenshot of the credit" : "Add a screenshot of the charge";
+    }
+    if (on && !REFUNDABLE) fill();
+  };
+  ROOT.querySelectorAll("[data-rf]").forEach((b) => { b.onclick = () => { set(b.dataset.rf === "1"); EDIT.dirty = true; EDIT.touched.add("refund"); liveChecks(); }; });
+  $("f-refundof").addEventListener("change", () => {
+    EDIT.dirty = true; EDIT.touched.add("refundOf");
+    const x = (REFUNDABLE ?? []).find((r) => `${r.claimId}:${r.lineId}` === $("f-refundof").value);
+    if (!x) return;
+    // What the original was fills the boxes still empty, so the refund sits with it in the books.
+    if (!$("f-paidTo").value) $("f-paidTo").value = x.paidTo;
+    if (!$("f-category").value && x.category) $("f-category").value = String(x.category);
+    if (!$("f-event").value && x.eventId && [...$("f-event").options].some((o) => o.value === x.eventId)) { $("f-event").value = x.eventId; drawSow(lineNow() ?? {}); }
+    if (!$("f-purpose").value) $("f-purpose").value = `Refund of the ${x.paidTo || "earlier"} charge`;
+  });
+  if (l.refund) { fill(); set(true); }
+}
 function formValues() {
   const v = (id) => $(`f-${id}`)?.value ?? "";
   const num = (s) => (String(s).trim() === "" ? "" : parseMoney(s));
   return { paidTo: v("paidTo"), date: v("date"), amount: num(v("amount")), km: num(v("km")), from: v("from"), to: v("to"),
     category: v("category"), eventId: v("event"), purpose: v("purpose"), comment: v("comment"), statement: v("statement"),
     ...($("f-meal") ? { meal: v("meal") } : {}),
+    ...($("f-refund") ? { refund: v("refund") === "1", refundOf: refundOfPicked() } : {}),
     ...($("f-sow") ? { sowLineId: v("sow") } : {}) };
 }
 async function saveLine({ leave = false } = {}) {
@@ -1233,7 +1293,7 @@ async function drawShot() {
   const box = $("shotbox"); if (!box) return;
   box.innerHTML = l?.shot
     ? `<div class="thumb" id="shotthumb">${/pdf/.test(l.shot.type) ? ICON.pdf : ICON.note}</div><div style="flex:1"><div class="check ok">${ICON.tick} Added</div><div class="tiny">${esc(l.shot.name)}</div></div><button class="btn ghost" id="shotadd" type="button" style="width:auto;padding:9px 14px;min-height:40px;font-size:14px">Replace</button>`
-    : `<button class="btn ghost" id="shotadd" type="button">${ICON.camera}<span>Add a screenshot of the charge</span></button>`;
+    : `<button class="btn ghost" id="shotadd" type="button">${ICON.camera}<span>${$("f-refund")?.value === "1" ? "Add a screenshot of the credit" : "Add a screenshot of the charge"}</span></button>`;
   // The picker opens from the tap itself: an iPhone opens it only straight from a tap, so saving a new line first (as
   // this did) meant the tap did nothing but make the line (Andrew, 3 Nov 2026: two lines, one never got its screenshot).
   // The line is saved once a picture has been chosen, below.
@@ -1541,7 +1601,8 @@ async function lineSheet(c, l) {
   // On the laptop the phone's navy bar is hidden, so the line gets the desk's own band with a Back (Andrew, 8 Nov 2026).
   el.innerHTML = `${DESK ? `<div class="dband alone sheethead"><div><button class="dback" type="button" data-close>‹ Back to the claim</button><h2>${esc(head)}</h2></div></div>` : `<header class="top"><button class="back" type="button" aria-label="Back" data-close>‹</button><h1>${esc(head)}</h1></header>`}
     <main>${DESK ? "" : `<button class="linkish sheetback" type="button" data-close>‹ Back to the claim</button>`}${c?.status !== "draft" && c?.checks?.flags?.[l.id] ? `<div class="say bad" style="margin:0 0 12px"><b>⚠ ${esc(c.checks.flags[l.id])}</b></div>` : ""}${l.kind === "receipt" || l.shot ? `<div id="sheetpic" class="card" style="text-align:center;padding:10px"><span class="spin" style="display:inline-block"></span></div>` : ""}
-    <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv("Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
+    ${l.refund ? `<div class="say ok" style="margin:0 0 12px"><b>A refund.</b> It comes off this claim's total${l.refundOf?.label ? `: the refund of ${esc(l.refundOf.label)}` : ""}.</div>` : ""}
+    <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv(l.refund ? "Refunded" : "Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
       ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
     ${sowMover(c, l)}

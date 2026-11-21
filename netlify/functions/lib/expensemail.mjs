@@ -36,7 +36,8 @@ const coversLine = (c) => {
 };
 const what = (c) => {
   const s = c.sums ?? {};
-  const bits = [s.receipts ? `${s.receipts} receipt${s.receipts === 1 ? "" : "s"}` : "", s.mileage ? `${s.mileage} mileage` : "", s.noreceipt ? `${s.noreceipt} with no receipt` : ""].filter(Boolean);
+  const bits = [s.receipts ? `${s.receipts} receipt${s.receipts === 1 ? "" : "s"}` : "", s.mileage ? `${s.mileage} mileage` : "", s.noreceipt ? `${s.noreceipt} with no receipt` : "",
+    s.refunds ? `less ${dollars(s.refunded)} refunded` : ""].filter(Boolean);
   return `${dollars(c.total ?? s.total ?? 0)} for ${esc(c.month)}${bits.length ? ` (${bits.join(", ")})` : ""}`;
 };
 const quote = (t) => `<span style="display:block;border-left:3px solid #b8922a;padding:4px 0 4px 12px;color:#2c3448;white-space:pre-wrap">${esc(t)}</span>`;
@@ -49,7 +50,7 @@ const count = (n, one, many) => (n === 1 ? `One ${one}` : n < 10 ? `${["Zero", "
 // One line per item, its amount on the right, the total under them: a quick look, not the claim itself. A long name is
 // cut so each item stays on one line on a phone.
 const ITEMS_SHOWN = 15;
-const itemName = (l) => l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${l.from || "?"} to ${l.to || "?"}` : ""}` : l.paidTo || (l.kind === "noreceipt" ? "No receipt" : "Receipt");
+const itemName = (l) => l.kind === "mileage" ? `Mileage${l.from || l.to ? `: ${l.from || "?"} to ${l.to || "?"}` : ""}` : `${l.refund ? "Refund: " : ""}${l.paidTo || (l.kind === "noreceipt" ? "No receipt" : "Receipt")}`;
 const cut = (s, n = 30) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const CELL = "padding:7px 0;border-bottom:1px solid #e6e1d5;vertical-align:middle";
 // Beside each amount, its receipt check (Andrew, 3 Nov 2026: "a green check mark to the right of the amount indicating
