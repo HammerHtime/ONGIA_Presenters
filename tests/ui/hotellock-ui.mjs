@@ -32,10 +32,13 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   const row = (id) => p.locator(`tr.evrow[data-open="${id}"]`);
-  ok(`${tag}: the event with no signed contract says Hotel not signed, its dates held, not locked`, /Hotel not signed/i.test(await row(held.id).innerText()) && /held, not locked/i.test(await row(held.id).innerText()), await row(held.id).innerText());
-  ok(`${tag}: the event whose contract is signed doesn't`, !/Hotel not signed|held, not locked/i.test(await row(signed.id).innerText()), await row(signed.id).innerText());
-  ok(`${tag}: a line over the list counts them`, /\d+ of \d+\s+upcoming events? ha(s|ve) no signed hotel contract yet/.test(await p.locator(".lockline").innerText()), await p.locator(".lockline").innerText().catch(() => "none"));
-  await p.locator(".lockline").screenshot({ path: D + `hotellock-line-${tag}.png` });
+  ok(`${tag}: the event with no signed contract shows the contract badge: No contract`, /No contract/.test(await row(held.id).locator(".hst").innerText()) && await row(held.id).locator(".hst svg.hico").count() === 1, await row(held.id).innerText());
+  ok(`${tag}: the event whose contract is signed says Confirmed, in green, with a tick on the contract`, /Confirmed/.test(await row(signed.id).locator(".hst.ok").innerText()) && await row(signed.id).locator(".hst .hok").count() === 1, await row(signed.id).innerText());
+  ok(`${tag}: the filter row over the list counts them`, /Hotel\s*All \d+\s*Confirmed \d+.*Not signed \d+/is.test(await p.locator(".hfrow").innerText()), await p.locator(".hfrow").innerText().catch(() => "none"));
+  await p.locator('[data-hf="confirmed"]').click(); await p.waitForTimeout(800);
+  ok(`${tag}: Confirmed shows only confirmed events`, await p.locator("#upcoming tr.evrow").count() >= 1 && await p.locator("#upcoming .hst:not(.ok)").count() === 0);
+  await p.locator('[data-hf="all"]').click(); await p.waitForTimeout(800);
+  await p.locator(".hfrow").screenshot({ path: D + `hotellock-line-${tag}.png` });
   await row(held.id).scrollIntoViewIfNeeded();
   await row(held.id).screenshot({ path: D + `hotellock-row-${tag}.png` });
   await row(signed.id).screenshot({ path: D + `hotellock-signed-${tag}.png` });
