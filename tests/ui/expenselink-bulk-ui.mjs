@@ -28,6 +28,13 @@ for (const [w, h] of [[390, 844], [1280, 900]]) {
   ok(`${w}: the bar is hidden until someone is ticked`, await a.locator("#pbulk").isHidden());
   await a.locator(`[data-psel="${ids.Dana}"]`).check(); await a.locator(`[data-psel="${ids.Sam}"]`).check(); await a.waitForTimeout(200);
   ok(`${w}: two ticked: Send expense link beside Send agreement link`, await a.locator("#pbulk-exp").isVisible() && (await a.locator("#pbulk-exp").innerText()).trim() === "Send expense link" && (await a.locator("#pbulk-mail").innerText()).trim() === "Send agreement link");
+  // Ticked from far down the list, the bar is right there on screen, above the phone's menu (Andrew 21 Nov 2026).
+  await a.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await a.waitForTimeout(300);
+  const bar = await a.locator("#pbulk").boundingBox(), vh = a.viewportSize().height;
+  const navTop = w < 900 ? (await a.locator(".side").boundingBox()).y : vh;
+  ok(`${w}: the bar floats on screen wherever you are, above the menu`, bar.y >= 0 && bar.y + bar.height <= navTop + 1, JSON.stringify({ bar, navTop }));
+  if (w < 500) ok(`${w}: each presenter is two lines`, await a.evaluate(() => [...document.querySelectorAll("tr.prow")].every((r) => r.getBoundingClientRect().height <= 100)));
+  if (w < 500) ok(`${w}: the two sends sit side by side`, Math.abs((await a.locator("#pbulk-mail").boundingBox()).y - (await a.locator("#pbulk-exp").boundingBox()).y) < 3);
   if (w < 500 && D) { await a.locator("#pbulk").scrollIntoViewIfNeeded(); await a.locator("#pbulk").screenshot({ path: D + "expenselink-bar.png" }); }
   await a.locator("#pbulk-exp").click(); await a.waitForTimeout(2500);
   ok(`${w}: it asks first, and says the event hasn't named its meals`, /Email the expense link to 2 presenters\?/.test(asked) && /hasn't said which meals it served/.test(asked), asked);
