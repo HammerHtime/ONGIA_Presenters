@@ -86,7 +86,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   // Several at once.
   await p.locator("tr.prow", { hasText: "Ada Sample" }).locator("[data-psel]").check();
   await p.locator("tr.prow", { hasText: "Bo Example" }).locator("[data-psel]").check();
-  ok(`${tag}: ticking two shows the bar with the count`, await p.locator("#pbulk").isVisible() && /2 selected/.test(await p.locator("#pbulk").innerText()));
+  ok(`${tag}: ticking two shows the bar with the count`, await p.locator("#pbulk").isVisible() && (await p.locator("#pbulk-n .pbn").innerText()).trim() === "2");
   await p.locator("#pbulk-copy").click(); await p.waitForTimeout(200);
   const copied = await p.evaluate(() => window.__copied);
   ok(`${tag}: Copy email addresses copies both, ready for Outlook`, /ada\.sample/.test(copied ?? "") && /bo\.example/.test(copied ?? "") && /; /.test(copied ?? ""), copied);
