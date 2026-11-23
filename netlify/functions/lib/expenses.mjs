@@ -45,6 +45,24 @@ export const noHst = (l) => l?.kind === "mileage" || isStipend(l);
 export const hstOf = (l) => (noHst(l) || !Number.isFinite(Number(l?.amount)) ? 0 : Math.round(Number(l.amount) * HST_RATE / (100 + HST_RATE) * 100) / 100);
 
 /** Dollars per kilometre. EXPENSE_MILEAGE_RATE replaces it if the board changes the rate. */
+/*
+ * The e-transfer numbers a payment went out under (Andrew 23 Nov 2026: "Our etransfer limit is 10k. So when an expense is
+ * more then that we split etransfer over multiple payments"). A payment keeps them in `refs`; `ref` holds them joined, so
+ * the claim form, the PDF and anything older that reads `ref` still shows every one. A payment from before keeps one `ref`.
+ */
+export const refsOf = (paid) => (Array.isArray(paid?.refs) && paid.refs.length ? paid.refs : paid?.ref ? [paid.ref] : []);
+/** The numbers typed on the pay form, tidied; or the reason they can't be taken. */
+export function cleanRefs(body) {
+  const raw = Array.isArray(body?.refs) ? body.refs : [body?.ref];
+  const refs = raw.map((r) => String(r ?? "").trim().replace(/\s+/g, "")).filter(Boolean);
+  if (!refs.length) return { error: "Type the e-transfer's transaction number, as the bank shows it." };
+  if (refs.length > 10) return { error: "That's more than 10 e-transfers. Record up to 10." };
+  const bad = refs.find((r) => !/^[A-Za-z0-9-]{4,40}$/.test(r));
+  if (bad) return { error: `"${bad.slice(0, 40)}" doesn't look like a transaction number. Type it as the bank shows it.` };
+  if (new Set(refs.map((r) => r.toUpperCase())).size < refs.length) return { error: "The same transaction number is in twice." };
+  return { refs };
+}
+
 export function mileageRate() {
   const r = Number(process.env.EXPENSE_MILEAGE_RATE);
   // The federal government's rate for Ontario, for everyone (Andrew 19 Nov 2026: "Keep mileage at .66 cents").

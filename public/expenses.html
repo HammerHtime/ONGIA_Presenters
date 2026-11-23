@@ -18,6 +18,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
 <style>
+  .refs .refrow{display:flex;gap:6px;align-items:center;margin:0 0 6px} .refs .refrow input{flex:1;min-width:0}
+  .refs .refrow .refn{flex:0 0 18px;font-size:13px;font-weight:700;color:var(--muted);text-align:right}
+  .refs .refx{flex:0 0 36px;height:36px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;border-radius:8px} .refs .refx:hover{background:var(--sunk, #f1f1ee)}
+  .refs .refadd{border:0;background:none;padding:2px 0;font:inherit;font-size:14px;font-weight:600;color:var(--navy, #1c2b4a);cursor:pointer}
+  .refs .refhint{font-size:13px;color:var(--muted);margin:0 0 6px}
   :root{
     color-scheme:light;
     --paper:#f2efe8; --card:#fafaf7; --sunk:#edeae2;
@@ -1334,6 +1339,37 @@ async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
   try { OPEN = (await api(`?claim=${encodeURIComponent(id)}`)).claim; render(); }
   catch (e) { if (!e.quiet) { ROOT.innerHTML = `<div class="say bad">${esc(e.message)}</div>`; } }
 }
+/*
+ * The transaction numbers (Andrew 23 Nov 2026: "Our etransfer limit is 10k. So when an expense is more then that we split
+ * etransfer over multiple payments"). One box per e-transfer; over $10,000 it opens with as many as the limit needs, and
+ * "Add another" covers a payment split some other way.
+ */
+const ETRANSFER_LIMIT = 10000;
+function refBox(i, n, practice) {
+  return `<div class="refrow">${n > 1 ? `<span class="refn">${i + 1}</span>` : ""}<input${i ? "" : ' id="ref"'} aria-label="Transaction number${n > 1 ? ` ${i + 1}` : ""}" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="${i + 1 < n ? "next" : "done"}" placeholder="${practice ? "TEST123" : "As the bank shows it"}">${n > 1 ? (i ? `<button type="button" class="refx" aria-label="Remove">×</button>` : `<span class="refx" aria-hidden="true"></span>`) : ""}</div>`;
+}
+function refBoxes(c) {
+  const n = Math.max(1, Math.ceil((c.sums?.total ?? 0) / ETRANSFER_LIMIT)), practice = !!(c.payer?.practice || c.trial);
+  return `<div class="field refs" id="refs" data-practice="${practice ? 1 : ""}"><label for="ref">E-transfer transaction number${n > 1 ? "s" : ""}</label>
+    ${n > 1 ? `<p class="refhint">Over $10,000: ${n} e-transfers, one number each.</p>` : ""}
+    <div class="refbox">${Array.from({ length: n }, (_, i) => refBox(i, n, practice)).join("")}</div>
+    <button type="button" class="refadd" id="refadd">+ Add another e-transfer</button></div>`;
+}
+function wireRefs() {
+  const box = document.querySelector("#refs .refbox"); if (!box) return;
+  const practice = !!$("refs").dataset.practice;
+  // Redraw keeping what's typed, so the numbering and the × buttons stay right.
+  const redraw = (vals) => {
+    box.innerHTML = vals.map((_, i) => refBox(i, vals.length, practice)).join("");
+    box.querySelectorAll("input").forEach((inp, i) => { inp.value = vals[i]; });
+    document.querySelector('#refs label[for="ref"]').textContent = `E-transfer transaction number${vals.length > 1 ? "s" : ""}`;
+    $("refadd").hidden = vals.length >= 10;
+    box.querySelectorAll(".refx").forEach((b, k) => { b.onclick = () => { const v = vals_(); v.splice(k + 1, 1); redraw(v); }; });
+  };
+  const vals_ = () => [...box.querySelectorAll("input")].map((i) => i.value);
+  $("refadd").onclick = () => { const v = vals_(); v.push(""); redraw(v); box.querySelectorAll("input")[v.length - 1].focus(); };
+  redraw(vals_());
+}
 function slotRow(s, c) {
   // Only the one who sent it back is red; the other sign-off simply hasn't happened.
   const right = s.done ? `<span class="r ok">✓ Approved</span>`
@@ -1366,7 +1402,7 @@ function viewScreen(target = ROOT) {
   // Where it stands, at the top: who has signed, who it waits on, who sent it back.
   h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
   if (c.status === "rejected" && c.rejected) h += `<div class="sentback"><b>Sent back by ${esc(c.rejected.by?.name)}${c.rejected.for ? ` for the ${esc(c.rejected.for)}` : ""} · ${esc(when(c.rejected.at))}</b><div class="note quote">"${esc(c.rejected.comment)}"</div></div>`;
-  if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · e-transfer <b>${esc(c.paid.ref)}</b>. Locked.</div></div>`;
+  if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · ${(() => { const r = c.paid.refs?.length ? c.paid.refs : [c.paid.ref]; return r.length > 1 ? `${r.length} e&#8209;transfers ${r.map((x) => `<b>${esc(x)}</b>`).join(", ")}` : `e-transfer <b>${esc(r[0])}</b>`; })()}. Locked.</div></div>`;
   if (c.status !== "draft") h += checksBox(c);
   // Every receipt and card statement on the claim, one after another, zoomable: what an approver checks before Approve.
   const pics = viewItems(c).length;
@@ -1381,7 +1417,7 @@ function viewScreen(target = ROOT) {
   if (c.can.pay) h += `<div class="card"><div class="k">Pay by e-transfer</div><div class="big" style="font-family:var(--fd);font-size:30px;margin:2px 0 2px">${money(c.sums.total)}</div>
       <div class="note" style="margin:0 0 10px">${c.payee ? `To <b>${esc(c.payee.name)}</b>${c.payee.kind === "other" ? "" : ", the presenter"} (${esc(c.payee.email)}). Not to ${esc(c.owner?.name)}, who sent it.` : `To ${esc(c.owner?.name)}${c.owner?.email ? ` (${esc(c.owner.email)})` : ""}`}</div>
       ${c.payer.practice || c.trial ? `<div class="say mu" style="margin:0 0 10px">${c.trial ? "Board test: don't send any money." : "Practice: nothing is sent."} Type any transaction number, like TEST123, and it locks as a paid claim does.</div>` : ""}
-      <div class="field"><label for="ref">E-transfer transaction number</label><input id="ref" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="${c.payer.practice || c.trial ? "TEST123" : "As the bank shows it"}"></div>
+      ${refBoxes(c)}
       <div class="field"><label for="paydate">Date sent</label><input id="paydate" type="date" value="${todayHere()}" max="${todayHere()}"></div>
       <button class="btn gold" id="paybtn" type="button">Confirm payment</button>
       ${c.payer.for ? `<p class="tiny center" style="margin-top:6px">You're standing in for the ${esc(c.payer.for)}.</p>` : ""}</div>
@@ -1415,7 +1451,8 @@ function viewScreen(target = ROOT) {
   if ($("approve")) $("approve").onclick = (e) => act(e.currentTarget, `?decide=${c.id}`, { decision: "approve" }, "Approved. The date is filled in.");
   if ($("reject")) $("reject").onclick = () => { $("approve").classList.add("dim"); $("rejectbox").hidden = false; $("why").focus(); };
   if ($("dosendback")) $("dosendback").onclick = (e) => { if ($("why").value.trim().length < 3) { toast("Say why, so they know what to change.", true); return $("why").focus(); } act(e.currentTarget, `?decide=${c.id}`, { decision: "reject", comment: $("why").value }, `Sent back to ${first}.`); };
-  if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { ref: $("ref").value, date: $("paydate").value }, "Paid and locked.");
+  if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { refs: [...document.querySelectorAll("#refs input")].map((i) => i.value).filter((v) => v.trim()), date: $("paydate").value }, "Paid and locked.");
+  wireRefs();
   // A claim opened to pay goes straight to the transaction number (Andrew, 3 Nov 2026: "Cursor defaults right to the
   // transaction number field"). Once, as it opens; an iPhone won't raise its keyboard on its own, so the field is lit too.
   if (VIEW.fresh && VIEW.id === c.id) {

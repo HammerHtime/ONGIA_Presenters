@@ -1,7 +1,7 @@
 import { layout } from "./mail.mjs";
 import { siteUrl } from "./site.mjs";
 import { formatDate } from "./deadlines.mjs";
-import { dollars, andList } from "./expenses.mjs";
+import { dollars, andList, refsOf } from "./expenses.mjs";
 
 /**
  * The emails ONGIA Expenses sends: to the people who approve a claim, to the person claiming when it is sent back,
@@ -144,13 +144,19 @@ export function toPayMail({ claim, approvedBy = [], acting = "", practice = fals
   return mail(claim, `Expense claim for ${owner}`, "Ready to be paid", lines, { label: "Record the payment", href: claimLink(claim.id) });
 }
 
+/** The transaction number, or each of them when the payment went in more than one e-transfer. */
+const refLine = (paid) => {
+  const r = refsOf(paid);
+  return r.length > 1 ? `Sent in ${r.length} e-transfers. Transaction numbers: ${r.map((x) => `<b>${esc(x)}</b>`).join(", ")}` : `Transaction number: <b>${esc(r[0] ?? "")}</b>`;
+};
+
 /** To the person claiming, once it is paid. */
 export function paidMail({ claim, payer, paid }) {
   const lines = [
     testNote(claim),
     claim.payee ? `${esc(payer)} paid the expense claim you made for ${esc(claim.payee.name)}, <b>${dollars(claim.total ?? 0)}</b>, by e-transfer to ${esc(claim.payee.email)} on ${esc(formatDate(paid.date))}. They've been told.`
       : `${esc(payer)} paid your ${esc(claim.month)} expense claim, <b>${dollars(claim.total ?? 0)}</b>, by e-transfer on ${esc(formatDate(paid.date))}.`,
-    `Transaction number: <b>${esc(paid.ref)}</b>`,
+    refLine(paid),
   ];
   return mail(claim, `Paid: your ${claim.month} expense claim`, "Your expense claim is paid", lines, { label: "See the claim", href: claimLink(claim.id) });
 }
@@ -167,7 +173,7 @@ export function presenterPaidMail({ claim, paid }) {
     `Hello ${esc(first)},`,
     isOther(claim) ? `ONGIA has paid you <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`
       : `ONGIA has reimbursed your expenses for ${esc(p.eventTitle ?? "the event")}: <b>${dollars(claim.total ?? 0)}</b>, sent by e-transfer to ${esc(p.email)} on ${esc(formatDate(paid.date))}.`,
-    `Transaction number: <b>${esc(paid.ref)}</b>`,
+    refLine(paid),
     isSelf(claim) ? "If anything looks wrong, reply to this email." : `${esc(claim.owner?.name ?? "A board member")} sent the claim for you. If anything looks wrong, reply to this email.`,
     isOther(claim) ? "Thank you." : "Thank you again for presenting.",
   ];
