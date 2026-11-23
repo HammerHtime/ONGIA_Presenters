@@ -872,6 +872,8 @@
   .mlrow .mlw{white-space:nowrap} .mlrow .mld{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mlrow .mls{font-size:13px;font-weight:600;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis} .mlrow .mlgo{color:var(--muted);font-size:17px;text-align:right}
   .mls.ok{color:var(--done)} .mls.wt{color:var(--wait)} .mls.late{color:var(--late)} .mls.mu{color:var(--muted)}
+  .rlsum{display:flex;align-items:center;gap:8px;min-height:34px;font-size:14px} .rlsum .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rlwho .rlf{display:flex;gap:6px;flex-wrap:wrap} .rlwho .rlf input{flex:1 1 140px;min-width:0}
   @media (max-width:640px){.mlrow{grid-template-columns:minmax(96px,auto) minmax(0,1fr) 14px;gap:8px;padding:6px 12px} .mlrow .mld{display:none} .mlrow .mls{max-width:none;text-align:right} .mailsw .mswtxt span{display:none} .mailsw{padding:8px 12px}}
   .mailsw.on{background:var(--done-bg)} .mailsw.off{background:var(--sunk)}
   .mailsw b{display:block;font-size:14px} .mailsw span{color:var(--muted)}
@@ -2678,6 +2680,12 @@ const hotelState = (ev) => ev.project ? null
 // contract … and beside it signed or confirmed"). It takes the status's colour.
 const CONTRACT_ICON = (ok = false) => `<svg class="hico" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 3h8l4 4v15H6z"/><path d="M14 3v4h4"/><path d="M8.5 11h6.5M8.5 14h4.5"/><path d="M8.5 18.5c1-1.2 1.6-1.2 2.2 0s1.3 1.1 2.3-.2"/>${ok ? `<circle class="hok" cx="19" cy="19" r="5"/><path class="hokt" d="M16.8 19.1l1.6 1.6 3-3.2"/>` : ""}</svg>`;
 const HOTEL_F = () => { try { return sessionStorage.getItem("ongia-hotel-f") || "all"; } catch { return "all"; } };
+/** An RBH event whose names and agencies list is due (two days before, until the first day) and hasn't gone. */
+const rbhListDue = (ev) => {
+  if (ev.kind !== "rbh" || ev.project || ev.practice || !ev.dayOne || (ev.rbhList?.sent ?? []).length) return false;
+  const left = Math.round((Date.parse(ev.dayOne) - Date.parse(new Date().toLocaleDateString("en-CA"))) / 86400000);
+  return left <= 2 && left >= 0;
+};
 /** The upcoming events, one row each: dates, the hotel, how many have signed, final materials, and what is next. */
 function eventsTable(upcoming) {
   const today = todayIso();
@@ -2698,6 +2706,8 @@ function eventsTable(upcoming) {
     const outN = (a.outstanding ?? []).length;
     if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
     if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
+    const rlDue = rbhListDue(ev);
+    if (rlDue) pills.push(`<span class="pill late" title="Names and agencies for RBH: Communications, List for RBH">RBH list due</span>`);
     if (!pills.length) {
       const nx = [["Agreements due", due], ["Final materials due", ev.noDeadlines ? null : ev.deadlines?.final], ["Training starts", ev.dayOne]].find(([, d]) => d && days(d) >= 0);
       if (nx) pills.push(`<span class="pill grey">${esc(nx[0])} ${esc(fmtDate(nx[1]).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}</span>`);
@@ -2705,7 +2715,7 @@ function eventsTable(upcoming) {
     if (ev.canEdit === false) pills.push(`<span class="pill grey">view only</span>`);
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
     // The tile's left edge says whether the event needs you (red) or not (navy).
-    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length;
+    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length || rlDue;
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}</td>
@@ -4768,7 +4778,7 @@ function eventScreen(data) {
       // A project is its statement of work, and a way to delete it.
       ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
       : (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", mailSumCard(mailSwitch(ev, guests)) + welcomeCard() + replyCard() + messageCard() + thanksCard() + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", mailSumCard(mailSwitch(ev, guests)) + welcomeCard() + replyCard() + messageCard() + thanksCard() + (ev.kind === "rbh" ? rbhListCard() : "") + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
     // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
@@ -4905,6 +4915,7 @@ function eventScreen(data) {
   if (document.getElementById("wlbox")) loadWelcome(ev);
   if (document.getElementById("msgbox")) loadMessage(ev);
   if (document.getElementById("thbox")) loadThanks(ev);
+  if (document.getElementById("rlbox")) loadRbhList(ev);
   if (document.getElementById("mcbox")) loadMc(ev);
   if (document.getElementById("svbox")) loadSurvey(ev);
   if (document.getElementById("certbox")) loadCerts(ev);
@@ -6118,6 +6129,19 @@ function drawMailSum(ev) {
   }
   for (const [k, what, go] of [["welcome", "Welcome letter", "welcomefold"], ["reply", "Food allergies", "replyfold"], ["survey", "Survey", "survey"]])
     if (MAILSUM[k]?.failed) rows.push({ at: "", what, go, who: "", when: "", state: ["late", "Couldn't load: reload the page"] });
+  // The names and agencies list for RBH (Andrew 23 Nov 2026): due two days before, sent when you press Send.
+  const RL = got("rbhlist");
+  const shortRl = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
+  if (RL) {
+    const last = RL.sent?.at(-1), today = new Date().toLocaleDateString("en-CA");
+    const grown = last && RL.counts && RL.counts.people !== last.people;
+    rows.push({ at: RL.due ?? "", what: "List for RBH", go: "rbhfold", who: RL.to ? `${esc(RL.to.name)}, names and agencies` : "Names and agencies",
+      when: RL.due ? `${esc(fmtDate(RL.due))}, 2 days before` : "2 days before",
+      state: RL.failed && !(last && last.at > RL.failed.at) ? ["late", "Didn't go: see below"]
+        : last ? [grown ? "wait" : "done", `Sent ${shortRl(last.at)} · ${last.people}${grown ? ` · now ${RL.counts.people}` : ""}`]
+        : !RL.to ? ["late", "Who gets it? Set it below"]
+        : RL.due && RL.due <= today ? ["late", `Due ${shortRl(RL.due)}: press Send`] : ["wait", RL.due ? `Due ${shortRl(RL.due)}` : "Not sent"] });
+  }
   // Soonest first; on the same day, in the order they go out: the food question, then the welcome letter, then the survey.
   const TIE = ["Food allergies", "Welcome letter", "Survey"];
   rows.sort((a, b) => (a.at || "9999").localeCompare(b.at || "9999") || TIE.indexOf(a.what) - TIE.indexOf(b.what));
@@ -6134,7 +6158,7 @@ function drawMailSum(ev) {
   box.innerHTML = rows.map((r) => `<button type="button" role="tab" class="mlrow${COMMS_ON === r.go ? " on" : ""}" data-msgo="${r.go}" aria-selected="${COMMS_ON === r.go}">
       <b class="mlw">${r.what}</b><span class="mld">${esc(plain([r.when, r.who].filter(Boolean).join(" · ")))}</span>
       <span class="mls ${tone[r.state[0]] ?? "mu"}">${esc(r.state[1])}</span><span class="mlgo" aria-hidden="true">${r.go === "survey" ? "↗" : "›"}</span></button>`).join("")
-    + (rows.length < 5 ? `<p class="porg" style="margin:8px 16px">Loading the rest…</p>` : "");
+    + (rows.length < 5 + (document.getElementById("rlbox") ? 1 : 0) ? `<p class="porg" style="margin:8px 16px">Loading the rest…</p>` : "");
   box.querySelectorAll("[data-msgo]").forEach((b) => { b.onclick = () => {
     const k = b.dataset.msgo;
     if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
@@ -6150,7 +6174,7 @@ function drawMailSum(ev) {
  * shows below. Click on another button … it shows the other"). The buttons pick which email's card shows under them; the
  * others are hidden, not taken away, so nothing being typed is lost. The pick is remembered per event on this device.
  */
-const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"], ["thanksfold", "Thank-you"]];
+const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"], ["thanksfold", "Thank-you"], ["rbhfold", "List for RBH"]];
 const commsKey = (id) => `ongia-comms-${id}`;
 function commsBar() {
   return `<div class="commsbar" id="commsbar" role="tablist" aria-label="Which email">${COMMS.map(([k, label]) => `<button type="button" role="tab" data-comms="${k}">${label}</button>`).join("")}</div>`;
@@ -6197,6 +6221,66 @@ function messageCard() {
  * conference or training event ends, and it goes out personally to each one"). One summary line that opens the words
  * and the switch; under it one row per presenter: who, their talk, where it stands, and Skip / Add / Resend.
  */
+/*
+ * The names and agencies list for RBH (Andrew 23 Nov 2026: "Danny is going to need a list of names and agencies for his
+ * government control back-end paperwork … one of those standing things that we need to deliver to Danny prior to the
+ * event starting"). On every RBH event: due two days before, it goes when you press Send, and Resend sends the list
+ * as it stands. One summary line says who gets it; Change opens the name and address, which serve every RBH event.
+ */
+function rbhListCard() {
+  return secFold("rbhlist", "List for RBH", "Names and agencies, two days before the event", "", `<div class="card-body" id="rlbox"><p class="porg">Loading…</p></div>`, { id: "rbhfold" });
+}
+function loadRbhList(ev) {
+  const box = document.getElementById("rlbox");
+  if (!box) return;
+  const q = `/rbhlist?event=${encodeURIComponent(ev.id)}`;
+  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  const draw = (L) => {
+    noteMail(ev, "rbhlist", L);
+    const c = L.counts, last = L.sent.at(-1);
+    const failed = L.failed && !(last && last.at > L.failed.at) ? L.failed : null;
+    box.innerHTML = `
+      <div class="rlsum"><span class="t">${L.to ? `To <b>${esc(L.to.name)}</b> <span class="porg">${esc(L.to.email)}</span>` : `<span class="late">Nobody set to get it yet</span>`}</span><button type="button" class="mini ghost" data-rl="who">${L.to ? "Change" : "Set"}</button></div>
+      <div class="rlwho" hidden><div class="rlf"><input id="rl-n" placeholder="Name" value="${esc(L.to?.name ?? "")}" aria-label="Their name"><input id="rl-e" type="email" placeholder="Email" value="${esc(L.to?.email ?? "")}" aria-label="Their email"><button type="button" class="mini" data-rl="save">Save</button></div>
+        <p class="hint" style="margin:4px 0 0">For every RBH event.</p></div>
+      <div class="rlsum"><span class="t"><b>${c.people}</b> ${c.people === 1 ? "person" : "people"}${c.team ? ` · ${c.team} team ticket${c.team === 1 ? "" : "s"}, names to come` : ""}${L.syncedAt ? ` <span class="porg">· from Wix ${esc(day(L.syncedAt))}</span>` : ""}</span></div>
+      ${failed ? `<div class="bad" style="margin:6px 0">Didn't go ${esc(day(failed.at))}: ${esc(failed.error)}</div>` : ""}
+      <div class="actions" style="margin-top:8px;flex-wrap:wrap;gap:8px"><button class="mini ghost" data-rl="see">See the email</button><button class="mini ghost" data-rl="xlsx">Excel</button>
+        <button class="mini gold" data-rl="send"${L.to && c.people ? "" : " disabled"}>${last ? "Resend" : "Send"}${L.to ? ` to ${esc(L.to.name.split(" ")[0])}` : ""}</button></div>
+      ${L.sent.length ? `<div class="svqr" style="margin-top:10px">${L.sent.slice().reverse().map((s) => `<div class="svqrow"><span class="t"><b>Sent ${esc(day(s.at))}</b> · ${s.people} people · by ${esc(s.by)}</span><span class="ok" style="font-size:12.5px;white-space:nowrap">${esc(s.toName || s.to)}</span></div>`).join("")}</div>` : ""}`;
+    box.querySelector('[data-rl="who"]').onclick = () => { const w = box.querySelector(".rlwho"); w.hidden = !w.hidden; if (!w.hidden) box.querySelector("#rl-n").focus(); };
+    box.querySelector('[data-rl="save"]').onclick = async (e) => {
+      try { await api("/rbhlist?to=1", { method: "PUT", body: JSON.stringify({ name: box.querySelector("#rl-n").value, email: box.querySelector("#rl-e").value }) }); toast("Saved for every RBH event."); load(); }
+      catch (x) { toast(x.message); }
+    };
+    box.querySelector('[data-rl="see"]').onclick = async () => {
+      try {
+        const out = await api(`${q}&preview=1`, { method: "POST", body: "{}" });
+        const dlg = document.getElementById("wldlg");
+        if (!dlg) { const w = window.open("", "_blank"); if (w) { w.document.write(out.html); w.document.close(); } return; }
+        document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = `As ${L.to?.name ?? "RBH"} will see it, with the Excel file attached.`;
+        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+      } catch (x) { toast(x.message); }
+    };
+    box.querySelector('[data-rl="xlsx"]').onclick = async () => {
+      try {
+        const res = await apiFetch(`/api${q}&xlsx=1`, { headers: { "x-admin-key": KEY } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The file could not be made.");
+        const named = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
+        Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? decodeURIComponent(named[1]) : "Attendees and Agencies.xlsx" }).click();
+      } catch (x) { toast(x.message); }
+    };
+    box.querySelector('[data-rl="send"]').onclick = async (e) => {
+      if (!confirm(`Send the list of ${c.people} people (names and agencies, with the Excel file) to ${L.to.name} at ${L.to.email} now?\n\nYou get a copy.`)) return;
+      const b = e.currentTarget; b.disabled = true; b.textContent = "Sending…";
+      try { await api(`${q}&send=1`, { method: "POST", body: "{}" }); toast(`Sent to ${L.to.name}.`); }
+      catch (x) { toast(x.message); }
+      load();
+    };
+  };
+  const load = async () => { try { draw(await api(q)); } catch (x) { box.innerHTML = `<div class="bad">${esc(x.message)}</div>`; noteMail(ev, "rbhlist", { failed: true }); } };
+  load();
+}
 function thanksCard() {
   return secFold("thanks", "Thank-you", "Presenters the morning after the last day; volunteers and board when you send it", "", `<div class="card-body" id="thbox"><p class="porg">Loading…</p></div>`, { id: "thanksfold" });
 }
