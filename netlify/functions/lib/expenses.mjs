@@ -51,6 +51,24 @@ export const hstOf = (l) => (noHst(l) || !Number.isFinite(Number(l?.amount)) ? 0
  * the claim form, the PDF and anything older that reads `ref` still shows every one. A payment from before keeps one `ref`.
  */
 export const refsOf = (paid) => (Array.isArray(paid?.refs) && paid.refs.length ? paid.refs : paid?.ref ? [paid.ref] : []);
+/*
+ * Each e-transfer with the day it went (Andrew 24 Nov 2026: "Half will be sent yesterday, half will be sent today").
+ * `sent` holds them; a payment from before has one date for all.
+ */
+export const transfersOf = (paid) => (Array.isArray(paid?.sent) && paid.sent.length ? paid.sent : refsOf(paid).map((ref) => ({ ref, date: paid?.date ?? "" })));
+/**
+ * The e-transfers typed on the pay form, tidied: `sent` [{ ref, date }], or `refs` with one `date`, or one `ref`.
+ * Returns { refs, dates } (a date per number, `fallback` where none was given), or the reason they can't be taken.
+ */
+export function cleanTransfers(body, fallback, latest) {
+  const sent = Array.isArray(body?.sent) ? body.sent.filter((t) => String(t?.ref ?? "").trim()) : null;
+  const one = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.date ?? "")) ? body.date : fallback;
+  const cr = cleanRefs(sent ? { refs: sent.map((t) => t.ref) } : body);
+  if (cr.error) return cr;
+  const dates = cr.refs.map((_, i) => (sent ? (/^\d{4}-\d{2}-\d{2}$/.test(String(sent[i].date ?? "")) && !Number.isNaN(Date.parse(sent[i].date)) ? sent[i].date : one) : one));
+  if (dates.some((d) => d > latest)) return { error: "A payment date can't be in the future." };
+  return { refs: cr.refs, dates };
+}
 /** The numbers typed on the pay form, tidied; or the reason they can't be taken. */
 export function cleanRefs(body) {
   const raw = Array.isArray(body?.refs) ? body.refs : [body?.ref];

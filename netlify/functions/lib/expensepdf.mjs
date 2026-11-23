@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { isStipend, hstOf } from "./expenses.mjs";
+import { isStipend, hstOf, transfersOf } from "./expenses.mjs";
 
 /**
  * A claim as a PDF, to sit beside the Excel in the member's folder: the same facts as the template (who, when, the
@@ -71,7 +71,7 @@ export async function claimPdf({ claim, signers = [], lines = [], checks = null,
     y += 16;
   }
   doc.font("Helvetica-Bold").fontSize(8.5).fillColor(MUTED).text("E-transfer", M, y, { width: 150, lineBreak: false });
-  doc.font("Helvetica").fontSize(10).fillColor(INK).text(claim.paid ? `${claim.paid.ref}, sent ${day(claim.paid.date)} by ${claim.paid.by?.name ?? ""}${claim.paid.for ? ` for the ${claim.paid.for}` : ""}` : "Not paid yet", M + 152, y - 1, { width: W - M * 2 - 152, lineBreak: false });
+  doc.font("Helvetica").fontSize(10).fillColor(INK).text(claim.paid ? `${transfersOf(claim.paid).length > 1 ? transfersOf(claim.paid).map((t) => `${t.ref} (${day(t.date)})`).join(", ") : `${claim.paid.ref}, sent ${day(claim.paid.date)}`} by ${claim.paid.by?.name ?? ""}${claim.paid.for ? ` for the ${claim.paid.for}` : ""}` : "Not paid yet", M + 152, y - 1, { width: W - M * 2 - 152, lineBreak: false });
   y += 20;
 
   // The lines, with the template's columns.
