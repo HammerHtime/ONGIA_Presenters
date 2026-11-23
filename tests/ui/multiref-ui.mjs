@@ -44,38 +44,40 @@ async function vpPage(width, height) {
 const p = await vpPage(390, 844);
 await p.goto(`${S}/expenses#claim=${big}`, { waitUntil: "networkidle" }); await p.waitForSelector("#refs");
 await p.waitForTimeout(500);
-const inputs = () => p.locator("#refs .refbox input");
+const inputs = () => p.locator("#refs .refbox .refnum"), days = () => p.locator("#refs .refbox .refday");
 ok("over $10,000: two boxes, numbered, with why", await inputs().count() === 2 && (await p.locator("#refs .refn").allInnerTexts()).join() === "1,2"
-  && /Over \$10,000: 2 e-transfers, one number each/.test(await p.locator("#refs .refhint").innerText()) && (await p.locator('#refs label[for="ref"]').innerText()) === "E-transfer transaction numbers");
+  && /Over \$10,000: 2 e-transfers\. A number and the date sent for each\./.test(await p.locator("#refs .refhint").innerText()) && (await p.locator('#refs label[for="ref"]').innerText()) === "E-transfer transaction numbers");
+ok("each has its own date, today to start; the one Date sent field goes", await days().count() === 2 && await days().nth(0).inputValue() === day(0) && await p.locator("#paydate").isHidden());
 ok("the first box has the cursor", await p.evaluate(() => document.activeElement?.id) === "ref");
-await p.locator("#refs .refbox input").nth(0).fill("CAq7Hd2Lp9");
-await p.locator("#refs .refbox input").nth(1).fill("CAz3Mn8Rt4");
+await inputs().nth(0).fill("CAq7Hd2Lp9"); await days().nth(0).fill(day(-1));
+await inputs().nth(1).fill("CAz3Mn8Rt4");
 await p.click("#refadd");
-ok("Add another adds a third, keeping what's typed", await inputs().count() === 3 && await inputs().nth(0).inputValue() === "CAq7Hd2Lp9" && await inputs().nth(1).inputValue() === "CAz3Mn8Rt4");
-await p.locator("#refs .refbox input").nth(2).fill("CAw1Xy5Kq2");
+ok("Add another adds a third, keeping what's typed", await inputs().count() === 3 && await inputs().nth(0).inputValue() === "CAq7Hd2Lp9" && await inputs().nth(1).inputValue() === "CAz3Mn8Rt4" && await days().nth(0).inputValue() === day(-1));
+await inputs().nth(2).fill("CAw1Xy5Kq2");
 await p.locator(".card:has(#refs)").screenshot({ path: D + "multiref-three.png" });
-await p.locator("#refs .refx").nth(1).click();
-ok("× takes that one away and keeps the rest", await inputs().count() === 2 && await inputs().nth(0).inputValue() === "CAq7Hd2Lp9" && await inputs().nth(1).inputValue() === "CAz3Mn8Rt4");
+await p.locator("#refs button.refx").nth(1).click();
+ok("× takes that one away and keeps the rest, dates too", await inputs().count() === 2 && await inputs().nth(0).inputValue() === "CAq7Hd2Lp9" && await inputs().nth(1).inputValue() === "CAz3Mn8Rt4" && await days().nth(0).inputValue() === day(-1));
 ok("nothing scrolls sideways", await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 await p.locator(".card:has(#refs)").screenshot({ path: D + "multiref-form.png" });
 await p.click("#paybtn"); await p.waitForTimeout(1500);
 const lockEl = p.locator(".lock", { hasText: "Paid" }).first(), lock = await lockEl.innerText();
-ok("paid: both numbers on the claim", /2 e‑transfers CAq7Hd2Lp9, CAz3Mn8Rt4\. Locked\./.test(lock), lock);
+ok("paid: both numbers on the claim", /2 e‑transfers CAq7Hd2Lp9 \(\w+ \d+\), CAz3Mn8Rt4 \(\w+ \d+\)\. Locked\./.test(lock), lock);
 await lockEl.screenshot({ path: D + "multiref-paid.png" });
 const got = await call(`?claim=${big}`, VP, undefined, "GET");
 ok("stored: each number, and joined for the form and the PDF", JSON.stringify(got.claim?.paid?.refs) === '["CAq7Hd2Lp9","CAz3Mn8Rt4"]' && got.claim?.paid?.ref === "CAq7Hd2Lp9, CAz3Mn8Rt4", JSON.stringify(got.claim?.paid));
+ok("stored: each with its own date; paid on the day the last went", JSON.stringify(got.claim?.paid?.sent) === JSON.stringify([{ ref: "CAq7Hd2Lp9", date: day(-1) }, { ref: "CAz3Mn8Rt4", date: day(0) }]) && got.claim?.paid?.date === day(0), JSON.stringify(got.claim?.paid));
 
 // Under the limit: one box, as before; Add another still there for a split anyway.
 const small = await approvedClaim(640, "Rooms for the Victoria training");
 const q = await vpPage(1280, 900);
 await q.goto(`${S}/expenses#claim=${small}`, { waitUntil: "networkidle" }); await q.waitForSelector("#refs"); await q.waitForTimeout(400);
-ok("under $10,000: one box, no number, no hint", await q.locator("#refs .refbox input").count() === 1 && await q.locator("#refs .refn").count() === 0 && await q.locator("#refs .refhint").count() === 0
+ok("under $10,000: one box, no number, no hint", await q.locator("#refs .refbox .refnum").count() === 1 && await q.locator("#refs .refday").count() === 0 && await q.locator("#refs .refn").count() === 0 && await q.locator("#refs .refhint").isHidden() && await q.locator("#paydate").isVisible()
   && (await q.locator('#refs label[for="ref"]').innerText()) === "E-transfer transaction number");
 await q.locator(".card:has(#refs)").screenshot({ path: D + "multiref-one-desktop.png" });
-await q.fill("#ref", "CAp4Lm2Nb8"); await q.click("#paybtn"); await q.waitForTimeout(1500);
+await q.fill("#ref", "CAp4Lm2Nb8"); await q.fill("#paydate", day(-3)); await q.click("#paybtn"); await q.waitForTimeout(1500);
 ok("one number pays as before", /e-transfer CAp4Lm2Nb8\. Locked\./.test(await q.locator(".lock", { hasText: "Paid" }).first().innerText()));
 const one = await call(`?claim=${small}`, VP, undefined, "GET");
-ok("one number stored as before, no list", one.claim?.paid?.ref === "CAp4Lm2Nb8" && !one.claim?.paid?.refs);
+ok("one number stored as before with the Date sent, no list", one.claim?.paid?.ref === "CAp4Lm2Nb8" && one.claim?.paid?.date === day(-3) && !one.claim?.paid?.refs && !one.claim?.paid?.sent);
 ok("no page errors", !errs.length, errs.join(" | "));
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);

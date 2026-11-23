@@ -18,9 +18,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
 <style>
-  .refs .refrow{display:flex;gap:6px;align-items:center;margin:0 0 6px} .refs .refrow input{flex:1;min-width:0}
+  .refs .refrow{display:flex;gap:6px;align-items:center;margin:0 0 6px} .refs .refrow .refnum{flex:1;min-width:0}
+  .refs .refrow .refday{flex:0 0 138px;width:138px;min-width:0;padding-left:8px;padding-right:6px}
   .refs .refrow .refn{flex:0 0 18px;font-size:13px;font-weight:700;color:var(--muted);text-align:right}
-  .refs .refx{flex:0 0 36px;height:36px;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;border-radius:8px} .refs .refx:hover{background:var(--sunk, #f1f1ee)}
+  .refs .refx{flex:0 0 28px;height:36px;padding:0;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;border-radius:8px} .refs .refx:hover{background:var(--sunk, #f1f1ee)}
   .refs .refadd{border:0;background:none;padding:2px 0;font:inherit;font-size:14px;font-weight:600;color:var(--navy, #1c2b4a);cursor:pointer}
   .refs .refhint{font-size:13px;color:var(--muted);margin:0 0 6px}
   :root{
@@ -1345,30 +1346,42 @@ async function openClaim(id, { push = true, claim = null, fresh = true } = {}) {
  * "Add another" covers a payment split some other way.
  */
 const ETRANSFER_LIMIT = 10000;
-function refBox(i, n, practice) {
-  return `<div class="refrow">${n > 1 ? `<span class="refn">${i + 1}</span>` : ""}<input${i ? "" : ' id="ref"'} aria-label="Transaction number${n > 1 ? ` ${i + 1}` : ""}" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="${i + 1 < n ? "next" : "done"}" placeholder="${practice ? "TEST123" : "As the bank shows it"}">${n > 1 ? (i ? `<button type="button" class="refx" aria-label="Remove">×</button>` : `<span class="refx" aria-hidden="true"></span>`) : ""}</div>`;
+// With more than one, each e-transfer has its own date beside it (Andrew 24 Nov 2026: "the dates will be different").
+function refBox(i, n, practice, t = {}) {
+  const many = n > 1;
+  return `<div class="refrow">${many ? `<span class="refn">${i + 1}</span>` : ""}<input class="refnum"${i ? "" : ' id="ref"'} aria-label="Transaction number${many ? ` ${i + 1}` : ""}" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="${i + 1 < n ? "next" : "done"}" placeholder="${practice ? "TEST123" : many ? "Number" : "As the bank shows it"}" value="${esc(t.ref ?? "")}">`
+    + (many ? `<input class="refday" type="date" aria-label="Date e-transfer ${i + 1} was sent" value="${esc(t.date || todayHere())}" max="${todayHere()}">` : "")
+    + (many ? (i ? `<button type="button" class="refx" aria-label="Remove e-transfer ${i + 1}">×</button>` : `<span class="refx" aria-hidden="true"></span>`) : "") + `</div>`;
 }
 function refBoxes(c) {
   const n = Math.max(1, Math.ceil((c.sums?.total ?? 0) / ETRANSFER_LIMIT)), practice = !!(c.payer?.practice || c.trial);
   return `<div class="field refs" id="refs" data-practice="${practice ? 1 : ""}"><label for="ref">E-transfer transaction number${n > 1 ? "s" : ""}</label>
-    ${n > 1 ? `<p class="refhint">Over $10,000: ${n} e-transfers, one number each.</p>` : ""}
+    <p class="refhint"${n > 1 ? "" : " hidden"}>${n > 1 && (c.sums?.total ?? 0) > ETRANSFER_LIMIT ? `Over $10,000: ${n} e-transfers. ` : ""}A number and the date sent for each.</p>
     <div class="refbox">${Array.from({ length: n }, (_, i) => refBox(i, n, practice)).join("")}</div>
     <button type="button" class="refadd" id="refadd">+ Add another e-transfer</button></div>`;
+}
+/** What's on the form: [{ ref, date }], one per e-transfer typed. With one, the date is the Date sent field's. */
+function refsTyped() {
+  const rows = [...document.querySelectorAll("#refs .refrow")];
+  return rows.map((r) => ({ ref: r.querySelector(".refnum").value, date: rows.length > 1 ? r.querySelector(".refday")?.value : $("paydate")?.value })).filter((t) => t.ref.trim());
 }
 function wireRefs() {
   const box = document.querySelector("#refs .refbox"); if (!box) return;
   const practice = !!$("refs").dataset.practice;
-  // Redraw keeping what's typed, so the numbering and the × buttons stay right.
-  const redraw = (vals) => {
-    box.innerHTML = vals.map((_, i) => refBox(i, vals.length, practice)).join("");
-    box.querySelectorAll("input").forEach((inp, i) => { inp.value = vals[i]; });
-    document.querySelector('#refs label[for="ref"]').textContent = `E-transfer transaction number${vals.length > 1 ? "s" : ""}`;
-    $("refadd").hidden = vals.length >= 10;
-    box.querySelectorAll(".refx").forEach((b, k) => { b.onclick = () => { const v = vals_(); v.splice(k + 1, 1); redraw(v); }; });
+  const rows = () => [...box.querySelectorAll(".refrow")].map((r) => ({ ref: r.querySelector(".refnum").value, date: r.querySelector(".refday")?.value || $("paydate")?.value }));
+  // Redraw keeping what's typed, so the numbering, the dates and the × buttons stay right.
+  const redraw = (v) => {
+    box.innerHTML = v.map((t, i) => refBox(i, v.length, practice, t)).join("");
+    const many = v.length > 1;
+    document.querySelector('#refs label[for="ref"]').textContent = `E-transfer transaction number${many ? "s" : ""}`;
+    document.querySelector("#refs .refhint").hidden = !many;
+    // One e-transfer keeps the Date sent field below; several carry their own dates, so it goes.
+    const pd = $("paydate")?.closest(".field"); if (pd) pd.hidden = many;
+    $("refadd").hidden = v.length >= 10;
+    box.querySelectorAll(".refx").forEach((b, k) => { if (b.tagName === "BUTTON") b.onclick = () => { const w = rows(); w.splice(k, 1); redraw(w); }; });
   };
-  const vals_ = () => [...box.querySelectorAll("input")].map((i) => i.value);
-  $("refadd").onclick = () => { const v = vals_(); v.push(""); redraw(v); box.querySelectorAll("input")[v.length - 1].focus(); };
-  redraw(vals_());
+  $("refadd").onclick = () => { const v = rows(); v.push({ ref: "", date: todayHere() }); redraw(v); box.querySelectorAll(".refnum")[v.length - 1].focus(); };
+  redraw(rows());
 }
 function slotRow(s, c) {
   // Only the one who sent it back is red; the other sign-off simply hasn't happened.
@@ -1402,7 +1415,8 @@ function viewScreen(target = ROOT) {
   // Where it stands, at the top: who has signed, who it waits on, who sent it back.
   h += `<div class="card"><div class="k">Sign-offs</div>${c.slots.map((s) => slotRow(s, c)).join("")}</div>`;
   if (c.status === "rejected" && c.rejected) h += `<div class="sentback"><b>Sent back by ${esc(c.rejected.by?.name)}${c.rejected.for ? ` for the ${esc(c.rejected.for)}` : ""} · ${esc(when(c.rejected.at))}</b><div class="note quote">"${esc(c.rejected.comment)}"</div></div>`;
-  if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · ${(() => { const r = c.paid.refs?.length ? c.paid.refs : [c.paid.ref]; return r.length > 1 ? `${r.length} e&#8209;transfers ${r.map((x) => `<b>${esc(x)}</b>`).join(", ")}` : `e-transfer <b>${esc(r[0])}</b>`; })()}. Locked.</div></div>`;
+  if (c.paid) h += `<div class="lock">${ICON_LOCK}<div><b>Paid ${esc(longDate(c.paid.date))}</b> by ${esc(c.paid.by?.name)}${c.paid.for ? ` for the ${esc(c.paid.for)}` : ""} · ${(() => { const r = c.paid.refs?.length ? c.paid.refs : [c.paid.ref]; const t = c.paid.sent?.length ? c.paid.sent : r.map((x) => ({ ref: x, date: c.paid.date }));
+    return r.length > 1 ? `${r.length} e&#8209;transfers ${t.map((x) => `<b>${esc(x.ref)}</b> (${esc(shortDay(x.date))})`).join(", ")}` : `e-transfer <b>${esc(r[0])}</b>`; })()}. Locked.</div></div>`;
   if (c.status !== "draft") h += checksBox(c);
   // Every receipt and card statement on the claim, one after another, zoomable: what an approver checks before Approve.
   const pics = viewItems(c).length;
@@ -1451,7 +1465,7 @@ function viewScreen(target = ROOT) {
   if ($("approve")) $("approve").onclick = (e) => act(e.currentTarget, `?decide=${c.id}`, { decision: "approve" }, "Approved. The date is filled in.");
   if ($("reject")) $("reject").onclick = () => { $("approve").classList.add("dim"); $("rejectbox").hidden = false; $("why").focus(); };
   if ($("dosendback")) $("dosendback").onclick = (e) => { if ($("why").value.trim().length < 3) { toast("Say why, so they know what to change.", true); return $("why").focus(); } act(e.currentTarget, `?decide=${c.id}`, { decision: "reject", comment: $("why").value }, `Sent back to ${first}.`); };
-  if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { refs: [...document.querySelectorAll("#refs input")].map((i) => i.value).filter((v) => v.trim()), date: $("paydate").value }, "Paid and locked.");
+  if ($("paybtn")) $("paybtn").onclick = (e) => act(e.currentTarget, `?pay=${c.id}`, { sent: refsTyped(), date: $("paydate").value }, "Paid and locked.");
   wireRefs();
   // A claim opened to pay goes straight to the transaction number (Andrew, 3 Nov 2026: "Cursor defaults right to the
   // transaction number field"). Once, as it opens; an iPhone won't raise its keyboard on its own, so the field is lit too.
