@@ -15,7 +15,7 @@ import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, APPROVER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
-  cleanPerDiem, money, dollars, shortDate,
+  cleanPerDiem, money, dollars, shortDate, cleanRefs,
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor, getPerDiem, perDiemFor, markPerDiem, PER_DIEM_KEY } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
@@ -46,7 +46,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, pre
  *   POST   /api/expenses?submit=<id>                     send it for approval
  *   POST   /api/expenses?decide=<id>                     { decision: approve | reject, comment }
  *   POST   /api/expenses?sendback=<id>                   { comment }: the President or VP, on an approved claim
- *   POST   /api/expenses?pay=<id>                        { ref, date }: the VP (or her stand-in); locks it
+ *   POST   /api/expenses?pay=<id>                        { refs: [..] (or ref), date }: the VP (or her stand-in); locks it
  *   POST   /api/expenses?unlock=<id>                     { reason }: the President or the VP
  *   POST   /api/expenses?marktest=<id>                   { on }: the President
  *   POST   /api/expenses?claim=<id>&toreal=1[&line=<line>]   a test claim being built: its lines (or that one) onto my real claim, receipts and all
@@ -402,13 +402,15 @@ export default async (req) => {
     const payer = payerFor(claim, aways, today);
     if (payer.email !== me.email) return fail(`${names(payer.email)} records the payments${payer.for ? `, standing in for the ${ROLE_TITLE[PAYER]}` : ""}.`, 403);
     const body = await req.json().catch(() => ({}));
-    const ref = String(body.ref ?? "").trim().replace(/\s+/g, "");
-    if (!/^[A-Za-z0-9-]{4,40}$/.test(ref)) return fail("Type the e-transfer's transaction number, as the bank shows it.");
+    // Over the bank's $10,000 e-transfer limit a payment goes in several e-transfers, each with its own number.
+    const cr = cleanRefs(body);
+    if (cr.error) return fail(cr.error);
+    const refs = cr.refs, ref = refs.join(", ");
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body.date ?? "")) ? body.date : today;
     // A day's grace past Toronto's date: late in the evening it is already tomorrow further east.
     if (date > new Date(Date.parse(`${today}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10)) return fail("The payment date can't be in the future.");
     claim.status = "paid";
-    claim.paid = { ref, date, by: { email: me.email, name: me.name }, ...(payer.for ? { for: ROLE_TITLE[PAYER] } : {}), at: now() };
+    claim.paid = { ref, ...(refs.length > 1 ? { refs } : {}), date, by: { email: me.email, name: me.name }, ...(payer.for ? { for: ROLE_TITLE[PAYER] } : {}), at: now() };
     claim.history = [...(claim.history ?? []), { at: now(), what: "paid and locked", by: me.name, ref }];
     await putClaim(claim);
     await markWaiting(claim.id, false);
