@@ -49,8 +49,8 @@ r = await call("?to=1", "PUT", { name: "Danny Fournier", email: "Danny.Fournier@
 ok("who gets it is kept, for every RBH event", r.status === 200 && r.body.to.email === "danny.fournier@rbh.example");
 
 const pv = await call("?event=rl-rbh&preview=1", "POST", {});
-ok("the email: Andrew's words, the table, the team note", /Hi Danny,/.test(pv.body.html) && /As per your request, here is a list of the names and agencies that will be in attendance for the Western Symposium:/.test(pv.body.html)
-  && /Ryan Anderson <i[^>]*>\(\+2 tickets for their team\)<\/i>/.test(pv.body.html) && /bought multiple tickets for their team/.test(pv.body.html) && /attached the list as an Excel file/.test(pv.body.html) && /If you have any questions, please let me know\./.test(pv.body.html));
+ok("the email: Andrew's words, short, the list attached not typed out, the team note", /Hi Danny,/.test(pv.body.html) && /As per your request, attached is a list of the names and agencies that will be in attendance for the Western Symposium\./.test(pv.body.html)
+  && !/Ryan Anderson|McKinnon|<table[^>]*>\s*<tr><th/.test(pv.body.html) && /bought multiple tickets for their team/.test(pv.body.html) && /If you have any questions, please let me know\./.test(pv.body.html));
 ok("nothing is sent by preview", !sent.length);
 
 const x = await call("?event=rl-rbh&xlsx=1");

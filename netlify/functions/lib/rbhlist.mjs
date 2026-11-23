@@ -66,22 +66,18 @@ export function listWorkbook(rows) {
 
 export const fileName = (event) => `${tidy(event.title || "Event").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").slice(0, 80)} - Attendees and Agencies.xlsx`;
 
-/** The email to RBH: Andrew's words (23 Nov 2026), the table, and a note on team tickets when there are any. */
+/**
+ * The email to RBH: Andrew's words (23 Nov 2026), short, with the list as the attached Excel file only (Andrew 23 Nov
+ * 2026: "With all the names in there, it looks really long and sloppy … we'll just leave it as an attachment").
+ */
 export function listMail({ event, rows, to, sign }) {
   const c = countOf(rows);
-  const cell = "padding:5px 10px 5px 0;border-bottom:1px solid #e3e3e3;font-size:14px;line-height:1.35;text-align:left;vertical-align:top";
-  const head = "padding:6px 10px 6px 0;border-bottom:2px solid #1a2f5e;font-size:13px;text-align:left;text-transform:uppercase;letter-spacing:.04em;color:#596176";
-  const table = `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;margin:4px 0 14px">
-<tr><th style="${head}">Name</th><th style="${head}">Agency</th></tr>
-${rows.map((r) => `<tr><td style="${cell}">${esc(r.name)}${r.team ? ` <i style="color:#596176">(+${r.team} ticket${r.team > 1 ? "s" : ""} for their team)</i>` : ""}</td><td style="${cell}">${esc(r.agency)}</td></tr>`).join("\n")}
-</table>`;
+  const p = (t) => `<p style="margin:0 0 14px;line-height:1.55">${t}</p>`;
   const bodyHtml = [
-    `<p style="margin:0 0 14px">Hi ${esc(first(to?.name))},</p>`,
-    `<p style="margin:0 0 14px">As per your request, here is a list of the names and agencies that will be in attendance for the ${esc(event.title)}:</p>`,
-    table,
-    c.team ? `<p style="margin:0 0 14px">Certain people bought multiple tickets for their team. We won't know those names until the event.</p>` : "",
-    `<p style="margin:0 0 14px">I've also attached the list as an Excel file.</p>`,
-    `<p style="margin:0 0 14px">If you have any questions, please let me know.</p>`,
+    p(`Hi ${esc(first(to?.name))},`),
+    p(`As per your request, attached is a list of the names and agencies that will be in attendance for the ${esc(event.title)}.`),
+    c.team ? p("Certain people bought multiple tickets for their team. We won't know those names until the event.") : "",
+    p("If you have any questions, please let me know."),
     `<p style="margin:0">${esc(sign?.name ?? "")}<br>${esc(sign?.role ?? "President, ONGIA")}</p>`,
   ].join("\n");
   return { subject: `Attendee list: ${event.title}`, html: layout({ heading: "Names and agencies attending", bodyHtml, event }) };
