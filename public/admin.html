@@ -4948,13 +4948,14 @@ function eventScreen(data) {
   wireComms(ev);
   // The cards on Communications, Program and Survey each fetch their own part. They load the first time their tab is
   // opened, not every time the event is drawn (audit 24 Nov 2026: opening an event made 34 requests, a checklist tick 28).
+  // Communications also reads the survey card's state for its Survey row, so it loads that card too.
   const LAZY = {
-    communications: [["replybox", loadReply], ["wlbox", loadWelcome], ["msgbox", loadMessage], ["thbox", loadThanks], ["rlbox", loadRbhList]],
+    communications: [["replybox", loadReply], ["wlbox", loadWelcome], ["msgbox", loadMessage], ["thbox", loadThanks], ["rlbox", loadRbhList], ["svbox", loadSurvey]],
     program: [["mcbox", loadMc]],
     survey: [["svbox", loadSurvey], ["certbox", loadCerts], ["rsbox", loadResults], ["rpbox", loadReports]],
   };
   const lazyDone = new Set();
-  const loadTab = (k) => { if (lazyDone.has(k)) return; lazyDone.add(k); for (const [id, load] of LAZY[k] ?? []) if (document.getElementById(id)) load(ev); };
+  const loadTab = (k) => { for (const [id, load] of LAZY[k] ?? []) if (!lazyDone.has(id) && document.getElementById(id)) { lazyDone.add(id); load(ev); } };
   if (allTabs) Object.keys(LAZY).forEach(loadTab); else loadTab(tab);
   svWhich(view.svw === "certs" && document.getElementById("certbox") ? "certs" : "survey", true);
   document.querySelectorAll("[data-svgo]").forEach((b) => b.onclick = () => { svWhich(b.dataset.svgo); keepAddress(); });
