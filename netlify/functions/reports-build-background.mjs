@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent } from "./lib/store.mjs";
 import { buildReport, fileReport, reportsOf, putReports } from "./lib/reports.mjs";
 import { buildYearReport, fileYearReport, yearReportsOf, putYearReports } from "./lib/yearend.mjs";
@@ -9,7 +9,7 @@ import { putMeta } from "./lib/store.mjs";
 
 /** Make a report (both languages) and file it, in the background: Claude takes a minute or two. Started by /api/reports. */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const job = await req.json().catch(() => ({}));
   if (job.yearend) return yearEnd(job);
   if (job.ongia) return ongiaYear(job);

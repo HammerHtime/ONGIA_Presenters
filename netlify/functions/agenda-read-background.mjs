@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent, getAgenda, putAgendaRead } from "./lib/store.mjs";
 import { readAgenda } from "./lib/agenda.mjs";
 import { whyItFailed } from "./lib/contract.mjs";
@@ -9,7 +9,7 @@ import { whyItFailed } from "./lib/contract.mjs";
  * It never touches the event itself: the times are Andrew's to save.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const eventId = new URL(req.url).searchParams.get("event");
   const [event, doc] = await Promise.all([getEvent(eventId), getAgenda(eventId)]);
   if (!event || !doc) return new Response("Nothing to read.", { status: 404 });

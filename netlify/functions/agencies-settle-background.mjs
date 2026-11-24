@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { settle, everyone } from "./lib/agencies.mjs";
 
@@ -7,7 +7,7 @@ import { settle, everyone } from "./lib/agencies.mjs";
  * caller gets 202 at once and the page watches agencies:run). The nightly run does the same as one of its steps.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   await putMeta("agencies:run", { state: "running", at: new Date().toISOString() });
   try {
     const out = await settle(await everyone());

@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent, getContract, getRoster, putSignedContract, getContractSign, putContractSign } from "./lib/store.mjs";
 import { pdfLines, locateFields, fillContract } from "./lib/contractsign.mjs";
 import { signatureImage } from "./lib/thanks.mjs";
@@ -13,7 +13,7 @@ import { todayIso, formatLong } from "./lib/deadlines.mjs";
  */
 const PRESIDENT = "president@ongia.ca";
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const params = new URL(req.url).searchParams;
   const eventId = params.get("event");
   const [event, doc, asked] = await Promise.all([getEvent(eventId), getContract(eventId), getContractSign(eventId)]);

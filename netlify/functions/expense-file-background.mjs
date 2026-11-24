@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getClaim, putClaim, getClaimFile, getRoster, listClaimLines } from "./lib/store.mjs";
 import { syncClaimToSow } from "./lib/sowexpense.mjs";
 import { rosterName } from "./lib/expenses.mjs";
@@ -17,7 +17,7 @@ import { claimDocuments, fileClaim, unfileClaim } from "./lib/expensefile.mjs";
  * officers and is never only in a log.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const q = new URL(req.url).searchParams;
 
   if (q.get("drop")) {

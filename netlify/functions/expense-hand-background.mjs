@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getMeta, putMeta, listClaimIds, getClaim } from "./lib/store.mjs";
 import { expenseDrive } from "./lib/graph.mjs";
 import { expenseFolder } from "./lib/expensefile.mjs";
@@ -19,7 +19,7 @@ import { readFileFacts, newName, uniqueInFolder, READABLE } from "./lib/handrena
 const BUDGET = 13 * 60 * 1000, KEY = "expense-hand", MAX_HOPS = 6;
 
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") === "apply" ? "apply" : "plan";
   const hop = Number(url.searchParams.get("hop") || 0);

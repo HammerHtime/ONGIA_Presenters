@@ -40,30 +40,56 @@
   .li{display:inline-flex;align-items:center;gap:8px;margin-top:20px;background:#0a66c2;color:#fff;text-decoration:none;font-weight:600;border-radius:999px;padding:11px 18px;min-height:44px}
   .fine{color:var(--muted);font-size:13px;margin-top:18px}
   .wait{color:var(--muted)}
+  .lang{float:right;margin-top:10px;color:#fff;font:500 13px var(--fb);text-decoration:underline;background:none;border:0;cursor:pointer;padding:6px}
 </style>
 </head>
 <body>
-<div class="bar"><img src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact."></div>
-<main><div class="card" id="box"><p class="wait">Checking the certificate…</p></div></main>
+<div class="bar"><button type="button" class="lang" id="lang">Français</button><img src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact."></div>
+<main><div class="card" id="box"><p class="wait" id="wait">Checking the certificate…</p></div></main>
 <script>
+  // English and French (audit 24 Nov 2026: the French certificate email linked to an English-only page). French when the
+  // link says so (?lang=fr, from the French email) or the phone is set to French; the button switches.
+  const T = {
+    en: { checking: "Checking the certificate…", withdrawn: "This certificate has been withdrawn", none: "ONGIA has no certificate with this number",
+      failed: "The certificate could not be checked. Try again in a moment", genuine: "A genuine ONGIA certificate", completed: "Completed", issued: "Date issued",
+      by: "Issued by", number: "Number", linkedin: "Add to LinkedIn", fine: "This page confirms the certificate was issued by ONGIA. It shows only what the certificate itself says.",
+      badFine: (c) => `Certificate number ${c}. If you think this is a mistake, write to info@ongia.ca.`, missing: "missing", other: "Français", title: "ONGIA: verify a certificate" },
+    fr: { checking: "Vérification du certificat…", withdrawn: "Ce certificat a été retiré", none: "L'ONGIA n'a aucun certificat portant ce numéro",
+      failed: "Le certificat n'a pas pu être vérifié. Réessayez dans un instant", genuine: "Un certificat authentique de l'ONGIA", completed: "Formation suivie", issued: "Date de délivrance",
+      by: "Délivré par", number: "Numéro", linkedin: "Ajouter à LinkedIn", fine: "Cette page confirme que le certificat a été délivré par l'ONGIA. Elle n'indique que ce que le certificat lui-même mentionne.",
+      badFine: (c) => `Certificat n<sup>o</sup> ${c}. Si vous croyez qu'il s'agit d'une erreur, écrivez à info@ongia.ca.`, missing: "manquant", other: "English", title: "ONGIA : vérifier un certificat" },
+  };
+  const params = new URLSearchParams(location.search);
+  let lang = params.get("lang") === "fr" || (!params.get("lang") && /^fr\b/i.test(navigator.language || "")) ? "fr" : "en";
+  const t = () => T[lang];
   const box = document.getElementById("box");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const code = new URLSearchParams(location.search).get("c") || "";
-  const bad = (why) => { box.className = "card no"; box.innerHTML = `<div class="state"><span class="mark" aria-hidden="true">✕</span>${why}</div>
-    <p class="fine">Certificate number ${esc(code || "missing")}. If you think this is a mistake, write to info@ongia.ca.</p>`; };
+  const code = params.get("c") || "";
+  let last = null;
+  const bad = (key) => { last = { bad: key }; box.className = "card no"; box.innerHTML = `<div class="state"><span class="mark" aria-hidden="true">✕</span>${t()[key]}</div>
+    <p class="fine">${t().badFine(esc(code || t().missing))}</p>`; };
+  const good = (v) => { last = { v }; box.className = "card ok";
+    box.innerHTML = `<div class="state"><span class="mark" aria-hidden="true">✓</span>${t().genuine}</div>
+      <h1>${esc(v.name)}</h1>${v.agency ? `<div class="agency">${esc(v.agency)}</div>` : ""}
+      <dl><dt>${t().completed}</dt><dd>${esc(v.training)}</dd><dt>${t().issued}</dt><dd>${esc(lang === "fr" && v.dateFr ? v.dateFr : v.date)}</dd><dt>${t().by}</dt><dd>ONGIA</dd><dt>${t().number}</dt><dd>${esc(v.code)}</dd></dl>
+      <a class="li" href="${esc(v.linkedin)}" target="_blank" rel="noopener">${t().linkedin}</a>
+      <p class="fine">${t().fine}</p>`; };
+  const paint = () => {
+    document.documentElement.lang = lang; document.title = t().title;
+    document.getElementById("lang").textContent = t().other;
+    const w = document.getElementById("wait"); if (w) w.textContent = t().checking;
+    if (last?.v) good(last.v); else if (last?.bad) bad(last.bad);
+  };
+  document.getElementById("lang").onclick = () => { lang = lang === "fr" ? "en" : "fr"; paint(); };
+  paint();
   (async () => {
     try {
       const res = await fetch(`/api/verify?c=${encodeURIComponent(code)}`);
       const v = await res.json();
-      if (v.revoked) return bad("This certificate has been withdrawn");
-      if (!v.valid) return bad("ONGIA has no certificate with this number");
-      box.className = "card ok";
-      box.innerHTML = `<div class="state"><span class="mark" aria-hidden="true">✓</span>A genuine ONGIA certificate</div>
-        <h1>${esc(v.name)}</h1>${v.agency ? `<div class="agency">${esc(v.agency)}</div>` : ""}
-        <dl><dt>Completed</dt><dd>${esc(v.training)}</dd><dt>Date issued</dt><dd>${esc(v.date)}</dd><dt>Issued by</dt><dd>ONGIA</dd><dt>Number</dt><dd>${esc(v.code)}</dd></dl>
-        <a class="li" href="${esc(v.linkedin)}" target="_blank" rel="noopener">Add to LinkedIn</a>
-        <p class="fine">This page confirms the certificate was issued by ONGIA. It shows only what the certificate itself says.</p>`;
-    } catch { bad("The certificate could not be checked. Try again in a moment"); }
+      if (v.revoked) return bad("withdrawn");
+      if (!v.valid) return bad("none");
+      good(v);
+    } catch { bad("failed"); }
   })();
 </script>
 </body>

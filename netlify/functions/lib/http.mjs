@@ -30,6 +30,20 @@ export function requireAdmin(req) {
 }
 
 /** Who is at the desk: a signed-in board member, or { key: true } for the shared key. */
+/**
+ * Only the app itself: the background jobs (bulk sends, backups, file renames, Claude's reads) are started by the
+ * desk's own endpoints with the site key, after they have checked who is asking. A board member's sign-in is not
+ * enough to start one directly, so none of those checks can be stepped around (audit 24 Nov 2026).
+ */
+export function requireInternal(req) {
+  const expected = process.env.ADMIN_KEY;
+  if (!expected) return "ADMIN_KEY is not set on this site, so admin screens are locked.";
+  const supplied = req.headers.get("x-admin-key") ?? "";
+  const digest = (v) => createHash("sha256").update(String(v)).digest("hex");
+  if (supplied.startsWith("s1.") || !tokensMatch(digest(supplied), digest(expected))) return "Not authorized.";
+  return null;
+}
+
 export function adminWho(req) {
   const supplied = req.headers.get("x-admin-key") ?? "";
   return readSession(supplied) ?? { key: true, name: "Desk key", email: "" };

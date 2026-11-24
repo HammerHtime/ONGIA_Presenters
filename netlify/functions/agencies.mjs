@@ -186,8 +186,12 @@ async function master(req, url) {
     } else if (q("sortsectors")) {
       // Claude sorts every agency without a sector (or, with all, every one not set by hand), in the background.
       await putMeta("agencies:sectorrun", { at: new Date().toISOString(), state: "running", all: !!body.all });
-      await fetch(`${url.origin}/api/reports-build-background`, { method: "POST", headers: { "x-admin-key": req.headers.get("x-admin-key") ?? "", "content-type": "application/json" },
+      await fetch(`${url.origin}/api/reports-build-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "", "content-type": "application/json" },
         body: JSON.stringify({ sectors: true, all: !!body.all }) }).catch(() => {});
+    } else if (q("settle")) {
+      // Check now: the matching runs in the background, started here with the site's own key.
+      const r = await fetch(`${url.origin}/api/agencies-settle-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "" } }).catch((e) => ({ status: 0, e }));
+      if (!r.status || r.status >= 400) return fail(`The check couldn't be started (${r.e?.message ?? r.status}). Try again.`, 502);
     } else if (q("merge")) {
       await mergeAgencies(text(body.from, 160), text(body.into, 160));
     } else if (q("add")) {

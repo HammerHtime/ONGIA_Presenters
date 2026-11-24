@@ -190,7 +190,7 @@ export async function scanBounces({ force = false, now = new Date(), get = null,
   if (!force && last.at && now - Date.parse(last.at) < 55 * 60 * 1000) return { skipped: "read less than an hour ago" };
   const since = new Date(Math.max(Date.parse(last.through ?? 0) || 0, now - 14 * 86400000) - 3600000).toISOString();
   const today = todayIso();
-  const events = (await listEvents()).filter((e) => !e.practice && (e.lastDay || e.dayOne) && (e.lastDay || e.dayOne) >= new Date(now - 30 * 86400000).toISOString().slice(0, 10));
+  const events = (await listEvents()).filter((e) => !e.practice && (e.lastDay || e.dayOne) && (e.lastDay || e.dayOne) >= todayIso(new Date(now - 30 * 86400000)));
   let read = 0, marked = 0;
   try {
     const fetchPath = get ?? (async (p) => graphGet(await graphAccessToken(), p));

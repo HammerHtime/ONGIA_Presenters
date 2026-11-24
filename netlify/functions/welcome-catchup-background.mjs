@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { scanBounces } from "./lib/attmail.mjs";
 import { catchUpWelcome, CATCHUP_LOCK } from "./lib/welcomecatchup.mjs";
@@ -13,7 +13,7 @@ import { pullEvent } from "./wix.mjs";
 const BUDGET_MS = 5 * 60 * 1000;
 
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   try {
     const out = await catchUpWelcome({ pull: pullEvent, deadline: Date.now() + BUDGET_MS, pace: pacer() });
     for (const r of out.events ?? []) {

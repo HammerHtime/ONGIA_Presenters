@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { runSurveyRounds } from "./lib/surveysend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
@@ -18,7 +18,7 @@ const BUDGET_MS = 13 * 60 * 1000;
 const MAX_HOPS = 5;
 
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const url = new URL(req.url);
   const hop = Math.min(Math.max(Number(url.searchParams.get("hop")) || 0, 0), MAX_HOPS);
   await primeRoster();

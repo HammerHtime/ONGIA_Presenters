@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getClaimLine, getClaimFile, putClaimRead } from "./lib/store.mjs";
 import { readExpenseReceipt, whyItFailed } from "./lib/expenses.mjs";
 
@@ -8,7 +8,7 @@ import { readExpenseReceipt, whyItFailed } from "./lib/expenses.mjs";
  * line itself, so it cannot write over what the person is typing; the app folds it into the empty boxes.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const params = new URL(req.url).searchParams;
   const claimId = params.get("claim"), id = params.get("line");
   if (!/^[a-z0-9-]{4,40}$/.test(claimId ?? "") || !/^[a-z0-9]{6,40}$/.test(id ?? "")) return new Response("Bad request.", { status: 400 });

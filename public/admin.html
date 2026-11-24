@@ -2586,6 +2586,9 @@ function homeQueues(events, inbox, { here = false } = {}) {
     }
     if ((a.sendFailed ?? []).length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`, who: names(a.sendFailed), note: "Fix the address on the event", btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="people">Show them</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
     const blockers = blockersOf(ev);
+    // The names and agencies list for RBH, due two days before (audit 24 Nov 2026: it showed on the events list only).
+    if (rbhListDue(ev)) needs.push(row({ rank: 1, icon: "!", cls: "late", title: "List for RBH due", who: "Names and agencies", note: "Two days before the event",
+      btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open it</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
     if (blockers.length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: "Event is blocked", who: esc(blockers.map((b) => b.short).join(", ")), btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Fix it</button>` }));
     const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
     const out = a.outstanding ?? [];
@@ -2725,7 +2728,10 @@ function eventsTable(upcoming) {
     if ((a.uninvited ?? []).length) pills.push(`<span class="pill wait">${a.uninvited.length} never sent</span>`);
     if ((a.failed ?? []).length) pills.push(`<span class="pill late">${a.failed.length} not filed</span>`);
     const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
-    const outN = (a.outstanding ?? []).length;
+    // Overdue means chased and still not signed: someone never sent a link has their own "never sent" tag, and the
+    // queue counts it the same way (audit 24 Nov 2026: the tag and the queue gave different numbers).
+    const uninvIds = new Set((a.uninvited ?? []).map((x) => x.id));
+    const outN = (a.outstanding ?? []).filter((x) => !uninvIds.has(x.id)).length;
     if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
     if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
     const rlDue = rbhListDue(ev);
@@ -6256,6 +6262,25 @@ function messageCard() {
  * event starting"). On every RBH event: due two days before, it goes when you press Send, and Resend sends the list
  * as it stands. One summary line says who gets it; Change opens the name and address, which serve every RBH event.
  */
+/*
+ * One window for seeing an email before it goes (audit 24 Nov 2026): the Message, Thank-you, join reminder and RBH list
+ * cards used to borrow the welcome letter's, which isn't there until that card has loaded, so "See" did nothing. This
+ * one is made the first time it's needed and sits on the page itself, outside the tabs.
+ */
+function previewEmail({ subject, note = "", html }) {
+  let dlg = document.getElementById("emdlg");
+  if (!dlg) {
+    document.body.insertAdjacentHTML("beforeend", `<dialog class="sheet rpdlg" id="emdlg"><form method="dialog">
+      <div class="sheet-head"><h2 id="emd-title">The email</h2><p class="hint" id="emd-note" style="margin-top:6px"></p></div>
+      <div class="sheet-body"><div class="lprev"><iframe id="emd-frame" title="The email as it will arrive" sandbox="" style="width:100%;min-height:70vh;border:0"></iframe></div>
+        <div class="actions" style="margin-top:14px"><button class="btn btn-ghost" value="close">Close</button></div></div></form></dialog>`);
+    dlg = document.getElementById("emdlg");
+  }
+  document.getElementById("emd-title").textContent = subject || "(no subject yet)";
+  document.getElementById("emd-note").textContent = note;
+  document.getElementById("emd-frame").srcdoc = html;
+  dlg.showModal();
+}
 function rbhListCard() {
   return secFold("rbhlist", "List for RBH", "Names and agencies, two days before the event", "", `<div class="card-body" id="rlbox"><p class="porg">Loading…</p></div>`, { id: "rbhfold" });
 }
@@ -6285,10 +6310,7 @@ function loadRbhList(ev) {
     box.querySelector('[data-rl="see"]').onclick = async () => {
       try {
         const out = await api(`${q}&preview=1`, { method: "POST", body: "{}" });
-        const dlg = document.getElementById("wldlg");
-        if (!dlg) { const w = window.open("", "_blank"); if (w) { w.document.write(out.html); w.document.close(); } return; }
-        document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = `As ${L.to?.name ?? "RBH"} will see it, with the Excel file attached.`;
-        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+        previewEmail({ subject: out.subject, note: `As ${L.to?.name ?? "RBH"} will see it, with the Excel file attached.`, html: out.html });
       } catch (x) { toast(x.message); }
     };
     box.querySelector('[data-rl="xlsx"]').onclick = async () => {
@@ -6392,9 +6414,7 @@ async function loadThanks(ev) {
     box.querySelector('[data-th="std"]')?.addEventListener("click", () => { if (confirm("Put back the standard email for this event?")) call(q, { method: "PUT", body: JSON.stringify({ standard: true }) }, "Standard words back."); });
     box.querySelector('[data-th="see"]').onclick = async () => {
       const out = await call(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
-      const dlg = document.getElementById("wldlg"); if (!out || !dlg) return;
-      document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = "As a presenter will see it.";
-      document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+      if (out) previewEmail({ subject: out.subject, note: "As a presenter will see it.", html: out.html });
     };
     box.querySelector('[data-th="test"]').onclick = () => { const to = WHO?.email || prompt("Send the test to which address?") || ""; if (to) call(`${q}&test=1`, { method: "POST", body: JSON.stringify({ ...words(), to }) }, `Test sent to ${to}.`); };
     box.querySelectorAll("[data-thpick]").forEach((b) => { b.onclick = () => call(q, { method: "PUT", body: JSON.stringify({ id: b.dataset.thpick, pick: b.dataset.v }) }); });
@@ -6503,7 +6523,7 @@ function loadMessage(ev) {
 …">${esc(d.body ?? "Hello {first},\n\n")}</textarea>
         <p class="hint" style="margin:6px 0 0">{first} is each person's first name. A line in CAPITALS is a heading. ${d.fromMe ? "Signed by you, and replies come to you." : `Signed and answered like the welcome letter${M.replyTo ? `: replies go to ${esc(M.replyTo)}` : ""}.`}</p></div>
       <div class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0 0;font-size:14px;text-transform:none;letter-spacing:0"><input type="checkbox" id="msg-me"${d.fromMe ? " checked" : ""} style="margin-top:3px"><label for="msg-me" style="text-transform:none;letter-spacing:0;font-size:14px;font-weight:400;color:inherit;margin:0">Signed by me, replies come to me</label></div>
-      ${M.mailOn ? "" : `<div class="bad" style="margin-top:8px">Emails to attendees are off for this event, so it can't be sent. Turn them on in Settings.</div>`}
+      ${M.mailOn ? "" : `<div class="bad" style="margin-top:8px">Emails to attendees are off for this event, so it can't be sent. Turn them on with the switch at the top of Communications.</div>`}
       <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini ghost" data-msg="see">See the email</button><button class="mini ghost" data-msg="test">Send me a test</button>
         <button class="mini gold" data-msg="send"${M.mailOn && !M.sending ? "" : " disabled"}>Send to ${g()?.reaches ?? 0}</button><span class="hint" data-msgsaid style="margin:0;align-self:center">${M.sending ? "Something is sending for this event now." : ""}</span></div>
       ${M.sent.length ? `<div class="xh" style="margin:16px 0 4px">Sent</div><div class="svqr">${M.sent.map((m) => { const owed = m.reaches - m.had;
@@ -6518,10 +6538,7 @@ function loadMessage(ev) {
     box.querySelector('[data-msg="see"]').onclick = async () => {
       try {
         const out = await api(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
-        const dlg = document.getElementById("wldlg");
-        if (!dlg) { const w = window.open("", "_blank"); if (w) { w.document.write(out.html); w.document.close(); } return; }
-        document.getElementById("wld-title").textContent = out.subject || "(no subject yet)"; document.getElementById("wld-note").textContent = out.problems?.length ? out.problems[0] : `As ${g()?.label ?? "they"} will see it.`;
-        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+        previewEmail({ subject: out.subject || "(no subject yet)", note: out.problems?.length ? out.problems[0] : `As ${g()?.label ?? "they"} will see it.`, html: out.html });
       } catch (x) { toast(x.message); }
     };
     box.querySelector('[data-msg="test"]').onclick = async () => {
@@ -6603,9 +6620,7 @@ function mountJoin(ev, key, el) {
     body.querySelector('[data-jr="see"]').onclick = async () => {
       try {
         const out = await api(`${q}&preview=1`, { method: "POST", body: JSON.stringify(words()) });
-        const dlg = document.getElementById("wldlg"); if (!dlg) return;
-        document.getElementById("wld-title").textContent = out.subject; document.getElementById("wld-note").textContent = "As someone joining online will see it.";
-        document.getElementById("wl-frame").srcdoc = out.html; dlg.showModal();
+        previewEmail({ subject: out.subject, note: "As someone joining online will see it.", html: out.html });
       } catch (x) { toast(x.message); }
     };
     body.querySelector('[data-jr="test"]').onclick = async () => {
@@ -7028,7 +7043,7 @@ function agenciesScreen(A) {
     const btn = document.getElementById("ag-run"), line = document.getElementById("ag-runline");
     btn.disabled = true; line.textContent = "Checking every event's registrations… this can take a minute.";
     try {
-      await apiFetch("/api/agencies-settle-background", { method: "POST", headers: { "x-admin-key": KEY } });
+      await api("/agencies?master=1&settle=1", { method: "POST", body: "{}" });
       for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 4000));
         const out = await api("/agencies?master=1");
@@ -10543,7 +10558,7 @@ function attendeesCard(ev, guests) {
 function lettersStrip(L) {
   if (!L) return "";
   if (L.welcome?.off) return `<div class="lstrip"><div class="lrow"><b>Emails to attendees</b><span>off for this event — no welcome
-    letter, survey or hotel reminder goes. Edit the event to turn them on.</span></div></div>`;
+    letter, survey or hotel reminder goes. Turn them on with the switch at the top of Communications.</span></div></div>`;
   const row = (kind, label) => {
     const x = L[kind];
     if (!x?.chosen) return `<div class="lrow"><b>${label}</b><span>none chosen — edit the event to pick one, or it will not go</span></div>`;
@@ -12827,7 +12842,9 @@ async function invite(eventId, presenterIds, remind) {
 function wirePresenterExpenses(ev, $) {
   const body = $("px-body");
   if (!ev || !body) return;
-  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  // A bare date (the deadline) is a day here, not midnight UTC, which in Toronto is the evening before (audit 24 Nov 2026:
+  // a Nov 30 deadline showed as "until Nov 29"). A timestamp (sentAt) is shown as the local day it happened.
+  const day = (iso) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(iso)) ? `${iso}T12:00:00` : iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
   const draw = (d) => {
     const rows = d.presenters ?? [], unsent = rows.filter((p) => p.email && !p.sentAt).length;
     const state = (p) => (p.claim ? [p.claim.status === "paid" ? "ok" : p.claim.status === "draft" ? "mu" : "wt", `${{ draft: "Started", submitted: "Sent in", rejected: "Sent back", approved: "Approved", paid: "Paid" }[p.claim.status] ?? p.claim.status}${p.claim.total ? ` $${Number(p.claim.total).toFixed(2)}` : ""}`]

@@ -16,5 +16,5 @@ export default async (req) => {
   if (!rec) return json({ valid: false, code }, 404);
   if (rec.revokedAt) return json({ valid: false, revoked: true, code });
   const origin = siteUrl(req);
-  return json({ valid: true, code, name: rec.name, agency: rec.agency, training: rec.course || rec.eventTitle || "", date: formatLong(rec.date, "en", { weekday: false }) || rec.date, issuer: "ONGIA", linkedin: linkedInUrl(rec, origin) });
+  return json({ valid: true, code, name: rec.name, agency: rec.agency, training: rec.course || rec.eventTitle || "", date: formatLong(rec.date, "en", { weekday: false }) || rec.date, dateFr: formatLong(rec.date, "fr", { weekday: false }) || rec.date, issuer: "ONGIA", linkedin: linkedInUrl(rec, origin) });
 };

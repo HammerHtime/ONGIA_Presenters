@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent, getReceiptFile, putReceiptRead } from "./lib/store.mjs";
 import { readReceipt, whyItFailed, receiptLines } from "./lib/receipts.mjs";
 
@@ -7,7 +7,7 @@ import { readReceipt, whyItFailed, receiptLines } from "./lib/receipts.mjs";
  * bad connection should not have to hold the request open. The result lands in receiptread:<event>:<id>.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const params = new URL(req.url).searchParams;
   const eventId = params.get("event"), id = params.get("id");
   if (!eventId || !/^[a-z0-9]{6,40}$/i.test(id ?? "")) return new Response("Bad request.", { status: 400 });

@@ -1,3 +1,4 @@
+import { todayIso } from "./lib/deadlines.mjs";
 import { json, fail, requireAdmin, editGuard, adminWho, text } from "./lib/http.mjs";
 import { getEvent, listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { mayEditEvent } from "./lib/auth.mjs";
@@ -98,7 +99,7 @@ export default async (req) => {
 /** Start the background maker. Locally (tests) the dev server answers it the same way Netlify does. */
 async function kick(req, job) {
   const origin = new URL(req.url).origin;
-  await fetch(`${origin}/api/reports-build-background`, { method: "POST", headers: { "x-admin-key": req.headers.get("x-admin-key") ?? "", "content-type": "application/json" }, body: JSON.stringify(job) }).catch(() => {});
+  await fetch(`${origin}/api/reports-build-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "", "content-type": "application/json" }, body: JSON.stringify(job) }).catch(() => {});
 }
 
 async function state(event) {
@@ -133,7 +134,7 @@ async function rbhList(q) {
   const track = trackOf(q("track"));
   const years = [...new Set([...rbhYears(events), ...events.filter((e) => rbhPresentedAt(e) && yearOf(e)).map(yearOf)])].sort();
   const year = /^\d{4}$/.test(q("year") ?? "") ? q("year") : thisYear();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   // The sponsorship report's events: ONGIA's own, ticked "RBH presented"; no per-event RBH reports, just their figures.
   if (track === "sponsor") {
     const facts = await yearFacts(year, { events, track });

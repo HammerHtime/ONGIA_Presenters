@@ -5,7 +5,7 @@ import { writeableTo } from "./attendees.mjs";
 import { directory, agencyOf, PROVINCES } from "./agencies.mjs";
 import { certIndex } from "./certs.mjs";
 import { factsFor, newDoc, PDF_LOOK } from "./reports.mjs";
-import { formatLong } from "./deadlines.mjs";
+import { formatLong, todayIso } from "./deadlines.mjs";
 import { SECTORS } from "./sectors.mjs";
 import { provinceOfEvent } from "./ongiayear.mjs";
 import { readFileSync } from "node:fs";
@@ -66,7 +66,7 @@ const daysOf = (e) => {
 const cityOf = (e) => String(e.city ?? "").split(",")[0].trim();
 // "Montréal" and "Montreal" are one city.
 const cityKey = (c) => String(c ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayIso();
 
 /* ---------- The two figures typed in once a year ---------- */
 
