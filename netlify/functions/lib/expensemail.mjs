@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { layout } from "./mail.mjs";
 import { siteUrl } from "./site.mjs";
 import { formatDate } from "./deadlines.mjs";
@@ -10,7 +11,6 @@ import { dollars, andList, refsOf, transfersOf } from "./expenses.mjs";
  * {name}", the approval email lists the items one to a line, and each has one button straight to the claim in the app.
  * A test claim's subject starts [TEST].
  */
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const claimLink = (id) => `${siteUrl()}/expenses${id ? `#claim=${encodeURIComponent(id)}` : ""}`;
 const FOOTER = "ONGIA Expenses";
 const tag = (c) => (c?.test ? "[TEST] " : c?.trial ? "[BOARD TEST] " : "");

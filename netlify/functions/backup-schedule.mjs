@@ -1,5 +1,5 @@
 import { wallClock, BACKUP_HOUR, BACKUP_TZ, runBackup } from "./lib/backup.mjs";
-import { siteOrigin } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 
 /**
  * Netlify's schedules are in UTC, and 4 a.m. in Vancouver is 11:00 UTC in summer and 12:00 UTC in winter. So this

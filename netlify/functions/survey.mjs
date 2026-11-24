@@ -1,3 +1,5 @@
+import { resultsOf } from "./lib/surveyresults.mjs";
+export { resultsOf };
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { getEvent, putEvent, listEvents, getAttendees, listPresenters, getSurveyResponses, putSurveyResponse, getSurveyDone, putSurveyDone, putSurveyContact } from "./lib/store.mjs";
 import { personalId, renderLetter, attendeeReplyTo, groupDaysOf } from "./lib/letters.mjs";
@@ -382,6 +384,4 @@ async function testSend(event, to, part, who, partner = false) {
 
 
 /** The survey's numbers, with the agencies the event's registrations came from. */
-export async function resultsOf(event, responses = null) {
-  return surveyResults(event, responses ?? await getSurveyResponses(event.id), await directory(), ((await getAttendees(event.id)) ?? {}).people ?? []);
-}
+

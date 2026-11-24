@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { formatDate } from "./deadlines.mjs";
 import { layout } from "./mail.mjs";
 import { fitsTitle } from "./titles.mjs";
@@ -216,7 +217,6 @@ export function eventProblems(letter, event) {
   return [...new Set(out)];
 }
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /**
  * A person's first name as a letter should greet them (Andrew 28 Oct 2026: "Open with Hello and their first name"), or ""

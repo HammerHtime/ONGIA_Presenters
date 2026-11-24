@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { createHmac } from "node:crypto";
 import { tokensMatch } from "./ids.mjs";
 import { siteUrl } from "./site.mjs";
@@ -17,7 +18,6 @@ import { formatLong } from "./deadlines.mjs";
 export const SELF_DAYS = 30;
 const SELF_HOST = "presenters.ongia.invalid";   // never a real mailbox: the owner of a presenter's own claim
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const sign = (eventId, presenterId) => createHmac("sha256", process.env.ADMIN_KEY ?? "").update(`presenter-expenses:${eventId}:${presenterId}`).digest("hex").slice(0, 32);
 export const selfKeyOk = (eventId, presenterId, key) => !!process.env.ADMIN_KEY && tokensMatch(sign(eventId, presenterId), String(key ?? ""));
 export const selfLink = (eventId, presenterId, req = null) => `${siteUrl(req)}/x/${encodeURIComponent(eventId)}/${encodeURIComponent(presenterId)}/${sign(eventId, presenterId)}`;

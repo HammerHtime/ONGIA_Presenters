@@ -1,7 +1,7 @@
 import { requireInternal } from "./lib/http.mjs";
 import { getEvent, putEvent } from "./lib/store.mjs";
 import { analyseSurvey, toneComments } from "./lib/surveyanalysis.mjs";
-import { resultsOf } from "./survey.mjs";
+import { resultsOf } from "./lib/surveyresults.mjs";
 
 /**
  * Claude's read of an event's survey, in the background (started by POST /api/survey?analyse=1). With hundreds of

@@ -4,7 +4,7 @@ import { signerFor } from "./boardthanks.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
 import { mcSessions } from "./mcintro.mjs";
-import { localNow, zoneOf } from "./surveysend.mjs";
+import { localNow } from "./surveysend.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 
 /**
@@ -249,4 +249,3 @@ export async function thanksWorkDue(events, now = new Date()) {
   return false;
 }
 
-export const thanksZone = zoneOf;

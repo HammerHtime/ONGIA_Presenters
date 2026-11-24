@@ -1,6 +1,6 @@
 import { listEvents, getAttendees, putEvent } from "./lib/store.mjs";
 import { onlineGroups, joinDue, joinPeople } from "./lib/joinreminder.mjs";
-import { siteOrigin } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 
 /**
  * Every 15 minutes: the reminder to those joining online, at its time (Andrew 5 Nov 2026: "two hours before virtual

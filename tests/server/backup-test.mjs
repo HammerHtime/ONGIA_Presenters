@@ -27,8 +27,10 @@ console.log("— 4 a.m. in Vancouver, summer and winter");
 const at = (iso) => B.wallClock(new Date(iso), "America/Vancouver");
 ok("11:00 UTC in October (daylight time) is 4:00 there, and the date is the local one", at("2026-10-20T11:00:00Z").hour === 4 && at("2026-10-20T11:00:00Z").date === "2026-10-20");
 ok("12:00 UTC in October is 5:00 there: the schedule's second wake-up does nothing", at("2026-10-20T12:00:00Z").hour === 5);
-ok("12:00 UTC in December (standard time) is 4:00 there", at("2026-12-15T12:00:00Z").hour === 4);
-ok("11:00 UTC in December is 3:00: the first wake-up does nothing", at("2026-12-15T11:00:00Z").hour === 3);
+// December: British Columbia keeps daylight time all year from November 2026, so in the time-zone data the two wake-ups
+// may be 4:00 and 5:00 rather than 3:00 and 4:00. Either way exactly one of them is 4:00 (audit 24 Nov 2026).
+{ const d11 = at("2026-12-15T11:00:00Z").hour, d12 = at("2026-12-15T12:00:00Z").hour;
+  ok("in December one wake-up is 4:00 there and the other does nothing", [d11, d12].filter((h) => h === 4).length === 1 && Math.abs(d12 - d11) === 1, `${d11}, ${d12}`); }
 ok("exactly one of the two wake-ups lands on 4:00 every day of the year", (() => { for (let d = new Date("2026-01-01T00:00:00Z"); d < new Date("2027-01-01T00:00:00Z"); d = new Date(d.getTime() + 86400000)) { const day = d.toISOString().slice(0, 10); const hits = [11, 12].filter((h) => B.wallClock(new Date(`${day}T${h}:00:00Z`), "America/Vancouver").hour === 4).length; if (hits !== 1) return false; } return true; })());
 ok("the date in the file's name is the local date, even when UTC has already turned over", B.wallClock(new Date("2026-10-21T02:30:00Z"), "America/Vancouver").date === "2026-10-20" && B.backupName("2026-10-20") === "ongia-desk-backup-2026-10-20.zip");
 const cfg = readFileSync(F + "backup-schedule.mjs", "utf8");

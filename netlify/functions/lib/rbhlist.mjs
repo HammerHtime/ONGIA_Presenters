@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { xlsx } from "./xlsx.mjs";
 import { layout } from "./mail.mjs";
 
@@ -51,7 +52,6 @@ export function listPeople(people) {
 
 export const countOf = (rows) => ({ people: rows.length + rows.reduce((n, r) => n + r.team, 0), named: rows.length, team: rows.reduce((n, r) => n + r.team, 0) });
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const first = (name) => tidy(name).split(" ")[0] || "there";
 
 /** The Excel file: Name and Agency, headings on row 1, one row per ticket (a team ticket says whose team). */

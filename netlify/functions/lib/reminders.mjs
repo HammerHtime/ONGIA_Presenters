@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta, getLetter, listVolunteers } from "./store.mjs";
 import { inviteVolunteer } from "./volunteers.mjs";
 import { checklistOf } from "./checklist.mjs";
@@ -6,7 +7,7 @@ import { describeEvent, formatDate, todayIso } from "./deadlines.mjs";
 import { sendMail, invitationMail, avRequestMail, layout, coordinatorOf, agreementRecipients } from "./mail.mjs";
 import { scanMaterials, materialsStatus } from "./materials.mjs";
 import { weeklyDigestMail } from "./mail.mjs";
-import { countStatuses } from "../events.mjs";
+import { countStatuses } from "./presenterstatus.mjs";
 import { formatDateIn } from "./deadlines.mjs";
 
 /**
@@ -301,7 +302,6 @@ async function jobsFor(event, today) {
   return { total: counts.total, done: counts.done, late: counts.late, open };
 }
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const daysBetween = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
 const alreadyToday = (p, today) => (p.mail ?? []).some((m) => m.at?.startsWith(today));
 // Someone spoke to them. Stop emailing for a week; the desk has done its job.

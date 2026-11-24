@@ -12,3 +12,6 @@ export function siteUrl(req) {
   // must not bring the whole send down when APP_URL is unset.
   try { return new URL(req.url).origin; } catch { return ""; }
 }
+
+/** The site's own address, for links in emails and for starting background runs (moved from nightly.mjs, audit 24 Nov 2026). */
+export const siteOrigin = (fallback = "") => process.env.APP_URL || process.env.URL || fallback;

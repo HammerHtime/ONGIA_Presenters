@@ -13,7 +13,6 @@
 
 export const SERVICE_FEE_RATE = 0.2;
 export const STATUSES = ["draft", "submitted", "approved", "invoiced", "paid"];
-export const STATUS_WORDS = { draft: "Draft", submitted: "Sent to RBH", approved: "Approved", invoiced: "Invoiced", paid: "Paid" };
 
 /** The lines ONGIA's ITP sheet starts with. */
 export const STANDARD_LINES = [
