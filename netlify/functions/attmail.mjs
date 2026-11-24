@@ -104,10 +104,8 @@ async function startNow(event, url, who) {
   // The survey early, when Andrew wants it out now (Andrew 9 Nov 2026): the end survey, or one day's part.
   if (type === "survey" && !event.survey?.open) return fail("The survey is closed. Open it first.", 409);
   if (type === "survey" && key !== "end" && !/^\d{4}-\d{2}-\d{2}$/.test(key)) return fail("Which part of the survey?");
-  if (type === "survey" && event.attendeeMail !== true) return fail("Emails to attendees are off for this event, so the survey can't go. Turn them on first.", 409);
   if (type === "join" && !event.joinReminder?.[key]?.readyAt) return fail("Read the reminder and mark it ready first.", 409);
   if (type === "hotel" && ![30, 15, 7].includes(days)) return fail("Which hotel reminder?");
-  if (type === "hotel" && event.attendeeMail !== true) return fail("Emails to attendees are off for this event, so the hotel reminder can't go. Turn them on first.", 409);
   if (event.sendNow && Date.now() - Date.parse(event.sendNow.at) < 20 * 60 * 1000) return json({ started: true, already: true });
   event.sendNow = { at: new Date().toISOString(), type, key, days: days || null, by: who?.name || who?.email || "the desk key", hop: 0 };
   await putEvent(event);
@@ -127,7 +125,7 @@ async function message(req, event, url) {
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
   const view = () => json({
     groups: messageGroups(event).map((g) => ({ ...g, reaches: groupPeople(event, g.key, people).length })),
-    draft: event.messageDraft ?? null, replyTo: attendeeReplyTo(event) ?? "", mailOn: event.attendeeMail === true, sending: event.sendNow ?? null,
+    draft: event.messageDraft ?? null, replyTo: attendeeReplyTo(event) ?? "", mailOn: true, sending: event.sendNow ?? null,
     sent: (event.messages ?? []).slice().reverse().map((m) => { const r = messagePeople(event, m, people);
       return { id: m.id, at: m.at, by: m.by, group: m.group, label: messageGroups(event).find((g) => g.key === m.group)?.label ?? m.group, subject: m.subject, reaches: r.all.length, had: r.all.length - r.owed.length, trouble: r.trouble.length }; }),
   });
@@ -140,7 +138,6 @@ async function message(req, event, url) {
   if (req.method !== "POST") return fail("Not allowed.", 405);
   const rest = url.searchParams.get("rest");
   if (rest) {
-    if (event.attendeeMail !== true) return fail("Emails to attendees are off for this event. Turn them on first.", 409);
     const u = new URL(url); u.searchParams.set("type", "message"); u.searchParams.set("key", rest);
     return startNow(event, u, adminWho(req));
   }
@@ -158,7 +155,6 @@ async function message(req, event, url) {
     return json({ sent: true, to });
   }
   if (!url.searchParams.get("send")) return fail("Send, test or preview?");
-  if (event.attendeeMail !== true) return fail("Emails to attendees are off for this event. Turn them on first.", 409);
   if (event.sendNow && Date.now() - Date.parse(event.sendNow.at) < 20 * 60 * 1000) return fail("Something is already sending for this event. Try again when it's done.", 409);
   const msg = newMessage(draft, adminWho(req));
   event.messages = [...(event.messages ?? []), msg];

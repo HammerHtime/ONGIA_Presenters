@@ -76,17 +76,35 @@ ok("a virtual attendee can't be sent it", (await call("&kind=reply&to=val%40exam
 const rr = await call("&kind=reply&to=cam%40example.ca", "POST");
 ok("the food-allergy email goes to one person in the room", rr.status === 200 && sent.at(-1).to === "cam@example.ca" && (await call("&kind=reply")).body.people.find((p) => p.email === "cam@example.ca").had);
 
-// Send now from Coming up: a version to everyone still owed it, whatever its date.
+// Send now from Coming up: a version to everyone still owed it, whatever its date (before the event begins).
 { const { sendVersionNow } = await import(F + "lib/attmail.mjs");
   const st = await getAttendees("ngs");
   st.people.push({ key: "j2", first: "Jo", last: "Late", email: "jo@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" },
     { key: "j3", first: "Kim", last: "Late", email: "kim@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" });
   await putAttendees("ngs", st);
   const n0 = sent.length;
-  const out = await sendVersionNow(await (await import(F + "lib/store.mjs")).getEvent("ngs"), "main");
+  const out = await sendVersionNow({ ...(await (await import(F + "lib/store.mjs")).getEvent("ngs")), dayOne: "2099-11-09", lastDay: "2099-11-12" }, "main");
   ok("Send now sends that version to just the two still owed it", out.sent === 2 && sent.length === n0 + 2 && sent.slice(-2).every((m) => m.subject === "Welcome to the Summit"), JSON.stringify(out));
-  const again = await sendVersionNow(await (await import(F + "lib/store.mjs")).getEvent("ngs"), "main");
+  const again = await sendVersionNow({ ...(await (await import(F + "lib/store.mjs")).getEvent("ngs")), dayOne: "2099-11-09", lastDay: "2099-11-12" }, "main");
   ok("pressing it again sends nobody a second copy", again.sent === 0 && sent.length === n0 + 2);
+}
+// …but once the event has begun, Send now never reaches the backlog (24 Nov 2026, Victoria): only those registered since day
+// one, and nobody on the last day.
+{ const { sendVersionNow } = await import(F + "lib/attmail.mjs");
+  const St = await import(F + "lib/store.mjs");
+  const ev = await St.getEvent("ngs");
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+  const plus = (n) => new Date(Date.parse(`${today}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
+  const st = await getAttendees("ngs");
+  st.people.push({ key: "b1", first: "Old", last: "Backlog", email: "old@example.ca", status: "ATTENDING", wixEventId: "w1", group: "", addedAt: `${plus(-5)}T15:00:00Z` },
+    { key: "b2", first: "New", last: "Today", email: "new@example.ca", status: "ATTENDING", wixEventId: "w1", group: "", addedAt: `${plus(0)}T15:00:00Z` });
+  await putAttendees("ngs", st);
+  const n0 = sent.length;
+  const mid = await sendVersionNow({ ...ev, dayOne: plus(-1), lastDay: plus(2) }, "main");
+  ok("after the start, Send now goes only to someone registered since day one", mid.sent === 1 && sent.at(-1).to === "new@example.ca" && sent.length === n0 + 1, JSON.stringify(mid));
+  const st2 = await getAttendees("ngs"); st2.people.push({ key: "b3", first: "Last", last: "Day", email: "lastday@example.ca", status: "ATTENDING", wixEventId: "w1", group: "", addedAt: `${plus(0)}T16:00:00Z` }); await putAttendees("ngs", st2);
+  const last = await sendVersionNow({ ...ev, dayOne: plus(-2), lastDay: plus(0) }, "main");
+  ok("on the last day, Send now sends nobody", last.sent === 0 && sent.length === n0 + 1, JSON.stringify(last));
 }
 
 // Bounces.

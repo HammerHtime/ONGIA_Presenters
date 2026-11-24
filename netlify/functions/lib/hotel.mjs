@@ -1,3 +1,4 @@
+import { autoOn } from "./autosend.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { getAttendees, putAttendees } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
@@ -21,7 +22,7 @@ const dayBefore = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOStri
 
 /** Which reminder, if any, is due for this event today. */
 export function hotelDueToday(event, today = todayIso()) {
-  if (event?.attendeeMail !== true || event?.quiet === true) return null; // emails to attendees are off for this event
+  if (!autoOn(event, "hotel")) return null; // switched off for this event
   const h = event?.hotel;
   if (!h?.cutoff || !h?.link) return null;
   if (today > h.cutoff) return null;                    // the block has closed
@@ -39,8 +40,9 @@ export function hotelDueToday(event, today = todayIso()) {
  * re-run, a second deploy or a manual push cannot send it twice — and someone
  * who registers after the 30-day mark still gets the 15 and the 7.
  */
-export async function sendHotelRound(event, days, { dry = false, today = todayIso(), deadline = null, pace = pacer() } = {}) {
-  if (event.attendeeMail !== true) return { event: event.id, title: event.title, days, sent: 0, skipped: "emails to attendees are off for this event" };
+export async function sendHotelRound(event, days, { dry = false, today = todayIso(), deadline = null, pace = pacer(), manual = false } = {}) {
+  // Send now (manual) goes whatever the switch says; the automatic run only while it's on.
+  if (!manual && !autoOn(event, "hotel")) return { event: event.id, title: event.title, days, sent: 0, skipped: "switched off for this event" };
   const h = event.hotel;
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const people = writeableTo(stored.people ?? []);

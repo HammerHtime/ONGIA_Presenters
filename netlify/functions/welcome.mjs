@@ -1,3 +1,4 @@
+import { autoOn } from "./lib/autosend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, editGuard, isEmail, fileName } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, getLetter, getAgenda, listEvents, listLetters, getRoster, putWelcomeFile, getWelcomeFile, deleteWelcomeFile } from "./lib/store.mjs";
@@ -153,7 +154,7 @@ async function show(event) {
   const s = event.signature;
   // Who the letter can't greet by name (Andrew 28 Oct 2026: a registration's first name was "D22"): theirs opens "Hello,".
   const noName = writeableTo(people).filter((p) => !firstNameOf(p.first)).map((p) => ({ name: [p.first, p.last].map((v) => String(v ?? "").trim()).filter(Boolean).join(" "), email: p.email }));
-  return json({ versions, noName, files: event.welcomeFiles ?? [], attachLimit: ATTACH_LIMIT, signer: attendeeSignOf(event), signature: s?.member ? `member:${s.member}` : s?.email ? `board:${s.email}` : "", sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: event.attendeeMail === true, saved: !!event.welcome?.main,
+  return json({ versions, noName, files: event.welcomeFiles ?? [], attachLimit: ATTACH_LIMIT, signer: attendeeSignOf(event), signature: s?.member ? `member:${s.member}` : s?.email ? `board:${s.email}` : "", sendOn: job?.due ?? null, sendDone: !!job?.done, attendeeMail: autoOn(event, "welcome"), saved: !!event.welcome?.main,
     round: people.length ? (((await getAttendees(event.id)) ?? {}).letterRounds ?? {}).welcome ?? null : null });
 }
 

@@ -129,7 +129,14 @@ export async function sendVersionNow(event, key, { deadline = null, pace = pacer
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   const people = stored.people ?? [];
   const had = new Set(people.filter((p) => (p.sent ?? []).includes("welcome")).map((p) => p.email));
-  const owed = splitByGroup(people, writeableTo(people).filter((p) => !had.has(p.email)), event)[key] ?? [];
+  let owed = splitByGroup(people, writeableTo(people).filter((p) => !had.has(p.email)), event)[key] ?? [];
+  // Send now keeps the rule the automatic round keeps (lib/sendletters.mjs, 24 Nov 2026): once the event has begun,
+  // never to the backlog; only to those registered since, and nobody on the last day.
+  const today = todayIso();
+  if (event.dayOne && today >= event.dayOne) {
+    const end = event.lastDay || event.dayOne;
+    owed = today >= end ? [] : owed.filter((p) => p.addedAt && todayIso(new Date(p.addedAt)) >= event.dayOne);
+  }
   let sent = 0, failed = 0, left = 0;
   const trouble = [];
   for (const person of owed) {

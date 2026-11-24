@@ -1,3 +1,4 @@
+import { autoOn } from "./lib/autosend.mjs";
 import { json, fail, isEmail, requireAdmin, text, editGuard, adminWho } from "./lib/http.mjs";
 import { certIndex, certRecord, issue, certSettings, templatesFor } from "./lib/certs.mjs";
 import { getEvent, getAttendees, putAttendees, deleteKey, getLetter } from "./lib/store.mjs";
@@ -79,7 +80,7 @@ async function letterStatus(event, stored) {
       // The event's own welcome letter and survey (built into the desk) take over from a letter picked here, so the
       // old "none chosen" line is hidden for them (Andrew 8 Nov 2026).
       replaced: kind === "welcome" ? Boolean(event.welcome) : Boolean(event.survey),
-      off: event.attendeeMail !== true,
+      off: !autoOn(event, kind === "welcome" ? "welcome" : "survey"),
       chosen: Boolean(letter),
       name: letter?.name ?? null,
       on: due.on ?? null,

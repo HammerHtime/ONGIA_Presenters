@@ -1,3 +1,4 @@
+import { autoOn } from "./autosend.mjs";
 import { getAttendees, getReplies, listPresenters } from "./store.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { welcomeJob, welcomeReach, extrasOf, versionLabel, versionKeys, inTheRoom } from "./welcome.mjs";
@@ -23,12 +24,13 @@ const before = (iso, n) => new Date(Date.parse(iso) - n * 86400000).toISOString(
 
 export async function emailSchedule(event, today = todayIso()) {
   const out = [];
-  const off = event.attendeeMail !== true;
   const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
   const writeable = writeableTo(people);
   // Nothing automatic (events.mjs setQuiet): every row says it won't go by itself. Send now still works.
-  const QUIET = event.quiet === true ? "won't go by itself: Nothing automatic is on" : "";
-  const offNote = QUIET || (off ? "won't go: attendee emails are off" : "");
+  const QUIET = event.quiet === true ? "won't go automatically: Nothing automatic is on" : "";
+  // Each email has its own switch (lib/autosend.mjs); Send now works whatever it says.
+  const offFor = (kind) => QUIET || (autoOn(event, kind) ? "" : "won't go: switched off");
+  const offNote = offFor("welcome");
 
   // The welcome letter, each version, until everyone has it.
   const job = welcomeJob(event, today);
@@ -64,7 +66,7 @@ export async function emailSchedule(event, today = todayIso()) {
     if (dates.length) {
       const answers = (await getReplies(event.id))?.answers ?? [];
       const owed = stillToAnswer(inTheRoom(event, people), answers).length;
-      for (const d of dates) out.push({ date: d, what: "Food allergies: reminder", to: owed, who: "attendees", note: offNote, now: { type: "remind" } });
+      for (const d of dates) out.push({ date: d, what: "Food allergies: reminder", to: owed, who: "attendees", note: offFor("reply"), now: { type: "remind" } });
     }
   }
 
@@ -74,7 +76,7 @@ export async function emailSchedule(event, today = todayIso()) {
     const parts = s.mode === "end" ? (s.sendOn ? [{ day: s.sendOn, part: "end", at: "09:00" }] : []) : dailyTimes(event).map((t) => ({ day: t.day, part: t.day, at: t.at }));
     for (const p of parts.filter((x) => x.day >= today)) {
       out.push({ date: p.day, time: p.at ?? "", tz: zoneAbbr(zoneOf(event), p.day), what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
-        note: offNote || (!p.at ? "won't go: that day has no end time" : ""), ...(offNote ? {} : { now: { type: "survey", key: p.part } }) });
+        note: offFor("survey") || (!p.at ? "won't go: that day has no end time" : ""), now: { type: "survey", key: p.part } });
     }
   }
 
@@ -85,7 +87,7 @@ export async function emailSchedule(event, today = todayIso()) {
     dates.forEach((d, i) => {
       if (d < today) return;
       const to = left.filter(({ person }) => !people.some((p) => p.email === person.email && (p.sent ?? []).includes(REMIND_KEY(i + 1)))).length;
-      out.push({ date: d, time: "09:00", tz: zoneAbbr(zoneOf(event), d), what: i ? "Survey: last reminder" : "Survey: reminder", to, who: "attendees", note: offNote });
+      out.push({ date: d, time: "09:00", tz: zoneAbbr(zoneOf(event), d), what: i ? "Survey: last reminder" : "Survey: reminder", to, who: "attendees", note: offFor("survey") });
     });
   }
 
@@ -95,7 +97,7 @@ export async function emailSchedule(event, today = todayIso()) {
     for (const d of HOTEL_DAYS) {
       const on = before(h.cutoff, d);
       if (on < today) continue;
-      out.push({ date: on, what: `Hotel reminder (${d} days before the block closes)`, to: writeable.filter((p) => !(p.sent ?? []).includes(`hotel${d}`)).length, who: "attendees", note: offNote, ...(off ? {} : { now: { type: "hotel", days: d } }) });
+      out.push({ date: on, what: `Hotel reminder (${d} days before the block closes)`, to: writeable.filter((p) => !(p.sent ?? []).includes(`hotel${d}`)).length, who: "attendees", note: offFor("hotel"), now: { type: "hotel", days: d } });
     }
   }
 

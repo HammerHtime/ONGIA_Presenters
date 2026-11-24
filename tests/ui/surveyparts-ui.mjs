@@ -36,7 +36,7 @@ await p.close();
 
 p = await open(ev.id);
 const head = await p.locator("#svhead").innerText();
-ok("the line at the top: what's wrong in a count, each day, the sessions, and that emails are off", /4 things to fix/i.test(head) && /Each day · 3 days · 2 sessions/.test(head) && /attendee emails are off/.test(head), head);
+ok("the line at the top: what's wrong in a count, each day, the sessions, and that emails are off", /4 things to fix/i.test(head) && /Each day · 3 days · 2 sessions/.test(head) && /switched off/.test(head), head);
 ok("with a Preview the survey link", await p.locator("#sv-try").isVisible());
 ok("Setup opens first: when it goes and the sessions, and nothing about sending", await shown(p) === "setup" && await p.locator("#svbox [data-svmode]").count() === 2 && await p.locator("#sv-rows [data-sv]").count() === 2 && await p.locator("#svbox #sv-test").count() === 0);
 ok("each day with no end time says so, with a link to set it", await p.locator("[data-svfix]").count() === 3 && /Set Mon's end time/.test(await p.locator("#svbox").innerText()));
@@ -44,7 +44,7 @@ ok("no Changes save as you type beside a Save button", !/Changes save as you typ
 await p.locator("#svhead").screenshot({ path: D + "surveyparts-head.png" });
 await p.locator('[data-svpart="delivery"]').click(); await p.waitForTimeout(300);
 const del = await p.locator("#svdel").innerText();
-ok("Delivery: emails off, each day's send, Try the survey, a test, and the link", await shown(p) === "delivery" && /Attendee emails are off/.test(del) && /Day 1 · Mon 24 Nov 2031/.test(del) && await p.locator("#sv-open").isVisible() && await p.locator("#sv-test").isVisible() && await p.locator("#sv-share").isVisible(), del.slice(0, 300));
+ok("Delivery: emails off, each day's send, Try the survey, a test, and the link", await shown(p) === "delivery" && /switched off/.test(del) && /Day 1 · Mon 24 Nov 2031/.test(del) && await p.locator("#sv-open").isVisible() && await p.locator("#sv-test").isVisible() && await p.locator("#sv-share").isVisible(), del.slice(0, 300));
 await p.locator('[data-svpart="results"]').click(); await p.waitForTimeout(300);
 ok("Results: the results card", await shown(p) === "results" && await p.locator("#rsbox").isVisible());
 await p.locator('[data-svpart="setup"]').click(); await p.waitForTimeout(300);

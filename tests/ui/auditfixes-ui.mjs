@@ -78,8 +78,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   const text = await sum.innerText();
   ok(`${tag}: three rows, in date order: food allergies, welcome letter, survey`, /Food allergies[\s\S]*Welcome letter[\s\S]*Survey/.test(text), text);
   ok(`${tag}: the welcome letter says it won't go until it's saved`, /Not saved: won't go/i.test(text));
-  ok(`${tag}: food allergies is ready for you to send, the survey ready but emails are off`, /Ready: you press Send/i.test(text) && /Ready, but emails are off/i.test(text));
-  ok(`${tag}: the switch's line says the automatic emails are off`, /Automatic emails: Off/.test(await p.locator(".mailsum .mailsw").innerText()));
+  ok(`${tag}: food allergies is ready for you to send, the survey switched off`, /Ready: you press Send/i.test(text) && /Survey[\s\S]*Off/i.test(text));
+  ok(`${tag}: each automatic email has its own switch, the survey's off`, (await p.locator('[data-autosw="survey"]').count()) === 1 && !(await p.locator('[data-autosw="survey"]').isChecked()) && /Send now/.test(await p.locator(".mailsum .mlhint").innerText()));
   ok(`${tag}: every email is one line, Message and Thank-you included`, /Message/.test(text) && /Thank-you/.test(text) && await p.evaluate(() => [...document.querySelectorAll("#mailsum .mlrow")].every((r) => r.getBoundingClientRect().height <= 46)));
   ok(`${tag}: fits the screen`, await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await sum.scrollIntoViewIfNeeded();
@@ -91,10 +91,10 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   ok(`${tag}: no page errors`, p.errs.length === 0, p.errs.join(" | "));
   await p.close();
 }
-await api(`/api/events?id=${ev.id}&attendeeMail=1`, { method: "PUT", body: JSON.stringify({ on: true }) });
+await api(`/api/events?id=${ev.id}&auto=1`, { method: "PUT", body: JSON.stringify({ kind: "survey", on: true }) });
 p = await open(`#event/${ev.id}`);
 await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1200);
-ok("with emails switched on, the survey says it sends itself", /Ready: sends itself/i.test(await p.locator("#mailsum").innerText()) && /Automatic emails: On/.test(await p.locator(".mailsum .mailsw").innerText()), (await p.locator(".mailsum").innerText()).replace(/\s+/g, " "));
+ok("with its switch on, the survey says when it goes automatically", /Survey[\s\S]*(Goes|automatically)/i.test(await p.locator("#mailsum").innerText()) && await p.locator('[data-autosw="survey"]').isChecked(), (await p.locator(".mailsum").innerText()).replace(/\s+/g, " "));
 await p.close();
 
 console.log("— the agreement review: a Decide bar on a phone");

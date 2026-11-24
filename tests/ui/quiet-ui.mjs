@@ -27,7 +27,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   const fold = p.locator("details.settings", { has: p.locator("#e-quiet") });
   ok(`${tag}: Edit event has a Nothing automatic fold, closed while it's off`, await fold.count() === 1 && !(await fold.evaluate((d) => d.open)));
   await fold.locator("summary").click(); await p.waitForTimeout(200);
-  ok(`${tag}: attendee emails on before, and Edit event only says so (the switch is on Communications)`, /Automatic emails: On/.test(await p.locator("body").textContent()) && await p.locator("#e-amail").count() === 0);
+  ok(`${tag}: attendee emails on before, and Edit event only says so (the switch is on Communications)`, /each one has its own switch, on Communications/.test(await p.locator("body").textContent()) && await p.locator("#e-amail").count() === 0);
   await p.locator("#e-quiet").check(); await p.waitForTimeout(200);
   ok(`${tag}: ticking it is allowed`, await p.locator("#e-quiet").isChecked());
   await fold.scrollIntoViewIfNeeded(); await fold.screenshot({ path: D + `quiet-setting-${tag}.png` });
@@ -40,14 +40,14 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   await p.locator(".evband").screenshot({ path: D + `quiet-head-${tag}.png` });
   await p.goto(view("communications"), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   const sw = p.locator(".mailsw");
-  ok(`${tag}: Communications says nothing goes by itself, with no switch to turn attendee emails on`, /nothing goes by itself for this event|^Automatic emails: Off$/i.test((await sw.innerText()).trim()) && await p.locator("#amail").count() === 0, await sw.innerText());
+  ok(`${tag}: Communications says nothing goes automatically, and no switch can be turned on`, /Nothing automatic is on · nothing goes automatically for this event/i.test((await sw.textContent()).replace(/\s+/g, " ").trim()) && await p.locator("[data-autosw]:not([disabled])").count() === 0, await sw.innerText());
   await sw.screenshot({ path: D + `quiet-comms-${tag}.png` });
   // Off again from Edit event: the fold is open because it's on, and attendee emails can be ticked again.
   await p.goto(view("overview"), { waitUntil: "networkidle" }); await p.waitForTimeout(1000);
   await p.locator("#edit").click(); await p.waitForTimeout(800);
   ok(`${tag}: while on, its fold opens by itself and says On`, await fold.evaluate((d) => d.open) && /Nothing automatic · On/i.test(await fold.locator("summary").innerText()));
   await p.locator("#e-quiet").uncheck(); await p.waitForTimeout(200);
-  ok(`${tag}: unticked; attendee emails stay off until switched on in Communications`, /Automatic emails: Off/.test(await p.locator("body").textContent()));
+  ok(`${tag}: unticked; attendee emails stay off until switched on in Communications`, /each one has its own switch, on Communications/.test(await p.locator("body").textContent()));
   await p.locator("#create").click(); await p.waitForTimeout(2000);
   ok(`${tag}: saved off`, (await api(`/api/events?id=${ev.id}`)).event.quiet === false);
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));
