@@ -1,4 +1,4 @@
-// The event's own survey (Andrew 27 Oct 2026; notes/surveys-plan.md): bilingual, anonymous, stars, by day; daily or at
+// The event's own survey (Andrew 27 Oct 2026; surveys-plan.md in the board SharePoint, see reports/README.md): bilingual, anonymous, stars, by day; daily or at
 // the end; about-you once; the event overall on the last part; the Summit's community partners only their two days.
 const REPO = new URL("../../", import.meta.url).pathname;
 process.env.RESEND_API_KEY = "test-key";

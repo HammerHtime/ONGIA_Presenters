@@ -35,8 +35,10 @@ that the wording is off, or that it never arrived. For every change:
   in both languages. Run the wording through the `humanizer` skill and correct
   what it flags.
 - **If a send fails**, it does not get buried in a log. Add it to
-  `reports/AUDIT-NEEDS-ANDREW.md` with what failed, why, and the fix — so the
-  gap is visible without him testing for it.
+  `AUDIT-NEEDS-ANDREW.md` in the board SharePoint (ONGIA Executive › President ›
+  Briefing Room - audit and notes, see `reports/README.md`) with what failed,
+  why, and the fix — so the gap is visible without him testing for it. Never in
+  this repository: it is public.
 
 He owns the decisions. I own the code, the output, the wording and the layout.
 

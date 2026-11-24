@@ -5,7 +5,7 @@ import { groupDaysOf } from "./letters.mjs";
 import { PROVINCES } from "./agencies.mjs";
 
 /**
- * An event's survey, built into the desk in place of SurveyMonkey (Andrew 27 Oct 2026; notes/surveys-plan.md).
+ * An event's survey, built into the desk in place of SurveyMonkey (Andrew 27 Oct 2026; surveys-plan.md in the board SharePoint, see reports/README.md).
  *
  * Bilingual, anonymous, star ratings with a word ("Option A"). One part per day when it goes out daily, or one survey
  * broken up by day when it goes at the end. "About you" is asked once per person; "The event overall" on their last
