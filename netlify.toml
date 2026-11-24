@@ -95,3 +95,16 @@
   for = "/expenses.webmanifest"
   [headers.values]
     Content-Type = "application/manifest+json"
+
+# Images, fonts and the PDF viewer: kept by the browser for a day (the viewer for a week) instead of being asked for again
+# on every page (audit 24 Nov 2026: everything was max-age=0). A changed file shows within a day; the pages themselves
+# and /api are never cached.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+[[headers]]
+  for = "/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

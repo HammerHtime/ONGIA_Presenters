@@ -40,7 +40,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   await p.locator(".evband").screenshot({ path: D + `quiet-head-${tag}.png` });
   await p.goto(view("communications"), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
   const sw = p.locator(".mailsw");
-  ok(`${tag}: Communications says nothing goes by itself, with no switch to turn attendee emails on`, /Nothing automatic is on for this event, so nothing goes by itself/.test(await sw.innerText()) && await p.locator("#amail").count() === 0, await sw.innerText());
+  ok(`${tag}: Communications says nothing goes by itself, with no switch to turn attendee emails on`, /nothing goes by itself for this event|^Automatic emails: Off$/i.test((await sw.innerText()).trim()) && await p.locator("#amail").count() === 0, await sw.innerText());
   await sw.screenshot({ path: D + `quiet-comms-${tag}.png` });
   // Off again from Edit event: the fold is open because it's on, and attendee emails can be ticked again.
   await p.goto(view("overview"), { waitUntil: "networkidle" }); await p.waitForTimeout(1000);

@@ -4946,18 +4946,19 @@ function eventScreen(data) {
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
   wireComms(ev);
-  if (document.getElementById("replybox")) loadReply(ev);
-  if (document.getElementById("wlbox")) loadWelcome(ev);
-  if (document.getElementById("msgbox")) loadMessage(ev);
-  if (document.getElementById("thbox")) loadThanks(ev);
-  if (document.getElementById("rlbox")) loadRbhList(ev);
-  if (document.getElementById("mcbox")) loadMc(ev);
-  if (document.getElementById("svbox")) loadSurvey(ev);
-  if (document.getElementById("certbox")) loadCerts(ev);
+  // The cards on Communications, Program and Survey each fetch their own part. They load the first time their tab is
+  // opened, not every time the event is drawn (audit 24 Nov 2026: opening an event made 34 requests, a checklist tick 28).
+  // Communications also reads the survey card's state for its Survey row, so it loads that card too.
+  const LAZY = {
+    communications: [["replybox", loadReply], ["wlbox", loadWelcome], ["msgbox", loadMessage], ["thbox", loadThanks], ["rlbox", loadRbhList], ["svbox", loadSurvey]],
+    program: [["mcbox", loadMc]],
+    survey: [["svbox", loadSurvey], ["certbox", loadCerts], ["rsbox", loadResults], ["rpbox", loadReports]],
+  };
+  const lazyDone = new Set();
+  const loadTab = (k) => { for (const [id, load] of LAZY[k] ?? []) if (!lazyDone.has(id) && document.getElementById(id)) { lazyDone.add(id); load(ev); } };
+  if (allTabs) Object.keys(LAZY).forEach(loadTab); else loadTab(tab);
   svWhich(view.svw === "certs" && document.getElementById("certbox") ? "certs" : "survey", true);
   document.querySelectorAll("[data-svgo]").forEach((b) => b.onclick = () => { svWhich(b.dataset.svgo); keepAddress(); });
-  if (document.getElementById("rsbox")) loadResults(ev);
-  if (document.getElementById("rpbox")) loadReports(ev);
   wireAttendees(ev);
   wireVolunteers(ev, volunteers);
   if (sheetShown) wireSheet(ev, sheetcheck);
@@ -4980,6 +4981,7 @@ function eventScreen(data) {
     // Back on Money: if someone else has saved the budget since, and nothing typed here is waiting, show theirs.
     if (k === "money" && SBX_EV?.id === ev.id) api(`/budget?event=${encodeURIComponent(ev.id)}`).then((got) => { if ((got.rev ?? 0) > (SBX_REV ?? 0) && SBX_EV?.id === ev.id) mountBudget(ev, got); }).catch(() => {});
     ROOT.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== k; });
+    loadTab(k);
     ROOT.querySelectorAll(".etab").forEach((b) => { const on = b.dataset.tab === k; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     // On a phone the tabs scroll sideways: bring the open one into view.
     const onTab = ROOT.querySelector(".etab.on"), bar = onTab?.parentElement;
@@ -5545,9 +5547,25 @@ function wireChecklist(ev) {
     catch (e) { toast(e.message); render(); }
   };
   wireJobSelect(ev);
+  // A tick saves and redraws the checklist alone, not the whole event (audit 24 Nov 2026: one tick was 28 requests).
+  // "Contract signed" also moves the hotel's state everywhere on the page, so that one still redraws everything.
   ROOT.querySelectorAll("[data-tick]").forEach((box) => {
-    box.onchange = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(box.dataset.tick)}`,
-      { method: "PUT", body: JSON.stringify({ done: box.checked }) });
+    box.onchange = async () => {
+      const path = `/tasks?event=${encodeURIComponent(ev.id)}`;
+      const save = { method: "PUT", body: JSON.stringify({ done: box.checked }) };
+      const job = (CHECKLIST?.tasks ?? []).find((t) => t.id === box.dataset.tick);
+      if (/^contract signed/i.test(job?.what ?? "")) return send(`${path}&id=${encodeURIComponent(box.dataset.tick)}`, save);
+      box.disabled = true;
+      try {
+        await api(`${path}&id=${encodeURIComponent(box.dataset.tick)}`, save);
+        const fresh = await api(path);
+        const card = box.closest(".card");
+        if (!card) return render();
+        CHECKLIST = fresh;
+        card.outerHTML = checklistCard(ev, fresh);
+        wireChecklist(ev);
+      } catch (e) { toast(e.message); render(); }
+    };
   });
   ROOT.querySelectorAll("[data-jna]").forEach((b) => {
     b.onclick = () => send(`/tasks?event=${encodeURIComponent(ev.id)}&id=${encodeURIComponent(b.dataset.jna)}`,
@@ -11534,9 +11552,13 @@ function boardThanksScreen(B) {
 /* ---------- board roster ---------- */
 let ROSTER = [];
 let ROSTER_META = { owners: [], canGrant: false };
-async function loadRoster() {
-  try { const r = await api("/roster"); ROSTER = r.members; ROSTER_META = { owners: r.owners ?? [], canGrant: r.canGrant === true }; }
-  catch { ROSTER = []; }
+// The board changes rarely and every save here sets ROSTER itself, so it's read once every few minutes, not on every
+// redraw of an event (audit 24 Nov 2026). The Board screen always reads it fresh.
+let ROSTER_AT = 0;
+async function loadRoster(fresh = false) {
+  if (!fresh && ROSTER.length && Date.now() - ROSTER_AT < 5 * 60e3) return ROSTER;
+  try { const r = await api("/roster"); ROSTER = r.members; ROSTER_META = { owners: r.owners ?? [], canGrant: r.canGrant === true }; ROSTER_AT = Date.now(); }
+  catch { ROSTER = []; ROSTER_AT = 0; }
   return ROSTER;
 }
 
@@ -13521,7 +13543,7 @@ async function drawScreen() {
       if (view.name === "admin" && view.tab === "agencies") return agenciesScreen(await api("/agencies?master=1"));
       if (view.name === "admin" && view.tab === "designs") return designsScreen(await api("/certificates?designs=1"));
       if (view.name === "admin" && view.tab === "thanks") return boardThanksScreen(await api("/boardthanks"));
-      return rosterScreen(await loadRoster());
+      return rosterScreen(await loadRoster(true));
     }
     if (view.name === "sponsors" && SPONSORS_ON) {
       const [list, settings] = await Promise.all([api("/sponsors"), api("/sponsors?settings=1")]);
@@ -13548,12 +13570,15 @@ async function drawScreen() {
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
-      const sow = data.event?.kind === "rbh" ? await soft("the RBH costing", api(`/sow?event=${encodeURIComponent(view.eventId)}`)) : null;
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       // Every event has them now (Andrew 30 Oct 2026); on ONGIA's own events they're optional.
-      const receipts = data.event ? await soft("the receipts", api(`/receipts?event=${encodeURIComponent(view.eventId)}`)) : null;
       // ONGIA's own events: the budget, for the president and the VP (anyone else is refused, so it stays hidden).
-      const budget = data.event && data.event.kind !== "rbh" && data.canCost ? await soft("the budget", api(`/budget?event=${encodeURIComponent(view.eventId)}`)) : null;
+      // The three at once, not one after another (audit 24 Nov 2026).
+      const [sow, receipts, budget] = await Promise.all([
+        data.event?.kind === "rbh" ? soft("the RBH costing", api(`/sow?event=${encodeURIComponent(view.eventId)}`)) : null,
+        data.event ? soft("the receipts", api(`/receipts?event=${encodeURIComponent(view.eventId)}`)) : null,
+        data.event && data.event.kind !== "rbh" && data.canCost ? soft("the budget", api(`/budget?event=${encodeURIComponent(view.eventId)}`)) : null,
+      ]);
       // Refused (not theirs to see) stays hidden; anything else that failed is named at the top (audit, 21 Nov 2026).
       EV_FAILED = failed;
       const out = eventScreen({ ...data, sow, receipts, budget, materials, checklist, guests, rooming, contract, agenda, inbox, volunteers, sheetcheck, allEvents: list?.events ?? [] });

@@ -19,11 +19,13 @@ export default async (req) => {
   const hit = (...fields) => { const hay = norm(fields.join(" ")); return words.every((w) => hay.includes(w)); };
 
   const events = await listEvents();
+  // Every event's people read at once rather than event after event (audit 24 Nov 2026: a search took about 2 seconds).
+  const lists = await Promise.all(events.map((ev) => Promise.all([listPresenters(ev.id), listVolunteers(ev.id)])));
   const out = [];
-  for (const ev of events) {
+  for (const [i, ev] of events.entries()) {
     const when = { dayOne: ev.dayOne, lastDay: ev.lastDay };
     if (hit(ev.title, ev.city, ev.venue)) out.push({ type: "event", eventId: ev.id, name: ev.title, sub: [ev.city, ev.venue].filter(Boolean).join(" · "), ...when, rank: 2 });
-    const [people, vols] = await Promise.all([listPresenters(ev.id), listVolunteers(ev.id)]);
+    const [people, vols] = lists[i];
     for (const p of people) {
       if (hit(`${p.first} ${p.last}`, p.email, p.organization)) {
         out.push({ type: "presenter", eventId: ev.id, eventTitle: ev.title, presenterId: p.id, name: `${p.first} ${p.last}`, sub: [p.organization, p.email].filter(Boolean).join(" · "), status: p.status, ...when, rank: 0 });

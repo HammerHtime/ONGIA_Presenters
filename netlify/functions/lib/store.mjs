@@ -76,17 +76,28 @@ export async function putEvent(event) {
   return event;
 }
 
+/*
+ * The board, for filling in each event's lead: read once for a few seconds rather than on every event read (audit 24 Nov
+ * 2026: a request that read several events read the roster each time). Only used here, read-only; a save of the roster
+ * on this instance clears it, and getRoster() itself always reads the store.
+ */
+let LEAD_ROSTER = null;
+const leadRoster = () => {
+  if (!LEAD_ROSTER || Date.now() - LEAD_ROSTER.at > 5000) LEAD_ROSTER = { at: Date.now(), list: getRoster().then((r) => r ?? []).catch((e) => { LEAD_ROSTER = null; throw e; }) };
+  return LEAD_ROSTER.list;
+};
+
 export const getEvent = async (id) => {
   const event = await read(`event:${id}`);
   if (!event) return event;
   // The lead's contact is reconciled into a copy; it keeps the snapshot of the record as read.
-  return remember(withLead(event, (await getRoster()) ?? []), event[SNAP]);
+  return remember(withLead(event, await leadRoster()), event[SNAP]);
 };
 
 export async function listEvents() {
   const { blobs } = await store().list({ prefix: "event:" });
   const events = await Promise.all(blobs.map((b) => read(b.key)));
-  const roster = (await getRoster()) ?? [];
+  const roster = await leadRoster();
   const today = todayIso();
   // Soonest first. An event that has finished drops below the upcoming ones,
   // most recent first, rather than sitting at the top of the list for ever.
@@ -489,7 +500,7 @@ export const getRoster = () => read("roster:board");
 /** The standard names of agencies, and the spellings people use for them (agencies.mjs). Shared by every event. */
 export const getAgencyList = () => read("agencies:directory");
 export const putAgencyList = (list) => write("agencies:directory", list);
-export const putRoster = (members) => write("roster:board", members);
+export const putRoster = (members) => { LEAD_ROSTER = null; return write("roster:board", members); };
 
 /**
  * Everything in the store, for the nightly backup (see backup.mjs). `readRaw` gives a blob's bytes and its metadata

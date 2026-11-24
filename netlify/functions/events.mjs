@@ -660,7 +660,9 @@ async function showList(canCost = true, viewer = { key: true }) {
   const events = await listEvents();
   const withCounts = await Promise.all(
     events.map(async (event) => {
-      const [people, box] = await Promise.all([listPresenters(event.id), getInbox(event.id)]);
+      // Every read for the event at once (audit 24 Nov 2026: the registrations and the contract waited on the others).
+      const [people, box, guests, contract] = await Promise.all([listPresenters(event.id), getInbox(event.id),
+        event.room?.seats ? getAttendees(event.id) : null, canCost || event.kind !== "rbh" ? contractState(event.id) : null]);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const seen = canCost ? event : redactEvent(event);
       return {
@@ -669,7 +671,7 @@ async function showList(canCost = true, viewer = { key: true }) {
         counts: countStatuses(people),
         presenterCount: people.length,
         // Who is coming, for the room's "Nearly full" badge (Andrew 30 Oct 2026); only read where the seats are set.
-        registered: event.room?.seats ? tally((await getAttendees(event.id))?.people ?? []).attending : null,
+        registered: event.room?.seats ? tally(guests?.people ?? []).attending : null,
         // The desk's own jobs, tallied here so the year view and the attention
         // strip do not have to redo the working-day arithmetic in the browser.
         checklist: checklistOf(event).counts,
@@ -684,7 +686,7 @@ async function showList(canCost = true, viewer = { key: true }) {
         // Where the hotel contract stands, for the list's Hotel column (Andrew 21 Nov 2026: "I need a way to see which
         // events the contract has been signed and locked in"): "signed" in the app, "in" (uploaded), or null. An RBH
         // event's contract is the president's and the VP's, so others see only whether it's locked.
-        contract: canCost || event.kind !== "rbh" ? await contractState(event.id) : null,
+        contract,
       };
     })
   );
