@@ -4822,7 +4822,7 @@ function eventScreen(data) {
   if (receipts) wireReceipts(ev, receipts);
   // Tabs: switching is instant (everything is already on the page) and swaps the address in place, so Back still leaves the event.
   // The presenter panel shows in the side column's place, only on People → Presenters.
-  const syncNoSide = () => { const b = document.getElementById("evbody"); if (b) b.classList.toggle("noside", !allTabs && (view.tab ?? "overview") !== "overview" && !b.classList.contains("withdrawer")); };
+  const syncNoSide = () => { const b = document.getElementById("evbody"); if (b) b.classList.toggle("noside", !allTabs && !["overview", "money"].includes(view.tab ?? "overview") && !b.classList.contains("withdrawer")); };
   ROOT.querySelectorAll("[data-dpick]").forEach((b) => { b.onclick = () => {
     try { localStorage.setItem("ongia-dash-pick", b.dataset.dpick); } catch {}
     ROOT.querySelectorAll("[data-dpick]").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", String(on)); });
@@ -12736,6 +12736,7 @@ function wirePresenterExpenses(ev, $) {
       : p.failed ? ["bad", "Didn't send"] : !p.email ? ["bad", "No email"] : p.sentAt ? ["mu", `Sent ${day(p.sentAt)}`] : ["mu", "Not sent"]);
     body.innerHTML = `<div class="pxhead"><span class="hint" style="margin:0">${d.deadline ? `Links work until ${esc(day(d.deadline))}.` : "One link each."}</span>${unsent ? `<button type="button" class="mini gold" data-pxall>Send to ${unsent}</button>` : ""}</div>
       ${rows.length ? `<div class="pxlist">${rows.map((p) => { const [c, t] = state(p); return `<div class="pxrow"><span class="pxn" title="${esc(p.email)}">${esc(p.name)}</span><span class="pxs ${c}"${p.failed ? ` title="${esc(p.failed)}"` : ""}>${esc(t)}</span><button type="button" class="mini" data-pxcopy="${esc(p.link)}">Copy</button><button type="button" class="mini" data-pxsend="${esc(p.id)}"${p.email ? "" : " disabled"}>${p.sentAt ? "Resend" : "Send"}</button></div>`; }).join("")}</div>` : `<p class="hint" style="margin:8px 0 0">No presenters on this event yet.</p>`}`;
+    if (ROOT.classList.contains("ro")) lockForView(body, VIEW_WHY);
     // On People › Expenses the meals line joins the deadline on one row (nice and tight).
     const ml = body.parentElement?.querySelector(".pxmealsline"), hint = body.querySelector(".pxhead .hint");
     if (ml && hint) { hint.innerHTML += ` · ${ml.innerHTML}`; ml.hidden = true; hint.querySelector("[data-pxmeals]")?.addEventListener("click", () => ml.querySelector("[data-pxmeals]")?.click()); }

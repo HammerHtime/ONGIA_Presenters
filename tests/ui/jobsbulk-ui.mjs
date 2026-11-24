@@ -25,6 +25,8 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {
   await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [token, { email: "president@ongia.ca", name: "Andrew Hammond", owner: true }]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
+  // On the Overview the checklist folds behind one line (audit section 4): open it; it stays open on this device.
+  await p.evaluate(() => { const f = document.getElementById("clfold"); if (f) f.open = true; }); await p.waitForTimeout(200);
   const card = p.locator('[data-fold="sec-tasks"]');
   if (!(await card.getAttribute("open").catch(() => null) !== null)) await card.locator("summary").click().catch(() => {});
   ok(`${tag}: the checklist has a Select several button beside Add a job, and the tick boxes as before`, await p.locator("#jselect").isVisible() && await p.locator("#jadd").isVisible() && (await p.locator("[data-tick]").count()) === start.length);

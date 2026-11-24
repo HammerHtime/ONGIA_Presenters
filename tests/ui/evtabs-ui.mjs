@@ -64,12 +64,13 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   if (tag === "wide") await p.screenshot({ path: D + "evtabs-overview-wide.png", fullPage: true }); else await p.screenshot({ path: D + "evtabs-overview-phone.png", fullPage: true });
 
   await p.locator('[data-tab="people"]').click(); await p.waitForTimeout(300);
-  ok(`${tag}: People shows the presenters, with a switch to the volunteers and who is coming`, (await shown(p)) === "people" && await p.locator('details[data-fold="sec-presenters"]').isVisible() && (await p.locator("[data-pseg]").count()) === 3);
-  ok(`${tag}: the side column stays beside every tab`, await p.locator("#sidepanels").isVisible());
+  ok(`${tag}: People shows the presenters, with a switch to the volunteers and who is coming`, (await shown(p)) === "people" && await p.locator('details[data-fold="sec-presenters"]').isVisible() && (await p.locator("[data-pseg]").count()) === 4);
+  // Audit section 4: the side column is for the Overview (and Money's RBH quick view); other tabs get the full width.
+  ok(`${tag}: off the Overview the side column steps aside`, !(await p.locator("#sidepanels").isVisible()));
   await p.locator("tr.prow", { hasText: "Rev Iewer" }).locator(".pn").click(); await p.waitForTimeout(500);
   ok(`${tag}: a presenter's panel takes the side column's place, and the Room column steps aside`, await p.locator("#pdrawer").isVisible() && (tag === "phone" || (!(await p.locator("#sidepanels").isVisible()) && !(await p.locator(".ptable th.thr").isVisible()))));
   await p.locator("#pdrawer .pclose").click(); await p.waitForTimeout(300);
-  ok(`${tag}: closing it brings the side column back`, await p.locator("#sidepanels").isVisible() && (await p.locator("#pdrawer").count()) === 0);
+  ok(`${tag}: closing it gives the list the full width again`, !(await p.locator("#sidepanels").isVisible()) && (await p.locator("#pdrawer").count()) === 0);
   await p.locator("#add").click(); await p.waitForTimeout(300);
   ok(`${tag}: Add presenters opens over the event, not on its own screen`, await p.locator("#padd").isVisible() && (await p.locator(".etab").count()) > 0);
   await p.fill("#p-rows", `Pop, Up${tag}, pop.up.${tag}.${T}@example.ca, Org`); await p.locator("#p-invite").uncheck();

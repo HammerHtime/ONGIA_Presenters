@@ -73,21 +73,22 @@ await q.goto(S + path.replace(/[0-9a-f]{32}$/, "0".repeat(32)), { waitUntil: "ne
 ok("a link with the wrong key opens nothing", /This link isn't valid/.test(await q.locator("#root").innerText()));
 await q.close();
 
-// The desk: Edit event, Presenter expenses.
+// The desk: Edit event keeps the meals; each presenter's link and claim are on People › Expenses (audit section 4).
 const a = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 a.on("pageerror", (e) => errs.push(String(e)));
-await a.addInitScript(() => { sessionStorage.setItem("ongia-admin-key", "testkey"); });
+await a.addInitScript(() => { try { sessionStorage.setItem("ongia-admin-key", "testkey"); } catch { /* a sandboxed preview frame */ } });
 await a.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "edit", eventId: ev.id })), { waitUntil: "networkidle" }); await a.waitForTimeout(2000);
 const box = a.locator("#px-box");
 ok("Edit event has Presenter expenses, folded, saying which meals are provided", /Presenter expenses · breakfast, lunch provided/i.test(await box.locator("summary").innerText()) && !(await box.evaluate((d) => d.open)));
-await box.locator("summary").click(); await a.waitForTimeout(1800);
-ok("the three meals as checkboxes, two ticked", await a.locator("#e-meal-breakfast").isChecked() && await a.locator("#e-meal-lunch").isChecked() && !(await a.locator("#e-meal-dinner").isChecked()));
-const row = box.locator(".pxrow", { hasText: "Dana Sample" });
-ok("each presenter on one line: name, where their claim stands, Copy and Send", /Sent in \$146\.00/.test(await row.innerText()) && await row.locator("[data-pxcopy]").isVisible() && await row.locator("[data-pxsend]").isVisible() && (await row.boundingBox()).height <= 42, await row.innerText());
-ok("…and one Send for everyone not yet sent", /Send to 2/.test(await box.locator("[data-pxall]").innerText()));
-ok("nothing scrolls sideways on Edit event", await a.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
-await box.scrollIntoViewIfNeeded();
-if (D) await box.screenshot({ path: D + "presenterlink-desk.png" });
+await box.locator("summary").click(); await a.waitForTimeout(500);
+ok("the three meals as checkboxes, two ticked, and a pointer to People › Expenses", await a.locator("#e-meal-breakfast").isChecked() && await a.locator("#e-meal-lunch").isChecked() && !(await a.locator("#e-meal-dinner").isChecked()) && /People › Expenses/.test(await box.innerText()));
+await a.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: ev.id, tab: "people", pview: "expenses" })), { waitUntil: "networkidle" }); await a.waitForTimeout(2500);
+const pane = a.locator('[data-pview="expenses"]');
+const row = pane.locator(".pxrow", { hasText: "Dana Sample" });
+ok("People › Expenses: each presenter on one line: name, where their claim stands, Copy and Send", /Sent in \$146\.00/.test(await row.innerText()) && await row.locator("[data-pxcopy]").isVisible() && await row.locator("[data-pxsend]").isVisible() && (await row.boundingBox()).height <= 42, await row.innerText());
+ok("…and one Send for everyone not yet sent, with the meals on the same line", /Send to 2/.test(await pane.locator("[data-pxall]").innerText()) && /breakfast, lunch/i.test(await pane.locator(".pxhead").innerText()));
+ok("nothing scrolls sideways", await a.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+if (D) await pane.screenshot({ path: D + "presenterlink-desk.png" });
 ok("no script errors", !errs.length, errs.join(" | "));
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);

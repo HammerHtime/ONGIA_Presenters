@@ -81,6 +81,8 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await api(`/api/events?id=${ev.id}&lead=1`, { method: "PUT", body: JSON.stringify({ email: "president@ongia.ca" }) });
   // Finished checklist jobs sink to the bottom.
   await go({ name: "event", eventId: ev.id });
+  // The checklist is folded behind one line on the Overview (audit section 4): open it.
+  await p.evaluate(() => { const f = document.getElementById("clfold"); if (f) f.open = true; });
   const jobs = () => p.locator('.etabp[data-panel="overview"] .job .what').allInnerTexts();
   const first = (await jobs())[0];
   await p.locator('.etabp[data-panel="overview"] .job [data-tick]').first().check(); await p.waitForTimeout(1800);
