@@ -40,6 +40,7 @@ import { starterTasks, checklistOf, jobsForRename, keyDates } from "./lib/checkl
  *   POST   /api/events?id=…&uploadlink=1    create the folder if needed and mint an upload-only link on it
  *   PUT    /api/events?id=…&room=1          the main room's seats and the VIPs seated in it ({ seats, vips })
  *   PUT    /api/events?id=…&presenter=…&arranged=1  finalize without an agreement: { on, note, hotel, covers } (or undo)
+ *   PUT    /api/events?id=…&hotel=1               { hotel } the hotel alone, from its card on Logistics
  */
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -78,6 +79,7 @@ export default async (req) => {
     if (url.searchParams.get("countregistered")) return setCountRegistered(id, body);
     if (url.searchParams.get("lead")) return setLead(id, body);
     if (url.searchParams.get("room")) return setRoom(id, body);
+    if (url.searchParams.get("hotel")) return setHotel(id, body, canCost);
     const presenterId = url.searchParams.get("presenter");
     if (presenterId && url.searchParams.get("arranged")) return setArranged(id, presenterId, body, who);
     return presenterId ? updatePresenter(id, presenterId, body) : updateEvent(id, body, canCost);
@@ -106,6 +108,16 @@ async function setRoom(id, body) {
   event.updatedAt = new Date().toISOString();
   await putEvent(event);
   return json({ ok: true, room: event.room });
+}
+
+/** The hotel, saved from its card on Logistics (audit 24 Nov 2026): that one field, as Edit event cleans it. */
+async function setHotel(id, body, canCost) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  event.hotel = hideCostsFromEdit(cleanHotel(body.hotel, event.hotel), event, canCost);
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, hotel: event.hotel });
 }
 
 /**
