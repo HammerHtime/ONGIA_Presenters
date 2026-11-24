@@ -872,6 +872,10 @@
   .mlrow .mlw{white-space:nowrap} .mlrow .mld{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mlrow .mls{font-size:13px;font-weight:600;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis} .mlrow .mlgo{color:var(--muted);font-size:17px;text-align:right}
   .mls.ok{color:var(--done)} .mls.wt{color:var(--wait)} .mls.late{color:var(--late)} .mls.mu{color:var(--muted)}
+  .cst{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:13px;font-weight:800;line-height:1;flex:0 0 22px;color:#fff;vertical-align:middle}
+  .cst.ok{background:var(--done)} .cst.bad{background:var(--late)} .cst.warn{background:var(--wait)}
+  dd.cn{position:relative;padding-right:34px} dd.cn > .cst{position:absolute;right:0;top:2px}
+  dd.cn .gwix{margin:0} dd.cn .wixbar{padding-left:0;padding-right:0}
   .rlsum{display:flex;align-items:center;gap:8px;min-height:34px;font-size:14px} .rlsum .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rlwho .rlf{display:flex;gap:6px;flex-wrap:wrap} .rlwho .rlf input{flex:1 1 140px;min-width:0}
   @media (max-width:640px){.mlrow{grid-template-columns:minmax(96px,auto) minmax(0,1fr) 14px;gap:8px;padding:6px 12px} .mlrow .mld{display:none} .mlrow .mls{max-width:none;text-align:right} .mailsw .mswtxt span{display:none} .mailsw{padding:8px 12px}}
@@ -2665,6 +2669,24 @@ function homeConsole(events, upcoming, inbox) {
 // so; marked not applicable, the event has no hotel to sign for. No such job on the list counts as not signed.
 const contractJob = (ev) => (ev.tasks ?? []).find((t) => /^contract signed/i.test(t.what ?? ""));
 const hotelLocked = (ev) => { const j = contractJob(ev); return !!j && (j.done || j.na); };
+/*
+ * Each connection an event needs, and whether it's working (Andrew 24 Nov 2026): ok (a green check), warn (set up but not
+ * proven: an upload link not checked, Wix not pulled in two days) or bad (not set up: a red ✕).
+ */
+function connectionsOf(ev, guests) {
+  const pulled = guests?.syncedAt ? Math.floor((Date.now() - Date.parse(guests.syncedAt)) / 86400000) : null;
+  const day = (iso) => new Date(iso).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  return [
+    { k: "files", label: "Files", ...(ev.sharePointFolderUrl ? { st: "ok", word: "SharePoint folder set" } : { st: "bad", word: "no SharePoint folder" }) },
+    { k: "slides", label: "Slides", ...(ev.materialsFolderUrl || ev.sharePointFolderUrl ? { st: "ok", word: "SharePoint folder set" } : { st: "bad", word: "no folder" }) },
+    { k: "uploads", label: "Uploads", ...(!ev.materialsUploadUrl ? { st: "bad", word: "no upload link" }
+      : ev.materialsLinkCheck?.verdict === "upload-only" ? { st: "ok", word: "upload-only link" } : { st: "warn", word: "link not checked" }) },
+    { k: "wix", label: "Wix", ...(!guests ? { st: "warn", word: "couldn't load" } : !guests.wix?.eventId ? { st: "bad", word: "not linked" }
+      : pulled === null ? { st: "warn", word: "not pulled yet" } : pulled > 2 ? { st: "warn", word: `last pulled ${day(guests.syncedAt)}` } : { st: "ok", word: "linked and pulling" }) },
+  ];
+}
+const connMark = (conns, k) => { const c = conns.find((x) => x.k === k); if (!c) return "";
+  return `<span class="cst ${c.st}" title="${esc(c.word)}" aria-label="${esc(c.label)}: ${esc(c.word)}">${c.st === "ok" ? "✓" : c.st === "bad" ? "✕" : "!"}</span>`; };
 
 /*
  * Where each event's hotel stands (Andrew 21 Nov 2026: "I need a way to see which events the contract has been signed …
@@ -4531,7 +4553,12 @@ function eventScreen(data) {
   const presenterBadge = [count("review") ? `<span class="you">${count("review")} to review</span>` : "",
     count("failed") ? `<span class="late">${count("failed")} not filed</span>` : "",
     sendFailed.length ? `<span class="late">${sendFailed.length} email${sendFailed.length === 1 ? "" : "s"} failed</span>` : ""].filter(Boolean).join(" · ");
-  const settingsLine = "SharePoint folder, upload link, the board, delete";
+  // The event's connections, each with a mark at the end of its row (Andrew 24 Nov 2026: "a green check mark to show me
+  // that all of these URLs to SharePoint and to Wix … If they're not, I need it to be either a red X or alert me").
+  const CONN = connectionsOf(ev, guests);
+  const connOff = CONN.filter((c) => c.st !== "ok");
+  const settingsLine = !connOff.length ? `<span class="cst ok">✓</span> All connected: SharePoint, slides, uploads and Wix`
+    : `<span class="cst ${connOff.some((c) => c.st === "bad") ? "bad" : "warn"}">${connOff.some((c) => c.st === "bad") ? "✕" : "!"}</span> ${esc(connOff.map((c) => `${c.label}: ${c.word}`).join(" · "))}`;
 
   // The event page in tabs (redesign step 2, Andrew 20 Oct 2026). The whole event still loads in one go, so a tab
   // opens instantly; the tab sits in the address, so a refresh or Back keeps it.
@@ -4550,7 +4577,8 @@ function eventScreen(data) {
   const lead = ev.reviewer?.name ?? "";
   let mailTodo = 0;
   try { mailTodo = EMAIL_ON && inbox?.items ? ibGroups(inbox.items.map((x) => ({ x, ev }))).todo.filter(({ x }) => x.status === "open").length : 0; } catch { mailTodo = 0; }
-  const tabBadge = { people: count("review") + count("failed") + count("uninvited") + sendFailed.length, communications: mailTodo };
+  // Once the hotel is confirmed the event is going ahead, so anything not connected is counted on the Settings tab.
+  const tabBadge = { people: count("review") + count("failed") + count("uninvited") + sendFailed.length, communications: mailTodo, settings: hotelLocked(ev) ? connOff.length : 0 };
   // "New since you last looked" (Andrew 28 Oct 2026: "if I were to get 10 new survey replies, a small badge 10 shows beside
   // the survey tab"), for each board member: registrations, slides in, hotel requests, food-allergy answers, survey answers.
   const nowCounts = { people: guests?.counts?.attending ?? 0, program: draftGot + finalGot, logistics: (rooming?.rows ?? []).length,
@@ -4790,11 +4818,12 @@ function eventScreen(data) {
       + (mayCertifyHere(ev) ? `<div data-svw="certs" hidden>${certsCard()}</div>` : ""))
     + (ev.project ? "" : panel("settings", (!sow && ev.kind !== "rbh" && data.canCost ? rbhOfferCard(ev, data.provinceGuess) : "") + (data.canCost && isWebsiteEvent(ev) ? websiteCard() : "") + secFold("settings", "Event settings and diagnostics", settingsLine, "", `<div class="card-body">
       <dl class="kv" style="margin:0">
-        <dt class="top">Files to</dt><dd><div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
-        <dt class="top">Slides to</dt><dd><div class="stack"><span>${esc(ev.materialsFolderPath || ev.sharePointFolder || "the event folder")}${ev.materialsFolderPath ? "" : ` <span class="porg">(the event folder)</span>`}</span>${ev.materialsFolderUrl ? `<a class="mini" href="${esc(ev.materialsFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : ""}</div></dd>
-        <dt class="top">Uploads</dt><dd><div class="stack">${!ev.materialsUploadUrl
+        <dt class="top">Files to</dt><dd class="cn">${connMark(CONN, "files")}<div class="stack"><span>${ev.sharePointFolder ? esc(ev.sharePointFolder) : "<i>No SharePoint folder set — approvals won't be filed</i>"}</span>${ev.sharePointFolderUrl ? `<a class="mini" href="${esc(ev.sharePointFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : `<button class="mini" id="mkfolder">Create it in SharePoint</button>`}</div></dd>
+        <dt class="top">Slides to</dt><dd class="cn">${connMark(CONN, "slides")}<div class="stack"><span>${esc(ev.materialsFolderPath || ev.sharePointFolder || "the event folder")}${ev.materialsFolderPath ? "" : ` <span class="porg">(the event folder)</span>`}</span>${ev.materialsFolderUrl ? `<a class="mini" href="${esc(ev.materialsFolderUrl)}" target="_blank" rel="noopener" style="text-decoration:none">Open in SharePoint</a>` : ""}</div></dd>
+        <dt class="top">Uploads</dt><dd class="cn">${connMark(CONN, "uploads")}<div class="stack">${!ev.materialsUploadUrl
           ? `<span class="said">no upload link yet${ev.provisioningError ? ` — ${esc(ev.provisioningError)}` : ""}</span><button class="mini" id="mklink">Create upload link</button>`
           : `<div class="line">${ev.materialsLinkCheck?.verdict === "upload-only" ? `<span class="pill done">upload-only ✓</span>` : `<span class="pill late">unverified</span>`}<span class="said">${scan ? `checked ${esc(short(scan.checkedAt))} · ${scan.total} file${scan.total === 1 ? "" : "s"} in ${esc(scan.folder?.name ?? "the folder")}` : "not checked yet"}</span></div><button class="mini" id="rescan">Check uploads now</button>${scan?.unmatched?.length ? `<div class="porg"><b>${scan.unmatched.length} file${scan.unmatched.length === 1 ? "" : "s"} not matched to a presenter:</b> ${scan.unmatched.map((f) => `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(", ")} — tick Draft/Final by hand for the right person.</div>` : ""}`}</div></dd>
+        <dt class="top">Wix</dt><dd class="cn">${connMark(CONN, "wix")}${wixBar(ev, guests)}</dd>
         <dt>Presentation slot</dt><dd>${esc(ev.sessionMinutes ?? 70)} minutes</dd>
         ${data.canCost ? `<dt class="top">For the website</dt><dd><div class="stack"><span class="said">The presenters who agreed to be shown publicly: name, organization, bio, talk, and their photo where they agreed to photos. Nothing else, and no one who said no.</span><button class="mini" id="webexport">Export presenters for the website</button></div></dd>` : ""}
         <dt class="top">Presenters reach</dt><dd>${ev.reviewer?.name ? `${esc(ev.reviewer.name)} · ${esc(ev.reviewer.email)}${ev.contact?.phone ? " · " + esc(ev.contact.phone) : ""}` : `<div class="stack"><span class="pill late">no lead</span><span class="said">Edit the event and mark one board member as the lead — until then replies go to the speakers mailbox and the agreement has no ONGIA contact.</span></div>`}</dd>
@@ -10428,6 +10457,26 @@ function wireAgenda(ev, A) {
 }
 
 /** Who is coming to this event, however they got on the list. */
+/*
+ * The link to Wix, in Settings with the event's other connections (Andrew 24 Nov 2026: "I want to move the connection to
+ * Wix back here"). Folded behind one line: which Wix event, when it was last pulled, Pull now, Unlink, a second event.
+ */
+function wixBar(ev, guests) {
+  const { people = [], syncedAt, wix, wixMore = [] } = guests ?? {};
+  // Linked to Wix, or not — the bar says which and offers the next move.
+  // Linked: folded behind one line, so the list and its groups come first (Andrew 8 Nov 2026, "nice and tight").
+  return wix?.eventId
+    ? `<details class="wlset gwix"><summary><span>Linked to Wix · <b>${1 + wixMore.length} event${wixMore.length ? "s" : ""}</b>${syncedAt ? ` · pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span> <span class="wlset-edit">Change</span></summary><div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
+        <button class="mini" id="g-sync">Pull from Wix now</button>
+        <button class="mini ghost" id="g-unlink">Unlink</button></div>
+      ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b>${l.site && l.site !== "1" ? ` from ${esc(l.siteName || "the second Wix site")}` : ""} · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
+        <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
+      <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
+        <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div></details>`
+    : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
+        <button class="mini" id="g-link">Link to a Wix event</button></div>`;
+
+}
 function attendeesCard(ev, guests) {
   if (!guests) {
     return `<div class="card"><div class="card-head"><div><h2>Who is coming</h2></div></div>
@@ -10457,19 +10506,6 @@ function attendeesCard(ev, guests) {
   const gcuts = [["coming", "Coming", counts.attending], ["waitlist", "Waitlist", counts.waitlist], ["notcoming", "Not coming", counts.notAttending], ["withdrew", "Withdrew", counts.withdrawn], ["all", "All", counts.total]]
     .filter(([k, , n]) => k === "all" || k === "coming" || n);
 
-  // Linked to Wix, or not — the bar says which and offers the next move.
-  // Linked: folded behind one line, so the list and its groups come first (Andrew 8 Nov 2026, "nice and tight").
-  const bar = wix?.eventId
-    ? `<details class="wlset gwix"><summary><span>Linked to Wix · <b>${1 + wixMore.length} event${wixMore.length ? "s" : ""}</b>${syncedAt ? ` · pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span> <span class="wlset-edit">Change</span></summary><div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
-        <button class="mini" id="g-sync">Pull from Wix now</button>
-        <button class="mini ghost" id="g-unlink">Unlink</button></div>
-      ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b>${l.site && l.site !== "1" ? ` from ${esc(l.siteName || "the second Wix site")}` : ""} · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
-        <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
-      <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
-        <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div></details>`
-    : `<div class="wixbar"><span class="grow">Not linked to the website. Registrations will not arrive on their own.</span>
-        <button class="mini" id="g-link">Link to a Wix event</button></div>`;
-
   const line = counts.total
     ? [`${counts.attending} coming`, counts.waitlist ? `${counts.waitlist} on the waitlist` : "", counts.withdrawn ? `${counts.withdrawn} withdrew` : "",
        wix?.eventId ? "linked to Wix" : "not linked to Wix"].filter(Boolean).join(" · ")
@@ -10490,7 +10526,7 @@ function attendeesCard(ev, guests) {
           ${mayCertifyHere(ev) ? `<button type="button" data-glist="certificate"><b>For a certificate program</b><span>Only people checked in: first name, last name, agency, email, event, date.</span></button>` : ""}</div></details>` : ""}
         <input type="file" id="g-file" accept=".csv,text/csv,text/plain" hidden></div></div>
     <div class="card-body">
-      ${bar}
+      ${wix?.eventId ? "" : `<div class="wixbar"><span class="grow late">Not linked to Wix: registrations won't arrive on their own.</span><button class="mini" data-gosettings>Link it in Settings</button></div>`}
       ${lettersStrip(guests.letters)}
       <div id="g-said">${GUEST_NOTE
         ? `<div class="${GUEST_NOTE.bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(GUEST_NOTE.msg)}</div>` : ""}</div>
@@ -10554,11 +10590,14 @@ function wireAttendees(ev) {
   const gfind = document.getElementById("gfind");
   if (gfind) { gfind.value = GFIND; gfind.oninput = () => { GFIND = gfind.value; applyG(); }; } else GFIND = "";
   applyG();
+  ROOT.querySelectorAll("[data-gosettings]").forEach((b) => { b.onclick = () => ROOT.querySelector('.etab[data-tab="settings"]')?.click(); });
   const said = document.getElementById("g-said");
   if (!said) return;
   const note = (msg, bad = false) => {
     GUEST_NOTE = { msg, bad };
     said.innerHTML = `<div class="${bad ? "bad" : "note"}" style="margin:0 0 12px">${esc(msg)}</div>`;
+    // Pull now and Link sit in Settings (24 Nov 2026), away from this card, so the answer shows where you pressed too.
+    if (document.querySelector('[data-panel="settings"]:not([hidden]) .gwix, [data-panel="settings"]:not([hidden]) #g-link')) toast(msg);
   };
   const run = async (path, init, done) => {
     try { const out = await api(path, init); if (done) note(done(out)); setTimeout(render, 900); }
