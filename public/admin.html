@@ -1430,6 +1430,18 @@
   .dash{margin:0 0 18px}
   .dgrid{display:grid;gap:16px;margin-bottom:16px;align-items:stretch}
   .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr) minmax(0,.8fr)}
+  .dgrid.two{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+  .dswitch{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px} .dpicked > div > .card{margin-bottom:16px}
+  .dpicked .dbcard{min-height:0}
+  @media (max-width:760px){.dgrid.two{grid-template-columns:1fr} .dswitch{flex-wrap:nowrap;gap:4px} .dswitch .fchip{padding:6px 10px;font-size:13px;white-space:nowrap}}
+  /* Off the Overview the side panel steps aside and the tab has the full width (audit 24 Nov 2026). */
+  .pxmealsline{font-size:13.5px;margin:0 0 10px}
+  .evbody.noside{grid-template-columns:minmax(0,1fr)} .evbody.noside .evside{display:none}
+  details.clfold > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 18px}
+  details.clfold > summary::-webkit-details-marker{display:none}
+  details.clfold > summary h2{margin:0;font-family:var(--fd);font-weight:400;font-size:20px} details.clfold > summary .s{color:var(--muted);font-size:13.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  details.clfold > summary .late{color:var(--late);font-weight:600} details.clfold > summary .ibcaret{color:var(--muted)}
+  details.clfold[open] > summary .ibcaret{transform:rotate(180deg)} details.clfold > .card{border:0;box-shadow:none;margin:0}
   .dgrid.three + .dgrid.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr)}
   .dbcard{margin:0;padding:16px 18px;display:flex;flex-direction:column;box-shadow:var(--lift)}
   .dh{display:flex;align-items:center;gap:10px;margin-bottom:12px} .dh h2{font-family:var(--fd);font-size:20px;color:var(--navy-deep)} .dh .porg{margin-left:auto;font-size:12.5px}
@@ -1591,6 +1603,8 @@
   .pseg{display:inline-flex;border:1.5px solid var(--edge);border-radius:999px;overflow:hidden;background:var(--card);margin:0 0 14px;max-width:100%}
   .pseg button{appearance:none;border:0;background:none;padding:7px 14px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
   .pseg button b{font-weight:500;color:var(--muted);margin-left:3px}
+  .pseg .ps{display:none}
+  @media (max-width:520px){.pseg button{padding:7px 10px;font-size:13px} .pseg button b{display:none} .pseg .pl{display:none} .pseg .ps{display:inline}}
   .pseg button.on{background:var(--navy);color:#fff} .pseg button.on b{color:rgba(255,255,255,.75)}
   .phead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px} .phead .pseg{margin:0}
   .pxl{display:inline-flex;align-items:center;gap:6px;flex:none;border:1.5px solid var(--edge);border-radius:999px;background:var(--card);padding:6px 14px 6px 11px;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink-mid);white-space:nowrap;cursor:pointer}
@@ -2874,7 +2888,7 @@ function eventFormScreen(existing = null) {
         <summary>Presenter expenses${["breakfast", "lunch", "dinner"].some((m) => ev?.mealsProvided?.[m]) ? ` · ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).join(", ")} provided` : ""}</summary>
         <div class="lab" style="margin:10px 0 4px">Meals this event serves its presenters (no per diem for these)</div>
         <div class="pxmeals">${[["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]].map(([m, n]) => `<label><input type="checkbox" id="e-meal-${m}"${ev?.mealsProvided?.[m] ? " checked" : ""}> ${n}</label>`).join("")}</div>
-        ${ev ? `<div id="px-body" style="margin-top:12px"><p class="hint" style="margin:0">Loading the presenters…</p></div>` : `<p class="hint" style="margin:10px 0 0">Save the event first; each presenter's expense link shows here.</p>`}
+        <p class="hint" style="margin:10px 0 0">${ev ? "Each presenter's link and where their claim stands: <b>People › Expenses</b>." : "Save the event first; each presenter's expense link is under People › Expenses."}</p>
       </details>
       <details class="settings noproj" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
         <summary>Hotel and room block</summary>
@@ -2914,10 +2928,7 @@ function eventFormScreen(existing = null) {
       </details>
       <details class="settings noproj" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true && !ev.quiet)) ? " open" : ""}>
         <summary>Emails to attendees</summary>
-        <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-amail"${ev?.attendeeMail === true && !ev?.quiet ? " checked" : ""}${ev?.quiet ? " disabled" : ""}>
-          <span>Email this event's attendees from the desk: the welcome letter, the survey and the hotel reminders</span></label>
-        ${ev?.attendeeMail !== true ? `<p class="hint" style="margin:6px 0 0">Every event starts with these off. Tick this, or use the switch at the top
-          of the event, when you are ready for them to go.</p>` : ""}
+        <p class="hint" style="margin:12px 0 0">Automatic emails: <b>${ev?.attendeeMail === true && !ev?.quiet ? "On" : "Off"}</b> · the switch is at the top of <b>Communications</b>. Every event starts with them off.</p>
         <p class="hint" style="margin-top:10px">The welcome letter, with its agendas, attachments and the day it goes, is written on this event's
           <b>Communications</b> tab. The survey is on its <b>Survey</b> tab.</p>
         <input type="hidden" id="e-lwelcome" value="${esc(ev?.letters?.welcome ?? "")}">
@@ -2946,8 +2957,8 @@ function eventFormScreen(existing = null) {
     const hint = $("hotelhint"), cut = $("e-hcut"), link = $("e-hlink");
     if (!hint) return;
     const today = todayIso();
-    if ((cut.value || link.value.trim()) && !$("e-amail")?.checked) {
-      hint.innerHTML = "Emails to attendees are off for this event (see <b>Emails to attendees</b> below), so no hotel reminders go.";
+    if ((cut.value || link.value.trim()) && !(ev?.attendeeMail === true && !ev?.quiet)) {
+      hint.innerHTML = "Automatic emails are off for this event, so no hotel reminders go. Turn them on with the switch at the top of <b>Communications</b>.";
       hint.style.color = "var(--wait)";
       return;
     }
@@ -3256,7 +3267,9 @@ function eventFormScreen(existing = null) {
              cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
     letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
     surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
-    attendeeMail: $("e-amail")?.checked === true,
+    // The switch is on Communications now; saving the event keeps what it says.
+    // "Nothing automatic" turns them off with it.
+    attendeeMail: $("e-quiet")?.checked ? false : $("e-amail") ? $("e-amail").checked === true : ev?.attendeeMail === true,
     kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
     rbhPresented: $("e-rbhpres") ? $("e-rbhpres").checked === true && !$("e-rbh")?.checked : undefined,
     rbhCancelled: $("e-rbhcanc") ? $("e-rbhcanc").checked === true && !$("e-rbhpres")?.checked && !$("e-rbh")?.checked : undefined,
@@ -4413,7 +4426,7 @@ function eventScreen(data) {
   // The older test files check each section rather than the tabs, so they ask for every tab at once (tests/ui/evtabs-ui.mjs tests the tabs).
   let allTabs = false; try { allTabs = sessionStorage.getItem("ongia-test-alltabs") === "1"; } catch { /* no storage */ }
   const PVIEWS = [["presenters", "Presenters", presenters.length], ["volunteers", "Volunteers", volunteers?.counts?.total ?? (volunteers?.volunteers ?? []).length],
-    ["guests", "Who's coming", guests?.counts?.attending ?? 0]];
+    ["guests", "Who's coming", guests?.counts?.attending ?? 0], ["expenses", "Expenses", ""]];
   const pview = PVIEWS.some(([k]) => k === view.pview) ? view.pview : "presenters";
   const lead = ev.reviewer?.name ?? "";
   let mailTodo = 0;
@@ -4535,7 +4548,8 @@ function eventScreen(data) {
     + `<div><div><div class="card qcard"><div class="card-head"><div><h2>To do on this event</h2><div class="s">The home page's action queue, just this event</div></div></div>
         <div class="qlist">${todoHtml || `<div class="qempty">Nothing needs you on this event right now.</div>`}${Qev.waiting.length ? `<div class="qmailh">Waiting on them</div>${Qev.waiting.map(evQRow).join("")}` : ""}</div></div>
       </div></div>`
-    + checklistCard(ev, checklist);
+    + "@@DASHPICKED@@"
+    + checklistFold(ev, checklist);
   const pv = (k, html) => `<div class="pview" data-pview="${k}"${k === pview || allTabs ? "" : " hidden"}>${html}</div>`;
   // Every presenter's name and agency, for name badges and ID cards (Andrew 19 Nov 2026: "Download to Excel … not just
   // on a line on its own"). On a computer it sits at the end of the Presenters / Volunteers / Who's coming row; on a
@@ -4620,8 +4634,8 @@ function eventScreen(data) {
 </section>${evNotices(ev)}</div>
     <nav class="etabs evnav" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav>
     ${blockedHtml}<div class="comingtop" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>${comingCard}</div>${dashHtml}<div class="evbody${sideOn ? " withdrawer" : ""}" id="evbody"><div class="evmain">`
-    + panel("overview", overviewHtml)
-    + panel("people", `<div class="phead"><div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${l} <b>${n}</b></button>`).join("")}</div>${presenters.length ? pxlBtn("pxl-w", pview !== "presenters") : ""}</div>`
+    + panel("overview", overviewHtml.replace("@@DASHPICKED@@", () => `<div class="dpickwrap">${DASH_PICKED}</div>`))
+    + panel("people", `<div class="phead"><div class="pseg" role="tablist" aria-label="Who">${PVIEWS.map(([k, l, n]) => `<button type="button" role="tab" data-pseg="${k}" class="${k === pview ? "on" : ""}" aria-selected="${k === pview}">${k === "guests" ? `<span class="pl">${l}</span><span class="ps">Coming</span>` : l}${n === "" ? "" : ` <b>${n}</b>`}</button>`).join("")}</div>${presenters.length ? pxlBtn("pxl-w", pview !== "presenters") : ""}</div>`
       + pv("presenters", secFold("presenters", "Presenters", presenterLine, presenterBadge, `
     <div class="card-body pbody">
       ${ev.noDeadlines || ev.talkOnFile ? `<div class="note" style="margin:0 0 12px">${[
@@ -4640,7 +4654,9 @@ function eventScreen(data) {
         : `<div class="empty">${presenters.length ? "Nobody in this view." : "No presenters yet. Add some to send their links."}</div>`}</div>
     </div>`))
       + pv("volunteers", volunteerCard(ev, volunteers, rooming))
-      + pv("guests", attendeesCard(ev, guests)))
+      + pv("guests", attendeesCard(ev, guests))
+      // Each presenter's expense link and where their claim stands (audit 24 Nov 2026: it was inside Edit event).
+      + pv("expenses", `<div class="card"><div class="card-body"><div class="pxmealsline porg">${["breakfast", "lunch", "dinner"].some((m) => ev.mealsProvided?.[m]) ? `Provided here: ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).join(", ")}, so no per diem for ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).length === 1 ? "it" : "them"}` : "No meals marked as provided"} · <button type="button" class="linkbtn" data-pxmeals>Change</button></div><div id="px-body"><p class="hint" style="margin:0">Loading the presenters…</p></div></div></div>`))
     + panel("program", agendaCard(ev, agenda) + mcCard())
     + panel("logistics", contractLine(ev, contract) + roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", ev.project
@@ -4806,7 +4822,16 @@ function eventScreen(data) {
   if (receipts) wireReceipts(ev, receipts);
   // Tabs: switching is instant (everything is already on the page) and swaps the address in place, so Back still leaves the event.
   // The presenter panel shows in the side column's place, only on People → Presenters.
-  const syncSide = () => document.getElementById("evbody")?.classList.toggle("withdrawer", !!view.person && (allTabs || ((view.tab ?? "overview") === "people" && (view.pview ?? "presenters") === "presenters")) && !!document.getElementById("pdrawer"));
+  const syncNoSide = () => { const b = document.getElementById("evbody"); if (b) b.classList.toggle("noside", !allTabs && !["overview", "money"].includes(view.tab ?? "overview") && !b.classList.contains("withdrawer")); };
+  ROOT.querySelectorAll("[data-dpick]").forEach((b) => { b.onclick = () => {
+    try { localStorage.setItem("ongia-dash-pick", b.dataset.dpick); } catch {}
+    ROOT.querySelectorAll("[data-dpick]").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", String(on)); });
+    ROOT.querySelectorAll("[data-dpart]").forEach((d) => { d.hidden = d.dataset.dpart !== b.dataset.dpick; });
+  }; });
+  const clf = document.getElementById("clfold");
+  if (clf) clf.addEventListener("toggle", () => { try { localStorage.setItem(`ongia-cl-open-${ev.id}`, clf.open ? "1" : "0"); } catch {} });
+  const syncSide = () => { document.getElementById("evbody")?.classList.toggle("withdrawer", !!view.person && (allTabs || ((view.tab ?? "overview") === "people" && (view.pview ?? "presenters") === "presenters")) && !!document.getElementById("pdrawer")); syncNoSide(); };
+  syncNoSide();
   const showTab = (k, focus = null) => {
     view = { ...view, tab: k };
     // The Overview's registrations circle reads the budget: changed on Money, it's drawn again with the new break-even.
@@ -4839,8 +4864,13 @@ function eventScreen(data) {
       ROOT.querySelectorAll(".pxl-w").forEach((x) => { x.hidden = b.dataset.pseg !== "presenters"; });
       ROOT.querySelectorAll("[data-pseg]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", String(x === b)); });
       syncSide();
+      if (b.dataset.pseg === "expenses") pxOpen();
     };
   });
+  let pxDone = false;
+  const pxOpen = () => { if (pxDone || !document.getElementById("px-body")) return; pxDone = true; wirePresenterExpenses(ev, (id) => document.getElementById(id)); };
+  if (allTabs || (tab === "people" && pview === "expenses")) pxOpen();
+  ROOT.querySelectorAll("[data-pxmeals]").forEach((b) => { b.onclick = () => { view = { name: "edit", eventId: ev.id, focus: "px" }; render(); }; });
   const setPerson = (id) => {
     view = { ...view, person: id }; keepAddress();
     const slot = document.getElementById("pdslot");
@@ -5308,6 +5338,16 @@ function behindNote(b) {
  * The jobs that are ONGIA's. Drawn as its own card under the event so it is
  * never confused with what the presenters owe.
  */
+/*
+ * The checklist on the Overview, folded behind one line (audit 24 Nov 2026): how many are done and how many are late.
+ * It opens on a click, and stays open on this device once opened.
+ */
+function checklistFold(ev, checklist) {
+  const c = checklist?.counts ?? {};
+  let open = false; try { open = localStorage.getItem(`ongia-cl-open-${ev.id}`) === "1"; } catch {}
+  const line = checklist ? `${c.done ?? 0} of ${c.total ?? 0} done${c.late ? ` · <span class="late">${c.late} overdue</span>` : ""}` : "Couldn't load";
+  return `<details class="card clfold" id="clfold"${open ? " open" : ""}><summary><h2>Your checklist</h2><span class="s">${line}</span><span class="ibcaret" aria-hidden="true">▾</span></summary>${checklistCard(ev, checklist)}</details>`;
+}
 function checklistCard(ev, checklist) {
   if (!checklist) {
     return `<div class="card"><div class="card-head"><div><h2>Your checklist</h2></div></div>
@@ -12077,6 +12117,7 @@ function budgetSeed(ev, L) {
  * gold until registrations pass that mark and green after (Andrew: "This should show the registrations either until
  * capacity or until we break even. Not sure which one I want" - both, in one). Nobody else sees the money in it.
  */
+let DASH_PICKED = "";
 function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, newGuests, presN, tab, allTabs }) {
   const att = guests?.counts?.attending ?? 0;
   const R0 = roomFill(ev, att, presN);
@@ -12146,8 +12187,16 @@ function eventDash({ ev, presenters, guests, budget, mstat, tiles, showMoney, ne
   const activity = `<section class="card dbcard dact"><div class="dh"><h2>Recent activity</h2><span class="porg">Last two weeks</span></div>${acts.length
     ? `<ul class="feed">${acts.map((a) => `<li><span class="fic ${a.cls}"><svg viewBox="0 0 24 24" aria-hidden="true">${a.icon}</svg></span><span>${a.what}</span><time datetime="${esc(a.at)}">${esc(agoWords(a.at))}</time></li>`).join("")}</ul>`
     : `<p class="porg">Nothing in the last two weeks.</p>`}</section>`;
+  // One at a time (audit 24 Nov 2026, "one thing at a time"): the numbers and the quick actions stay; the four detail
+  // cards sit behind a switch, so the Overview is a screen, not a scroll. The pick is remembered on this device.
+  let pick = "reg"; try { pick = localStorage.getItem("ongia-dash-pick") || "reg"; } catch {}
+  const parts = [["reg", "Registrations", reg], ["survey", "Survey", survey], ...(certs ? [["certs", "Certificates", certs]] : []), ["act", "Activity", activity]];
+  if (!parts.some(([k]) => k === pick)) pick = "reg";
+  // The switch and its card go in the main column, beside the side panel (eventScreen places them after To do).
+  DASH_PICKED = `<div class="dswitch" role="tablist" aria-label="Show">${parts.map(([k, l]) => `<button type="button" role="tab" class="fchip${k === pick ? " on" : ""}" data-dpick="${k}" aria-selected="${k === pick}">${l}</button>`).join("")}</div>
+    <div class="dpicked">${parts.map(([k, , html]) => `<div data-dpart="${k}"${k === pick || allTabs ? "" : " hidden"}>${html}</div>`).join("")}</div>`;
   return `<section class="dash" data-panel="overview"${tab === "overview" || allTabs ? "" : " hidden"}>
-    <div class="dgrid three">${reg}${nums}${quick}</div><div class="dgrid three">${survey}${certs}${activity}</div></section>`;
+    <div class="dgrid two">${nums}${quick}</div></section>`;
 }
 /** What has happened on the event lately, from what the desk already records: newest first, two weeks back, six at most. */
 function activityOf(ev, presenters, guests, mstat) {
@@ -12687,6 +12736,10 @@ function wirePresenterExpenses(ev, $) {
       : p.failed ? ["bad", "Didn't send"] : !p.email ? ["bad", "No email"] : p.sentAt ? ["mu", `Sent ${day(p.sentAt)}`] : ["mu", "Not sent"]);
     body.innerHTML = `<div class="pxhead"><span class="hint" style="margin:0">${d.deadline ? `Links work until ${esc(day(d.deadline))}.` : "One link each."}</span>${unsent ? `<button type="button" class="mini gold" data-pxall>Send to ${unsent}</button>` : ""}</div>
       ${rows.length ? `<div class="pxlist">${rows.map((p) => { const [c, t] = state(p); return `<div class="pxrow"><span class="pxn" title="${esc(p.email)}">${esc(p.name)}</span><span class="pxs ${c}"${p.failed ? ` title="${esc(p.failed)}"` : ""}>${esc(t)}</span><button type="button" class="mini" data-pxcopy="${esc(p.link)}">Copy</button><button type="button" class="mini" data-pxsend="${esc(p.id)}"${p.email ? "" : " disabled"}>${p.sentAt ? "Resend" : "Send"}</button></div>`; }).join("")}</div>` : `<p class="hint" style="margin:8px 0 0">No presenters on this event yet.</p>`}`;
+    if (ROOT.classList.contains("ro")) lockForView(body, VIEW_WHY);
+    // On People › Expenses the meals line joins the deadline on one row (nice and tight).
+    const ml = body.parentElement?.querySelector(".pxmealsline"), hint = body.querySelector(".pxhead .hint");
+    if (ml && hint) { hint.innerHTML += ` · ${ml.innerHTML}`; ml.hidden = true; hint.querySelector("[data-pxmeals]")?.addEventListener("click", () => ml.querySelector("[data-pxmeals]")?.click()); }
     body.querySelectorAll("[data-pxcopy]").forEach((b) => { b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.pxcopy); b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1500); } catch { prompt("Copy this link:", b.dataset.pxcopy); } }; });
     const send = async (b, q, ask) => {
       if (!confirm(ask)) return;
@@ -12702,7 +12755,7 @@ function wirePresenterExpenses(ev, $) {
   const load = async () => { if (loaded) return; loaded = true; try { draw(await api(`/presenter-expenses?event=${encodeURIComponent(ev.id)}&links=1`)); } catch (e) { loaded = false; body.innerHTML = `<p class="hint" style="margin:0">Couldn't load the presenters: ${esc(e.message)}</p>`; } };
   // Loaded when the section is opened, not with every Edit event.
   const box = $("px-box");
-  if (box.open) load(); else box.addEventListener("toggle", () => { if (box.open) load(); });
+  if (!box || box.open) load(); else box.addEventListener("toggle", () => { if (box.open) load(); });
 }
 function wireContract(ev, { $, showHotelHint, draftId = null }) {
   const body = $("ct-body"), picker = $("ct-file");
@@ -13317,7 +13370,7 @@ async function drawScreen() {
       eventFormScreen(data);
       // Arrived from the event page's hotel buttons: open the hotel section and bring it into view.
       if (view.focus) {
-        const d = [...document.querySelectorAll("details")].find((x) => /Hotel and room block/.test(x.querySelector("summary")?.textContent ?? ""));
+        const d = view.focus === "px" ? document.getElementById("px-box") : [...document.querySelectorAll("details")].find((x) => /Hotel and room block/.test(x.querySelector("summary")?.textContent ?? ""));
         if (d) d.open = true;
         const target = view.focus === "contract" ? document.querySelector(".ctbox") : d;
         target?.scrollIntoView({ block: "center" });
