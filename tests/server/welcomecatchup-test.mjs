@@ -126,14 +126,23 @@ st = await S.getAttendees("ngs"); st.people.push(person("g", "g@example.ca")); a
 out = await C.catchUpWelcome({ today: "2026-11-05", pull: async () => { throw new Error("Wix is down"); }, ...quiet });
 ok("Wix down: the people already on the list who are owed it still get it", sent.slice(k).map((m) => m.to).join() === "g@example.ca", JSON.stringify(out.events?.[0]));
 k = sent.length;
-st = await S.getAttendees("ngs"); st.people.push(person("h", "h@example.ca")); await S.putAttendees("ngs", st);
+// Someone who registered before the event, never sent it (emails were off, or a version was held), and someone who
+// registered on day one. Andrew 24 Nov 2026: once it has begun, the backlog never goes ("That can't happen"); Andrew
+// 9 Nov 2026: someone who registers once it has started still gets theirs while there are days to come.
+st = await S.getAttendees("ngs");
+st.people.push({ ...person("old", "old@example.ca"), addedAt: "2026-10-20T15:00:00Z" }, { ...person("h", "h@example.ca"), addedAt: "2026-11-09T14:00:00Z" });
+await S.putAttendees("ngs", st);
 out = await C.catchUpWelcome({ today: "2026-11-09", ...quiet });
-// Andrew 9 Nov 2026: "keep it running": someone who registers once it has started still gets their letter.
-ok("once the event has started it keeps going: someone registered on day one gets it", sent.slice(k).map((m) => m.to).join() === "h@example.ca", JSON.stringify(out.events?.[0]));
+ok("once the event has started, someone registered on day one gets it", sent.slice(k).map((m) => m.to).join() === "h@example.ca", JSON.stringify(sent.slice(k)));
+ok("…but nobody who registered before it began, though they were never sent it", !sent.slice(k).some((m) => m.to === "old@example.ca"));
 k = sent.length;
-st = await S.getAttendees("ngs"); st.people.push(person("i", "i@example.ca")); await S.putAttendees("ngs", st);
+st = await S.getAttendees("ngs"); st.people.push(person("nodate", "nodate@example.ca")); await S.putAttendees("ngs", st);
+out = await C.catchUpWelcome({ today: "2026-11-10", ...quiet });
+ok("a registration with no date isn't assumed new: it doesn't go", !sent.slice(k).some((m) => m.to === "nodate@example.ca"));
+k = sent.length;
+st = await S.getAttendees("ngs"); st.people.push({ ...person("i", "i@example.ca"), addedAt: "2026-11-12T13:00:00Z" }); await S.putAttendees("ngs", st);
 out = await C.catchUpWelcome({ today: "2026-11-12", ...quiet });
-ok("…on the last day too", sent.slice(k).map((m) => m.to).join() === "i@example.ca");
+ok("on the last day, nothing goes, even to someone registered that morning", sent.length === k, JSON.stringify(sent.slice(k)));
 k = sent.length;
 st = await S.getAttendees("ngs"); st.people.push(person("j", "j@example.ca")); await S.putAttendees("ngs", st);
 out = await C.catchUpWelcome({ today: "2026-11-13", ...quiet });
@@ -141,6 +150,20 @@ ok("the day after it ends, it stops: nothing more goes", sent.length === k && (o
 const ev = await S.getEvent("ngs"); ev.attendeeMail = false; await S.putEvent(ev);
 out = await C.catchUpWelcome({ today: "2026-11-06", ...quiet });
 ok("emails to attendees turned off: nothing goes", sent.length === k && (out.events ?? []).length === 0);
+
+console.log("— Victoria, 24 Nov 2026: automatic emails switched on during a one-day event");
+await S.putEvent({ id: "vic", title: "One-day forum", city: "Victoria, BC", venue: "Hotel", dayOne: "2026-11-24", lastDay: "2026-11-24", board: [], attendeeMail: false, wix: { eventId: "wv" },
+  schedule: [{ date: "2026-11-24", start: "08:30", end: "16:00", where: "Room" }],
+  tasks: [{ id: "tv", what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" }] });
+await S.putAttendees("vic", { people: [{ ...person("v1", "v1@example.ca"), addedAt: "2026-10-01T12:00:00Z" }, { ...person("v2", "v2@example.ca"), addedAt: "2026-11-24T15:00:00Z" }] });
+const wv = await welcome(new Request("http://x/api/welcome?event=vic", { headers: H }));
+const vfirst = await wv.json();
+await welcome(new Request("http://x/api/welcome?event=vic", { method: "PUT", headers: H, body: JSON.stringify({ main: { subject: vfirst.versions[0].subject, body: vfirst.versions[0].body }, sendOn: "2026-11-17" }) }));
+const ve = await S.getEvent("vic"); ve.attendeeMail = true; await S.putEvent(ve);
+k = sent.length;
+await runLetterRounds([await S.getEvent("vic")], { today: "2026-11-24", ...quiet });
+out = await C.catchUpWelcome({ today: "2026-11-24", ...quiet });
+ok("switched on during its only day: no welcome letter goes, from the morning run or the catch-up", !sent.slice(k).some((m) => /^v\d@/.test(m.to)), JSON.stringify(sent.slice(k)));
 ok("every address was sent one welcome letter, never two", new Set(sent.map((m) => m.to)).size === sent.length, JSON.stringify(sent.map((m) => m.to)));
 
 console.log(`\n${pass} passed, ${fail} failed`);
