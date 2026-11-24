@@ -27,9 +27,9 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   const fold = p.locator("details.settings", { has: p.locator("#e-quiet") });
   ok(`${tag}: Edit event has a Nothing automatic fold, closed while it's off`, await fold.count() === 1 && !(await fold.evaluate((d) => d.open)));
   await fold.locator("summary").click(); await p.waitForTimeout(200);
-  ok(`${tag}: attendee emails ticked before`, await p.locator("#e-amail").isChecked());
+  ok(`${tag}: attendee emails on before, and Edit event only says so (the switch is on Communications)`, /Automatic emails: On/.test(await p.locator("body").textContent()) && await p.locator("#e-amail").count() === 0);
   await p.locator("#e-quiet").check(); await p.waitForTimeout(200);
-  ok(`${tag}: ticking it unticks attendee emails and locks them`, !(await p.locator("#e-amail").isChecked()) && await p.locator("#e-amail").isDisabled());
+  ok(`${tag}: ticking it is allowed`, await p.locator("#e-quiet").isChecked());
   await fold.scrollIntoViewIfNeeded(); await fold.screenshot({ path: D + `quiet-setting-${tag}.png` });
   ok(`${tag}: nothing scrolls sideways`, await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await p.locator("#create").click(); await p.waitForTimeout(2000);
@@ -47,7 +47,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 900, "wide"]]) {
   await p.locator("#edit").click(); await p.waitForTimeout(800);
   ok(`${tag}: while on, its fold opens by itself and says On`, await fold.evaluate((d) => d.open) && /Nothing automatic · On/i.test(await fold.locator("summary").innerText()));
   await p.locator("#e-quiet").uncheck(); await p.waitForTimeout(200);
-  ok(`${tag}: unticked, attendee emails can be ticked again`, !(await p.locator("#e-amail").isDisabled()));
+  ok(`${tag}: unticked; attendee emails stay off until switched on in Communications`, /Automatic emails: Off/.test(await p.locator("body").textContent()));
   await p.locator("#create").click(); await p.waitForTimeout(2000);
   ok(`${tag}: saved off`, (await api(`/api/events?id=${ev.id}`)).event.quiet === false);
   ok(`${tag}: no script errors`, errs.length === 0, errs.join(" | "));

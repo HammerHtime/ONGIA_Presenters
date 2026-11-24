@@ -3268,7 +3268,8 @@ function eventFormScreen(existing = null) {
     letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
     surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
     // The switch is on Communications now; saving the event keeps what it says.
-    attendeeMail: $("e-amail") ? $("e-amail").checked === true : ev?.attendeeMail === true,
+    // "Nothing automatic" turns them off with it.
+    attendeeMail: $("e-quiet")?.checked ? false : $("e-amail") ? $("e-amail").checked === true : ev?.attendeeMail === true,
     kind: $("e-rbh") ? ($("e-rbh").checked ? "rbh" : "") : undefined,
     rbhPresented: $("e-rbhpres") ? $("e-rbhpres").checked === true && !$("e-rbh")?.checked : undefined,
     rbhCancelled: $("e-rbhcanc") ? $("e-rbhcanc").checked === true && !$("e-rbhpres")?.checked && !$("e-rbh")?.checked : undefined,
