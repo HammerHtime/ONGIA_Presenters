@@ -262,7 +262,10 @@ async function importEvent(wixEventId) {
     board: [],
     contact: { name: "", email: "", phone: "" },
     tasks: await starterTasks(match.title),
-    attendeeMail: false,  // off until Andrew switches it on at the top of the event
+    attendeeMail: false,  // off until Andrew switches it on
+    // Every automatic email off on a new event (lib/autosend.mjs).
+    auto: { welcome: false, reply: false, hotel: false, survey: false, certs: false },
+    presenterThanks: { off: true },
     wix: { eventId: match.id, title: match.title, url: match.url, site: match.site, linkedAt: new Date().toISOString() },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

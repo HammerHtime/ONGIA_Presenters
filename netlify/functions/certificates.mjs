@@ -1,4 +1,7 @@
-import { onlineLinks } from "./lib/welcome.mjs";
+import { peopleOf } from "./lib/certpeople.mjs";
+import { autoOn } from "./lib/autosend.mjs";
+import { certsWhen } from "./lib/certauto.mjs";
+import { zoneOf } from "./lib/surveysend.mjs";
 import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { getEvent, putEvent, getAttendees, putMeta, listEvents, getRoster } from "./lib/store.mjs";
 import { mayCost, mayEditEvent } from "./lib/auth.mjs";
@@ -85,6 +88,17 @@ export default async (req) => {
   if (req.method === "GET") return json(await view(event, people, templates));
   if (req.method === "PUT") {
     const body = await req.json().catch(() => ({}));
+    // When they're emailed automatically (lib/certauto.mjs): its own change, so the design and the date stay as they are.
+    if ("sendDay" in body || "sendTime" in body) {
+      const sendDay = text(body.sendDay ?? event.certs?.sendDay ?? "", 10), sendTime = text(body.sendTime ?? event.certs?.sendTime ?? "", 5);
+      if (sendDay && !/^\d{4}-\d{2}-\d{2}$/.test(sendDay)) return fail("Pick a day.");
+      if (sendTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(sendTime)) return fail("Pick a time.");
+      const end = event.lastDay || event.dayOne || "";
+      if (sendDay && end && sendDay <= end) return fail("Certificates go after the event: pick a day after its last day.", 409);
+      event.certs = { ...(event.certs ?? {}), sendDay, sendTime };
+      await putEvent(event);
+      return json(await view(event, people, templates));
+    }
     const template = text(body.template, 60), date = text(body.date, 10);
     if (template && !templates.some((t) => t.id === template)) return fail("No such design.");
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("Pick a date.");
@@ -140,18 +154,6 @@ export default async (req) => {
 };
 
 /** Everyone on the event's list who is or was coming, with their agency under its official name. */
-async function peopleOf(event) {
-  const list = await directory().catch(() => []);
-  // Joining online, nobody scans a ticket: everyone registered for the online event counts as attending for their
-  // certificate (Andrew 14 Nov 2026: "this goes out to virtual and inperson (both community and justice)").
-  const online = onlineLinks(event);
-  return (((await getAttendees(event.id)) ?? {}).people ?? [])
-    .filter((p) => p.status === "ATTENDING" || p.checkedIn)
-    .map((p) => ({ key: p.key || p.email, first: p.first ?? "", last: p.last ?? "", email: p.email ?? "", phone: p.phone ?? "", order: p.orderNumber ?? "", typed: p.asWix?.organization ?? p.organization ?? "",
-      agency: agencyOf(p, list)?.name || String(p.organization ?? "").trim(), checkedIn: !!p.checkedIn || (online.has(p.wixEventId) && p.status === "ATTENDING"), virtual: online.has(p.wixEventId), status: p.status, group: p.group ?? "", source: p.source ?? "",
-      name: [p.first, p.last].filter(Boolean).join(" ").trim() || (p.guestOf ? `Guest of ${p.guestOf}` : p.email) }))
-    .sort((a, b) => (a.last || a.name).localeCompare(b.last || b.name) || a.first.localeCompare(b.first));
-}
 
 async function view(event, people, templates) {
   const index = await certIndex(event.id);
@@ -164,6 +166,7 @@ async function view(event, people, templates) {
   return {
     settings: certSettings(event, templates),
     lastDay: event.lastDay || event.dayOne || "",
+    auto: { on: autoOn(event, "certs"), ...certsWhen(event), zone: zoneOf(event) },
     templates: templates.map(designCard),
     people: people.map((p) => ({ ...p, cert: issued.has(p.key) ? certCard(issued.get(p.key)) : null })),
     counts: { coming: people.filter((p) => p.status === "ATTENDING").length, checkedIn: people.filter((p) => p.checkedIn).length, virtual: people.filter((p) => p.virtual && p.checkedIn).length, issued: issued.size },

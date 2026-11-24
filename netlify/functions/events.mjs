@@ -1,5 +1,6 @@
 import { attentionOf, countStatuses, HAS_AGREEMENT } from "./lib/presenterstatus.mjs";
 export { attentionOf, countStatuses, HAS_AGREEMENT };
+import { AUTO_KINDS, setAuto, autoState, autoAllOff } from "./lib/autosend.mjs";
 import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
 import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
@@ -68,6 +69,7 @@ export default async (req) => {
     const body = await req.json().catch(() => null);
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
+    if (url.searchParams.get("auto")) return setAutoMail(id, body);
     if (url.searchParams.get("quiet")) return setQuiet(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
@@ -114,11 +116,29 @@ async function setAttendeeMail(id, body) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   if (body.on && event.quiet === true) return fail("Nothing automatic is on for this event. Turn it off first, in the event's settings.", 409);
+  // The old one switch, kept for anything still calling it: the four attendee emails together (not certificates).
+  for (const k of ["welcome", "reply", "hotel", "survey"]) setAuto(event, k, body.on);
   event.attendeeMail = body.on;
   event.attendeeMailChangedAt = new Date().toISOString();
   event.updatedAt = event.attendeeMailChangedAt;
   await putEvent(event);
   return json({ ok: true, attendeeMail: event.attendeeMail });
+}
+
+/**
+ * One automatic email on or off (Andrew 24 Nov 2026: "a toggle (on and off) for each of the auto emails"): lib/autosend.mjs.
+ * Changes that switch and nothing else. Turning one on never sends anything for a day already past: each email's own
+ * rules (the welcome letter never to the backlog once the event has begun) still hold.
+ */
+async function setAutoMail(id, body) {
+  if (typeof body.on !== "boolean" || !AUTO_KINDS.includes(body.kind)) return fail("Which email, on or off?");
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  if (body.on && event.quiet === true) return fail("Nothing automatic is on for this event. Turn it off first, in the event's settings.", 409);
+  setAuto(event, body.kind, body.on);
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, auto: autoState(event) });
 }
 
 /**
@@ -238,6 +258,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   if (project) Object.assign(event, { project: true, attendeeMail: false, noDeadlines: true });
   else delete event.project;
   if (event.quiet) event.attendeeMail = false;
+  // A new event starts with every automatic email off: each is turned on when it's wanted (Andrew 24 Nov 2026).
+  if (creating && !event.auto) autoAllOff(event);
 
   // Board members on this event: any number, exactly one lead. The lead
   // reviews and signs; everyone picked is notified. Older clients that still
@@ -701,7 +723,7 @@ async function showEvent(id, canCost = true, who = { key: true }) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event: canCost ? event : redactEvent(event), canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
+  return json({ event: { ...(canCost ? event : redactEvent(event)), autoOn: autoState(event) }, canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
     attention: attentionOf(presenters), checklistCounts: checklistOf(event).counts,
     // For the tabs' "new since you last looked" badges: answers that only load when their tab is opened, and what this
     // board member had seen.

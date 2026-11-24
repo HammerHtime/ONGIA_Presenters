@@ -1,3 +1,4 @@
+import { autoOn } from "./lib/autosend.mjs";
 import { resultsOf } from "./lib/surveyresults.mjs";
 export { resultsOf };
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
@@ -172,7 +173,7 @@ async function show(event) {
     next: (await emailSchedule(event).catch(() => [])).filter((x) => /^Survey/.test(x.what)).sort((a, b) => `${a.date} ${a.time ?? ""}`.localeCompare(`${b.date} ${b.time ?? ""}`))[0] ?? null,
     responses: responses.length, byPart,
     sent: Object.fromEntries(Object.entries(people.reduce((m, p) => { for (const k of p.sent ?? []) if (k.startsWith("survey:")) (m[k] ??= new Set()).add(p.email); return m; }, {})).map(([k, v]) => [k.slice(7), v.size])),
-    attendeeMail: event.attendeeMail === true,
+    attendeeMail: autoOn(event, "survey"),
   });
 }
 

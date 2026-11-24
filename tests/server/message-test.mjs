@@ -72,9 +72,9 @@ ev = await getEvent("ngs"); delete ev.sendNow; await putEvent(ev);
 const out2 = await MS.sendMessageRound(ev, ev.messages[0].id, { pace: async () => {} });
 ok("and only Wes gets it", out2.sent === 1 && sent.at(-1).to === "wes@example.ca");
 
-// Off: nothing goes.
-ev = await getEvent("ngs"); ev.attendeeMail = false; await putEvent(ev);
-ok("with attendee emails off, it can't be sent", (await call("&send=1", "POST", { ...words, subject: "Another" })).status === 409);
+// A message is sent by hand: the automatic switches (24 Nov 2026) don't stop it.
+ev = await getEvent("ngs"); ev.attendeeMail = false; ev.auto = { welcome: false, reply: false, hotel: false, survey: false, certs: false }; delete ev.sendNow; await putEvent(ev);
+{ const r = await call("&send=1", "POST", { ...words, subject: "Another" }); ok("with every automatic email off, a message by hand still goes", !/off for this event/i.test(r.body?.error ?? ""), JSON.stringify(r)); }
 
 // Signed by the President himself, answers to him (Andrew 16 Nov 2026: the community partners' thank-you).
 {

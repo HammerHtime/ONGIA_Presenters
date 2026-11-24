@@ -1,3 +1,4 @@
+import { autoOn } from "./lib/autosend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, adminWho, text, editGuard, isEmail } from "./lib/http.mjs";
 import { createHash } from "node:crypto";
@@ -83,7 +84,7 @@ async function show(event) {
   const answers = (await getReplies(event.id))?.answers ?? [];
   return json({ reply: event.reply ?? null, link: event.reply ? link(event) : "", status: event.reply ? await replyStatus(event) : null,
     sending: event.replySending && Date.now() - Date.parse(event.replySending.at) < 20 * 60 * 1000 ? event.replySending : null, lastSend: event.replyLastSend ?? null,
-    problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: event.attendeeMail === true,
+    problems: event.reply ? replyProblems(event) : [], sign: event.reply ? signOf(event) : null, answers, attendeeMail: autoOn(event, "reply"),
     presenters: event.reply ? { ...(await presenterReplyStatus(event)), sending: presentersSending(event) } : null });
 }
 const presentersSending = (event) => !!event.replyPresentersSending && Date.now() - Date.parse(event.replyPresentersSending.at) < 20 * 60 * 1000;

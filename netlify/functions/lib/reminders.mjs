@@ -1,3 +1,4 @@
+import { autoOn } from "./autosend.mjs";
 import { esc } from "./text.mjs";
 import { listEvents, listPresenters, putPresenter, putEvent, getMeta, putMeta, getLetter, listVolunteers } from "./store.mjs";
 import { inviteVolunteer } from "./volunteers.mjs";
@@ -286,12 +287,12 @@ async function jobsFor(event, today) {
   const open = [];
   for (const t of tasks.filter((x) => !x.na && !x.done)) {
     let auto = null;
-    if (t.auto && event.attendeeMail !== true) {
-      auto = "emails to attendees are off for this event";
+    if (t.auto && !autoOn(event, t.auto === "welcome" ? "welcome" : "survey")) {
+      auto = "switched off for this event";
     } else if (t.auto) {
       const letter = event.letters?.[t.auto] ? await getLetter(event.letters[t.auto]) : null;
       const problems = letter ? [...letterProblems(letter), ...eventProblems(letter, event)] : [];
-      auto = !letter ? "no letter picked on the event yet" : problems.length ? `held back: ${problems[0]}` : "sends by itself";
+      auto = !letter ? "no letter picked on the event yet" : problems.length ? `held back: ${problems[0]}` : "sends automatically";
     }
     open.push({ what: t.what, due: t.dueReadable, dueIso: t.due, days: t.days, late: t.late, scheduled: t.scheduled, auto });
   }

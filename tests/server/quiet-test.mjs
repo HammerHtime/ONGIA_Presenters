@@ -56,7 +56,7 @@ e = await S.getEvent(ev.id);
 const live = { ...e, attendeeMail: true }; // as if the two ever disagreed: the switch still wins
 ok("no welcome letter", letterDue(live, "welcome").due === false);
 ok("no hotel reminder", hotelDueToday({ ...live, hotel: { cutoff: day(7), link: "https://hotel.example" } }) === null && hotelDueToday({ ...live, quiet: false, hotel: { cutoff: day(7), link: "https://hotel.example" } }) === 7);
-ok("no thank-yous", thanksDue({ ...live, lastDay: day(-1) }, new Date(), "presenters") === false && thanksDue({ ...live, quiet: false, lastDay: day(-1), city: "Toronto" }, new Date(`${day(0)}T20:00:00Z`), "presenters") === true);
+ok("no thank-yous", thanksDue({ ...live, lastDay: day(-1) }, new Date(), "presenters") === false && thanksDue({ ...live, quiet: false, presenterThanks: {}, lastDay: day(-1), city: "Toronto" }, new Date(`${day(0)}T20:00:00Z`), "presenters") === true);
 const joinEv = { ...live, joinReminder: { k: { readyAt: "x" } } };
 ok("no online join reminder", J.joinDue(joinEv, "k", new Date()) === false);
 await S.putEvent({ ...e, survey: { open: true, mode: "end" } });

@@ -1,3 +1,4 @@
+import { autoOn } from "./autosend.mjs";
 import { getAttendees, putAttendees, listSurveyDone } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { renderLetter, letterProblems, eventProblems, attendeeReplyTo, personalId } from "./letters.mjs";
@@ -128,7 +129,7 @@ export function owedFor(event, part, people) {
 /** Whether any survey part is due with someone still to get it: the 15-minute check starts the sending only then. */
 export async function surveyWorkDue(events, now = new Date()) {
   for (const event of events) {
-    if (event.attendeeMail !== true || event.quiet === true || !event.survey?.open) continue;
+    if (!autoOn(event, "survey") || !event.survey?.open) continue;
     const parts = partsDue(event, now);
     const n = reminderDue(event, now);
     if (!parts.length && !n) continue;
@@ -143,7 +144,7 @@ export async function surveyWorkDue(events, now = new Date()) {
 export async function runSurveyRounds(events, opts = {}) {
   const out = [];
   for (const event of events) {
-    if (event.attendeeMail !== true || event.quiet === true || !event.survey?.open) continue;
+    if (!autoOn(event, "survey") || !event.survey?.open) continue;
     for (const part of partsDue(event, opts.now)) {
       try { out.push(await sendSurveyRound(event, part, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind: "survey", part, error: e.message }); }

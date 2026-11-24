@@ -1,3 +1,4 @@
+import { autoOn } from "./lib/autosend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { json, fail, requireAdmin, text, isEmail } from "./lib/http.mjs";
 import { getLetter, putLetter, listLetters, deleteKey, getEvent, getAttendees, listEvents, getAgenda } from "./lib/store.mjs";
@@ -134,7 +135,7 @@ async function preview(body) {
     to: { count, sample: real ? `${person.first || ""} ${person.last || ""}`.trim() || "the first attendee" : "a sample person" },
     when: due.on ?? null, whenNote: due.due ? "due now" : due.why,
     attached: letter.attachAgenda && agendaOf(letter, event).file ? [{ name: agendaOf(letter, event).file.name, size: agendaOf(letter, event).file.size }] : [],
-    off: event.attendeeMail !== true,
+    off: !autoOn(event, kind === "welcome" ? "welcome" : "survey"),
   });
 }
 

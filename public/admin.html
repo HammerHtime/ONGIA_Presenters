@@ -817,11 +817,16 @@
   .mailsw{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--edge);font-size:13.5px;min-height:44px}
   .mailsw .mswtxt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .mailsw .mswtxt b{display:inline}
   .mlist{display:flex;flex-direction:column}
-  .mlrow{display:grid;grid-template-columns:130px minmax(0,1fr) auto 18px;gap:12px;align-items:center;min-height:42px;padding:6px 16px;border:0;border-top:1px solid var(--edge);background:none;text-align:left;font:inherit;font-size:14px;color:var(--ink);cursor:pointer;border-left:3px solid transparent}
+  .mlrow{display:grid;grid-template-columns:40px 130px minmax(0,1fr) auto auto 18px;gap:12px;align-items:center;min-height:42px;padding:6px 16px;border:0;border-top:1px solid var(--edge);background:none;text-align:left;font:inherit;font-size:14px;color:var(--ink);cursor:pointer;border-left:3px solid transparent}
   .mlist .mlrow:first-child{border-top:0}
   .mlrow:hover{background:var(--sunk)} .mlrow.on{background:#fff;border-left-color:var(--gold)} .mlrow.on .mlw{color:var(--navy)}
   .mlrow .mlw{white-space:nowrap} .mlrow .mld{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mlrow .mls{font-size:13px;font-weight:600;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis} .mlrow .mlgo{color:var(--muted);font-size:17px;text-align:right}
+  .mlnow{padding:3px 10px;font-size:12.5px}
+  .mlsw{display:inline-flex;align-items:center;position:relative} .mlsw input{position:absolute;opacity:0;width:1px;height:1px} .mlsw .track{width:34px;height:20px;border-radius:10px;background:#cfc8b8;position:relative;transition:background .15s}
+  .mlsw .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+  .mlsw input:checked + .track{background:var(--done)} .mlsw input:checked + .track .knob{left:16px} .mlsw input:focus-visible + .track{outline:2px solid var(--navy);outline-offset:2px} .mlsw input:disabled + .track{opacity:.5}
+  .mlhint{margin:0;padding:8px 16px;font-size:13px;color:var(--muted);background:var(--sunk);border-bottom:1px solid var(--edge)}
   .mls.ok{color:var(--done)} .mls.wt{color:var(--wait)} .mls.late{color:var(--late)} .mls.mu{color:var(--muted)}
   .cst{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:13px;font-weight:800;line-height:1;flex:0 0 22px;color:#fff;vertical-align:middle}
   .cst.ok{background:var(--done)} .cst.bad{background:var(--late)} .cst.warn{background:var(--wait)}
@@ -829,7 +834,7 @@
   dd.cn .gwix{margin:0} dd.cn .wixbar{padding-left:0;padding-right:0}
   .rlsum{display:flex;align-items:center;gap:8px;min-height:34px;font-size:14px} .rlsum .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rlwho .rlf{display:flex;gap:6px;flex-wrap:wrap} .rlwho .rlf input{flex:1 1 140px;min-width:0}
-  @media (max-width:640px){.mlrow{grid-template-columns:minmax(96px,auto) minmax(0,1fr) 14px;gap:8px;padding:6px 12px} .mlrow .mld{display:none} .mlrow .mls{max-width:none;text-align:right} .mailsw .mswtxt span{display:none} .mailsw{padding:8px 12px}}
+  @media (max-width:640px){.mlrow{grid-template-columns:36px minmax(0,auto) minmax(0,1fr) auto 14px;gap:8px;padding:6px 12px} .mlrow .mlw{overflow:hidden;text-overflow:ellipsis} .mlhint{padding:6px 12px;font-size:12.5px} .mlrow .mld{display:none} .mlrow .mls{max-width:none;text-align:right} .mailsw .mswtxt span{display:none} .mailsw{padding:8px 12px}}
   .mailsw.on{background:var(--done-bg)} .mailsw.off{background:var(--sunk)}
   .mailsw b{display:block;font-size:14px} .mailsw span{color:var(--muted)}
   .mailsw.on b{color:var(--done)}
@@ -2922,13 +2927,13 @@ function eventFormScreen(existing = null) {
       <details class="settings noproj" style="margin-top:4px"${ev?.quiet ? " open" : ""}>
         <summary>Nothing automatic${ev?.quiet ? " · On" : ""}</summary>
         <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-quiet"${ev?.quiet ? " checked" : ""}>
-          <span>Nothing goes by itself for this event: no reminders to presenters or volunteers, no welcome letter, survey,
+          <span>Nothing goes automatically for this event: no reminders to presenters or volunteers, no welcome letter, survey,
             hotel reminders or thank-yous, no RBH reports, and it's left out of the board's reminder emails and the Monday summary</span></label>
         <p class="hint" style="margin:6px 0 0">For a small event you run by hand. Anything you send yourself still goes.</p>
       </details>
       <details class="settings noproj" style="margin-top:4px"${(ev?.letters?.welcome || ev?.letters?.survey || ev?.surveyLink || (ev && ev.attendeeMail !== true && !ev.quiet)) ? " open" : ""}>
         <summary>Emails to attendees</summary>
-        <p class="hint" style="margin:12px 0 0">Automatic emails: <b>${ev?.attendeeMail === true && !ev?.quiet ? "On" : "Off"}</b> · the switch is at the top of <b>Communications</b>. Every event starts with them off.</p>
+        <p class="hint" style="margin:12px 0 0">Automatic emails: each one has its own switch, on <b>Communications</b>. A new event starts with them all off.</p>
         <p class="hint" style="margin-top:10px">The welcome letter, with its agendas, attachments and the day it goes, is written on this event's
           <b>Communications</b> tab. The survey is on its <b>Survey</b> tab.</p>
         <input type="hidden" id="e-lwelcome" value="${esc(ev?.letters?.welcome ?? "")}">
@@ -2957,8 +2962,8 @@ function eventFormScreen(existing = null) {
     const hint = $("hotelhint"), cut = $("e-hcut"), link = $("e-hlink");
     if (!hint) return;
     const today = todayIso();
-    if ((cut.value || link.value.trim()) && !(ev?.attendeeMail === true && !ev?.quiet)) {
-      hint.innerHTML = "Automatic emails are off for this event, so no hotel reminders go. Turn them on with the switch at the top of <b>Communications</b>.";
+    if ((cut.value || link.value.trim()) && ev && ev.autoOn?.hotel !== true) {
+      hint.innerHTML = "The hotel reminders are switched off for this event, so none go automatically. Their switch is on <b>Communications</b>.";
       hint.style.color = "var(--wait)";
       return;
     }
@@ -4462,6 +4467,9 @@ function eventScreen(data) {
     <div class="qwhat"><b>${r.title}</b>${r.who ? ` · ${r.who}` : ""}${r.note ? `<div class="qev">${esc(r.note)}</div>` : ""}</div>
     <span class="qwhen">${r.when ?? ""}</span><span class="qact">${r.btn}</span></div>`;
   const todoHtml = Qev.needs.filter((r) => r.title !== "Event is blocked").map(evQRow).join("")
+    // An automatic email switched off with its day three days away or less (24 Nov 2026): said here, so it isn't missed.
+    + autoOffSoon(ev, checklist).map((x) => evQRow({ icon: "✉", cls: "you", title: `${x.what} is off`, note: `Won't go ${x.d === 0 ? "today" : `on ${plainDay(x.day)}`} unless it's turned on, or sent with Send now`,
+        btn: `<button class="btn btn-ghost btn-sm" data-autoon="${x.kind}">Turn on</button>` })).join("")
     + (mailTodo ? evQRow({ icon: "✉", cls: "you", title: `${mailTodo} email${mailTodo === 1 ? "" : "s"} to deal with`, note: "From your inbox, filed to this event",
         btn: `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open email</button>` }) : "");
   // Coming up (Andrew 5 Nov 2026: "put it at the top and include all the scheduled emails, date and to how many … If the
@@ -4472,7 +4480,7 @@ function eventScreen(data) {
       time: x.l === "Training starts" && (ev.schedule ?? []).find((d) => d.date === x.iso)?.start ? fmt12(ev.schedule.find((d) => d.date === x.iso).start) : "",
       extra: x.l === "Training starts" || !presenters.length ? "" : stillOut(x.l) ? `${stillOut(x.l)} still to come in` : "all in" })),
     ...(checklist?.tasks ?? []).filter((t) => t.scheduled && t.due && !t.done && !t.na && daysTo(t.due) >= 0)
-      .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends itself" : "", auto: !!t.auto })),
+      .map((t) => ({ iso: t.due, d: daysTo(t.due), what: t.what, extra: t.auto ? "sends automatically" : "", auto: !!t.auto })),
   ];
   const comingRows = (emails) => {
     const mail = (emails ?? []).filter((x) => daysTo(x.date) >= 0).map((x) => ({ iso: x.date, d: daysTo(x.date), what: x.what, mail: true, note: x.note, now: x.now, to: x.to, who: x.who,
@@ -4487,7 +4495,7 @@ function eventScreen(data) {
     // One tight line each (Andrew 5 Nov 2026: "tighten up the coming up list … beside date, add the time as well").
     return rows.slice(0, 10).map((x) => `<div class="mile"><span class="md">${esc(plainDay(x.iso))}${x.time ? `<small>${esc(x.time)}</small>` : ""}</span>
         <span class="mt">${x.mail ? `<span class="mlic" aria-hidden="true">✉</span>` : ""}${esc(x.what.replace(/ \((.+)\)$/, " · $1"))}${x.extra ? ` <span class="porg">· ${esc(x.extra)}</span>` : ""}${x.note ? ` <span class="late mnote">· ${esc(x.note)}</span>` : ""}</span>
-        <span class="ml">${x.now && !x.note ? `<button type="button" class="mini cnow" data-cnow="${esc(JSON.stringify({ ...x.now, what: x.what, to: x.to, who: x.who }))}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : ""}<span class="cmdays">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
+        <span class="ml">${x.now && (!x.note || /switched off|Nothing automatic/.test(x.note)) ? `<button type="button" class="mini cnow" data-cnow="${esc(JSON.stringify({ ...x.now, what: x.what, to: x.to, who: x.who }))}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : ""}<span class="cmdays">${x.d === 0 ? "today" : `${x.d} day${x.d === 1 ? "" : "s"}`}</span></span></div>`).join("") || `<div class="porg">Nothing dated coming up.</div>`;
   };
   const comingCard = `<div class="card ssoon" id="comingcard"><div class="card-head"><div><h2>Coming up</h2><div class="s">The next 10 things, emails included, soonest first</div></div></div><div class="card-body" id="comingbody">${comingRows(null)}</div></div>`;
   // Send now beside each email that can go early (Andrew 5 Nov 2026: "I don't want to wait and I want them to get the
@@ -4663,7 +4671,7 @@ function eventScreen(data) {
       // A project is its statement of work, and a way to delete it.
       ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
       : (sow ? sowCard(ev, sow) : "") + (budget ? `<div id="evbudget"></div>` : "") + (receipts ? receiptsCard(ev, receipts) : "")) : "")
-    + panel("communications", mailSumCard(mailSwitch(ev, guests)) + welcomeCard() + replyCard() + messageCard() + thanksCard() + (ev.kind === "rbh" ? rbhListCard() : "") + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
+    + panel("communications", mailSumCard(ev.quiet ? mailSwitch(ev, guests) : `<p class="mlhint">On: sends automatically on its day · Off: nothing goes until you press <b>Send now</b></p>`) + welcomeCard() + replyCard() + messageCard() + thanksCard() + (ev.kind === "rbh" ? rbhListCard() : "") + (EMAIL_ON ? inboxCard(ev, inbox) : ""))
     // The survey has its own tab (Andrew 27 Oct 2026): setting it up, and its results.
     // The survey in three parts (audit, 30 Oct 2026, from the mock-up Andrew picked): its state at the top, then Setup, Delivery and Results.
     // Certificates beside it, for the president, the VP and the lead (audit, 30 Oct 2026).
@@ -4797,6 +4805,11 @@ function eventScreen(data) {
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
   wireComms(ev);
+  ROOT.querySelectorAll("[data-autoon]").forEach((b) => { b.onclick = async () => {
+    b.disabled = true;
+    try { ev.autoOn = (await api(`/events?id=${encodeURIComponent(ev.id)}&auto=1`, { method: "PUT", body: JSON.stringify({ kind: b.dataset.autoon, on: true }) })).auto; toast("Turned on: it goes automatically."); render(); }
+    catch (x) { toast(x.message); b.disabled = false; }
+  }; });
   // The cards on Communications, Program and Survey each fetch their own part. They load the first time their tab is
   // opened, not every time the event is drawn (audit 24 Nov 2026: opening an event made 34 requests, a checklist tick 28).
   // Communications also reads the survey card's state for its Survey row, so it loads that card too.
@@ -5379,7 +5392,7 @@ function checklistCard(ev, checklist) {
           : `<b class="nodate">No date yet</b><span>set one on Edit</span>`;
     return `<div class="job${t.na ? " na" : t.done ? " done" : t.late ? " late" : ""}${t.id === nextId ? " next" : ""}">
       <input type="checkbox" data-tick="${esc(t.id)}"${t.done ? " checked" : ""}${t.na ? " disabled" : ""} aria-label="${esc(t.what)}">
-      <div class="what">${esc(t.what)}${t.auto ? `<span class="auto" title="The desk sends this one — you do not have to">sends itself</span>` : ""}</div>
+      <div class="what">${esc(t.what)}${t.auto ? `<span class="auto" title="The desk sends this one — you do not have to">sends automatically</span>` : ""}</div>
       <div class="when">${when}</div>
       <div class="jact"><button data-jna="${esc(t.id)}" data-was="${t.na ? "1" : "0"}" title="${t.na ? "Put this job back on the event" : "This event does not need this job"}">${t.na ? "Put back" : "Not needed"}</button>
         <button data-jedit="${esc(t.id)}" title="Change the wording or the date">Edit</button>
@@ -6023,20 +6036,22 @@ function drawMailSum(ev) {
   if (!box) return;
   const got = (k) => (MAILSUM[k]?.failed ? null : MAILSUM[k]);
   const W = got("welcome"), R = got("reply"), S = got("survey");
-  const on = (W ?? R ?? S)?.attendeeMail === true;
+  // A switch for each automatic email (Andrew 24 Nov 2026), as the event says it stands (lib/autosend.mjs).
+  const AO = ev.autoOn ?? {}, isOn = (k) => AO[k] === true;
+  const dShort = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
   const people = (n) => `${n} ${n === 1 ? "person" : "people"}`;
   const rows = [];
   if (W) {
     const reach = W.versions.reduce((n, v) => n + (v.reaches ?? 0), 0);
     const held = W.versions.some((v) => v.problems?.length);
-    rows.push({ at: W.sendOn ?? "", what: "Welcome letter", go: "welcomefold",
+    rows.push({ kind: "welcome", at: W.sendOn ?? "", what: "Welcome letter", go: "welcomefold",
       who: W.versions.length > 1 ? W.versions.map((v) => `${esc(v.label)} (${v.reaches ?? 0})`).join(", ") : `Everyone registered (${reach})`,
       when: W.sendOn ? esc(fmtDate(W.sendOn)) : "No date set",
-      state: W.sendDone ? ["done", "Sent"] : !W.saved ? ["late", "Not saved: won't go"] : held ? ["late", "Held back: see below"] : !on ? ["wait", "Ready, but emails are off"] : ["done", "Ready: sends itself"] });
+      state: W.sendDone ? ["done", "Sent"] : !W.saved ? ["late", "Not saved: won't go"] : held ? ["late", "Held back: see below"] : !isOn("welcome") ? ["idle", "Off"] : ["done", W.sendOn ? `Goes ${dShort(W.sendOn)}` : "Goes automatically"] });
   }
   if (R) {
     const st = R.status ?? {};
-    rows.push({ at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
+    rows.push({ kind: "reply", at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
       who: st.online ? `Everyone attending in person (${st.reaches ?? 0})` : `Everyone registered (${st.reaches ?? 0})`,
       when: !R.reply ? "When you press Send" : R.reply.sentAt ? `Sent ${esc(fmtDate(R.reply.sentAt.slice(0, 10)))}` : `When you press Send${R.reply.replyBy ? `<br><span class="porg">answers by ${esc(fmtDate(R.reply.replyBy))}</span>` : ""}`,
       state: !R.reply ? ["idle", "Not set up"] : R.sending ? ["wait", `Sending: ${st.had ?? 0} of ${st.reaches ?? 0}`]
@@ -6048,11 +6063,11 @@ function drawMailSum(ev) {
     const sv = S.survey, daily = sv?.mode === "daily";
     const sent = Object.values(S.sent ?? {}).reduce((n, x) => n + (Number(x) || 0), 0);
     const noTime = daily && (S.times ?? []).some((t) => !t.at);
-    rows.push({ at: daily ? S.days?.[0] ?? "" : sv?.sendOn ?? "", what: "Survey", go: "survey",
+    rows.push({ kind: "survey", at: daily ? S.days?.[0] ?? "" : sv?.sendOn ?? "", what: "Survey", go: "survey",
       who: S.group ? `${esc(S.group.name)}` : "Attendees",
       when: !sv ? "Not set" : daily ? `End of each day${S.days?.length ? `<br><span class="porg">${esc(fmtDate(S.days[0]))} to ${esc(fmtDate(S.days.at(-1)))}</span>` : ""}` : esc(fmtDate(sv.sendOn)),
       state: !sv ? ["idle", "Not set up"] : !sv.open ? ["idle", "Closed"] : S.problems?.length ? ["late", "Held back: see its tab"] : noTime ? ["late", "A day has no end time: won't go"]
-        : sent ? ["done", `${sent.toLocaleString("en-CA")} sent${S.responses ? ` · ${S.responses} answered` : ""}`] : !on ? ["wait", "Ready, but emails are off"] : ["done", "Ready: sends itself"] });
+        : sent ? ["done", `${sent.toLocaleString("en-CA")} sent${S.responses ? ` · ${S.responses} answered` : ""}`] : !isOn("survey") ? ["idle", "Off"] : ["done", !daily && sv?.sendOn ? `Goes ${dShort(sv.sendOn)}` : "Goes automatically"] });
   }
   for (const [k, what, go] of [["welcome", "Welcome letter", "welcomefold"], ["reply", "Food allergies", "replyfold"], ["survey", "Survey", "survey"]])
     if (MAILSUM[k]?.failed) rows.push({ at: "", what, go, who: "", when: "", state: ["late", "Couldn't load: reload the page"] });
@@ -6069,31 +6084,109 @@ function drawMailSum(ev) {
         : !RL.to ? ["late", "Who gets it? Set it below"]
         : RL.due && RL.due <= today ? ["late", `Due ${shortRl(RL.due)}: press Send`] : ["wait", RL.due ? `Due ${shortRl(RL.due)}` : "Not sent"] });
   }
+  // The hotel reminders and the certificates have no card here: their switch and Send now are on this list
+  // (24 Nov 2026), their details on Logistics and on Survey & certificates.
+  const SCH = MAILSUM.sched?.emails ?? [], today = todayIso(), lastDay = ev.lastDay || ev.dayOne || "";
+  if (ev.hotel?.cutoff && !ev.project) {
+    const next = [30, 15, 7].map((n) => new Date(Date.parse(`${ev.hotel.cutoff}T12:00:00Z`) - n * 86400e3).toISOString().slice(0, 10)).find((d) => d >= today);
+    rows.push({ kind: "hotel", at: next ?? ev.hotel.cutoff, what: "Hotel reminders", go: "hotel", who: "Not booked yet",
+      when: `30, 15 and 7 days before ${esc(fmtDate(ev.hotel.cutoff))}`,
+      state: !ev.hotel.link ? ["late", "No booking link: won't go"] : !next ? ["idle", "Cut-off passed"] : !isOn("hotel") ? ["idle", "Off"] : ["done", `Next ${dShort(next)}`] });
+  }
+  if (lastDay && !ev.project) {
+    const C = ev.certs ?? {}, plus1 = new Date(Date.parse(`${lastDay}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
+    const cday = /^\d{4}-\d{2}-\d{2}$/.test(C.sendDay ?? "") ? C.sendDay : plus1, ctime = /^\d{2}:\d{2}$/.test(C.sendTime ?? "") ? C.sendTime : "10:00";
+    const until = new Date(Date.parse(`${cday}T12:00:00Z`) + 14 * 86400e3).toISOString().slice(0, 10);
+    rows.push({ kind: "certs", at: cday, what: "Certificates", go: "certs", who: "Everyone checked in", when: `${esc(fmtDate(cday))}, ${fmt12(ctime)}`,
+      state: today > until ? ["idle", "Finished"] : !isOn("certs") ? ["idle", "Off"] : ["done", `Goes ${dShort(cday)}`] });
+  }
   // Soonest first; on the same day, in the order they go out: the food question, then the welcome letter, then the survey.
-  const TIE = ["Food allergies", "Welcome letter", "Survey"];
+  const TIE = ["Hotel reminders", "Food allergies", "Welcome letter", "Survey", "Certificates"];
   rows.sort((a, b) => (a.at || "9999").localeCompare(b.at || "9999") || TIE.indexOf(a.what) - TIE.indexOf(b.what));
   // The two sent by hand: a message to a group, and the thank-you.
   const Mg = got("message"), Th = got("thanks");
   const short = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
   rows.push({ at: "~1", what: "Message", go: "msgfold", who: "Everyone registered, or one group",
     state: !Mg ? ["idle", "…"] : Mg.sent ? ["done", `${Mg.sent} sent · last ${short(Mg.last)}`] : ["idle", "None sent"] });
-  rows.push({ at: "~2", what: "Thank-you", go: "thanksfold", who: "Presenters, volunteers and board",
-    state: !Th ? ["idle", "…"] : Th.sent ? [Th.going ? "wait" : "done", `${Th.sent} of ${Th.total} sent${Th.going ? ` · ${Th.going} to go` : ""}`]
-      : Th.auto && Th.on && Th.day ? ["wait", `Goes ${short(Th.day)}`] : Th.auto && !Th.on ? ["idle", "Off"] : ["idle", "Not sent"] });
+  rows.push({ kind: "thanks", at: "~2", what: "Thank-you", go: "thanksfold", who: "Presenters, volunteers and board",
+    state: !Th ? ["idle", "…"] : Th.sent && !Th.going ? ["done", `${Th.sent} of ${Th.total} sent`] : Th.sent ? ["wait", `${Th.sent} of ${Th.total} sent · ${Th.going} to go`]
+      : isOn("thanks") && Th.day ? ["done", `Goes ${short(Th.day)}`] : !isOn("thanks") ? ["idle", "Off"] : ["idle", "Not sent"] });
   const plain = (h) => String(h).replace(/<br>/g, " · ").replace(/<[^>]+>/g, "");
   const tone = { done: "ok", late: "late", wait: "wt", idle: "mu" };
-  box.innerHTML = rows.map((r) => `<button type="button" role="tab" class="mlrow${COMMS_ON === r.go ? " on" : ""}" data-msgo="${r.go}" aria-selected="${COMMS_ON === r.go}">
-      <b class="mlw">${r.what}</b><span class="mld">${esc(plain([r.when, r.who].filter(Boolean).join(" · ")))}</span>
-      <span class="mls ${tone[r.state[0]] ?? "mu"}">${esc(r.state[1])}</span><span class="mlgo" aria-hidden="true">${r.go === "survey" ? "↗" : "›"}</span></button>`).join("")
+  // Send now, only where it makes sense (24 Nov 2026): the switch off, someone still owed it, and its moment come. The
+  // welcome letter, hotel and food-allergy reminders and the survey go through the server's Send now (lib/schedule.mjs);
+  // the certificates and the thank-you through their own screens' buttons.
+  const edit = ev.canEdit !== false;
+  const nowOf = (r) => {
+    if (!r.kind || isOn(r.kind) || !edit) return null;
+    if (r.kind === "welcome") return SCH.find((x) => x.now?.type === "welcome" && x.to > 0)?.now ? SCH.find((x) => x.now?.type === "welcome" && x.to > 0) : null;
+    if (r.kind === "reply") return SCH.find((x) => x.now?.type === "remind" && x.to > 0) ?? null;
+    if (r.kind === "hotel") return SCH.find((x) => x.now?.type === "hotel" && x.to > 0) ?? null;
+    if (r.kind === "survey") return SCH.find((x) => x.now?.type === "survey" && x.to > 0 && (x.now.key === "end" ? today >= lastDay : x.now.key <= today)) ?? null;
+    if (r.kind === "certs") return lastDay && today > lastDay && r.state[1] !== "Finished" && mayCertifyHere(ev) ? { custom: "certs" } : null;
+    if (r.kind === "thanks") return Th?.going && lastDay && today > lastDay ? { custom: "thanks" } : null;
+    return null;
+  };
+  const sw = (r) => !r.kind ? `<span class="mlsw"></span>` : `<label class="mlsw" title="${isOn(r.kind) ? "Goes automatically" : "Off: goes only when you press Send now"}"><input type="checkbox" role="switch" data-autosw="${r.kind}"${isOn(r.kind) ? " checked" : ""}${!edit || ev.quiet ? " disabled" : ""} aria-label="${esc(r.what)}: send automatically"><span class="track"><span class="knob"></span></span></label>`;
+  const NOW = new Map();
+  box.innerHTML = rows.map((r, i) => { const n = nowOf(r); if (n) NOW.set(String(i), n);
+    return `<div role="tab" tabindex="0" class="mlrow${COMMS_ON === r.go ? " on" : ""}" data-msgo="${r.go}" aria-selected="${COMMS_ON === r.go}">
+      ${sw(r)}<b class="mlw">${r.what}</b><span class="mld">${esc(plain([r.when, r.who].filter(Boolean).join(" · ")))}</span>
+      <span class="mls ${tone[r.state[0]] ?? "mu"}">${esc(r.state[1])}</span>${n ? `<button type="button" class="mini gold mlnow" data-mlnow="${i}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : `<span></span>`}<span class="mlgo" aria-hidden="true">${r.go === "survey" || r.go === "certs" || r.go === "hotel" ? "↗" : "›"}</span></div>`; }).join("")
     + (rows.length < 5 + (document.getElementById("rlbox") ? 1 : 0) ? `<p class="porg" style="margin:8px 16px">Loading the rest…</p>` : "");
-  box.querySelectorAll("[data-msgo]").forEach((b) => { b.onclick = () => {
+  box.querySelectorAll(".mlsw").forEach((l) => { l.onclick = (e) => e.stopPropagation(); });
+  box.querySelectorAll("[data-autosw]").forEach((c) => { c.onchange = () => autoSwitch(ev, c, rows.find((r) => r.kind === c.dataset.autosw)); });
+  box.querySelectorAll("[data-mlnow]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); const n = NOW.get(b.dataset.mlnow);
+    if (n.custom === "certs") { openCerts(true); return; }
+    if (n.custom === "thanks") { commsShow("thanksfold"); setTimeout(() => document.querySelector('#thanksfold [data-th="now"]')?.click(), 300); return; }
+    comingSendNow(ev, { ...n.now, what: n.what, to: n.to, who: n.who }, b, () => loadSched(ev)); }; });
+  box.querySelectorAll("[data-msgo]").forEach((b) => { b.onkeydown = (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === b) { e.preventDefault(); b.click(); } }; b.onclick = () => {
     const k = b.dataset.msgo;
     if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
+    if (k === "certs") { openCerts(false); return; }
+    if (k === "hotel") { ROOT.querySelector('.etab[data-tab="logistics"]')?.click(); setTimeout(() => { const f = document.getElementById("hotelfold") ?? document.getElementById("contractline"); f?.scrollIntoView({ block: "start" }); }, 200); return; }
     commsShow(k);
     // On a phone the email opens below the list, often off the screen: bring its top up into view.
     const card = document.getElementById(k), r = card?.getBoundingClientRect();
     if (r && (r.top > innerHeight - 120 || r.top < 0)) window.scrollTo({ top: r.top + scrollY - (innerWidth < 900 ? 130 : 20), behavior: "smooth" });
   }; });
+}
+
+/** The automatic emails switched off whose day is within three days (24 Nov 2026), for the event's Overview. */
+function autoOffSoon(ev, checklist) {
+  if (!ev || ev.quiet || ev.project || !ev.autoOn) return [];
+  const end = ev.lastDay || ev.dayOne || "", plus = (iso, n) => (iso ? new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10) : "");
+  const hotelNext = ev.hotel?.cutoff && ev.hotel?.link ? [30, 15, 7].map((n) => plus(ev.hotel.cutoff, -n)).find((d) => d >= todayIso()) : "";
+  const list = [
+    ["welcome", "Welcome letter", (checklist?.tasks ?? []).find((t) => t.auto === "welcome" && !t.done && !t.na)?.due ?? ""],
+    ["hotel", "Hotel reminders", hotelNext ?? ""],
+    ["survey", "Survey", ev.survey?.open ? (ev.survey.mode === "end" ? ev.survey.sendOn ?? "" : ev.dayOne ?? "") : ""],
+    ["certs", "Certificates", /^\d{4}-\d{2}-\d{2}$/.test(ev.certs?.sendDay ?? "") ? ev.certs.sendDay : plus(end, 1)],
+    ["thanks", "Thank-you", plus(end, 1)],
+  ];
+  return list.filter(([k, , day]) => day && ev.autoOn[k] === false).map(([kind, what, day]) => ({ kind, what, day, d: daysTo(day) })).filter((x) => x.d >= 0 && x.d <= 3);
+}
+/** One automatic email on or off (24 Nov 2026). Turning one on asks first and says when it goes. */
+async function autoSwitch(ev, box, row) {
+  const on = box.checked;
+  if (on && !confirm(`Send the ${row.what.toLowerCase()} automatically?${row.state?.[1]?.startsWith("Goes") || row.state?.[1]?.startsWith("Next") ? `\n\n${row.state[1].replace(/^Next/, "The next goes")}.` : ""}\n\nNothing goes to anyone who has already had it, and nothing for a day already past.`)) { box.checked = false; return; }
+  box.disabled = true;
+  try {
+    const out = await api(`/events?id=${encodeURIComponent(ev.id)}&auto=1`, { method: "PUT", body: JSON.stringify({ kind: row.kind, on }) });
+    ev.autoOn = out.auto;
+    toast(on ? `${row.what}: automatic.` : `${row.what}: off. Use Send now when you want it to go.`);
+    render();
+  } catch (x) { toast(x.message); box.checked = !on; box.disabled = false; }
+}
+/** The Certificates screen, and its Email everyone if asked. */
+function openCerts(send) {
+  ROOT.querySelector('.etab[data-tab="survey"]')?.click();
+  setTimeout(() => ROOT.querySelector('[data-svgo="certs"]')?.click(), 50);
+  if (send) { let n = 0; const t = setInterval(() => { const b = document.getElementById("cert-mail"); if ((b && !b.disabled) || ++n > 40) { clearInterval(t); b?.click(); } }, 250); }
+}
+/** What the server would send and when (lib/schedule.mjs), for the Send now buttons on the list. */
+function loadSched(ev) {
+  return api(`/attmail?event=${encodeURIComponent(ev.id)}&kind=schedule`).then((out) => { COMING_BUSY = !!(out.sending || out.replySending); noteMail(ev, "sched", out); }).catch(() => {});
 }
 
 /*
@@ -6123,6 +6216,7 @@ function wireComms(ev) {
   bar.dataset.ev = ev.id;
   if (MAILSUM.ev !== ev.id) MAILSUM = { ev: ev.id };
   drawMailSum(ev);
+  loadSched(ev);
   let k = null; try { k = localStorage.getItem(commsKey(ev.id)); } catch {}
   if (!commsShow(k || COMMS[0][0], ev.id)) commsShow(COMMS[0][0], ev.id);
 }
@@ -6253,7 +6347,7 @@ async function loadThanks(ev) {
     const one = who === "volunteers" ? "volunteer" : who === "board" ? "board member" : "presenter";
     box.innerHTML = `<div class="mwfil wlvbar" role="tablist" aria-label="Who" style="margin:0 0 8px">${[["presenters", "Presenters"], ["volunteers", "Volunteers"], ["board", "Board"]]
         .map(([k, l]) => `<button type="button" role="tab" data-thwho="${k}" class="${who === k ? "on" : ""}" aria-selected="${who === k}">${l}</button>`).join("")}</div>
-      <details class="wlset" data-thset><summary><span>${!T.auto ? "<b>You send it</b>" : T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go by itself`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
+      <details class="wlset" data-thset><summary><span>${!T.auto ? "<b>You send it</b>" : T.on ? `Goes <b>${esc(when())}</b>` : `<b class="late">Off</b>: won't go automatically`} · ${T.letterOn ? "with letter" : "no letter"} · replies to ${esc(T.replyTo || "the board")} · ${T.standard && T.letterStandard ? "standard words" : "own words"}</span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         ${T.auto ? `<label class="checkline" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-size:14px"><input type="checkbox" id="th-on"${T.on ? " checked" : ""} style="margin-top:3px"><span>Send it by itself, the morning after the last day</span></label>` : ""}
         <div class="field"><label for="th-s">Subject</label><input id="th-s" maxlength="200" value="${esc(T.subject)}"></div>
@@ -6502,11 +6596,11 @@ function mountJoin(ev, key, el) {
       <div class="field"><label for="jr-b-${key}">The email</label><textarea id="jr-b-${key}" style="min-height:220px" spellcheck="true">${esc(J.body)}</textarea></div>
       ${J.problems.length ? `<div class="bad" style="margin-top:8px">${esc(J.problems[0])}</div>` : ""}
       <div class="actions" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="mini" data-jr="save">Save</button><button class="mini ghost" data-jr="see">See the email</button><button class="mini ghost" data-jr="test">Send me a test</button>
-        ${J.readyAt ? `<button class="mini ghost" data-jr="hold">Hold it</button>` : `<button class="mini gold" data-jr="ready">It's ready</button>`}<span class="hint" data-jrsaid style="margin:0;align-self:center">${J.readyAt ? "Ready: it goes by itself at its time." : J.saved ? "Saved, not ready yet." : "A draft from the virtual welcome letter. Read it, change what you need."}</span></div>`;
+        ${J.readyAt ? `<button class="mini ghost" data-jr="hold">Hold it</button>` : `<button class="mini gold" data-jr="ready">It's ready</button>`}<span class="hint" data-jrsaid style="margin:0;align-self:center">${J.readyAt ? "Ready: it goes automatically at its time." : J.saved ? "Saved, not ready yet." : "A draft from the virtual welcome letter. Read it, change what you need."}</span></div>`;
     const words = () => ({ subject: body.querySelector(`#jr-s-${key}`).value, body: body.querySelector(`#jr-b-${key}`).value, hours: Number(body.querySelector(`#jr-h-${key}`).value) });
     const put = async (extra, msg) => { try { draw(await api(q, { method: "PUT", body: JSON.stringify({ ...words(), ...extra }) })); toast(msg); } catch (x) { toast(x.message); } };
     body.querySelector('[data-jr="save"]').onclick = () => put({}, "Reminder saved.");
-    body.querySelector('[data-jr="ready"]')?.addEventListener("click", () => { if (confirm(`Mark the reminder ready? It goes by itself on ${at(J.sendAt, J.zone)} to everyone joining online.`)) put({ ready: true }, "Ready. It goes by itself at its time."); });
+    body.querySelector('[data-jr="ready"]')?.addEventListener("click", () => { if (confirm(`Mark the reminder ready? It goes automatically on ${at(J.sendAt, J.zone)} to everyone joining online.`)) put({ ready: true }, "Ready. It goes automatically at its time."); });
     body.querySelector('[data-jr="hold"]')?.addEventListener("click", () => put({ ready: false }, "Held. It won't go until you mark it ready."));
     body.querySelector('[data-jr="see"]').onclick = async () => {
       try {
@@ -6658,14 +6752,14 @@ function renderWelcomeCard(ev, W) {
   // Tightened (Andrew 5 Nov 2026, "tighten it"): the version buttons come first, and the send date, signer and help fold
   // into one line that opens when clicked, so picking a version shows its letter straight away.
   const shortDay = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" }) : "no date set");
-  const setLine = () => `Goes <b>${esc(shortDay($("wl-on")?.value ?? W.sendOn))}</b> · signed <b>${esc(($("wl-sign")?.selectedOptions?.[0]?.textContent ?? "").split(" — ")[0] || W.signer.name || "ONGIA Board")}</b> · attendee emails <b class="${W.attendeeMail ? "" : "late"}">${W.attendeeMail ? "on" : "off"}</b>`;
+  const setLine = () => `Goes <b>${esc(shortDay($("wl-on")?.value ?? W.sendOn))}</b> · signed <b>${esc(($("wl-sign")?.selectedOptions?.[0]?.textContent ?? "").split(" — ")[0] || W.signer.name || "ONGIA Board")}</b> · <b class="${W.attendeeMail ? "" : "late"}">${W.attendeeMail ? "automatic" : "off"}</b>`;
   box.innerHTML = `
     ${two ? `<div class="wlvbar" role="tablist" aria-label="Which version" style="margin-top:4px">${W.versions.map((v) => `<button type="button" role="tab" data-wlv="${v.key}">${esc(v.label)} <small>${v.reaches ?? 0}</small>${v.problems.length ? `<span class="dot" title="${esc(v.problems[0])}"></span>` : ""}</button>`).join("")}</div>` : ""}
     <details class="wlset"><summary><span id="wl-setline"></span> <span class="wlset-edit">Change</span></summary>
       <div class="wlset-body">
         <p style="margin:0">${job}<span class="porg">to everyone registered who hasn't had it${two ? ". Each gets their own version: the desk knows who registered as which from Wix. Anyone on both gets the first" : ""}.</span></p>
-        ${W.attendeeMail ? `<div class="note" style="margin-top:10px">Attendee emails are <b>on</b>: it will go on that day by itself. If any can't be sent, or it is held back, the president and VP get an email saying why.</div>`
-          : `<div class="note" style="margin-top:10px">Attendee emails are <b>off</b>, so it will not go. Turn on the switch at the top of this tab when you are ready.</div>`}
+        ${W.attendeeMail ? `<div class="note" style="margin-top:10px">It's <b>automatic</b>: it goes on that day. If any can't be sent, or it is held back, the president and VP get an email saying why.</div>`
+          : `<div class="note" style="margin-top:10px">It's switched <b>off</b>, so it won't go automatically. Turn on its switch in the list at the top of this tab, or use Send now.</div>`}
         <div class="field" style="max-width:520px"><label for="wl-sign">Signed by</label><select id="wl-sign">${signOptions(ev, W)}</select>
           <p class="hint" style="margin:6px 0 0">Replies go to ${esc(W.signer.email)}. A board member's name, email and phone come from the board roster.</p></div>
         <p class="hint" style="margin-top:12px">{first} is each person's first name. {dates}, {venue} and {schedule} (the times each day) fill in by themselves, with each version's own days. A line in CAPITALS is a heading.</p>
@@ -8006,7 +8100,7 @@ function surveyHead(ev, S) {
   const what = !x ? "One survey for the event, every presenter rated with stars, in English and French. Answers are anonymous."
     : `${daily ? `Each day · ${S.days.length} day${S.days.length === 1 ? "" : "s"}` : "Once, after the event"} · ${x.sessions.length} session${x.sessions.length === 1 ? "" : "s"} · `
       + (sent ? `sent to ${sent} · ${S.responses} answered` : daily ? (first ? `first goes ${fmtDate(first.day)} at ${fmt12(first.at)}` : "no day has an end time yet") : x.sendOn ? `goes ${fmtDate(x.sendOn)}` : "no send date yet")
-      + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · attendee emails are off")
+      + (!sent && S.responses ? ` · ${S.responses} answered` : "") + (S.attendeeMail ? "" : " · switched off")
       + (S.next && x?.open ? ` · next: ${S.next.what.replace(/^Survey: ?/, "").replace(/^today's sessions$/, "today's survey") || "the survey"} ${fmtDate(S.next.date).replace(/ \d{4}$/, "")}${S.next.time ? ` at ${fmt12(S.next.time)}${S.next.tz ? ` ${S.next.tz}` : ""}` : ""} (${inDays(daysTo(S.next.date))}) to ${S.next.to}` : "");
   head.innerHTML = `<span class="dtag ${st[0]}">${esc(st[1])}</span><span class="svwhat">${esc(what)}</span>
     ${x ? `<a class="mini" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener" id="sv-try">Preview the survey</a>` : ""}
@@ -8073,7 +8167,7 @@ function renderSurveyCard(ev, S) {
     ${S.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(S.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="sv-save">Save</button></div>`;
   if (del) del.innerHTML = `
-    ${S.attendeeMail ? "" : `<div class="note" style="margin:0 0 12px">Attendee emails are <b>off</b>, so nothing goes on its own. Turn on the switch on the Communications tab when you're ready.</div>`}
+    ${S.attendeeMail ? "" : `<div class="note" style="margin:0 0 12px">The survey is switched <b>off</b>, so nothing goes automatically. Turn on its switch on the Communications tab when you're ready.</div>`}
     <div class="svdl">${daily ? S.times.map((t) => `<div><b>${esc(dayLabel(t.day))}</b><span>${t.at ? `${esc(fmt12(t.at))}${S.sent[t.day] ? ` · sent to ${S.sent[t.day]}` : ""}${S.byPart[t.day] ? ` · ${S.byPart[t.day]} answered` : ""}` : `<span class="late">no end time, so it won't go</span>`}</span></div>`).join("")
       : `<div><b>Once, after the event</b><span>${s.sendOn ? `${esc(fmtDate(s.sendOn))} from 9 am` : "no date yet"}${S.sent.end ? ` · sent to ${S.sent.end}` : ""}${S.byPart.end ? ` · ${S.byPart.end} answered` : ""}</span></div>`}</div>
     <div class="actions" style="margin-top:14px;flex-wrap:wrap"><a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a>
@@ -8442,7 +8536,7 @@ function renderReplyCard(ev, R) {
     <p class="hint" style="margin:0 0 8px">At about 10 AM Eastern on each date, the same email goes again, marked as a reminder, to everyone who had it and hasn't answered yet. Leave a date empty to skip it.</p>
     <div class="row2">${[0, 1].map((i) => { const d = (st.reminders ?? [])[i]; return `<div class="field" style="margin:0"><label for="rp-rem${i}">Reminder ${i + 1}</label><input type="date" id="rp-rem${i}" value="${esc(d?.date ?? "")}">${d?.round ? `<p class="hint" style="margin:6px 0 0">Sent to ${d.round.sent}${d.round.failed ? `, ${d.round.failed} could not be sent` : ""}.</p>` : ""}</div>`; }).join("")}</div>
     ${sent ? `<p class="said" style="margin:10px 0 0">${st.stillToAnswer} ${st.stillToAnswer === 1 ? "person hasn't" : "people haven't"} answered yet.</p>` : ""}
-    ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders on these dates won't go:</b> automatic emails to attendees are off for this event. Turn them on with the switch at the top of Communications, or use Send a reminder now.</div>` : ""}
+    ${!R.attendeeMail ? `<div class="bad" style="margin-top:10px"><b>Reminders on these dates won't go:</b> the food-allergy reminders are switched off. Turn them on with their switch on the list above, or use Send a reminder now.</div>` : ""}
     ${sent ? (() => {
       // Andrew 1 Nov 2026: a reminder by hand, whatever the dates and the automatic-emails switch say.
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -9916,8 +10010,8 @@ function regLine(st) {
 }
 /* ---------- attendee emails: the switch at the top of an event ---------- */
 function mailSwitch(ev, guests) {
-  if (ev.quiet) return `<div class="mailsw off"><div class="mswtxt"><b>Automatic emails: Off</b>
-      <span> · nothing goes by itself for this event; change it in Edit event</span></div></div>`;
+  if (ev.quiet) return `<div class="mailsw off"><div class="mswtxt"><b>Nothing automatic is on</b>
+      <span> · nothing goes automatically for this event; change it in Edit event</span></div></div>`;
   const on = ev.attendeeMail === true;
   const n = guests?.letters?.welcome?.reaches ?? null;
   const who = n === null ? "this event's attendees" : `${n} email address${n === 1 ? "" : "es"}`;
@@ -10429,8 +10523,7 @@ function attendeesCard(ev, guests) {
 /** One line per automatic letter: which, when, to how many — or what is holding it back. */
 function lettersStrip(L) {
   if (!L) return "";
-  if (L.welcome?.off) return `<div class="lstrip"><div class="lrow"><b>Emails to attendees</b><span>off for this event — no welcome
-    letter, survey or hotel reminder goes. Turn them on with the switch at the top of Communications.</span></div></div>`;
+  if (L.welcome?.off) return `<div class="lstrip"><div class="lrow"><b>Welcome letter</b><span>switched off for this event, so it doesn't go automatically. Its switch is on the event's Communications list.</span></div></div>`;
   const row = (kind, label) => {
     const x = L[kind];
     if (!x?.chosen) return `<div class="lrow"><b>${label}</b><span>none chosen — edit the event to pick one, or it will not go</span></div>`;

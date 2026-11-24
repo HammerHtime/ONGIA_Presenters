@@ -1,3 +1,4 @@
+import { autoOn } from "./autosend.mjs";
 import { todayIso, formatDate } from "./deadlines.mjs";
 import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda, getWelcomeFile } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
@@ -41,10 +42,10 @@ function jobFor(event, kind, today) {
 }
 
 /** Whether this kind of letter is due for an event today, and if not, why not. */
-export const MAIL_OFF = "emails to attendees are off for this event";
+export const MAIL_OFF = "it's switched off for this event";
 
 export function letterDue(event, kind, today = todayIso()) {
-  if (event.attendeeMail !== true || event.quiet === true) return { due: false, why: MAIL_OFF };
+  if (!autoOn(event, kind === "welcome" ? "welcome" : "survey")) return { due: false, why: MAIL_OFF };
   // The welcome letter goes only as written and saved on the event's Communications tab (Andrew 27 Oct 2026: "I need
   // the one place to write the letters"). A saved letter picked on the event form the old way is where its words
   // start from there, and never goes by itself.
@@ -197,13 +198,13 @@ export async function runLetterRounds(events, opts = {}) {
     for (const kind of ["welcome", "survey"]) {
       // An event emailing its attendees is checked for its welcome letter even with nothing saved, so a due day that
       // comes with no letter is reported rather than passed over.
-      if (!event.letters?.[kind] && !ownWelcome(event, kind) && !(kind === "welcome" && event.attendeeMail === true)) continue;
+      if (!event.letters?.[kind] && !ownWelcome(event, kind) && !(kind === "welcome" && autoOn(event, "welcome"))) continue;
       try { out.push(await sendLetterRound(event, kind, opts)); }
       catch (e) { out.push({ event: event.id, title: event.title, kind, error: e.message }); }
     }
     // The housekeeping questions, once sent from the event page: anyone who registers afterwards gets them the next
     // night, up to the reply-by date. Only while automatic emails to attendees are on.
-    if (event.reply?.sentAt && event.attendeeMail === true && event.quiet !== true) {
+    if (event.reply?.sentAt && autoOn(event, "reply")) {
       let justSent = [];
       try { const r = await sendReplyRound(event, opts); justSent = r.sentTo ?? []; out.push({ event: event.id, title: event.title, kind: "reply", ...r }); }
       catch (e) { out.push({ event: event.id, title: event.title, kind: "reply", error: e.message }); }

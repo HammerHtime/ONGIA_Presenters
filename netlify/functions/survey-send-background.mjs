@@ -4,6 +4,7 @@ import { runSurveyRounds } from "./lib/surveysend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 import { runThanksRounds } from "./lib/thanks.mjs";
+import { runCertsRounds } from "./lib/certauto.mjs";
 
 /**
  * The survey emails, sent on the server (Andrew 27 Oct 2026: "Is this going to be a problem when we send out 400 …
@@ -28,6 +29,8 @@ export default async (req) => {
     out = await runSurveyRounds(events, { deadline: Date.now() + BUDGET_MS });
     // The presenter thank-yous, the morning after an event (lib/thanks.mjs).
     out.push(...(await runThanksRounds(events, { deadline: Date.now() + BUDGET_MS })));
+    // The certificates, emailed automatically from their day and time (lib/certauto.mjs).
+    out.push(...(await runCertsRounds(events, { deadline: Date.now() + BUDGET_MS })));
   }
   catch (e) { out = [{ title: "every event", error: e.message }]; }
   const left = out.reduce((n, r) => n + (r.left ?? 0), 0);
@@ -41,7 +44,7 @@ export default async (req) => {
   // While a run goes, the 15-minute check leaves it be; the last run lets the next check start fresh.
   const lock = (await getMeta("survey-sending")) ?? {};
   await putMeta("survey-sending", continued ? { ...lock, at: new Date().toISOString(), hop: hop + 1 } : { at: null, finishedAt: new Date().toISOString() });
-  await reportSends("the survey", out.map((r) => ({ ...r, what: /^thanks/.test(r.kind ?? "") ? (r.kind === "thanks-volunteers" ? "The volunteer thank-you" : "The presenter thank-you") : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
+  await reportSends("the survey", out.map((r) => ({ ...r, what: r.kind === "certs" ? "The certificates" : /^thanks/.test(r.kind ?? "") ? (r.kind === "thanks-volunteers" ? "The volunteer thank-you" : "The presenter thank-you") : /^reminder/.test(r.part ?? "") ? `The survey ${r.part}` : r.part && r.part !== "end" ? `The survey for ${r.part}` : "The survey" })));
   if (out.length) console.log(`survey send run ${hop}: ${JSON.stringify(out.map(({ trouble, ...r }) => r))}${continued ? ", follow-up started" : ""}`);
   return new Response(null, { status: 202 });
 };

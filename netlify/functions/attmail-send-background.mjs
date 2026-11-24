@@ -38,7 +38,7 @@ export default async (req) => {
     else if (type === "join") { what = "The reminder to those joining online"; out = await sendJoinRound(event, key, { deadline: Date.now() + BUDGET_MS, force: url.searchParams.get("auto") !== "1" }); }
     else if (type === "survey") { what = key === "end" ? "The survey (sent now)" : `The survey for ${key} (sent now)`; out = await sendSurveyRound(event, key, { deadline: Date.now() + BUDGET_MS }); }
     else if (type === "message") { what = `Your message: ${(event.messages ?? []).find((m) => m.id === key)?.subject ?? ""}`; out = await sendMessageRound(event, key, { deadline: Date.now() + BUDGET_MS }); }
-    else if (type === "hotel") { what = `The ${days}-day hotel reminder (sent now)`; out = await sendHotelRound(event, days, { deadline: Date.now() + BUDGET_MS }); }
+    else if (type === "hotel") { what = `The ${days}-day hotel reminder (sent now)`; out = await sendHotelRound(event, days, { deadline: Date.now() + BUDGET_MS, manual: true }); }
     else out = { error: "unknown kind" };
   } catch (e) { out = { error: e.message }; }
   let continued = false;

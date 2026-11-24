@@ -59,7 +59,7 @@ for (const [w, h, tag] of [[1440, 1000, "wide"], [390, 844, "phone"]]) {
   await p.screenshot({ path: `${D}newevent-ready-${tag}.png`, fullPage: false });
   ok(`${tag}: the event page's way back is at the top left too`, (await p.locator("#root > .crumbs #back").count()) === 1);
   await p.locator('[data-tab="communications"]').click(); await p.waitForTimeout(200);
-  ok(`${tag}: Communications has the attendee email switch but no email list`, (await p.locator("#amail").count()) === 1 && (await p.locator("#inbox").count()) === 0);
+  ok(`${tag}: Communications has a switch on each automatic email, all off, and no email list`, (await p.locator("[data-autosw]").count()) >= 3 && (await p.locator("[data-autosw]:checked").count()) === 0 && (await p.locator("#inbox").count()) === 0);
   await p.locator('[data-tab="overview"]').click(); await p.waitForTimeout(200);
   await p.click("#readyhide"); await p.waitForTimeout(300);
   ok(`${tag}: Hide this takes it away`, (await p.locator("#readycard").count()) === 0);
