@@ -4468,7 +4468,7 @@ function eventScreen(data) {
     <span class="qwhen">${r.when ?? ""}</span><span class="qact">${r.btn}</span></div>`;
   const todoHtml = Qev.needs.filter((r) => r.title !== "Event is blocked").map(evQRow).join("")
     // An automatic email switched off with its day three days away or less (24 Nov 2026): said here, so it isn't missed.
-    + autoOffSoon(ev, checklist).map((x) => evQRow({ icon: "✉", cls: "you", title: `${x.what} is off`, note: `Won't go ${x.d === 0 ? "today" : `on ${plainDay(x.day)}`} unless it's turned on, or sent with Send now`,
+    + autoOffSoon(ev, checklist).map((x) => evQRow({ icon: "✉", cls: "you", title: `${x.what} ${/s$/.test(x.what) ? "are" : "is"} off`, note: `Won't go ${x.d === 0 ? "today" : `on ${plainDay(x.day)}`} unless it's turned on, or sent with Send now`,
         btn: `<button class="btn btn-ghost btn-sm" data-autoon="${x.kind}">Turn on</button>` })).join("")
     + (mailTodo ? evQRow({ icon: "✉", cls: "you", title: `${mailTodo} email${mailTodo === 1 ? "" : "s"} to deal with`, note: "From your inbox, filed to this event",
         btn: `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open email</button>` }) : "");
