@@ -35,7 +35,7 @@ for (const [tag, vp] of [["wide", { width: 1280, height: 900 }], ["phone", { wid
   // The Overview: the survey (tomorrow) and the certificates and thank-you (today) are off, and it says so.
   const over = await p.locator("body").innerText();
   ok(`${tag}: the Overview says the survey is off, with Turn on`, /Survey is off/.test(over) && (await p.locator('[data-autoon="survey"]').count()) === 1, over.slice(0, 600));
-  ok(`${tag}: …and the certificates`, /Certificates is off/.test(over));
+  ok(`${tag}: …and the certificates`, /Certificates are off/.test(over));
   await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1500);
   const list = p.locator("#mailsum");
   const text = (await list.innerText()).replace(/\s+/g, " ");
