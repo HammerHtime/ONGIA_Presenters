@@ -29,8 +29,8 @@ const ownWelcome = (event, kind) => kind === "welcome" && !!event.welcome?.main?
  * the next run inside that window rather than lost.
  */
 const WINDOW = {
-  // Through the last day (Andrew 9 Nov 2026: "keep it running"): someone who registers once it has started still gets
-  // their letter, with the agenda and, joining online, how to log in, within 15 minutes. Closes the day after it ends.
+  // Through the last day (Andrew 9 Nov 2026: "keep it running"), but from day one only for people who registered after
+  // the event began, never the backlog, and not on the last day (Andrew 24 Nov 2026; see sendLetterRound).
   welcome: (event) => { const end = event.lastDay || event.dayOne; return end ? new Date(Date.parse(end) + 86400000).toISOString().slice(0, 10) : end; },
   survey: (event, due) => new Date(Date.parse(due) + 14 * 86400000).toISOString().slice(0, 10),
 };
@@ -90,7 +90,15 @@ export async function sendLetterRound(event, kind, { dry = false, today = todayI
   const stored = (await getAttendees(event.id)) ?? { people: [] };
   // Once per address: an address that has had it (on any of its rows) is not written to again.
   const had = new Set((stored.people ?? []).filter((p) => (p.sent ?? []).includes(kind)).map((p) => p.email));
-  const owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email));
+  let owed = writeableTo(stored.people ?? []).filter((p) => !had.has(p.email));
+  // Once the event has begun, the welcome letter is no longer anyone's backlog (Andrew 24 Nov 2026: switching automatic
+  // emails on during Victoria's day one sent it to 22 people who had registered weeks before — "That can't happen").
+  // From day one it goes only to someone who registered after the event began, and only while it has days still to
+  // come (the Summit's late registrants, Andrew 9 Nov 2026); on its last day, or a one-day event, to no one.
+  if (kind === "welcome" && event.dayOne && today >= event.dayOne) {
+    const end = event.lastDay || event.dayOne;
+    owed = today >= end ? [] : owed.filter((p) => p.addedAt && todayIso(new Date(p.addedAt)) >= event.dayOne);
+  }
   // The second group's own welcome letter (Andrew 27 Oct 2026: the Summit's community partners come November 10 and 11,
   // with a two-day agenda, and get a different letter from the justice partners there all four days). An address
   // whose every registration came from the second Wix event gets it; anyone also on the first gets the main one.
