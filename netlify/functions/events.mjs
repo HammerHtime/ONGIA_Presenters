@@ -127,8 +127,8 @@ async function setAttendeeMail(id, body) {
 
 /**
  * One automatic email on or off (Andrew 24 Nov 2026: "a toggle (on and off) for each of the auto emails"): lib/autosend.mjs.
- * Changes that switch and nothing else. Turning one on never sends anything for a day already past: each email's own
- * rules (the welcome letter never to the backlog once the event has begun) still hold.
+ * Changes that switch and nothing else. Each email's own rules still hold when it's turned on late: the welcome letter
+ * never goes to the backlog once the event has begun; the survey and certificates go to whoever is still owed them.
  */
 async function setAutoMail(id, body) {
   if (typeof body.on !== "boolean" || !AUTO_KINDS.includes(body.kind)) return fail("Which email, on or off?");

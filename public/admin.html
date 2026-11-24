@@ -6097,7 +6097,7 @@ function drawMailSum(ev) {
     const C = ev.certs ?? {}, plus1 = new Date(Date.parse(`${lastDay}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
     const cday = /^\d{4}-\d{2}-\d{2}$/.test(C.sendDay ?? "") ? C.sendDay : plus1, ctime = /^\d{2}:\d{2}$/.test(C.sendTime ?? "") ? C.sendTime : "10:00";
     const until = new Date(Date.parse(`${cday}T12:00:00Z`) + 14 * 86400e3).toISOString().slice(0, 10);
-    rows.push({ kind: "certs", at: cday, what: "Certificates", go: "certs", who: "Everyone checked in", when: `${esc(fmtDate(cday))}, ${fmt12(ctime)}`,
+    rows.push({ kind: "certs", at: cday, time: ctime, what: "Certificates", go: "certs", who: "Everyone checked in", when: `${esc(fmtDate(cday))}, ${fmt12(ctime)}`,
       state: today > until ? ["idle", "Finished"] : !isOn("certs") ? ["idle", "Off"] : ["done", `Goes ${dShort(cday)}`] });
   }
   // Soonest first; on the same day, in the order they go out: the food question, then the welcome letter, then the survey.
@@ -6169,7 +6169,12 @@ function autoOffSoon(ev, checklist) {
 /** One automatic email on or off (24 Nov 2026). Turning one on asks first and says when it goes. */
 async function autoSwitch(ev, box, row) {
   const on = box.checked;
-  if (on && !confirm(`Send the ${row.what.toLowerCase()} automatically?${row.state?.[1]?.startsWith("Goes") || row.state?.[1]?.startsWith("Next") ? `\n\n${row.state[1].replace(/^Next/, "The next goes")}.` : ""}\n\nNothing goes to anyone who has already had it, and nothing for a day already past.`)) { box.checked = false; return; }
+  const today = todayIso(), begun = ev.dayOne && today >= ev.dayOne;
+  const when = row.kind === "welcome" && begun ? "The event has begun, so it goes only to people who register from now on."
+    : row.time && row.at === today ? `It goes today at ${fmt12(row.time)} ${ev.city ? `${ev.city.split(",")[0]} time` : ""}, or within 15 minutes if that has passed.`
+    : row.at && /^\d{4}/.test(row.at) && row.at <= today ? "Its day has come, so it goes within 15 minutes to everyone still owed it."
+    : row.at && /^\d{4}/.test(row.at) ? `It goes on ${fmtDate(row.at)}.` : "";
+  if (on && !confirm(`Send the ${row.what.toLowerCase()} automatically?${when ? `\n\n${when}` : ""}\n\nNobody gets it twice.`)) { box.checked = false; return; }
   box.disabled = true;
   try {
     const out = await api(`/events?id=${encodeURIComponent(ev.id)}&auto=1`, { method: "PUT", body: JSON.stringify({ kind: row.kind, on }) });
@@ -13529,6 +13534,8 @@ async function drawScreen() {
         loadRoster(),   // the board, for the volunteer lead picker
       ]);
       CHECKLIST = checklist;       // set before drawing: the hotel line reads it too
+      // Parts drawn after the page is locked for view only (the email switches) read it from the event.
+      if (data?.event && data.canEdit === false) data.event.canEdit = false;
       // An RBH event's costing is for the president and the VP: anyone else is refused, so the section stays hidden.
       // Receipts: the president, the VP and the board members on the event; anyone else is refused, so it stays hidden.
       // Every event has them now (Andrew 30 Oct 2026); on ONGIA's own events they're optional.
