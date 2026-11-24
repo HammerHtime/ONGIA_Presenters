@@ -454,7 +454,6 @@ export async function getSurveyResponses(eventId) {
   return (await Promise.all(blobs.map((b) => read(b.key)))).filter(Boolean).sort((a, b) => (a.at ?? "").localeCompare(b.at ?? ""));
 }
 export const putSurveyResponse = (eventId, r) => write(`surveyresp:${eventId}:${r.id}`, r);
-export const deleteSurveyResponse = (eventId, id) => store().delete(`surveyresp:${eventId}:${id}`);
 export const getSurveyDone = (eventId, pid) => read(`surveydone:${eventId}:${pid}`);
 export const putSurveyDone = (eventId, pid, done) => write(`surveydone:${eventId}:${pid}`, done);
 export async function listSurveyDone(eventId) {

@@ -145,7 +145,6 @@ export async function verifyIdToken(idToken, nonce, now = Date.now()) {
 }
 
 /** For tests: forget the cached Microsoft keys. */
-export const resetAuthCache = () => { METADATA = null; };
 
 /**
  * Who may change an event (Andrew, 20 Oct 2026): its own board members (the lead and the others attached to it), and the

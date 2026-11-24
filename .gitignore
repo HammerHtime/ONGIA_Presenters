@@ -7,3 +7,6 @@ node_modules/
 
 # screenshots the screen tests take
 tests/**/*.png
+
+# PDFs the server tests make (they go to a scratch folder now; this keeps any stray one out)
+tests/server/*.pdf

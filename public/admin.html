@@ -90,8 +90,7 @@
   .certtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px} .certtools .pfind{flex:1 1 240px;margin:0}
   .certseg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff}
   .certseg button{border:0;background:none;padding:8px 14px;font:600 13.5px var(--fb);cursor:pointer;color:var(--ink)} .certseg button.on{background:var(--navy);color:#fff}
-  .certmailsum{grid-column:1/-1;margin:0;font-size:13.5px;color:var(--ink-mid)} .certmailsum .bad-t{color:var(--late)}
-  .certl td .cnoph{display:none} .certl .certno{font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:nowrap}
+  .certmailsum{grid-column:1/-1;margin:0;font-size:13.5px;color:var(--ink-mid)} .certmailsum .bad-t{color:var(--late)} .certl .certno{font-family:ui-monospace,Menlo,monospace;font-size:13px;white-space:nowrap}
   .certl .certact{display:flex;gap:6px;justify-content:flex-end;align-items:center}
   .certmore{position:relative} .certmore > summary{list-style:none;padding:5px 10px;letter-spacing:.08em} .certmore > summary::-webkit-details-marker{display:none}
   .certmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(14,26,53,.14);padding:6px;display:grid;min-width:210px}
@@ -102,7 +101,7 @@
   .certsec{container-type:inline-size}
   @container (max-width:1000px){.certset{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}.certset .certf:nth-child(4){grid-column:2/-1}.certgo{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center}}
   @container (max-width:620px){.certtiles{grid-template-columns:1fr 1fr}.certset{grid-template-columns:72px minmax(0,1fr)}.certset .certf:not(:nth-child(2)){grid-column:1/-1}}
-  @media (max-width:760px){.certl td .cnoph{display:block}.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
+  @media (max-width:760px){.certl .certact{justify-content:flex-start}.certmenu{left:0;right:auto}}
   .svdl > div{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line, var(--hair))} .svdl > div:first-child{border-top:0} .svdl b{min-width:170px}
 
   /* The year as a calendar (Andrew 30 Oct 2026): ONGIA-led navy, RBH teal, other people's conferences gold. */
@@ -253,7 +252,6 @@
   input[type=radio]{-webkit-appearance:radio;appearance:auto;width:20px;height:20px;padding:0;margin:0;
     border:0;border-radius:50%;background:none;accent-color:var(--gold);flex:none}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   @media(max-width:640px){.row2,.row3{grid-template-columns:1fr}}
   /* the CFAOC website card */
   .wsh{font-size:15px;margin:20px 0 6px}
@@ -342,7 +340,6 @@
   .pill.near{background:var(--gold-pale);color:#7a5b10;border:1px solid var(--gold)}
   .pill.hold{background:var(--wait-bg);color:var(--wait);border:1px dashed var(--wait)}
   .pill.hold::before{content:"🔓";width:auto;height:auto;background:none;font-size:11px}
-  .tent{display:block;font-size:12px;color:var(--wait);font-weight:600;font-style:italic;white-space:nowrap}
   .hfrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 14px 0} .hfrow .hfl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:2px}
   @media (max-width:640px){.hfrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px 10px 0} .hfrow::-webkit-scrollbar{display:none} .hfrow .fchip{flex:none;white-space:nowrap} .evt td.h.nohs{display:none}}
   /* The hotel contract, the middle of each tile and standing out (Andrew 21 Nov 2026: "an image of a contract … somewhere
@@ -353,8 +350,6 @@
   .hst.ok{color:var(--done);background:var(--done-bg);border-color:#9cc7b0} .hst.wt{color:var(--wait);background:var(--wait-bg);border-color:#e2c48a}
   .hst.mu{color:var(--muted);background:var(--sunk);border-color:var(--border);font-weight:600} .hst.mu .hico{opacity:.75}
   .hst .hico .hok{fill:var(--done);stroke:#fff;stroke-width:1.2} .hst .hico .hokt{stroke:#fff;stroke-width:1.8}
-  .lockline{margin:10px 12px 0;padding:10px 14px;border-radius:12px;background:var(--wait-bg);color:var(--ink-mid);font-size:14px;line-height:1.5}
-  .lockline.ok{background:var(--done-bg);color:var(--done)}
   .lockbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--wait-bg);border:1px dashed var(--wait);color:var(--ink-mid);font-size:14px}
   .lockbar span{flex:1 1 260px}
   /* Navy means "waiting on ONGIA" — it survives greyscale and colour blindness. */
@@ -451,29 +446,13 @@
   .needs .nrow .mini{flex:none}
   .needs .nrow.stop{background:var(--late-bg)} .needs .nrow.stop b{color:var(--late)}
   .needs .nrow.act b{color:var(--navy)}
-  .needs .allclear{padding:15px 20px;font-size:14px;color:var(--ink-mid)}
   @media (max-width:560px){.needs .nrow{flex-direction:column;gap:9px}.needs .nrow .mini{align-self:flex-start}}
   /* ---------- the year at a glance ----------
      Twelve month tracks, each one a 1-to-31 scale. An event is a band sitting
      where it falls; its deadlines are ticks in the strip underneath. Empty
      months are drawn too — the gaps are half the point. */
   .yearhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .yearhead .yr{font-family:var(--fd);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
-  .ynav{border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--ink-mid);
-        width:34px;height:34px;cursor:pointer;font-size:15px;line-height:1;flex:none}
-  .ynav:hover:not([disabled]){border-color:var(--navy);color:var(--navy)}
-  .ynav[disabled]{opacity:.35;cursor:default}
   .months{display:grid;gap:1px;background:var(--border);border-top:1.5px solid var(--edge)}
-  .mrow{background:var(--card);display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:stretch;
-        padding:9px 22px 9px 16px}
-  .mrow.quiet{background:var(--sunk)}
-  .mrow.now{box-shadow:inset 3px 0 0 var(--gold)}
-  .mname{font-family:var(--fu);font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
-         padding-top:5px;white-space:nowrap}
-  .mrow.now .mname{color:var(--gold)}
-  .mtrack{position:relative;min-height:30px;display:flex;flex-direction:column;gap:3px;justify-content:center}
-  .mweek{position:absolute;inset:0;pointer-events:none;background-size:100% 100%;border-radius:7px;overflow:hidden}
-  .lane{position:relative;height:25px}
   .band{position:absolute;top:0;height:25px;border-radius:7px;background:var(--navy);color:#fff;
         font-size:11.5px;font-weight:700;line-height:25px;padding:0 8px;white-space:nowrap;overflow:hidden;
         text-overflow:ellipsis;cursor:pointer;border:0;font-family:inherit;text-align:left;min-width:22px}
@@ -493,22 +472,7 @@
   /* A short event cannot hold its own name, so the name sits beside the bar. */
   .blabel{position:absolute;top:0;height:25px;line-height:25px;font-size:11.5px;font-weight:700;
           color:var(--ink-mid);white-space:nowrap;pointer-events:none}
-  .blabel.left{transform:translateX(-100%);padding-right:7px}
-  .blabel.right{padding-left:7px}
-  .blabel.past{color:var(--muted);font-weight:600}
-  .ylegend{display:flex;gap:7px 16px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:12px 22px 0}
-  .ylegend span{display:inline-flex;align-items:center;gap:6px}
-  .ylegend i{width:11px;height:11px;border-radius:2px;flex:none;display:inline-block;align-self:center}
-  /* The milestones panel: a tab on the calendar's right edge slides it in and pushes the calendar over (Andrew 29 Oct 2026). */
-  .ywrap{display:grid;grid-template-columns:minmax(0,1fr) 0;gap:0;align-items:start;transition:grid-template-columns .25s ease,gap .25s ease}
-  .ywrap.side{grid-template-columns:minmax(0,1fr) 360px;gap:16px}
-  .ywrap .ycal{position:relative;margin-right:0;min-width:0}
-  .ytab{position:absolute;right:-1px;top:96px;z-index:3;transform:translateX(100%);writing-mode:vertical-rl;padding:14px 7px;border:1px solid var(--edge);border-left:0;
-        border-radius:0 12px 12px 0;background:var(--navy);color:#fff;font:600 12.5px var(--fb);letter-spacing:.04em;cursor:pointer;box-shadow:2px 2px 6px rgba(14,26,53,.15)}
-  .ytab::before{content:"◂ ";} .ywrap:not(.side) .ytab::before{content:"▸ "}
-  .ywrap.side .ytab{background:var(--gold);color:#1c1608}
   .yside{display:none;margin:0;overflow:hidden;position:sticky;top:12px}
-  .ywrap.side .yside{display:block;animation:ysidein .25s ease}
   @keyframes ysidein{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
   .ysidehead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border);background:var(--sand)}
   .ysidehead h2{font-family:var(--fd);font-size:20px} .ysidehead .s{font-size:12.5px;color:var(--muted)}
@@ -525,28 +489,16 @@
   .ms .mst{min-width:0;font-size:13.5px;line-height:1.3} .ms .mst b{display:block;font-weight:600} .ms .mst span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ms.k-train .mst b{font-weight:700} .ms.late .mst span{color:var(--late)}
   .ms.past:not(.late){opacity:.55}
-  @media (max-width:900px){
-    .ywrap,.ywrap.side{grid-template-columns:minmax(0,1fr);gap:12px}
-    .ywrap.side .yside{order:-1;position:static} .ysidelist{max-height:60vh}
-    .ytab{position:static;transform:none;writing-mode:horizontal-tb;border:1px solid var(--edge);border-radius:999px;margin:10px 12px 0;padding:8px 14px}
+  @media (max-width:900px){ .ysidelist{max-height:60vh}
   }
   @media print{.ytab,.yside{display:none!important}}
-  .ylegend i.ylg{width:16px;height:16px;border-radius:50%;font:700 9.5px/16px var(--fb);font-style:normal;color:#fff;text-align:center}
   /* The weeks that will hurt: two events at once, a deadline while you are away. */
   .crunch .nrow b{color:var(--wait)}
   .crunch .nrow.stop b{color:var(--late)}
-  @media (min-width:821px){.yrlist .trow{grid-template-columns:minmax(190px,1.4fr) minmax(210px,1fr) fit-content(150px)}}
-  .ydates{display:flex;gap:4px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
-  .ydates b{color:var(--ink-mid);font-weight:600}
-  .ydates .od{color:var(--late);font-weight:700}
+  
   @media (max-width:640px){
-    .mrow{grid-template-columns:1fr;gap:4px;padding:10px 16px}
-    .mname{padding-top:0}
     .band{font-size:11px;padding:0 6px}
   }
-
-  /* ---------- Sandbox: the event budget tried on the Summit's numbers (Andrew 29 Oct 2026) ---------- */
-  .chip.sbxchip{border-style:dashed}
   .sbx{display:grid;gap:16px}
   .sbx .card{margin:0}
   .sbxhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px}
@@ -781,7 +733,6 @@
   .sowsum .grp{margin-top:12px;font-family:var(--fu);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
   .sowsum .prof{margin-top:12px;background:var(--done-bg);border-radius:14px;padding:12px 14px} .sowsum .prof .v{font-family:var(--fd);font-size:30px;color:var(--done);line-height:1.15}
   .sowsum .byev{width:100%;border-collapse:collapse;font-size:13px} .sowsum .byev td{padding:4px 0;border-top:1px solid var(--sunk)} .sowsum .byev td.n{text-align:right;font-variant-numeric:tabular-nums;padding-left:10px}
-  .chip.rbhchip{border-color:var(--rbh);background:var(--rbh);color:#fff}
   @media (max-width:900px){
     .sowsscr{grid-template-columns:1fr} .sowside{position:static;order:-1}
     .sowlist thead,.sowlist td.dt{display:none} .sowlist,.sowlist tbody,.sowlist tfoot{display:block}
@@ -999,7 +950,6 @@
   .guest.out .gn{color:var(--muted);text-decoration:line-through}
   .guest .src{font-family:var(--fu);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
               color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px;background:var(--card)}
-  .guestmore{padding:10px 14px;background:var(--sunk);font-size:13px;color:var(--muted);text-align:center}
   .wixbar{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted);
           background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px}
   .wixbar b{color:var(--ink)}
@@ -1411,7 +1361,6 @@
   .evhead .kp b{font-size:16px;color:var(--ink)}
   .etabs{display:flex;gap:2px;overflow-x:auto;padding:0 12px;border-top:1px solid var(--border);scrollbar-width:none}
   .etabs::-webkit-scrollbar{display:none}
-  .mstable{font-size:14px}
   /* Which email shows (Andrew 5 Nov 2026): a row of buttons, the picked one filled. */
   .commsbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
   .commsbar button,.wlvbar button{border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:999px;padding:8px 16px;font:600 14px var(--fb);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
@@ -1443,15 +1392,7 @@
   .mwrow .mwst{font-size:12.5px;white-space:nowrap;font-weight:600} .mwrow .mwst.ok{color:var(--done)} .mwrow .mwst.wt{color:var(--wait)}
   .mwrow .mini{padding:2px 10px;min-height:28px;font-size:12.5px}
   .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-  .msrow{display:grid;grid-template-columns:1.1fr 1.6fr 1.3fr 1.6fr auto;gap:6px 14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge)}
-  .msrow.mshead{border-top:0;padding:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
-  .msrow .pill{white-space:normal;text-align:left}
-  .mswho,.mswhen{color:var(--ink-mid)}
-  @media (max-width:700px){
-    .msrow{grid-template-columns:1fr auto;gap:4px 10px}
-    .msrow.mshead{display:none}
-    .mswhat{grid-column:1} .msgo{grid-column:2;grid-row:1 / span 3;align-self:center}
-    .mswho,.mswhen,.msstate{grid-column:1;font-size:13.5px}
+  @media (max-width:700px){ .msgo{grid-column:2;grid-row:1 / span 3;align-self:center}
   }
   .evnote{margin:0 20px 14px;display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
   .evnote-t{flex:1;min-width:240px}
@@ -1703,7 +1644,6 @@
     .pbulk #pbulk-clear{padding:8px 10px}
   }
   .pbnote{margin-left:auto;font-size:12.5px;opacity:.75}
-  .playout.withdrawer{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
   .pdslot{display:contents}
   .ptwrap{min-width:0;overflow-x:auto}
   .ptable{width:100%;border-collapse:collapse;font-size:14px}
@@ -1747,15 +1687,7 @@
   .gempty{padding:12px 4px}
   .vtable .pact{width:1%;white-space:nowrap} .vacts{display:flex;gap:5px;justify-content:flex-end}
   .etabp .mailsw{border-bottom:0}
-  .evgrid{display:grid;grid-template-columns:1.4fr 1fr;gap:0 18px;align-items:start}
-  .evgrid > *{min-width:0}
-  .evsoon .mile{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px dashed var(--border);font-size:14px}
-  .evsoon .mile:first-child{border-top:0;padding-top:0}
-  .evsoon .md{width:62px;flex:none;font-weight:700;font-size:13.5px}
-  .evsoon .mt{flex:1;min-width:0}
   @media (max-width:760px){
-    .evgrid{grid-template-columns:1fr}
-    .playout.withdrawer{display:block}
     .pscrim{display:block;position:fixed;inset:0;background:rgba(14,26,53,.45);z-index:40}
     .pdrawer{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:86vh;overflow:auto;border-radius:22px 22px 0 0;z-index:41;padding:12px 18px 22px;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
     .pdrawer::before{content:"";display:block;width:44px;height:5px;border-radius:9px;background:var(--edge);margin:0 auto 10px}
@@ -1940,7 +1872,6 @@
   .dlpop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:#fff;border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);width:min(300px,86vw);padding:6px;display:grid;gap:2px}
   .dlpop button{display:block;text-align:left;border:0;background:none;border-radius:8px;padding:9px 10px;font:inherit;font-size:13px;color:var(--ink-mid);cursor:pointer}
   .dlpop button:hover,.dlpop button:focus-visible{background:var(--gold-pale)}.dlpop b{display:block;font-size:14px;color:var(--ink)}
-  .certgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
   .certh{font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}.certn{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px}
   .certtpls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .certtpl{position:relative;border:1.5px solid var(--border);border-radius:12px;background:#fff;padding:8px;display:grid;gap:2px;cursor:pointer;font-size:12.5px;color:var(--muted)}
@@ -1948,7 +1879,7 @@
   .certtpl b{color:var(--ink);font-size:13.5px}.certtpl.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,146,42,.2)}
   .certtpl:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
   .certl .certact{white-space:nowrap;text-align:right}.certl .certact .linkish{margin-left:8px}
-  @media (max-width:760px){.certgrid{grid-template-columns:1fr}.certl .certact{text-align:left}}
+  @media (max-width:760px){.certl .certact{text-align:left}}
   /* Admin › Agencies (Andrew 30 Oct 2026) */
   /* The red count of what's waiting (Andrew 3 Nov 2026: "a round circle"). Its own name: it used to share "nb" with the
      hotel nights grid, whose flex:1 stretched it into a long pill in the sidebar. One digit is a circle; two, a short oval. */
@@ -3836,102 +3767,6 @@ function wireTemplate() {
   };
 }
 
-/** Twelve tracks. An event is a band where it falls; its deadlines are ticks below. */
-function monthsMarkup(events, year, today) {
-  const rows = [];
-  for (let m = 1; m <= 12; m++) {
-    const D = daysInMonth(year, m);
-    const pct = (d) => ((d - 1) / D) * 100;
-
-    // Every event that touches this month, clipped to it.
-    const segs = events.filter((e) => isDate(e.dayOne)).map((e) => {
-      const from = e.dayOne, to = isDate(e.lastDay) && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne;
-      const first = `${year}-${String(m).padStart(2, "0")}-01`;
-      const last = `${year}-${String(m).padStart(2, "0")}-${String(D).padStart(2, "0")}`;
-      if (to < first || from > last) return null;
-      return { ev: e, a: from < first ? 1 : dayOf(from), b: to > last ? D : dayOf(to),
-               runs: from <= today && today <= to, past: to < today,
-               // An event running across a month boundary is named once, in the
-               // month it starts; the tail is just the bar continuing.
-               starts: from >= first };
-    }).filter(Boolean).sort((x, y) => x.a - y.a || x.b - y.b);
-
-    // One line per event, so a short bar's name never runs under the next bar.
-    // Only a crowded month packs them, and then names sit inside the bars.
-    const crowded = segs.length > 4;
-    const lanes = [];
-    for (const seg of segs) {
-      const lane = crowded ? lanes.find((rowSegs) => rowSegs[rowSegs.length - 1].b < seg.a) : null;
-      if (lane) lane.push(seg); else lanes.push([seg]);
-    }
-
-    const marks = events.flatMap((e) => deadlinesOf(e)
-      .filter((d) => yearOf(d.iso) === year && monthOf(d.iso) === m)
-      .map((d) => ({ ...d, ev: e, late: d.iso < today && d.left > 0 })));
-
-    const isNow = yearOf(today) === year && monthOf(today) === m;
-    rows.push(`<div class="mrow${segs.length || marks.length ? "" : " quiet"}${isNow ? " now" : ""}">
-      <div class="mname">${MONTH_LONG[m - 1]}</div>
-      <div class="mtrack">
-        ${segs.length ? `<div class="mweek" style="background-image:${weekendWash(year, m)}"></div>` : ""}
-        ${isNow ? `<div style="position:absolute;top:0;bottom:0;left:${pct(dayOf(today)) + (100 / D) / 2}%;width:2px;background:var(--gold);opacity:.9;pointer-events:none" title="Today"></div>` : ""}
-        ${lanes.length ? lanes.map((lane) => `<div class="lane">${lane.map((seg) => {
-          const width = ((seg.b - seg.a + 1) / D) * 100;
-          const name = esc(seg.ev.city || seg.ev.title);
-          const tip = `${esc(seg.ev.title)} · ${esc(seg.ev.city ?? "")} · ${esc(fmtDate(seg.ev.dayOne))}${seg.ev.lastDay && seg.ev.lastDay !== seg.ev.dayOne ? " – " + esc(fmtDate(seg.ev.lastDay)) : ""}`;
-          // Wide enough to hold the name, or the name goes alongside — on the
-          // left when the bar is near the end of the month, so it never clips.
-          const inside = width >= 17 || crowded;
-          const side = seg.a / D > 0.62 ? "left" : "right";
-          const at = side === "left" ? `${pct(seg.a)}%` : `calc(${pct(seg.a)}% + max(${width}%, 22px))`;   // past the bar's least width
-          return `<button class="band${seg.runs ? " runs" : seg.past ? " past" : ""}" data-goev="${esc(seg.ev.id)}"
-            style="left:${pct(seg.a)}%;width:${width}%" title="${tip}">${inside && seg.starts ? name : ""}</button>`
-            + (!inside && seg.starts ? `<span class="blabel ${side}${seg.past ? " past" : ""}" style="left:${at}">${name}</span>` : "");
-        }).join("")}</div>`).join("") : `<div class="lane"></div>`}
-        <div class="ticks">${marks.map((mk, i) => `<button class="tick ${mk.key}${mk.late ? " late" : ""}" data-goev="${esc(mk.ev.id)}"
-          style="left:${pct(dayOf(mk.iso)) + (100 / D) / 2}%;margin-left:${-8 + 12 * marks.slice(0, i).filter((o) => o.iso === mk.iso).length}px"
-          title="${esc(mk.label)} for ${esc(mk.ev.title)} — ${esc(fmtDate(mk.iso))}${mk.left > 0 ? ` · ${mk.left} outstanding` : " · all in"}">${{ agreement: "A", draft: "D", final: "F" }[mk.key] ?? ""}</button>`).join("")}</div>
-      </div></div>`);
-  }
-  return `<div class="months">${rows.join("")}</div>`;
-}
-
-/** How the desk's own jobs are going on one event, in one chip. */
-function jobsChip(ev) {
-  const k = ev.checklist;
-  if (!k || !k.total) return "";
-  if (k.late) return `<span class="chipstat stop"><b>${k.late}</b>job${k.late === 1 ? "" : "s"} overdue</span>`;
-  const cls = k.done === k.total ? " good" : k.soon ? " hot" : "";
-  return `<span class="chipstat${cls}"><b>${k.done}<small>/${k.total}</small></b>jobs done</span>`;
-}
-
-/** The same year as a plain list — what you read, and what prints. */
-function listForYear(mine, today, year) {
-  if (!mine.length) {
-    return `<div class="card"><div class="empty">Nothing in ${year} yet. Create an event and it appears here.</div></div>`;
-  }
-  const rows = mine.map((ev) => {
-    const c = ev.counts ?? { total: 0, approved: 0 };
-    const when = `${fmtDate(ev.dayOne)}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + fmtDate(ev.lastDay) : ""}`;
-    const dates = deadlinesOf(ev).map((d) => {
-      const late = d.iso < today && d.left > 0;
-      return `<span class="${late ? "od" : ""}">${esc(d.label)} <b>${esc(fmtDate(d.iso).replace(/^\w+ /, ""))}</b>${late ? ` · ${d.left} out` : ""}</span>`;
-    }).join("");
-    const lead = ev.contact?.name || ev.reviewer?.name || "";
-    return `<div class="trow">
-      <div class="who"><div><div class="pname">${esc(ev.title)}</div>
-        <div class="porg">${esc(ev.city ?? "")}${ev.venue ? " · " + esc(ev.venue) : ""}</div>
-        ${lead ? `<div class="ptalk">Lead: ${esc(lead)}</div>` : ""}</div></div>
-      <div class="cell"><div class="cl">When</div><div style="font-weight:600">${esc(when)}</div>
-        <div class="ydates" style="margin-top:5px">${dates}</div></div>
-      <div class="act"><span class="chipstat"><b>${(c.approved ?? 0) + (c.arranged ?? 0)}<small>/${c.total}</small></b>signed</span>
-        ${jobsChip(ev)}
-        <button class="mini" data-goev="${esc(ev.id)}">Open</button></div></div>`;
-  }).join("");
-  return `<div class="card"><div class="card-head"><div><h2>${year} in order</h2>
-      <div class="s">${mine.length} event${mine.length === 1 ? "" : "s"}, earliest first.</div></div></div>
-    <div class="card-body"><div class="tlist yrlist">${rows}</div></div></div>`;
-}
 
 /* ---------- sponsors ---------- */
 function sponsorsScreen(list, settings) {
@@ -5767,7 +5602,6 @@ const GUEST_WORDS = {
   IN_WAITLIST: ["wait", "waitlist"],
   WITHDRAWN: ["late", "withdrawn"],
 };
-const SHOW_GUESTS = 25;
 let GCUT_ON = "coming";   // the "Who's coming" table's cut, kept through redraws
 let GGRP_ON = "all";      // and which group (Andrew 8 Nov 2026: "split the list of attendees for community partners and justice")
 let GFIND = "";
@@ -6229,9 +6063,6 @@ function drawMailSum(ev) {
  */
 const COMMS = [["welcomefold", "Welcome letter"], ["replyfold", "Food allergies"], ["msgfold", "Message"], ["thanksfold", "Thank-you"], ["rbhfold", "List for RBH"]];
 const commsKey = (id) => `ongia-comms-${id}`;
-function commsBar() {
-  return `<div class="commsbar" id="commsbar" role="tablist" aria-label="Which email">${COMMS.map(([k, label]) => `<button type="button" role="tab" data-comms="${k}">${label}</button>`).join("")}</div>`;
-}
 function commsShow(k, evId = null) {
   if (!document.getElementById(k)) return false;
   for (const [id] of COMMS) {
@@ -6280,6 +6111,8 @@ function messageCard() {
  * event starting"). On every RBH event: due two days before, it goes when you press Send, and Resend sends the list
  * as it stands. One summary line says who gets it; Change opens the name and address, which serve every RBH event.
  */
+/** A button that's working: its words say so and it can't be pressed twice; the returned function puts it back. */
+const busyBtn = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
 /*
  * One window for seeing an email before it goes (audit 24 Nov 2026): the Message, Thank-you, join reminder and RBH list
  * cards used to borrow the welcome letter's, which isn't there until that card has loaded, so "See" did nothing. This
@@ -6336,7 +6169,7 @@ function loadRbhList(ev) {
         const res = await apiFetch(`/api${q}&xlsx=1`, { headers: { "x-admin-key": KEY } });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "The file could not be made.");
         const named = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
-        Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: named ? decodeURIComponent(named[1]) : "Attendees and Agencies.xlsx" }).click();
+        saveBlob(await res.blob(), named ? decodeURIComponent(named[1]) : "Attendees and Agencies.xlsx");
       } catch (x) { toast(x.message); }
     };
     box.querySelector('[data-rl="send"]').onclick = async (e) => {
@@ -6362,7 +6195,7 @@ async function loadThanks(ev) {
   let T = null, filter = "all";
   // Volunteers go by hand, to those ticked (Andrew 16 Nov 2026: "let me check off the … volunteers who I want to send to").
   let ticked = new Set();
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   const zoneAbbr = (zone, date) => (new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(new Date(`${date}T17:00:00Z`)).find((x) => x.type === "timeZoneName")?.value ?? "").replace(/^([A-Z])[SD]T$/, "$1T");
   const when = () => T.day ? `${new Date(`${T.day}T12:00:00Z`).toLocaleDateString("en-CA", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" })}, 9:00 am ${zoneAbbr(T.zone, T.day)}` : "no dates yet";
   const st = (p) => p.sentAt ? `<span class="mwst ok">Sent ${esc(shortDate(p.sentAt.slice(0, 10)).replace(/^\w+ /, ""))}</span>`
@@ -6461,7 +6294,7 @@ function loadMc(ev) {
   const box = document.getElementById("mcbox");
   if (!box) return;
   const q = `/mcintros?event=${encodeURIComponent(ev.id)}`;
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   const stateOf = (s) => s.noBio && s.intro?.by !== "edited" ? ["w", "No bio"] : s.intro?.stale ? ["x", "Out of date"] : s.intro?.by === "edited" ? ["ok", "Edited"] : s.intro ? ["ok", "Drafted"]
     : s.presenters.some((p) => p.sent) ? ["w", "Not drafted"] : ["w", "Waiting"];
   const draw = (V) => {
@@ -6828,7 +6661,7 @@ function renderWelcomeCard(ev, W) {
   showVersion((() => { try { return localStorage.getItem(wlvKey); } catch { return null; } })());
   const words = () => Object.fromEntries(W.versions.map((v) => [v.key, { subject: $(`wl-${v.key}-subject`).value, body: $(`wl-${v.key}-body`).value }]));
   const q = `/welcome?event=${encodeURIComponent(ev.id)}`;
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   const save = async () => api(q, { method: "PUT", body: JSON.stringify({ ...words(), signature: $("wl-sign").value, ...($("wl-on").value && $("wl-on").value !== W.sendOn ? { sendOn: $("wl-on").value } : {}) }) });
   $("wl-save").onclick = async (e) => { const done = busy(e.target, "Saving…"); try { renderWelcomeCard(ev, { ...(await save()), library: W.library }); toast("Welcome letter saved."); } catch (x) { toast(x.message); done(); } };
   // Ready / hold a further version. The words on screen are saved with it, so what is ready is what is showing.
@@ -7190,7 +7023,7 @@ async function certsAll(ev, C, ready) {
     // Two people with the same name each keep their own file.
     const seen = new Set();
     for (const f of files.sort((x, y) => x.name.localeCompare(y.name))) { if (seen.has(f.name)) f.name = f.name.replace(/\.pdf$/, ` (${f.code}).pdf`); seen.add(f.name); }
-    if (files.length) Object.assign(document.createElement("a"), { href: URL.createObjectURL(zipBlob(files)), download: evFile(ev, "Certificates", "zip") }).click();
+    if (files.length) saveBlob(zipBlob(files), evFile(ev, "Certificates", "zip"));
     said.innerHTML = `${files.length} certificate${files.length === 1 ? "" : "s"} in the ZIP.${missed.length ? ` <b>${missed.length} couldn't be made:</b> ${esc(missed.join(", "))}. Press it again for those, or download them one at a time.` : ""}`;
   } catch (x) { said.textContent = x.message; }
   renderCerts(ev, await api(`/certificates?event=${encodeURIComponent(ev.id)}`).catch(() => C));
@@ -7239,7 +7072,6 @@ async function certsMail(ev, C, ready) {
 /** "Western Symposium - Certificates - 2026-11-14.zip", the way the server names an event's files (lib/filenames.mjs). */
 const evShort = (ev) => { const t = String(ev?.title ?? "").split(/\s*:\s*/)[0].replace(/[^\p{L}\p{N} .,'&()-]+/gu, " ").replace(/\s+/g, " ").trim(); return (t.match(/^Canadian Forum Against Organized Crime\s*-\s*(.+)$/i)?.[1] ?? t).slice(0, 60).trim() || "ONGIA"; };
 const evFile = (ev, what, ext) => `${evShort(ev)} - ${what} - ${new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" })}.${ext}`;
-const slugOf = (t) => String(t ?? "event").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "event";
 /** A plain ZIP of files stored as they are (PDFs are already compressed), which every unzip tool opens. */
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = (u) => { let c = 0xffffffff; for (let i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -7363,7 +7195,7 @@ function renderCerts(ev, C) {
     for (;;) {
       try {
         const f = await certFile(`/api/certificates?event=${encodeURIComponent(ev.id)}&pdf=${encodeURIComponent(key)}${b.dataset.certfr ? "&lang=fr" : ""}${extra.join("")}`);
-        Object.assign(document.createElement("a"), { href: URL.createObjectURL(f.blob), download: f.name }).click();
+        saveBlob(f.blob, f.name);
         loadCerts(ev);
       } catch (x) {
         // Not checked in, or withdrawn: the server says so, and it's issued only if that's what's wanted.
@@ -8221,7 +8053,7 @@ function renderSurveyCard(ev, S) {
   const rows = () => [...box.querySelectorAll("[data-sv]")].map((el) => ({ id: s.sessions[Number(el.dataset.sv)]?.id, ...Object.fromEntries([...el.querySelectorAll("[data-k]")].map((i) => [i.dataset.k, i.value])) }));
   const body = () => ({ mode: s.mode, sessions: rows(), askWho: !!$("sv-askwho")?.checked, remind: !!$("sv-remind")?.checked, ...($("sv-on") ? { sendOn: $("sv-on").value } : {}) });
   const save = async () => api(q, { method: "PUT", body: JSON.stringify(body()) });
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   box.querySelectorAll("[data-svmode]").forEach((b) => b.onclick = async () => { if (b.dataset.svmode === s.mode) return; try { renderSurveyCard(ev, await api(q, { method: "PUT", body: JSON.stringify({ ...body(), mode: b.dataset.svmode }) })); } catch (x) { toast(x.message); } });
   box.querySelectorAll("[data-svdel]").forEach((b) => b.onclick = () => { const keep = rows().filter((_, i) => i !== Number(b.dataset.svdel)); renderSurveyCard(ev, { ...S, survey: { ...s, sessions: keep.map((r) => ({ ...r, presenters: r.presenters.split(/\s*,\s*/).filter(Boolean) })) } }); });
   $("sv-describe").onclick = async (e) => {
@@ -8311,7 +8143,7 @@ function renderResults(ev, D) {
         <div class="actions" style="margin-top:12px;flex-wrap:wrap"><button type="button" class="btn btn-gold" id="rs-png">Download PNG</button><button type="button" class="btn btn-gold" id="rs-pdf">Download PDF</button><button class="btn btn-ghost" value="close">Close</button><span class="hint" id="rs-said" style="align-self:center"></span></div></div></form></dialog>`;
   const $ = (id) => document.getElementById(id);
   const name = `${(ev.title || "event").split(/\s*:\s*/)[0].replace(/[^\w]+/g, "-").replace(/^-|-$/g, "")}-${RS_LANG}`;
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   box.querySelectorAll("[data-rsdl]").forEach((b) => b.onclick = async () => {
     const done = busy(b, "Preparing…");
     try {
@@ -8401,7 +8233,7 @@ function renderResults(ev, D) {
         files.push({ name: `${String(i + 1).padStart(2, "0")}-${block}-${RS_LANG}.png`, bytes: new Uint8Array(await blob.arrayBuffer()) });
       }
       document.getElementById("rs-hidden")?.remove();
-      saveBlob(zipStore(files), evFile(ev, `Social media${RS_LANG === "fr" ? " (French)" : ""}`, "zip"));
+      saveBlob(zipBlob(files), evFile(ev, `Social media${RS_LANG === "fr" ? " (French)" : ""}`, "zip"));
       toast(`${files.length} images downloaded in one .zip.`);
     } catch (x) { toast(x.message); }
     done();
@@ -8474,24 +8306,6 @@ async function artToPng(doc, width = null, height = null) {
   const blob = await new Promise((r) => c.toBlob(r, "image/png"));
   if (!blob) throw new Error("The picture could not be made.");
   return { blob, w: c.width, h: c.height };
-}
-/** A .zip of the given files, stored as they are (PNGs are already compressed). */
-function zipStore(files) {
-  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
-  const crc = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = crcTable[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-  const enc = new TextEncoder(), parts = [], central = [];
-  let offset = 0;
-  const u16 = (v) => [v & 255, (v >>> 8) & 255], u32 = (v) => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
-  for (const f of files) {
-    const name = enc.encode(f.name), c = crc(f.bytes), n = f.bytes.length;
-    const local = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(c), ...u32(n), ...u32(n), ...u16(name.length), ...u16(0), ...name]);
-    parts.push(local, f.bytes);
-    central.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(c), ...u32(n), ...u32(n), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset), ...name]));
-    offset += local.length + n;
-  }
-  const size = central.reduce((a, b) => a + b.length, 0);
-  const end = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(size), ...u32(offset), ...u16(0)]);
-  return new Blob([...parts, ...central, end], { type: "application/zip" });
 }
 
 function replyCard() {
@@ -11486,7 +11300,7 @@ function boardThanksScreen(B) {
   BARRIGHT.innerHTML = `<button class="chip" id="back">All events</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   const q = "/boardthanks";
-  const busy = (b, t) => { const was = b.textContent; b.disabled = true; b.textContent = t; return () => { b.disabled = false; b.textContent = was; }; };
+  const busy = busyBtn;
   // Sent by hand, to those ticked (Andrew 16 Nov 2026: "let me check off the various board members … at different times").
   let ticked = new Set();
   const draw = (out) => {

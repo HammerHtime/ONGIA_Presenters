@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { formatDate } from "./deadlines.mjs";
 import { parseCsv } from "./attendees.mjs";
 import { datesOf } from "./letters.mjs";
@@ -175,7 +176,6 @@ export function roomingCsv(event, rows) {
   return [head, ...lines].map((l) => l.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const short = (iso) => formatDate(iso).replace(/ \d{4}$/, "");      // "Sun 8 Nov" — the year is in the heading
 
 /** The email to the hotel. Plain, and laid out to survive a phone. */

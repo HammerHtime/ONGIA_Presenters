@@ -4,7 +4,9 @@ const REPO = new URL("../../", import.meta.url).pathname;   // the repository ro
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const F = REPO + "netlify/functions/";
-const OUT = new URL(".", import.meta.url).pathname;
+// The PDFs this test makes go to a scratch folder, not into the repository (audit 24 Nov 2026: they were committed, and
+// changed on every run because each carries the time it was made).
+const OUT = (await import("node:fs")).mkdtempSync((await import("node:path")).join((await import("node:os")).tmpdir(), "ongia-vol-")) + "/";
 const events = (await import(F + "events.mjs")).default;
 const volunteers = (await import(F + "volunteers.mjs")).default;
 const volunteer = (await import(F + "volunteer.mjs")).default;

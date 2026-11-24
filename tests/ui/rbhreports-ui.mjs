@@ -67,7 +67,7 @@ ok("a year with a training held offers Make them again once one is made", /Make 
 ok("the made year-end report has its links and OneDrive copies; the other says not made yet", /Version 1/i.test(card) && /In OneDrive/.test(card) && /Not made yet/i.test(card) && /Ask for a change/.test(card));
 await p.screenshot({ path: new URL("./rbhreports-desk.png", import.meta.url).pathname, fullPage: true });
 // The year-end report opens in the same viewer as a training's, with its pages and the chat; it has no "every RBH report" box.
-const PDF = REPO + "tests/server/zed.pdf";
+const PDF = REPO + "tests/fixtures/sample-report.pdf";   // a fixed sample, not another test's output
 const yeState = { year: Number(YEAR), answered: 38, invited: 52, held: 1, folder: `RBH/Year end ${YEAR}`, reports: {
   exec: { name: { en: "Executive Summary", fr: "Sommaire exécutif" }, made: true, current: 1, final: false, building: null, error: null, version: { n: 1, at: `${YEAR}-12-30T15:00:00Z`, answered: 38, invited: 52 },
     versions: [{ n: 1, at: `${YEAR}-12-30T15:00:00Z`, answered: 38 }], requests: [], chat: [], filed: null, newSince: 0 },

@@ -1,5 +1,5 @@
 import { runReminders } from "./reminders.mjs";
-import { sweepWix } from "../wix.mjs";
+import { sweepWix } from "./wixsync.mjs";
 import { runHotelReminders } from "./hotel.mjs";
 import { runLetterRounds } from "./sendletters.mjs";
 import { listEvents, putMeta } from "./store.mjs";
@@ -9,8 +9,8 @@ import { watchBackup } from "./backup.mjs";
 import { settle, everyone } from "./agencies.mjs";
 import { runReports } from "./reports.mjs";
 
-/** The site's own address, for links in emails and for starting background runs. */
-export const siteOrigin = (fallback = "") => process.env.APP_URL || process.env.URL || fallback;
+// The site's own address lives in site.mjs; passed on here for anything that still asks the nightly run for it.
+export { siteOrigin } from "./site.mjs";
 
 /**
  * Everything the desk does each morning, in order:

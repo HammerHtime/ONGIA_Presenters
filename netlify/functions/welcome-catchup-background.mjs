@@ -3,7 +3,7 @@ import { putMeta } from "./lib/store.mjs";
 import { scanBounces } from "./lib/attmail.mjs";
 import { catchUpWelcome, CATCHUP_LOCK } from "./lib/welcomecatchup.mjs";
 import { pacer } from "./lib/bulk.mjs";
-import { pullEvent } from "./wix.mjs";
+import { pullEvent } from "./lib/wixsync.mjs";
 
 /**
  * The welcome letter's catch-up, in the background (see lib/welcomecatchup.mjs): started by welcome-tick every 15

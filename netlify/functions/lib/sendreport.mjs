@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { sendMail, officersTo, layout } from "./mail.mjs";
 
 /**
@@ -6,7 +7,6 @@ import { sendMail, officersTo, layout } from "./mail.mjs";
  * when everything went. `what` names the run; each row is one event's round:
  *   { title, what, sent, failed, left, trouble: [{ email, why }], blocked: [reason], error, warn }
  */
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** What each kind of round is called in the report. */
 export const KIND_NAMES = { welcome: "The welcome letter", survey: "The survey email", reply: "The food-allergy email", "reply-reminder": "The food-allergy reminder" };

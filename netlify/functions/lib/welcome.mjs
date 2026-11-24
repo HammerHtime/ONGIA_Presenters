@@ -1,7 +1,6 @@
 import { text, isEmail } from "./http.mjs";
 import { token } from "./ids.mjs";
 import { checklistOf } from "./checklist.mjs";
-import { groupDaysOf } from "./letters.mjs";
 import { writeableTo } from "./attendees.mjs";
 
 /**
@@ -163,4 +162,3 @@ export function setSendDay(event, iso) {
 
 export const testAddresses = (to) => [...new Set(String(to ?? "").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))].filter(isEmail).slice(0, 5);
 
-export const welcomeGroupDays = groupDaysOf;

@@ -10,6 +10,7 @@
  * into a PNG and a PDF.
  */
 
+import { esc } from "./text.mjs";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,7 +49,6 @@ const LOGO = LOGO_FILE ? `data:image/png;base64,${readFileSync(LOGO_FILE).toStri
 const logo = (h) => LOGO ? `<img src="${LOGO}" alt="ONGIA" style="height:${h}px;width:${Math.round(h * 1000 / 255)}px;display:block">` : `<span class="h" style="font-weight:700;font-size:${h * 0.8}px;letter-spacing:.12em;color:#fff">ONGIA</span>`;
 
 const NAVY = "#14264d", DEEP = "#0e1a35", GOLD = "#e0b34a", GOLDL = "#f0cd73", PALE = "#f6f1e4", INK = "#14181f", MUTED = "#5d6577";
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const L = {
   en: { rated: "rated this training 4 or 5 out of 5", attendees: "Attendees", from: (a, p) => `from <b>${a} agenc${a === 1 ? "y" : "ies"}</b>${p ? ` across <b>${p} province${p === 1 ? "" : "s"}</b>` : ""}`,

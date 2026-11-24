@@ -149,3 +149,12 @@ export function surveyResults(event, responses, agencyList = [], people = []) {
     comments: [...perSession.flatMap((s) => s.comments.map((text) => ({ text, about: s.title }))), ...q(overall, "anything").filter(Boolean).map((text) => ({ text, about: "The event overall" }))],
   };
 }
+
+/*
+ * An event's results, read from the store (moved here from the survey endpoint, audit 24 Nov 2026, so the background
+ * analysis no longer loads the whole endpoint).
+ */
+export async function resultsOf(event, responses = null) {
+  const [{ getSurveyResponses, getAttendees }, { directory }] = await Promise.all([import("./store.mjs"), import("./agencies.mjs")]);
+  return surveyResults(event, responses ?? await getSurveyResponses(event.id), await directory(), ((await getAttendees(event.id)) ?? {}).people ?? []);
+}

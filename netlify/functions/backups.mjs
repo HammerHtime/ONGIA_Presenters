@@ -3,7 +3,7 @@ import { isOwner } from "./lib/auth.mjs";
 import { getBackupStatus, BACKUP_FOLDER, BACKUP_TZ, BACKUP_HOUR } from "./lib/backup.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { graphConfigured } from "./lib/graph.mjs";
-import { siteOrigin } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 
 /**
  * The backup's status for the desk's home page, and "Back up now". The desk owners (the president) only.

@@ -19,6 +19,7 @@
  * is skipped, not failed — the rest of the approval still completes and the
  * dashboard says what didn't go.
  */
+import { esc } from "./text.mjs";
 import { graphAccessToken, graphConfigured } from "./graph.mjs";
 import { formatDate, formatDateIn, formatDateFr, formatLong } from "./deadlines.mjs";
 import { siteUrl } from "./site.mjs";
@@ -207,7 +208,6 @@ function signatureBlock(contact, event, lang = "en") {
   </div>`;
 }
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** One consistent ONGIA wrapper so every message looks like it came from the same desk. */
 // Volunteer emails wear the volunteer form's teal, so the email, the form and the signed copy match.

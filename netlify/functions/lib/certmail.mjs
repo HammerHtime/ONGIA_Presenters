@@ -1,3 +1,4 @@
+import { esc } from "./text.mjs";
 import { randomBytes } from "node:crypto";
 import { layout, sendAttendeeMail, coordinatorOf, ATTENDEE_REPLY_TO, CERT_FROM } from "./mail.mjs";
 import { formatLong } from "./deadlines.mjs";
@@ -10,7 +11,6 @@ import { certificatePdf, certFileName, certRecord } from "./certs.mjs";
  * Resend from certificates@send.ongia.ca and replies reach the shared ONGIA Events mailbox, not the lead's own inbox.
  * What happened is kept on the certificate: sent, downloaded, or bounced (from Resend's webhook) or couldn't send.
  */
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 /** "November 9 to 12, 2026" / "du 9 au 12 novembre 2026", or a single day. */
 export function dateRange(dayOne, lastDay, lang) {

@@ -33,7 +33,6 @@ export const YE_KINDS = {
  * - "sponsor": the annual KPI report the sponsorship agreement asks for: ONGIA's own events where RBH presented
  *   (Edmonton, Regina and the like), each ticked "RBH presented" on its Edit event page.
  */
-export const TRACKS = ["consulting", "sponsor"];
 export const trackOf = (t) => (t === "sponsor" ? "sponsor" : "consulting");
 const SPONSOR_KINDS = {
   exec: { en: "Sponsorship Report", fr: "Rapport sur la commandite" },

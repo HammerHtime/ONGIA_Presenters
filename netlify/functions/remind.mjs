@@ -1,4 +1,5 @@
-import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
+import { runNight, noteNight } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 
 /**
  * Daily at 14:00 UTC (morning across Canada). Netlify gives a scheduled

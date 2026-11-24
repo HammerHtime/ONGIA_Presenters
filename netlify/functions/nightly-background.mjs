@@ -1,5 +1,6 @@
 import { requireInternal } from "./lib/http.mjs";
-import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
+import { runNight, noteNight } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 import { reportSends, KIND_NAMES } from "./lib/sendreport.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { scanBounces } from "./lib/attmail.mjs";

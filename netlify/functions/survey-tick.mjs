@@ -1,7 +1,7 @@
 import { listEvents, getMeta, putMeta } from "./lib/store.mjs";
 import { runSurveyRounds, surveyWorkDue } from "./lib/surveysend.mjs";
 import { primeRoster } from "./lib/signature.mjs";
-import { siteOrigin } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 import { reportSends } from "./lib/sendreport.mjs";
 import { thanksWorkDue, runThanksRounds } from "./lib/thanks.mjs";
 

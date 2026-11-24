@@ -1,6 +1,6 @@
 import { getMeta, putMeta } from "./lib/store.mjs";
 import { welcomeEvents, held, NIGHT_LOCK, CATCHUP_LOCK } from "./lib/welcomecatchup.mjs";
-import { siteOrigin } from "./lib/nightly.mjs";
+import { siteOrigin } from "./lib/site.mjs";
 
 /**
  * Every 15 minutes, while a welcome letter is going out: hand the catch-up (pull from Wix, send to whoever is owed it) to
