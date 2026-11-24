@@ -24,7 +24,7 @@ import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 
 /**
- * An event's survey (Andrew 27 Oct 2026; notes/surveys-plan.md).
+ * An event's survey (Andrew 27 Oct 2026; surveys-plan.md in the board SharePoint, see reports/README.md).
  *
  * The attendee's side, by the survey's token (their own link adds who they are, only so nobody is asked twice):
  *   GET  /api/survey?t=…[&p=…][&part=…]     the questions for their part (a day, or "end")
