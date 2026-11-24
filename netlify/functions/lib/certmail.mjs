@@ -25,6 +25,7 @@ export const downloadUrl = (origin, rec, lang = "en") => `${origin}/api/certfile
 
 export function certMailMessage({ event, rec, first, origin }) {
   const verify = `${origin}/verify.html?c=${rec.code}`;
+  const verifyFr = `${verify}&lang=fr`;
   const lead = coordinatorOf(event);
   const where = event.city ? String(event.city).split(",")[0].trim() : "";
   const p = (t) => `<p style="margin:0 0 14px;line-height:1.55">${t}</p>`;
@@ -45,7 +46,7 @@ export function certMailMessage({ event, rec, first, origin }) {
     p(`Bonjour${hi},`),
     p(`Merci d'avoir participé à <b>${title}</b>${where ? ` à ${esc(where)}` : ""}, ${noLink(dateRange(event.dayOne, event.lastDay, "fr"))}. Votre certificat de réussite est joint en format PDF.`),
     btn(downloadUrl(origin, rec, "fr"), "Télécharger votre certificat"),
-    small(`Certificat n<sup>o</sup> <b>${esc(rec.code)}</b>. Toute personne peut en vérifier l'authenticité en balayant son code QR ou à <a href="${esc(verify)}" style="color:#1a2f5e">events.ongia.org/verify</a>, où vous pouvez aussi l'ajouter à votre profil LinkedIn.`),
+    small(`Certificat n<sup>o</sup> <b>${esc(rec.code)}</b>. Toute personne peut en vérifier l'authenticité en balayant son code QR ou à <a href="${esc(verifyFr)}" style="color:#1a2f5e">events.ongia.org/verify</a>, où vous pouvez aussi l'ajouter à votre profil LinkedIn.`),
     // Signed by the lead, but replies go to the shared mailbox, so the signature says so rather than "replies go to Raj".
     `<div style="margin:24px 0 0;padding-top:15px;border-top:1px solid #ddd7c8;font-size:13px;color:#4a5563;line-height:1.6">
       ${lead?.name ? `<div style="font-weight:700;color:#12161f;font-size:14px">${esc(lead.name)}</div><div>ONGIA — lead for ${title}</div>` : `<div style="font-weight:700;color:#12161f;font-size:14px">ONGIA</div>`}

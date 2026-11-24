@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { runInbox } from "./lib/inbox.mjs";
 import { whyItFailed } from "./lib/contract.mjs";
@@ -9,7 +9,7 @@ import { whyItFailed } from "./lib/contract.mjs";
  * as one of its steps.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   try {
     const out = await runInbox({ deadline: Date.now() + 12 * 60 * 1000 });
     await putMeta("inboxrun", { state: "done", at: new Date().toISOString(), read: out.read ?? 0, added: out.added ?? 0 });

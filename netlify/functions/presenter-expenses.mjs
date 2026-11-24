@@ -1,4 +1,4 @@
-import { json, fail, text } from "./lib/http.mjs";
+import { json, fail, text, editGuard } from "./lib/http.mjs";
 import { requireAdmin } from "./lib/http.mjs";
 import { getEvent, listPresenters, getClaim, putClaim, listClaimLines, getClaimLine, putClaimLine, getMeta, putMeta } from "./lib/store.mjs";
 import { issueExpenseSession, mileageRate, TRAVEL } from "./lib/expenses.mjs";
@@ -145,6 +145,8 @@ async function desk(req, url, q) {
   }));
   if (req.method === "GET") return json({ event: { id: event.id, title: event.title }, deadline, provided: mealsProvidedOf(event), presenters: await rows() });
   if (req.method === "POST" && q("send")) {
+    // A view-only board member sees the links but doesn't send them, as with agreement links (audit 24 Nov 2026).
+    const viewOnly = editGuard(req, event); if (viewOnly) return viewOnly;
     const only = text(q("presenter"), 80);
     // The ones ticked on the presenters list (Andrew 20 Nov 2026: "click a checkbox, and then send … the expense link").
     const ticked = new Set(String(q("presenters") ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 200));

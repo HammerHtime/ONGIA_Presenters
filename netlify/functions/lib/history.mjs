@@ -16,6 +16,7 @@
  * one part, so a group booked under one address isn't cut to one person). Nothing personal is kept: each row holds counts
  * and the agencies people came from.
  */
+import { todayIso } from "./deadlines.mjs";
 import { listEveryWixEvent, listWixGuests, attendeesOf, wixConfigured, wixSites, archiveSite } from "./wix.mjs";
 import { getMeta, putMeta, listEvents } from "./store.mjs";
 import { directory, agencyOf } from "./agencies.mjs";
@@ -136,7 +137,7 @@ export function countPeople(parts, guestsOf) {
  * Read a year's trainings from Wix and the desk. Slow (every guest list on every site), so it runs in the background and
  * the result is kept: refreshYear() stores it, yearTrainings() reads it back.
  */
-export async function readYearTrainings(year, { now = new Date().toISOString().slice(0, 10), events = null, wix = null, list = null } = {}) {
+export async function readYearTrainings(year, { now = todayIso(), events = null, wix = null, list = null } = {}) {
   const desk = (events ?? (await listEvents())).filter((e) => !e.practice && e.kind !== "ext" && yearOf(e.dayOne) === String(year));
   const W = wix ?? { events: (y) => wixEventsOf(y), guests: (p) => listWixGuests({ eventId: p.id, type: null, site: String(p.site) }) };
   const wixEvents = wixConfigured() || wix ? await W.events(year) : [];

@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent, putEvent } from "./lib/store.mjs";
 import { analyseSurvey, toneComments } from "./lib/surveyanalysis.mjs";
 import { resultsOf } from "./survey.mjs";
@@ -9,7 +9,7 @@ import { resultsOf } from "./survey.mjs";
  * 504"), so it runs here and lands on the event; the Results page waits for it.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const url = new URL(req.url);
   const id = url.searchParams.get("event");
   const event = await getEvent(id);

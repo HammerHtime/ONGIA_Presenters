@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { runNight, noteNight, siteOrigin } from "./lib/nightly.mjs";
 import { reportSends, KIND_NAMES } from "./lib/sendreport.mjs";
 import { putMeta } from "./lib/store.mjs";
@@ -15,7 +15,7 @@ const BUDGET_MS = 13 * 60 * 1000;    // stop starting sends with two minutes to 
 const MAX_HOPS = 3;
 
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const url = new URL(req.url);
   const hop = Math.min(Math.max(Number(url.searchParams.get("hop")) || 0, 0), MAX_HOPS);
   // While the morning run sends, the welcome letter's 15-minute catch-up keeps out of its way, so nobody gets two.

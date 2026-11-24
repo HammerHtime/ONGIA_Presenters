@@ -3,6 +3,7 @@ import { listClaimIds, getClaim, putClaim } from "./lib/store.mjs";
 import { renameFiled, renameReceipts } from "./lib/expensefile.mjs";
 import { listClaimLines } from "./lib/store.mjs";
 import { getMeta } from "./lib/store.mjs";
+import { roleOf } from "./lib/expenses.mjs";
 
 /**
  * The claims filed before the names changed, given the new names (Andrew 16 Nov 2026: "are you able to change the naming
@@ -23,6 +24,8 @@ export default async (req) => {
   if (req.method === "GET" && new URL(req.url).searchParams.get("hand")) return json((await getMeta("expense-hand")) ?? { items: {} });
   const dry = req.method === "GET";
   if (!dry && req.method !== "POST") return fail("Method not allowed.", 405);
+  // Renaming every claim's files in SharePoint is the President's or the VP's to do (audit 24 Nov 2026), as unlocking is.
+  if (!dry) { const who = adminWho(req); if (!who?.key && !["president", "vp"].includes(roleOf(who?.email))) return fail("Only the President or the VP can rename the filed claims.", 403); }
   const out = [];
   for (const id of await listClaimIds()) {
     const claim = await getClaim(id);

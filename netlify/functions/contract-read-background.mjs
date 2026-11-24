@@ -1,4 +1,4 @@
-import { requireAdmin } from "./lib/http.mjs";
+import { requireInternal } from "./lib/http.mjs";
 import { getEvent, getContract, putContractRead } from "./lib/store.mjs";
 import { readContract, whyItFailed } from "./lib/contract.mjs";
 
@@ -8,7 +8,7 @@ import { readContract, whyItFailed } from "./lib/contract.mjs";
  * /api/contract; the result lands in contractread:<event> for the screen.
  */
 export default async (req) => {
-  if (requireAdmin(req)) return new Response("Not authorized.", { status: 401 });
+  if (requireInternal(req)) return new Response("Not authorized.", { status: 401 });
   const params = new URL(req.url).searchParams;
   // A draft is a contract uploaded on the New event screen, before the event exists.
   const draft = params.get("draft");

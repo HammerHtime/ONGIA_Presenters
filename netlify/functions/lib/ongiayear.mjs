@@ -1,3 +1,4 @@
+import { todayIso } from "./deadlines.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropicKey } from "./contract.mjs";
 import { getMeta, putMeta, getAttendees, listEvents, listPresenters } from "./store.mjs";
@@ -35,7 +36,7 @@ const SPONSOR = "Rothmans, Benson & Hedges";
 const pctOf = (a, b) => (b ? Math.round((100 * a) / b) : 0);
 export const yearOf = (e) => String(e?.dayOne ?? "").slice(0, 4);
 const counts = (e) => !e?.practice && e?.kind !== "ext";
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayIso();
 const daysOf = (e) => {
   const a = Date.parse(e.dayOne), b = Date.parse(e.lastDay || e.dayOne);
   return Number.isFinite(a) && Number.isFinite(b) && b >= a ? Math.round((b - a) / 86400000) + 1 : 1;

@@ -1,3 +1,4 @@
+import { todayIso } from "./deadlines.mjs";
 import PDFDocument from "pdfkit";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -138,7 +139,7 @@ export const letterFileName = (p, on = "") => personFile(p, "Letter of appreciat
 
 /** The PDF for one presenter. `on` is the letter's date (the day it goes). */
 /** `signer` is the signature block's lines (the President's by default); `signature` his handwritten one, only for him. */
-export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = new Date().toISOString().slice(0, 10), signature = null, signer = SIGNER } = {}) {
+export async function appreciationPdf(event, p, { body = STANDARD_LETTER, on = todayIso(), signature = null, signer = SIGNER } = {}) {
   const [top, band] = await Promise.all(["letterhead-top.png", "letterhead-band.png"].map((f) => readFile(path.join(ASSETS(), f)).catch(() => null)));
   const v = letterValues(event, p);
   const W = 612, H = 792, M = 72, BODY = W - M * 2;
