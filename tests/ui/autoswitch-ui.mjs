@@ -70,6 +70,24 @@ for (const [tag, vp] of [["wide", { width: 1280, height: 900 }], ["phone", { wid
     ok("Turn on from the Overview turns the survey on", (await api(`/api/events?id=${ev.id}`)).event.autoOn.survey === true);
     ok("…and the warning goes", !/Survey is off/.test(await p.locator("body").innerText()));
     await api(`/api/events?id=${ev.id}&auto=1`, { method: "PUT", body: JSON.stringify({ kind: "survey", on: false }) });
+    // The date and time picker: click the certificates' status, set a day and time, save.
+    await p.locator('.etab[data-tab="communications"]').click(); await p.waitForTimeout(1500);
+    await p.locator('.mlrow[data-msgo="certs"] .mlwhen').click(); await p.waitForTimeout(300);
+    ok("clicking the status opens the day and time, in the event's own time", await p.locator(".mlpick #pk-day").isVisible() && await p.locator(".mlpick #pk-time").isVisible() && /Victoria time/.test(await p.locator(".mlpick").innerText()));
+    ok("…opening it doesn't leave the tab", await p.locator('.etab[data-tab="communications"]').getAttribute("aria-selected") === "true");
+    await p.locator(".mlpick").screenshot({ path: `${D}autoswitch-picker.png` });
+    // A day on the event: refused, and it says why, in the panel.
+    await p.locator("#pk-day").fill(shift(-1)); await p.locator("#pk-time").fill("15:30");
+    await p.locator('.mlpick [data-pk="save"]').click(); await p.waitForTimeout(800);
+    ok("a day that isn't after the event is refused, with why", /after the event|already passed/i.test(await p.locator(".mlpick .pkerr").innerText()));
+    await p.locator("#pk-day").fill(shift(3)); await p.locator("#pk-time").fill("15:30");
+    await p.locator('.mlpick [data-pk="save"]').click(); await p.waitForTimeout(1800);
+    const sw = (await api(`/api/events?id=${ev.id}`)).event.sendWhen;
+    ok("a later day and time is saved", sw.certs.day === shift(3) && sw.certs.time === "15:30", JSON.stringify(sw.certs));
+    ok("…and the line shows it", /3:30 pm/.test(await p.locator('.mlrow[data-msgo="certs"]').innerText()) || /3:30/.test(await p.locator("#mailsum").innerText()));
+    // The hotel reminders: their dates come from the cut-off, so the panel says so and offers Logistics.
+    await p.locator('.mlrow[data-msgo="hotel"] .mlwhen').click(); await p.waitForTimeout(300);
+    ok("the hotel reminders' panel lists their days and points to Logistics", /before the cut-off/.test(await p.locator(".mlpick").innerText()) && /Open Logistics/.test(await p.locator(".mlpick").innerText()));
   }
   ok(`${tag}: no page errors`, p.errs.length === 0, p.errs.join(" | "));
   await p.close();

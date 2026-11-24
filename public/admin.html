@@ -826,6 +826,11 @@
   .mlsw{display:inline-flex;align-items:center;position:relative} .mlsw input{position:absolute;opacity:0;width:1px;height:1px} .mlsw .track{width:34px;height:20px;border-radius:10px;background:#cfc8b8;position:relative;transition:background .15s}
   .mlsw .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
   .mlsw input:checked + .track{background:var(--done)} .mlsw input:checked + .track .knob{left:16px} .mlsw input:focus-visible + .track{outline:2px solid var(--navy);outline-offset:2px} .mlsw input:disabled + .track{opacity:.5}
+  .mlwhen{border:0;background:none;padding:0;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;text-align:right}
+  .mlpick{padding:10px 16px 12px;border-top:1px solid var(--edge);background:#fff}
+  .mlpick .pkrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px} .mlpick .pkrow:first-child{margin-top:0}
+  .mlpick input{margin:0;width:auto;max-width:170px} .mlpick .pkl{font-size:13.5px;font-weight:600} .mlpick .pkz{font-size:13px}
+  @media (max-width:640px){.mlpick{padding:8px 12px 10px} .mlpick .pkrow{gap:6px} .mlpick input{padding:6px 8px;font-size:14px;min-height:0} .mlpick #pk-day{max-width:142px} .mlpick #pk-time{max-width:112px} .mlpick .pkz{flex:1 0 auto}}
   .mlhint{margin:0;padding:8px 16px;font-size:13px;color:var(--muted);background:var(--sunk);border-bottom:1px solid var(--edge)}
   .mls.ok{color:var(--done)} .mls.wt{color:var(--wait)} .mls.late{color:var(--late)} .mls.mu{color:var(--muted)}
   .cst{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:13px;font-weight:800;line-height:1;flex:0 0 22px;color:#fff;vertical-align:middle}
@@ -6039,6 +6044,8 @@ function drawMailSum(ev) {
   // A switch for each automatic email (Andrew 24 Nov 2026), as the event says it stands (lib/autosend.mjs).
   const AO = ev.autoOn ?? {}, isOn = (k) => AO[k] === true;
   const dShort = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
+  // Each email's day and time, in the event's own time (24 Nov 2026: the date and time picker).
+  const SW = ev.sendWhen ?? {}, at = (k) => (SW[k]?.day ? `${fmtDate(SW[k].day)}, ${fmt12(SW[k].time)}` : "");
   const people = (n) => `${n} ${n === 1 ? "person" : "people"}`;
   const rows = [];
   if (W) {
@@ -6046,12 +6053,12 @@ function drawMailSum(ev) {
     const held = W.versions.some((v) => v.problems?.length);
     rows.push({ kind: "welcome", at: W.sendOn ?? "", what: "Welcome letter", go: "welcomefold",
       who: W.versions.length > 1 ? W.versions.map((v) => `${esc(v.label)} (${v.reaches ?? 0})`).join(", ") : `Everyone registered (${reach})`,
-      when: W.sendOn ? esc(fmtDate(W.sendOn)) : "No date set",
+      when: W.sendOn ? esc(at("welcome") || fmtDate(W.sendOn)) : "No date set", pick: !W.sendDone ? "welcome" : null,
       state: W.sendDone ? ["done", "Sent"] : !W.saved ? ["late", "Not saved: won't go"] : held ? ["late", "Held back: see below"] : !isOn("welcome") ? ["idle", "Off"] : ["done", W.sendOn ? `Goes ${dShort(W.sendOn)}` : "Goes automatically"] });
   }
   if (R) {
     const st = R.status ?? {};
-    rows.push({ kind: "reply", at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
+    rows.push({ kind: "reply", pick: R.reply?.sentAt ? "info:reply" : null, at: R.reply?.sentAt?.slice(0, 10) ?? R.reply?.replyBy ?? "", what: "Food allergies", go: "replyfold",
       who: st.online ? `Everyone attending in person (${st.reaches ?? 0})` : `Everyone registered (${st.reaches ?? 0})`,
       when: !R.reply ? "When you press Send" : R.reply.sentAt ? `Sent ${esc(fmtDate(R.reply.sentAt.slice(0, 10)))}` : `When you press Send${R.reply.replyBy ? `<br><span class="porg">answers by ${esc(fmtDate(R.reply.replyBy))}</span>` : ""}`,
       state: !R.reply ? ["idle", "Not set up"] : R.sending ? ["wait", `Sending: ${st.had ?? 0} of ${st.reaches ?? 0}`]
@@ -6065,7 +6072,8 @@ function drawMailSum(ev) {
     const noTime = daily && (S.times ?? []).some((t) => !t.at);
     rows.push({ kind: "survey", at: daily ? S.days?.[0] ?? "" : sv?.sendOn ?? "", what: "Survey", go: "survey",
       who: S.group ? `${esc(S.group.name)}` : "Attendees",
-      when: !sv ? "Not set" : daily ? `End of each day${S.days?.length ? `<br><span class="porg">${esc(fmtDate(S.days[0]))} to ${esc(fmtDate(S.days.at(-1)))}</span>` : ""}` : esc(fmtDate(sv.sendOn)),
+      when: !sv ? "Not set" : daily ? `End of each day${S.days?.length ? `<br><span class="porg">${esc(fmtDate(S.days[0]))} to ${esc(fmtDate(S.days.at(-1)))}</span>` : ""}` : esc(at("survey") || fmtDate(sv.sendOn)),
+      pick: !sv || sent ? null : daily ? "info:survey" : "survey",
       state: !sv ? ["idle", "Not set up"] : !sv.open ? ["idle", "Closed"] : S.problems?.length ? ["late", "Held back: see its tab"] : noTime ? ["late", "A day has no end time: won't go"]
         : sent ? ["done", `${sent.toLocaleString("en-CA")} sent${S.responses ? ` · ${S.responses} answered` : ""}`] : !isOn("survey") ? ["idle", "Off"] : ["done", !daily && sv?.sendOn ? `Goes ${dShort(sv.sendOn)}` : "Goes automatically"] });
   }
@@ -6089,15 +6097,15 @@ function drawMailSum(ev) {
   const SCH = MAILSUM.sched?.emails ?? [], today = todayIso(), lastDay = ev.lastDay || ev.dayOne || "";
   if (ev.hotel?.cutoff && !ev.project) {
     const next = [30, 15, 7].map((n) => new Date(Date.parse(`${ev.hotel.cutoff}T12:00:00Z`) - n * 86400e3).toISOString().slice(0, 10)).find((d) => d >= today);
-    rows.push({ kind: "hotel", at: next ?? ev.hotel.cutoff, what: "Hotel reminders", go: "hotel", who: "Not booked yet",
+    rows.push({ kind: "hotel", pick: "info:hotel", at: next ?? ev.hotel.cutoff, what: "Hotel reminders", go: "hotel", who: "Not booked yet",
       when: `30, 15 and 7 days before ${esc(fmtDate(ev.hotel.cutoff))}`,
       state: !ev.hotel.link ? ["late", "No booking link: won't go"] : !next ? ["idle", "Cut-off passed"] : !isOn("hotel") ? ["idle", "Off"] : ["done", `Next ${dShort(next)}`] });
   }
   if (lastDay && !ev.project) {
     const C = ev.certs ?? {}, plus1 = new Date(Date.parse(`${lastDay}T12:00:00Z`) + 86400e3).toISOString().slice(0, 10);
-    const cday = /^\d{4}-\d{2}-\d{2}$/.test(C.sendDay ?? "") ? C.sendDay : plus1, ctime = /^\d{2}:\d{2}$/.test(C.sendTime ?? "") ? C.sendTime : "10:00";
+    const cday = SW.certs?.day || (/^\d{4}-\d{2}-\d{2}$/.test(C.sendDay ?? "") ? C.sendDay : plus1), ctime = SW.certs?.time || (/^\d{2}:\d{2}$/.test(C.sendTime ?? "") ? C.sendTime : "10:00");
     const until = new Date(Date.parse(`${cday}T12:00:00Z`) + 14 * 86400e3).toISOString().slice(0, 10);
-    rows.push({ kind: "certs", at: cday, time: ctime, what: "Certificates", go: "certs", who: "Everyone checked in", when: `${esc(fmtDate(cday))}, ${fmt12(ctime)}`,
+    rows.push({ kind: "certs", pick: today > until ? null : "certs", at: cday, time: ctime, what: "Certificates", go: "certs", who: "Everyone checked in", when: `${esc(fmtDate(cday))}, ${fmt12(ctime)}`,
       state: today > until ? ["idle", "Finished"] : !isOn("certs") ? ["idle", "Off"] : ["done", `Goes ${dShort(cday)}`] });
   }
   // Soonest first; on the same day, in the order they go out: the food question, then the welcome letter, then the survey.
@@ -6108,9 +6116,9 @@ function drawMailSum(ev) {
   const short = (iso) => (iso ? fmtDate(String(iso).slice(0, 10)).replace(/^\w+ /, "").replace(/ \d{4}$/, "") : "");
   rows.push({ at: "~1", what: "Message", go: "msgfold", who: "Everyone registered, or one group",
     state: !Mg ? ["idle", "…"] : Mg.sent ? ["done", `${Mg.sent} sent · last ${short(Mg.last)}`] : ["idle", "None sent"] });
-  rows.push({ kind: "thanks", at: "~2", what: "Thank-you", go: "thanksfold", who: "Presenters, volunteers and board",
+  rows.push({ kind: "thanks", pick: Th && !(Th.sent && !Th.going) && Th.auto !== false ? "thanks" : null, at: "~2", what: "Thank-you", go: "thanksfold", who: "Presenters, volunteers and board", when: at("thanks"),
     state: !Th ? ["idle", "…"] : Th.sent && !Th.going ? ["done", `${Th.sent} of ${Th.total} sent`] : Th.sent ? ["wait", `${Th.sent} of ${Th.total} sent · ${Th.going} to go`]
-      : isOn("thanks") && Th.day ? ["done", `Goes ${short(Th.day)}`] : !isOn("thanks") ? ["idle", "Off"] : ["idle", "Not sent"] });
+      : isOn("thanks") && (SW.thanks?.day || Th.day) ? ["done", `Goes ${short(SW.thanks?.day || Th.day)}`] : !isOn("thanks") ? ["idle", "Off"] : ["idle", "Not sent"] });
   const plain = (h) => String(h).replace(/<br>/g, " · ").replace(/<[^>]+>/g, "");
   const tone = { done: "ok", late: "late", wait: "wt", idle: "mu" };
   // Send now, only where it makes sense (24 Nov 2026): the switch off, someone still owed it, and its moment come. The
@@ -6132,10 +6140,11 @@ function drawMailSum(ev) {
   box.innerHTML = rows.map((r, i) => { const n = nowOf(r); if (n) NOW.set(String(i), n);
     return `<div role="tab" tabindex="0" class="mlrow${COMMS_ON === r.go ? " on" : ""}" data-msgo="${r.go}" aria-selected="${COMMS_ON === r.go}">
       ${sw(r)}<b class="mlw">${r.what}</b><span class="mld">${esc(plain([r.when, r.who].filter(Boolean).join(" · ")))}</span>
-      <span class="mls ${tone[r.state[0]] ?? "mu"}">${esc(r.state[1])}</span>${n ? `<button type="button" class="mini gold mlnow" data-mlnow="${i}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : `<span></span>`}<span class="mlgo" aria-hidden="true">${r.go === "survey" || r.go === "certs" || r.go === "hotel" ? "↗" : "›"}</span></div>`; }).join("")
+      ${r.pick && edit ? `<button type="button" class="mls mlwhen ${tone[r.state[0]] ?? "mu"}" data-mlwhen="${i}" title="${r.pick.startsWith("info:") ? "When it goes" : "Change the day and time"}">${esc(r.state[1])}</button>` : `<span class="mls ${tone[r.state[0]] ?? "mu"}">${esc(r.state[1])}</span>`}${n ? `<button type="button" class="mini gold mlnow" data-mlnow="${i}"${COMING_BUSY ? " disabled" : ""}>${COMING_BUSY ? "Sending…" : "Send now"}</button>` : `<span></span>`}<span class="mlgo" aria-hidden="true">${r.go === "survey" || r.go === "certs" || r.go === "hotel" ? "↗" : "›"}</span></div>`; }).join("")
     + (rows.length < 5 + (document.getElementById("rlbox") ? 1 : 0) ? `<p class="porg" style="margin:8px 16px">Loading the rest…</p>` : "");
   box.querySelectorAll(".mlsw").forEach((l) => { l.onclick = (e) => e.stopPropagation(); });
   box.querySelectorAll("[data-autosw]").forEach((c) => { c.onchange = () => autoSwitch(ev, c, rows.find((r) => r.kind === c.dataset.autosw)); });
+  box.querySelectorAll("[data-mlwhen]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); whenPicker(ev, rows[Number(b.dataset.mlwhen)], b.closest(".mlrow")); }; });
   box.querySelectorAll("[data-mlnow]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); const n = NOW.get(b.dataset.mlnow);
     if (n.custom === "certs") { openCerts(true); return; }
     if (n.custom === "thanks") { commsShow("thanksfold"); setTimeout(() => document.querySelector('#thanksfold [data-th="now"]')?.click(), 300); return; }
@@ -6151,6 +6160,54 @@ function drawMailSum(ev) {
     if (r && (r.top > innerHeight - 120 || r.top < 0)) window.scrollTo({ top: r.top + scrollY - (innerWidth < 900 ? 130 : 20), behavior: "smooth" });
   }; });
 }
+
+/**
+ * The day and time an email goes (Andrew 24 Nov 2026: "if I click that a calendar and time window appears and I can set the
+ * date and time I want it to send"), opened from its status on the Communications list. In the event's own time. The
+ * hotel reminders, a daily survey and the food-allergy reminders follow dates set elsewhere: the panel says which, and
+ * opens it.
+ */
+function whenPicker(ev, row, rowEl) {
+  document.querySelectorAll(".mlpick").forEach((x) => x.remove());
+  if (!row || !rowEl) return;
+  const SW = ev.sendWhen ?? {}, place = `${(ev.city || "").split(",")[0] || "the event's"} time`;
+  const panel = document.createElement("div");
+  panel.className = "mlpick";
+  const close = `<button type="button" class="mini ghost" data-pk="close">Close</button>`;
+  if (row.pick.startsWith("info:")) {
+    const what = row.pick.slice(5);
+    const plus = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86400e3).toISOString().slice(0, 10);
+    const text = what === "hotel" ? `30, 15 and 7 days before the cut-off: ${[30, 15, 7].map((n) => plainDay(plus(ev.hotel.cutoff, -n))).join(", ")}. Move the cut-off on Logistics and they move with it.`
+      : what === "survey" ? "Each day's survey goes 15 minutes after that day's last session. Change the times under Program, Agenda and daily times."
+      : "The reminders go on the days set on the food-allergy email.";
+    const go = what === "hotel" ? ["logistics", "Open Logistics"] : what === "survey" ? ["program", "Open Program"] : ["replyfold", "Open it"];
+    panel.innerHTML = `<p class="hint" style="margin:0">${esc(text)}</p><div class="pkrow"><button type="button" class="mini" data-pk="go">${go[1]}</button>${close}</div>`;
+    panel.querySelector('[data-pk="go"]').onclick = () => { panel.remove(); if (go[0] === "replyfold") commsShow("replyfold"); else ROOT.querySelector(`.etab[data-tab="${go[0]}"]`)?.click(); };
+  } else {
+    const w = SW[row.pick] ?? {};
+    panel.innerHTML = `<div class="pkrow"><label class="pkl" for="pk-day">Goes</label><input type="date" id="pk-day" value="${esc(w.day ?? "")}">
+        <label class="pkl" for="pk-time">at</label><input type="time" id="pk-time" step="900" value="${esc(w.time ?? "09:00")}"><span class="porg pkz">${esc(place)}</span>
+        <button type="button" class="mini gold" data-pk="save">Save</button>${close}</div>
+      <p class="hint pkhint" style="margin:6px 0 0">${row.pick === "welcome" ? "Any day before the event starts." : row.pick === "survey" ? "Its last day or later." : "Any day after the event."}${isOnRow(ev, row) ? "" : " It's switched off, so it won't go unless you turn it on."}</p>
+      <p class="bad-t pkerr" style="margin:6px 0 0" hidden></p>`;
+    const save = panel.querySelector('[data-pk="save"]'), err = panel.querySelector(".pkerr");
+    save.onclick = async () => {
+      err.hidden = true; save.disabled = true; save.textContent = "Saving…";
+      try {
+        const out = await api(`/events?id=${encodeURIComponent(ev.id)}&sendat=1`, { method: "PUT", body: JSON.stringify({ kind: row.pick, day: panel.querySelector("#pk-day").value, time: panel.querySelector("#pk-time").value }) });
+        ev.sendWhen = out.when;
+        const n = out.when[row.pick];
+        toast(`${row.what}: ${fmtDate(n.day)} at ${fmt12(n.time)}, ${place}.`);
+        render();
+      } catch (x) { err.textContent = x.message; err.hidden = false; save.disabled = false; save.textContent = "Save"; }
+    };
+  }
+  panel.querySelector('[data-pk="close"]').onclick = () => panel.remove();
+  panel.onclick = (e) => e.stopPropagation();
+  rowEl.after(panel);
+  panel.querySelector("input, button")?.focus();
+}
+const isOnRow = (ev, row) => ev.autoOn?.[row.kind] === true;
 
 /** The automatic emails switched off whose day is within three days (24 Nov 2026), for the event's Overview. */
 function autoOffSoon(ev, checklist) {

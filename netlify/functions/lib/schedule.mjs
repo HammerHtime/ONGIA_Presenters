@@ -3,11 +3,11 @@ import { getAttendees, getReplies, listPresenters } from "./store.mjs";
 import { todayIso } from "./deadlines.mjs";
 import { welcomeJob, welcomeReach, extrasOf, versionLabel, versionKeys, inTheRoom } from "./welcome.mjs";
 import { remindersOf, stillToAnswer } from "./reply.mjs";
-import { dailyTimes, owedFor, zoneOf, reminderDates, stillOwed, REMIND_KEY } from "./surveysend.mjs";
+import { dailyTimes, owedFor, zoneOf, reminderDates, stillOwed, REMIND_KEY, surveyAt } from "./surveysend.mjs";
 import { HOTEL_DAYS } from "./hotel.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { onlineGroups, timesOf, joinPeople } from "./joinreminder.mjs";
-import { thanksDay, thanksOn, thanksPeople, THANKS_AT, KINDS } from "./thanks.mjs";
+import { thanksDay, thanksOn, thanksPeople, thanksAt, KINDS } from "./thanks.mjs";
 
 /**
  * Every email the desk will send for an event on its own, from today on: the day, what it is, and how many it goes to
@@ -73,7 +73,7 @@ export async function emailSchedule(event, today = todayIso()) {
   // The survey: each day's part, or the one after the event.
   const s = event.survey;
   if (s?.open) {
-    const parts = s.mode === "end" ? (s.sendOn ? [{ day: s.sendOn, part: "end", at: "09:00" }] : []) : dailyTimes(event).map((t) => ({ day: t.day, part: t.day, at: t.at }));
+    const parts = s.mode === "end" ? (s.sendOn ? [{ day: s.sendOn, part: "end", at: surveyAt(event) }] : []) : dailyTimes(event).map((t) => ({ day: t.day, part: t.day, at: t.at }));
     for (const p of parts.filter((x) => x.day >= today)) {
       out.push({ date: p.day, time: p.at ?? "", tz: zoneAbbr(zoneOf(event), p.day), what: s.mode === "end" ? "Survey" : "Survey: today's sessions", to: owedFor(event, p.part, people).length, who: "attendees",
         note: offFor("survey") || (!p.at ? "won't go: that day has no end time" : ""), now: { type: "survey", key: p.part } });
@@ -122,7 +122,7 @@ export async function emailSchedule(event, today = todayIso()) {
     for (const [kind, K] of Object.entries(KINDS)) {
       if (!K.auto) continue;
       const to = thanksPeople(event, await K.list(event.id), kind).filter((v) => v.in && !v.sentAt).length;
-      out.push({ date: td, time: THANKS_AT, tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: QUIET || (thanksOn(event, kind) ? "" : "won't go: switched off") });
+      out.push({ date: td, time: thanksAt(event), tz: zoneAbbr(zoneOf(event), td), what: K.label, to, who: kind, note: QUIET || (thanksOn(event, kind) ? "" : "won't go: switched off") });
     }
   }
   for (const x of out) if (x.time === undefined) Object.assign(x, morning(x.date));

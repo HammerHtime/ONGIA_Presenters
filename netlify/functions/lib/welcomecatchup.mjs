@@ -26,7 +26,8 @@ export const held = (lock, now = Date.now()) => !!lock?.at && now - Date.parse(l
 export async function welcomeEvents(today = todayIso()) {
   const due = (await listEvents()).filter((e) => !e.practice && letterDue(e, "welcome", today).due);
   const started = await Promise.all(due.map(async (e) => !!((await getAttendees(e.id)) ?? {}).letterRounds?.welcome));
-  return due.filter((_, i) => started[i]);
+  // A letter with a time of its own goes from the 15-minute check at that time, not the morning run.
+  return due.filter((e, i) => started[i] || /^\d{2}:\d{2}$/.test(e.welcomeAt ?? ""));
 }
 
 /** Pull each such event from Wix, then send the letter to whoever is owed it. `pull` is the Wix pull (wix.mjs). */

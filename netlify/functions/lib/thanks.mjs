@@ -135,9 +135,15 @@ export function thanksWords(event, kind = "presenters") {
 export const thanksLetter = (event, words = thanksWords(event), kind = "presenters") => ({ id: `event-thanks-${kind}`, kind: "thanks", name: K(kind).label, attachAgenda: false, ...words });
 
 const plusDay = (iso) => new Date(Date.parse(`${iso}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
-/** The day it goes: the day after the last day. */
-export const thanksDay = (event) => { const end = event.lastDay || event.dayOne; return /^\d{4}-\d{2}-\d{2}$/.test(end ?? "") ? plusDay(end) : ""; };
+/** The day it goes: the day after the last day, or the day set on the event (24 Nov 2026: the date and time picker). */
+export const thanksDay = (event) => {
+  const set = event?.presenterThanks?.sendDay;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(set ?? "")) return set;
+  const end = event.lastDay || event.dayOne; return /^\d{4}-\d{2}-\d{2}$/.test(end ?? "") ? plusDay(end) : "";
+};
 export const THANKS_AT = "09:00";
+/** The time it goes, in the event's own time: 9:00, or the time set on the event. */
+export const thanksAt = (event) => (/^\d{2}:\d{2}$/.test(event?.presenterThanks?.sendTime ?? "") ? event.presenterThanks.sendTime : THANKS_AT);
 
 /** "Over 550": the registrations rounded down to the 50 below (562 is 550; 600 is 550, so "over" stays true). */
 export const overFifty = (n) => (n >= 51 ? String(Math.floor((n - 1) / 50) * 50) : n > 0 ? String(n) : "");
@@ -185,7 +191,7 @@ export function thanksDue(event, now = new Date(), kind = "presenters") {
   const day = thanksDay(event);
   if (!day) return false;
   const [today, time] = localNow(event, now).split(" ");
-  return today === day && time >= THANKS_AT;
+  return today === day && time >= thanksAt(event);
 }
 
 /** Send to everyone on the list still owed it. `force` is Send now: any day. `only` sends to one person. */

@@ -1,6 +1,7 @@
 import { attentionOf, countStatuses, HAS_AGREEMENT } from "./lib/presenterstatus.mjs";
 export { attentionOf, countStatuses, HAS_AGREEMENT };
 import { AUTO_KINDS, setAuto, autoState, autoAllOff } from "./lib/autosend.mjs";
+import { setWhen, whenAll } from "./lib/sendat.mjs";
 import { json, fail, requireAdmin, adminWho, text, isEmail } from "./lib/http.mjs";
 import { mayCost, mayEditEvent, VIEW_ONLY } from "./lib/auth.mjs";
 import { formatPhone } from "./lib/phone.mjs";
@@ -70,6 +71,7 @@ export default async (req) => {
     if (!body) return fail("Expected a JSON body.");
     if (url.searchParams.get("attendeeMail")) return setAttendeeMail(id, body);
     if (url.searchParams.get("auto")) return setAutoMail(id, body);
+    if (url.searchParams.get("sendat")) return setSendAt(id, body);
     if (url.searchParams.get("quiet")) return setQuiet(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
@@ -139,6 +141,17 @@ async function setAutoMail(id, body) {
   event.updatedAt = new Date().toISOString();
   await putEvent(event);
   return json({ ok: true, auto: autoState(event) });
+}
+
+/** The day and time one automatic email goes (lib/sendat.mjs): { kind, day, time } in the event's own time. */
+async function setSendAt(id, body) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  const problem = setWhen(event, String(body.kind ?? ""), String(body.day ?? ""), String(body.time ?? ""));
+  if (problem) return fail(problem, 409);
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, when: whenAll(event) });
 }
 
 /**
@@ -723,7 +736,7 @@ async function showEvent(id, canCost = true, who = { key: true }) {
   const event = await getEvent(id);
   if (!event) return fail("No such event.", 404);
   const presenters = await listPresenters(id);
-  return json({ event: { ...(canCost ? event : redactEvent(event)), autoOn: autoState(event) }, canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
+  return json({ event: { ...(canCost ? event : redactEvent(event)), autoOn: autoState(event), sendWhen: whenAll(event) }, canCost, canEdit: mayEditEvent(who, event), provinceGuess: canCost ? guessProvince(event.city) : "", presenters, counts: countStatuses(presenters),
     attention: attentionOf(presenters), checklistCounts: checklistOf(event).counts,
     // For the tabs' "new since you last looked" badges: answers that only load when their tab is opened, and what this
     // board member had seen.
