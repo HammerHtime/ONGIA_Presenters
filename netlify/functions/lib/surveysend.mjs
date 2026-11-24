@@ -46,12 +46,15 @@ export function dailyTimes(event) {
 }
 
 /** The parts due now: in daily mode, today's (or an earlier day's not yet sent, up to a day late); at the end, "end". */
+/** The time the survey after the event goes, in the event's own time: 9:00, or the time set (24 Nov 2026). */
+export const surveyAt = (event) => (/^\d{2}:\d{2}$/.test(event?.survey?.sendAt ?? "") ? event.survey.sendAt : "09:00");
+
 export function partsDue(event, now = new Date()) {
   const s = event.survey;
   if (!s?.open) return [];
   const [today, time] = localNow(event, now).split(" ");
-  // At the end: on its day from 9 in the morning, local time (never at midnight), or any later day if missed.
-  if (s.mode === "end") return s.sendOn && (today > s.sendOn || (today === s.sendOn && time >= "09:00")) ? ["end"] : [];
+  // At the end: on its day from 9 in the morning (or the time set), local time (never at midnight), or any later day if missed.
+  if (s.mode === "end") return s.sendOn && (today > s.sendOn || (today === s.sendOn && time >= surveyAt(event))) ? ["end"] : [];
   const yesterday = new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10);
   return dailyTimes(event).filter((d) => d.at && (d.day < today ? d.day >= yesterday : d.day === today && time >= d.at)).map((d) => d.day);
 }

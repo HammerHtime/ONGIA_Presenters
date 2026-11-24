@@ -8,7 +8,7 @@ import { getAttendees } from "./lib/store.mjs";
 import { letterProblems, eventProblems, renderLetter, attendeeReplyTo } from "./lib/letters.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { testAddresses } from "./lib/welcome.mjs";
-import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, THANKS_AT, letterOn, letterWords, signatureImage, letterAttachment, mailFor, SIGNATURE_KEY, KINDS as THANK_KINDS, kindOf, attendeesOver, standardLetter } from "./lib/thanks.mjs";
+import { thanksWords, thanksLetter, thanksPeople, thanksDay, thanksOn, sendThanksRound, thanksAt, letterOn, letterWords, signatureImage, letterAttachment, mailFor, SIGNATURE_KEY, KINDS as THANK_KINDS, kindOf, attendeesOver, standardLetter } from "./lib/thanks.mjs";
 import { STANDARD_LETTER, letterWordsProblems, appreciationPdf, letterFileName } from "./lib/appreciation.mjs";
 import { putMeta } from "./lib/store.mjs";
 import { listPresenters, getPresenter, putPresenter, getVolunteer } from "./lib/store.mjs";
@@ -221,7 +221,7 @@ async function thanks(req, event, url) {
   const view = async () => {
     const people = await peopleNow();
     const letter = thanksLetter(event, thanksWords(event, kind), kind);
-    return json({ who: kind, auto: THANK_KINDS[kind].auto === true, ...thanksWords(event, kind), standard: !event[K.key]?.body, on: thanksOn(event, kind), day: thanksDay(event), at: THANKS_AT, zone: zoneOf(event),
+    return json({ who: kind, auto: THANK_KINDS[kind].auto === true, ...thanksWords(event, kind), standard: !event[K.key]?.body, on: thanksOn(event, kind), day: thanksDay(event), at: thanksAt(event), zone: zoneOf(event),
       replyTo: attendeeReplyTo(event) ?? "", people, attendees: over,
       problems: [...new Set([...letterProblems(letter), ...eventProblems(letter, event), ...letterWordsProblems(letterWords(event, kind))])],
       letter: letterWords(event, kind), letterStandard: !event[K.key]?.letter, letterOn: letterOn(event, kind), signature: !!(await signatureImage()),

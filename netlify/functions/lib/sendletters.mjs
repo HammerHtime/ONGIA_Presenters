@@ -1,4 +1,5 @@
 import { autoOn } from "./autosend.mjs";
+import { localNow } from "./surveysend.mjs";
 import { todayIso, formatDate } from "./deadlines.mjs";
 import { getAttendees, putAttendees, getLetter, getEvent, putEvent, getAgenda, getWelcomeFile } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
@@ -44,7 +45,7 @@ function jobFor(event, kind, today) {
 /** Whether this kind of letter is due for an event today, and if not, why not. */
 export const MAIL_OFF = "it's switched off for this event";
 
-export function letterDue(event, kind, today = todayIso()) {
+export function letterDue(event, kind, today = todayIso(), now = new Date()) {
   if (!autoOn(event, kind === "welcome" ? "welcome" : "survey")) return { due: false, why: MAIL_OFF };
   // The welcome letter goes only as written and saved on the event's Communications tab (Andrew 27 Oct 2026: "I need
   // the one place to write the letters"). A saved letter picked on the event form the old way is where its words
@@ -62,6 +63,11 @@ export function letterDue(event, kind, today = todayIso()) {
   if (job.na) return { due: false, why: "marked not needed on the checklist" };
   if (!job.due) return { due: false, why: "the checklist job has no date" };
   if (today < job.due) return { due: false, why: `not until ${job.due}`, on: job.due };
+  // A time set for the welcome letter (24 Nov 2026): on its day, not before that time in the event's own time.
+  if (kind === "welcome" && /^\d{2}:\d{2}$/.test(event.welcomeAt ?? "")) {
+    const local = localNow(event, now);
+    if (local < `${job.due} ${event.welcomeAt}`) return { due: false, why: `not until ${event.welcomeAt} on ${job.due}`, on: job.due };
+  }
   const closes = WINDOW[kind](event, job.due);
   if (closes && today >= closes) return { due: false, why: "too late — the window has closed", on: job.due };
   return { due: true, on: job.due, letterId, jobId: job.id };
