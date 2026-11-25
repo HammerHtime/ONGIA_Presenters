@@ -64,7 +64,7 @@ await p.close();
 p = await open(WIDE, { desk: desk("vp_operations@ongia.ca", "Jacqulyn Taylor") });
 await go(p, "#/new");
 ok("starting a review lists only the testers while it's in testing", await p.locator("[data-in]").count() === 2 && /only the testers can be in it/.test(await p.locator("main").innerText()), String(await p.locator("[data-in]").count()));
-ok("John is shown as an advisor: not in it, but can be on the committee", /John Healy Advisor: not reviewed/.test((await p.locator("main").innerText()).replace(/\s+/g, " ")) && await p.locator('[data-in="j.healy@ongia.ca"]').count() === 0 && await p.locator('[data-cm="j.healy@ongia.ca"]').count() === 1);
+ok("John is shown as an advisor: not in it, but can be on the committee", /John Healy advisor, not reviewed/.test((await p.locator("main").innerText()).replace(/\s+/g, " ")) && await p.locator('[data-in="j.healy@ongia.ca"]').count() === 0 && await p.locator('[data-cm="j.healy@ongia.ca"]').count() === 1);
 await p.locator('[data-cm="vp_operations@ongia.ca"]').check(); await p.locator('[data-cm="j.healy@ongia.ca"]').check();
 // The review counts days in Toronto, as the server does.
 const day = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });

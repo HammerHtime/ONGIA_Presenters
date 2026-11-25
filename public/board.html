@@ -55,14 +55,18 @@
   details.fold{background:var(--card);border:1px solid var(--edge);border-radius:14px;margin-top:10px} details.fold>summary{padding:10px 16px;cursor:pointer;font-size:14px;color:var(--muted);list-style:none} details.fold>summary b{color:var(--ink)}
   details.fold>summary::-webkit-details-marker{display:none} details.fold .in{padding:0 16px 14px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px} label.f{display:block;font-size:13.5px;font-weight:600;margin-top:10px}
-  .pick{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--border);font-size:14px} .pick:first-child{border-top:0}
-  .pick label{font-size:12.5px;color:var(--muted);display:flex;gap:4px;align-items:center;white-space:nowrap}
+  /* Who's in a review: one line each, a column per choice, its name once at the top (Andrew 25 Nov 2026). */
+  .pick{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,68px);gap:4px;align-items:center;min-height:40px;padding:4px 0;border-top:1px solid var(--border);font-size:14px}
+  .pick.head{border-top:0;min-height:0;font:600 11px var(--fu);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)} .pick.head span{text-align:center}
+  .pick .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pick .n small{color:var(--muted);font-size:12px}
+  .pick .c{display:flex;justify-content:center;align-items:center;min-height:40px} .pick .c input{width:20px;height:20px;margin:0}
+  .keys{margin:6px 0 4px;padding:0;list-style:none;font-size:13px;color:var(--ink-mid)} .keys li{margin:2px 0} .keys b{color:var(--ink)}
   .testbar{background:repeating-linear-gradient(135deg,#2c3448 0 10px,#39425a 10px 20px);color:#fff;font-size:13px;padding:7px 14px;text-align:center;border-radius:10px;margin:8px 0}
   .signin{max-width:400px;margin:40px auto 0;text-align:center} .signin p{color:var(--ink-mid)}
   .back{display:inline-block;margin:2px 0 6px;color:var(--navy);font-weight:600;text-decoration:none;font-size:14px}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--navy-deep);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:min(92vw,480px);z-index:9}
   .toast.bad{background:var(--late)}
-  @media (max-width:640px){.row .n small{display:none}.bar{grid-template-columns:minmax(0,1fr) 92px 34px}.grid2{grid-template-columns:1fr}.pick{grid-template-columns:minmax(0,1fr) auto auto}.pick .hide-phone{display:none}}
+  @media (max-width:640px){.row .n small{display:none}.bar{grid-template-columns:minmax(0,1fr) 92px 34px}.grid2{grid-template-columns:1fr}.pick{grid-template-columns:minmax(0,1fr) repeat(4,50px)}.pick.head{font-size:9.5px;letter-spacing:.04em}}
 </style>
 </head>
 <body>
@@ -350,10 +354,14 @@ function newCycleView() {
       <div><label class="f" for="d1">Self-review opens</label><input type="date" id="d1" value="${plus(1)}"></div><div><label class="f" for="d2">Peer round opens</label><input type="date" id="d2" value="${plus(8)}"></div>
       <div><label class="f" for="d3">Closes</label><input type="date" id="d3" value="${plus(22)}"></div></div>
       <p class="cap">Directors</p>
-      ${people.map((m) => advisor(m)
-        ? `<div class="pick"><span class="n">${esc(m.name || m.email)} <small class="mu">Advisor: not reviewed</small></span><span></span><label class="hide-phone"><input type="checkbox" data-cm="${esc(m.email)}"> Committee</label><span class="hide-phone"></span></div>`
-        : `<div class="pick"><span class="n">${esc(m.name || m.email)}</span><label><input type="checkbox" data-in="${esc(m.email)}" checked> In it</label><label><input type="radio" name="pres" value="${esc(m.email)}"${String(m.email).toLowerCase() === "president@ongia.ca" ? " checked" : ""}> President</label><label class="hide-phone"><input type="checkbox" data-cm="${esc(m.email)}"> Committee</label><label class="hide-phone"><input type="checkbox" data-fy="${esc(m.email)}"> First year</label></div>`).join("")}
-      <p class="hint">The review committee holds the one-on-ones and reads every report. Not the president. The opening email goes to everyone in it as soon as you start.</p>
+      <ul class="keys"><li><b>Reviewed:</b> does a self-review and is rated by colleagues this year.</li><li><b>President:</b> gets the 5 extra president questions.</li>
+        <li><b>Committee:</b> runs the review, reads every report, holds the one-on-ones. Not the president.</li><li><b>First year:</b> joined in the past year: self-review only, no ratings either way.</li></ul>
+      <div class="pick head" aria-hidden="true"><span></span><span>Reviewed</span><span>President</span><span>Committee</span><span>First year</span></div>
+      ${people.map((m) => { const e = esc(m.email), n = esc(m.name || m.email);
+        return advisor(m)
+        ? `<div class="pick"><span class="n">${n} <small>advisor, not reviewed</small></span><span></span><span></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span></span></div>`
+        : `<div class="pick"><span class="n">${n}</span><span class="c"><input type="checkbox" data-in="${e}" checked aria-label="${n}: reviewed"></span><span class="c"><input type="radio" name="pres" value="${e}"${String(m.email).toLowerCase() === "president@ongia.ca" ? " checked" : ""} aria-label="${n}: the president"></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span class="c"><input type="checkbox" data-fy="${e}" aria-label="${n}: first year"></span></div>`; }).join("")}
+      <p class="hint">The opening email goes to everyone reviewed as soon as you start.</p>
       <div class="foot" style="padding:12px 0 0;border:0"><button class="btn gold" id="go" type="button">Start it and email the directors</button></div></div>`;
   $("go").onclick = async () => {
     const pick = (a) => [...ROOT.querySelectorAll(`[data-${a}]`)].filter((x) => x.checked).map((x) => x.dataset[a]);
