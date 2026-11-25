@@ -11615,18 +11615,20 @@ function rosterScreen(members) {
   const rows = members.map((m, i) => `<div class="member" data-i="${i}"><span></span>
     <div>${esc(m.name)}<div class="em" data-em="${i}">${esc(m.email)} <button type="button" class="mini ghost chg" data-chg="${i}" aria-label="Change ${esc(m.name)}'s email">Change email</button></div><div class="deskline">${deskLine(m, i)}</div></div>
     <div class="rnums"><label><span>Phone</span><input class="rphone" type="tel" data-phone="${i}" value="${esc(formatPhone(m.phone ?? ""))}" placeholder="optional" aria-label="Phone number for ${esc(m.name)}"></label>
-      <label><span>Bonvoy #</span><input class="rphone rbonvoy" inputmode="numeric" data-bonvoy="${i}" value="${esc(m.bonvoy ?? "")}" placeholder="optional" aria-label="Marriott Bonvoy number for ${esc(m.name)}"></label></div>
+      <label><span>Bonvoy #</span><input class="rphone rbonvoy" inputmode="numeric" data-bonvoy="${i}" value="${esc(m.bonvoy ?? "")}" placeholder="optional" aria-label="Marriott Bonvoy number for ${esc(m.name)}"></label>
+      <label><span>Role</span>${ROSTER_META.canGrant ? `<select class="rphone rrole" data-role="${i}" aria-label="Role for ${esc(m.name)}">${[["", "Director"], ["president", "President"], ["vp", "VP"], ["advisor", "Advisor"]].map(([v, l]) => `<option value="${v}"${(m.role ?? "") === v ? " selected" : ""}>${l}</option>`).join("")}</select>` : `<span class="rphone" style="width:150px;text-align:left;font-size:12.5px;color:var(--ink)">${esc({ president: "President", vp: "VP", advisor: "Advisor" }[m.role] ?? "Director")}</span>`}</label></div>
     <button class="mini ghost" data-del="${i}" title="Remove">✕</button></div>`).join("");
   ROOT.innerHTML = `<div class="card" style="max-width:700px"><div class="card-head"><div><h2>Board members</h2>
     <div class="s">The list the event form picks from. A number stored here fills in by itself when that person is the lead on an event. A Marriott Bonvoy number goes on the hotel's rooming list beside their name. Removing someone doesn't change events already created.</div>
-    <div class="s" style="margin-top:6px">${ROSTER_META.canGrant ? "Tick <b>Can sign in to the desk</b> for each person who should get in with their ONGIA Microsoft account. Only you can change these." : "Only ONGIA's president can change who can sign in to the desk."}</div></div></div>
+    <div class="s" style="margin-top:6px">${ROSTER_META.canGrant ? "Tick <b>Can sign in to the desk</b> for each person who should get in with their ONGIA Microsoft account. Only you can change these." : "Only ONGIA's president can change who can sign in to the desk."}</div>
+    <div class="s" style="margin-top:6px"><b>Role</b> is for the board review: the president gets its extra questions, the VP starts on its committee, and advisors aren't reviewed. It doesn't change what anyone can see or do on the desk.</div></div></div>
     <div class="card-body"><div class="board">${rows || `<div class="empty">Nobody yet.</div>`}</div>
       <div class="addrow"><input id="rb-name" placeholder="Name"><input id="rb-email" type="email" placeholder="email@ongia.ca"><input id="rb-phone" type="tel" placeholder="Phone (optional)"><button class="mini" id="rb-add">Add to list</button></div>
       <div class="actions" style="margin-top:16px"><button class="btn btn-gold" id="ph-save">Save numbers</button></div>
     </div></div>`;
   ROOT.insertAdjacentHTML("afterbegin", adminTabsHtml("board")); wireAdminTabs();
   // The phone and Bonvoy boxes as typed, so any save carries them.
-  const typed = (m, j) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${j}"]`)?.value.trim() ?? m.phone ?? "", bonvoy: ROOT.querySelector(`[data-bonvoy="${j}"]`)?.value.trim() ?? m.bonvoy ?? "" });
+  const typed = (m, j) => ({ ...m, phone: ROOT.querySelector(`[data-phone="${j}"]`)?.value.trim() ?? m.phone ?? "", bonvoy: ROOT.querySelector(`[data-bonvoy="${j}"]`)?.value.trim() ?? m.bonvoy ?? "", role: ROOT.querySelector(`[data-role="${j}"]`)?.value ?? m.role ?? "" });
   const save = async (next) => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: next }) })).members; rosterScreen(ROSTER); } catch (e) { toast(e.message); } };
   // Numbers are saved in place — no re-render, so the cursor stays where you put it.
   const savePhones = async () => {
@@ -11661,6 +11663,8 @@ function rosterScreen(members) {
     el.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); (boxes[i + 1] ?? el).focus(); if (!boxes[i + 1]) savePhones(); } };
   });
   ROOT.querySelector("#ph-save").onclick = savePhones;
+  // A role saves the moment it's picked, with any numbers typed but not saved (one president and one VP: the server keeps the new one).
+  ROOT.querySelectorAll("[data-role]").forEach((sel) => { sel.onchange = async () => { try { ROSTER = (await api("/roster", { method: "PUT", body: JSON.stringify({ members: members.map(typed) }) })).members; toast("Role saved."); rosterScreen(ROSTER); } catch (e) { toast(e.message); } }; });
   // Desk access saves the moment it is ticked; typed-but-unsaved numbers go along with it.
   ROOT.querySelectorAll("[data-desk]").forEach((box) => {
     box.onchange = async () => {

@@ -32,6 +32,9 @@ const SEED = [
   ["Tyler Zrymiak", "regionaldirectorc@ongia.ca"],
 ].map(([name, email]) => ({ name, email, phone: "" }));
 
+/** A board member's place on the board: "" (a director), president, vp or advisor (not reviewed in the board review). */
+const ROLES = ["president", "vp", "advisor"];
+
 export default async (req) => {
   const denied = requireAdmin(req);
   if (denied) return fail(denied, 401);
@@ -41,7 +44,7 @@ export default async (req) => {
     if (!members) { members = SEED; await putRoster(members); }
     // Rows stored before phones existed have none; answer with the field present.
     const who = adminWho(req);
-    return json({ members: members.map((m) => ({ phone: "", bonvoy: "", sponsorLead: false, desk: false, ...m })),
+    return json({ members: members.map((m) => ({ phone: "", bonvoy: "", sponsorLead: false, desk: false, role: "", ...m })),
       owners: deskOwners(), canGrant: who.key === true || isOwner(who.email) });
   }
   if (req.method === "PUT") {
@@ -61,6 +64,9 @@ export default async (req) => {
       // The Marriott Bonvoy number goes on the rooming list beside their name (Andrew 29 Oct 2026).
       members.push({ name, email, phone: formatPhone(text(row.phone, 60)), bonvoy: text(row.bonvoy, 40).replace(/[^0-9A-Za-z]/g, "").slice(0, 20), sponsorLead: row.sponsorLead === true,
         desk: canGrant ? row.desk === true : was?.desk === true,
+        // Their place on the board (Andrew 25 Nov 2026: "I could check off who's president, who's vp and our advisors"):
+        // read by the board review. It gives no access: the desk's owners and costs stay with the site's settings.
+        role: canGrant ? (ROLES.includes(row.role) ? row.role : "") : (was?.role ?? ""),
         ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}),
         // When they last opened ONGIA Expenses (see expenses.mjs): kept through a save here, as the desk sign-in is.
         ...(was?.lastExpenseSignIn ? { lastExpenseSignIn: was.lastExpenseSignIn } : {}) });
@@ -75,6 +81,13 @@ export default async (req) => {
     // not a checkbox: the last one ticked wins and the rest are cleared.
     const leadAt = members.findIndex((m) => m.sponsorLead);
     members.forEach((m, i) => { m.sponsorLead = i === leadAt; });
+    // One president and one VP: the one just picked wins (the first in the list that changed to it, else the first).
+    for (const r of ["president", "vp"]) {
+      const picked = members.filter((m) => m.role === r);
+      if (picked.length < 2) continue;
+      const keep = picked.find((m) => before.get(m.email.toLowerCase())?.role !== r) ?? picked[0];
+      for (const m of picked) if (m !== keep) m.role = "";
+    }
     await putRoster(members);
     // A board member's address changed here follows them onto every event they're on (Andrew 17 Nov 2026: Tyler's
     // was mistyped, and three events kept the wrong one): the board list, the lead's reviewer and contact, who is told.

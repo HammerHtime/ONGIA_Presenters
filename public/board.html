@@ -346,7 +346,9 @@ function newCycleView() {
   const H = HOME; if (!H.me.manage) throw new Error("Only the president and the VP can start a review.");
   const people = (H.roster ?? []).filter((m) => H.open || (H.testers?.emails ?? []).includes(String(m.email).toLowerCase()));
   // Advisors to the board are never in a review (Andrew 25 Nov 2026); they can sit on the committee.
-  const advisor = (m) => (H.testers?.advisors ?? []).includes(String(m.email).toLowerCase());
+  // Roles come from the board list (Admin › Board members): the president, the VP, the advisors.
+  const R = H.roles ?? { advisors: [] }, lc = (e) => String(e).toLowerCase();
+  const advisor = (m) => (R.advisors ?? []).includes(lc(m.email));
   const plus = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA");
   const y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
   ROOT.innerHTML = `${back()}<h1>Start a review</h1>${H.open ? "" : `<div class="testbar">Testing: only the testers can be in it, and it's marked as a test.</div>`}
@@ -360,8 +362,8 @@ function newCycleView() {
       ${people.map((m) => { const e = esc(m.email), n = esc(m.name || m.email);
         return advisor(m)
         ? `<div class="pick"><span class="n">${n} <small>advisor, not reviewed</small></span><span></span><span></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span></span></div>`
-        : `<div class="pick"><span class="n">${n}</span><span class="c"><input type="checkbox" data-in="${e}" checked aria-label="${n}: reviewed"></span><span class="c"><input type="radio" name="pres" value="${e}"${String(m.email).toLowerCase() === "president@ongia.ca" ? " checked" : ""} aria-label="${n}: the president"></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span class="c"><input type="checkbox" data-fy="${e}" aria-label="${n}: first year"></span></div>`; }).join("")}
-      <p class="hint">The opening email goes to everyone reviewed as soon as you start.</p>
+        : `<div class="pick"><span class="n">${n}</span><span class="c"><input type="checkbox" data-in="${e}" checked aria-label="${n}: reviewed"></span><span class="c">${R.president ? (lc(m.email) === R.president ? `<span title="Marked President on the board list" aria-label="${n}: the president">✓</span>` : "") : `<input type="radio" name="pres" value="${e}"${lc(m.email) === "president@ongia.ca" ? " checked" : ""} aria-label="${n}: the president">`}</span><span class="c"><input type="checkbox" data-cm="${e}"${lc(m.email) === R.vp ? " checked" : ""} aria-label="${n}: on the committee"></span><span class="c"><input type="checkbox" data-fy="${e}" aria-label="${n}: first year"></span></div>`; }).join("")}
+      <p class="hint">${R.fromList ? "The president and the advisors are as marked on the board list (Admin › Board members). " : "Mark the president, the VP and the advisors on the board list (Admin › Board members) and they're filled in here. "}The opening email goes to everyone reviewed as soon as you start.</p>
       <div class="foot" style="padding:12px 0 0;border:0"><button class="btn gold" id="go" type="button">Start it and email the directors</button></div></div>`;
   $("go").onclick = async () => {
     const pick = (a) => [...ROOT.querySelectorAll(`[data-${a}]`)].filter((x) => x.checked).map((x) => x.dataset[a]);
@@ -380,16 +382,11 @@ async function testersView() {
       ${T.emails.map((e) => `<div class="row"><span class="n">${esc(e)}</span><span></span><button class="mini" type="button" data-rm="${esc(e)}">Remove</button></div>`).join("")}
       <div class="foot"><input type="email" id="add" placeholder="name@ongia.ca" style="flex:1;min-width:180px;margin:0"><button class="mini gold" id="addgo" type="button">Add a tester</button></div></div>
       ${T.openChanged ? `<p class="hint">${T.openChanged.open ? "Opened" : "Closed"} by ${esc(T.openChanged.by)} on ${fmt(T.openChanged.at)}.</p>` : ""}
-      <p class="cap">Advisors to the board</p><div class="card">
-      ${(T.advisors ?? []).map((e) => `<div class="row"><span class="n">${esc(e)}</span><span class="st mu">Not reviewed</span><button class="mini" type="button" data-rmadv="${esc(e)}">Remove</button></div>`).join("") || `<div class="row"><span class="n mu">None</span><span></span><span></span></div>`}
-      <div class="foot"><input type="email" id="addadv" placeholder="name@ongia.ca" style="flex:1;min-width:180px;margin:0"><button class="mini gold" id="addadvgo" type="button">Add an advisor</button></div></div>
-      <p class="hint">Advisors aren't reviewed and don't review anyone. They can sit on the review committee.</p>`;
+      <p class="hint">Who's president, VP or an advisor (not reviewed) is set on the board list: Admin › Board members, in the Briefing Room.</p>`;
     const save = async (next, msg) => { try { Object.assign(T, await api("?testers=1", { method: "PUT", body: next })); HOME = null; toast(msg); draw(); } catch (x) { toast(x.message, true); draw(); } };
     $("open").onchange = (e) => { if (e.target.checked && !confirm("Open the review to the whole board? Every director on the board list will be able to sign in and see it.")) { e.target.checked = false; return; } save({ open: e.target.checked }, e.target.checked ? "Open to the board." : "Back to testers only."); };
     $("addgo").onclick = () => { const v = $("add").value.trim().toLowerCase(); if (v) save({ emails: [...T.emails, v] }, "Added."); };
     ROOT.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => save({ emails: T.emails.filter((e) => e !== b.dataset.rm) }, "Removed.")));
-    $("addadvgo").onclick = () => { const v = $("addadv").value.trim().toLowerCase(); if (v) save({ advisors: [...(T.advisors ?? []), v] }, "Added."); };
-    ROOT.querySelectorAll("[data-rmadv]").forEach((b) => (b.onclick = () => save({ advisors: (T.advisors ?? []).filter((e) => e !== b.dataset.rmadv) }, "Removed.")));
   };
   draw();
 }
