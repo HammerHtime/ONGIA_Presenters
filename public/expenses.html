@@ -993,10 +993,12 @@ async function pickPresenter(c) {
   if (mode === "o") sync();
   box.querySelector("#pp-mine")?.addEventListener("click", () => send({}, "It's your own claim again."));
 }
+// Each event as "Victoria · Nov 24 · Canadian Forum …" (Andrew 25 Nov 2026): the place and day first, since a phone
+// cuts a long name off at the end and the title alone may not say where it was.
 function eventOptions(sel, title) {
   const evs = HOME?.events ?? [];
   const extra = sel && !evs.some((e) => e.id === sel) ? `<option value="${esc(sel)}" selected>${esc(title || "An earlier event")}</option>` : "";
-  return `<option value="">Not for an event</option>${extra}` + evs.map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? "selected" : ""}>${esc(e.title)}${e.date ? ` · ${esc(dayName(e.date).replace(/^\w+,?\s*/, ""))}` : ""}</option>`).join("");
+  return `<option value="">Not for an event</option>${extra}` + evs.map((e) => `<option value="${esc(e.id)}" ${sel === e.id ? "selected" : ""}>${esc([String(e.city ?? "").split(",")[0].trim(), e.date ? dayName(e.date).replace(/^\w+,?\s*/, "") : "", e.title].filter(Boolean).join(" · "))}</option>`).join("");
 }
 const readMark = (l, k) => (l?.fromRead?.includes(k) && !EDIT.touched.has(k) ? `<span class="read" data-readmark="${k}">read</span>` : "");
 function editorScreen() {

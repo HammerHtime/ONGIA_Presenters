@@ -250,7 +250,9 @@ const amountOf = (v) => (v === "" || v === null || v === undefined || !Number.is
  * `events` are the ones a line may name (id → title).
  */
 export function cleanLine(kind, body, { events = [], rate = mileageRate(), had = null } = {}) {
-  const ev = events.find((e) => e.id === String(body?.eventId ?? ""));
+  // An event already on the line stays on it, though it's since dropped off the list people pick from.
+  const ev = events.find((e) => e.id === String(body?.eventId ?? ""))
+    ?? (had?.eventId && had.eventId === String(body?.eventId ?? "") ? { id: had.eventId, title: had.eventTitle || had.eventId } : null);
   const out = {
     date: isoDate(body?.date),
     category: CATEGORIES.some(([k]) => k === Number(body?.category)) ? Number(body.category) : null,
@@ -376,13 +378,18 @@ export function monthLabel(iso = todayIso()) {
   return `${new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-CA", { month: "long", timeZone: "UTC" })} ${y}`;
 }
 
-/** Events a line can name: recent and coming ones, never a practice event. Newest first. */
+/** Events a line can name: just over, coming, then the past three months; never a practice event. */
 export function eventChoices(events, today = todayIso()) {
+  // Andrew 25 Nov 2026 ("people … trying to add receipts for the Victoria event"): an event just over stays at the very
+  // top for 20 days after its last day, while the receipts come in; then the coming ones, soonest first; then the
+  // rest of the past three months, most recent first. Every coming event is listed, however far off.
   const day = (d) => Date.parse(`${d}T12:00:00Z`);
-  const t = day(today);
+  const t = day(today), DAY = 86400e3;
+  const end = (e) => (e.lastDay && e.lastDay >= e.dayOne ? e.lastDay : e.dayOne);
+  const group = (e) => (day(end(e)) >= t ? 1 : day(end(e)) >= t - 20 * DAY ? 0 : 2);
   return (events ?? [])
-    .filter((e) => !e.practice && e.dayOne && day(e.dayOne) >= t - 200 * 86400e3 && day(e.dayOne) <= t + 120 * 86400e3)
-    .sort((a, b) => String(b.dayOne).localeCompare(String(a.dayOne)))
+    .filter((e) => !e.practice && e.dayOne && day(end(e)) >= t - 92 * DAY)
+    .sort((a, b) => group(a) - group(b) || (group(a) === 1 ? String(a.dayOne).localeCompare(String(b.dayOne)) : String(end(b)).localeCompare(String(end(a)))))
     .map((e) => ({ id: e.id, title: String(e.title ?? "").trim() || e.id, date: e.dayOne, city: e.city ?? "", kind: e.kind ?? "" }));
 }
 
