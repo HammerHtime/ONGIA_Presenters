@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ONGIA Board</title>
+<title>ONGIA Annual Review</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="/assets/desk-favicon-32.png" sizes="32x32">
 <meta name="theme-color" content="#0e1a35">
@@ -139,7 +139,7 @@ async function finishMicrosoft() {
 function signOut() { SESSION = ""; store.del("ongia-rv-session"); }
 function signInScreen(message) {
   $("me").textContent = "";
-  ROOT.innerHTML = `<div class="signin"><h1>ONGIA Board</h1><p>Sign in with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
+  ROOT.innerHTML = `<div class="signin"><h1>ONGIA Annual Review</h1><p>Sign in with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
     ${message ? `<div class="say bad" style="text-align:left">${esc(message)}</div>` : ""}<button class="btn navy" id="ms" type="button">Sign in with Microsoft</button></div>`;
   $("ms").onclick = (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "Opening Microsoft…"; startMicrosoft(); };
 }
@@ -174,7 +174,8 @@ async function show() {
 
 /* ---------- Board › Review ---------- */
 function frame(inner) {
-  return `<h1>Board</h1><div class="tabs" role="tablist"><button type="button" disabled title="Coming next">Availability</button><button type="button" class="on" aria-selected="true">Review</button></div>${inner}`;
+  // "Annual review" (Andrew 25 Nov 2026): the board members themselves are under the desk's Admin, so this page is named for what it is.
+  return `<h1>Annual review</h1>${inner}`;
 }
 function homeView() {
   const H = HOME;
