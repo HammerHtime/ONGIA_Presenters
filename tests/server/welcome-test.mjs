@@ -26,8 +26,8 @@ const H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const call = async (qs, init = {}) => { const r = await welcome(new Request(`http://x/api/welcome?event=ngs${qs}`, { ...init, headers: H, body: init.body ? JSON.stringify(init.body) : undefined })); return { status: r.status, body: await r.json() }; };
 const pdf = (s) => new TextEncoder().encode(`%PDF-1.4\n${s}\n%%EOF`);
 
-await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future", city: "Toronto, ON", venue: "the Sheraton Centre", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
-  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners" }],
+await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth: Building Solutions for a Safer Future", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", venue: "the Sheraton Centre", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
+  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" }],
   schedule: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"].map((date, i) => ({ date, start: "08:30", end: "16:00", where: `Hall ${"ABCD"[i]}` })),
   tasks: [{ id: "t1", what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" }] });
 await putAttendees("ngs", { people: [
@@ -40,7 +40,8 @@ await putAttendees("ngs", { people: [
 const first = (await call("")).body;
 ok("the card shows two versions: justice partners Nov 9-12 and community partners Nov 10-11", first.versions.length === 2 && first.versions[0].label === "Justice partners" && /9 Nov/.test(first.versions[0].dates) && /12 Nov/.test(first.versions[0].dates) && first.versions[1].label === "Community partners" && /10 Nov/.test(first.versions[1].dates) && /11 Nov/.test(first.versions[1].dates), JSON.stringify(first.versions.map((v) => [v.label, v.dates])));
 ok("who each reaches: two addresses the justice letter (one also registered as a community partner), one the community letter", first.versions[0].reaches === 2 && first.versions[1].reaches === 1);
-ok("the words start written for the Summit: no 'training', no province", /The Summit runs \{dates\}/.test(first.versions[0].body) && /community partner/.test(first.versions[1].body) && !/training|Toronto, ON/.test(first.versions[0].body + first.versions[1].body));
+// The starting words are the general ones for every event, whatever its name (Andrew 25 Nov 2026): no Summit wording.
+ok("the words start as the general letter: no Summit wording, no 'training', no province", /It runs \{dates\}/.test(first.versions[0].body) && /You're with us \{dates\}/.test(first.versions[1].body) && !/Summit|training|Toronto, ON/.test(first.versions[0].body + first.versions[1].body));
 ok("the day it goes is the checklist's: a week before", first.sendOn === "2026-11-02", first.sendOn);
 
 // Preview each, from the words on screen.
@@ -71,9 +72,9 @@ ok("nothing before its day", sent.length === 0);
 await runLetterRounds([await getEvent("ngs")], { today: "2026-11-03", pace: async () => {} });
 const to = (a) => sent.find((m) => m.to.includes(a));
 ok("on its day: three letters, one per address", sent.length === 3, sent.map((m) => m.to).join());
-ok("the justice partner gets theirs with the four-day agenda and the new line", /Welcome to the National Gang Summit$/.test(to("jay@").subject) && to("jay@").files.join() === "summit-4-day.pdf" && /Richmond Street/.test(to("jay@").text));
-ok("the community partner gets theirs with the two-day agenda and their dates", /community partners/.test(to("cam@").subject) && to("cam@").files.join() === "community-2-day.pdf" && /Tue 10 Nov – Wed 11 Nov 2026/.test(to("cam@").text));
-ok("someone on both gets the justice partners' letter", /Welcome to the National Gang Summit$/.test(to("bo@").subject));
+ok("the justice partner gets theirs with the four-day agenda and the new line", /^Welcome to National Gang Summit/.test(to("jay@").subject) && to("jay@").files.join() === "summit-4-day.pdf" && /Richmond Street/.test(to("jay@").text));
+ok("the community partner gets theirs with the two-day agenda and their dates", to("cam@").files.join() === "community-2-day.pdf" && /Tue 10 Nov – Wed 11 Nov 2026/.test(to("cam@").text));
+ok("someone on both gets the justice partners' letter", to("bo@").files.join() === "summit-4-day.pdf");
 await runLetterRounds([await getEvent("ngs")], { today: "2026-11-04", pace: async () => {} });
 ok("nobody gets it twice", sent.length === 3);
 ok("the card shows who has had it", (await call("")).body.versions.every((v) => v.had === v.reaches));

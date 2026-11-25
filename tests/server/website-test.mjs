@@ -29,7 +29,7 @@ seed({ "events.json": JSON.stringify(eventsJson, null, 2), "build.js": "// site"
 const media = (summary, photo, bio) => ({ summary: { internal: "yes", public: summary }, photo: { internal: "yes", public: photo }, materials: { internal: "yes", public: "no" }, ...(bio ? { bio: { internal: "yes", public: bio } } : {}) });
 const person = (id, first, last, status, m, extra = {}) => ({ id, eventId: "ev-west", first, last, email: `${first.toLowerCase()}@example.ca`, organization: "Sample Police Service", status,
   submission: { phone: "416-555-0100", talk: `${first}'s talk`, bio: `${first}'s bio.\n\nSecond paragraph.`, outline: `${first}'s outline`, headshotName: "me.jpg", media: m, sensitive: "yes", signature: `${first} ${last}`, ...extra } });
-const west = { id: "ev-west", title: "Canadian Forum Against Organized Crime Western Symposium", city: "Victoria, BC", province: "BC", venue: "Delta Ocean Pointe", dayOne: "2026-11-24", lastDay: "2026-11-24",
+const west = { id: "ev-west", title: "Canadian Forum Against Organized Crime Western Symposium", invoicePrefix: "CFAOC", city: "Victoria, BC", province: "BC", venue: "Delta Ocean Pointe", dayOne: "2026-11-24", lastDay: "2026-11-24",
   hotel: { name: "Delta Ocean Pointe", link: "https://example.com/book", cutoff: "2026-10-30", rate: "$209 contract", notes: "" }, board: [], wix: { eventId: "w1", url: "https://www.ongia.org/event-details/cfaoc-west" } };
 await putEvent(west);
 await putEvent({ id: "ev-other", title: "Human Trafficking Summit", city: "Toronto, ON", dayOne: "2026-12-01", board: [] });
@@ -57,7 +57,8 @@ const fakeClaude = { beta: { messages: { stream: (req) => ({ finalMessage: async
 } }) } } };
 
 /* who may */
-ok("only CFAOC events have a website", isWebsiteEvent(west) && !isWebsiteEvent({ title: "Human Trafficking Summit" }) && isWebsiteEvent({ title: "Canadian Forum Against Organized Crime Eastern Symposium" }) && isWebsiteEvent({ title: "2026 Canadian Forum Against Organized Crime - Victoria" }) && isWebsiteEvent({ title: "CFAOC Western Symposium" }) && !isWebsiteEvent({ title: "Organized Crime Awareness Day" }) && isWebsiteEvent({ title: "Victoria 2026", invoicePrefix: "CFAOC" }));
+// By the invoice prefix set on Edit event, never by the name (Andrew 25 Nov 2026).
+ok("only CFAOC events have a website", isWebsiteEvent(west) && !isWebsiteEvent({ title: "Human Trafficking Summit" }) && !isWebsiteEvent({ title: "Canadian Forum Against Organized Crime Eastern Symposium", invoicePrefix: "RBH" }) && isWebsiteEvent({ title: "Victoria 2026", invoicePrefix: "CFAOC" }) && isWebsiteEvent({ title: "Eastern", invoicePrefix: "cfaoc" }));
 const board = { "x-admin-key": issueSession({ email: "secretary@ongia.ca", name: "Lee" }), "content-type": "application/json" };
 ok("a board member who is not the president or VP is refused", (await call("event=ev-west&preview=1", { headers: board })).status === 403);
 ok("another event has no website", (await call("event=ev-other", { method: "GET" })).status === 409);
@@ -156,7 +157,7 @@ const pvS = (await call("event=ev-west&preview=1")).body;
 ok("and a yes brings in their bio", /bio updated: Dee Notyet/.test(pvS.lines.join(" ")) && !pvS.notes.join(" ").includes("Dee Notyet: not signed"), JSON.stringify(pvS));
 
 /* a second event is its own page */
-const east = { id: "ev-east", title: "Canadian Forum Against Organized Crime Eastern Symposium", city: "Moncton, NB", venue: "Delta Beauséjour", dayOne: "2027-03-30", board: [], website: { page: "atlantic-canada", startTime: "08:30", endTime: "16:00", registerUrl: "https://www.ongia.org/event-details/east" } };
+const east = { id: "ev-east", title: "Canadian Forum Against Organized Crime Eastern Symposium", invoicePrefix: "CFAOC", city: "Moncton, NB", venue: "Delta Beauséjour", dayOne: "2027-03-30", board: [], website: { page: "atlantic-canada", startTime: "08:30", endTime: "16:00", registerUrl: "https://www.ongia.org/event-details/east" } };
 await putEvent(east);
 await putPresenter({ ...person("z9", "Zed", "East", "approved", media("yes", "no", "yes")), eventId: "ev-east" });
 await putPresenter({ ...person("y8", "Yan", "Hidden", "approved", media("no", "no", "no")), eventId: "ev-east" });
@@ -166,9 +167,9 @@ const eastFile = JSON.parse(read("desk/atlantic-canada.json"));
 ok("the second event gets its own file", e1.ok && eastFile.event.slug === "atlantic-canada" && eastFile.event.speakers.map((s) => s.name).join() === "Zed East");
 ok("and the first event's page is untouched", read("desk/victoria.json").toString() === westDesk);
 ok("its own clock and province", eastFile.event.timezone === "America/Halifax" && eastFile.event.province === "NB");
-const brandNew = { id: "ev-central", title: "Canadian Forum Against Organized Crime Central Symposium", city: "Winnipeg, MB", venue: "Hall", dayOne: "2027-06-01", board: [], website: { page: "prairies" } };
+const brandNew = { id: "ev-central", title: "Canadian Forum Against Organized Crime Central Symposium", invoicePrefix: "CFAOC", city: "Winnipeg, MB", venue: "Hall", dayOne: "2027-06-01", board: [], website: { page: "prairies" } };
 await putEvent(brandNew);
-const central = { id: "ev-cent", title: "Canadian Forum Against Organized Crime Central Symposium", city: "Toronto, ON", venue: "Hall", dayOne: "2027-03-23", board: [], website: { page: "central-canada" } };
+const central = { id: "ev-cent", title: "Canadian Forum Against Organized Crime Central Symposium", invoicePrefix: "CFAOC", city: "Toronto, ON", venue: "Hall", dayOne: "2027-03-23", board: [], website: { page: "central-canada" } };
 await putEvent(central);
 const cpv = (await call("event=ev-cent&preview=1")).body;
 ok("a city already on the site as \"to be announced\" is found by its region and not called new", !/new section/.test(cpv.lines.join(" ")) && /first update/.test(cpv.lines.join(" ")), cpv.lines.join(" | "));

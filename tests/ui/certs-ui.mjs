@@ -20,6 +20,8 @@ await api("/api/roster");
 const T = Date.now().toString(36);
 const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: "National Gang Summit", city: "Toronto", dayOne: "2031-05-04", lastDay: "2031-05-06", invite: false, presenters: [],
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }, { name: "Other Member", email: "member@ongia.ca" }] }) })).event;
+// The Summit's design is its own pick on the Certificates tab, never worked out from its name (Andrew 25 Nov 2026).
+await api(`/api/certificates?event=${ev.id}`, { method: "PUT", body: JSON.stringify({ template: "national-gang-summit", date: "" }) });
 // A sign-in sheet from the door: two checked in, one not.
 await fetch(`${S}/api/attendees?event=${ev.id}&csv=1`, { method: "POST", headers: { "x-admin-key": "testkey", "content-type": "text/csv" },
   body: `First name,Last name,Email,Organization,Checked in\nJordan,Tremblay,jt.${T}@torontopolice.on.ca,TPS,Yes\nSam,Okafor,so.${T}@opp.ca,OPP - Gang Unit,Yes\nAlex,Martin,am.${T}@peelpolice.ca,Peel Police,\n` });

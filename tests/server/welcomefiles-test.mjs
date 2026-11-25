@@ -29,8 +29,8 @@ const call = async (qs, init = {}) => { const r = await welcome(new Request(`htt
 const pdf = (s, pad = 0) => new Uint8Array([...new TextEncoder().encode(`%PDF-1.4\n${s}\n`), ...new Uint8Array(pad), ...new TextEncoder().encode("%%EOF")]);
 const upload = (name, bytes) => call("&file=new", { method: "POST", headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(name) }, raw: bytes });
 
-await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth", city: "Toronto, ON", venue: "the Sheraton Centre", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
-  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners" }],
+await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", venue: "the Sheraton Centre", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
+  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" }],
   schedule: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"].map((date) => ({ date, start: "08:30", end: "16:00" })),
   tasks: [{ id: "t1", what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" }] });
 await putAttendees("ngs", { people: [

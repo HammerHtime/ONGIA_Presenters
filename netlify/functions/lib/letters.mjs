@@ -399,7 +399,8 @@ export function attendeeSignOf(event) {
     if (m) return { name: m.name || m.email, email: m.email, phone: m.phone || "", member: true };
   }
   if (s?.email) return { name: "ONGIA Board", email: s.email };
-  if (/national gang summit/i.test(event?.title ?? "")) return { name: "ONGIA Board", email: "ngs@ongia.ca" };
+  // The event's own board inbox, set on Edit event (the Summit's is ngs@ongia.ca); never decided by its name.
+  if (event?.boardInbox) return { name: "ONGIA Board", email: event.boardInbox };
   return GENERIC_SIGN;
 }
 /** Where an attendee's answer to a letter goes. */
@@ -414,10 +415,6 @@ export function groupDaysOf(event) {
   const g = (event?.wixMore ?? [])[0];
   if (!g) return null;
   if (g.dayOne) return { dayOne: g.dayOne, lastDay: g.lastDay && g.lastDay >= g.dayOne ? g.lastDay : g.dayOne };
-  if (/national gang summit/i.test(event.title ?? "") && event.dayOne) {
-    const plus = (n) => new Date(Date.parse(event.dayOne) + n * 86400000).toISOString().slice(0, 10);
-    return { dayOne: plus(1), lastDay: plus(2) };
-  }
   return null;
 }
 /** The event as a letter sees it: a letter for the second group fills {dates}, {schedule} and the days with theirs. */

@@ -26,8 +26,8 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 const H = { "x-admin-key": "testkey" };
 const pdf = (s) => new TextEncoder().encode(`%PDF-1.4\n${s}\n%%EOF`);
 
-await putEvent({ id: "ngs", title: "National Gang Summit", city: "Toronto", venue: "Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
-  attendeeMail: true, wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners" }],
+await putEvent({ id: "ngs", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto", venue: "Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [],
+  attendeeMail: true, wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" }],
   letters: { welcome: "main1", survey: null, welcomeGroup: "comm1" },
   schedule: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"].map((date, i) => ({ date, start: `0${8 + (i % 2)}:00`, end: "16:30", where: `Room ${i + 1}` })),
   tasks: [{ id: "t1", what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" }] });

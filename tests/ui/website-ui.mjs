@@ -15,7 +15,9 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 
 const seedFile = path.join(mkdtempSync(path.join(tmpdir(), "ghseed-")), "seed.json");
-writeFileSync(seedFile, JSON.stringify({ "events.json": JSON.stringify({ site: {}, content: {}, events: [{ slug: "victoria", city: "Victoria", date: "2026-11-24", startTime: "08:00", endTime: "16:30",
+// Always ahead of today, so the event stays on the upcoming list (a fixed day went past on 24 Nov 2026).
+const DAY = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10);
+writeFileSync(seedFile, JSON.stringify({ "events.json": JSON.stringify({ site: {}, content: {}, events: [{ slug: "victoria", city: "Victoria", date: DAY, startTime: "08:00", endTime: "16:30",
   registerUrl: "https://www.ongia.org/event-details/cfaoc", venue: { name: "Delta Ocean Pointe", street: "100 Harbour Road", postalCode: "V9A 0G1" }, hotel: { name: "Delta Ocean Pointe", rate: "$249" },
   speakers: [{ name: "Old Speaker", org: "Somewhere" }], agenda: [{ time: "08:00", end: "08:30", title: "Coffee service and pastries" }] }], i18n: { fr: { events: { victoria: { agenda: [{ time: "08:00", end: "08:30", title: "Café et viennoiseries" }] } } } } }) }));
 const gh = spawn(process.execPath, [REPO + "tests/fake-github.mjs", "8796", "github_pat_ui", seedFile], { stdio: "ignore" });
@@ -27,9 +29,9 @@ try {
   const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
   await api("/api/roster");
   const T = Date.now().toString(36);
-  const mk = async (title, people) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, city: "Victoria, BC", venue: "Delta Ocean Pointe", dayOne: "2026-11-24", lastDay: "2026-11-24", invite: false,
+  const mk = async (title, people, prefix = "") => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, ...(prefix ? { invoicePrefix: prefix } : {}), city: "Victoria, BC", venue: "Delta Ocean Pointe", dayOne: DAY, lastDay: DAY, invite: false,
     board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], presenters: people.map(([f, l]) => ({ first: f, last: l, email: `${f.toLowerCase()}.${T}@example.ca`, organization: "Sample Police Service" })) }) })).event;
-  const W = await mk(`Canadian Forum Against Organized Crime Western Symposium ${T}`, [["Jenny", "Sample"], ["Pat", "Private"], ["Nora", "Notyet"]]);
+  const W = await mk(`Canadian Forum Against Organized Crime Western Symposium ${T}`, [["Jenny", "Sample"], ["Pat", "Private"], ["Nora", "Notyet"]], "CFAOC");
   const O = await mk(`Gang Awareness Day ${T}`, [["Al", "Other"]]);
   const PW = (await api(`/api/events?id=${W.id}`)).presenters;
   const sign = async (p, pub) => fetch(`${S}/api/agreement?t=${p.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: p.first, last: p.last, email: p.email, phone: "4165550100", organization: "Sample Police Service",

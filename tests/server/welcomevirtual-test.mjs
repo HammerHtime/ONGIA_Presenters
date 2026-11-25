@@ -31,10 +31,10 @@ const upload = (name) => call("&file=new", { method: "POST", headers: { "content
 const run = (today) => runLetterRounds([], {}).then(async () => runLetterRounds([await getEvent("ngs")], { today, pace: async () => {} }));
 
 const VIRTUAL = "1ca6fcaf-c752-4de9-bc39-cdb494ff438f";
-await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth", city: "Toronto, ON", venue: "the Delta", dayOne: "2026-11-09", lastDay: "2026-11-12",
+await putEvent({ id: "ngs", title: "National Gang Summit: Organized Crime, Gangs & Youth", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", venue: "the Delta", dayOne: "2026-11-09", lastDay: "2026-11-12",
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], attendeeMail: true,
   wix: { eventId: "w1", title: "NGS" },
-  wixMore: [{ eventId: "w2", title: "NGS Community", group: "Community partners" },
+  wixMore: [{ eventId: "w2", title: "NGS Community", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" },
     { eventId: VIRTUAL, title: "National Gang Summit: VIRTUAL", group: "Virtual", online: true, dayOne: "2026-11-09", lastDay: "2026-11-12" }],
   schedule: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"].map((date) => ({ date, start: "09:00", end: "16:00" })),
   tasks: [{ id: "t1", what: "Welcome letter sent to attendees", daysBefore: 7, auto: "welcome" }] });
