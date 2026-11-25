@@ -83,21 +83,19 @@ await until(p, async () => (await p.locator("dialog.repdlg canvas.rppage").count
 await p.screenshot({ path: D + "reports-viewer-phone.png" });
 ok("phone: the viewer fits, the chat is below the pages", (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) && await p.locator("#rp-text").count() === 1 && !p.errs.length, p.errs.join(" | "));
 await p.close();
-// Practice events from the Sandbox (Andrew 30 Oct 2026): make them, open the ITP week, its reports are ready to make.
+// Practice events (Andrew 30 Oct 2026), made straight through the server now the Sandbox screen is gone (25 Nov 2026):
+// open the ITP week, its reports are ready to make.
 p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
-await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond", canCost: true, owner: true }]);
+await p.addInitScript(([t, who]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify(who)); } catch {} }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" }), { email: "president@ongia.ca", name: "Andrew Hammond", owner: true, canCost: true }]);
 p.on("dialog", (d) => d.accept()); const perrs = []; p.on("pageerror", (e) => perrs.push(String(e)));
-await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "sandbox" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1500);
-if (await p.locator("dialog.walk[open], dialog.sbxq[open]").count()) await p.keyboard.press("Escape");
-await p.locator("#practicebtn").click(); await p.waitForTimeout(800);
-await p.locator("#pr-make").click();
-ok("Sandbox › Practice events makes the ITP week and the symposium", await until(p, async () => (await p.locator("[data-popen]").count()) === 2));
-await p.locator("[data-popen]", { hasText: "ITP Week" }).click(); await p.waitForTimeout(1800);
-ok("the ITP week is marked Practice", /Practice/.test(await p.locator(".bhead h2, .evband h2").first().innerText()));
+const made = (await api("/api/sandbox?practice=1", { method: "POST", body: "{}" })).events ?? [];
+ok("practice events: the ITP week and the symposium", made.length === 2, JSON.stringify(made).slice(0, 200));
+await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: made.find((e) => e.kind === "rbh").id })), { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
+ok("the ITP week is marked Practice", /Practice/.test(await p.locator(".bhead h2, .evband h2, .practband").first().innerText()));
 await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "event", eventId: (await api("/api/sandbox?practice=1")).events.find((e) => e.kind === "rbh").id, tab: "survey" })), { waitUntil: "networkidle" }); await p.waitForTimeout(1800);
 ok("its Survey tab shows 12 of 12 surveys back, ready for the reports", /12 of 12 surveys back \(100%\)/.test(await p.locator("#reportsfold").innerText()), await p.locator("#reportsfold").innerText());
 ok("the surveys back fill green, deepening toward all of them back: the full bar ends deep green", await p.evaluate(() => { const i = document.querySelector(".rpbar i"); const bg = getComputedStyle(i).backgroundImage; return /linear-gradient/.test(bg) && /47, 107, 79/.test(bg) && /^(\d+)%$/.test(i.style.getPropertyValue("--rpfull")); }));
-ok("no errors in the Sandbox", !perrs.length, perrs.join(" | "));
+ok("no errors on the practice event", !perrs.length, perrs.join(" | "));
 await p.close();
 await b.close();
 console.log(`\n${pass} passed, ${fail} failed`);

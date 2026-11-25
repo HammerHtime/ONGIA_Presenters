@@ -2455,7 +2455,7 @@ function drawSide() {
   // reload too? It shouldn't), so the logo and the buttons stay put while the page beside them changes.
   const built = `${WHO?.email ?? "key"}|${!!WHO?.canCost}|${SPONSORS_ON}`;
   if (el.dataset.built === built) {
-    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sandboxnav: "sandbox", sponsors: "sponsors", expensesnav: "expenses" };
+    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sponsors: "sponsors", expensesnav: "expenses" };
     el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
     attention(); expAttention();
@@ -2465,9 +2465,10 @@ function drawSide() {
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
   // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, signed in as you; in the main area on a computer.
-  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : "",
-    // The board's own page (Andrew 25 Nov 2026): the annual review, testers only for now; its own sign-in for the board.
-    WHO?.canCost ? item("boardnav", "board", "Board") : ""].filter(Boolean);
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "",
+    // The board's annual review (Andrew 25 Nov 2026), on its own page with its own sign-in. Called "Annual review", not
+    // "Board": the board members themselves are under Admin. The Sandbox is gone (Andrew 25 Nov 2026: "we don't need it").
+    WHO?.canCost ? item("boardnav", "board", "Annual review") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
@@ -2476,7 +2477,7 @@ function drawSide() {
     <div class="sme"><i aria-hidden="true">${esc(initials)}</i><div><b>${esc(who || "Signed in with the key")}</b><span>${esc(sideRole())}</span></div></div>`;
   const go = (id, v) => { const b = document.getElementById(id); if (b) b.onclick = () => { view = v; render(); }; };
   go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("downloadsnav", { name: "downloads" }); go("letters", { name: "letters" });
-  go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
+  go("sowsnav", { name: "sows" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
   const bn = document.getElementById("boardnav");
   if (bn) bn.onclick = () => { location.href = "/board"; };
@@ -11930,17 +11931,6 @@ async function sbxLoadLatest() {
   mountBudget(ev, got);
 }
 
-async function sandboxScreen() {
-  BARRIGHT.innerHTML = `<button class="chip" id="practicebtn">Practice events</button><button class="chip" id="back">Events</button>`;
-  document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
-  document.getElementById("practicebtn").onclick = practiceDialog;
-  const got = await api("/sandbox");
-  SBX_HOST = ROOT; SBX_PATH = "/sandbox"; SBX_EV = null; SBX_LIVE = null; SBX_NGX = null; SBX_REV = null; SBX_CONFLICT = null;
-  await loadBudgetGroups();
-  SBX = got.budget ?? sbxSeed();
-  sbxDraw();
-  if (!SBX.asked) sbxQuestions();
-}
 
 
 /**
@@ -13609,7 +13599,8 @@ async function drawScreen() {
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()), conferences);
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
-    if (view.name === "sandbox") return sandboxScreen();
+    // The Sandbox screen is gone (25 Nov 2026): an old link to it opens the events.
+    if (view.name === "sandbox") { view = { name: "list" }; return render(); }
     if (view.name === "expenses") { if (WHO?.email && expensesHere()) return expensesScreen(); view = { name: "list" }; return render(); }
     if (view.name === "letters") {
       const [data, { events }] = await Promise.all([api("/letters"), api("/events")]);

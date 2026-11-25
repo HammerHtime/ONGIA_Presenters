@@ -32,7 +32,9 @@ const regText = (p) => p.locator(".regcard").evaluate((e) => e.textContent.repla
 // The sidebar, wide.
 let p = await open(1440, 900);
 ok("wide: a sidebar down the left, with the logo and every way around", (await box(p, "#side")).width > 200 && await p.locator("#side .slogo").isVisible()
-  && ["#eventsnav", "#theyear", "#letters", "#admin", "#sowsnav", "#sandboxnav"].every(async (id) => await p.locator(`#side ${id}`).isVisible()));
+  && (await Promise.all(["#eventsnav", "#theyear", "#letters", "#admin", "#sowsnav", "#boardnav"].map((id) => p.locator(`#side ${id}`).isVisible()))).every(Boolean));
+// The Sandbox is gone, and the board's review is called "Annual review" (Andrew 25 Nov 2026).
+ok("wide: no Sandbox; the review is 'Annual review'", await p.locator("#sandboxnav").count() === 0 && (await p.locator("#boardnav").innerText()).trim() === "Annual review");
 ok("wide: Events is lit up on the events list", await p.locator("#side #eventsnav.on").count() === 1);
 ok("wide: the top bar keeps the search and New event", await p.locator(".bar #hsearch").isVisible() && await p.locator(".bar #newevent").isVisible());
 await p.locator("#side .slogo").evaluate((img) => { img.dataset.mark = "kept"; });
@@ -56,7 +58,7 @@ const bar = await box(p, "#side");
 ok("phone: the bar sits along the bottom", Math.round(bar.y + bar.height) === 844 && bar.width === 390, JSON.stringify(bar));
 ok("phone: Events, The year, Letters, Admin and More on it", ["#eventsnav", "#theyear", "#letters", "#admin", "#snmore"].length === 5 && await p.locator("#snmore").isVisible() && !(await p.locator("#sowsnav").isVisible()));
 await p.locator("#snmore").click(); await p.waitForTimeout(300);
-ok("phone: More opens RBH SOWs and the Sandbox", await p.locator("#sowsnav").isVisible() && await p.locator("#sandboxnav").isVisible());
+ok("phone: More opens RBH SOWs and the Annual review, and no Sandbox", await p.locator("#sowsnav").isVisible() && await p.locator("#boardnav").isVisible() && await p.locator("#sandboxnav").count() === 0);
 await p.screenshot({ path: D + "dashboard-more-phone.png" });
 await p.locator(".bar").click({ position: { x: 200, y: 10 } }).catch(() => {}); await p.waitForTimeout(300);
 ok("phone: tapping elsewhere closes it", !(await p.locator("#sowsnav").isVisible()));
