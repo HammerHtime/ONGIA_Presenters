@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ONGIA Board</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/desk-favicon-32.png" sizes="32x32">
+<meta name="theme-color" content="#0e1a35">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Oswald:wght@400;500;600&display=swap">
+<style>
+  :root{color-scheme:light;--paper:#f2efe8;--card:#fafaf7;--sunk:#edeae2;--ink:#12161f;--ink-mid:#2c3448;--muted:#596176;--navy:#1a2f5e;--navy-deep:#0e1a35;
+    --gold:#b8922a;--gold-pale:#f4ecd6;--border:#ddd7c8;--edge:#bfb49a;--done:#2f6b4f;--done-bg:#e2efe7;--wait:#9a6a12;--wait-bg:#f8ecd5;--late:#a33328;--late-bg:#f7e3e0;
+    --fd:"DM Serif Display",Georgia,serif;--fu:"Oswald",sans-serif}
+  *{box-sizing:border-box} html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 "DM Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+  header{background:var(--navy-deep);color:#fff;padding:12px 16px calc(12px);display:flex;align-items:center;gap:12px}
+  header b{font-family:var(--fd);font-weight:400;font-size:21px} header .me{margin-left:auto;font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
+  header a{color:#fff;opacity:.85;font-size:13px}
+  main{max-width:860px;margin:0 auto;padding:14px 16px 60px}
+  h1{font-family:var(--fd);font-weight:400;font-size:27px;line-height:1.15;margin:4px 0 4px;color:var(--navy)}
+  h2{font-family:var(--fd);font-weight:400;font-size:20px;margin:0;color:var(--navy)}
+  .cap{font:500 11.5px var(--fu);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
+  .tabs{display:flex;gap:6px;margin:8px 0 4px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:6px 14px;font:600 14px "DM Sans";color:var(--ink);min-height:36px;cursor:pointer}
+  .tabs button.on{background:var(--navy);border-color:var(--navy);color:#fff} .tabs button:disabled{opacity:.45;cursor:default}
+  .card{background:var(--card);border:1px solid var(--edge);border-radius:14px;overflow:hidden;margin-top:10px}
+  .sum{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--sunk);font-size:14px;color:var(--muted);flex-wrap:wrap} .sum b{color:var(--ink)}
+  .row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;min-height:42px;padding:6px 16px;border-top:1px solid var(--edge);font-size:14px}
+  .row:first-child{border-top:0} .row .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0} .row .n small{color:var(--muted);margin-left:6px;font-size:12.5px}
+  .row .st{white-space:nowrap;font-weight:600;font-size:13px}
+  .ok{color:var(--done)}.wt{color:var(--wait)}.late{color:var(--late)}.mu{color:var(--muted);font-weight:500}
+  .mini{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:5px 12px;font:600 13px "DM Sans";color:var(--ink);cursor:pointer;min-height:32px;white-space:nowrap}
+  .mini.gold{background:var(--gold);border-color:var(--gold);color:#1a1405} .mini:disabled{opacity:.5}
+  .btn{border:0;border-radius:999px;padding:11px 20px;font:700 15px "DM Sans";cursor:pointer;min-height:44px} .btn.gold{background:var(--gold);color:#1a1405} .btn.navy{background:var(--navy);color:#fff} .btn.ghost{background:#fff;border:1px solid var(--edge);color:var(--ink)}
+  .btn:disabled{opacity:.55}
+  .chips{display:flex;gap:6px;padding:10px 16px;flex-wrap:wrap} .chip{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:4px 11px;font:600 13px "DM Sans";cursor:pointer;min-height:32px} .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .q{padding:12px 16px;border-top:1px solid var(--edge)} .q .t{font-size:14.5px} .q .t b{font-weight:700}
+  .scale{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .scale button{flex:0 0 44px;height:44px;border:1px solid var(--edge);border-radius:10px;font:700 16px "DM Sans";background:#fff;color:var(--ink);cursor:pointer}
+  .scale button.on{background:var(--navy);color:#fff;border-color:var(--navy)} .scale button.na{color:var(--muted);font-weight:500}
+  .word{font-size:12.5px;color:var(--muted);margin-top:4px;min-height:17px}
+  .facts{padding:10px 16px;background:var(--gold-pale);font-size:13.5px;border-top:1px solid var(--edge)}
+  .del{padding:10px 16px;font-size:14px;border-top:1px solid var(--edge);white-space:pre-wrap} .del i{color:var(--muted)}
+  textarea,input[type=date],input[type=text],input[type=email],select{width:100%;border:1px solid var(--edge);border-radius:10px;padding:9px 10px;font:inherit;background:#fff;color:var(--ink);margin-top:6px}
+  textarea{min-height:64px;resize:vertical}
+  .hint{font-size:12.5px;color:var(--muted);margin:5px 0 0}
+  .foot{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--edge);flex-wrap:wrap;align-items:center}
+  .say{border-radius:12px;padding:10px 13px;margin:10px 0;font-size:14px} .say.bad{background:var(--late-bg);color:var(--late)} .say.ok{background:var(--done-bg);color:var(--done)} .say.mu{background:var(--sunk);color:var(--ink-mid)}
+  .bar{display:grid;grid-template-columns:minmax(0,1fr) 150px 40px;gap:10px;align-items:center;padding:7px 16px;border-top:1px solid var(--edge);font-size:14px}
+  .track{position:relative;height:10px;background:var(--sunk);border-radius:6px} .fill{position:absolute;left:0;top:0;bottom:0;background:var(--navy);border-radius:6px}
+  .tick{position:absolute;top:-3px;width:2px;height:16px;background:var(--gold)} .self{position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;border:2px solid var(--late);background:#fff;transform:translateX(-5px)}
+  .key{display:flex;gap:14px;padding:8px 16px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+  details.fold{background:var(--card);border:1px solid var(--edge);border-radius:14px;margin-top:10px} details.fold>summary{padding:10px 16px;cursor:pointer;font-size:14px;color:var(--muted);list-style:none} details.fold>summary b{color:var(--ink)}
+  details.fold>summary::-webkit-details-marker{display:none} details.fold .in{padding:0 16px 14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px} label.f{display:block;font-size:13.5px;font-weight:600;margin-top:10px}
+  .pick{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--border);font-size:14px} .pick:first-child{border-top:0}
+  .pick label{font-size:12.5px;color:var(--muted);display:flex;gap:4px;align-items:center;white-space:nowrap}
+  .testbar{background:repeating-linear-gradient(135deg,#2c3448 0 10px,#39425a 10px 20px);color:#fff;font-size:13px;padding:7px 14px;text-align:center;border-radius:10px;margin:8px 0}
+  .signin{max-width:400px;margin:40px auto 0;text-align:center} .signin p{color:var(--ink-mid)}
+  .back{display:inline-block;margin:2px 0 6px;color:var(--navy);font-weight:600;text-decoration:none;font-size:14px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--navy-deep);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:min(92vw,480px);z-index:9}
+  .toast.bad{background:var(--late)}
+  @media (max-width:640px){.row .n small{display:none}.bar{grid-template-columns:minmax(0,1fr) 92px 34px}.grid2{grid-template-columns:1fr}.pick{grid-template-columns:minmax(0,1fr) auto auto}.pick .hide-phone{display:none}}
+</style>
+</head>
+<body>
+<header><b>ONGIA Board</b><span class="me" id="me"></span></header>
+<main id="root"><p class="mu">Loading…</p></main>
+<script>
+/*
+ * ONGIA Board (Andrew 24–25 Nov 2026): the board's own page, starting with the annual review (spec:
+ * chief-of-staff/board-review-spec.md). Its own sign-in reaches this page and nothing else; a Briefing Room sign-in in
+ * this tab works too. Drafts of a review of a colleague stay on this device, so nothing with your name and your
+ * answers together ever reaches the server.
+ */
+const $ = (id) => document.getElementById(id);
+const ROOT = $("root");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }, del: (k) => { try { localStorage.removeItem(k); } catch {} } };
+const deskSession = () => { try { const v = sessionStorage.getItem("ongia-admin-key") || ""; return v.startsWith("s1.") ? v : ""; } catch { return ""; } };
+let SESSION = store.get("ongia-rv-session") || deskSession();
+let HOME = null, CYCLE = null;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const fmt = (iso) => { if (!iso) return ""; const d = new Date(`${String(iso).slice(0, 10)}T12:00:00Z`); return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
+const PHASE = { scheduled: "starts", self: "self-review week", peer: "peer round", closed: "closed" };
+
+function toast(text, bad = false) {
+  let t = document.querySelector(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.append(t); }
+  t.className = `toast${bad ? " bad" : ""}`; t.textContent = text; clearTimeout(toast.t); toast.t = setTimeout(() => t.remove(), bad ? 6000 : 3200);
+}
+async function api(qs, { method = "GET", body } = {}) {
+  let res;
+  try { res = await fetch(`/api/boardreview${qs}`, { method, headers: { "x-review-key": SESSION, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
+  catch { throw new Error("No connection. Check your signal and try again."); }
+  const out = await res.json().catch(() => ({}));
+  if (res.status === 401) { signOut(); signInScreen(out.error); throw Object.assign(new Error(out.error || "Please sign in."), { quiet: true }); }
+  if (!res.ok) throw Object.assign(new Error(out.error || `Something went wrong (${res.status}).`), { status: res.status });
+  return out;
+}
+
+/* ---------- signing in: the ONGIA Microsoft account, through the desk's return address (see the top of admin.html) ---------- */
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const randomCode = () => b64u(crypto.getRandomValues(new Uint8Array(32)));
+const RETURN = () => `${location.origin}/admin.html`;
+let AUTH = null;
+const authConfig = async () => (AUTH ??= await fetch("/api/auth").then((r) => r.json()).catch(() => ({ microsoft: null })));
+async function startMicrosoft() {
+  const { microsoft: ms } = await authConfig();
+  if (!ms) return signInScreen("Microsoft sign-in isn't set up on this site yet.");
+  const verifier = randomCode(), state = randomCode(), nonce = randomCode();
+  const challenge = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  store.set("ongia-rms", JSON.stringify({ verifier, state, nonce, at: Date.now() }));
+  const q = new URLSearchParams({ client_id: ms.client, response_type: "code", response_mode: "fragment", redirect_uri: RETURN(), scope: "openid profile email", state, nonce, code_challenge: challenge, code_challenge_method: "S256", prompt: "select_account" });
+  location.assign(`${ms.authority}/oauth2/v2.0/authorize?${q}`);
+}
+async function finishMicrosoft() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (!p.has("code") && !p.has("error")) return null;
+  let saved = null; try { saved = JSON.parse(store.get("ongia-rms") || "null"); } catch {}
+  store.del("ongia-rms"); history.replaceState(null, "", location.pathname);
+  if (p.has("error")) return String(p.get("error_description") || "Microsoft sign-in was cancelled.").split(/\r?\n|Trace ID/)[0];
+  if (!saved || p.get("state") !== saved.state || Date.now() - saved.at > 20 * 60e3) return "That sign-in didn't start here. Please try again.";
+  const { microsoft: ms } = await authConfig();
+  const tok = await fetch(`${ms.authority}/oauth2/v2.0/token`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: ms.client, grant_type: "authorization_code", code: p.get("code"), redirect_uri: RETURN(), code_verifier: saved.verifier, scope: "openid profile email" }) }).then((r) => r.json()).catch(() => ({}));
+  if (!tok.id_token) return tok.error_description?.split(/\r?\n/)[0] || "Microsoft didn't finish the sign-in. Please try again.";
+  const res = await fetch("/api/boardreview?signin=1", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idToken: tok.id_token, nonce: saved.nonce }) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) return out.error || `Sign-in failed (${res.status}).`;
+  SESSION = out.session; store.set("ongia-rv-session", SESSION);
+  return true;
+}
+function signOut() { SESSION = ""; store.del("ongia-rv-session"); }
+function signInScreen(message) {
+  $("me").textContent = "";
+  ROOT.innerHTML = `<div class="signin"><h1>ONGIA Board</h1><p>Sign in with your ONGIA Microsoft account, the one you use for your @ongia.ca email.</p>
+    ${message ? `<div class="say bad" style="text-align:left">${esc(message)}</div>` : ""}<button class="btn navy" id="ms" type="button">Sign in with Microsoft</button></div>`;
+  $("ms").onclick = (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "Opening Microsoft…"; startMicrosoft(); };
+}
+
+/* ---------- where we are ---------- */
+const route = () => location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+window.addEventListener("hashchange", () => show().catch(oops));
+const oops = (e) => { if (!e?.quiet) ROOT.innerHTML = `<div class="say bad">${esc(e.message)}</div><a class="back" href="#/">‹ Back</a>`; };
+const back = (to = "#/", label = "Back") => `<a class="back" href="${to}">‹ ${label}</a>`;
+
+async function show() {
+  if (!SESSION) return signInScreen();
+  const [a, id, b, k] = route();
+  HOME ??= await api("");
+  $("me").textContent = HOME.me.name || HOME.me.email;
+  window.scrollTo(0, 0);
+  if (a === "new") return newCycleView();
+  if (a === "testers") return testersView();
+  if (a === "c" && id) {
+    CYCLE = await api(`?cycle=${encodeURIComponent(id)}`);
+    if (b === "self") return selfView(CYCLE);
+    if (b === "peer" && k) return peerView(CYCLE, k);
+    if (b === "board") return boardView(CYCLE);
+    if (b === "report" && k) return reportView(CYCLE, k);
+    if (b === "results") return resultsView(CYCLE);
+    return cycleView(CYCLE);
+  }
+  return homeView();
+}
+
+/* ---------- Board › Review ---------- */
+function frame(inner) {
+  return `<h1>Board</h1><div class="tabs" role="tablist"><button type="button" disabled title="Coming next">Availability</button><button type="button" class="on" aria-selected="true">Review</button></div>${inner}`;
+}
+function homeView() {
+  const H = HOME;
+  const live = H.cycles.filter((c) => !c.sample);
+  const list = H.cycles.map((c) => `<div class="row"><span class="n">${c.sample ? "Sample (made-up names)" : `${c.year} review`}${c.test && !c.sample ? " · test" : ""} <small>${c.directors} directors</small></span>
+      <span class="st ${c.phase === "closed" ? "mu" : "ok"}">${c.phase === "scheduled" ? `Starts ${fmt(c.selfOpens)}` : c.phase === "closed" ? "Closed" : `${PHASE[c.phase]} · to ${fmt(c.phase === "self" ? c.peerOpens : c.closes)}`}</span>
+      <a class="mini" href="#/c/${esc(c.id)}">Open</a></div>`).join("");
+  ROOT.innerHTML = frame(`${!H.open ? `<div class="testbar">Testing: only the testers can see this. The board can't until it's opened to them.</div>` : ""}
+    <div class="card">${list || `<div class="row"><span class="n mu">No review yet.</span><span></span><span></span></div>`}</div>
+    ${H.me.manage ? `<details class="fold"><summary><b>Run a review</b> · start one, a sample, who tests it</summary><div class="in">
+      <div class="foot" style="padding:6px 0 0;border:0"><a class="mini gold" href="#/new">Start a review</a><button class="mini" id="sample" type="button">Make a sample with made-up names</button><a class="mini" href="#/testers">Who can see it</a></div>
+      <p class="hint">A sample is a finished review of made-up directors, for seeing every screen. Only the testers see it, and deleting it removes everything.</p></div></details>` : ""}`);
+  $("sample")?.addEventListener("click", async (e) => { e.target.disabled = true; try { const r = await api("?sample=1", { method: "POST" }); HOME = null; location.hash = `#/c/${r.cycle}`; } catch (x) { toast(x.message, true); e.target.disabled = false; } });
+  if (live.length === 1 && !H.me.manage && !location.hash) location.hash = `#/c/${live[0].id}`;
+}
+
+function cycleView(C) {
+  const phaseLine = C.phase === "scheduled" ? `starts ${fmt(C.selfOpens)}` : C.phase === "self" ? `self-review week · to ${fmt(C.peerOpens)}` : C.phase === "peer" ? `peer round · closes ${fmt(C.closes)}` : "closed";
+  let html = `${back()}<div class="card"><div class="sum"><span><b>${C.sample ? "Sample review" : `${C.year} review`}</b> · ${esc(phaseLine)}${C.committee.length ? ` · committee: ${esc(C.committee.join(", "))}` : ""}</span></div></div>`;
+  if (C.sample) html = `<div class="testbar">A sample: every name and answer here is made up.</div>${html}`;
+  else if (C.test) html = `<div class="testbar">A test review: it never counts as anyone's review.</div>${html}`;
+  const M = C.mine;
+  if (M) {
+    const s = M.self;
+    const peerOpen = C.phase === "peer";
+    html += `<p class="cap">Your part</p><div class="card">
+      <div class="row"><span class="n"><b>Your self-review</b></span><span class="st ${s?.sentAt ? "ok" : C.phase === "scheduled" || C.phase === "closed" ? "mu" : "wt"}">${s?.sentAt ? `Sent ${fmt(s.sentAt)}` : s ? "Saved, not sent" : "Not started"}</span>
+        ${C.phase === "scheduled" ? "<span></span>" : `<a class="mini ${s?.sentAt ? "" : "gold"}" href="#/c/${C.id}/self">${s?.sentAt ? "See it" : s ? "Finish" : "Start"}</a>`}</div>
+      ${M.peers.map((p) => { const draft = store.get(draftKey(C.id, p.key));
+        return `<div class="row"><span class="n">${esc(p.name)}${p.president ? " <small>President · 12 questions</small>" : ""}</span><span class="st ${p.sent ? "ok" : draft ? "wt" : "mu"}">${p.sent ? "Sent" : draft ? "Saved here, not sent" : peerOpen ? "Not started" : `From ${fmt(C.peerOpens)}`}</span>
+          ${p.sent || !peerOpen ? "<span></span>" : `<a class="mini gold" href="#/c/${C.id}/peer/${p.key}">${draft ? "Finish" : "Start"}</a>`}</div>`; }).join("")}
+      <div class="row"><span class="n"><b>The board as a whole</b> <small>3 questions</small></span><span class="st ${M.board ? "ok" : "mu"}">${M.board ? "Sent" : peerOpen ? "Not started" : `From ${fmt(C.peerOpens)}`}</span>
+        ${M.board || !peerOpen ? "<span></span>" : `<a class="mini gold" href="#/c/${C.id}/board">Start</a>`}</div>
+      ${M.released ? `<div class="row"><span class="n"><b>Your report</b></span><span class="st ok">Released</span><a class="mini gold" href="#/c/${C.id}/report/${M.released}">Read it</a></div>` : ""}
+    </div><p class="hint">${M.firstYear ? "In your first year you do the self-review and the board questions; colleagues don't rate you yet." : `You review each colleague: ${C.questions.director.length} short questions, any you can't judge marked —. About 2 minutes each. Your ratings are stored without your name.`}</p>`;
+  }
+  if (C.progress) {
+    const P = C.progress, f = cycleView.filter ?? "all";
+    const rows = P.filter((p) => f === "all" || (f === "todo" ? !p.finished : p.finished));
+    html += `<p class="cap">${C.roles.committee ? "Progress" : "Progress (you see who's done, not what they wrote)"}</p><div class="card">
+      <div class="chips" role="radiogroup">${[["all", "All", P.length], ["todo", "Not done", P.filter((p) => !p.finished).length], ["done", "Done", P.filter((p) => p.finished).length]].map(([k, l, n]) => `<button type="button" class="chip${f === k ? " on" : ""}" data-f="${k}">${l} ${n}</button>`).join("")}</div>
+      ${rows.map((p) => { const cls = p.finished ? "ok" : !p.self && C.phase !== "scheduled" ? "late" : "wt";
+        // Short (nice and tight): Done, or what's still missing.
+        const what = p.finished ? "Done ✓" : C.phase === "scheduled" ? "Not started" : [p.self ? "" : "No self-review", C.phase === "self" ? (p.self ? "Self ✓" : "") : p.peersOwed ? `${p.peersSent} of ${p.peersOwed}` : "", C.phase !== "self" && !p.board ? "board" : ""].filter(Boolean).join(" · ");
+        const btn = C.phase === "closed" && C.roles.committee ? `<a class="mini" href="#/c/${C.id}/report/${p.key}">Report</a>` : C.roles.committee && !p.finished && !C.sample && C.phase !== "scheduled" && C.phase !== "closed" ? `<button class="mini" type="button" data-remind="${p.key}">Remind</button>` : "<span></span>";
+        return `<div class="row"><span class="n">${esc(p.name)}${p.president ? " <small>President</small>" : p.committee ? " <small>Committee</small>" : p.firstYear ? " <small>First year</small>" : ""}</span><span class="st ${cls}">${what}</span>${btn}</div>`; }).join("")}
+    </div>${C.phase === "closed" ? `<div class="foot" style="padding:10px 0;border:0"><a class="mini gold" href="#/c/${C.id}/results">Board-wide results</a></div>` : `<p class="hint">Reminders go every 3 days by themselves to anyone not finished.${C.roles.committee ? " Remind sends one now." : ""}</p>`}`;
+  }
+  if (C.roles.manage) html += `<details class="fold"><summary><b>Delete this review</b> · president and VP only</summary><div class="in"><p class="hint">Deletes the review and every answer in it, for good.</p><button class="mini" id="del" type="button" style="color:var(--late)">Delete it</button></div></details>`;
+  ROOT.innerHTML = html;
+  ROOT.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { cycleView.filter = b.dataset.f; cycleView(C); }));
+  ROOT.querySelectorAll("[data-remind]").forEach((b) => (b.onclick = async () => { b.disabled = true; try { await api(`?cycle=${C.id}&remind=${b.dataset.remind}`, { method: "POST" }); b.textContent = "Sent"; } catch (x) { toast(x.message, true); b.disabled = false; } }));
+  $("del")?.addEventListener("click", async () => { if (!confirm("Delete this review and every answer in it? This can't be undone.")) return; try { await api(`?cycle=${C.id}`, { method: "DELETE" }); HOME = null; location.hash = "#/"; toast("Deleted."); } catch (x) { toast(x.message, true); } });
+}
+
+/* ---------- answering ---------- */
+const scaleHtml = (qid, val, S) => `<div class="scale" role="radiogroup" aria-label="Rating">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-q="${qid}" data-v="${n}" class="${val === n ? "on" : ""}" aria-pressed="${val === n}" title="${esc(S[n])}">${n}</button>`).join("")}<button type="button" class="na${val === "na" ? " on" : ""}" data-q="${qid}" data-v="na" aria-pressed="${val === "na"}" title="Not enough contact to say">—</button></div><div class="word" data-w="${qid}">${val === "na" ? "— · Not enough contact to say; it never counts" : val ? `${val} · ${esc(S[val])}` : ""}</div>`;
+const qHtml = (q, val, S) => `<div class="q"><div class="t"><b>${esc(q.title)}.</b> ${esc(q.text)}</div>${scaleHtml(q.id, val, S)}</div>`;
+function wireScale(root, vals, S, onChange) {
+  root.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => {
+    const q = b.dataset.q, v = b.dataset.v === "na" ? "na" : Number(b.dataset.v);
+    vals[q] = v;
+    root.querySelectorAll(`[data-q="${q}"]`).forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); });
+    root.querySelector(`[data-w="${q}"]`).textContent = v === "na" ? "— · Not enough contact to say; it never counts" : `${v} · ${S[v]}`;
+    onChange?.();
+  }));
+}
+const draftKey = (cid, k) => `ongia-rv-draft:${cid}:${k}`;
+
+function selfView(C) {
+  const M = C.mine; if (!M) throw new Error("You aren't in this review.");
+  const s = M.self ?? {}, locked = !!s.sentAt;
+  const vals = { ...(s.ratings ?? {}) };
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="card"><div class="sum"><span><b>Your self-review</b>${locked ? ` · sent ${fmt(s.sentAt)}` : ""}</span></div>
+    ${C.questions.self.map((q) => `<div class="q"><div class="t">${esc(q.text)}</div>${locked ? `<div class="del" style="padding:6px 0 0;border:0">${esc(s.answers?.[q.id] || "—")}</div>` : `<textarea data-a="${q.id}" aria-label="${esc(q.text)}">${esc(s.answers?.[q.id] ?? "")}</textarea>`}${q.id === "delivered" ? `<p class="hint">Your colleagues see this answer beside their questions about you. The rest is for the committee and your own report.</p>` : ""}</div>`).join("")}
+    <div class="q" style="background:var(--sunk)"><div class="t"><b>Rate yourself</b>, on the questions your colleagues answer about you.</div></div>
+    ${M.selfQuestions.map((q) => qHtml(q, vals[q.id] ?? null, C.scale)).join("")}
+    ${locked ? "" : `<div class="foot"><button class="btn gold" id="send" type="button">Send</button><button class="btn ghost" id="save" type="button">Save and come back</button><span class="hint" id="said"></span></div>`}</div>`;
+  if (locked) { ROOT.querySelectorAll(".scale button").forEach((b) => (b.disabled = true)); return; }
+  wireScale(ROOT, vals, C.scale);
+  const body = (send) => ({ answers: Object.fromEntries([...ROOT.querySelectorAll("[data-a]")].map((t) => [t.dataset.a, t.value])), ratings: vals, send });
+  $("save").onclick = async () => { try { await api(`?cycle=${C.id}&self=1`, { method: "POST", body: body(false) }); $("said").textContent = "Saved."; } catch (x) { toast(x.message, true); } };
+  $("send").onclick = async () => {
+    if (!confirm("Send your self-review? Once sent it can't be changed.")) return;
+    try { await api(`?cycle=${C.id}&self=1`, { method: "POST", body: body(true) }); toast(`Thank you. Your self-review is in.${C.phase === "self" ? ` On ${fmt(C.peerOpens)} you'll get a link to review your colleagues.` : ""}`); location.hash = `#/c/${C.id}`; }
+    catch (x) { toast(x.message, true); }
+  };
+}
+
+async function peerView(C, k) {
+  const P = await api(`?cycle=${C.id}&peer=${k}`);
+  const first = P.name.split(" ")[0];
+  if (P.sent) { ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="say ok">Your review of ${esc(P.name)} is sent. Thank you.</div>`; return; }
+  let draft = {}; try { draft = JSON.parse(store.get(draftKey(C.id, k)) || "{}"); } catch {}
+  const vals = { ...(draft.ratings ?? {}) };
+  const done = () => P.questions.filter((q) => vals[q.id] !== undefined).length;
+  const f = P.facts ?? {};
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="card"><div class="sum"><span><b>${esc(P.name)}</b>${P.president ? " · President" : ""} · <span id="count">${done()} of ${P.questions.length}</span></span></div>
+    <div class="facts"><b>${esc(f.year)} on the desk:</b> on ${f.on ? `${f.on} event${f.on === 1 ? "" : "s"}` : "no events"}${f.led?.length ? `, led ${f.led.length} (${esc(f.led.join(", "))})` : ""}${f.meetings ? ` · ${esc(f.meetings)} board meetings` : ""}</div>
+    <div class="del"><b>What I delivered</b> <i>(${esc(first)}'s own words)</i>\n${P.delivered ? esc(P.delivered) : "<i>No self-review submitted.</i>"}</div>
+    ${P.questions.map((q) => qHtml(q, vals[q.id] ?? null, P.scale)).join("")}
+    ${P.comments.map((q) => `<div class="q"><div class="t">${esc(q.id === "note" ? `Optional: one thing ${first} does well, or could do more of.` : q.text)}</div><textarea data-c="${q.id}" aria-label="${esc(q.text)}">${esc(draft.comments?.[q.id] ?? "")}</textarea></div>`).join("")}
+    <div class="q" style="padding-top:0;border-top:0"><p class="hint">Shown word for word, without your name. Leave out details that would identify you.</p></div>
+    <div class="foot"><button class="btn gold" id="send" type="button">Send</button><button class="btn ghost" id="save" type="button">Save and come back</button><span class="hint" id="said"></span></div></div>
+    <p class="hint">Saved on this phone or computer only, so your answers and your name never sit together on the server.</p>`;
+  const comments = () => Object.fromEntries([...ROOT.querySelectorAll("[data-c]")].map((t) => [t.dataset.c, t.value]));
+  const keep = () => store.set(draftKey(C.id, k), JSON.stringify({ ratings: vals, comments: comments() }));
+  wireScale(ROOT, vals, P.scale, () => { $("count").textContent = `${done()} of ${P.questions.length}`; keep(); });
+  ROOT.querySelectorAll("[data-c]").forEach((t) => (t.oninput = keep));
+  $("save").onclick = () => { keep(); toast("Saved on this device."); location.hash = `#/c/${C.id}`; };
+  $("send").onclick = async () => {
+    const missing = P.questions.find((q) => vals[q.id] === undefined);
+    if (missing) { toast(`Answer "${missing.title}": a number, or — if you haven't had enough contact.`, true); return; }
+    $("send").disabled = true;
+    try { await api(`?cycle=${C.id}&peer=${k}`, { method: "POST", body: { ratings: vals, comments: comments() } }); store.del(draftKey(C.id, k)); toast(`Sent. Thank you.`); location.hash = `#/c/${C.id}`; }
+    catch (x) { toast(x.message, true); $("send").disabled = false; }
+  };
+}
+
+function boardView(C) {
+  const vals = {};
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="card"><div class="sum"><span><b>The board as a whole</b></span></div>
+    ${C.questions.board.map((q) => qHtml(q, null, C.scale)).join("")}
+    <div class="q"><div class="t">${esc(C.questions.boardComment.text)}</div><textarea id="bc"></textarea><p class="hint">Shown word for word, without your name.</p></div>
+    <div class="foot"><button class="btn gold" id="send" type="button">Send</button></div></div>`;
+  wireScale(ROOT, vals, C.scale);
+  $("send").onclick = async () => {
+    const missing = C.questions.board.find((q) => vals[q.id] === undefined);
+    if (missing) { toast(`Answer "${missing.title}".`, true); return; }
+    try { await api(`?cycle=${C.id}&board=1`, { method: "POST", body: { ratings: vals, comment: $("bc").value } }); toast("Sent. Thank you."); location.hash = `#/c/${C.id}`; }
+    catch (x) { toast(x.message, true); }
+  };
+}
+
+/* ---------- reports ---------- */
+const pct = (v) => `${Math.max(0, Math.min(100, ((v - 1) / 4) * 100))}%`;
+async function reportView(C, k) {
+  const { report: R, floor } = await api(`?cycle=${C.id}&report=${k}`);
+  const N = C.notes?.[k];
+  const rows = R.rows.map((r) => r.avg === null
+    ? `<div class="bar"><span>${esc(r.title)}</span><span class="mu" style="grid-column:2/4;font-size:13px">Too few ratings to show (${r.n} of ${floor})</span></div>`
+    : `<div class="bar"><span>${esc(r.title)}</span><span class="track"><span class="fill" style="width:${pct(r.avg)}"></span>${r.board ? `<span class="tick" style="left:${pct(r.board)}"></span>` : ""}${r.self ? `<span class="self" style="left:${pct(r.self)}"></span>` : ""}</span><b>${r.avg.toFixed(1)}</b></div>`).join("");
+  const S = R.self?.answers ?? {};
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Back")}<div class="card"><div class="sum"><span><b>${esc(R.name)} · ${C.year}</b> · ${R.raters} colleague${R.raters === 1 ? "" : "s"} rated${R.released ? ` · released ${fmt(R.released.at)}` : ""}</span></div>
+    <div class="key"><span>▬ ${esc(R.name.split(" ")[0])}'s average</span><span style="color:var(--gold)">│ board average</span><span style="color:var(--late)">○ own rating</span></div>${rows}
+    ${R.comments.map((c) => `<div class="del"><b>${esc(c.text.replace(/^Optional: one thing they/, "One thing they"))}</b> <i>(${c.items.length ? `${c.items.length}, in random order, no names` : `too few to show: ${c.n} of ${floor}`})</i>${c.items.map((x) => `\n“${esc(x)}”`).join("")}</div>`).join("")}
+    <div class="facts"><b>${esc(R.facts.year)}:</b> on ${R.facts.on ? `${R.facts.on} event${R.facts.on === 1 ? "" : "s"}` : "no events"}${R.facts.led?.length ? `, led ${esc(R.facts.led.join(", "))}` : ""}${R.facts.meetings ? ` · ${esc(R.facts.meetings)} board meetings` : ""}</div>
+    ${R.self ? `<div class="del"><b>Self-review</b>${C.questions.self.map((q) => S[q.id] ? `\n<i>${esc(q.text)}</i>\n${esc(S[q.id])}` : "").join("\n")}</div>` : `<div class="del"><i>No self-review submitted.</i></div>`}
+    ${R.commitments.length ? `<div class="del"><b>Commitments</b>${R.commitments.map((x) => `\n• ${esc(x)}`).join("")}</div>` : ""}</div>
+    ${C.roles.committee && N ? `<details class="fold"${R.released ? "" : " open"}><summary><b>Committee</b> · ${R.released ? "released" : "not released yet"} · meetings and commitments</summary><div class="in">
+      <label class="f" for="mt">Board meetings attended</label><input type="text" id="mt" value="${esc(N.meetings)}" placeholder="6 of 8">
+      <label class="f">Commitments, after the one-on-one (up to 3)</label>${[0, 1, 2].map((i) => `<input type="text" data-cm value="${esc(N.commitments[i] ?? "")}">`).join("")}
+      <div class="foot" style="padding:10px 0 0;border:0"><button class="mini gold" id="savenotes" type="button">Save</button>${R.released || C.sample ? "" : `<button class="mini" id="release" type="button">Release to ${esc(R.name.split(" ")[0])}</button>`}</div></div></details>` : ""}`;
+  $("savenotes")?.addEventListener("click", async () => { try { await api(`?cycle=${C.id}&notes=${k}`, { method: "PUT", body: { meetings: $("mt").value, commitments: [...ROOT.querySelectorAll("[data-cm]")].map((i) => i.value) } }); toast("Saved."); show(); } catch (x) { toast(x.message, true); } });
+  $("release")?.addEventListener("click", async () => { if (!confirm(`Release this report to ${R.name}? They'll be able to read it.`)) return; try { await api(`?cycle=${C.id}&release=${k}`, { method: "POST" }); toast("Released."); show(); } catch (x) { toast(x.message, true); } });
+}
+async function resultsView(C) {
+  const { results: X, floor } = await api(`?cycle=${C.id}&results=1`);
+  const bar = (r) => r.avg === null ? `<div class="bar"><span>${esc(r.title)}</span><span class="mu" style="grid-column:2/4;font-size:13px">Too few ratings (${r.n})</span></div>` : `<div class="bar"><span>${esc(r.title)}</span><span class="track"><span class="fill" style="width:${pct(r.avg)}"></span></span><b>${r.avg.toFixed(1)}</b></div>`;
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Back")}<div class="card"><div class="sum"><span><b>Board-wide · ${C.year}</b> · ${X.completion.selves} of ${X.completion.directors} self-reviews · ${X.completion.reviews} of ${X.completion.reviewsOwed} colleague reviews</span></div>
+    <p class="cap" style="padding:0 16px">Every director, averaged</p>${X.rows.slice(0, C.questions.director.length).map(bar).join("")}
+    <p class="cap" style="padding:0 16px">The president</p>${X.rows.slice(C.questions.director.length).map(bar).join("")}
+    <p class="cap" style="padding:0 16px">The board as a whole · ${X.boardAnswered} answered</p>${X.board.map(bar).join("")}
+    ${X.boardComments.length ? `<div class="del"><b>${esc(C.questions.boardComment.text)}</b>${X.boardComments.map((x) => `\n“${esc(x)}”`).join("")}</div>` : ""}</div>
+    <p class="hint">No individual scores here. An average shows once ${floor} or more answered.</p>`;
+}
+
+/* ---------- running it ---------- */
+function newCycleView() {
+  const H = HOME; if (!H.me.manage) throw new Error("Only the president and the VP can start a review.");
+  const people = (H.roster ?? []).filter((m) => H.open || (H.testers?.emails ?? []).includes(String(m.email).toLowerCase()));
+  const plus = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA");
+  const y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
+  ROOT.innerHTML = `${back()}<h1>Start a review</h1>${H.open ? "" : `<div class="testbar">Testing: only the testers can be in it, and it's marked as a test.</div>`}
+    <div class="card" style="padding:4px 16px 14px"><div class="grid2"><div><label class="f" for="yr">Year</label><input type="text" id="yr" value="${y}"></div><div></div>
+      <div><label class="f" for="d1">Self-review opens</label><input type="date" id="d1" value="${plus(1)}"></div><div><label class="f" for="d2">Peer round opens</label><input type="date" id="d2" value="${plus(8)}"></div>
+      <div><label class="f" for="d3">Closes</label><input type="date" id="d3" value="${plus(22)}"></div></div>
+      <p class="cap">Directors</p>
+      ${people.map((m) => `<div class="pick"><span class="n">${esc(m.name || m.email)}</span><label><input type="checkbox" data-in="${esc(m.email)}" checked> In it</label><label><input type="radio" name="pres" value="${esc(m.email)}"${String(m.email).toLowerCase() === "president@ongia.ca" ? " checked" : ""}> President</label><label class="hide-phone"><input type="checkbox" data-cm="${esc(m.email)}"> Committee</label><label class="hide-phone"><input type="checkbox" data-fy="${esc(m.email)}"> First year</label></div>`).join("")}
+      <p class="hint">The review committee holds the one-on-ones and reads every report. Not the president. The opening email goes to everyone in it as soon as you start.</p>
+      <div class="foot" style="padding:12px 0 0;border:0"><button class="btn gold" id="go" type="button">Start it and email the directors</button></div></div>`;
+  $("go").onclick = async () => {
+    const pick = (a) => [...ROOT.querySelectorAll(`[data-${a}]`)].filter((x) => x.checked).map((x) => x.dataset[a]);
+    const body = { year: $("yr").value, selfOpens: $("d1").value, peerOpens: $("d2").value, closes: $("d3").value, directors: pick("in"), committee: pick("cm"), firstYear: pick("fy"), president: ROOT.querySelector('input[name="pres"]:checked')?.value ?? "" };
+    if (!confirm(`Start the ${body.year} review and email the ${body.directors.length} directors in it?`)) return;
+    $("go").disabled = true;
+    try { const r = await api("?cycle=new", { method: "POST", body }); HOME = null; toast(r.mail?.failed?.length ? `Started. ${r.mail.failed.length} email${r.mail.failed.length === 1 ? "" : "s"} didn't go.` : "Started. The directors have their email."); location.hash = `#/c/${r.cycle}`; }
+    catch (x) { toast(x.message, true); $("go").disabled = false; }
+  };
+}
+async function testersView() {
+  const T = await api("?testers=1");
+  const draw = () => {
+    ROOT.innerHTML = `${back()}<h1>Who can see it</h1><div class="card">
+      <div class="sum"><span><b>Open the review to the board</b> · ${T.open ? "on: every director on the board list" : "off: only these testers"}</span><label style="margin-left:auto"><input type="checkbox" id="open"${T.open ? " checked" : ""}> Open</label></div>
+      ${T.emails.map((e) => `<div class="row"><span class="n">${esc(e)}</span><span></span><button class="mini" type="button" data-rm="${esc(e)}">Remove</button></div>`).join("")}
+      <div class="foot"><input type="email" id="add" placeholder="name@ongia.ca" style="flex:1;min-width:180px;margin:0"><button class="mini gold" id="addgo" type="button">Add a tester</button></div></div>
+      ${T.openChanged ? `<p class="hint">${T.openChanged.open ? "Opened" : "Closed"} by ${esc(T.openChanged.by)} on ${fmt(T.openChanged.at)}.</p>` : ""}`;
+    const save = async (next, msg) => { try { Object.assign(T, await api("?testers=1", { method: "PUT", body: next })); HOME = null; toast(msg); draw(); } catch (x) { toast(x.message, true); draw(); } };
+    $("open").onchange = (e) => { if (e.target.checked && !confirm("Open the review to the whole board? Every director on the board list will be able to sign in and see it.")) { e.target.checked = false; return; } save({ open: e.target.checked }, e.target.checked ? "Open to the board." : "Back to testers only."); };
+    $("addgo").onclick = () => { const v = $("add").value.trim().toLowerCase(); if (v) save({ emails: [...T.emails, v] }, "Added."); };
+    ROOT.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => save({ emails: T.emails.filter((e) => e !== b.dataset.rm) }, "Removed.")));
+  };
+  draw();
+}
+
+(async () => {
+  const back = await finishMicrosoft().catch((e) => e.message);
+  if (typeof back === "string") return signInScreen(back);
+  show().catch(oops);
+})();
+</script>
+</body>
+</html>

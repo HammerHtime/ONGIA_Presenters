@@ -10,7 +10,10 @@
 (function () { try {
   var h = location.hash; if (!/[#&](code|error)=/.test(h)) return;
   var saved = JSON.parse(localStorage.getItem("ongia-xms") || "null"), state = new URLSearchParams(h.slice(1)).get("state");
-  if (saved && state && saved.state === state) { window.ONGIA_EXPENSES_REPLY = true; location.replace("/expenses" + h); }
+  if (saved && state && saved.state === state) { window.ONGIA_EXPENSES_REPLY = true; location.replace("/expenses" + h); return; }
+  // ONGIA Board (the board review) signs in the same way.
+  var rv = JSON.parse(localStorage.getItem("ongia-rms") || "null");
+  if (rv && state && rv.state === state) { window.ONGIA_EXPENSES_REPLY = true; location.replace("/board" + h); }
 } catch (e) { /* no storage: the desk carries on */ } })();
 </script>
 <!-- The tab: ONGIA's leaf, which reads at 16 px; the Dock icon carries the words. -->
@@ -2370,6 +2373,7 @@ const SIDE_ICON = {
   expenses: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
   sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
+  board: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M12 20c0-3.3 1.8-6 4-6s6 2.7 6 6"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
 /**
@@ -2450,7 +2454,9 @@ function drawSide() {
   const item = (id, key, label, cls = "", extra = "") => `<button type="button" class="sn${cls}${at === key ? " on" : ""}" id="${id}"${at === key ? ' aria-current="page"' : ""}>`
     + `<svg viewBox="0 0 24 24" aria-hidden="true">${SIDE_ICON[key]}</svg><span>${label}</span>${extra}</button>`;
   // Expenses, under RBH SOWs (Andrew 3 Nov 2026): the board's expense claims, signed in as you; in the main area on a computer.
-  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : ""].filter(Boolean);
+  const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "", WHO?.canCost ? item("sandboxnav", "sandbox", "Sandbox") : "",
+    // The board's own page (Andrew 25 Nov 2026): the annual review, testers only for now; its own sign-in for the board.
+    WHO?.canCost ? item("boardnav", "board", "Board") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
@@ -2461,6 +2467,8 @@ function drawSide() {
   go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("downloadsnav", { name: "downloads" }); go("letters", { name: "letters" });
   go("sowsnav", { name: "sows" }); go("sandboxnav", { name: "sandbox" }); go("sponsors", { name: "sponsors" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
+  const bn = document.getElementById("boardnav");
+  if (bn) bn.onclick = () => { location.href = "/board"; };
   const xb = document.getElementById("expensesnav");
   if (xb) xb.onclick = () => { if (expensesHere()) { view = { name: "expenses" }; render(); } else openExpenses(); };
   const mb = document.getElementById("snmore");

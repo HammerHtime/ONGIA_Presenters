@@ -8,6 +8,7 @@ import { runInbox } from "./inbox.mjs";
 import { watchBackup } from "./backup.mjs";
 import { settle, everyone } from "./agencies.mjs";
 import { runReports } from "./reports.mjs";
+import { runReviewMail } from "./reviewmail.mjs";
 
 // The site's own address lives in site.mjs; passed on here for anything that still asks the nightly run for it.
 export { siteOrigin } from "./site.mjs";
@@ -44,6 +45,11 @@ export async function runNight({ origin = siteOrigin(), deadline = null, sendsOn
     const rep = await runReports().catch((e) => [{ error: e.message }]);
     out.reports = { made: rep.filter((x) => !x.error).length, errors: rep.filter((x) => x.error).length };
     for (const x of rep) console.log(`report ${x.kind ?? ""} for ${x.event ?? "?"}: ${x.error ?? `${x.reason}, ${x.answered} of ${x.invited} answered`}`);
+
+    // The board review: the peer round's email on its day, and a reminder every three days to anyone not finished.
+    const rv = await runReviewMail().catch((e) => [{ error: e.message }]);
+    out.review = { sent: rv.filter((x) => x.sent).length, failed: rv.filter((x) => x.failed || x.error).length };
+    for (const x of rv.filter((r) => r.failed || r.error)) console.log(`board review mail to ${x.to ?? "?"} failed: ${x.failed ?? x.error}`);
 
     const rem = await runReminders({ origin }).catch((e) => ({ error: e.message, results: [] }));
     out.reminders = rem.error ? { error: rem.error } : { planned: rem.count, sent: rem.results.filter((r) => r.sent).length, failed: rem.results.filter((r) => r.error).length };
