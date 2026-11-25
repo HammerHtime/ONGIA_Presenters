@@ -56,7 +56,7 @@
   details.fold>summary::-webkit-details-marker{display:none} details.fold .in{padding:0 16px 14px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px} label.f{display:block;font-size:13.5px;font-weight:600;margin-top:10px}
   /* Who's in a review: one line each, a column per choice, its name once at the top (Andrew 25 Nov 2026). */
-  .pick{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,68px);gap:4px;align-items:center;min-height:40px;padding:4px 0;border-top:1px solid var(--border);font-size:14px}
+  .pick{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:4px;align-items:center;min-height:40px;padding:4px 0;border-top:1px solid var(--border);font-size:14px}
   .pick.head{border-top:0;min-height:0;font:600 11px var(--fu);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)} .pick.head span{text-align:center}
   .pick .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pick .n small{color:var(--muted);font-size:12px}
   .pick .c{display:flex;justify-content:center;align-items:center;min-height:40px} .pick .c input{width:20px;height:20px;margin:0}
@@ -66,7 +66,7 @@
   .back{display:inline-block;margin:2px 0 6px;color:var(--navy);font-weight:600;text-decoration:none;font-size:14px}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--navy-deep);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;max-width:min(92vw,480px);z-index:9}
   .toast.bad{background:var(--late)}
-  @media (max-width:640px){.row .n small{display:none}.bar{grid-template-columns:minmax(0,1fr) 92px 34px}.grid2{grid-template-columns:1fr}.pick{grid-template-columns:minmax(0,1fr) repeat(4,50px)}.pick.head{font-size:9.5px;letter-spacing:.04em}}
+  @media (max-width:640px){.row .n small{display:none}.bar{grid-template-columns:minmax(0,1fr) 92px 34px}.grid2{grid-template-columns:1fr}.pick.head{font-size:10px}}
 </style>
 </head>
 <body>
@@ -344,29 +344,30 @@ async function resultsView(C) {
 /* ---------- running it ---------- */
 function newCycleView() {
   const H = HOME; if (!H.me.manage) throw new Error("Only the president and the VP can start a review.");
-  const people = (H.roster ?? []).filter((m) => H.open || (H.testers?.emails ?? []).includes(String(m.email).toLowerCase()));
-  // Advisors to the board are never in a review (Andrew 25 Nov 2026); they can sit on the committee.
-  const advisor = (m) => (H.testers?.advisors ?? []).includes(String(m.email).toLowerCase());
+  // Who's in it comes from each person's profile on Admin › Board members (Andrew 25 Nov 2026): "Annual 360 review?",
+  // "First year" and their role. Only the dates and the committee are chosen here.
+  const lc = (e) => String(e).toLowerCase();
+  const people = (H.roster ?? []).filter((m) => H.open || (H.testers?.emails ?? []).map(lc).includes(lc(m.email)));
+  const R = H.roles ?? {}, inIt = people.filter((m) => m.review), out = people.filter((m) => !m.review);
   const plus = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA");
   const y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
+  const row = (m, inside) => { const e = esc(m.email), n = esc(m.name || m.email);
+    const what = inside ? [lc(m.email) === R.president ? "President" : lc(m.email) === R.vp ? "VP" : "", m.firstYear ? "first year: self-review only" : ""].filter(Boolean).join(" · ") : "not in the review";
+    return `<div class="pick"><span class="n">${n}${what ? ` <small>${esc(what)}</small>` : ""}</span><span class="c"><input type="checkbox" data-cm="${e}"${lc(m.email) === R.vp ? " checked" : ""}${lc(m.email) === R.president ? " disabled" : ""} aria-label="${n}: on the committee"></span></div>`; };
   ROOT.innerHTML = `${back()}<h1>Start a review</h1>${H.open ? "" : `<div class="testbar">Testing: only the testers can be in it, and it's marked as a test.</div>`}
     <div class="card" style="padding:4px 16px 14px"><div class="grid2"><div><label class="f" for="yr">Year</label><input type="text" id="yr" value="${y}"></div><div></div>
       <div><label class="f" for="d1">Self-review opens</label><input type="date" id="d1" value="${plus(1)}"></div><div><label class="f" for="d2">Peer round opens</label><input type="date" id="d2" value="${plus(8)}"></div>
       <div><label class="f" for="d3">Closes</label><input type="date" id="d3" value="${plus(22)}"></div></div>
-      <p class="cap">Directors</p>
-      <ul class="keys"><li><b>Reviewed:</b> does a self-review and is rated by colleagues this year.</li><li><b>President:</b> gets the 5 extra president questions.</li>
-        <li><b>Committee:</b> runs the review, reads every report, holds the one-on-ones. Not the president.</li><li><b>First year:</b> joined in the past year: self-review only, no ratings either way.</li></ul>
-      <div class="pick head" aria-hidden="true"><span></span><span>Reviewed</span><span>President</span><span>Committee</span><span>First year</span></div>
-      ${people.map((m) => { const e = esc(m.email), n = esc(m.name || m.email);
-        return advisor(m)
-        ? `<div class="pick"><span class="n">${n} <small>advisor, not reviewed</small></span><span></span><span></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span></span></div>`
-        : `<div class="pick"><span class="n">${n}</span><span class="c"><input type="checkbox" data-in="${e}" checked aria-label="${n}: reviewed"></span><span class="c"><input type="radio" name="pres" value="${e}"${String(m.email).toLowerCase() === "president@ongia.ca" ? " checked" : ""} aria-label="${n}: the president"></span><span class="c"><input type="checkbox" data-cm="${e}" aria-label="${n}: on the committee"></span><span class="c"><input type="checkbox" data-fy="${e}" aria-label="${n}: first year"></span></div>`; }).join("")}
-      <p class="hint">The opening email goes to everyone reviewed as soon as you start.</p>
-      <div class="foot" style="padding:12px 0 0;border:0"><button class="btn gold" id="go" type="button">Start it and email the directors</button></div></div>`;
+      <p class="cap">In the review · ${inIt.length}</p>
+      ${inIt.length ? "" : `<div class="say mu">Nobody${H.open ? "" : " among the testers"} has <b>Annual 360 review?</b> ticked yet. Tick it for each director on Admin › Board members in the Briefing Room.</div>`}
+      <div class="pick two head" aria-hidden="true"><span></span><span>Committee</span></div>
+      ${inIt.map((m) => row(m, true)).join("")}
+      ${out.length ? `<p class="cap">Not in the review</p>${out.map((m) => row(m, false)).join("")}` : ""}
+      <p class="hint">Who's in it, the President, and first-year directors come from each person's profile on Admin › Board members. The committee runs this review, reads every report and holds the one-on-ones; anyone can be on it except the president. The opening email goes to everyone in the review as soon as you start.</p>
+      <div class="foot" style="padding:12px 0 0;border:0"><button class="btn gold" id="go" type="button"${inIt.length < 2 ? " disabled" : ""}>Start it and email the directors</button></div></div>`;
   $("go").onclick = async () => {
-    const pick = (a) => [...ROOT.querySelectorAll(`[data-${a}]`)].filter((x) => x.checked).map((x) => x.dataset[a]);
-    const body = { year: $("yr").value, selfOpens: $("d1").value, peerOpens: $("d2").value, closes: $("d3").value, directors: pick("in"), committee: pick("cm"), firstYear: pick("fy"), president: ROOT.querySelector('input[name="pres"]:checked')?.value ?? "" };
-    if (!confirm(`Start the ${body.year} review and email the ${body.directors.length} directors in it?`)) return;
+    const body = { year: $("yr").value, selfOpens: $("d1").value, peerOpens: $("d2").value, closes: $("d3").value, committee: [...ROOT.querySelectorAll("[data-cm]")].filter((x) => x.checked).map((x) => x.dataset.cm) };
+    if (!confirm(`Start the ${body.year} review and email the ${inIt.length} directors in it?`)) return;
     $("go").disabled = true;
     try { const r = await api("?cycle=new", { method: "POST", body }); HOME = null; toast(r.mail?.failed?.length ? `Started. ${r.mail.failed.length} email${r.mail.failed.length === 1 ? "" : "s"} didn't go.` : "Started. The directors have their email."); location.hash = `#/c/${r.cycle}`; }
     catch (x) { toast(x.message, true); $("go").disabled = false; }
@@ -380,16 +381,11 @@ async function testersView() {
       ${T.emails.map((e) => `<div class="row"><span class="n">${esc(e)}</span><span></span><button class="mini" type="button" data-rm="${esc(e)}">Remove</button></div>`).join("")}
       <div class="foot"><input type="email" id="add" placeholder="name@ongia.ca" style="flex:1;min-width:180px;margin:0"><button class="mini gold" id="addgo" type="button">Add a tester</button></div></div>
       ${T.openChanged ? `<p class="hint">${T.openChanged.open ? "Opened" : "Closed"} by ${esc(T.openChanged.by)} on ${fmt(T.openChanged.at)}.</p>` : ""}
-      <p class="cap">Advisors to the board</p><div class="card">
-      ${(T.advisors ?? []).map((e) => `<div class="row"><span class="n">${esc(e)}</span><span class="st mu">Not reviewed</span><button class="mini" type="button" data-rmadv="${esc(e)}">Remove</button></div>`).join("") || `<div class="row"><span class="n mu">None</span><span></span><span></span></div>`}
-      <div class="foot"><input type="email" id="addadv" placeholder="name@ongia.ca" style="flex:1;min-width:180px;margin:0"><button class="mini gold" id="addadvgo" type="button">Add an advisor</button></div></div>
-      <p class="hint">Advisors aren't reviewed and don't review anyone. They can sit on the review committee.</p>`;
+      <p class="hint">Who's president, VP or an advisor (not reviewed) is set on the board list: Admin › Board members, in the Briefing Room.</p>`;
     const save = async (next, msg) => { try { Object.assign(T, await api("?testers=1", { method: "PUT", body: next })); HOME = null; toast(msg); draw(); } catch (x) { toast(x.message, true); draw(); } };
     $("open").onchange = (e) => { if (e.target.checked && !confirm("Open the review to the whole board? Every director on the board list will be able to sign in and see it.")) { e.target.checked = false; return; } save({ open: e.target.checked }, e.target.checked ? "Open to the board." : "Back to testers only."); };
     $("addgo").onclick = () => { const v = $("add").value.trim().toLowerCase(); if (v) save({ emails: [...T.emails, v] }, "Added."); };
     ROOT.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => save({ emails: T.emails.filter((e) => e !== b.dataset.rm) }, "Removed.")));
-    $("addadvgo").onclick = () => { const v = $("addadv").value.trim().toLowerCase(); if (v) save({ advisors: [...(T.advisors ?? []), v] }, "Added."); };
-    ROOT.querySelectorAll("[data-rmadv]").forEach((b) => (b.onclick = () => save({ advisors: (T.advisors ?? []).filter((e) => e !== b.dataset.rmadv) }, "Removed.")));
   };
   draw();
 }

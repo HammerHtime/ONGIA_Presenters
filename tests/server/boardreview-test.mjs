@@ -23,12 +23,14 @@ const day = (n) => new Date(Date.parse(`${todayIso()}T12:00:00Z`) + n * 86400e3)
 
 const people = ["pres", "vp", "jh", "d1", "d2", "d3", "d4", "d5", "d6", "newbie"].map((n) => ({ email: `${n}@example.ca`, name: `${n[0].toUpperCase()}${n.slice(1)} Sample` }));
 await S.putRoster(people);
+// Who's in a review comes from each person's profile on the board list (Andrew 25 Nov 2026).
+const profiles = (inIt, { president = "", vp = "", first = [] } = {}) => S.putRoster(people.map((m) => ({ ...m, review: inIt.includes(m.email), firstYear: first.includes(m.email), role: m.email === president ? "president" : m.email === vp ? "vp" : "" })));
 const E = (n) => `${n}@example.ca`;
 
 // Who may come in.
-ok("the advisors start as Andy Bain and John Healy", JSON.stringify((await R.testersOf()).advisors) === JSON.stringify(["a.bain@ongia.ca", "j.healy@ongia.ca"]));
+ok("with nobody ticked on the board list, nobody is in a review", (await R.rolesOf()).included.length === 0 && (await R.rolesOf()).president === "");
 ok("the starting testers are the president, the VP and John Healy", JSON.stringify((await R.testersOf()).emails) === JSON.stringify(["pres@example.ca", "vp@example.ca", "j.healy@ongia.ca"]));
-await R.putTesters({ emails: [E("pres"), E("vp"), E("jh")], open: false, advisors: [] });
+await R.putTesters({ emails: [E("pres"), E("vp"), E("jh")], open: false });
 ok("a tester gets in", (await call(E("jh"), "")).status === 200);
 ok("a director who isn't a tester is refused while it's closed", (await call(E("d1"), "")).status === 403);
 ok("the desk's shared key is nobody here", (await call("KEY", "")).status === 401);
@@ -36,6 +38,8 @@ ok("no sign-in, no entry", (await call(null, "")).status === 401);
 ok("only the president or VP can change the testers", (await call(E("jh"), "?testers=1", "PUT", { open: true })).status === 403);
 
 // Testers-only: a cycle can hold only testers.
+ok("nobody ticked: a review can't start, and says where to tick", /Annual 360 review/.test((await call(E("pres"), "?cycle=new", "POST", { selfOpens: day(0), peerOpens: day(7), closes: day(21), committee: [E("vp")] })).error ?? ""));
+await profiles([E("pres"), E("vp"), E("jh"), E("d1")], { president: E("pres"), vp: E("vp") });
 const t1 = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: [E("pres"), E("vp"), E("jh"), E("d1")], committee: [E("vp"), E("jh")], president: E("pres") });
 const tc = await R.getCycle(t1.cycle);
 ok("while closed, a cycle keeps only the testers, and is a test", tc && tc.directors.length === 3 && !tc.directors.some((d) => d.email === E("d1")) && tc.test === true, JSON.stringify(t1));
@@ -44,20 +48,25 @@ ok("the opening email was tried for each director (no mail transport here)", t1.
 await call(E("pres"), `?cycle=${tc.id}`, "DELETE");
 
 // Advisors to the board (Andrew 25 Nov 2026): never reviewed, never reviewing; they can sit on the committee.
-await call(E("pres"), "?testers=1", "PUT", { advisors: [E("jh")] });
-const ta = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: [E("pres"), E("vp"), E("jh")], committee: [E("vp"), E("jh")], president: E("pres") });
+// Roles on the board list (Andrew 25 Nov 2026): the president, the VP, the advisors.
+// An advisor is simply left unticked: John isn't in the review, and can sit on the committee.
+await profiles([E("pres"), E("vp")], { president: E("pres"), vp: E("vp") });
+ok("roles and ticks come from the board list", JSON.stringify(await R.rolesOf()) === JSON.stringify({ president: E("pres"), vp: E("vp"), included: [E("pres"), E("vp")], firstYear: [] }));
+const ta = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: [E("pres"), E("vp"), E("jh")], committee: [E("vp"), E("jh")], president: E("vp") });
 const tac = await R.getCycle(ta.cycle);
-ok("an advisor is left out of the review, even if picked", tac && tac.directors.length === 2 && !tac.directors.some((d) => d.email === E("jh")), JSON.stringify(ta));
+ok("someone not ticked is left out of the review, whatever the form sends", tac && tac.directors.length === 2 && !tac.directors.some((d) => d.email === E("jh")), JSON.stringify(ta));
 ok("…but can sit on the committee, named", tac.committee.includes(E("jh")) && tac.committeeNames.includes("Jh Sample"));
-ok("an advisor on the committee sees the progress, and has no review of their own", Array.isArray((await call(E("jh"), `?cycle=${tac.id}`)).progress) && !(await call(E("jh"), `?cycle=${tac.id}`)).mine);
-ok("nobody reviews an advisor", !R.peersOf(tac, E("pres")).some((d) => d.email === E("jh")));
+ok("the president is the one marked on the board list, whatever the form said", tac.president === E("pres"));
+ok("someone not in the review, on the committee, sees the progress and has no review of their own", Array.isArray((await call(E("jh"), `?cycle=${tac.id}`)).progress) && !(await call(E("jh"), `?cycle=${tac.id}`)).mine);
+ok("nobody reviews someone not in it", !R.peersOf(tac, E("pres")).some((d) => d.email === E("jh")));
 await call(E("pres"), `?cycle=${tac.id}`, "DELETE");
-await call(E("pres"), "?testers=1", "PUT", { advisors: [] });
+await S.putRoster(people);
 
 // Open it to the board, then a real-sized cycle: 8 directors, one in their first year.
 await call(E("pres"), "?testers=1", "PUT", { open: true });
 ok("open: a director on the board list gets in", (await call(E("d1"), "")).status === 200);
 const dirs = ["pres", "vp", "jh", "d1", "d2", "d3", "d4", "newbie"].map(E);
+await profiles(dirs, { president: E("pres"), vp: E("vp"), first: [E("newbie")] });
 const made = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: dirs, committee: [E("vp"), E("jh")], president: E("pres"), firstYear: [E("newbie")] });
 let c = await R.getCycle(made.cycle);
 ok("the cycle has all eight", c.directors.length === 8 && c.test === false);

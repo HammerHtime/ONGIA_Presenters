@@ -4,7 +4,7 @@ import { getRoster, listEvents } from "./lib/store.mjs";
 import {
   testersOf, putTesters, mayManage, mayEnter, issueReviewSession, reviewWho, getCycle, putCycle, listCycles, phaseOf, directorOf,
   isCommittee, isPresidentOf, peersOf, questionsFor, newCycle, getSelf, getDone, saveSelf, sendPeer, sendBoard, factsOf, reportOf,
-  resultsOf, progressOf, deleteCycleAll, makeSample, keyOf, FLOOR, SCALE,
+  resultsOf, progressOf, deleteCycleAll, makeSample, keyOf, FLOOR, SCALE, rolesOf,
 } from "./lib/review.mjs";
 import { openMail, remindOne } from "./lib/reviewmail.mjs";
 
@@ -46,8 +46,7 @@ export default async (req) => {
     const emails = [...new Set((Array.isArray(body.emails) ? body.emails : had.emails).map((e) => text(e, 200).toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
     if (!emails.some((e) => mayManage(e))) return fail("Keep the president or the VP on the list.");
     const open = typeof body.open === "boolean" ? body.open : had.open;
-    const advisors = [...new Set((Array.isArray(body.advisors) ? body.advisors : had.advisors ?? []).map((e) => text(e, 200).toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
-    const next = { emails, open, advisors, ...(open !== had.open ? { openChanged: { at: new Date().toISOString(), by: who.email, open } } : { openChanged: had.openChanged }) };
+    const next = { emails, open, ...(open !== had.open ? { openChanged: { at: new Date().toISOString(), by: who.email, open } } : { openChanged: had.openChanged }) };
     await putTesters(next);
     return json(next);
   }
@@ -61,7 +60,7 @@ export default async (req) => {
   if (req.method === "POST" && q("cycle") === "new") {
     if (!manage) return fail("Only the president and the VP can open a review.", 403);
     const t = await testersOf();
-    const made = await newCycle(await req.json().catch(() => ({})), who.email, { testersOnly: !t.open, testers: t.emails.map((e) => e.toLowerCase()), advisors: t.advisors ?? [] });
+    const made = await newCycle(await req.json().catch(() => ({})), who.email, { testersOnly: !t.open, testers: t.emails.map((e) => e.toLowerCase()) });
     if (made.error) return fail(made.error);
     await putCycle(made.cycle);
     const mail = await openMail(made.cycle).catch((e) => ({ error: e.message }));
@@ -167,7 +166,7 @@ async function home(who, manage) {
   return json({ me: { email: who.email, name: who.name, manage, tester }, open: !!t.open,
     cycles: cycles.map((c) => ({ id: c.id, year: c.year, test: !!c.test, sample: !!c.sample, phase: phaseOf(c), selfOpens: c.selfOpens, peerOpens: c.peerOpens, closes: c.closes,
       directors: c.directors.length, mine: !!directorOf(c, who.email), committee: isCommittee(c, who.email) })),
-    roster: manage ? ((await getRoster()) ?? []).map((m) => ({ email: m.email, name: m.name })) : undefined, testers: manage ? t : undefined });
+    roster: manage ? ((await getRoster()) ?? []).map((m) => ({ email: m.email, name: m.name, role: m.role ?? "", review: m.review === true, firstYear: m.firstYear === true })) : undefined, testers: manage ? t : undefined, roles: manage ? await rolesOf() : undefined });
 }
 
 /** A cycle as this person may see it. */

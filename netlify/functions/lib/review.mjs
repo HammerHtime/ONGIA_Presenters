@@ -67,13 +67,22 @@ const rand = () => randomBytes(9).toString("base64url").replace(/[^a-zA-Z0-9]/g,
  * board"): never in a review, as reviewer or reviewed. An advisor can still sit on the review committee. Kept as a
  * list on this setting, changed on the review's own page, never decided by a name in the code.
  */
-// Where the list starts, as Andrew gave it; changed on the review's "Who can see it" screen from then on.
-const ADVISORS = ["a.bain@ongia.ca", "j.healy@ongia.ca"];
+/**
+ * Who is in the review, from each person's profile on the board list (Admin › Board members; Andrew 25 Nov 2026):
+ * "Annual 360 review?" ticked means they're in it; "First year" ticked means a self-review only; the President gets
+ * the extra questions and the VP starts on the committee. Advisors are left unticked: nothing here names anyone.
+ */
+export async function rolesOf(roster = null) {
+  const r = roster ?? (await getRoster()) ?? [];
+  const has = (role) => r.filter((m) => m.role === role).map((m) => lc(m.email));
+  return { president: has("president")[0] ?? "", vp: has("vp")[0] ?? "",
+    included: r.filter((m) => m.review === true).map((m) => lc(m.email)), firstYear: r.filter((m) => m.firstYear === true).map((m) => lc(m.email)) };
+}
 export async function testersOf() {
   const saved = await getMeta("review:testers");
-  if (saved) return { advisors: ADVISORS, ...saved };
+  if (saved) { const { advisors, ...rest } = saved; return rest; }
   const vp = String(process.env.COSTING_USERS || "vp_operations@ongia.ca").split(/[,\s]+/).map(lc).filter(Boolean);
-  return { emails: [...new Set([...deskOwners(), ...vp, "j.healy@ongia.ca"])], open: false, advisors: ADVISORS };
+  return { emails: [...new Set([...deskOwners(), ...vp, "j.healy@ongia.ca"])], open: false };
 }
 export const putTesters = (t) => putMeta("review:testers", t);
 /** The president and the VP manage the review: who tests it, opening it to the board, starting and deleting a cycle. */
@@ -139,22 +148,24 @@ export const questionsFor = (c, d) => [...c.questions.director, ...(isPresidentO
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** A new cycle, checked. Returns { cycle } or { error }. */
-export async function newCycle(body, by, { testersOnly, testers, advisors = [] }) {
+export async function newCycle(body, by, { testersOnly, testers }) {
   const year = Number(body.year) || new Date().getFullYear();
   const { selfOpens, peerOpens, closes } = body;
   if (![selfOpens, peerOpens, closes].every((d) => DAY.test(d ?? ""))) return { error: "Pick the three dates." };
   if (!(selfOpens < peerOpens && peerOpens <= closes)) return { error: "The peer round opens after the self-review week, and closes on or after it opens." };
   const roster = (await getRoster()) ?? [];
   const named = (e) => roster.find((m) => lc(m.email) === lc(e))?.name || e;
-  const adv = new Set(advisors.map(lc));
-  let emails = [...new Set((body.directors ?? []).map(lc).filter(Boolean))].filter((e) => !adv.has(e));
+  // Who's in it comes from the profiles, never from this form.
+  const roles = await rolesOf(roster);
+  let emails = roles.included;
   if (testersOnly) emails = emails.filter((e) => testers.includes(e));
-  if (emails.length < 2) return { error: testersOnly ? "Pick at least two of the testers: only testers can be in a cycle until the review is open to the board." : "Pick at least two directors." };
-  const first = new Set((body.firstYear ?? []).map(lc));
-  // The committee: directors in the review, or advisors (who are never reviewed).
-  const committee = [...new Set((body.committee ?? []).map(lc).filter((e) => emails.includes(e) || (adv.has(e) && (!testersOnly || testers.includes(e)))))];
-  const president = lc(body.president);
-  if (!committee.length) return { error: "Name the review committee: at least one director or advisor." };
+  if (emails.length < 2) return { error: testersOnly ? "Tick \"Annual 360 review?\" for at least two of the testers on Admin › Board members: only testers can be in a review until it's open to the board." : "Tick \"Annual 360 review?\" for the directors on Admin › Board members first." };
+  const first = new Set(roles.firstYear);
+  // The committee: anyone on the board list (a tester, while it's in testing), in the review or not.
+  const onList = new Set(roster.map((m) => lc(m.email)));
+  const committee = [...new Set((body.committee ?? []).map(lc).filter((e) => onList.has(e) && (!testersOnly || testers.includes(e))))];
+  const president = roles.president;
+  if (!committee.length) return { error: "Name the review committee: at least one person." };
   if (president && committee.includes(president)) return { error: "The president isn't on the review committee: it holds the president's own results." };
   return { cycle: {
     id: `${year}-${rand().slice(0, 6).toLowerCase()}`, year, test: testersOnly || body.test === true, createdAt: new Date().toISOString(), createdBy: by,

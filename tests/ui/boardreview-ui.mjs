@@ -15,10 +15,10 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 const r0 = (await api("/api/roster")).members ?? [];
 const need = [["president@ongia.ca", "Andrew Hammond"], ["vp_operations@ongia.ca", "Jacqulyn Taylor"], ["j.healy@ongia.ca", "John Healy"], ["d.sample@ongia.ca", "Dana Sample"]];
 const members = [...r0]; for (const [email, name] of need) if (!members.some((m) => m.email === email)) members.push({ name, email });
-await api("/api/roster", { method: "PUT", body: JSON.stringify({ members }) });
-
-// John Healy and Andy Bain are advisors to the board: not reviewed (Andrew 25 Nov 2026). Set as the live site will have it.
-await fetch(`${S}/api/boardreview?testers=1`, { method: "PUT", headers: { "content-type": "application/json", "x-review-key": issueReviewSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) }, body: JSON.stringify({ advisors: ["j.healy@ongia.ca", "a.bain@ongia.ca"] }) });
+// Each person's profile (Andrew 25 Nov 2026): "Annual 360 review?" ticked for the president, the VP and a director;
+// John Healy, an advisor, is left unticked. The president and the VP marked by role.
+const role = { "president@ongia.ca": "president", "vp_operations@ongia.ca": "vp" };
+await api("/api/roster", { method: "PUT", body: JSON.stringify({ members: members.map((m) => ({ ...m, role: role[m.email] ?? "", review: ["president@ongia.ca", "vp_operations@ongia.ca", "d.sample@ongia.ca"].includes(m.email), firstYear: false })) }) });
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const open = async (vp, { desk, review } = {}) => {
   const page = await b.newPage({ viewport: vp, deviceScaleFactor: 2 });
@@ -63,9 +63,11 @@ await p.close();
 // The VP starts a test review: only the three testers can be in it.
 p = await open(WIDE, { desk: desk("vp_operations@ongia.ca", "Jacqulyn Taylor") });
 await go(p, "#/new");
-ok("starting a review lists only the testers while it's in testing", await p.locator("[data-in]").count() === 2 && /only the testers can be in it/.test(await p.locator("main").innerText()), String(await p.locator("[data-in]").count()));
-ok("John is shown as an advisor: not in it, but can be on the committee", /John Healy advisor, not reviewed/.test((await p.locator("main").innerText()).replace(/\s+/g, " ")) && await p.locator('[data-in="j.healy@ongia.ca"]').count() === 0 && await p.locator('[data-cm="j.healy@ongia.ca"]').count() === 1);
-await p.locator('[data-cm="vp_operations@ongia.ca"]').check(); await p.locator('[data-cm="j.healy@ongia.ca"]').check();
+text = (await p.locator("main").innerText()).replace(/\s+/g, " ");
+ok("who's in it comes from the profiles: the two testers ticked, not the director who isn't a tester", /In the review · 2/i.test(text) && /Andrew Hammond President/.test(text) && /Jacqulyn Taylor VP/.test(text) && !/Dana Sample/.test(text), text.slice(0, 500));
+ok("John, unticked, is under Not in the review, and can be on the committee", /Not in the review John Healy not in the review/i.test(text) && await p.locator('[data-cm="j.healy@ongia.ca"]').count() === 1);
+ok("the VP starts on the committee; the president can't be on it", await p.locator('[data-cm="vp_operations@ongia.ca"]').isChecked() && await p.locator('[data-cm="president@ongia.ca"]').isDisabled());
+await p.locator('[data-cm="j.healy@ongia.ca"]').check();
 // The review counts days in Toronto, as the server does.
 const day = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 await p.locator("#d1").fill(day(0)); await p.locator("#d2").fill(day(7)); await p.locator("#d3").fill(day(21));
@@ -105,7 +107,7 @@ const { getCycle, putCycle, keyOf } = await import(REPO + "netlify/functions/lib
 // The test server keeps its records in its own process, so the dates move through a second sample-free route: re-create with past dates.
 p = await open(WIDE, { desk: desk("vp_operations@ongia.ca", "Jacqulyn Taylor") });
 await go(p, "#/new");
-await p.locator('[data-cm="vp_operations@ongia.ca"]').check(); await p.locator('[data-cm="j.healy@ongia.ca"]').check();
+await p.locator('[data-cm="j.healy@ongia.ca"]').check();
 await p.locator("#d1").fill(day(-8)); await p.locator("#d2").fill(day(-1)); await p.locator("#d3").fill(day(10));
 await p.locator("#go").click(); await p.waitForTimeout(1500);
 const pid = decodeURIComponent((await p.evaluate(() => location.hash)).split("/")[2]);
