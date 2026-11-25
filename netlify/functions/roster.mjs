@@ -32,8 +32,8 @@ const SEED = [
   ["Tyler Zrymiak", "regionaldirectorc@ongia.ca"],
 ].map(([name, email]) => ({ name, email, phone: "" }));
 
-/** A board member's place on the board: "" (a director), president, vp or advisor (not reviewed in the board review). */
-const ROLES = ["president", "vp", "advisor"];
+/** A board member's office: "" (a director), president or vp. Read by the board review; it gives no access. */
+const ROLES = ["president", "vp"];
 
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -44,7 +44,7 @@ export default async (req) => {
     if (!members) { members = SEED; await putRoster(members); }
     // Rows stored before phones existed have none; answer with the field present.
     const who = adminWho(req);
-    return json({ members: members.map((m) => ({ phone: "", bonvoy: "", sponsorLead: false, desk: false, role: "", ...m })),
+    return json({ members: members.map((m) => ({ phone: "", bonvoy: "", sponsorLead: false, desk: false, role: "", review: false, firstYear: false, ...m })),
       owners: deskOwners(), canGrant: who.key === true || isOwner(who.email) });
   }
   if (req.method === "PUT") {
@@ -67,6 +67,10 @@ export default async (req) => {
         // Their place on the board (Andrew 25 Nov 2026: "I could check off who's president, who's vp and our advisors"):
         // read by the board review. It gives no access: the desk's owners and costs stay with the site's settings.
         role: canGrant ? (ROLES.includes(row.role) ? row.role : "") : (was?.role ?? ""),
+        // In the board's annual 360 review this year, and in their first year on the board (Andrew 25 Nov 2026: "the
+        // check box could read Annual 360 review? Check box means yes"). Advisors are simply left unticked.
+        review: canGrant ? row.review === true : was?.review === true,
+        firstYear: canGrant ? row.firstYear === true : was?.firstYear === true,
         ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}),
         // When they last opened ONGIA Expenses (see expenses.mjs): kept through a save here, as the desk sign-in is.
         ...(was?.lastExpenseSignIn ? { lastExpenseSignIn: was.lastExpenseSignIn } : {}) });

@@ -15,16 +15,18 @@ const call = async (method, body, who = "key") => {
 };
 await S.putRoster([{ name: "Pat Chair", email: "pat@example.ca" }, { name: "Vic Deputy", email: "vic@example.ca" }, { name: "Ada Advisor", email: "ada@example.ca" }, { name: "Dee Director", email: "dee@example.ca", desk: true }]);
 const base = (await call("GET")).members;
-ok("everyone comes back with a role, a director until marked", base.every((m) => m.role === ""));
+ok("everyone comes back a director, not in the 360, not first year, until ticked", base.every((m) => m.role === "" && m.review === false && m.firstYear === false));
 const set = (roles) => base.map((m) => ({ ...m, role: roles[m.email] ?? m.role }));
-let r = await call("PUT", { members: set({ "pat@example.ca": "president", "vic@example.ca": "vp", "ada@example.ca": "advisor" }) });
-ok("roles are saved", r.status === 200 && r.members.find((m) => m.email === "pat@example.ca").role === "president" && r.members.find((m) => m.email === "ada@example.ca").role === "advisor");
+let r = await call("PUT", { members: set({ "pat@example.ca": "president", "vic@example.ca": "vp" }).map((m) => ({ ...m, review: m.email !== "ada@example.ca", firstYear: m.email === "dee@example.ca" })) });
+ok("roles are saved", r.status === 200 && r.members.find((m) => m.email === "pat@example.ca").role === "president" && r.members.find((m) => m.email === "vic@example.ca").role === "vp");
+ok("the 360 and first-year ticks are saved; an advisor is just left unticked", r.members.find((m) => m.email === "ada@example.ca").review === false && r.members.find((m) => m.email === "pat@example.ca").review === true && r.members.find((m) => m.email === "dee@example.ca").firstYear === true);
+ok("there's no advisor role to give", (await call("PUT", { members: r.members.map((m) => (m.email === "ada@example.ca" ? { ...m, role: "advisor" } : m)) })).members.find((m) => m.email === "ada@example.ca").role === "");
 ok("a role that isn't one is ignored", (await call("PUT", { members: r.members.map((m) => (m.email === "dee@example.ca" ? { ...m, role: "king" } : m)) })).members.find((m) => m.email === "dee@example.ca").role === "");
 r = await call("PUT", { members: (await call("GET")).members.map((m) => (m.email === "dee@example.ca" ? { ...m, role: "president" } : m)) });
 ok("one president: the one just picked takes it over", r.members.filter((m) => m.role === "president").map((m) => m.email).join() === "dee@example.ca");
 // Someone who isn't the president can't change roles (only the president gives roles, as with desk access).
-r = await call("PUT", { members: r.members.map((m) => (m.email === "dee@example.ca" ? { ...m, role: "" } : m)) }, "dee@example.ca");
-ok("a director can't change anyone's role", r.status === 200 && r.members.find((m) => m.email === "dee@example.ca").role === "president");
+r = await call("PUT", { members: r.members.map((m) => (m.email === "dee@example.ca" ? { ...m, role: "", review: false } : m)) }, "dee@example.ca");
+ok("a director can't change anyone's role or ticks", r.status === 200 && r.members.find((m) => m.email === "dee@example.ca").role === "president" && r.members.find((m) => m.email === "dee@example.ca").review === true);
 ok("a role changes nobody's desk access", r.members.find((m) => m.email === "pat@example.ca").desk === false && r.members.find((m) => m.email === "dee@example.ca").desk === true);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

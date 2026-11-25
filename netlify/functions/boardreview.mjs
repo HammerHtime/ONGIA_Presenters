@@ -166,7 +166,7 @@ async function home(who, manage) {
   return json({ me: { email: who.email, name: who.name, manage, tester }, open: !!t.open,
     cycles: cycles.map((c) => ({ id: c.id, year: c.year, test: !!c.test, sample: !!c.sample, phase: phaseOf(c), selfOpens: c.selfOpens, peerOpens: c.peerOpens, closes: c.closes,
       directors: c.directors.length, mine: !!directorOf(c, who.email), committee: isCommittee(c, who.email) })),
-    roster: manage ? ((await getRoster()) ?? []).map((m) => ({ email: m.email, name: m.name })) : undefined, testers: manage ? t : undefined, roles: manage ? await rolesOf() : undefined });
+    roster: manage ? ((await getRoster()) ?? []).map((m) => ({ email: m.email, name: m.name, role: m.role ?? "", review: m.review === true, firstYear: m.firstYear === true })) : undefined, testers: manage ? t : undefined, roles: manage ? await rolesOf() : undefined });
 }
 
 /** A cycle as this person may see it. */
