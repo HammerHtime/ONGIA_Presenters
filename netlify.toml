@@ -54,6 +54,12 @@
   to = "/sponsor.html"
   status = 200
 
+# ONGIA Board: the board's own page (the annual review), its own sign-in.
+[[redirects]]
+  from = "/board"
+  to = "/board.html"
+  status = 200
+
 # ONGIA Expenses: the board's expense claims, its own app on the phone.
 [[redirects]]
   from = "/expenses"

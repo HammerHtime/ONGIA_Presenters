@@ -424,6 +424,12 @@ export const deleteKey = (key) => store().delete(key);
 /** Small desk-wide facts, e.g. when the weekly summary last went out. */
 export const getMeta = (key) => read(`meta:${key}`);
 export const putMeta = (key, value) => write(`meta:${key}`, value);
+/** Every meta key under a prefix (the board review's answers: lib/review.mjs), without the "meta:" in front. */
+export async function listMetaKeys(prefix) {
+  const { blobs } = await store().list({ prefix: `meta:${prefix}` });
+  return blobs.map((b) => b.key.slice("meta:".length));
+}
+export const deleteMeta = (key) => store().delete(`meta:${key}`);
 
 /** Board roster — one list for the whole desk. */
 /**
