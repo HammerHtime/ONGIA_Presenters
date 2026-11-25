@@ -44,7 +44,7 @@ for (const [w, h, tag] of [[390, 844, "phone"], [1440, 1000, "wide"]]) {   // th
   await row(signed.id).screenshot({ path: D + `hotellock-signed-${tag}.png` });
   if (tag === "wide") {
     await row(held.id).click(); await p.waitForTimeout(1500);
-    ok(`${tag}: the event page says the hotel contract isn't signed, with a button to say it is`, /Hotel contract not signed yet/.test(await p.locator(".lockbar").innerText()) && await p.locator("#lock-hotel").isVisible());
+    ok(`${tag}: the event page says the hotel contract isn't signed, with a button to say it is`, /Hotel not confirmed/.test(await p.locator(".lockbar").innerText()) && await p.locator("#lock-hotel").isVisible());
     await p.locator(".bhead").screenshot({ path: D + "hotellock-event.png" });
     await p.locator("#lock-hotel").click(); await p.waitForTimeout(1800);
     const t = (await api(`/api/tasks?event=${held.id}`)).tasks.find((x) => /^contract signed/i.test(x.what));

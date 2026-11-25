@@ -35,11 +35,12 @@ await fetch(`${S}/api/contract?event=${ev.id}`, { method: "POST", headers: { "x-
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 for (const [w, h, tag] of [[390, 844, "phone"], [1280, 900, "wide"]]) {
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, acceptDownloads: true });
-  await p.addInitScript(([t]) => { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify({ email: "president@ongia.ca", name: "Andrew Hammond" })); }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" })]);
+  await p.addInitScript(([t]) => { try { sessionStorage.setItem("ongia-admin-key", t); sessionStorage.setItem("ongia-desk-who", JSON.stringify({ email: "president@ongia.ca", name: "Andrew Hammond" })); } catch { /* the contract's preview frame is sandboxed */ } }, [issueSession({ email: "president@ongia.ca", name: "Andrew Hammond" })]);
   const errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-  await p.goto(`${S}/admin.html#v=` + encodeURIComponent(JSON.stringify({ name: "edit", eventId: ev.id })), { waitUntil: "networkidle" }); await p.waitForTimeout(2500);
-  // The box is in the folded "Hotel and room block" section.
-  await p.evaluate(() => document.getElementById("ct-body")?.closest("details")?.setAttribute("open", ""));
+  // The contract is on the event's Hotel card, on Logistics (25 Nov 2026).
+  await p.goto(`${S}/admin.html#event/${ev.id}`, { waitUntil: "networkidle" }); await p.waitForTimeout(2000);
+  await p.locator('.etab[data-tab="logistics"]').click(); await p.waitForTimeout(1500);
+  await p.evaluate(() => { const f = document.getElementById("hotelfold"); f?.setAttribute("open", ""); f?.querySelector(".ctfold")?.setAttribute("open", ""); });
   await p.waitForTimeout(300);
   const box = p.locator("#ct-body");
   await box.scrollIntoViewIfNeeded();
