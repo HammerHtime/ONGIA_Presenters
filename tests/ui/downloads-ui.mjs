@@ -10,15 +10,25 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 await api("/api/roster");
 const T = Date.now().toString(36);
-const iso = (n) => new Date(Date.now() + n * 86400e3).toISOString().slice(0, 10);
+// Days are Toronto days, as the desk counts them (todayIso), not UTC: from 7 or 8 p.m. in Toronto the UTC date is already
+// tomorrow, so "yesterday" would be today and the event would rightly still be Coming up. TEST_NOW (any Date.parse-able
+// time) fakes the clock here and in the page, to check the evening window on demand.
+const { todayIso } = await import(new URL("../../netlify/functions/lib/deadlines.mjs", import.meta.url));
+const NOW = process.env.TEST_NOW ? Date.parse(process.env.TEST_NOW) : null;
+const iso = (n) => new Date(Date.parse(todayIso(NOW == null ? new Date() : new Date(NOW))) + n * 864e5).toISOString().slice(0, 10);
 const ev = (await api("/api/events", { method: "POST", body: JSON.stringify({ title: `Downloads test ${T}`, city: "Toronto, ON", dayOne: iso(-2), lastDay: iso(-1), invite: false,
   board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }],
   presenters: [{ first: "Dana", last: "Sample", email: `dana.${T}@example.ca`, organization: "Windsor Police Service" }, { first: "Lee", last: "Other", email: `lee.${T}@example.ca`, organization: "OPP" }] }) })).event;
+// The edges, so the list is checked on its own fixtures and not on whatever else happens to be in the store.
+const mk = async (name, dayOne, lastDay) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title: `Downloads ${name} ${T}`, city: "Toronto, ON", dayOne, lastDay, invite: false, board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }] }) })).event;
+const endsToday = await mk("ends today", iso(-1), iso(0)), later = await mk("later", iso(5), iso(5));
+const edgeIn = await mk("ended 30 days ago", iso(-32), iso(-30)), edgeOut = await mk("ended 31 days ago", iso(-31), iso(-31));
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const errs = [];
 const a = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, acceptDownloads: true });
 a.on("pageerror", (e) => errs.push(String(e)));
+if (NOW != null) await a.clock.setFixedTime(NOW);
 await a.addInitScript(() => { sessionStorage.setItem("ongia-admin-key", "testkey"); });
 await a.goto(`${S}/admin.html`, { waitUntil: "networkidle" }); await a.waitForTimeout(1500);
 const nav = a.locator("#downloadsnav");
@@ -33,7 +43,13 @@ const order = await a.evaluate(() => [...document.querySelectorAll("#dl-ev optgr
 const days = Object.fromEntries(all.map((e) => [e.id, e.dayOne]));
 const coming = order.find(([l]) => l === "Coming up")?.[1] ?? [], held = order.find(([l]) => l === "Just held")?.[1] ?? [];
 ok("Coming up first, soonest first", order[0]?.[0] === "Coming up" && coming.every((id, i) => !i || days[coming[i - 1]] <= days[id]), JSON.stringify(order).slice(0, 300));
-ok("then Just held, latest first, nothing older than 30 days", held.includes(ev.id) && held.every((id) => days[id] >= iso(-31)) && held.every((id, i) => !i || days[held[i - 1]] >= days[id]));
+// Held = finished before today (Toronto) and its last day within the last 30 days, as downloadEvents() counts it.
+const ends = Object.fromEntries(all.map((e) => [e.id, end(e)]));
+const heldWant = all.filter((e) => end(e) < today && end(e) >= iso(-30)).map((e) => e.id).sort();
+ok("then Just held, latest first, nothing older than 30 days", held.includes(ev.id) && JSON.stringify([...held].sort()) === JSON.stringify(heldWant) && held.every((id, i) => !i || days[held[i - 1]] >= days[id]),
+  JSON.stringify({ today, held: held.map((id) => [id, days[id], ends[id]]), want: heldWant }).slice(0, 400));
+ok("an event ending today (Toronto) is still Coming up, ahead of a later one", coming.includes(endsToday.id) && coming.indexOf(endsToday.id) < coming.indexOf(later.id), JSON.stringify({ today, coming }));
+ok("ended 30 days ago is held (by its last day, though it began 32 days ago); 31 days ago is not listed", held.includes(edgeIn.id) && !held.includes(edgeOut.id) && !coming.includes(edgeOut.id));
 if (chosen !== ev.id) { await a.selectOption("#dl-ev", ev.id); await a.waitForTimeout(1500); }
 const body = await a.locator("#root").innerText();
 ok("grouped: People, Program, Venue, Survey", ["PEOPLE", "PROGRAM", "VENUE", "SURVEY"].every((g) => body.toUpperCase().includes(g)));
