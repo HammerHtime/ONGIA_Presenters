@@ -32,25 +32,29 @@ for (const [email, name, isLead] of [["treasurer@ongia.ca", "Raj Jaswal", true],
   const body = await page.locator("body").innerText();
   ok(`${tag}: the page loads`, /Lead View RBH/.test(body), body.slice(0, 200));
   ok(`${tag}: the statement of work section is ${isLead ? "not there" : "there"}`, (await page.locator("#sowcard").count()) === (isLead ? 0 : 1));
-  const fold = page.locator('details[data-fold="sec-hotel"]'); if (!(await fold.evaluate((d) => d.open))) await fold.locator("summary").first().click();
-  const strip = page.locator(".hstrip");
-  ok(`${tag}: the hotel strip shows the hotel and its dates`, /Humaniti Hotel/.test(await strip.innerText()) && /cut-off/.test(await strip.innerText()));
-  ok(`${tag}: the contract button is ${isLead ? "gone" : "there"}`, (await strip.locator('[data-hgo="contract"]').count()) === (isLead ? 0 : 1));
-  ok(`${tag}: "Edit hotel details" is there`, (await strip.locator('[data-hgo="hotel"]').count()) === 1);
+  // The hotel's one card, on Logistics (25 Nov 2026): its line says the hotel and the cut-off; the contract is for the president and the VP.
+  await page.locator('.etab[data-tab="logistics"]').click(); await page.waitForTimeout(800);
+  const strip = page.locator("#hotelfold");
+  ok(`${tag}: the Hotel card's line shows the hotel and its cut-off`, /Humaniti Hotel/.test(await strip.locator(":scope > summary").innerText()) && /cut-off/.test(await strip.locator(":scope > summary").innerText()));
+  if (!(await strip.evaluate((d) => d.open))) await strip.locator(":scope > summary").click();
+  ok(`${tag}: the contract is ${isLead ? "not shown" : "there"}`, (await strip.locator("#ct-body").count()) === (isLead ? 0 : 1));
+  ok(`${tag}: the hotel's details can be saved from the card`, (await strip.locator("#hotelsave").count()) === 1);
   if (isLead) ok(`lead: nothing on the page says the rate`, !/\$205/.test(await page.locator("body").innerText()));
   await page.screenshot({ path: D + `lead-${tag}-event.png` });
-  await strip.locator('[data-hgo="hotel"]').click(); await page.waitForTimeout(1500);
-  const det = page.locator("details", { hasText: "Hotel and room block" }).first();
-  ok(`${tag}: the form's rate box is ${isLead ? "not shown" : "shown"}`, (await page.locator('#e-hrate').evaluate((e) => e.type)) === (isLead ? "hidden" : "text"));
-  ok(`${tag}: the contract box is ${isLead ? "replaced by a note" : "there"}`, isLead ? /kept by the president and the VP/.test(await page.locator("body").innerText()) && (await page.locator(".ctbox").count()) === 0 : (await page.locator(".ctbox").count()) === 1);
-  ok(`${tag}: the RBH event settings are ${isLead ? "not offered" : "offered"}`, (await page.locator("#e-rbh").count()) === (isLead ? 0 : 1));
+  // On the Hotel card itself (25 Nov 2026): the rate box hidden for the lead, the contract replaced by a note.
+  ok(`${tag}: the card's rate box is ${isLead ? "not shown" : "shown"}`, (await page.locator('#e-hrate').evaluate((e) => e.type)) === (isLead ? "hidden" : "text"));
+  ok(`${tag}: the contract box is ${isLead ? "replaced by a note" : "there"}`, isLead ? /kept by the president and the VP/.test(await strip.innerText()) && (await page.locator(".ctbox").count()) === 0 : (await page.locator(".ctbox").count()) === 1);
   ok(`${tag}: the hotel name, contact, link and dates are editable`, await page.locator("#e-hotel").isVisible() && await page.locator("#e-hcontact").isVisible() && await page.locator("#e-hcut").isVisible());
   if (isLead) {
     await page.fill("#e-hotel", "Humaniti Hotel Montreal");
-    await page.click("#create"); await page.waitForTimeout(2500);
+    await page.click("#hotelsave"); await page.waitForTimeout(2500);
     const after = (await api(`/api/events?id=${ev.id}`)).event;
-    ok("lead: saving keeps the rate, the notes and the RBH kind untouched", after.hotel.name === "Humaniti Hotel Montreal" && after.hotel.rate === "$205 + tax" && after.hotel.notes === "Attrition 80%" && after.kind === "rbh" && after.province === "QC", JSON.stringify([after.hotel, after.kind]));
+    ok("lead: saving the hotel keeps the rate, the notes and the RBH kind untouched", after.hotel.name === "Humaniti Hotel Montreal" && after.hotel.rate === "$205 + tax" && after.hotel.notes === "Attrition 80%" && after.kind === "rbh" && after.province === "QC", JSON.stringify(after.hotel));
   }
+  // The RBH settings stay on Edit event, for the president and the VP only.
+  await page.goto(page.url().split("#")[0] + "#v=" + encodeURIComponent(JSON.stringify({ name: "edit", eventId: ev.id })), { waitUntil: "networkidle" }); await page.waitForTimeout(1500);
+  ok(`${tag}: the RBH event settings are ${isLead ? "not offered" : "offered"}`, (await page.locator("#e-rbh").count()) === (isLead ? 0 : 1));
+  ok(`${tag}: Edit event points to the Hotel card on Logistics`, /on this event's Logistics tab/.test(await page.locator("body").innerText()));
   ok(`${tag}: no page errors`, errs.length === 0, errs.join("|"));
   await page.close();
 }

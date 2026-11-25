@@ -353,7 +353,14 @@
   .hst.mu{color:var(--muted);background:var(--sunk);border-color:var(--border);font-weight:600} .hst.mu .hico{opacity:.75}
   .hst .hico .hok{fill:var(--done);stroke:#fff;stroke-width:1.2} .hst .hico .hokt{stroke:#fff;stroke-width:1.8}
   .lockbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--wait-bg);border:1px dashed var(--wait);color:var(--ink-mid);font-size:14px}
-  .lockbar span{flex:1 1 260px}
+  .lockbar span{flex:1 1 200px}
+  .lockbar{margin-top:10px;padding:6px 12px;border-style:solid;font-size:13.5px}
+  .hotelfold > summary .s b{color:var(--ink)} .hotelfold .ok-t{color:var(--done);font-weight:600} .hotelfold .wt-t{color:var(--wait);font-weight:600} .hotelfold .bad-t{color:var(--late);font-weight:600}
+  .hotelfold > summary .mini{flex:0 0 auto}
+  .ctfold{margin:0 0 4px} .ctfold > summary{cursor:pointer;font-size:14px;padding:8px 0;list-style:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ctfold > summary::-webkit-details-marker{display:none} .ctfold > summary .ctopen{color:var(--navy);text-decoration:underline;margin-left:6px} .ctfold[open] > summary .ctopen{display:none}
+  @media (max-width:640px){.lockbar .lkmore{display:none}}
+  .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:12px} @media (max-width:640px){.hgrid{grid-template-columns:1fr}}
   /* Navy means "waiting on ONGIA" — it survives greyscale and colour blindness. */
   .pill.you{background:var(--navy);color:#fff}
   .pill.idle{background:var(--sunk);color:var(--muted);box-shadow:inset 0 0 0 1px var(--border)}
@@ -1551,7 +1558,6 @@
   .stick{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--edge);flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:#fff}
   .sready li.done .stick{background:var(--done);border-color:var(--done)}
   .ssoon .mile{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--hair);align-items:center;font-size:14px;line-height:1.3} .ssoon .mile:first-child{border-top:0}
-  .ctline .card-body{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:12px 18px} .ctline .ctl-what{flex:1 1 240px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ctline .ctl-acts{display:flex;gap:8px;flex-wrap:wrap}
   .comingtop{margin-bottom:16px} .ssoon .cnow{padding:2px 10px;min-height:28px;font-size:12.5px}
   #comingcard .card-body{padding-top:10px;padding-bottom:12px}
   @media (max-width:760px){ .ssoon .cmdays{display:none} #comingcard .card-body{padding-left:16px;padding-right:16px} .ssoon .mile{gap:8px} } .ssoon .mlic{color:var(--navy);margin-right:6px}
@@ -2909,7 +2915,7 @@ function eventFormScreen(existing = null) {
         <div class="pxmeals">${[["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]].map(([m, n]) => `<label><input type="checkbox" id="e-meal-${m}"${ev?.mealsProvided?.[m] ? " checked" : ""}> ${n}</label>`).join("")}</div>
         <p class="hint" style="margin:10px 0 0">${ev ? "Each presenter's link and where their claim stands: <b>People › Expenses</b>." : "Save the event first; each presenter's expense link is under People › Expenses."}</p>
       </details>
-      <details class="settings noproj" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
+      ${ev ? `<p class="hint noproj" style="margin:16px 0 0"><b>Hotel and room block:</b> the hotel, its contract, the cut-off and the booking link are on this event's <b>Logistics</b> tab.</p>` : `      <details class="settings noproj" style="margin-top:16px"${(ev?.hotel && Object.values(ev.hotel).some(Boolean)) ? " open" : ""}>
         <summary>Hotel and room block</summary>
         <p class="hint" style="margin-top:10px">The cut-off is the day the contracted rate ends. Attendees are reminded
           30, 15 and 7 days before it — counted back from the cut-off, not from the training, so the last one still
@@ -2937,7 +2943,7 @@ function eventFormScreen(existing = null) {
         <p class="hint" id="hotelhint" style="margin:8px 0 0"></p>
         ${ev?.hotelCostsHidden ? `<input id="e-hnotes" type="hidden" value="">` : `<div class="field"><label for="e-hnotes">Anything else from the contract</label>
           <textarea id="e-hnotes" style="min-height:70px" placeholder="Attrition, deposit dates, parking">${esc(ev?.hotel?.notes ?? "")}</textarea></div>`}
-      </details>
+      </details>`}
       <details class="settings noproj" style="margin-top:4px"${ev?.quiet ? " open" : ""}>
         <summary>Nothing automatic${ev?.quiet ? " · On" : ""}</summary>
         <label class="attest" style="margin-top:12px"><input type="checkbox" id="e-quiet"${ev?.quiet ? " checked" : ""}>
@@ -3282,8 +3288,9 @@ function eventFormScreen(existing = null) {
     offsets,
     board: readBoard(),
     sharePointFolder: val("e-folder"), materialsFolder: val("e-matfolder"), materialsUploadUrl: val("e-upload"),
-    hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
-             cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") },
+    // The hotel is saved from its card on Logistics; Edit event sends it only for a new event.
+    ...($("e-hotel") ? { hotel: { name: val("e-hotel"), rate: val("e-hrate"), link: val("e-hlink"), contact: val("e-hcontact"),
+             cutoff: val("e-hcut"), foodAndBev: val("e-hfb"), notes: val("e-hnotes") } } : {}),
     letters: { welcome: val("e-lwelcome"), survey: document.getElementById("e-lsurvey") ? val("e-lsurvey") : (ev?.letters?.survey ?? ""), welcomeGroup: ev?.letters?.welcomeGroup ?? "" },
     surveyLink: document.getElementById("e-survey") ? val("e-survey") : (ev?.surveyLink ?? ""),
     // The switch is on Communications now; saving the event keeps what it says.
@@ -4651,7 +4658,7 @@ function eventScreen(data) {
       <div class="bmeta"><span>${I.cal}${esc(fmtDate(ev.dayOne))}${ev.lastDay && ev.lastDay !== ev.dayOne ? " – " + esc(fmtDate(ev.lastDay)) : ""}</span>
         ${ev.city || ev.venue ? `<span>${I.pin}${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span>` : ""}
         ${lead ? `<span>${I.me}Lead: ${esc(lead)}${seenWords ? `<small class="seen">${esc(seenWords)}</small>` : ""}</span>` : `<span>${I.me}No lead yet</span>`}</div>
-      ${hotelLocked(ev) || ev.project ? "" : `<div class="lockbar"><span>🔓 <b>Hotel contract not signed yet.</b> These dates are held, not locked. Hold off on ticket sales and presenters until it is.</span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">The contract is signed</button>`}</div>`}</div>
+      ${hotelLocked(ev) || ev.project ? "" : `<div class="lockbar"><span>🔓 <b>Hotel not confirmed</b><span class="lkmore"> · dates held, not locked</span></span>${ev.canEdit === false ? "" : `<button class="mini gold" id="lock-hotel">Confirm</button>`}</div>`}</div>
       <div class="bacts"><button class="mini" id="edit">${ev.project ? "Edit project" : "Edit event"}</button><button class="mini" id="mailall"${ev.project ? " hidden" : ""}>Email all outstanding</button><button class="mini gold" id="add"${ev.project ? " hidden" : ""}>Add presenters</button></div></div>
 </section>${evNotices(ev)}</div>
     <nav class="etabs evnav" role="tablist" aria-label="Parts of this event">${TABS.map(([k, l]) => `<button type="button" role="tab" class="etab${k === tab ? " on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}${tabBadge[k] ? ` <span class="n">${tabBadge[k]}</span>` : ""}${newBadge[k] ? ` <span class="nnew" title="${newBadge[k]} new since you last looked">${newBadge[k]}</span>` : ""}${k === "money" && data.canCost ? `<span class="lock">· president &amp; VP</span>` : ""}</button>`).join("")}</nav>
@@ -4680,7 +4687,7 @@ function eventScreen(data) {
       // Each presenter's expense link and where their claim stands (audit 24 Nov 2026: it was inside Edit event).
       + pv("expenses", `<div class="card"><div class="card-body"><div class="pxmealsline porg">${["breakfast", "lunch", "dinner"].some((m) => ev.mealsProvided?.[m]) ? `Provided here: ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).join(", ")}, so no per diem for ${["breakfast", "lunch", "dinner"].filter((m) => ev.mealsProvided[m]).length === 1 ? "it" : "them"}` : "No meals marked as provided"} · <button type="button" class="linkbtn" data-pxmeals>Change</button></div><div id="px-body"><p class="hint" style="margin:0">Loading the presenters…</p></div></div></div>`))
     + panel("program", agendaCard(ev, agenda) + mcCard())
-    + panel("logistics", contractLine(ev, contract) + roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
+    + panel("logistics", hotelCard(ev, contract) + roomingCard(ev, rooming, contract) + (sheetShown ? sheetCard(ev, sheetcheck) : ""))
     + (showMoney ? panel("money", ev.project
       // A project is its statement of work, and a way to delete it.
       ? (sow ? sowCard(ev, sow) : "") + `<div class="actions" style="margin-top:22px;justify-content:flex-end"><button class="btn btn-late" id="delevent">Delete this project</button></div>`
@@ -4814,7 +4821,7 @@ function eventScreen(data) {
   SBX_RC = receipts?.optional ? { ev: ev.id, sums: receipts.sums } : null;
   mountBudget(ev, budget);
   wireRooming(ev, rooming);
-  wireContractLine(ev);
+  wireHotelCard(ev);
   wireAgenda(ev, agenda);
   if (EMAIL_ON) wireInbox(inbox?.items ?? [], allEvents, { eventId: ev.id, running: inbox?.running });
   wireMailSwitch(ev);
@@ -5078,7 +5085,8 @@ function eventScreen(data) {
     } catch (err) { said.innerHTML = `<div class="bad"><b>Couldn't add them.</b> ${esc(err.message)}</div>`; }
     e.target.disabled = false; e.target.textContent = "Add presenters";
   };
-  ROOT.querySelectorAll("[data-readyhotel]").forEach((b) => { b.onclick = () => { view = { name: "edit", eventId: ev.id, focus: "hotel" }; render(); }; });
+  // The hotel is on Logistics now: open its card there.
+  ROOT.querySelectorAll("[data-readyhotel]").forEach((b) => { b.onclick = () => { try { localStorage.setItem(`ongia-hotel-open-${ev.id}`, "1"); } catch {} const f = document.getElementById("hotelfold"); if (f) f.open = true; showTab("logistics", "#hotelfold"); }; });
   ROOT.querySelectorAll("[data-readywix]").forEach((b) => { b.onclick = () => { view = { ...view, tab: "people", pview: "guests" }; keepAddress(); eventScreen(data); }; });
   const readyHide = document.getElementById("readyhide");
   // Hidden by mistake, or wanted again: one click brings it back.
@@ -5683,33 +5691,6 @@ let RG_OPEN = false;   // "Add people by hand" stays open while people are being
 const shortDate = (iso) => fmtDate(iso).replace(/ \d{4}$/, "");
 let ROOMING = null;
 
-function hotelStrip(ev, C) {
-  const h = ev.hotel ?? {};
-  // The job counted from the cut-off — names to the hotel — said next to it.
-  const namesDue = () => {
-    const j = (CHECKLIST?.tasks ?? []).find((t) => t.from === "cutoff" && !t.na);
-    if (!j || !j.due) return "";
-    return j.done ? `names sent ✓` : `<span${j.late ? ' style="color:var(--late)"' : ""}>names due ${esc(fmtDate(j.due))}</span>`;
-  };
-  const bits = [
-    h.name ? `<b>${esc(h.name)}</b>` : `<span style="color:var(--muted)">No hotel set yet</span>`,
-    h.cutoff ? `cut-off ${esc(fmtDate(h.cutoff))}` : "",
-    namesDue(),
-    h.foodAndBev ? `food and beverage numbers ${esc(fmtDate(h.foodAndBev))}` : "",
-  ].filter(Boolean);
-  const read = C?.read, file = C?.file;
-  // On an RBH event the contract, its rates and its terms are for the president and the VP: the lead sees the
-  // hotel, the contact and the dates, and nothing about the contract itself.
-  if (ev.hotelCostsHidden) return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}</div>
-    <div class="hs-acts"><button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
-  const contract = !file ? "No contract uploaded"
-    : read?.state === "reading" ? `<span class="spin" aria-hidden="true" style="width:12px;height:12px"></span>Claude is reading ${esc(file.name)}…`
-    : read?.state === "done" ? `Contract read ${esc(fmtDate(read.at.slice(0, 10)))}`
-    : `Contract on file`;
-  return `<div class="hstrip"><div class="hs-what">${bits.join(" · ")}<div class="hs-ct">${contract}</div></div>
-    <div class="hs-acts"><button class="mini" data-hgo="contract">${file ? "Hotel contract" : "Upload the hotel contract"}</button>
-      <button class="mini ghost" data-hgo="hotel">Edit hotel details</button></div></div>`;
-}
 
 /** Names compared the way the server compares them: case, accents and spacing do not count. */
 const sameName = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, " ").trim();
@@ -6162,7 +6143,7 @@ function drawMailSum(ev) {
     const k = b.dataset.msgo;
     if (k === "survey") { ROOT.querySelector('.etab[data-tab="survey"]')?.click(); return; }
     if (k === "certs") { openCerts(false); return; }
-    if (k === "hotel") { ROOT.querySelector('.etab[data-tab="logistics"]')?.click(); setTimeout(() => { const f = document.getElementById("hotelfold") ?? document.getElementById("contractline"); f?.scrollIntoView({ block: "start" }); }, 200); return; }
+    if (k === "hotel") { ROOT.querySelector('.etab[data-tab="logistics"]')?.click(); setTimeout(() => { const f = document.getElementById("hotelfold"); f?.scrollIntoView({ block: "start" }); }, 200); return; }
     commsShow(k);
     // On a phone the email opens below the list, often off the screen: bring its top up into view.
     const card = document.getElementById(k), r = card?.getBoundingClientRect();
@@ -9655,32 +9636,77 @@ function roomGroups(rows, row) {
  * section. Upload new version sends the PDF, then opens Edit event at the contract, where Claude's reading of it comes
  * up to check and put in the form; nothing changes until Save.
  */
-function contractLine(ev, C) {
-  if (!C || ev.hotelCostsHidden) return "";
-  const f = C.file;
-  return `<div class="card ctline"><div class="card-body">
-      <span class="ctl-what"><b>Hotel contract</b> ${f ? `${esc(f.name)} <span class="porg">· uploaded ${esc(fmtDate(String(f.uploadedAt).slice(0, 10)))}</span>` : `<span class="porg">none uploaded yet</span>`}</span>
-      <span class="ctl-acts">${f ? `<button type="button" class="mini ghost" id="ctl-check">Check its dates</button>` : ""}<button type="button" class="mini${f ? "" : " gold"}" id="ctl-up">${f ? "Upload new version" : "Upload the contract"}</button>
-        <input type="file" id="ctl-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></span></div></div>`;
+/*
+ * The hotel in one place (audit 24 Nov 2026; Andrew said go, 25 Nov 2026: it was split between Edit event, a contract line here and the header).
+ * One line says where it stands; Change opens the contract (with Claude's read of its dates) and the hotel's details,
+ * saved here. The same boxes Edit event had, so "Put these in the form" fills them.
+ */
+/** The job counted from the cut-off, names to the hotel, in a few words. */
+const namesDueOf = () => {
+  const j = (CHECKLIST?.tasks ?? []).find((t) => t.from === "cutoff" && !t.na);
+  if (!j || !j.due) return "";
+  return j.done ? `names sent ✓` : `<span${j.late ? ' style="color:var(--late)"' : ""}>names due ${esc(fmtDate(j.due).replace(/ \d{4}$/, ""))}</span>`;
+};
+function hotelCard(ev, C) {
+  if (ev.project) return "";
+  const h = ev.hotel ?? {}, hidden = !!ev.hotelCostsHidden;
+  const day = (iso) => (iso ? fmtDate(iso).replace(/ \d{4}$/, "") : "");
+  const past = h.cutoff && h.cutoff < todayIso();
+  const sign = C?.sign?.state === "done" && !C.sign.stale;
+  const state = hotelLocked(ev) ? `<span class="ok-t">Confirmed ✓</span>` : sign ? `<span class="wt-t">Signed · confirm?</span>` : C?.file ? `<span class="wt-t">Contract in</span>` : `<span class="bad-t">No contract</span>`;
+  const line = [h.name ? `<b>${esc(h.name)}</b>` : `<span class="bad-t">No hotel yet</span>`, !hidden && h.rate ? esc(String(h.rate).split(/[,(]/)[0].trim()) : "",
+    h.cutoff ? `cut-off ${esc(day(h.cutoff))}${past ? " (passed)" : ""}` : "no cut-off", namesDueOf(), state].filter(Boolean).join(" · ");
+  let open = false; try { open = localStorage.getItem(`ongia-hotel-open-${ev.id}`) === "1"; } catch {}
+  const f = (id, label, value, { type = "text", ph = "", hint = "" } = {}) => `<div class="field" style="margin:0"><label for="${id}">${label}</label><input id="${id}" type="${type}" value="${esc(value ?? "")}"${ph ? ` placeholder="${esc(ph)}"` : ""}>${hint ? `<p class="hint" style="margin:6px 0 0">${hint}</p>` : ""}</div>`;
+  return `<details class="card clfold hotelfold" id="hotelfold"${open ? " open" : ""}><summary><h2>Hotel</h2><span class="s">${line}</span>${!hotelLocked(ev) && ev.canEdit !== false && (sign || C?.file) ? `<button type="button" class="mini gold" data-hotelconfirm>Confirm</button>` : ""}<span class="ibcaret" aria-hidden="true">▾</span></summary>
+    <div class="card-body" style="padding-top:0">
+      ${hidden ? `<p class="hint" style="margin:0 0 10px">The contract, the rate and its notes on an RBH event are kept by the president and the VP of operations.</p>`
+        : ev.canEdit === false ? "" : `<details class="ctfold"${C?.file ? "" : " open"}><summary><b>Contract</b> · ${C?.file ? `${esc(C.file.name)}${C.read?.state === "done" ? ` · read ${esc(fmtDate(String(C.read.at).slice(0, 10)).replace(/ \d{4}$/, ""))}` : C.read?.state === "reading" ? " · Claude is reading it" : ""}${sign ? ` · signed ${esc(fmtDate(String(C.sign.at ?? C.sign.from ?? "").slice(0, 10)).replace(/ \d{4}$/, ""))}` : ""}` : "none uploaded yet"} <span class="ctopen">Open</span></summary>
+          <div class="ctbox"><div id="ct-body"><p class="hint" style="margin:0">Loading the contract…</p></div><input type="file" id="ct-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div></details>`}
+      <div class="hgrid">
+        ${f("e-hotel", "Hotel", h.name, { ph: "Delta Hotels Toronto Airport" })}
+        ${hidden ? `<input id="e-hrate" type="hidden" value="">` : f("e-hrate", "Rate", h.rate, { ph: "$189 + tax" })}
+        ${f("e-hcontact", "Group sales email", h.contact, { type: "email", ph: "groupsales@hotel.com" })}
+        ${f("e-hlink", "Booking link", h.link, { type: "url", ph: "https://… the booking page for our block" })}
+        ${f("e-hcut", "Room block cut-off", h.cutoff, { type: "date" })}
+        ${f("e-hfb", "Food and beverage numbers due", h.foodAndBev, { type: "date" })}
+      </div>
+      <p class="hint" id="hotelhint" style="margin:8px 0 0"></p>
+      ${hidden ? `<input id="e-hnotes" type="hidden" value="">` : `<div class="field"><label for="e-hnotes">Anything else from the contract</label><textarea id="e-hnotes" style="min-height:60px" placeholder="Attrition, deposit dates, parking">${esc(h.notes ?? "")}</textarea></div>`}
+      ${ev.canEdit === false ? "" : `<div class="actions" style="margin-top:10px"><button type="button" class="btn btn-gold" id="hotelsave">Save changes</button><span class="hint" id="hotelsaid" style="align-self:center;margin:0"></span></div>`}
+    </div></details>`;
 }
-function wireContractLine(ev) {
-  const up = document.getElementById("ctl-up"), file = document.getElementById("ctl-file");
-  if (!up || !file) return;
-  const toForm = () => { view = { name: "edit", eventId: ev.id, focus: "contract" }; render(); };
-  document.getElementById("ctl-check")?.addEventListener("click", toForm);
-  up.onclick = () => file.click();
-  file.onchange = async () => {
-    const f = file.files?.[0]; file.value = "";
-    if (!f) return;
-    up.disabled = true; up.textContent = "Uploading…";
-    try {
-      await api(`/contract?event=${encodeURIComponent(ev.id)}`, { method: "POST", body: f, headers: { "content-type": "application/pdf", "x-file-name": encodeURIComponent(f.name) } });
-      toast("Uploaded. Claude is reading it: check the dates, then Put these in the form and Save.");
-      toForm();
-    } catch (x) { toast(x.message); up.disabled = false; up.textContent = "Upload new version"; }
+function wireHotelCard(ev) {
+  const fold = document.getElementById("hotelfold");
+  if (!fold) return;
+  const $ = (id) => document.getElementById(id);
+  fold.addEventListener("toggle", () => { try { localStorage.setItem(`ongia-hotel-open-${ev.id}`, fold.open ? "1" : "0"); } catch {} });
+  // The reminders count back from the cut-off: the line under the dates says when they go, or why they won't.
+  const showHotelHint = () => {
+    const hint = $("hotelhint"), cut = $("e-hcut")?.value, link = $("e-hlink")?.value.trim();
+    if (!hint) return;
+    // Its own switch on the Communications list (24 Nov 2026).
+    const on = ev.autoOn?.hotel === true && !ev.quiet;
+    if (!cut) { hint.textContent = ""; return; }
+    if (!on) { hint.innerHTML = "The hotel reminders are switched off for this event, so none go automatically. Their switch is on the <b>Communications</b> list."; hint.style.color = "var(--wait)"; return; }
+    if (!link) { hint.textContent = "Without a booking link the hotel reminders don't go."; hint.style.color = "var(--late)"; return; }
+    const at = (d) => fmtDate(new Date(Date.parse(`${cut}T12:00:00Z`) - d * 86400e3).toISOString().slice(0, 10)).replace(/ \d{4}$/, "");
+    hint.textContent = `Reminders go ${[30, 15, 7].map(at).join(", ")}.`; hint.style.color = "";
   };
+  ["e-hcut", "e-hlink"].forEach((id) => $(id)?.addEventListener("input", showHotelHint));
+  showHotelHint();
+  wireContract(ev, { $, showHotelHint });
+  const save = $("hotelsave");
+  if (save) save.onclick = async () => {
+    const v = (id) => ($(id)?.value ?? "").trim();
+    const back = busyBtn(save, "Saving…");
+    try {
+      await api(`/events?id=${encodeURIComponent(ev.id)}&hotel=1`, { method: "PUT", body: JSON.stringify({ hotel: { name: v("e-hotel"), rate: v("e-hrate"), link: v("e-hlink"), contact: v("e-hcontact"), cutoff: v("e-hcut"), foodAndBev: v("e-hfb"), notes: v("e-hnotes") } }) });
+      toast("Hotel saved."); render();
+    } catch (x) { back(); toast(x.message); }
+  };
+  document.querySelector("[data-hotelconfirm]")?.addEventListener("click", (e) => { e.preventDefault(); document.getElementById("lock-hotel")?.click(); });
 }
-
 function roomingCard(ev, R, C = null) {
   if (!R) return `<div class="card"><div class="card-head"><div><h2>Hotel rooms</h2></div></div>
     <div class="card-body"><div class="bad"><b>The rooming list could not be loaded.</b> Reload the page.</div></div></div>`;
@@ -9722,7 +9748,6 @@ function roomingCard(ev, R, C = null) {
       <div class="cardacts">${R.rows.length ? `<button class="mini" id="rm-csv">Download spreadsheet</button>
         <button class="mini solid" id="rm-send">${R.sent ? "Email the update to the hotel" : "Email it to the hotel"}</button>` : ""}</div></div>
     <div class="card-body">
-      ${hotelStrip(ev, C)}
       ${sent}
       ${R.rows.length ? roomGroups(R.rows, row)
         : `<div class="empty" style="padding:24px 16px">No one needs a room yet. When a presenter asks for one on their agreement, they appear here.</div>`}
@@ -12951,7 +12976,8 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
     // The training days and the city. On a form that already has them and they
     // differ, they start unticked: moving day one moves every deadline.
     if (f.meetingFirst) {
-      const d1 = $("e-day1").value, dl = $("e-last").value || d1;
+      // On the Hotel card (Logistics) there are no day boxes: compare with the event as saved.
+      const d1 = $("e-day1")?.value ?? ev?.dayOne ?? "", dl = $("e-last")?.value || ev?.lastDay || d1;
       const same = d1 === f.meetingFirst && (!f.meetingLast || dl === f.meetingLast);
       const warn = [];
       if (!f.meetingLast) warn.push("the contract does not say when the training ends; set the last day yourself");
@@ -12961,7 +12987,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
         quote: f.arrival && f.departure ? `Rooms are booked ${esc(span(f.arrival, f.departure))}, arrival to departure.` : "", warn });
     }
     if (f.city) {
-      const c = $("e-city").value.trim();
+      const c = ($("e-city")?.value ?? ev?.city ?? "").trim();
       rows.push({ key: "city", what: `<b>City:</b> ${esc(f.city)}`, on: !c || c === f.city, warn: c && c !== f.city ? [`this event says ${c}`] : [] });
     }
     if (f.hotelName) rows.push({ key: "name", what: `<b>Hotel:</b> ${esc(f.hotelName)}`, on: true });
@@ -13089,6 +13115,7 @@ function wireContract(ev, { $, showHotelHint, draftId = null }) {
     };
     const boxed = new Set();
     for (const x of rows.filter((x) => ticked.has(x.key))) {
+      if ((x.key === "days" || x.key === "city") && !$("e-day1")) { said.push(x.key === "days" ? "the training days are changed on Edit event" : "the city is changed on Edit event"); continue; }
       if (x.key === "days") {
         // One message for the pair: setting day one also moves the last day on its own.
         const was = [$("e-day1").value, $("e-last").value];
