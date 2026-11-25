@@ -32,8 +32,12 @@ const SEED = [
   ["Tyler Zrymiak", "regionaldirectorc@ongia.ca"],
 ].map(([name, email]) => ({ name, email, phone: "" }));
 
-/** A board member's office: "" (a director), president or vp. Read by the board review; it gives no access. */
-const ROLES = ["president", "vp"];
+/**
+ * A board member's place: "" (a director), president, vp or advisor. Read by the board review; it gives no access.
+ * An advisor is never in the 360 review (Andrew 25 Nov 2026: "that would make the check box uncheckable so they don't
+ * accidentally get checked and sent a review"); picking President or VP ticks it (they're always reviewed).
+ */
+const ROLES = ["president", "vp", "advisor"];
 
 export default async (req) => {
   const denied = requireAdmin(req);
@@ -68,7 +72,7 @@ export default async (req) => {
         // read by the board review. It gives no access: the desk's owners and costs stay with the site's settings.
         role: canGrant ? (ROLES.includes(row.role) ? row.role : "") : (was?.role ?? ""),
         // In the board's annual 360 review this year, and in their first year on the board (Andrew 25 Nov 2026: "the
-        // check box could read Annual 360 review? Check box means yes"). Advisors are simply left unticked.
+        // check box could read Annual 360 review? Check box means yes"). Fixed below for advisors and new officers.
         review: canGrant ? row.review === true : was?.review === true,
         firstYear: canGrant ? row.firstYear === true : was?.firstYear === true,
         ...(was?.lastSignIn ? { lastSignIn: was.lastSignIn } : {}),
@@ -91,6 +95,11 @@ export default async (req) => {
       if (picked.length < 2) continue;
       const keep = picked.find((m) => before.get(m.email.toLowerCase())?.role !== r) ?? picked[0];
       for (const m of picked) if (m !== keep) m.role = "";
+    }
+    // An advisor is never in the review; someone just made President or VP is (it can still be unticked after).
+    for (const m of members) {
+      if (m.role === "advisor") { m.review = false; m.firstYear = false; }
+      else if ((m.role === "president" || m.role === "vp") && before.get(m.email.toLowerCase())?.role !== m.role) m.review = true;
     }
     await putRoster(members);
     // A board member's address changed here follows them onto every event they're on (Andrew 17 Nov 2026: Tyler's

@@ -76,7 +76,7 @@ export async function rolesOf(roster = null) {
   const r = roster ?? (await getRoster()) ?? [];
   const has = (role) => r.filter((m) => m.role === role).map((m) => lc(m.email));
   return { president: has("president")[0] ?? "", vp: has("vp")[0] ?? "",
-    included: r.filter((m) => m.review === true).map((m) => lc(m.email)), firstYear: r.filter((m) => m.firstYear === true).map((m) => lc(m.email)) };
+    included: r.filter((m) => m.review === true && m.role !== "advisor").map((m) => lc(m.email)), firstYear: r.filter((m) => m.firstYear === true).map((m) => lc(m.email)) };
 }
 export async function testersOf() {
   const saved = await getMeta("review:testers");
