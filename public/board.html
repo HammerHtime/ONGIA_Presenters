@@ -17,7 +17,7 @@
   *{box-sizing:border-box} html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 "DM Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
   header{background:var(--navy-deep);color:#fff;padding:12px 16px calc(12px);display:flex;align-items:center;gap:12px}
   header b{font-family:var(--fd);font-weight:400;font-size:21px} header .me{margin-left:auto;font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
-  header a{color:#fff;opacity:.85;font-size:13px}
+  header a{color:#fff;opacity:.85;font-size:13px} header #todesk{font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 0}
   main{max-width:860px;margin:0 auto;padding:14px 16px 60px}
   h1{font-family:var(--fd);font-weight:400;font-size:27px;line-height:1.15;margin:4px 0 4px;color:var(--navy)}
   h2{font-family:var(--fd);font-weight:400;font-size:20px;margin:0;color:var(--navy)}
@@ -70,7 +70,7 @@
 </style>
 </head>
 <body>
-<header><b>ONGIA Board</b><span class="me" id="me"></span></header>
+<header><a href="/admin.html" id="todesk" hidden>‹ Briefing Room</a><b>ONGIA Board</b><span class="me" id="me"></span></header>
 <main id="root"><p class="mu">Loading…</p></main>
 <script>
 /*
@@ -156,6 +156,8 @@ async function show() {
   const [a, id, b, k] = route();
   HOME ??= await api("");
   $("me").textContent = HOME.me.name || HOME.me.email;
+  // Back to the Briefing Room (Andrew 25 Nov 2026: "I can't get back to the main screen"), for anyone who came from the desk.
+  $("todesk").hidden = !deskSession();
   window.scrollTo(0, 0);
   if (a === "new") return newCycleView();
   if (a === "testers") return testersView();
