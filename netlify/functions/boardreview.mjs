@@ -46,7 +46,8 @@ export default async (req) => {
     const emails = [...new Set((Array.isArray(body.emails) ? body.emails : had.emails).map((e) => text(e, 200).toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
     if (!emails.some((e) => mayManage(e))) return fail("Keep the president or the VP on the list.");
     const open = typeof body.open === "boolean" ? body.open : had.open;
-    const next = { emails, open, ...(open !== had.open ? { openChanged: { at: new Date().toISOString(), by: who.email, open } } : { openChanged: had.openChanged }) };
+    const advisors = [...new Set((Array.isArray(body.advisors) ? body.advisors : had.advisors ?? []).map((e) => text(e, 200).toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
+    const next = { emails, open, advisors, ...(open !== had.open ? { openChanged: { at: new Date().toISOString(), by: who.email, open } } : { openChanged: had.openChanged }) };
     await putTesters(next);
     return json(next);
   }
@@ -60,7 +61,7 @@ export default async (req) => {
   if (req.method === "POST" && q("cycle") === "new") {
     if (!manage) return fail("Only the president and the VP can open a review.", 403);
     const t = await testersOf();
-    const made = await newCycle(await req.json().catch(() => ({})), who.email, { testersOnly: !t.open, testers: t.emails.map((e) => e.toLowerCase()) });
+    const made = await newCycle(await req.json().catch(() => ({})), who.email, { testersOnly: !t.open, testers: t.emails.map((e) => e.toLowerCase()), advisors: t.advisors ?? [] });
     if (made.error) return fail(made.error);
     await putCycle(made.cycle);
     const mail = await openMail(made.cycle).catch((e) => ({ error: e.message }));
@@ -173,7 +174,7 @@ async function home(who, manage) {
 async function cycleView(c, who, { me, committee, president, manage }) {
   const phase = phaseOf(c);
   const out = { id: c.id, year: c.year, test: !!c.test, sample: !!c.sample, phase, selfOpens: c.selfOpens, peerOpens: c.peerOpens, closes: c.closes,
-    committee: c.directors.filter((d) => isCommittee(c, d.email)).map((d) => d.name), president: c.directors.find((d) => isPresidentOf(c, d.email))?.name ?? "",
+    committee: c.committeeNames ?? c.directors.filter((d) => isCommittee(c, d.email)).map((d) => d.name), president: c.directors.find((d) => isPresidentOf(c, d.email))?.name ?? "",
     roles: { director: !!me, committee, president, manage }, questions: c.questions, scale: SCALE, floor: FLOOR };
   if (me) {
     const [self, done] = await Promise.all([getSelf(c, who.email), getDone(c, who.email)]);

@@ -15,7 +15,7 @@ const first = (name) => String(name ?? "").trim().split(/\s+/)[0] || "";
 const day = (iso) => formatDate(iso);
 const dayBefore = (iso) => new Date(Date.parse(`${iso}T12:00:00Z`) - 86400e3).toISOString().slice(0, 10);
 const tag = (c) => (c.test ? "[TEST] " : "");
-const committeeNames = (c) => c.directors.filter((d) => isCommittee(c, d.email)).map((d) => d.name);
+const committeeNames = (c) => c.committeeNames ?? c.directors.filter((d) => isCommittee(c, d.email)).map((d) => d.name);
 const FOOTER = (c) => `ONGIA board review ${c.year} · review committee: ${committeeNames(c).join(" and ") || "to be named"}`;
 const replyTo = (c) => c.committee?.[0] || undefined;
 const strip = (l) => String(l).replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"');

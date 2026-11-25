@@ -26,8 +26,9 @@ await S.putRoster(people);
 const E = (n) => `${n}@example.ca`;
 
 // Who may come in.
+ok("the advisors start as Andy Bain and John Healy", JSON.stringify((await R.testersOf()).advisors) === JSON.stringify(["a.bain@ongia.ca", "j.healy@ongia.ca"]));
 ok("the starting testers are the president, the VP and John Healy", JSON.stringify((await R.testersOf()).emails) === JSON.stringify(["pres@example.ca", "vp@example.ca", "j.healy@ongia.ca"]));
-await R.putTesters({ emails: [E("pres"), E("vp"), E("jh")], open: false });
+await R.putTesters({ emails: [E("pres"), E("vp"), E("jh")], open: false, advisors: [] });
 ok("a tester gets in", (await call(E("jh"), "")).status === 200);
 ok("a director who isn't a tester is refused while it's closed", (await call(E("d1"), "")).status === 403);
 ok("the desk's shared key is nobody here", (await call("KEY", "")).status === 401);
@@ -41,6 +42,17 @@ ok("while closed, a cycle keeps only the testers, and is a test", tc && tc.direc
 ok("the president can't sit on the committee", (await call(E("pres"), "?cycle=new", "POST", { selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: [E("pres"), E("vp"), E("jh")], committee: [E("pres")], president: E("pres") })).status === 400);
 ok("the opening email was tried for each director (no mail transport here)", t1.mail && t1.mail.failed?.length === 3);
 await call(E("pres"), `?cycle=${tc.id}`, "DELETE");
+
+// Advisors to the board (Andrew 25 Nov 2026): never reviewed, never reviewing; they can sit on the committee.
+await call(E("pres"), "?testers=1", "PUT", { advisors: [E("jh")] });
+const ta = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens: day(0), peerOpens: day(7), closes: day(21), directors: [E("pres"), E("vp"), E("jh")], committee: [E("vp"), E("jh")], president: E("pres") });
+const tac = await R.getCycle(ta.cycle);
+ok("an advisor is left out of the review, even if picked", tac && tac.directors.length === 2 && !tac.directors.some((d) => d.email === E("jh")), JSON.stringify(ta));
+ok("…but can sit on the committee, named", tac.committee.includes(E("jh")) && tac.committeeNames.includes("Jh Sample"));
+ok("an advisor on the committee sees the progress, and has no review of their own", Array.isArray((await call(E("jh"), `?cycle=${tac.id}`)).progress) && !(await call(E("jh"), `?cycle=${tac.id}`)).mine);
+ok("nobody reviews an advisor", !R.peersOf(tac, E("pres")).some((d) => d.email === E("jh")));
+await call(E("pres"), `?cycle=${tac.id}`, "DELETE");
+await call(E("pres"), "?testers=1", "PUT", { advisors: [] });
 
 // Open it to the board, then a real-sized cycle: 8 directors, one in their first year.
 await call(E("pres"), "?testers=1", "PUT", { open: true });

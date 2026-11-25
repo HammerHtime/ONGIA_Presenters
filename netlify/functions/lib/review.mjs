@@ -62,11 +62,18 @@ const rand = () => randomBytes(9).toString("base64url").replace(/[^a-zA-Z0-9]/g,
 /* ---------- who may come in ---------- */
 
 /** The testers and the switch that opens the review to the board. Starts with the president, the VP and John Healy. */
+/**
+ * Advisors to the board (Andrew 25 Nov 2026: "Andy Bain and John Healy don't get a review. They are advisors to the
+ * board"): never in a review, as reviewer or reviewed. An advisor can still sit on the review committee. Kept as a
+ * list on this setting, changed on the review's own page, never decided by a name in the code.
+ */
+// Where the list starts, as Andrew gave it; changed on the review's "Who can see it" screen from then on.
+const ADVISORS = ["a.bain@ongia.ca", "j.healy@ongia.ca"];
 export async function testersOf() {
   const saved = await getMeta("review:testers");
-  if (saved) return saved;
+  if (saved) return { advisors: ADVISORS, ...saved };
   const vp = String(process.env.COSTING_USERS || "vp_operations@ongia.ca").split(/[,\s]+/).map(lc).filter(Boolean);
-  return { emails: [...new Set([...deskOwners(), ...vp, "j.healy@ongia.ca"])], open: false };
+  return { emails: [...new Set([...deskOwners(), ...vp, "j.healy@ongia.ca"])], open: false, advisors: ADVISORS };
 }
 export const putTesters = (t) => putMeta("review:testers", t);
 /** The president and the VP manage the review: who tests it, opening it to the board, starting and deleting a cycle. */
@@ -132,24 +139,26 @@ export const questionsFor = (c, d) => [...c.questions.director, ...(isPresidentO
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** A new cycle, checked. Returns { cycle } or { error }. */
-export async function newCycle(body, by, { testersOnly, testers }) {
+export async function newCycle(body, by, { testersOnly, testers, advisors = [] }) {
   const year = Number(body.year) || new Date().getFullYear();
   const { selfOpens, peerOpens, closes } = body;
   if (![selfOpens, peerOpens, closes].every((d) => DAY.test(d ?? ""))) return { error: "Pick the three dates." };
   if (!(selfOpens < peerOpens && peerOpens <= closes)) return { error: "The peer round opens after the self-review week, and closes on or after it opens." };
   const roster = (await getRoster()) ?? [];
   const named = (e) => roster.find((m) => lc(m.email) === lc(e))?.name || e;
-  let emails = [...new Set((body.directors ?? []).map(lc).filter(Boolean))];
+  const adv = new Set(advisors.map(lc));
+  let emails = [...new Set((body.directors ?? []).map(lc).filter(Boolean))].filter((e) => !adv.has(e));
   if (testersOnly) emails = emails.filter((e) => testers.includes(e));
   if (emails.length < 2) return { error: testersOnly ? "Pick at least two of the testers: only testers can be in a cycle until the review is open to the board." : "Pick at least two directors." };
   const first = new Set((body.firstYear ?? []).map(lc));
-  const committee = [...new Set((body.committee ?? []).map(lc).filter((e) => emails.includes(e)))];
+  // The committee: directors in the review, or advisors (who are never reviewed).
+  const committee = [...new Set((body.committee ?? []).map(lc).filter((e) => emails.includes(e) || (adv.has(e) && (!testersOnly || testers.includes(e)))))];
   const president = lc(body.president);
-  if (!committee.length) return { error: "Name the review committee: at least one director." };
+  if (!committee.length) return { error: "Name the review committee: at least one director or advisor." };
   if (president && committee.includes(president)) return { error: "The president isn't on the review committee: it holds the president's own results." };
   return { cycle: {
     id: `${year}-${rand().slice(0, 6).toLowerCase()}`, year, test: testersOnly || body.test === true, createdAt: new Date().toISOString(), createdBy: by,
-    selfOpens, peerOpens, closes, committee, president: emails.includes(president) ? president : "",
+    selfOpens, peerOpens, closes, committee, committeeNames: committee.map(named), president: emails.includes(president) ? president : "",
     directors: emails.map((e) => ({ email: e, name: named(e), firstYear: first.has(e) })),
     questions: JSON.parse(JSON.stringify(QUESTIONS)), facts: {}, released: {}, commitments: {}, mail: {},
   } };

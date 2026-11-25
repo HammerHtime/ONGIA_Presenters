@@ -17,6 +17,8 @@ const need = [["president@ongia.ca", "Andrew Hammond"], ["vp_operations@ongia.ca
 const members = [...r0]; for (const [email, name] of need) if (!members.some((m) => m.email === email)) members.push({ name, email });
 await api("/api/roster", { method: "PUT", body: JSON.stringify({ members }) });
 
+// John Healy and Andy Bain are advisors to the board: not reviewed (Andrew 25 Nov 2026). Set as the live site will have it.
+await fetch(`${S}/api/boardreview?testers=1`, { method: "PUT", headers: { "content-type": "application/json", "x-review-key": issueReviewSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) }, body: JSON.stringify({ advisors: ["j.healy@ongia.ca", "a.bain@ongia.ca"] }) });
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const open = async (vp, { desk, review } = {}) => {
   const page = await b.newPage({ viewport: vp, deviceScaleFactor: 2 });
@@ -61,21 +63,30 @@ await p.close();
 // The VP starts a test review: only the three testers can be in it.
 p = await open(WIDE, { desk: desk("vp_operations@ongia.ca", "Jacqulyn Taylor") });
 await go(p, "#/new");
-ok("starting a review lists only the testers while it's in testing", await p.locator("[data-in]").count() === 3 && /only the testers can be in it/.test(await p.locator("main").innerText()), String(await p.locator("[data-in]").count()));
+ok("starting a review lists only the testers while it's in testing", await p.locator("[data-in]").count() === 2 && /only the testers can be in it/.test(await p.locator("main").innerText()), String(await p.locator("[data-in]").count()));
+ok("John is shown as an advisor: not in it, but can be on the committee", /John Healy Advisor: not reviewed/.test((await p.locator("main").innerText()).replace(/\s+/g, " ")) && await p.locator('[data-in="j.healy@ongia.ca"]').count() === 0 && await p.locator('[data-cm="j.healy@ongia.ca"]').count() === 1);
 await p.locator('[data-cm="vp_operations@ongia.ca"]').check(); await p.locator('[data-cm="j.healy@ongia.ca"]').check();
 // The review counts days in Toronto, as the server does.
 const day = (n) => new Date(Date.now() + n * 86400e3).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 await p.locator("#d1").fill(day(0)); await p.locator("#d2").fill(day(7)); await p.locator("#d3").fill(day(21));
 await p.screenshot({ path: `${D}boardreview-new-wide.png`, fullPage: true });
 await p.locator("#go").click(); await p.waitForTimeout(1500);
-ok("it asks before emailing the directors", p.popups.some((m) => /email the 3 directors/.test(m)), p.popups.join(" | "));
+ok("it asks before emailing the directors", p.popups.some((m) => /email the 2 directors/.test(m)), p.popups.join(" | "));
 text = await p.locator("main").innerText();
 ok("the test review opens on the self-review week", /A test review/.test(text) && /self-review week/.test(text) && /Your self-review/.test(text), text.slice(0, 300));
 const cid = decodeURIComponent((await p.evaluate(() => location.hash)).split("/")[2]);
 await p.close();
 
-// John Healy, with the review's own sign-in (no desk): his self-review.
+// John Healy, with the review's own sign-in (no desk), on the committee: the progress, and no review of his own.
 p = await open(PHONE, { review: issueReviewSession({ email: "j.healy@ongia.ca", name: "John Healy" }) });
+await go(p, `#/c/${cid}`);
+text = await p.locator("main").innerText();
+ok("John, an advisor on the committee, sees the progress and has nothing to fill in", /Progress/i.test(text) && !/Your self-review/.test(text) && /Andrew Hammond/.test(text), text.slice(0, 400));
+ok("no page errors (John)", p.errs.length === 0, p.errs.join(" | "));
+await p.close();
+
+// The VP, through the desk: her self-review on a phone.
+p = await open(PHONE, { desk: desk("vp_operations@ongia.ca", "Jacqulyn Taylor") });
 await go(p, `#/c/${cid}/self`);
 await p.locator('textarea[data-a="delivered"]').fill("Reviewed every contract this year; drafted the conflict-of-interest policy.");
 for (const q of ["prep", "follow", "beyond", "voice", "decide", "trust", "ambassador"]) await p.locator(`[data-q="${q}"][data-v="4"]`).click();
@@ -84,10 +95,10 @@ ok("44px tap targets on a phone", (await p.locator('[data-q="prep"][data-v="4"]'
 await p.screenshot({ path: `${D}boardreview-self-phone.png`, fullPage: true });
 await p.locator("#send").click(); await p.waitForTimeout(1500);
 ok("sent: it says thank you and when the peer round comes", p.popups.some((m) => /can't be changed/.test(m)) && /Sent/.test(await p.locator("main").innerText()));
-ok("no page errors (John)", p.errs.length === 0, p.errs.join(" | "));
+ok("no page errors (VP's self-review)", p.errs.length === 0, p.errs.join(" | "));
 await p.close();
 
-// The peer round: move the dates, then the president reviews John.
+// The peer round: a review with past dates, then the president reviews the VP.
 const sid = cid;
 await fetch(`${S}/api/boardreview?cycle=${encodeURIComponent(sid)}`, { headers: { "x-review-key": issueReviewSession({ email: "president@ongia.ca", name: "Andrew Hammond" }) } });
 const { getCycle, putCycle, keyOf } = await import(REPO + "netlify/functions/lib/review.mjs");
@@ -102,8 +113,8 @@ await p.close();
 p = await open(PHONE, { desk: desk("president@ongia.ca", "Andrew Hammond") });
 await go(p, `#/c/${pid}`);
 text = await p.locator("main").innerText();
-ok("in the peer round, each colleague has Start", /John Healy/.test(text) && await p.locator(`a[href="#/c/${pid}/peer/${keyOf("j.healy@ongia.ca")}"]`).count() === 1, text.slice(0, 400));
-await p.locator(`a[href="#/c/${pid}/peer/${keyOf("j.healy@ongia.ca")}"]`).click(); await p.waitForTimeout(1000);
+ok("in the peer round, each colleague has Start", /Jacqulyn Taylor/.test(text) && await p.locator(`a[href="#/c/${pid}/peer/${keyOf("vp_operations@ongia.ca")}"]`).count() === 1, text.slice(0, 400));
+await p.locator(`a[href="#/c/${pid}/peer/${keyOf("vp_operations@ongia.ca")}"]`).click(); await p.waitForTimeout(1000);
 text = await p.locator("main").innerText();
 ok("reviewing a colleague: the facts, what they delivered (none yet), 7 questions, the warning on comments", /on the desk/.test(text) && /No self-review submitted/.test(text) && (await p.locator(".q .scale").count()) === 7 && /Leave out details that would identify you/.test(text), text.slice(0, 500));
 await p.locator('[data-q="prep"][data-v="5"]').click(); await p.locator('[data-q="follow"][data-v="na"]').click();
@@ -112,14 +123,14 @@ await p.locator("#save").click(); await p.waitForTimeout(800);
 ok("Save and come back keeps it on this device only", /Saved here, not sent/.test(await p.locator("main").innerText()));
 const serverHasDraft = await p.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith("ongia-rv-draft:")));
 ok("…the draft is in this browser", serverHasDraft);
-await p.locator(`a[href="#/c/${pid}/peer/${keyOf("j.healy@ongia.ca")}"]`).click(); await p.waitForTimeout(1000);
+await p.locator(`a[href="#/c/${pid}/peer/${keyOf("vp_operations@ongia.ca")}"]`).click(); await p.waitForTimeout(1000);
 ok("…and comes back when reopened", await p.locator('[data-q="prep"][data-v="5"].on').count() === 1 && /Always quick/.test(await p.locator('textarea[data-c="note"]').inputValue()));
 await p.locator("#send").click(); await p.waitForTimeout(600);
 ok("sending with questions unanswered says which", /Answer "Beyond meetings"/.test(await p.locator(".toast").innerText()));
 for (const q of ["beyond", "voice", "decide", "trust", "ambassador"]) await p.locator(`[data-q="${q}"][data-v="4"]`).click();
 await p.screenshot({ path: `${D}boardreview-peer-phone.png`, fullPage: true });
 await p.locator("#send").click(); await p.waitForTimeout(1500);
-ok("sent: back on the list as Sent, the draft gone", /Sent/.test(await p.locator(".row", { hasText: "John Healy" }).first().innerText()) && !(await p.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith("ongia-rv-draft:")))));
+ok("sent: back on the list as Sent, the draft gone", /Sent/.test(await p.locator(".row", { hasText: "Jacqulyn Taylor" }).first().innerText()) && !(await p.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith("ongia-rv-draft:")))));
 ok("no page errors (peer)", p.errs.length === 0, p.errs.join(" | "));
 await p.close();
 
