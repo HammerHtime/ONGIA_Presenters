@@ -15,14 +15,15 @@ import { writeableTo } from "./attendees.mjs";
  * from the second Wix event gets the group's; anyone also on the first gets the main one.
  */
 
-const isSummit = (event) => /national gang summit/i.test(event?.title ?? "");
+/** What the main group is called beside a second group: the event's own setting (the Summit's "Justice partners"). */
+export const mainGroupOf = (event) => String(event?.mainGroup ?? "").trim() || "Everyone else";
 const town = (event) => String(event?.city ?? "").split(",")[0].trim();
 
 /** Whether the event has a second group, and what to call each. */
 export function groupsOf(event) {
   const g = (event?.wixMore ?? [])[0];
   if (!g) return { main: "Everyone", group: null };
-  return { main: isSummit(event) ? "Justice partners" : "Everyone else", group: g.group || "The second group" };
+  return { main: mainGroupOf(event), group: g.group || "The second group" };
 }
 
 /**
@@ -44,19 +45,18 @@ export const versionLabel = (event, key) => (key === "main" || key === "group" ?
 export const onlineLinks = (event) => new Set((event?.wixMore ?? []).filter((l) => l?.online && l.eventId).map((l) => l.eventId));
 export const inTheRoom = (event, people) => { const off = onlineLinks(event); return off.size ? people.filter((p) => !off.has(p.wixEventId)) : people; };
 
-/** The words a welcome letter starts with: the Summit's, written for its two groups; any other event's, the general one. */
+/** The words a welcome letter starts with, for any event: a saved letter if one is chosen, else the general one. */
 export function startingWelcome(event, chosen = null) {
   const at = town(event) || "{city}";
-  const summit = isSummit(event);
   const main = chosen?.body
     ? { subject: chosen.subject, body: chosen.body }
     : {
-      subject: summit ? "Welcome to the National Gang Summit" : "Welcome to {event}",
+      subject: "Welcome to {event}",
       body: [
         "Hello {first},",
-        summit ? `Thank you for registering for the National Gang Summit. We're glad you're joining us in ${at}.` : `Thank you for registering for {event}. We're glad you're joining us in ${at}.`,
+        `Thank you for registering for {event}. We're glad you're joining us in ${at}.`,
         "WHEN AND WHERE",
-        summit ? "The Summit runs {dates} at {venue}." : "It runs {dates} at {venue}.",
+        "It runs {dates} at {venue}.",
         "{schedule}",
         "The full agenda is attached.",
         "DRESS CODE",
@@ -68,10 +68,10 @@ export function startingWelcome(event, chosen = null) {
     };
   if (!groupsOf(event).group) return { main };
   const group = {
-    subject: summit ? "Welcome to the National Gang Summit: community partners" : main.subject,
+    subject: main.subject,
     body: [
       "Hello {first},",
-      summit ? `Thank you for registering as a community partner for the National Gang Summit. We're glad you're joining us in ${at}.` : `Thank you for registering. We're glad you're joining us in ${at}.`,
+      `Thank you for registering. We're glad you're joining us in ${at}.`,
       "WHEN AND WHERE",
       "You're with us {dates} at {venue}.",
       "{schedule}",

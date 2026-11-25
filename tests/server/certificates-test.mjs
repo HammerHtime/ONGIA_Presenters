@@ -30,7 +30,7 @@ const call = async (qs, { method = "GET", body, who = "testkey" } = {}) => {
   return { status: r.status, type, disp: r.headers.get("content-disposition") ?? "", check: JSON.parse(r.headers.get("x-list-check") ?? "null"), body: type.includes("json") ? await r.json() : type.includes("pdf") || type.includes("spreadsheet") ? Buffer.from(await r.arrayBuffer()) : await r.text() };
 };
 
-await putEvent({ id: "ngs27", title: "National Gang Summit", city: "Toronto", dayOne: "2027-05-04", lastDay: "2027-05-06",
+await putEvent({ id: "ngs27", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", certs: { template: "national-gang-summit" }, city: "Toronto", dayOne: "2027-05-04", lastDay: "2027-05-06",
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }, { name: "Other Member", email: "member@ongia.ca" }] });
 await putEvent({ id: "web1", title: "Beyond the Headlines: An Analytical Look at Organized Crime Trends Across Canada", city: "Online", dayOne: "2026-09-15", board: [] });
 const p = (key, first, last, organization, email, extra = {}) => ({ key, first, last, organization, email, status: "ATTENDING", source: "wix", ...extra });
@@ -127,7 +127,7 @@ ok("everyone coming, by last name, official agency third and what they typed las
   && regRows[1][0] === "Okafor" && regRows[2][0] === "Tremblay" && regTabs[0].rows[2].join() === "Last name,First name,Agency,Email,Checked in,Registered,Typed on Wix"
   && /^Everyone: 3 coming · list as of /.test(regTabs[0].rows[1][0]), JSON.stringify(regTabs[0].rows));
 // The Summit (Andrew 3 Nov 2026): "include virtual and put all three in separate tabs in the same excel sheet".
-await putEvent({ id: "ngs29", title: "National Gang Summit", city: "Toronto", dayOne: "2029-11-09", lastDay: "2029-11-12", board: [],
+await putEvent({ id: "ngs29", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto", dayOne: "2029-11-09", lastDay: "2029-11-12", board: [],
   wix: { eventId: "w1" }, wixMore: [{ eventId: "w2", title: "Community", group: "Community partners" }, { eventId: "w3", title: "VIRTUAL", group: "Virtual", online: true }, { eventId: "w4", title: "Youth", group: "Youth day" }] });
 await putAttendees("ngs29", { people: [p("s1", "Ada", "Zed", "TPS", "az@torontopolice.on.ca"), p("s2", "Bo", "Young", "Helpers", "by@helpers.ca", { group: "Community partners", wixEventId: "w2" }),
   p("s3", "Cy", "Xu", "OPP", "cx@opp.ca", { group: "Virtual", wixEventId: "w3" }), p("s4", "Di", "Abe", "Peel Police", "da@peelpolice.ca", { group: "Virtual", wixEventId: "w3" }),

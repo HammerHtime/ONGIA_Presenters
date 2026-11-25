@@ -46,8 +46,8 @@ const view = async (event, raw) => {
 
 // One choice per kind of RBH event, the latest of each (Andrew 29 Oct 2026: "all the CFAOC and ITP events will be the same,
 // so I just need one of those options. Not a running list").
-export const sowFamily = (e) => (/organi[sz]ed crime|cfaoc/i.test(`${e.title} ${e.invoicePrefix ?? ""}`) ? "cfaoc"
-  : /\bitp\b/i.test(`${e.title} ${e.invoicePrefix ?? ""}`) ? "itp" : "other");
+// Which kind comes from the event's invoice prefix (CFAOC, ITP), set on Edit event, never from its name.
+export const sowFamily = (e) => ({ CFAOC: "cfaoc", ITP: "itp" })[String(e?.invoicePrefix ?? "").trim().toUpperCase()] ?? "other";
 async function copyChoices(event) {
   const latest = new Map();
   for (const e of (await listEvents()) ?? []) {

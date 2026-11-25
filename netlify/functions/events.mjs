@@ -74,6 +74,7 @@ export default async (req) => {
     if (url.searchParams.get("auto")) return setAutoMail(id, body);
     if (url.searchParams.get("sendat")) return setSendAt(id, body);
     if (url.searchParams.get("quiet")) return setQuiet(id, body);
+    if (url.searchParams.get("groups")) return setGroups(id, body);
     if (url.searchParams.get("rbh")) return setRbh(id, body, canCost);
     if (url.searchParams.get("rbhspot")) return setRbhSpot(id, body, canCost);
     if (url.searchParams.get("countregistered")) return setCountRegistered(id, body);
@@ -185,6 +186,30 @@ async function setQuiet(id, body) {
   return json({ ok: true, quiet: event.quiet, attendeeMail: event.attendeeMail });
 }
 
+/**
+ * What an event's groups are called and when the further ones come (Andrew 25 Nov 2026: settings on the event, not
+ * worked out from its name). The main group's name ("Justice partners"; empty is "Everyone else"), and each linked
+ * Wix group's own days, which a letter written for that group gives.
+ */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+async function setGroups(id, body) {
+  const event = await getEvent(id);
+  if (!event) return fail("No such event.", 404);
+  if (body.mainGroup !== undefined) event.mainGroup = text(body.mainGroup, 60);
+  for (const d of Array.isArray(body.days) ? body.days : []) {
+    const l = (event.wixMore ?? []).find((x) => x?.eventId && x.eventId === d?.eventId);
+    if (!l) return fail("That group is not linked to this event.", 404);
+    const one = d.dayOne ? String(d.dayOne) : "", last = d.lastDay ? String(d.lastDay) : "";
+    if ((one && !ISO_DAY.test(one)) || (last && !ISO_DAY.test(last))) return fail("Pick the days from the calendar.");
+    if (one && last && last < one) return fail(`${l.group || "That group"}'s last day is before its first.`);
+    l.dayOne = one || null;
+    l.lastDay = one ? (last || one) : null;
+  }
+  event.updatedAt = new Date().toISOString();
+  await putEvent(event);
+  return json({ ok: true, mainGroup: event.mainGroup ?? "", wixMore: event.wixMore ?? [] });
+}
+
 /** ONGIA's filing convention: the training library, then year, then "year City". */
 export function conventionalFolder(dayOne, city) {
   const year = String(dayOne ?? "").slice(0, 4);
@@ -216,6 +241,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
   };
   const offsetTrouble = offsetsProblem(offsets);
   if (offsetTrouble) return offsetTrouble;
+  const inbox = body.boardInbox === undefined ? null : text(body.boardInbox, 120);
+  if (inbox && !isEmail(inbox)) return fail(`"${inbox}" is not an email address.`);
 
   const before = { folder: event.sharePointFolder ?? "", materials: event.materialsFolderPath ?? "", link: event.materialsUploadUrl ?? "", appMade: !!event.materialsLinkCheck?.createdByApp };
 
@@ -268,6 +295,8 @@ async function applyDetails(event, body, { creating = false, canCost = true } = 
     mealsProvided: body.mealsProvided === undefined ? (event.mealsProvided ?? null) : { breakfast: body.mealsProvided?.breakfast === true, lunch: body.mealsProvided?.lunch === true, dinner: body.mealsProvided?.dinner === true },
     rbhCancelled: !canCost || body.rbhCancelled === undefined ? (event.rbhCancelled ?? false) : body.rbhCancelled === true,
     province: !canCost || body.province === undefined ? (event.province ?? "") : (PROVINCES[text(body.province, 2).toUpperCase()] ? text(body.province, 2).toUpperCase() : ""),
+    // The board inbox letters signed "ONGIA Board" come from and answers go to (the Summit's ngs@ongia.ca); empty is info@ongia.ca.
+    boardInbox: inbox === null ? (event.boardInbox ?? "") : inbox.toLowerCase(),
     invoicePrefix: !canCost || body.invoicePrefix === undefined ? (event.invoicePrefix ?? "") : cleanPrefix(text(body.invoicePrefix, 20) || defaultPrefix(text(body.title, 200) || event.title)),
     // Which saved letter each automatic email uses, and the survey's address.
     // No letter chosen means that email does not go — the choice is the switch.

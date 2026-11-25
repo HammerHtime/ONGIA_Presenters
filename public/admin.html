@@ -974,6 +974,11 @@
           background:var(--sunk);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px}
   .wixbar b{color:var(--ink)}
   .wixbar .grow{flex:1;min-width:120px}
+  .wixbar .gset{font:inherit;color:var(--ink);padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);max-width:100%}
+  .wixbar #g-main{width:14em}
+  .wixbar .gdays{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .wixbar .gdays input{width:9.6em}
+  @media (max-width:600px){ .wixbar .gdays{flex:1 1 100%;flex-wrap:nowrap} .wixbar .gdays input{flex:1 1 0;min-width:0;width:auto;padding:4px 6px} }
   .wixev{display:grid;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;max-height:320px;overflow-y:auto}
   .wixev button{display:block;width:100%;text-align:left;background:var(--sunk);border:0;padding:11px 13px;
                 cursor:pointer;font:inherit;font-size:14px}
@@ -2840,7 +2845,10 @@ function eventFormScreen(existing = null) {
         <div class="field"><label for="e-title">Event title</label><input id="e-title" value="${v("title")}" placeholder="Gangs &amp; Guns Symposium"></div>
         <div class="field"><label for="e-city">City</label><input id="e-city" value="${v("city")}" placeholder="Winnipeg, MB"></div>
       </div>
-      <div class="field noproj"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
+      <div class="row2 noproj">
+        <div class="field"><label for="e-venue">Venue</label><input id="e-venue" value="${v("venue")}" placeholder="RBC Convention Centre"></div>
+        <div class="field"><label for="e-inbox">Board inbox for this event</label><input id="e-inbox" type="email" maxlength="120" value="${v("boardInbox")}" placeholder="info@ongia.ca"><p class="hint" style="margin:6px 0 0">Letters signed "ONGIA Board" come from it, and answers go to it.</p></div>
+      </div>
       <label class="attest noproj" style="margin-top:12px"><input type="checkbox" id="e-countreg"${ev?.countRegistered ? " checked" : ""}><span><b>Count everyone registered as attended.</b> For an event whose check-in list is short of who came. Reports and infographics use it.</span></label>
       ${SPONSORS_ON ? `<label class="attest noproj" style="margin-top:12px"><input type="checkbox" id="e-sponsors"${ev?.sponsorsWelcome ? " checked" : ""}><span>Open to sponsors — this event appears on the list sponsors choose from. A regional half-day with no room for tables usually is not.</span></label>` : ""}
       <div class="row2">
@@ -3301,6 +3309,7 @@ function eventFormScreen(existing = null) {
     rbhCancelled: $("e-rbhcanc") ? $("e-rbhcanc").checked === true && !$("e-rbhpres")?.checked && !$("e-rbh")?.checked : undefined,
     project: ROOT.querySelector(".card[data-project]") ? true : ev?.project ? false : undefined,
     province: $("e-prov")?.value, invoicePrefix: $("e-prefix")?.value,
+    boardInbox: $("e-inbox") ? $("e-inbox").value.trim() : undefined,
     talkOnFile: $("e-talkfile")?.checked === true,
     noDeadlines: $("e-nodates")?.checked === true,
     quiet: $("e-quiet") ? $("e-quiet").checked === true : undefined,
@@ -5822,7 +5831,10 @@ async function readLogisticsXlsx(file, { anySheet = false } = {}) {
    Only the Canadian Forum Against Organized Crime events have a website on the desk, and only the president and the VP
    see this. What is typed here, and the presenters who agreed to be public, go to the CFAOC site with "Update website":
    a summary of what would change first, then one commit to the website, which rebuilds in about two minutes. */
-const isWebsiteEvent = (ev) => /canadian forum against organi[sz]ed crime|\bCFAOC\b/i.test(ev?.title ?? "") || ev?.invoicePrefix === "CFAOC";
+// A CFAOC event, by its invoice prefix (set on Edit event), never by its name.
+const isWebsiteEvent = (ev) => String(ev?.invoicePrefix ?? "").trim().toUpperCase() === "CFAOC";
+// What the main group is called beside a second group: the event's own setting (the Summit's "Justice partners").
+const mainGroupOf = (ev) => String(ev?.mainGroup ?? "").trim() || "Everyone else";
 const WEB_SITE = "https://cfaoc-symposium.ca";
 function websiteCard() {
   return secFold("website", "Website", "The CFAOC symposium site: this event's page, presenters and program", "", `<div class="card-body" id="websync"><p class="porg">Loading the website details…</p></div>`, { id: "webfold" });
@@ -6615,8 +6627,9 @@ async function loadWelcome(ev) {
 }
 /** Who can sign an event's letters to attendees: the board with its general inbox (the usual), the Summit's own inbox, or a member. */
 function signOptions(ev, W) {
-  const boards = [["", `ONGIA Board — ${/national gang summit/i.test(ev.title) ? "ngs@ongia.ca (this event's usual)" : "info@ongia.ca (the usual)"}`],
-    ...(/national gang summit/i.test(ev.title) ? [["board:info@ongia.ca", "ONGIA Board — info@ongia.ca"]] : [])];
+  const inbox = ev.boardInbox && ev.boardInbox !== "info@ongia.ca" ? ev.boardInbox : "";
+  const boards = [["", `ONGIA Board — ${inbox ? `${inbox} (this event's usual)` : "info@ongia.ca (the usual)"}`],
+    ...(inbox ? [["board:info@ongia.ca", "ONGIA Board — info@ongia.ca"]] : [])];
   const members = (ROSTER ?? []).filter((m) => m.email).map((m) => [`member:${String(m.email).toLowerCase()}`, `${m.name || m.email} — ${m.email}`]);
   const pick = W.signature || "";
   const known = [...boards, ...members].some(([v]) => v === pick);
@@ -8225,7 +8238,7 @@ function renderSurveyCard(ev, S) {
     <div class="actions" style="margin-top:14px;flex-wrap:wrap"><a class="btn btn-ghost" id="sv-open" href="${esc(S.link)}?preview=1${daily ? `&part=${S.days[0]}` : ""}" target="_blank" rel="noopener">Try the survey</a>
       <span class="porg" style="font-size:13px">Nothing you enter there is kept.</span></div>
     <div class="row2" style="margin-top:14px;align-items:end"><div class="field" style="margin:0"><label for="sv-to">Send a test to</label><input id="sv-to" placeholder="${esc(WHO?.email || "")}"></div>
-      <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${/national gang summit/i.test(ev.title) ? "justice partners" : "everyone else"}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button><button class="btn btn-ghost" id="sv-testrem" style="margin-top:6px">Test the reminder</button></div></div>
+      <div>${daily ? `<select id="sv-part" aria-label="Which day">${S.days.map((d) => `<option value="${d}">${esc(dayLabel(d))}</option>`).join("")}</select>` : ""}${S.group ? `<select id="sv-as" aria-label="Test as"><option value="">As ${esc(mainGroupOf(ev).toLowerCase())}</option><option value="partner">As ${esc(S.group.name)}</option></select>` : ""}<button class="btn btn-ghost" id="sv-test" style="margin-top:6px">Send a test</button><button class="btn btn-ghost" id="sv-testrem" style="margin-top:6px">Test the reminder</button></div></div>
     ${(() => { const qd = S.days.map((d, i) => ({ d, i, n: s.sessions.filter((x) => x.day === d).length })).filter((x) => x.n);
       return qd.length ? `<div class="field" style="margin-top:14px"><label>QR code for each day</label><p class="hint" style="margin:0 0 6px">Download gives that day's QR code as a picture, for a slide or the screen.</p>
       <div class="svqr">${qd.map(({ d, i, n }) => `<div class="svqrow"><span class="t"><b>Day ${i + 1}</b> · ${esc(fmtDate(d))} · ${n} session${n === 1 ? "" : "s"}</span><button type="button" class="mini" data-svqr="${d}">Download</button><button type="button" class="mini ghost" data-svqrlink="${esc(`${S.link}?day=${d}`)}">Copy link</button></div>`).join("")}</div>
@@ -8573,7 +8586,7 @@ function renderReplyCard(ev, R) {
       <div class="field"><label for="rp-button-fr">Button words (French)</label><input id="rp-button-fr" maxlength="60" value="${esc(r.buttonLabelFr || "Répondre au sondage")}"></div></div>
     <div class="row2"><div class="field"><label for="rp-sign">Signed by</label><input id="rp-sign" maxlength="80" value="${esc(R.sign?.name ?? "")}" placeholder="${esc(ev.reviewer?.name || ev.contact?.name || "The event's lead")}"></div>
       <div class="field"><label for="rp-sign-email">Its email (replies go here)</label><input id="rp-sign-email" type="email" maxlength="120" value="${esc(R.sign?.email ?? "")}" placeholder="${esc(ev.reviewer?.email || ev.contact?.email || "")}"></div></div>
-    <p class="hint" style="margin:-4px 0 0">${/national gang summit/i.test(ev.title) ? "Leave both empty and it is signed ONGIA Board, ngs@ongia.ca." : "Leave both empty and the email is signed by the event's lead, as usual."}</p>
+    <p class="hint" style="margin:-4px 0 0">${`Leave both empty and it is signed ONGIA Board, ${esc(ev.boardInbox || "info@ongia.ca")}.`}</p>
     ${!sent ? `<button class="mini" id="rp-wording" style="margin-top:8px">Use the suggested wording</button>` : ""}
     ${R.problems.length ? `<div class="bad" style="margin-top:12px"><b>Held back:</b> ${esc(R.problems[0])}</div>` : ""}
     <div class="actions" style="margin-top:14px;flex-wrap:wrap">
@@ -8859,10 +8872,10 @@ const sentOrLater = (sow) => ["submitted", "approved", "invoiced", "paid"].inclu
 function sowCard(ev, S) {
   const sow = S.sow;
   // A Canadian Forum Against Organized Crime event starts from its own template: the Victoria one in Victoria.
-  const forum = /organi[sz]ed crime|cfaoc/i.test(`${ev.title} ${ev.invoicePrefix ?? ""}`);
+  const forum = isWebsiteEvent(ev);
   // An ITP starts from the last ITP's lines, a CFAOC from the last CFAOC's (Andrew 29 Oct 2026: "all the itp events should
   // auto populate the line items from the previous ITP"); with none yet, a CFAOC falls back to its template.
-  const family = forum ? "cfaoc" : /\bitp\b/i.test(`${ev.title} ${ev.invoicePrefix ?? ""}`) ? "itp" : "other";
+  const family = forum ? "cfaoc" : String(ev.invoicePrefix ?? "").trim().toUpperCase() === "ITP" ? "itp" : "other";
   const last = (S.copyFrom ?? []).find((c) => c.family === family && family !== "other");
   const pre = last ? last.id : forum ? (/victoria/i.test(ev.city ?? "") ? "cfaoc-victoria" : "cfaoc") : "";
   const line = !sow ? "Start the statement of work for RBH"
@@ -10546,7 +10559,10 @@ function wixBar(ev, guests) {
     ? `<details class="wlset gwix"><summary><span>Linked to Wix · <b>${1 + wixMore.length} event${wixMore.length ? "s" : ""}</b>${syncedAt ? ` · pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span> <span class="wlset-edit">Change</span></summary><div class="wixbar"><span class="grow">Linked to <b>${esc(wix.title || "a Wix event")}</b>${syncedAt ? ` · guests pulled ${esc(fmtDate(syncedAt.slice(0, 10)))}` : " · not pulled yet"}</span>
         <button class="mini" id="g-sync">Pull from Wix now</button>
         <button class="mini ghost" id="g-unlink">Unlink</button></div>
+      ${wixMore.length ? `<div class="wixbar"><label class="grow" for="g-main">Main group called</label>
+        <input id="g-main" class="gset" maxlength="60" value="${esc(ev.mainGroup ?? "")}" placeholder="Everyone else" aria-label="Main group called"></div>` : ""}
       ${wixMore.map((l) => `<div class="wixbar"><span class="grow">Also pulling <b>${esc(l.title)}</b>${l.site && l.site !== "1" ? ` from ${esc(l.siteName || "the second Wix site")}` : ""} · labelled <b>${esc(l.group)}</b> (${people.filter((p) => p.wixEventId === l.eventId && p.status === "ATTENDING").length} coming)</span>
+        <span class="gdays" data-gdays="${esc(l.eventId)}">Days <input type="date" class="gset" data-d="one" value="${esc(l.dayOne ?? "")}" aria-label="${esc(l.group || "Group")}: first day"> to <input type="date" class="gset" data-d="last" value="${esc(l.lastDay ?? "")}" aria-label="${esc(l.group || "Group")}: last day"></span>
         <button class="mini ghost" data-unlinkalso="${esc(l.eventId)}">Unlink</button></div>`).join("")}
       <div class="wixbar"><span class="grow porg">Another group registers on a Wix event of its own, such as community partners?</span>
         <button class="mini" id="g-linkalso">Also pull a second Wix event</button></div></details>`
@@ -10567,7 +10583,7 @@ function attendeesCard(ev, guests) {
   const mayEdit = ev.canEdit !== false;
   // Each registration's group: the event's own Wix event, the second (community partners), or a further one (virtual).
   const grpOf = (p) => (!p.group ? "main" : wixMore.findIndex((l) => l.eventId === p.wixEventId) > 0 ? `x${wixMore.findIndex((l) => l.eventId === p.wixEventId)}` : "g");
-  const ggrps = wixMore.length ? [["all", "All"], ["main", /national gang summit/i.test(ev.title ?? "") ? "Justice partners" : "Everyone else"], ...wixMore.map((l, i) => [i ? `x${i}` : "g", l.group || "Second group"])]
+  const ggrps = wixMore.length ? [["all", "All"], ["main", mainGroupOf(ev)], ...wixMore.map((l, i) => [i ? `x${i}` : "g", l.group || "Second group"])]
     .map(([k, l]) => [k, l, people.filter((p) => p.status === "ATTENDING" && (k === "all" || grpOf(p) === k)).length]).filter(([k, , n]) => k === "all" || n) : [];
   if (!ggrps.some(([k]) => k === GGRP_ON)) GGRP_ON = "all";
   const rows = people.map((p) => {
@@ -10693,6 +10709,12 @@ function wireAttendees(ev) {
     run(`/wix?event=${encodeURIComponent(ev.id)}&unlink=1`, { method: "PUT" }, () => "Unlinked.");
   };
 
+  // The main group's name and each group's own days (settings on the event, never worked out from its name).
+  const groupsPut = (body) => run(`/events?id=${encodeURIComponent(ev.id)}&groups=1`, { method: "PUT", body: JSON.stringify(body) }, () => "Saved.");
+  const gmain = document.getElementById("g-main");
+  if (gmain) gmain.onchange = () => groupsPut({ mainGroup: gmain.value.trim() });
+  ROOT.querySelectorAll("[data-gdays]").forEach((box) => box.querySelectorAll("input").forEach((i) => { i.onchange = () =>
+    groupsPut({ days: [{ eventId: box.dataset.gdays, dayOne: box.querySelector('[data-d="one"]').value, lastDay: box.querySelector('[data-d="last"]').value }] }); }));
   ROOT.querySelectorAll("[data-unlinkalso]").forEach((b) => { b.onclick = () => {
     if (!confirm("Stop pulling that second Wix event? The people already on the list are kept.")) return;
     run(`/wix?event=${encodeURIComponent(ev.id)}&unlinkAlso=${encodeURIComponent(b.dataset.unlinkalso)}`, { method: "PUT" }, () => "Unlinked.");

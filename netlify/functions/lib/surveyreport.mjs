@@ -8,6 +8,7 @@ import { xlsx } from "./xlsx.mjs";
 import { ABOUT, SESSION, OVERALL, STARS } from "./survey.mjs";
 import { PROVINCES } from "./agencies.mjs";
 import { squash } from "./surveyanalysis.mjs";
+import { mainGroupOf } from "./welcome.mjs";
 
 const SECTOR_NAMES = { police: "Police & law enforcement", justice: "Corrections, courts & justice", education: "Education", community: "Community & social services", government: "Government", other: "Other" };
 
@@ -164,7 +165,7 @@ export function surveyResponsesXlsx(event, responses) {
   const sessions = event.survey?.sessions ?? [];
   const stars = SESSION.filter((q) => q.kind === "stars");
   const group = (event.wixMore ?? [])[0] ? (event.wixMore[0].group || "Second group") : "";
-  const main = /national gang summit/i.test(event.title ?? "") ? "Justice partners" : "Everyone else";
+  const main = mainGroupOf(event);
   const columns = [
     { head: "Sent", width: 17 }, { head: "Part", width: 12 }, { head: "Language", width: 9 },
     // With a second group (the Summit's community partners), a column saying whose answer it is, so they filter apart.

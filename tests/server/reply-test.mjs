@@ -44,7 +44,7 @@ wb=openpyxl.load_workbook(sys.argv[1]); ws=wb.active
 print(json.dumps({"rows":[[c for c in r] for r in ws.iter_rows(values_only=True)],"merged":[str(m) for m in ws.merged_cells.ranges],"widths":{k:v.width for k,v in ws.column_dimensions.items()},"bold":ws["A4"].font.b,"fill":ws["A4"].fill.fgColor.rgb,"title":ws["A1"].font.sz}, default=str))`, f]).toString());
 };
 
-const ngs = { id: "ngs", title: "National Gang Summit", city: "Toronto, ON", venue: "Sample Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true,
+const ngs = { id: "ngs", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", venue: "Sample Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true,
   contact: { name: "Andrew Hammond", email: "president@ongia.ca" } };
 await putEvent(ngs);
 const person = (email, first, last, status = "ATTENDING") => ({ email, first, last, status, source: "wix" });
@@ -155,7 +155,7 @@ sent.length = 0;
 
 /* nobody who has already told us is emailed: an answer, or Andrew's sheet matched by name (26 Oct 2026) */
 {
-  await putEvent({ id: "ngs2", title: "National Gang Summit", city: "Toronto, ON", venue: "Sample Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true, contact: { name: "Andrew Hammond", email: "president@ongia.ca" } });
+  await putEvent({ id: "ngs2", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", venue: "Sample Hotel", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true, contact: { name: "Andrew Hammond", email: "president@ongia.ca" } });
   await putAttendees("ngs2", { people: [person("x1@example.ca", "Xena", "Asked"), person("x2@example.ca", "Ryan", "Sheet"), person("x3@example.ca", "Ola", "Formed"), person("x4@example.ca", "Ned", "New")] });
   const set2 = (await call("event=ngs2", { method: "PUT", body: { replyBy: "2026-10-30" } })).body;
   const tok2 = set2.link.split("/q/")[1];
@@ -311,7 +311,9 @@ ok("a made-up link finds nothing", (await call("t=notarealtoken123")).status ===
   const w = L.renderLetter(welcome, summit, { first: "Ann", email: "a@example.ca" });
   ok("the Summit's welcome letter is signed ONGIA Board with ngs@ongia.ca, not Raj", /ONGIA Board/.test(w.html) && /mailto:ngs@ongia\.ca/.test(w.html) && !/Raj Jaswal/.test(w.html) && !/604-537-5344/.test(w.html) && !/lead for/.test(w.html), w.html.slice(-900));
   ok("and answers to it go to ngs@ongia.ca", L.attendeeReplyTo(summit) === "ngs@ongia.ca");
-  const other = { ...summit, id: "x", title: "Gang Awareness Day" };
+  const other = { ...summit, id: "x", title: "Gang Awareness Day", boardInbox: "" };
+  // The inbox is the event's setting, never its name (Andrew 25 Nov 2026): a Summit with none set uses info@ongia.ca.
+  ok("the name alone picks no inbox", L.attendeeReplyTo({ ...summit, boardInbox: "" }) === "info@ongia.ca");
   // Andrew 27 Oct 2026: every event's welcome letters are signed ONGIA Board, info@ongia.ca, unless he picks otherwise.
   const plain = L.renderLetter(welcome, other, { first: "Ann" }).html;
   ok("another event's welcome letter is signed ONGIA Board with info@ongia.ca", /ONGIA Board/.test(plain) && /mailto:info@ongia\.ca/.test(plain) && !/Raj Jaswal/.test(plain) && L.attendeeReplyTo(other) === "info@ongia.ca");

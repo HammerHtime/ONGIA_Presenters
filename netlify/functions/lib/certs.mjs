@@ -34,7 +34,7 @@ const FONTS = { b: "Lato-Bold.woff", r: "Lato-Regular.woff", i: "Lato-Italic.wof
  */
 export const TEMPLATES = [
   {
-    id: "national-gang-summit", name: "National Gang Summit", note: "The Summit's own design", image: "certs/national-gang-summit.jpg", imageFr: "certs/national-gang-summit-fr.jpg", forTitle: /national gang summit/i,
+    id: "national-gang-summit", name: "National Gang Summit", note: "The Summit's own design", image: "certs/national-gang-summit.jpg", imageFr: "certs/national-gang-summit-fr.jpg",
     fields: {
       name: { font: "b", size: 28.83, x: 40, base: 572.5, max: 370 },
       agency: { font: "i", size: 17.08, x: 38, base: 604, max: 400 },
@@ -46,7 +46,7 @@ export const TEMPLATES = [
   // certificate with this graphic at the top"): the Summit's page with the CFAOC artwork in place of the Summit's, so
   // the words go where they go on the Summit's. Made by scripts/make-cfaoc-cert.py.
   {
-    id: "cfaoc", name: "Canadian Forum Against Organized Crime", note: "Every CFAOC symposium", image: "certs/cfaoc.jpg", imageFr: "certs/cfaoc-fr.jpg", forTitle: /canadian forum against organized crime|\bcfaoc\b/i,
+    id: "cfaoc", name: "Canadian Forum Against Organized Crime", note: "Every CFAOC symposium", image: "certs/cfaoc.jpg", imageFr: "certs/cfaoc-fr.jpg", forPrefix: "CFAOC",
     fields: {
       name: { font: "b", size: 28.83, x: 40, base: 572.5, max: 370 },
       agency: { font: "i", size: 17.08, x: 38, base: 604, max: 400 },
@@ -88,9 +88,14 @@ export async function findTemplate(id) {
   return t ? builtIn(t) : ((await designsOf()).find((d) => d.id === id) ?? null);
 }
 
-/** The design an event uses unless someone picks another: its own uploaded one, else its built-in one, else the generic. */
+/**
+ * The design an event uses unless someone picks another: its own uploaded one, else the one for its invoice prefix
+ * (CFAOC), else the generic. Never chosen by the event's name: the Summit's design is picked on its Certificates tab.
+ */
 export const defaultTemplate = (event, templates = TEMPLATES.map(builtIn)) =>
-  (templates.filter((t) => t.event === event?.id).at(-1) ?? templates.find((t) => t.forTitle?.test(event?.title ?? "")) ?? templateOf("generic")).id;
+  (templates.filter((t) => t.event === event?.id).at(-1)
+    ?? templates.find((t) => t.forPrefix && t.forPrefix === String(event?.invoicePrefix ?? "").trim().toUpperCase())
+    ?? templateOf("generic")).id;
 
 /** The event's certificate settings, with the defaults filled in (Andrew: the date "should always default to the last day of the training event"). */
 export function certSettings(event, templates = TEMPLATES.map(builtIn)) {

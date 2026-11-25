@@ -21,9 +21,9 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 const H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const call = async (qs, method = "GET", body) => { const r = await attmail(new Request(`http://x/api/attmail?event=ngs&kind=message${qs}`, { method, headers: H, body: body ? JSON.stringify(body) : undefined })); return { status: r.status, body: await r.json() }; };
 
-await putEvent({ id: "ngs", title: "National Gang Summit", city: "Toronto", dayOne: "2026-11-09", lastDay: "2026-11-12", attendeeMail: true,
+await putEvent({ id: "ngs", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto", dayOne: "2026-11-09", lastDay: "2026-11-12", attendeeMail: true,
   board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], wix: { eventId: "w1" },
-  wixMore: [{ eventId: "w2", group: "Community partners" }, { eventId: "v-1", group: "Virtual", online: true }] });
+  wixMore: [{ eventId: "w2", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" }, { eventId: "v-1", group: "Virtual", online: true }] });
 await putAttendees("ngs", { people: [
   { key: "a", first: "Ann", email: "ann@example.ca", status: "ATTENDING", wixEventId: "w1", group: "" },
   { key: "c", first: "Cam", email: "cam@example.ca", status: "ATTENDING", wixEventId: "w2", group: "Community partners" },

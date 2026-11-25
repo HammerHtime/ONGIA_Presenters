@@ -29,8 +29,8 @@ const H = { "x-admin-key": "testkey", "content-type": "application/json" };
 const admin = async (qs, init = {}) => { const r = await survey(new Request(`http://x/api/survey?event=ngs${qs}`, { ...init, headers: H, body: init.body ? JSON.stringify(init.body) : undefined })); return { status: r.status, body: await r.json() }; };
 const pub = async (qs, init = {}) => { const r = await survey(new Request(`http://x/api/survey?${qs}`, { ...init, headers: { "content-type": "application/json" }, body: init.body ? JSON.stringify(init.body) : undefined })); return { status: r.status, body: await r.json() }; };
 
-await putEvent({ id: "ngs", title: "National Gang Summit", city: "Toronto, ON", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true,
-  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners" }],
+await putEvent({ id: "ngs", title: "National Gang Summit", mainGroup: "Justice partners", boardInbox: "ngs@ongia.ca", city: "Toronto, ON", dayOne: "2026-11-09", lastDay: "2026-11-12", board: [], attendeeMail: true,
+  wixMore: [{ eventId: "w2", title: "NGS Community Partners", group: "Community partners", dayOne: "2026-11-10", lastDay: "2026-11-11" }],
   schedule: ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"].map((date) => ({ date, start: "08:30", end: "16:00" })) });
 const talks = [["a1", "Casey", "Morgan", "Gang Trends Coast to Coast"], ["a2", "Jordan", "Avery", "Following the Money"], ["a3", "Riley", "Chen", "Following the Money"], ["a4", "Morgan", "Lee", "From Recruitment to Exit"], ["a5", "Sam", "Ortiz", "Ghost Guns"]];
 for (const [id, first, last, talk] of talks) await putPresenter({ eventId: "ngs", id, first, last, status: "approved", submission: { talk }, createdAt: `2026-10-0${talks.findIndex((t) => t[0] === id) + 1}` });
