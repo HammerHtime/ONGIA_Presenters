@@ -29,9 +29,9 @@ try {
   const api = async (p, i = {}) => (await fetch(S + p, { ...i, headers: { ...H, ...(i.headers ?? {}) } })).json();
   await api("/api/roster");
   const T = Date.now().toString(36);
-  const mk = async (title, people) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, city: "Victoria, BC", venue: "Delta Ocean Pointe", dayOne: DAY, lastDay: DAY, invite: false,
+  const mk = async (title, people, prefix = "") => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, ...(prefix ? { invoicePrefix: prefix } : {}), city: "Victoria, BC", venue: "Delta Ocean Pointe", dayOne: DAY, lastDay: DAY, invite: false,
     board: [{ name: "Raj Jaswal", email: "treasurer@ongia.ca", lead: true }], presenters: people.map(([f, l]) => ({ first: f, last: l, email: `${f.toLowerCase()}.${T}@example.ca`, organization: "Sample Police Service" })) }) })).event;
-  const W = await mk(`Canadian Forum Against Organized Crime Western Symposium ${T}`, [["Jenny", "Sample"], ["Pat", "Private"], ["Nora", "Notyet"]]);
+  const W = await mk(`Canadian Forum Against Organized Crime Western Symposium ${T}`, [["Jenny", "Sample"], ["Pat", "Private"], ["Nora", "Notyet"]], "CFAOC");
   const O = await mk(`Gang Awareness Day ${T}`, [["Al", "Other"]]);
   const PW = (await api(`/api/events?id=${W.id}`)).presenters;
   const sign = async (p, pub) => fetch(`${S}/api/agreement?t=${p.token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ first: p.first, last: p.last, email: p.email, phone: "4165550100", organization: "Sample Police Service",
