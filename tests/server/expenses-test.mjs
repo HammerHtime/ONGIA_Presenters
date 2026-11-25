@@ -68,6 +68,29 @@ const mkEvent = async (extra) => (await (await events(new Request("http://localh
 const evSummit = await mkEvent();
 ok("the app offers the Summit as an event a line can name", (await call("/api/expenses", "GET", undefined, MEMBER)).events.some((e) => e.id === evSummit.id && e.title === "National Gang Summit"));
 ok("events a line can name: recent and coming, never a practice one", X.eventChoices([{ id: "a", title: "A", dayOne: "2026-11-01" }, { id: "p", title: "P", dayOne: "2026-11-01", practice: true }, { id: "old", title: "Old", dayOne: "2025-01-01" }], "2026-11-03").map((e) => e.id).join() === "a");
+// The order (Andrew 25 Nov 2026): just over (20 days after its last day) at the top, then coming ones soonest first, then
+// the rest of the past three months, most recent first. Every coming event, however far off. Made-up events.
+{
+  const T = "2026-11-25";
+  const list = X.eventChoices([
+    { id: "vic", title: "Western Symposium", city: "Victoria, BC", dayOne: "2026-11-24", lastDay: "2026-11-24" },
+    { id: "ngs", title: "Summit", dayOne: "2026-11-09", lastDay: "2026-11-12" },
+    { id: "feb", title: "February", dayOne: "2027-02-08", lastDay: "2027-02-12" },
+    { id: "dec", title: "Next December", dayOne: "2027-12-07" },
+    { id: "jan", title: "January", dayOne: "2027-01-10" },
+    { id: "oct", title: "October", dayOne: "2026-10-06" },
+    { id: "sep", title: "September", dayOne: "2026-09-01" },
+    { id: "old", title: "June", dayOne: "2026-06-01" },
+    { id: "now", title: "On now", dayOne: "2026-11-24", lastDay: "2026-11-26" },
+  ], T).map((e) => e.id).join();
+  ok("just over at the top (most recent first), then coming soonest first (one on now among them), then the past three months, newest first", list === "vic,ngs,now,jan,feb,dec,oct,sep", list);
+  const later = X.eventChoices([{ id: "vic", title: "V", dayOne: "2026-11-24" }, { id: "jan", title: "J", dayOne: "2027-01-10" }], "2026-12-15").map((e) => e.id).join();
+  ok("21 days after, it drops below the coming ones", later === "jan,vic", later);
+  ok("each choice carries its city", X.eventChoices([{ id: "vic", title: "W", city: "Victoria, BC", dayOne: "2026-11-24" }], T)[0].city === "Victoria, BC");
+  const kept = X.cleanLine("receipt", { eventId: "old" }, { events: [], had: { eventId: "old", eventTitle: "June" } });
+  ok("a line keeps an event that's since dropped off the list", kept.eventId === "old" && kept.eventTitle === "June");
+  ok("…but can't be given one that isn't on it", X.cleanLine("receipt", { eventId: "old" }, { events: [] }).eventId === "");
+}
 
 console.log("— a receipt, photographed");
 reply = { isReceipt: true, vendor: "Delta Hotels", date: "2026-11-09", total: 658.12, tax: 75.71, currency: "CAD", category: 8, what: "Hotel, 3 nights", confidence: "high", notes: null };
