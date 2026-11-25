@@ -309,7 +309,7 @@ export function whenOf(first, last, lang = "en") {
 /** The whole page, or one section as a 1080 × 1080 square. */
 export function infographicHtml(event, R, analysis, { lang = "en", block = "" } = {}) {
   const s = sections(event, R, analysis, lang === "fr" ? "fr" : "en", !!block);
-  const head = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap"><style>${CSS}</style></head><body>`;
+  const head = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><link rel="stylesheet" href="/assets/fonts/fonts.css"><style>${CSS}</style></head><body>`;
   if (block) {
     const one = block === "event" ? s.event + s.foot : s[block];
     if (!one) return null;
