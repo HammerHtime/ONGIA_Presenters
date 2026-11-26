@@ -3,7 +3,7 @@ import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
 import { stipendsByEvent } from "./lib/sowexpense.mjs";
-import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit, matchStipends } from "./lib/sow.mjs";
+import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit, matchStipends, cleanStipendRows } from "./lib/sow.mjs";
 import { buildSowPdf, buildSowsPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -243,6 +243,7 @@ export default async (req) => {
       lines,
       // The internal costs are ONGIA's own, not what RBH agreed to: they change whether or not the amounts are locked.
       internal: body.internal === undefined ? internalOf(sow) : cleanInternal(body.internal, internalOf(sow)),
+      stipendRows: body.stipendRows === undefined ? cleanStipendRows(sow.stipendRows) : cleanStipendRows(body.stipendRows),
       taxes: body.taxes === undefined ? sow.taxes : cleanTaxes(body.taxes),
       taxBase: body.taxBase === "subtotal" ? "subtotal" : "subtotal+fee",
       deposit: money(Math.max(0, Number(body.deposit) || 0)),

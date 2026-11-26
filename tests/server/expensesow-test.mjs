@@ -11,7 +11,7 @@ const { putEvent, putSow, getSow, getReceipts, putClaim, putClaimLine, putClaimF
 const { cleanLine, viewLine, eventChoices, sowLinesFor } = await import(F + "lib/expenses.mjs");
 const { syncClaimToSow, stipendsByEvent } = await import(F + "lib/sowexpense.mjs");
 const { withReceipts } = await import(F + "lib/receipts.mjs");
-const { totals, profit, matchStipends } = await import(F + "lib/sow.mjs");
+const { totals, profit, matchStipends, cleanStipendRows } = await import(F + "lib/sow.mjs");
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 
@@ -129,6 +129,11 @@ ok("the SOW side plans the typed rows", profit(withRows, "estimate").internal ==
 ok("the invoice side: Steve's approved $1,000 fills his Paid, Jacq's waiting claim leaves her planned, a typed Paid wins", profit(withRows, "actual").internal === 1000 + 2000 + 800, profit(withRows, "actual").internal);
 const noRow = profit({ ...withRows, internal: [], stipends: got }, "actual");
 ok("an approved stipend with no row is still a cost to ONGIA", noRow.internal === 1000, noRow.internal);
+const picked = { ...withRows, internal: [...withRows.internal, { id: "r4", name: "Steve", planned: 0, paid: null }], stipendRows: cleanStipendRows({ "c5stip:l1": "r3", "c4stip:l1stip": "none", "bad key": "r1", "x:y": 5 }) };
+ok("the picks are kept clean", JSON.stringify(picked.stipendRows) === JSON.stringify({ "c5stip:l1": "r3", "c4stip:l1stip": "none" }));
+const mp = matchStipends(picked);
+ok("a row picked on the SOW wins over the first-name match, and No row is no row", mp.find((x) => x.claim === "c5stip").row === "r3" && mp.find((x) => x.claim === "c4stip").row === null);
+ok("…and the profit follows the pick", profit(picked, "actual").internal === 2000 + 2000 + 800 + 0 + 1000, profit(picked, "actual").internal);
 const billedBefore = totals(withReceipts(sow, (await getReceipts("vic")).items), "actual").subtotal;
 ok("RBH's invoice is untouched by any of it", totals(withReceipts(withRows, (await getReceipts("vic")).items), "actual").subtotal === billedBefore);
 

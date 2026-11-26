@@ -1190,8 +1190,9 @@
   .stiprow .who{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stiprow .who small{color:#6b5a80}
   .stiprow b{font-variant-numeric:tabular-nums}
-  .stiprow span:last-child{font-size:13px;font-weight:600;white-space:nowrap}
-  @container (max-width:480px){.stiprow .d,.stiprow .who .in{display:none}}
+  .stiprow .st{font-size:13px;font-weight:600;white-space:nowrap}
+  .stiprow .stippick{font-size:13px;padding:2px 4px;max-width:84px;background:#fff;border:1px solid #cdb9e3;border-radius:6px}
+  @container (max-width:480px){.stiprow .d{display:none}}
   .profit{margin-top:14px;border:1.5px solid #8a63b8;border-radius:12px;overflow:hidden;background:#fff}
   .profit:empty{display:none}
   .profit .ph{background:#4b2a73;color:#fff;padding:8px 12px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -9057,11 +9058,12 @@ function wireSow(ev, S, { onSums = null } = {}) {
     if (!all.length) return `<div class="intnote" style="margin:10px 0 0">No stipends claimed for this event yet. Stipends claimed on expense claims show here, never on the invoice.</div>`;
     const day = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-CA", { day: "numeric", month: "short" }) : "");
     const say = { waiting: ["Waiting", "#9a6a10"], approved: ["Approved", "#2f6b3a"], paid: ["Paid", "#2f6b3a"] };
-    const rowName = (id) => (sow.internal ?? []).find((r) => r.id === id)?.name;
     return `<div class="stiplist"><div class="introw head" style="display:block;margin-top:12px">Stipends from expense claims · ${whole(r2(all.reduce((n, st) => n + (st.amount ?? 0), 0)))}</div>
-      ${all.map((st) => { const [w, c] = say[st.status] ?? [st.status, "#6b5a80"]; const to = rowName(st.row);
-        return `<div class="stiprow"><span class="who">${esc(st.name || "Someone")}${to ? `<small class="in"> · in ${esc(to)}</small>` : "<small> · no row</small>"}</span><b>${whole(st.amount)}</b><span style="color:${c}">${w}${st.date ? `<small class="d"> ${day(st.date)}</small>` : ""}</span></div>`; }).join("")}
-      <div class="intnote" style="margin:6px 0 0">Approved or paid ones fill that person's Paid (shown in grey); one with no row still counts. Type a Paid amount to overrule it.</div></div>`;
+      ${all.map((st) => { const [w, c] = say[st.status] ?? [st.status, "#6b5a80"];
+        const rows = (sow.internal ?? []).filter((r) => r.id);
+        const pick = `<select class="stippick" data-stip="${esc(`${st.claim}:${st.line}`)}" aria-label="Counts under which row" title="Counts under which row">${rows.map((r) => `<option value="${esc(r.id)}" ${r.id === st.row ? "selected" : ""}>${esc(r.name || "Unnamed row")}</option>`).join("")}<option value="none" ${!st.row ? "selected" : ""}>No row</option></select>`;
+        return `<div class="stiprow"><span class="who">${esc(st.name || "Someone")}</span><b>${whole(st.amount)}</b><span class="st" style="color:${c}">${w}${st.date ? `<small class="d"> ${day(st.date)}</small>` : ""}</span>${pick}</div>`; }).join("")}
+      <div class="intnote" style="margin:6px 0 0">Each counts under the row picked on the right; approved or paid ones fill its Paid (shown in grey), and one under No row is added on its own. A Paid you type wins.</div></div>`;
   }
   // ONGIA's profit, internal (Andrew 29 Oct 2026), worked out as the server does (lib/sow.mjs profit()).
   const profitOf = (which) => {
@@ -9127,7 +9129,7 @@ function wireSow(ev, S, { onSums = null } = {}) {
     // a line up twice quickly on the VIP event's SOW traded two lines' ids, and receipts are filed by line id).
     const named = (rows) => (rows ?? []).filter((l) => String(l.name ?? "").trim());
     const sentLines = named(sow.lines), sentInternal = named(sow.internal);
-    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [] }) }).catch((x) => { dirty = true; throw x; });
+    const out = await api(q, { method: "PUT", body: JSON.stringify({ program: sow.program, lines: sow.lines, taxes: sow.taxes, taxBase: sow.taxBase, deposit: sow.deposit, invoiceDate: sow.invoiceDate, dueDate: sow.dueDate, increaseReason: sow.increaseReason, otherActual: sow.otherActual ?? null, internal: sow.internal ?? [], stipendRows: sow.stipendRows ?? {} }) }).catch((x) => { dirty = true; throw x; });
     if (quiet) {
       // Saved as you go: what is on the screen stays as typed (a line still being named isn't kept by the server yet);
       // each named line and row takes the id the server gave it, so the next save is the same line, not a new one.
@@ -9173,6 +9175,12 @@ function wireSow(ev, S, { onSums = null } = {}) {
     body.querySelectorAll("[data-txrm]").forEach((b) => { b.onclick = () => { read(); sow.taxes.splice(+b.dataset.txrm, 1); draw(); dirty = true; auto.kick(true); }; });
     $("sw-addtax").onclick = () => { read(); sow.taxes.push({ name: "", rate: 0 }); draw(); dirty = true; auto.kick(true); };
     body.querySelectorAll("[data-inrm]").forEach((b) => { b.onclick = () => { read(); sow.internal.splice(+b.dataset.inrm, 1); draw(); dirty = true; auto.kick(true); }; });
+    // Which row a claimed stipend counts under (Andrew's own pick wins over the first-name match).
+    body.querySelectorAll(".stippick").forEach((sel) => { sel.onchange = () => {
+      read(); (sow.stipendRows ??= {})[sel.dataset.stip] = sel.value;
+      const st = (sow.stipends ?? []).find((x) => `${x.claim}:${x.line}` === sel.dataset.stip); if (st) { st.row = sel.value === "none" ? null : sel.value; st.picked = true; }
+      draw(); dirty = true; auto.kick(true);
+    }; });
     $("sw-addint").onclick = () => { read(); (sow.internal ??= []).push({ name: "", planned: null, paid: null }); draw(); dirty = true; auto.kick(true); body.querySelectorAll(".in-name")[sow.internal.length - 1]?.focus(); };
     $("sw-useprov").onclick = guard(async () => { if (dirty) await save(true); await api(`${q}&province=${$("sw-prov").value}`, { method: "PUT" }); toast("Tax lines changed."); render(); });
     if ($("sw-refill")) $("sw-refill").onclick = guard(async () => {
