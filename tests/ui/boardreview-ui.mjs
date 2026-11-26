@@ -45,7 +45,8 @@ await p.locator("summary", { hasText: "Run a review" }).click();
 await p.locator("#sample").click(); await p.waitForTimeout(1500);
 let text = await p.locator("main").innerText();
 ok("a sample opens: made-up names, closed, every director's progress", /every name and answer here is made up/.test(text) && /Alex Morgan/.test(text) && /Robin Ashe/.test(text), text.slice(0, 400));
-ok("progress shows who is done, never answers", /Done ✓/.test(text) && !/Brings new sponsors/.test(text));
+// Participation counts for everyone (Andrew 26 Nov 2026): self-review, colleagues rated out of owed, board questions.
+ok("progress shows how much each person did, never answers", /Self ✓ · 8\/8 · Board ✓/.test(text) && /Counts only: nobody can see who rated whom/.test(text) && !/Brings new sponsors/.test(text), text.slice(0, 500));
 ok("nothing scrolls sideways on a phone", !(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth)));
 await p.screenshot({ path: `${D}boardreview-progress-phone.png`, fullPage: true });
 await p.locator(".row", { hasText: "Alex Morgan" }).locator("a", { hasText: "Report" }).click(); await p.waitForTimeout(1000);

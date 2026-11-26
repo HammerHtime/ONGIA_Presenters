@@ -6,7 +6,8 @@ import {
   isCommittee, isPresidentOf, peersOf, questionsFor, newCycle, getSelf, getDone, saveSelf, sendPeer, sendBoard, factsOf, reportOf,
   resultsOf, progressOf, deleteCycleAll, makeSample, keyOf, FLOOR, SCALE, rolesOf,
 } from "./lib/review.mjs";
-import { openMail, remindOne } from "./lib/reviewmail.mjs";
+import { openMail, remindOne, releaseMail } from "./lib/reviewmail.mjs";
+import { reportPdf } from "./lib/reviewpdf.mjs";
 
 /**
  * The board review (lib/review.mjs), on its own page /board with its own sign-in.
@@ -110,6 +111,12 @@ export default async (req) => {
     // The committee reads every report; a director (the president too) reads their own, once the committee releases it.
     if (!committee && !(own && c.released?.[rk])) return fail(own ? "Your report isn't released yet: the committee releases it, usually at your one-on-one." : "Only the review committee can read a director's report.", 403);
     if (phaseOf(c) !== "closed") return fail("Reports are made when the peer round closes.", 409);
+    // A PDF copy (Andrew 26 Nov 2026): for the one-on-one, and for them to keep. Same report, same rules on who may read it.
+    if (q("pdf")) {
+      const R = await reportOf(c, d.email);
+      const name = `${R.name} - ONGIA annual review ${c.year}.pdf`.replace(/[^\w .,()-]+/g, "");
+      return new Response(await reportPdf(c, R, { floor: FLOOR }), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${name}"`, "cache-control": "no-store" } });
+    }
     return json({ report: await reportOf(c, d.email), floor: FLOOR, scale: SCALE });
   }
   if (q("results") && req.method === "GET") {
@@ -124,7 +131,9 @@ export default async (req) => {
     if (!c.directors.some((d) => keyOf(d.email) === k)) return fail("No such director in this review.", 404);
     c.released = { ...(c.released ?? {}), [k]: { at: new Date().toISOString(), by: who.email } };
     await putCycle(c);
-    return json({ released: c.released[k] });
+    // They're told it's ready (Andrew 26 Nov 2026), with a button to read it; a sample emails nobody.
+    const mail = await releaseMail(c, c.directors.find((d) => keyOf(d.email) === k)).catch((e) => ({ failed: e.message }));
+    return json({ released: c.released[k], mail });
   }
   if (req.method === "PUT" && q("notes")) {
     if (!committee) return fail("Only the review committee keeps these.", 403);

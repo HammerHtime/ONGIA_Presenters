@@ -103,6 +103,21 @@ export async function openMail(c) {
   return { sent: out.filter((x) => x.sent).length, failed: out.filter((x) => x.failed) };
 }
 
+/** When the committee releases someone's report (Andrew 26 Nov 2026): it's ready to read, with a PDF to keep. */
+export function releasedMessage(c, d) {
+  return message(c, d, `Board review ${c.year}: your report is ready`, "Your review is ready to read", [
+    "The review committee has released your report from this year's board review. It has your colleagues' ratings and comments, your self-review, and the commitments you agreed with the committee.",
+    "Comments appear without names. You can read it any time and download a PDF copy to keep.",
+  ], "Read my report");
+}
+export async function releaseMail(c, d) {
+  if (!real(c) || !d) return { skipped: "a sample" };
+  const r = await send(releasedMessage(c, d));
+  const m = (await getMeta(`review:mail:${c.id}`)) ?? {};
+  await putMeta(`review:mail:${c.id}`, { ...m, released: { ...(m.released ?? {}), [keyOf(d.email)]: { at: new Date().toISOString(), ...(r.failed ? { failed: r.failed } : { sent: true }) } } });
+  return r;
+}
+
 /** A reminder to one director now (the committee's Remind). */
 export async function remindOne(c, d) {
   if (!real(c)) return { error: "A sample doesn't send email." };

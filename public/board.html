@@ -25,7 +25,7 @@
   .tabs button{border:1px solid var(--edge);background:#fff;border-radius:999px;padding:6px 14px;font:600 14px "DM Sans";color:var(--ink);min-height:36px;cursor:pointer}
   .tabs button.on{background:var(--navy);border-color:var(--navy);color:#fff} .tabs button:disabled{opacity:.45;cursor:default}
   .card{background:var(--card);border:1px solid var(--edge);border-radius:14px;overflow:hidden;margin-top:10px}
-  .sum{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--sunk);font-size:14px;color:var(--muted);flex-wrap:wrap} .sum b{color:var(--ink)}
+  .sum #pdf{margin-left:auto} .sum{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--sunk);font-size:14px;color:var(--muted);flex-wrap:wrap} .sum b{color:var(--ink)}
   .row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;min-height:42px;padding:6px 16px;border-top:1px solid var(--edge);font-size:14px}
   .row:first-child{border-top:0} .row .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0} .row .n small{color:var(--muted);margin-left:6px;font-size:12.5px}
   .row .st{white-space:nowrap;font-weight:600;font-size:13px}
@@ -215,13 +215,14 @@ function cycleView(C) {
   if (C.progress) {
     const P = C.progress, f = cycleView.filter ?? "all";
     const rows = P.filter((p) => f === "all" || (f === "todo" ? !p.finished : p.finished));
-    html += `<p class="cap">${C.roles.committee ? "Progress" : "Progress (you see who's done, not what they wrote)"}</p><div class="card">
+    html += `<p class="cap">${C.roles.committee ? "Progress" : "Progress (you see who's done, not what they wrote)"}</p><p class="hint" style="margin:-4px 0 8px">Self-review · colleagues rated (done/owed) · board questions. Counts only: nobody can see who rated whom.</p><div class="card">
       <div class="chips" role="radiogroup">${[["all", "All", P.length], ["todo", "Not done", P.filter((p) => !p.finished).length], ["done", "Done", P.filter((p) => p.finished).length]].map(([k, l, n]) => `<button type="button" class="chip${f === k ? " on" : ""}" data-f="${k}">${l} ${n}</button>`).join("")}</div>
-      ${rows.map((p) => { const cls = p.finished ? "ok" : !p.self && C.phase !== "scheduled" ? "late" : "wt";
-        // Short (nice and tight): Done, or what's still missing.
-        const what = p.finished ? "Done ✓" : C.phase === "scheduled" ? "Not started" : [p.self ? "" : "No self-review", C.phase === "self" ? (p.self ? "Self ✓" : "") : p.peersOwed ? `${p.peersSent} of ${p.peersOwed}` : "", C.phase !== "self" && !p.board ? "board" : ""].filter(Boolean).join(" · ");
+      ${rows.map((p) => { const cls = p.finished ? "ok" : C.phase === "closed" || (!p.self && C.phase !== "scheduled") ? "late" : "wt";
+        // Who took part and how much, for everyone at every stage (Andrew 26 Nov 2026: "I just need to know if they
+        // participated, how many they did, and how many they did not"). Counts only: never who rated whom.
+        const what = C.phase === "scheduled" ? "Not started" : [p.self ? "Self ✓" : "No self", C.phase === "self" ? "" : p.peersOwed ? `${p.peersSent}/${p.peersOwed}` : "", C.phase === "self" ? "" : p.board ? "Board ✓" : "No board"].filter(Boolean).join(" · ");
         const btn = C.phase === "closed" && C.roles.committee ? `<a class="mini" href="#/c/${C.id}/report/${p.key}">Report</a>` : C.roles.committee && !p.finished && !C.sample && C.phase !== "scheduled" && C.phase !== "closed" ? `<button class="mini" type="button" data-remind="${p.key}">Remind</button>` : "<span></span>";
-        return `<div class="row"><span class="n">${esc(p.name)}${p.president ? " <small>President</small>" : p.committee ? " <small>Committee</small>" : p.firstYear ? " <small>First year</small>" : ""}</span><span class="st ${cls}">${what}</span>${btn}</div>`; }).join("")}
+        return `<div class="row"><span class="n">${esc(p.name)}${p.president ? " <small>President</small>" : p.committee ? " <small>Committee</small>" : p.firstYear ? " <small>First year</small>" : ""}</span><span class="st ${cls}" title="${esc(what)}">${what}</span>${btn}</div>`; }).join("")}
     </div>${C.phase === "closed" ? `<div class="foot" style="padding:10px 0;border:0"><a class="mini gold" href="#/c/${C.id}/results">Board-wide results</a></div>` : `<p class="hint">Reminders go every 3 days by themselves to anyone not finished.${C.roles.committee ? " Remind sends one now." : ""}</p>`}`;
   }
   if (C.roles.manage) html += `<details class="fold"><summary><b>Delete this review</b> · president and VP only</summary><div class="in"><p class="hint">Deletes the review and every answer in it, for good.</p><button class="mini" id="del" type="button" style="color:var(--late)">Delete it</button></div></details>`;
@@ -320,7 +321,7 @@ async function reportView(C, k) {
     ? `<div class="bar"><span>${esc(r.title)}</span><span class="mu" style="grid-column:2/4;font-size:13px">Too few ratings to show (${r.n} of ${floor})</span></div>`
     : `<div class="bar"><span>${esc(r.title)}</span><span class="track"><span class="fill" style="width:${pct(r.avg)}"></span>${r.board ? `<span class="tick" style="left:${pct(r.board)}"></span>` : ""}${r.self ? `<span class="self" style="left:${pct(r.self)}"></span>` : ""}</span><b>${r.avg.toFixed(1)}</b></div>`).join("");
   const S = R.self?.answers ?? {};
-  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Back")}<div class="card"><div class="sum"><span><b>${esc(R.name)} · ${C.year}</b> · ${R.raters} colleague${R.raters === 1 ? "" : "s"} rated${R.released ? ` · released ${fmt(R.released.at)}` : ""}</span></div>
+  ROOT.innerHTML = `${back(`#/c/${C.id}`, "Back")}<div class="card"><div class="sum"><span><b>${esc(R.name)} · ${C.year}</b> · ${R.raters} colleague${R.raters === 1 ? "" : "s"} rated${R.released ? ` · released ${fmt(R.released.at)}` : ""}</span><button class="mini" id="pdf" type="button">PDF</button></div>
     <div class="key"><span>▬ ${esc(R.name.split(" ")[0])}'s average</span><span style="color:var(--gold)">│ board average</span><span style="color:var(--late)">○ own rating</span></div>${rows}
     ${R.comments.map((c) => `<div class="del"><b>${esc(c.text.replace(/^Optional: one thing they/, "One thing they"))}</b> <i>(${c.items.length ? `${c.items.length}, in random order, no names` : `too few to show: ${c.n} of ${floor}`})</i>${c.items.map((x) => `\n“${esc(x)}”`).join("")}</div>`).join("")}
     <div class="facts"><b>${esc(R.facts.year)}:</b> on ${R.facts.on ? `${R.facts.on} event${R.facts.on === 1 ? "" : "s"}` : "no events"}${R.facts.led?.length ? `, led ${esc(R.facts.led.join(", "))}` : ""}${R.facts.meetings ? ` · ${esc(R.facts.meetings)} board meetings` : ""}</div>
@@ -331,7 +332,19 @@ async function reportView(C, k) {
       <label class="f">Commitments, after the one-on-one (up to 3)</label>${[0, 1, 2].map((i) => `<input type="text" data-cm value="${esc(N.commitments[i] ?? "")}">`).join("")}
       <div class="foot" style="padding:10px 0 0;border:0"><button class="mini gold" id="savenotes" type="button">Save</button>${R.released || C.sample ? "" : `<button class="mini" id="release" type="button">Release to ${esc(R.name.split(" ")[0])}</button>`}</div></div></details>` : ""}`;
   $("savenotes")?.addEventListener("click", async () => { try { await api(`?cycle=${C.id}&notes=${k}`, { method: "PUT", body: { meetings: $("mt").value, commitments: [...ROOT.querySelectorAll("[data-cm]")].map((i) => i.value) } }); toast("Saved."); show(); } catch (x) { toast(x.message, true); } });
-  $("release")?.addEventListener("click", async () => { if (!confirm(`Release this report to ${R.name}? They'll be able to read it.`)) return; try { await api(`?cycle=${C.id}&release=${k}`, { method: "POST" }); toast("Released."); show(); } catch (x) { toast(x.message, true); } });
+  $("release")?.addEventListener("click", async () => { if (!confirm(`Release this report to ${R.name}? They'll be emailed that it's ready to read.`)) return; try { const r = await api(`?cycle=${C.id}&release=${k}`, { method: "POST" }); toast(r.mail?.failed ? `Released, but the email to ${R.name.split(" ")[0]} didn't go: ${r.mail.failed}` : r.mail?.sent ? `Released. ${R.name.split(" ")[0]} has been emailed.` : "Released.", !!r.mail?.failed); show(); } catch (x) { toast(x.message, true); } });
+  // A PDF copy, for the one-on-one and to keep (Andrew 26 Nov 2026).
+  $("pdf")?.addEventListener("click", async (e) => {
+    const b = e.target; b.disabled = true; b.textContent = "…";
+    try {
+      const res = await fetch(`/api/boardreview?cycle=${encodeURIComponent(C.id)}&report=${encodeURIComponent(k)}&pdf=1`, { headers: { "x-review-key": SESSION } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Couldn't make the PDF (${res.status}).`);
+      const url = URL.createObjectURL(await res.blob());
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${R.name} - ONGIA annual review ${C.year}.pdf` });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (x) { toast(x.message, true); }
+    b.disabled = false; b.textContent = "PDF";
+  });
 }
 async function resultsView(C) {
   const { results: X, floor } = await api(`?cycle=${C.id}&results=1`);

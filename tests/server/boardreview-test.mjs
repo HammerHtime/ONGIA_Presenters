@@ -145,11 +145,21 @@ ok("with fewer than five raters, no average and no comments", rep2.rows.every((r
 ok("the president reads the board-wide results", (await call(E("pres"), `?cycle=${c.id}&results=1`)).status === 200);
 ok("…but not a director's report", (await call(E("pres"), `?cycle=${c.id}&report=${R.keyOf(E("d1"))}`)).status === 403);
 ok("only the committee releases", (await call(E("d1"), `?cycle=${c.id}&release=${R.keyOf(E("d1"))}`, "POST")).status === 403);
-await call(E("jh"), `?cycle=${c.id}&release=${R.keyOf(E("d1"))}`, "POST");
+const rel = await call(E("jh"), `?cycle=${c.id}&release=${R.keyOf(E("d1"))}`, "POST");
+// Released, they're emailed (Andrew 26 Nov 2026). No mail is set up here, so it comes back as not sent, saying why.
+ok("releasing emails them, and says if it didn't go", rel.status === 200 && rel.mail && (rel.mail.sent || rel.mail.failed), JSON.stringify(rel));
 ok("released: the director reads their own report", (await call(E("d1"), `?cycle=${c.id}&report=${R.keyOf(E("d1"))}`)).status === 200);
 ok("…still not a colleague's", (await call(E("d1"), `?cycle=${c.id}&report=${R.keyOf(E("d2"))}`)).status === 403);
 await call(E("vp"), `?cycle=${c.id}&notes=${R.keyOf(E("d1"))}`, "PUT", { meetings: "6 of 8", commitments: ["Attend every meeting", "Lead one event"] });
 ok("the committee records meetings and commitments", (await call(E("d1"), `?cycle=${c.id}&report=${R.keyOf(E("d1"))}`)).report.commitments.length === 2);
+// A PDF copy (Andrew 26 Nov 2026): the committee any; the director their own once released; nobody else.
+const raw = async (who, qs) => api(new Request(`http://x/api/boardreview${qs}`, { headers: { "x-review-key": as(who) } }));
+{ const r = await raw(E("vp"), `?cycle=${c.id}&report=${R.keyOf(E("d1"))}&pdf=1`); const b = Buffer.from(await r.arrayBuffer());
+  ok("the committee downloads a report as a PDF", r.status === 200 && r.headers.get("content-type") === "application/pdf" && b.subarray(0, 4).toString() === "%PDF" && /attachment; filename=".*annual review/.test(r.headers.get("content-disposition")), r.status);
+  const { writeFileSync } = await import("node:fs"); writeFileSync(process.env.REVIEW_PDF_OUT || "/tmp/review-sample.pdf", b); }
+ok("the director downloads their own, once released", (await raw(E("d1"), `?cycle=${c.id}&report=${R.keyOf(E("d1"))}&pdf=1`)).status === 200);
+ok("…but not a colleague's", (await raw(E("d1"), `?cycle=${c.id}&report=${R.keyOf(E("d2"))}&pdf=1`)).status === 403);
+ok("…and someone not yet released can't download theirs", (await raw(E("d2"), `?cycle=${c.id}&report=${R.keyOf(E("d2"))}&pdf=1`)).status === 403);
 
 // A sample cycle: made-up names, only for the testers.
 const s = await call(E("pres"), "?sample=1", "POST");
