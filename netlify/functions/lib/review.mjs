@@ -30,6 +30,9 @@ export const QUESTIONS = {
     { id: "decide", title: "Supports decisions", text: "Supports board decisions once they're made." },
     { id: "trust", title: "Keeps confidences", text: "Keeps board matters confidential and declares conflicts of interest." },
     { id: "ambassador", title: "Represents ONGIA", text: "Represents ONGIA well with partners, agencies and the public." },
+    // Andrew 26 Nov 2026: "something like contributed to ONGIA growth … make the person explain what they did … examples".
+    // Colleagues rate it beside the person's own examples (the self-review's "grow" answer).
+    { id: "grow", title: "Helps ONGIA grow", text: "Helps ONGIA grow: new partners, agencies, presenters, members or opportunities." },
   ],
   president: [
     { id: "meetings", title: "Runs meetings well", text: "Runs meetings so every view is heard and decisions are clear." },
@@ -42,6 +45,7 @@ export const QUESTIONS = {
   presidentComments: [{ id: "strength", text: "What are the president's main strengths?" }, { id: "improve", text: "How could the president improve?" }],
   self: [
     { id: "delivered", text: "What did I deliver this year? Three examples." },
+    { id: "grow", text: "How did I help ONGIA grow this year? Give examples: new partners, agencies, presenters, members or opportunities." },
     { id: "portfolio", text: "How did my area of responsibility move forward?" },
     { id: "short", text: "Where did I fall short, and why?" },
     { id: "commit", text: "What will I commit to in the coming year?" },
@@ -208,6 +212,7 @@ export async function saveSelf(c, email, body, today = todayIso()) {
   const rec = { answers, ratings, savedAt: new Date().toISOString() };
   if (body.send === true) {
     if (!answers.delivered) return { error: "Say what you delivered this year before you send it.", status: 400 };
+    if (c.questions.self.some((q) => q.id === "grow") && !answers.grow) return { error: "Say how you helped ONGIA grow this year, with an example or two, before you send it.", status: 400 };
     const missing = qs.find((q) => ratings[q.id] === null);
     if (missing) return { error: `Rate yourself on "${missing.title}" before you send it.`, status: 400 };
     rec.sentAt = rec.savedAt;
@@ -348,7 +353,7 @@ export async function makeSample(by, testers) {
   for (const d of directors) {
     const base = 2.6 + rnd() * 2;
     const qs = questionsFor(c, d);
-    await putMeta(selfKey(c, d.email), { answers: { delivered: "Led one of our trainings; brought in a new partner agency; helped at the Summit door.", portfolio: "Moved forward slowly.", short: "Missed two meetings in the spring.", commit: "Attend every meeting; take on one event.", support: "Earlier notice of event needs.", next: "Help plan the next symposium." },
+    await putMeta(selfKey(c, d.email), { answers: { delivered: "Led one of our trainings; brought in a new partner agency; helped at the Summit door.", grow: "Brought two new police services to the fall symposium; introduced a presenter from the border agency.", portfolio: "Moved forward slowly.", short: "Missed two meetings in the spring.", commit: "Attend every meeting; take on one event.", support: "Earlier notice of event needs.", next: "Help plan the next symposium." },
       ratings: Object.fromEntries(qs.map((q) => [q.id, Math.min(5, Math.max(1, Math.round(base + 0.6 + rnd())))])), savedAt: c.selfOpens, sentAt: c.selfOpens });
     await putMeta(doneKey(c, d.email), { peers: peersOf(c, d.email).map((p) => keyOf(p.email)), board: true });
   }

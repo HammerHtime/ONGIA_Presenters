@@ -15,7 +15,7 @@
     --fd:"DM Serif Display",Georgia,serif;--fu:"Oswald",sans-serif}
   *{box-sizing:border-box} html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 "DM Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
   header{background:var(--navy-deep);color:#fff;padding:12px 16px calc(12px);display:flex;align-items:center;gap:12px}
-  header b{font-family:var(--fd);font-weight:400;font-size:21px} header .me{margin-left:auto;font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
+  header b{font-family:var(--fd);font-weight:400;font-size:21px;white-space:nowrap} @media (max-width:480px){ header .wide{display:none} header b{font-size:19px} } header .me{margin-left:auto;font-size:13px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
   header a{color:#fff;opacity:.85;font-size:13px} header #todesk{font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;padding:6px 0}
   main{max-width:860px;margin:0 auto;padding:14px 16px 60px}
   h1{font-family:var(--fd);font-weight:400;font-size:27px;line-height:1.15;margin:4px 0 4px;color:var(--navy)}
@@ -69,7 +69,7 @@
 </style>
 </head>
 <body>
-<header><a href="/admin.html" id="todesk" hidden>‹ Briefing Room</a><b>ONGIA Annual Review</b><span class="me" id="me"></span></header>
+<header><a href="/admin.html" id="todesk" hidden>‹ Briefing Room</a><b><span class="wide">ONGIA </span>Annual Review</b><span class="me" id="me"></span></header>
 <main id="root"><p class="mu">Loading…</p></main>
 <script>
 /*
@@ -250,7 +250,7 @@ function selfView(C) {
   const s = M.self ?? {}, locked = !!s.sentAt;
   const vals = { ...(s.ratings ?? {}) };
   ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="card"><div class="sum"><span><b>Your self-review</b>${locked ? ` · sent ${fmt(s.sentAt)}` : ""}</span></div>
-    ${C.questions.self.map((q) => `<div class="q"><div class="t">${esc(q.text)}</div>${locked ? `<div class="del" style="padding:6px 0 0;border:0">${esc(s.answers?.[q.id] || "—")}</div>` : `<textarea data-a="${q.id}" aria-label="${esc(q.text)}">${esc(s.answers?.[q.id] ?? "")}</textarea>`}${q.id === "delivered" ? `<p class="hint">Your colleagues see this answer beside their questions about you. The rest is for the committee and your own report.</p>` : ""}</div>`).join("")}
+    ${C.questions.self.map((q) => `<div class="q"><div class="t">${esc(q.text)}</div>${locked ? `<div class="del" style="padding:6px 0 0;border:0">${esc(s.answers?.[q.id] || "—")}</div>` : `<textarea data-a="${q.id}" aria-label="${esc(q.text)}">${esc(s.answers?.[q.id] ?? "")}</textarea>`}${q.id === (C.questions.self.some((x) => x.id === "grow") ? "grow" : "delivered") ? `<p class="hint">Your colleagues see ${C.questions.self.some((x) => x.id === "grow") ? "these two answers" : "this answer"} beside their questions about you. The rest is for the committee and your own report.</p>` : ""}</div>`).join("")}
     <div class="q" style="background:var(--sunk)"><div class="t"><b>Rate yourself</b>, on the questions your colleagues answer about you.</div></div>
     ${M.selfQuestions.map((q) => qHtml(q, vals[q.id] ?? null, C.scale)).join("")}
     ${locked ? "" : `<div class="foot"><button class="btn gold" id="send" type="button">Send</button><button class="btn ghost" id="save" type="button">Save and come back</button><span class="hint" id="said"></span></div>`}</div>`;
@@ -276,6 +276,7 @@ async function peerView(C, k) {
   ROOT.innerHTML = `${back(`#/c/${C.id}`, "Your review")}<div class="card"><div class="sum"><span><b>${esc(P.name)}</b>${P.president ? " · President" : ""} · <span id="count">${done()} of ${P.questions.length}</span></span></div>
     <div class="facts"><b>${esc(f.year)} on the desk:</b> on ${f.on ? `${f.on} event${f.on === 1 ? "" : "s"}` : "no events"}${f.led?.length ? `, led ${f.led.length} (${esc(f.led.join(", "))})` : ""}${f.meetings ? ` · ${esc(f.meetings)} board meetings` : ""}</div>
     <div class="del"><b>What I delivered</b> <i>(${esc(first)}'s own words)</i>\n${P.delivered ? esc(P.delivered) : "<i>No self-review submitted.</i>"}</div>
+    ${P.questions.some((q) => q.id === "grow") && P.delivered ? `<div class="del"><b>How I helped ONGIA grow</b> <i>(${esc(first)}'s own words)</i>\n${P.grew ? esc(P.grew) : "<i>Not answered.</i>"}</div>` : ""}
     ${P.questions.map((q) => qHtml(q, vals[q.id] ?? null, P.scale)).join("")}
     ${P.comments.map((q) => `<div class="q"><div class="t">${esc(q.id === "note" ? `Optional: one thing ${first} does well, or could do more of.` : q.text)}</div><textarea data-c="${q.id}" aria-label="${esc(q.text)}">${esc(draft.comments?.[q.id] ?? "")}</textarea></div>`).join("")}
     <div class="q" style="padding-top:0;border-top:0"><p class="hint">Shown word for word, without your name. Leave out details that would identify you.</p></div>

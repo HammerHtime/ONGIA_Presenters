@@ -71,13 +71,17 @@ const made = await call(E("pres"), "?cycle=new", "POST", { year: 2027, selfOpens
 let c = await R.getCycle(made.cycle);
 ok("the cycle has all eight", c.directors.length === 8 && c.test === false);
 ok("a first-year director reviews nobody and isn't reviewed", R.peersOf(c, E("newbie")).length === 0 && !R.peersOf(c, E("d1")).some((d) => d.email === E("newbie")));
-ok("the president gets the extra questions; nobody else does", R.questionsFor(c, R.directorOf(c, E("pres"))).length === 12 && R.questionsFor(c, R.directorOf(c, E("d1"))).length === 7);
-ok("…they follow the role, not the name", R.questionsFor({ ...c, president: E("d1") }, R.directorOf(c, E("d1"))).length === 12 && R.questionsFor({ ...c, president: E("d1") }, R.directorOf(c, E("pres"))).length === 7);
+ok("the president gets the extra questions; nobody else does", R.questionsFor(c, R.directorOf(c, E("pres"))).length === 13 && R.questionsFor(c, R.directorOf(c, E("d1"))).length === 8);
+ok("…they follow the role, not the name", R.questionsFor({ ...c, president: E("d1") }, R.directorOf(c, E("d1"))).length === 13 && R.questionsFor({ ...c, president: E("d1") }, R.directorOf(c, E("pres"))).length === 8);
 
 // Week 1: self-reviews. Peers can't rate yet.
 const rate7 = (v) => Object.fromEntries(c.questions.director.map((q) => [q.id, v]));
 ok("no peer reviews in the self-review week", (await call(E("d1"), `?cycle=${c.id}&peer=${R.keyOf(E("d2"))}`, "POST", { ratings: rate7(4) })).status === 409);
-const selfBody = (v) => ({ answers: { delivered: "Ran the spring training.", short: "Missed a meeting." }, ratings: rate7(v), send: true });
+const selfBody = (v) => ({ answers: { delivered: "Ran the spring training.", grow: "Brought in two new agencies.", short: "Missed a meeting." }, ratings: rate7(v), send: true });
+// Helps ONGIA grow (Andrew 26 Nov 2026): a rating for colleagues, and the person's own examples, needed to send.
+ok("growth is one of the ratings", c.questions.director.some((q) => q.id === "grow" && q.title === "Helps ONGIA grow"));
+{ const r = await call(E("d1"), `?cycle=${c.id}&self=1`, "POST", { ...selfBody(5), answers: { delivered: "Ran the spring training." } });
+  ok("a self-review can't be sent without how they helped ONGIA grow", r.status === 400 && /helped ONGIA grow/.test(r.error ?? r.body?.error ?? JSON.stringify(r)), JSON.stringify(r).slice(0, 200)); }
 ok("sending a self-review needs every self-rating", (await call(E("d1"), `?cycle=${c.id}&self=1`, "POST", { answers: { delivered: "x" }, ratings: {}, send: true })).status === 400);
 ok("a self-review sends", (await call(E("d1"), `?cycle=${c.id}&self=1`, "POST", selfBody(5))).status === 200);
 ok("…and is then locked", (await call(E("d1"), `?cycle=${c.id}&self=1`, "POST", selfBody(3))).status === 409);
@@ -87,7 +91,7 @@ await call(E("d2"), `?cycle=${c.id}&self=1`, "POST", selfBody(4));
 c = { ...c, selfOpens: day(-8), peerOpens: day(-1) }; await R.putCycle(c);
 ok("the peer round opens on its date even with self-reviews missing", R.phaseOf(c) === "peer");
 const view = await call(E("d3"), `?cycle=${c.id}&peer=${R.keyOf(E("d1"))}`);
-ok("a peer sees what the colleague delivered, and nothing else of their self-review", view.delivered === "Ran the spring training." && !JSON.stringify(view).includes("Missed a meeting"), JSON.stringify(view).slice(0, 300));
+ok("a peer sees what the colleague delivered and how they helped ONGIA grow, and nothing else of their self-review", view.delivered === "Ran the spring training." && view.grew === "Brought in two new agencies." && !JSON.stringify(view).includes("Missed a meeting"), JSON.stringify(view).slice(0, 300));
 ok("a colleague with no self-review shows none", (await call(E("d3"), `?cycle=${c.id}&peer=${R.keyOf(E("d4"))}`)).delivered === null);
 
 // Peer reviews of d1: five raters, one says "not enough contact" on preparation.
@@ -153,7 +157,7 @@ ok("a sample is made", !!s.cycle);
 ok("a tester sees it", (await call(E("jh"), `?cycle=${s.cycle}`)).sample === true);
 ok("a director who isn't a tester doesn't", (await call(E("d1"), `?cycle=${s.cycle}`)).status === 404);
 const srep = await call(E("jh"), `?cycle=${s.cycle}&report=${R.keyOf("alex.morgan@example.invalid")}`);
-ok("its president's report has the extra questions and averages", srep.report?.rows.length === 12 && srep.report.rows.some((r) => r.avg !== null), JSON.stringify(srep).slice(0, 200));
+ok("its president's report has the extra questions and averages", srep.report?.rows.length === 13 && srep.report.rows.some((r) => r.avg !== null), JSON.stringify(srep).slice(0, 200));
 ok("only the president or VP can delete", (await call(E("jh"), `?cycle=${s.cycle}`, "DELETE")).status === 403);
 await call(E("pres"), `?cycle=${s.cycle}`, "DELETE");
 ok("deleting removes it and every answer", !(await R.getCycle(s.cycle)) && (await S.listMetaKeys(`review:rate:${s.cycle}:`)).length === 0);
