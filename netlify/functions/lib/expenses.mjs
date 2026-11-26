@@ -265,7 +265,9 @@ export function cleanLine(kind, body, { events = [], rate = mileageRate(), had =
   };
   // An RBH event with a statement of work: which of its lines this goes under. Asked for, never left to guess; a
   // suggestion from what it is (a flight goes under On Site Management) fills an empty one.
-  const sowLines = ev?.sowLines ?? null;
+  // A stipend is ONGIA's own cost (Andrew 26 Nov 2026: "its only internal and nothing goes beyond ONGIA"): never on a
+  // line RBH is billed for. It shows under the statement of work's internal Costs to ONGIA instead (lib/sowexpense.mjs).
+  const sowLines = isStipend(out) ? null : ev?.sowLines ?? null;
   out.sowNeeded = !!sowLines?.length;
   const asked = body?.sowLineId !== undefined ? String(body.sowLineId) : had?.eventId === out.eventId ? had?.sowLineId ?? "" : "";
   const picked = sowLines?.find((l) => l.id === asked);
@@ -355,7 +357,7 @@ export function lineProblems(v) {
   } else if (!(v.refund ? v.amount < 0 : v.amount > 0)) p.push(v.refund ? "the amount refunded" : "the amount");
   if (!v.category) p.push("a category");
   if (!v.purpose && !v.eventId) p.push("what it was for");
-  if (v.sowNeeded && !v.sowLineId) p.push("which line of the event's statement of work");
+  if (v.sowNeeded && !v.sowLineId && !isStipend(v)) p.push("which line of the event's statement of work");
   if (v.kind === "noreceipt" && !isStipend(v)) {
     if (String(v.statement ?? "").trim().length < MIN_REASON) p.push("a reason there's no receipt");
     if (!v.shot) p.push("a screenshot of the card statement");

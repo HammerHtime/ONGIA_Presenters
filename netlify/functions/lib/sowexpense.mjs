@@ -1,6 +1,6 @@
-import { getEvent, getSow, getReceipts, putReceipts, putReceiptFile, deleteReceiptFile, getClaimFile, getClaimRead } from "./store.mjs";
+import { getEvent, getSow, getReceipts, putReceipts, putReceiptFile, deleteReceiptFile, getClaimFile, getClaimRead, getClaim, listClaimIds, listClaimLines } from "./store.mjs";
 import { fileEventDocument, RECEIPTS_FOLDER } from "./graph.mjs";
-import { hstOf, sowLinesFor } from "./expenses.mjs";
+import { hstOf, sowLinesFor, isStipend } from "./expenses.mjs";
 import { isDuplicate } from "./receipts.mjs";
 
 /**
@@ -32,7 +32,8 @@ export async function syncClaimToSow(claim, lines, { origin = "" } = {}) {
     const event = await getEvent(eventId);
     if (!event) continue;
     const valid = new Set((sowLinesFor(event, await getSow(eventId)) ?? []).map((l) => l.id));
-    const want = live ? lines.filter((l) => l.eventId === eventId && valid.has(l.sowLineId)) : [];
+    // A stipend never goes on the receipts: it's ONGIA's own cost, shown under Costs to ONGIA (stipendsByEvent below).
+    const want = live ? lines.filter((l) => l.eventId === eventId && valid.has(l.sowLineId) && !isStipend(l)) : [];
     const rec = await getReceipts(eventId);
     let changed = false;
     // Off: from this claim, and no longer wanted.
@@ -71,5 +72,28 @@ export async function syncClaimToSow(claim, lines, { origin = "" } = {}) {
     }
     if (changed) { await putReceipts(eventId, rec); touched.push(eventId); }
   }
-  return { events: [...eventIds].filter((id) => lines.some((l) => l.eventId === id && l.sowLineId) || touched.includes(id)), touched };
+  return { events: [...eventIds].filter((id) => lines.some((l) => l.eventId === id && l.sowLineId && !isStipend(l)) || touched.includes(id)), touched };
+}
+
+/**
+ * The stipends claimed for each event (Andrew 26 Nov 2026: "All expenses that are marked as stipends for a particular
+ * event, should show up under the stipend section on SOW's"). Read from the claims themselves, so it's always what the
+ * claims say: a claim sent in but not approved yet shows as waiting; approved or paid counts as paid in the profit.
+ * Drafts, rejected claims and tests are left out. Returns Map<eventId, [{ claim, line, name, amount, status, date }]>.
+ */
+export async function stipendsByEvent(eventIds = null) {
+  const want = eventIds ? new Set(eventIds) : null;
+  const out = new Map();
+  const claims = (await Promise.all((await listClaimIds()).map((id) => getClaim(id).catch(() => null))))
+    .filter((c) => c && ["submitted", "approved", "paid"].includes(c.status) && !c.test && !c.trial);
+  await Promise.all(claims.map(async (c) => {
+    for (const l of await listClaimLines(c.id)) {
+      if (!l?.eventId || !isStipend(l) || (want && !want.has(l.eventId))) continue;
+      const row = { claim: c.id, line: l.id, name: String(c.payee?.name || c.owner?.name || "").trim(), amount: money(l.amount ?? 0),
+        status: c.status === "submitted" ? "waiting" : c.status, date: (c.status === "paid" ? c.paid?.date : c.approvedAt ?? c.sentAt)?.slice?.(0, 10) ?? "" };
+      out.set(l.eventId, [...(out.get(l.eventId) ?? []), row]);
+    }
+  }));
+  for (const rows of out.values()) rows.sort((a, b) => a.name.localeCompare(b.name) || a.date.localeCompare(b.date));
+  return out;
 }

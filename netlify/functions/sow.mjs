@@ -2,7 +2,8 @@ import { json, fail, requireAdmin, adminWho, text } from "./lib/http.mjs";
 import { mayCost } from "./lib/auth.mjs";
 import { getEvent, listEvents, getSow, putSow, getMeta, putMeta, getReceipts } from "./lib/store.mjs";
 import { withReceipts } from "./lib/receipts.mjs";
-import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit } from "./lib/sow.mjs";
+import { stipendsByEvent } from "./lib/sowexpense.mjs";
+import { STANDARD_LINES, TEMPLATES, defaultPrefix, STATUSES, PROVINCES, provinceTaxes, guessProvince, cleanLines, cleanTaxes, cleanPrefix, invoiceNumber, totals, stampStatus, isLocked, increase, money, sentCopy, changesSinceSent, cleanInternal, internalOf, STANDARD_INTERNAL, profit, matchStipends } from "./lib/sow.mjs";
 import { buildSowPdf, buildSowsPdf } from "./lib/sowpdf.mjs";
 import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
 
@@ -24,7 +25,10 @@ import { fileEventDocument, SOW_FOLDER } from "./lib/graph.mjs";
  */
 const view = async (event, raw) => {
   // The receipts are their own record; fold them in for showing, never into what is saved.
-  const sow = raw ? { ...withReceipts(raw, (await getReceipts(event.id)).items), internal: internalOf(raw) } : null;
+  // So are the stipends claimed for this event on expense claims: shown under Costs to ONGIA, never billed.
+  const stipends = raw ? (await stipendsByEvent([event.id])).get(event.id) ?? [] : [];
+  const sow = raw ? { ...withReceipts(raw, (await getReceipts(event.id)).items), internal: internalOf(raw), stipends } : null;
+  if (sow) sow.stipends = matchStipends(sow);
   return {
   allowed: true,
   province: event.province || guessProvince(event.city),
@@ -77,11 +81,12 @@ async function nextInvoiceNumber(event) {
  */
 async function everyOne() {
   const events = ((await listEvents()) ?? []).filter((e) => e.kind === "rbh");
+  const claimed = await stipendsByEvent(events.map((e) => e.id));
   const rows = await Promise.all(events.map(async (e) => {
     const raw = await getSow(e.id);
     const base = { id: e.id, title: e.title, city: e.city ?? "", dayOne: e.dayOne ?? "", lastDay: e.lastDay ?? "" };
     if (!raw) return { ...base, sow: false };
-    const sow = { ...withReceipts(raw, (await getReceipts(e.id)).items), internal: internalOf(raw) };
+    const sow = { ...withReceipts(raw, (await getReceipts(e.id)).items), internal: internalOf(raw), stipends: claimed.get(e.id) ?? [] };
     const figures = (which) => { const t = totals(sow, which), p = profit(sow, which);
       return { atCost: money(t.subtotal - p.fixed), fixed: p.fixed, subtotal: t.subtotal, fee: t.fee, deposit: t.deposit, taxTotal: t.taxTotal, total: t.total, internal: p.internal, profit: p.profit }; };
     return { ...base, sow: true, number: sow.invoice?.number ?? "", status: sow.status, statusAt: sow.statusAt ?? {},

@@ -201,6 +201,35 @@ export function cleanInternal(rows, had = []) {
 export const internalOf = (sow) => (Array.isArray(sow?.internal) ? sow.internal : cleanInternal(STANDARD_INTERNAL));
 
 /**
+ * Stipends claimed on expense claims (lib/sowexpense.mjs stipendsByEvent), set on the SOW for showing as sow.stipends,
+ * matched to the internal rows Andrew types per person ("Inis", "Stipends - Steve") by the person's first name. Each
+ * claimed stipend goes to one row at most; one that matches no row is still a cost to ONGIA. Returns each stipend with
+ * the row it went to (row: id or null).
+ */
+const words = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+export function matchStipends(sow) {
+  const rows = internalOf(sow);
+  return (Array.isArray(sow?.stipends) ? sow.stipends : []).map((st) => {
+    const first = words(st.name)[0];
+    // "Jacq" is Jacqulyn: a typed short name matches the start of the first name, and the other way round.
+    const same = (w) => w === first || (w.length >= 3 && first.startsWith(w)) || (first.length >= 3 && w.startsWith(first));
+    const row = first ? rows.find((r) => words(r.name).some(same)) : null;
+    return { ...st, row: row?.id ?? null };
+  });
+}
+/**
+ * The internal costs. The SOW side: what's planned. The invoice side, per row: what's typed as paid, else the stipends
+ * approved or paid on claims for that person, else what's planned; plus any approved stipend that matches no row.
+ */
+export function internalCost(sow, which = "estimate") {
+  const rows = internalOf(sow);
+  if (which === "estimate") return money(rows.reduce((n, r) => n + (r.planned ?? 0), 0));
+  const counted = matchStipends(sow).filter((st) => st.status === "approved" || st.status === "paid");
+  const claimed = (id) => { const m = counted.filter((st) => st.row === id); return m.length ? m.reduce((n, st) => n + (st.amount ?? 0), 0) : null; };
+  return money(rows.reduce((n, r) => n + (r.paid ?? claimed(r.id) ?? r.planned ?? 0), 0) + counted.filter((st) => !st.row).reduce((n, st) => n + (st.amount ?? 0), 0));
+}
+
+/**
  * What ONGIA keeps (Andrew 29 Oct 2026): the fixed fees and the 20% fee are ONGIA's; the at-cost lines are billed as
  * receipted, so they pass through (only an invoice amount typed above or below the receipts makes or loses money); the
  * internal costs come off. Tax is the government's, so none of it counts. The SOW side uses what is planned; the invoice
@@ -213,7 +242,7 @@ export function profit(sow, which = "estimate") {
   const margin = which === "actual"
     ? money((sow.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amount(l) - (num(l.receiptsTotal) ?? 0), 0) + t.other - (num(sow.receiptsOther) ?? 0))
     : 0;
-  const internal = money(internalOf(sow).reduce((n, r) => n + (which === "estimate" ? (r.planned ?? 0) : (r.paid ?? r.planned ?? 0)), 0));
+  const internal = internalCost(sow, which);
   const billed = money(t.subtotal + t.fee);
   const kept = money(fixed + t.fee + margin - internal);
   return { fixed, fee: t.fee, margin, internal, billed, profit: kept, pct: billed > 0 ? Math.round((kept / billed) * 1000) / 10 : null };

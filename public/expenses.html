@@ -1095,7 +1095,8 @@ const sowSuggest = (lines, v) => {
 function drawSow(l) {
   const box = $("sowbox"); if (!box) return;
   const ev = (HOME?.events ?? []).find((e) => e.id === ($("f-event")?.value ?? ""));
-  const lines = ev?.sowLines ?? null;
+  // A stipend never goes on a line RBH is billed for: it's under Costs to ONGIA on the statement of work (Andrew 26 Nov 2026).
+  const lines = Number($("f-category")?.value) === 10 ? null : ev?.sowLines ?? null;
   if (!lines?.length) { box.innerHTML = ""; return; }
   const was = $("f-sow")?.value;
   const touched = EDIT.touched.has("sowLineId");
@@ -1660,6 +1661,7 @@ function sowMover(c, l) {
   if (!["president", "vp"].includes(HOME?.me?.role) || !l.eventId) return "";
   const lines = (HOME?.events ?? []).find((e) => e.id === l.eventId)?.sowLines;
   if (!lines?.length) return "";
+  if (Number(l.category) === 10) return `<div class="card"><div class="note" style="margin:0">A stipend: it shows under Costs to ONGIA on the event's statement of work, never on the invoice to RBH.</div></div>`;
   return `<div class="card"><div class="field" style="margin:0"><label for="sowmove">Statement of work line</label>
       <select id="sowmove" data-claim="${esc(c.id)}" data-line="${esc(l.id)}">${lines.map((x) => `<option value="${esc(x.id)}" ${x.id === l.sowLineId ? "selected" : ""}>${esc(x.name)} · ${x.type === "fixed" ? "fixed fee" : "billed at cost"}</option>`).join("")}${l.sowLineId ? "" : `<option value="" selected>Not on a line yet</option>`}</select>
       <div class="note" id="sowmovesay" style="margin-top:6px">${c.status === "approved" || c.status === "paid" ? "It's on the event's statement of work under this line. Moving it changes only where it counts there." : "Once the claim is approved it goes on the event's statement of work under this line."}</div></div></div>`;

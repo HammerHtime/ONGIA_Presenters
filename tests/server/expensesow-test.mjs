@@ -9,9 +9,9 @@ const F = REPO + "netlify/functions/";
 const store = await import(F + "lib/store.mjs");
 const { putEvent, putSow, getSow, getReceipts, putClaim, putClaimLine, putClaimFile, getReceiptFile } = store;
 const { cleanLine, viewLine, eventChoices, sowLinesFor } = await import(F + "lib/expenses.mjs");
-const { syncClaimToSow } = await import(F + "lib/sowexpense.mjs");
+const { syncClaimToSow, stipendsByEvent } = await import(F + "lib/sowexpense.mjs");
 const { withReceipts } = await import(F + "lib/receipts.mjs");
-const { totals } = await import(F + "lib/sow.mjs");
+const { totals, profit, matchStipends } = await import(F + "lib/sow.mjs");
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else { fail++; console.log("  FAIL", n, x); } };
 
@@ -100,6 +100,37 @@ ok("the same receipt already on the event is linked, not counted twice", items.l
 c3.status = "rejected";
 await syncClaimToSow(c3, await store.listClaimLines("c3dup"));
 ok("and if that claim is sent back, the hand-uploaded receipt stays (only unlinked)", (await getReceipts("vic")).items.some((i) => i.id === "manual1" && !i.source));
+
+// Stipends (Andrew 26 Nov 2026): "All expenses that are marked as stipends for a particular event, should show up under
+// the stipend section on SOW's … its only internal and nothing goes beyond ONGIA."
+const st = cleanLine("noreceipt", { paidTo: "Steve", amount: 1000, category: 10, eventId: "vic", sowLineId: "onsite" }, { events });
+ok("a stipend on an RBH event takes no statement of work line, even one sent", st.sowNeeded === false && st.sowLineId === "" && !st.sowSuggested);
+ok("and isn't held back for want of one", !viewLine({ kind: "noreceipt", ...st }).problems.includes("which line of the event's statement of work"));
+ok("an old stipend line still carrying a line isn't asked for one either", !viewLine({ kind: "noreceipt", ...st, sowNeeded: true, sowLineId: "" }).problems.includes("which line of the event's statement of work"));
+const c4 = { id: "c4stip", status: "approved", owner: { email: "s@ongia.ca", name: "Steve Example" }, approvedAt: "2026-11-25T10:00:00Z", sowEvents: ["vic"] };
+await putClaim(c4);
+// One saved before this change, still under On Site Management: it must come off the receipts.
+await putClaimLine("c4stip", { id: "l1stip", kind: "noreceipt", ...st, sowLineId: "onsite", sowNeeded: true });
+const recNow = await getReceipts("vic");
+recNow.items.push({ id: "xold", lineId: "onsite", vendor: "Steve", amount: 1000, tax: 0, total: 1000, currency: "CAD", source: { claim: "c4stip", line: "l1stip" } });
+await store.putReceipts("vic", recNow);
+await syncClaimToSow(c4, await store.listClaimLines("c4stip"));
+ok("a stipend never goes on the event's receipts, and one already there comes off", !(await getReceipts("vic")).items.some((i) => i.source?.claim === "c4stip"));
+const c5 = { id: "c5stip", status: "submitted", owner: { email: "j@ongia.ca", name: "Jacqulyn Example" }, sentAt: "2026-11-25T10:00:00Z" };
+await putClaim(c5); await putClaimLine("c5stip", { id: "l1", kind: "noreceipt", ...cleanLine("noreceipt", { paidTo: "Jacqulyn", amount: 2000, category: 10, eventId: "vic" }, { events }) });
+const c6 = { id: "c6stip", status: "draft", owner: { email: "d@ongia.ca", name: "Dee Draft" } };
+await putClaim(c6); await putClaimLine("c6stip", { id: "l1", kind: "noreceipt", ...cleanLine("noreceipt", { paidTo: "Dee", amount: 500, category: 10, eventId: "vic" }, { events }) });
+const got = (await stipendsByEvent(["vic"])).get("vic") ?? [];
+ok("the event's claimed stipends: approved and waiting ones, not drafts or tests", got.length === 2 && got.some((x) => x.name === "Steve Example" && x.status === "approved" && x.amount === 1000) && got.some((x) => x.name === "Jacqulyn Example" && x.status === "waiting"), JSON.stringify(got));
+const withRows = { ...sow, internal: [{ id: "r1", name: "Stipends - Steve", planned: 2000, paid: null }, { id: "r2", name: "Jacq", planned: 2000, paid: null }, { id: "r3", name: "Andrew", planned: 1000, paid: 800 }], stipends: got };
+const m = matchStipends(withRows);
+ok("each stipend is matched to its person's row by first name (Jacq is Jacqulyn)", m.find((x) => x.name === "Steve Example").row === "r1" && m.find((x) => x.name === "Jacqulyn Example").row === "r2");
+ok("the SOW side plans the typed rows", profit(withRows, "estimate").internal === 5000);
+ok("the invoice side: Steve's approved $1,000 fills his Paid, Jacq's waiting claim leaves her planned, a typed Paid wins", profit(withRows, "actual").internal === 1000 + 2000 + 800, profit(withRows, "actual").internal);
+const noRow = profit({ ...withRows, internal: [], stipends: got }, "actual");
+ok("an approved stipend with no row is still a cost to ONGIA", noRow.internal === 1000, noRow.internal);
+const billedBefore = totals(withReceipts(sow, (await getReceipts("vic")).items), "actual").subtotal;
+ok("RBH's invoice is untouched by any of it", totals(withReceipts(withRows, (await getReceipts("vic")).items), "actual").subtotal === billedBefore);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
