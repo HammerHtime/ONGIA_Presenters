@@ -2552,7 +2552,11 @@ function homeQueues(events, inbox, { here = false } = {}) {
   const names = (list, max = 3) => { const n = list.map((x) => esc(x.name)); return n.length <= max ? n.join(", ") : `${n.slice(0, max).join(", ")} and ${n.length - max} more`; };
   const needs = [], waiting = [];
   for (const ev of events) {
-    const a = ev.attention ?? {};
+    // Once an event has started, what was for before it (chasing agreements, links never sent, what blocks it) no longer
+    // needs you (Andrew 26 Nov 2026). Failures to fix (a PDF not filed, an email that didn't go) and agreements to
+    // review still show.
+    const started = !!ev.dayOne && ev.dayOne <= today;
+    const a = started ? { ...(ev.attention ?? {}), uninvited: [], outstanding: [] } : ev.attention ?? {};
     const where = `${esc(ev.title)} · ${esc(ev.city)}`;
     const row = (r) => ({ ev, where, ...r });
     for (const pr of a.review ?? []) needs.push(row({ rank: 1, icon: "✎", cls: "you", title: "Review agreement", who: esc(pr.name), btn: `<button class="btn btn-gold btn-sm" data-goreview="${esc(`${ev.id}|${pr.id}`)}">Review</button>` }));
@@ -2563,7 +2567,7 @@ function homeQueues(events, inbox, { here = false } = {}) {
         btn: `<button class="btn btn-gold btn-sm" data-qsend="${esc(`${ev.id}|${a.uninvited.map((x) => x.id).join(",")}`)}">${n === 1 ? "Send link" : `Send ${n} links`}</button>` }));
     }
     if ((a.sendFailed ?? []).length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: `${a.sendFailed.length} email${a.sendFailed.length === 1 ? "" : "s"} could not be sent`, who: names(a.sendFailed), note: "Fix the address on the event", btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="people">Show them</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
-    const blockers = blockersOf(ev);
+    const blockers = started ? [] : blockersOf(ev);
     // The names and agencies list for RBH, due two days before (audit 24 Nov 2026: it showed on the events list only).
     if (rbhListDue(ev)) needs.push(row({ rank: 1, icon: "!", cls: "late", title: "List for RBH due", who: "Names and agencies", note: "Two days before the event",
       btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open it</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
@@ -2694,7 +2698,10 @@ function eventsTable(upcoming) {
   const today = todayIso();
   const days = (iso) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
   const rows = upcoming.filter((ev) => { const f = HOTEL_F(); return f === "all" || hotelState(ev)?.f === f; }).map((ev) => {
-    const c = ev.counts ?? {}, a = ev.attention ?? {};
+    // Started: nothing from before it is chased (Andrew 26 Nov 2026), as on the home queue.
+    const started = !!ev.dayOne && ev.dayOne <= todayIso();
+    const c = ev.counts ?? {}, a = started ? { ...(ev.attention ?? {}), uninvited: [], outstanding: [] } : ev.attention ?? {};
+    const blocked = started ? [] : blockersOf(ev);
     const total = c.total ?? 0, signed = (c.approved ?? 0) + (c.arranged ?? 0), mf = ev.materials?.final ?? 0;
     const pct = total ? Math.round((signed / total) * 100) : 0;
     const pills = [], open = !hotelLocked(ev) && !ev.project, hs = hotelState(ev);
@@ -2711,7 +2718,7 @@ function eventsTable(upcoming) {
     const uninvIds = new Set((a.uninvited ?? []).map((x) => x.id));
     const outN = (a.outstanding ?? []).filter((x) => !uninvIds.has(x.id)).length;
     if (due && days(due) < 0 && outN) pills.push(`<span class="pill late">${outN} overdue</span>`);
-    if (blockersOf(ev).length) pills.push(`<span class="pill late">blocked</span>`);
+    if (blocked.length) pills.push(`<span class="pill late">blocked</span>`);
     const rlDue = rbhListDue(ev);
     if (rlDue) pills.push(`<span class="pill late" title="Names and agencies for RBH: Communications, List for RBH">RBH list due</span>`);
     if (!pills.length) {
@@ -2721,7 +2728,7 @@ function eventsTable(upcoming) {
     if (ev.canEdit === false) pills.push(`<span class="pill grey">view only</span>`);
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
     // The tile's left edge says whether the event needs you (red) or not (navy).
-    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blockersOf(ev).length || rlDue;
+    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blocked.length || rlDue;
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}</td>
@@ -5420,7 +5427,7 @@ function checklistCard(ev, checklist) {
     const when = t.na
       ? `<span>not needed for this one</span>`
       : t.scheduled
-        ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b><span>${esc(t.when ?? offsetWords(t.daysBefore))}${t.late ? ` · ${-t.days} day${t.days === -1 ? "" : "s"} ago` : ""}</span>`
+        ? `<b>${esc(t.dueReadable.replace(/^\w+ /, ""))}</b><span>${esc(t.when ?? offsetWords(t.daysBefore))}${t.late ? ` · ${-t.days} day${t.days === -1 ? "" : "s"} ago` : t.lapsed ? " · passed, event started" : ""}</span>`
         : t.waiting === "cutoff"
           ? `<b class="nodate">Waits for the hotel cut-off</b><span>${esc(t.when)}; add the cut-off under hotel details</span>`
           : `<b class="nodate">No date yet</b><span>set one on Edit</span>`;

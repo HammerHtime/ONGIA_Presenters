@@ -285,7 +285,8 @@ export async function runReminders({ dry = false, forceDigest = false, origin = 
 async function jobsFor(event, today) {
   const { tasks, counts } = checklistOf(event, today);
   const open = [];
-  for (const t of tasks.filter((x) => !x.na && !x.done)) {
+  // A job from before an event that has started has passed (Andrew 26 Nov 2026): not listed as still to do.
+  for (const t of tasks.filter((x) => !x.na && !x.done && !x.lapsed)) {
     let auto = null;
     if (t.auto && !autoOn(event, t.auto === "welcome" ? "welcome" : "survey")) {
       auto = "switched off for this event";
