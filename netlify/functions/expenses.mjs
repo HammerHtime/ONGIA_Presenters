@@ -15,7 +15,7 @@ import {
   CATEGORIES, KINDS, MAX_BYTES, TYPES, SHOT_TYPES, ROLE_TITLE, OFFICER_ROLES, APPROVER_ROLES, PAYER, mileageRate, roleOf, approversFor, mayClaim,
   rosterName, whoKey, issueExpenseSession, expenseWho, cleanLine, viewLine, claimSums, monthLabel, eventChoices, sniff,
   executives, inForce, cleanAway, holders, payerOf, awayPreview, submitProblems, claimChecks, statusWords, officers, sowLinesFor,
-  cleanPerDiem, money, dollars, shortDate, cleanTransfers,
+  cleanPerDiem, isStipend, money, dollars, shortDate, cleanTransfers,
 } from "./lib/expenses.mjs";
 import { shownLines, checksFor, getPerDiem, perDiemFor, markPerDiem, PER_DIEM_KEY } from "./lib/expenseview.mjs";
 import { hashOf, dupesFor, indexClaim, whereWords } from "./lib/expensedupes.mjs";
@@ -480,6 +480,7 @@ export default async (req) => {
   // 2026: "I should be able to just go and change the line item"). Only where it's counted: what was claimed stays.
   if (req.method === "POST" && q("sowline")) {
     if (!["president", "vp"].includes(me.role)) return fail("Only the President or the VP can move an expense to another line of the statement of work.", 403);
+    if (isStipend(line)) return fail("A stipend isn't on a line of the statement of work: it's one of ONGIA's own costs, shown under Costs to ONGIA.");
     const body = await req.json().catch(() => ({}));
     const ev = (await choices()).find((e) => e.id === line.eventId);
     const to = ev?.sowLines?.find((l) => l.id === String(body.sowLineId ?? ""));
