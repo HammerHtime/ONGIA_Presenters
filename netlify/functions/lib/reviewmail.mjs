@@ -20,6 +20,13 @@ const FOOTER = (c) => `ONGIA board review ${c.year} · review committee: ${commi
 const replyTo = (c) => c.committee?.[0] || undefined;
 const strip = (l) => String(l).replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"');
 // Exact, not overstated: who has reviewed whom is kept (for the progress counts); what each person said never carries their name.
+// Who they'll review, said naturally (Andrew 26 Nov 2026: "your 1 colleague … Asking to review 1 person?"): one colleague by
+// name, several by number.
+const whom = (c, d) => { const p = peersOf(c, d.email); return p.length === 1 ? esc(p[0].name) : `your ${p.length} colleagues`; };
+const RATINGS = (c) => c.questions?.director?.length ?? 7;
+// A test review with too few people for scores (Andrew's first test: two people): said up front, so nobody is surprised.
+const testNote = (c) => (c.test && c.directors.length < 6
+  ? `This is a test with just ${c.directors.length} people${c.directors.length === 2 ? ", and each of you reviews the other" : ""}. A score shows only once 5 colleagues have given one, so for now the report will say "not enough".` : "");
 const ANON = "Your ratings are saved without your name. Nobody, the committee included, can tell which ones are yours.";
 
 function message(c, d, subject, heading, lines, label) {
@@ -35,22 +42,25 @@ export function openMessage(c, d) {
   return message(c, d, `Board review ${c.year}: your self-review`, "Your self-review is open", [
     "This year's board review has started. Every director, the president included, gets honest feedback from colleagues and sets a few commitments for the year ahead. The aim is to help each of us do better.",
     `Start with your self-review: what you delivered, where you fell short, and what you'll commit to. It takes about 15 minutes. Please send it by <b>${esc(day(dayBefore(c.peerOpens)))}</b>.`,
-    peers ? `On ${esc(day(c.peerOpens))} you'll get a second email asking you to review your ${peers} colleague${peers === 1 ? "" : "s"}. That's ${c.questions?.director?.length ?? 7} quick ratings each, about 2 minutes a person.`
+    peers ? `On ${esc(day(c.peerOpens))} you'll get a second email asking you to review ${whom(c, d)}. It's ${RATINGS(c)} quick ratings${peers === 1 ? " and takes about 2 minutes" : " per person, about 2 minutes each"}.`
       : "This is your first year on the board, so this time you won't rate colleagues and they won't rate you. You'll still answer three questions about the board as a whole.",
     peers ? ANON : "",
+    testNote(c),
   ], "Start my self-review");
 }
 
 /** When the peer round opens. */
 export function peerMessage(c, d) {
   const peers = peersOf(c, d.email).length;
-  return message(c, d, `Board review ${c.year}: review your colleagues`, "Time to review your colleagues", [
-    peers ? `The self-review week is over. You can now review your ${peers} colleague${peers === 1 ? "" : "s"} and answer three questions about the board as a whole.`
+  const one = peers === 1 ? first(peersOf(c, d.email)[0].name) : "";
+  return message(c, d, `Board review ${c.year}: ${one ? `review ${one}` : "review your colleagues"}`, one ? `Time to review ${one}` : "Time to review your colleagues", [
+    peers ? `The self-review week is over. You can now review ${whom(c, d)} and answer three questions about the board as a whole.`
       : "The self-review week is over. You can now answer three questions about the board as a whole.",
-    peers ? `Each colleague takes about 2 minutes: ${c.questions?.director?.length ?? 7} quick ratings and an optional comment. Where you haven't had enough contact with someone to judge, choose —. You can stop and pick up later on the same phone or computer.` : "",
+    peers ? `${peers === 1 ? "It's" : "Each colleague is"} ${RATINGS(c)} quick ratings and an optional comment, about 2 minutes. Where you haven't had enough contact with someone to judge, choose —. You can stop and pick up later on the same phone or computer.` : "",
     `Please finish by <b>${esc(day(c.closes))}</b>.`,
     peers ? ANON : "",
-  ], peers ? "Review my colleagues" : "Answer the three questions");
+    testNote(c),
+  ], peers === 1 ? "Start the review" : peers ? "Review my colleagues" : "Answer the three questions");
 }
 
 /** What a director still has to do, in a few words, or null when finished. */
