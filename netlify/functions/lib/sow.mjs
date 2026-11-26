@@ -213,14 +213,25 @@ export function matchStipends(sow) {
     const first = words(st.name)[0];
     // "Jacq" is Jacqulyn: a typed short name matches the start of the first name, and the other way round.
     const same = (w) => w === first || (w.length >= 3 && first.startsWith(w)) || (first.length >= 3 && w.startsWith(first));
+    // Andrew's own pick ("Stephen" claims, the row says "Steve") wins over the first-name match; "none" is no row.
+    const picked = sow?.stipendRows?.[`${st.claim}:${st.line}`];
+    if (picked === "none") return { ...st, row: null, picked: true };
+    if (picked && rows.some((r) => r.id === picked)) return { ...st, row: picked, picked: true };
     const row = first ? rows.find((r) => words(r.name).some(same)) : null;
-    return { ...st, row: row?.id ?? null };
+    return { ...st, row: row?.id ?? null, picked: false };
   });
 }
 /**
  * The internal costs. The SOW side: what's planned. The invoice side, per row: what's typed as paid, else the stipends
  * approved or paid on claims for that person, else what's planned; plus any approved stipend that matches no row.
  */
+/** Which internal row each claimed stipend counts under, as picked on the SOW: { "<claim>:<line>": rowId | "none" }. */
+export function cleanStipendRows(v) {
+  const out = {};
+  for (const [k, r] of Object.entries(v && typeof v === "object" ? v : {}).slice(0, 200))
+    if (/^[\w-]{1,80}:[\w-]{1,80}$/.test(k) && typeof r === "string" && /^[\w-]{1,40}$/.test(r)) out[k] = r;
+  return out;
+}
 export function internalCost(sow, which = "estimate") {
   const rows = internalOf(sow);
   if (which === "estimate") return money(rows.reduce((n, r) => n + (r.planned ?? 0), 0));
