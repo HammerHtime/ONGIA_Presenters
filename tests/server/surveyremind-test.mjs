@@ -18,6 +18,7 @@ const ok = (n, c, x = "") => { if (c) { pass++; console.log("  ok  ", n); } else
 
 const ev = { id: "ngs", title: "National Gang Summit: Building Solutions", city: "Toronto, ON", dayOne: "2026-11-09", lastDay: "2026-11-12", attendeeMail: true, board: [], contact: { name: "Andrew Hammond", email: "president@ongia.ca" },
   survey: { token: "tok1234567890abcd", open: true, mode: "daily", sessions: [{ id: "s1", day: "2026-11-09", title: "A", presenters: ["X"] }, { id: "s2", day: "2026-11-10", title: "B", presenters: ["Y"] }] } };
+ev.tasks = [{ id: "svjob", what: "Survey link sent to attendees", daysBefore: -2, auto: "survey", done: false }];
 await S.putEvent(ev);
 ok("ends Thursday 12 Nov: Friday is one, Monday 16 Nov is two, and the last a week after", R.reminderDates(ev).join() === "2026-11-16,2026-11-23", R.reminderDates(ev).join());
 ok("a Friday finish: Monday and Tuesday, then a week later", R.reminderDates({ ...ev, lastDay: "2026-11-13" }).join() === "2026-11-17,2026-11-24");
@@ -45,12 +46,26 @@ const ben = sent.find((m) => m.to === "ben@x.ca"), cat = sent.find((m) => m.to =
 ok("Ben's has one button, Day 2, to day 2's sessions with his own link", /Day 2 · Tuesday, November 10: https:\/\/events\.example\.org\/f\/tok1234567890abcd\/[0-9a-f]{16}\?lang=en&part=2026-11-10/.test(ben.text) && !/Day 1 ·/.test(ben.text), ben.text);
 ok("Cat's has Day 1 and Day 2, and the French buttons too", /Day 1 · Monday, November 9/.test(cat.text) && /Day 2 · Tuesday, November 10/.test(cat.text) && /Jour 1 · lundi 9 novembre/.test(cat.text), cat.text);
 ok("it says a QR code answer counts, and names the event", /Already answered by scanning the QR code\? Then you're done/.test(cat.text) && /^National Gang Summit: a reminder about the survey/.test(cat.subject), cat.subject);
+// The checklist job (Andrew 26 Nov 2026): open while people still owe it, until the last reminder has gone.
+const job = async () => (await S.getEvent("ngs")).tasks.find((t) => t.id === "svjob");
+ok("after the first reminder, with people still to answer, the survey job stays open", (await job()).done === false);
 ok("again: nobody gets reminder 1 twice", (await R.sendReminderRound(ev, 1, { pace: async () => {} })).sent === 0);
 // Ben answers day 2 before the last reminder.
 await S.putSurveyDone("ngs", personalId(ev.survey.token, { key: "b" }), { parts: ["2026-11-09", "2026-11-10"] });
 const before = sent.length;
 const out2 = await R.sendReminderRound(ev, 2, { pace: async () => {} });
 ok("the last reminder: only Cat, and it says it's the last", out2.sent === 1 && sent.at(-1).to === "cat@x.ca" && /This is our last reminder/.test(sent.at(-1).text) && /last reminder/.test(sent.at(-1).subject) && sent.length === before + 1);
+ok("once the last reminder has gone, the survey job ticks itself", (await job()).done === true && /last reminder sent/.test((await job()).doneBy), JSON.stringify(await job()));
+// Everyone answering ticks it sooner.
+{ const e2 = { ...ev, id: "ngs2", tasks: [{ id: "svjob", what: "Survey link sent to attendees", daysBefore: -2, auto: "survey", done: false }] };
+  await S.putEvent(e2);
+  await S.putAttendees("ngs2", { people: [row("a", "Ann", "ann@x.ca", ["2026-11-09", "2026-11-10"])] });
+  await S.putSurveyDone("ngs2", personalId(ev.survey.token, { key: "a" }), { parts: ["2026-11-09", "2026-11-10"] });
+  ok("when everyone has answered, it ticks at the first reminder", (await R.settleSurveyJob(e2, { reminder: true })) === "everyone answered");
+  await S.putEvent({ ...e2, id: "ngs3" });
+  await S.putAttendees("ngs3", { people: [row("a", "Ann", "ann@x.ca", ["2026-11-09"])] });
+  await S.putSurveyDone("ngs3", personalId(ev.survey.token, { key: "a" }), { parts: ["2026-11-09"] });
+  ok("…but never after day one of a daily survey, before the last day has gone", (await R.settleSurveyJob({ ...e2, id: "ngs3" }, { lastPart: false })) === false); }
 // The 15-minute check and the morning run pick it up on its day.
 await S.putEvent(ev);
 ok("the 15-minute check sees no work once everyone owed has had it", (await R.surveyWorkDue([ev], new Date("2026-11-23T15:00:00Z"))) === false);

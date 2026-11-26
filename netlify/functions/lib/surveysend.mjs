@@ -1,5 +1,5 @@
 import { autoOn } from "./autosend.mjs";
-import { getAttendees, putAttendees, listSurveyDone } from "./store.mjs";
+import { getAttendees, putAttendees, listSurveyDone, getEvent, putEvent } from "./store.mjs";
 import { writeableTo } from "./attendees.mjs";
 import { renderLetter, letterProblems, eventProblems, attendeeReplyTo, personalId } from "./letters.mjs";
 import { sendMail } from "./mail.mjs";
@@ -119,7 +119,30 @@ export async function sendSurveyRound(event, part, { deadline = null, pace = pac
     } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), [sentKey(part)]: { at: new Date().toISOString(), sent, failed, left } } });
+  if (!left && !failed) await settleSurveyJob(event, { lastPart: part === "end" || part === (trainingDays(event).at(-1) ?? part) }).catch(() => {});
   return { event: event.id, title: event.title, kind: "survey", part, sent, failed, left, trouble: trouble.slice(0, 10) };
+}
+
+/**
+ * The survey's checklist job ticks itself (Andrew 26 Nov 2026: "Same for the surveys unless a large number of surveys
+ * have not been completed, then keep it open until the last survey reminder has been sent, then mark it as done"):
+ * once it has gone and everyone has answered; else once the last reminder has gone; or, with reminders off, once the
+ * last part has gone.
+ */
+export async function settleSurveyJob(event, { lastPart = false, lastReminder = false, reminder = false } = {}) {
+  const fresh = await getEvent(event.id);
+  const job = (fresh?.tasks ?? []).find((t) => t.auto === "survey" && !t.done && !t.na);
+  if (!job) return false;
+  const people = ((await getAttendees(event.id)) ?? {}).people ?? [];
+  const everyoneAnswered = !(await stillOwed(fresh, people)).length;
+  const remindersOff = fresh.survey?.remind === false;
+  // Only once every part has gone (the last part, or any reminder, which comes after them all).
+  const allGone = lastPart || lastReminder || reminder;
+  const why = !allGone ? null : everyoneAnswered ? "everyone answered" : lastReminder ? "last reminder sent" : remindersOff ? "sent (no reminders)" : null;
+  if (!why) return false;
+  Object.assign(job, { done: true, doneAt: new Date().toISOString(), doneBy: `automatically: ${why}` });
+  await putEvent(fresh);
+  return why;
 }
 
 /** Who a part still has to go to: everyone registered who hasn't had it, and for a daily part only those there that day. */
@@ -263,5 +286,6 @@ export async function sendReminderRound(event, n, { deadline = null, pace = pace
     } catch (e) { trouble.push({ email: person.email, why: e.message }); failed++; }
   }
   await putAttendees(event.id, { ...stored, letterRounds: { ...(stored.letterRounds ?? {}), [key]: { at: new Date().toISOString(), sent, failed, left } } });
+  if (!left) await settleSurveyJob(event, { lastReminder: n === 2, reminder: true }).catch(() => {});
   return { event: event.id, title: event.title, kind: "survey", part: `reminder ${n}`, sent, failed, left, trouble: trouble.slice(0, 10) };
 }
