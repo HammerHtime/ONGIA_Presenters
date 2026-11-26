@@ -569,7 +569,12 @@ document.addEventListener("click", (e) => { if (!$("menu").hidden && !e.target.c
 $("back").onclick = () => history.back();
 window.addEventListener("popstate", () => {
   if (document.querySelector(".viewer")) { document.querySelector(".viewer").remove(); return; }
-  if (document.querySelector(".sheet")) { document.querySelector(".sheet").remove(); return; }
+  if (document.querySelector(".sheet")) {
+    // An expense moved to another event on the sheet: the claim under it shows the move.
+    const sh = document.querySelector(".sheet"), moved = sh.dataset.moved; sh.remove();
+    if (moved && OPEN?.id === moved) render();
+    return;
+  }
   if (EDIT) leaveEditor(); else { VIEW = { name: TAB }; OPEN = null; render(); }
 });
 
@@ -1624,6 +1629,33 @@ function openViewer(c, lineId) {
  * The President or the VP moves an expense to another line of the event's statement of work, on any claim, at any time
  * (Andrew 4 Nov 2026). Only where it counts on the event changes: what was claimed and paid stays as it was.
  */
+/*
+ * The President or the VP moves an expense to another event, or to none, on any claim at any time (Andrew 26 Nov 2026:
+ * a preferred seat ONGIA pays but RBH shouldn't be billed for). Only the event it counts on changes; the statement of
+ * work follows. The statement-of-work line, if the new event has one, is picked just below.
+ */
+function eventMover(c, l) {
+  if (!["president", "vp"].includes(HOME?.me?.role)) return "";
+  return `<div class="card"><div class="field" style="margin:0"><label for="evmove">Counted on which event</label>
+      <select id="evmove" data-claim="${esc(c.id)}" data-line="${esc(l.id)}" data-was="${esc(l.eventId || "")}">${eventOptions(l.eventId || "", l.eventTitle)}</select></div>
+    <div class="note" id="evmovesay" style="margin-top:6px">${l.eventId ? "Change it to take it off this event's bill. The amount paid stays the same." : "Not counted on any event."}</div></div>`;
+}
+function wireEventMover(el) {
+  const s = el.querySelector("#evmove"); if (!s) return;
+  s.onchange = async () => {
+    const say = el.querySelector("#evmovesay");
+    s.disabled = true; say.textContent = "Moving it…";
+    try {
+      const got = await api(`?claim=${encodeURIComponent(s.dataset.claim)}&line=${encodeURIComponent(s.dataset.line)}&moveevent=1`, { method: "POST", json: { eventId: s.value } });
+      const c = got.claim, l = c.lines.find((x) => x.id === s.dataset.line);
+      OPEN = c; el.dataset.moved = c.id;
+      const ev = el.querySelector("[data-kvevent]"); if (ev) ev.textContent = l.eventTitle || "Not for an event";
+      el.querySelector("#movers").innerHTML = eventMover(c, l) + sowMover(c, l);
+      wireEventMover(el); wireSowMover(el);
+      el.querySelector("#evmovesay").textContent = l.eventId ? `Moved to ${l.eventTitle}.${l.sowNeeded ? " Pick its statement of work line below." : ""}` : "Moved off the event. ONGIA pays it; no event is billed.";
+    } catch (e) { say.textContent = e.message; s.value = s.dataset.was; s.disabled = false; }
+  };
+}
 function sowMover(c, l) {
   if (!["president", "vp"].includes(HOME?.me?.role) || !l.eventId) return "";
   const lines = (HOME?.events ?? []).find((e) => e.id === l.eventId)?.sowLines;
@@ -1656,8 +1688,8 @@ async function lineSheet(c, l) {
     ${l.refund ? `<div class="say ok" style="margin:0 0 12px"><b>A refund.</b> It comes off this claim's total${l.refundOf?.label ? `: the refund of ${esc(l.refundOf.label)}` : ""}.</div>` : ""}
     <div class="card">${kv("Paid to", l.paidTo)}${kv("Date", l.date ? longDate(l.date) : "")}${kv(l.refund ? "Refunded" : "Amount", l.amount === null || l.amount === undefined ? "" : money(l.amount))}
       ${l.kind === "mileage" ? kv("Distance", `${l.km} km × ${money(l.rate)}`) + kv("From", l.from) + kv("To", l.to) : ""}
-      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
-    ${sowMover(c, l)}
+      ${kv("Category", cat ? `${cat.n} · ${cat.name}` : "")}${["president", "vp"].includes(HOME?.me?.role) ? `<div class="kv"><span class="k2">Event</span><span class="v" data-kvevent>${esc(l.eventTitle || "Not for an event")}</span></div>` : kv("Event", l.eventTitle)}${kv("Statement of work", l.sowLineName)}${kv("What it was for", l.purpose)}${l.comment ? `<div class="kv kvblock"><span class="k2">Comments</span><span class="v">${esc(l.comment)}</span></div>` : ""}</div>
+    <div id="movers">${eventMover(c, l)}${sowMover(c, l)}</div>
     ${l.kind === "receipt" ? `<div class="card">${checkRow(l) || `<div class="note">Not checked against the receipt.</div>`}</div>` : ""}
     ${l.dupe ? `<div class="card">${dupeRow(l)}<div class="note">${esc(l.dupe.why[0].toUpperCase() + l.dupe.why.slice(1))}. ${!c?.canEdit ? (l.dupe.level === "same" ? "If it's a resubmit, send the claim back." : "Compare the two. If it's a resubmit, send the claim back.") : l.dupe.level === "same" ? "It can't be claimed again. Remove it from this claim." : "If it's a different purchase, leave it: the people approving will see this and decide."}</div></div>` : ""}
     ${l.kind === "noreceipt" && stipendLine(l) ? `<div class="card"><div class="check mu">Stipend: no receipt needed</div></div>` : ""}
@@ -1667,7 +1699,7 @@ async function lineSheet(c, l) {
   history.pushState({ sheet: true }, "");
   // A Back on the page itself as well as the arrow in the bar, which is easy to miss on a wide screen (Andrew 14 Nov 2026).
   el.querySelectorAll("[data-close]").forEach((b) => { b.onclick = () => history.back(); });
-  wireSowMover(el);
+  wireEventMover(el); wireSowMover(el);
   const kind = l.kind === "noreceipt" ? "shot" : "file";
   if (!el.querySelector("#sheetpic")) return;
   try {
