@@ -402,6 +402,12 @@
 
   /* tracking table */
   .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .bkbar{margin:0 0 10px} .bklist{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .bkr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:38px;padding:4px 12px;border-top:1px solid var(--line);font-size:14px}
+  .bkr:first-child{border-top:0} .bkr .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .bkr .st{font-size:13px;font-weight:600;white-space:nowrap}
+  .bkr .st.mu{color:var(--muted)} .bkr .st.wait{color:var(--wait)} .bkr .st.late{color:var(--late)} .bkr .st.info{color:var(--navy,#1b2a4a)} .bkr .st.ok{color:var(--ok,#2f6b3f)}
+  .bkcard{margin-top:12px} .bkdiff{font-size:13px;overflow-x:auto} .bkdh,.bkd{display:grid;grid-template-columns:minmax(90px,1fr) minmax(0,1.4fr) minmax(0,1.4fr);gap:8px;padding:6px 12px;border-top:1px solid var(--line)}
+  .bkdh{font-weight:700;color:var(--ink-mid);border-top:0} .bkd span{overflow-wrap:anywhere} .bkrest{padding:10px 12px} .bkrest summary{cursor:pointer;font-weight:600}
   /* On a phone the filters are one row that slides sideways, not five rows of buttons. */
   @media (max-width:560px){.filters{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 14px;padding:0 16px 4px;scrollbar-width:none}
     .filters::-webkit-scrollbar{display:none} .filters .fchip{flex:none;white-space:nowrap}}
@@ -11550,9 +11556,90 @@ function backupScreen(B) {
     <div class="s">Every night at ${esc(B.schedule.replace(/ .*/, ""))} Pacific the desk copies everything it keeps (events, presenters, agreements, files, receipts, statements of work, the board list) and the code it runs on into the <b>${esc(B.folder)}</b> folder on SharePoint.</div></div></div>
     <div class="card-body"><div id="backuppanel"></div>
       <h3 style="margin:18px 0 0;font-size:15px">History</h3><div id="backuphist"></div>
+      <h3 style="margin:22px 0 4px;font-size:15px">Look inside a backup</h3>
+      <p class="hint" style="margin:0 0 10px">Pick a night and a kind of record. Each shows whether it is the same now, changed, gone now, or new since. Compare one to see every field then and now. Restoring puts back that one record, and can be undone.</p>
+      <div id="bkbrowse"><button class="mini" id="bk-open" type="button">Open the backups</button></div>
       <p class="hint" style="margin-top:14px">One zip a day. Kept: every one for 30 days, then the first of each month for a year. Keys and passwords are not in it. Only you and the VP should be able to open that SharePoint folder, because the backup holds everything. To restore, see the README (<code>scripts/restore-backup.mjs</code>).</p></div></div>`;
   wireAdminTabs();
   backupLine(document.getElementById("backuppanel"));
+  document.getElementById("bk-open").onclick = () => backupBrowser(document.getElementById("bkbrowse"));
+}
+
+/*
+ * Looking inside a backup before restoring (Andrew 26 Nov 2026: "a way for me to open a back up and look through the info
+ * and compare before restoring"). One night, one kind of record, one line each; Compare shows every field then and now;
+ * Restore puts back that one record (typed RESTORE), and every restore can be undone.
+ */
+const BK = { date: "", group: "money", status: "diff", q: "", items: null, groups: null };
+const BK_ST = { same: ["Same", "mu"], changed: ["Changed", "wait"], gone: ["Gone now", "late"], new: ["New since", "info"] };
+async function backupBrowser(host) {
+  host.innerHTML = `<p class="hint">Asking SharePoint for the backups…</p>`;
+  let list;
+  try { list = (await api("/backups?list=1")).backups ?? []; } catch (e) { host.innerHTML = `<div class="bad">${esc(e.message)}</div>`; return; }
+  if (!list.length) { host.innerHTML = `<p class="hint">No backups on SharePoint yet.</p>`; return; }
+  BK.date ||= list[0].date;
+  host.innerHTML = `<div class="bkbar"><select id="bk-date" aria-label="Which night's backup">${list.map((b) => `<option value="${esc(b.date)}"${b.date === BK.date ? " selected" : ""}>${esc(fmtDate(b.date))}</option>`).join("")}</select></div>
+    <div class="filters" id="bk-groups"></div><div class="filters" id="bk-status"></div>
+    <input id="bk-q" type="search" placeholder="Search by name" aria-label="Search" value="${esc(BK.q)}" style="width:100%;margin:0 0 10px">
+    <div id="bk-list" class="bklist"></div><div id="bk-cmp"></div><div id="bk-log"></div>`;
+  const $b = (id) => host.querySelector(`#${id}`);
+  const loadGroups = async () => {
+    $b("bk-groups").innerHTML = `<span class="hint">Opening the backup of ${esc(fmtDate(BK.date))}…</span>`;
+    try { BK.groups = (await api(`/backups?date=${BK.date}&groups=1`)).groups; } catch (e) { $b("bk-groups").innerHTML = `<div class="bad">${esc(e.message)}</div>`; return; }
+    $b("bk-groups").innerHTML = BK.groups.filter((g) => g.count).map((g) => `<button type="button" class="fchip${g.id === BK.group ? " on" : ""}" data-bkg="${g.id}">${esc(g.name)} <b>${g.count}</b></button>`).join("");
+    host.querySelectorAll("[data-bkg]").forEach((b) => { b.onclick = () => { BK.group = b.dataset.bkg; loadGroups.redraw(); loadItems(); }; });
+    loadItems();
+  };
+  loadGroups.redraw = () => host.querySelectorAll("[data-bkg]").forEach((b) => b.classList.toggle("on", b.dataset.bkg === BK.group));
+  const drawItems = () => {
+    const all = BK.items ?? [];
+    const n = (f) => all.filter(f).length;
+    const filt = { diff: (i) => i.status !== "same", changed: (i) => i.status === "changed", gone: (i) => i.status === "gone", new: (i) => i.status === "new", all: () => true };
+    $b("bk-status").innerHTML = [["diff", "Different"], ["changed", "Changed"], ["gone", "Gone now"], ["new", "New since"], ["all", "All"]]
+      .map(([k, l]) => `<button type="button" class="fchip${BK.status === k ? " on" : ""}" data-bks="${k}">${l} <b>${n(filt[k])}</b></button>`).join("");
+    host.querySelectorAll("[data-bks]").forEach((b) => { b.onclick = () => { BK.status = b.dataset.bks; drawItems(); }; });
+    const q = BK.q.toLowerCase();
+    const rows = all.filter(filt[BK.status]).filter((i) => !q || `${i.label} ${i.key}`.toLowerCase().includes(q));
+    $b("bk-list").innerHTML = rows.length ? rows.map((i) => `<div class="bkr"><span class="n" title="${esc(i.key)}">${esc(i.label)}</span><span class="st ${BK_ST[i.status][1]}">${BK_ST[i.status][0]}</span>
+      <button class="mini" type="button" data-bkc="${esc(i.key)}">Compare</button></div>`).join("") : `<p class="hint" style="padding:8px 0">${all.length ? "Nothing here with that filter." : "None of this kind."}</p>`;
+    host.querySelectorAll("[data-bkc]").forEach((b) => { b.onclick = () => compareOne(b.dataset.bkc); });
+  };
+  const loadItems = async () => {
+    $b("bk-list").innerHTML = `<p class="hint">Comparing with the desk now…</p>`; $b("bk-cmp").innerHTML = "";
+    try { BK.items = (await api(`/backups?date=${BK.date}&group=${BK.group}`)).items; } catch (e) { $b("bk-list").innerHTML = `<div class="bad">${esc(e.message)}</div>`; return; }
+    drawItems();
+  };
+  const show = (v) => { const t = typeof v === "string" ? v : JSON.stringify(v); return esc(t === undefined || t === "null" ? "—" : t.length > 160 ? `${t.slice(0, 160)}…` : t); };
+  const compareOne = async (key) => {
+    const box = $b("bk-cmp"), item = (BK.items ?? []).find((i) => i.key === key);
+    box.innerHTML = `<p class="hint">Opening ${esc(item?.label ?? key)}…</p>`;
+    let C;
+    try { C = await api(`/backups?date=${BK.date}&compare=${encodeURIComponent(key)}`); } catch (e) { box.innerHTML = `<div class="bad">${esc(e.message)}</div>`; return; }
+    const body = C.file
+      ? `<p class="hint">A file. ${C.inBackup ? `${Math.round(C.thenSize / 1024)} KB that night` : "Not in the backup"} · ${C.inDeskNow ? `${Math.round(C.nowSize / 1024)} KB now` : "gone now"}${C.same ? " · the same" : ""}</p>`
+      : C.differences.length ? `<div class="bkdiff"><div class="bkdh"><span>Field</span><span>${esc(fmtDate(BK.date))}</span><span>Now</span></div>${C.differences.map((d) => `<div class="bkd"><span>${esc(d.path)}</span><span>${show(d.then)}</span><span>${show(d.now)}</span></div>`).join("")}</div>`
+      : `<p class="hint">No differences: it is the same now as that night.</p>`;
+    box.innerHTML = `<div class="card bkcard"><div class="sum"><b>${esc(item?.label ?? key)}</b> · ${C.inBackup ? "" : "not in this backup · "}${C.inDeskNow ? "" : "gone now · "}${esc(key)}</div>${body}
+      ${C.inBackup && !(C.file && C.same) && !(!C.file && !C.differences.length) ? `<details class="bkrest"><summary>Restore the ${esc(fmtDate(BK.date))} version</summary>
+        <p class="hint">This puts back this one record as it was that night. What is there now is kept, so you can undo it.</p>
+        <input id="bk-word" placeholder="Type RESTORE" autocomplete="off" style="max-width:180px"> <button class="mini" id="bk-do" type="button">Restore</button></details>` : ""}</div>`;
+    box.scrollIntoView({ block: "nearest" });
+    const go = box.querySelector("#bk-do");
+    if (go) go.onclick = async () => {
+      go.disabled = true;
+      try { await api(`/backups?date=${BK.date}&restore=${encodeURIComponent(key)}`, { method: "POST", body: JSON.stringify({ confirm: box.querySelector("#bk-word").value }) });
+        toast("Restored. You can undo it below."); await loadItems(); compareOne(key); loadLog(); }
+      catch (e) { toast(e.message); go.disabled = false; }
+    };
+  };
+  const loadLog = async () => {
+    const L = (await api("/backups?restores=1").catch(() => ({ restores: [] }))).restores ?? [];
+    $b("bk-log").innerHTML = L.length ? `<details class="fold" style="margin-top:12px"><summary><b>Restores</b> · ${L.length}</summary><div class="bklist">${L.slice(0, 20).map((x) => `<div class="bkr"><span class="n" title="${esc(x.key)}">${esc(x.key)} · from ${esc(fmtDate(x.date))}</span><span class="st ${x.undoneAt ? "mu" : "ok"}">${x.undoneAt ? "Undone" : esc(fmtDate(x.at.slice(0, 10)))}</span>${x.undoneAt ? "<span></span>" : `<button class="mini" type="button" data-bku="${esc(x.id)}">Undo</button>`}</div>`).join("")}</div></details>` : "";
+    host.querySelectorAll("[data-bku]").forEach((b) => { b.onclick = async () => { b.disabled = true; try { await api(`/backups?undo=${b.dataset.bku}`, { method: "POST" }); toast("Undone."); loadLog(); if (BK.items) loadItems(); } catch (e) { toast(e.message); b.disabled = false; } }; });
+  };
+  $b("bk-date").onchange = () => { BK.date = $b("bk-date").value; loadGroups(); };
+  $b("bk-q").oninput = () => { BK.q = $b("bk-q").value; drawItems(); };
+  loadGroups(); loadLog();
 }
 
 /** "Agreements due in 12 days" or a red "overdue" line for the events list. */

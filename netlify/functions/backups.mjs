@@ -4,6 +4,7 @@ import { getBackupStatus, BACKUP_FOLDER, BACKUP_TZ, BACKUP_HOUR } from "./lib/ba
 import { putMeta } from "./lib/store.mjs";
 import { graphConfigured, listBackupFiles, getBackupFile } from "./lib/graph.mjs";
 import { readZip } from "./lib/zip.mjs";
+import { manifestOf, groupCounts, browse, compare, restore, undoRestore, restoreLog } from "./lib/backupbrowse.mjs";
 import { siteOrigin } from "./lib/site.mjs";
 
 /**
@@ -15,6 +16,12 @@ import { siteOrigin } from "./lib/site.mjs";
  *   GET  /api/backups?date=YYYY-MM-DD&prefix=sow:     the record keys in that night's backup starting with the prefix
  *   GET  /api/backups?date=YYYY-MM-DD&key=sow:…       one record as it was that night (read only; nothing is put back)
  * Looking inside a backup (Andrew 26 Nov 2026: a statement of work gone missing) is for finding what was lost.
+ *   GET  /api/backups?date=…&groups=1                 how many records of each kind it holds
+ *   GET  /api/backups?date=…&group=events[&q=]        each record of that kind: same, changed, gone now or new since
+ *   GET  /api/backups?date=…&compare=<key>            one record then and now, field by field
+ *   POST /api/backups?date=…&restore=<key>            { confirm: "RESTORE" } put that one record back as it was
+ *   POST /api/backups?undo=<id>                       undo a restore
+ *   GET  /api/backups?restores=1                      what has been restored, newest first
  */
 const STALE_MS = 20 * 60 * 1000;
 
@@ -42,6 +49,25 @@ export default async (req) => {
     return json({ status: await getBackupStatus(), ...info() }, 202);
   }
   const q = (k) => new URL(req.url).searchParams.get(k);
+  const by = who.name || who.email || "the desk";
+  if (req.method === "GET" && q("restores")) return json({ restores: await restoreLog() });
+  if (req.method === "POST" && q("undo")) { const r = await undoRestore(q("undo"), by); return r.error ? fail(r.error, 409) : json(r); }
+  if (q("date") && (q("groups") || q("group") || q("compare") || q("restore"))) {
+    if (!graphConfigured()) return fail("Microsoft isn't set up on this site, so the backups can't be read.", 409);
+    const file = (await listBackupFiles(BACKUP_FOLDER())).find((f) => f.name === `ongia-desk-backup-${q("date")}.zip`);
+    if (!file) return fail(`No backup for ${q("date")}.`, 404);
+    const zip = await getBackupFile(file.id);
+    const manifest = manifestOf(zip);
+    if (req.method === "GET" && q("groups")) return json({ date: q("date"), groups: groupCounts(manifest) });
+    if (req.method === "GET" && q("group")) return json({ date: q("date"), ...(await browse(zip, q("group"), { manifest, search: q("q") ?? "" })) });
+    if (req.method === "GET" && q("compare")) return json({ date: q("date"), ...(await compare(zip, q("compare"), { manifest })) });
+    if (req.method === "POST" && q("restore")) {
+      const body = await req.json().catch(() => ({}));
+      if (String(body.confirm ?? "").trim().toUpperCase() !== "RESTORE") return fail("Type RESTORE to put it back.", 400);
+      const r = await restore(zip, q("restore"), q("date"), by, { manifest });
+      return r.error ? fail(r.error, 409) : json(r);
+    }
+  }
   if (req.method === "GET" && (q("list") || q("date"))) {
     if (!graphConfigured()) return fail("Microsoft isn't set up on this site, so the backups can't be read.", 409);
     const files = (await listBackupFiles(BACKUP_FOLDER())).filter((f) => /^ongia-desk-backup-\d{4}-\d{2}-\d{2}\.zip$/.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
