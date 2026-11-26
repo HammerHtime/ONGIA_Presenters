@@ -40,6 +40,7 @@ import { needsApprovalMail, sentBackMail, approvedMail, toPayMail, paidMail, pre
  *   POST   /api/expenses?add=receipt[&claim=<id>][&test=1]   body = the photo or PDF; Claude starts reading it
  *   POST   /api/expenses?add=mileage|noreceipt[&claim=]  { date, km, from, to, … }
  *   PUT    /api/expenses?claim=<id>&line=<line>          what the person checked or typed
+ *   POST   /api/expenses?claim=<id>&line=<line>&moveevent=1   { eventId | "" }: the President or VP, onto another event or none
  *   PUT    /api/expenses?perdiem=1                       { breakfast, lunch, dinner }: a presenter's meal per diem (President or VP)
  *   DELETE /api/expenses?claim=<id>&line=<line>          a line;   DELETE ?claim=<id>   the whole claim
  *   POST   /api/expenses?claim=<id>&thumb=|shot=|again=<line>
@@ -487,6 +488,26 @@ export default async (req) => {
     Object.assign(line, { sowLineId: to.id, sowLineName: to.name, sowSuggested: false, sowMovedBy: me.name, sowMovedAt: now() });
     await putClaimLine(claim.id, line);
     claim.history = [...(claim.history ?? []), { at: now(), what: `moved ${line.paidTo || "an expense"} from ${from} to ${to.name} on the statement of work`, by: me.name }];
+    await putClaim(claim);
+    await syncSow(claim);
+    return json({ claim: await claimView(await getClaim(claim.id), ctx) });
+  }
+  // The President or the VP moves an expense to another event, or to none, on any claim at any time (Andrew 26 Nov 2026:
+  // a preferred seat on an RBH event's claim "ONGIA will pay … but not attached to the RBH event. RBH should not be
+  // billed for a preferred seat"). What was claimed and paid stays; only the event it's counted on changes, and the
+  // event's statement of work follows (the line comes off the old one, and goes on the new one's once a line is picked).
+  if (req.method === "POST" && q("moveevent")) {
+    if (!["president", "vp"].includes(me.role)) return fail("Only the President or the VP can move an expense to another event.", 403);
+    const body = await req.json().catch(() => ({}));
+    const want = String(body.eventId ?? "");
+    const ev = want ? (await choices()).find((e) => e.id === want) : null;
+    if (want && !ev) return fail("Pick an event from the list, or Not for an event.");
+    if (want === (line.eventId || "")) return json({ claim: await claimView(claim, ctx) });
+    const from = line.eventTitle || "no event";
+    Object.assign(line, { eventId: ev?.id ?? "", eventTitle: ev?.title ?? "", sowLineId: "", sowLineName: "", sowSuggested: false, sowNeeded: !!ev?.sowLines?.length,
+      eventMovedBy: me.name, eventMovedAt: now() });
+    await putClaimLine(claim.id, line);
+    claim.history = [...(claim.history ?? []), { at: now(), what: `moved ${line.paidTo || "an expense"} from ${from} to ${ev?.title || "no event"}`, by: me.name }];
     await putClaim(claim);
     await syncSow(claim);
     return json({ claim: await claimView(await getClaim(claim.id), ctx) });
