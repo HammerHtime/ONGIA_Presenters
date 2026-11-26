@@ -40,7 +40,8 @@ export function makeZip(entries, now = new Date()) {
 }
 
 /** Buffer → [{ name, data }]. Throws if the zip is damaged or any file fails its CRC. */
-export function readZip(buf) {
+/** Read a zip; with `want`, only the entries it accepts are unpacked (a whole backup is thousands of records). */
+export function readZip(buf, want = null) {
   let end = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
   if (end < 0) throw new Error("not a zip file (no end record)");
@@ -54,6 +55,7 @@ export function readZip(buf) {
     const name = buf.subarray(p + 46, p + 46 + nl).toString("utf8");
     if (buf.readUInt32LE(off) !== 0x04034b50) throw new Error(`zip entry ${name} is damaged`);
     const start = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+    if (want && !want(name)) { p += 46 + nl + el + cl; continue; }
     const raw = buf.subarray(start, start + csize);
     const data = method === 8 ? inflateRawSync(raw) : Buffer.from(raw);
     if (data.length !== size || crc32(data) !== crc) throw new Error(`zip entry ${name} fails its checksum`);

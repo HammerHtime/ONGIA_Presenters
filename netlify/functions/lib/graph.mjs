@@ -464,6 +464,15 @@ export async function listBackupFiles(folder) {
   return out;
 }
 
+/** A backup zip's bytes, to look inside it (a lost record found again). */
+export async function getBackupFile(id) {
+  const token = await accessToken();
+  const drive = await driveId(token);
+  const res = await fetch(`${GRAPH}/drives/${drive}/items/${encodeURIComponent(id)}/content`, { headers: { authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`SharePoint wouldn't hand over the backup (HTTP ${res.status}).`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 export async function deleteBackupFile(id) {
   const token = await accessToken();
   const drive = await driveId(token);
