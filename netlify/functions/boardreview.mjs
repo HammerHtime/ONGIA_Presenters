@@ -94,6 +94,8 @@ export default async (req) => {
     return json({ name: target.name, key: pk, president: isPresidentOf(c, target.email), sent: done.peers.includes(pk), phase: phaseOf(c),
       // Peers see only what the colleague delivered: the rest of a self-review is for the committee and their own report.
       delivered: self?.sentAt ? self.answers.delivered : null,
+      // …and how they helped ONGIA grow, beside the rating for it (Andrew 26 Nov 2026).
+      grew: self?.sentAt ? self.answers.grow ?? null : null,
       facts: await factsOf(c, target.email), questions: questionsFor(c, target), comments: [c.questions.comment, ...(isPresidentOf(c, target.email) ? c.questions.presidentComments : [])], scale: SCALE });
   }
   if (req.method === "POST" && pk) { const r = await sendPeer(c, who.email, pk, await req.json().catch(() => ({}))); return r.error ? fail(r.error, r.status) : json(r); }
