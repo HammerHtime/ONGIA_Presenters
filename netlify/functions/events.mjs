@@ -739,8 +739,9 @@ async function showList(canCost = true, viewer = { key: true }) {
   const withCounts = await Promise.all(
     events.map(async (event) => {
       // Every read for the event at once (audit 24 Nov 2026: the registrations and the contract waited on the others).
-      const [people, box, guests, contract] = await Promise.all([listPresenters(event.id), getInbox(event.id),
-        event.room?.seats ? getAttendees(event.id) : null, canCost || event.kind !== "rbh" ? contractState(event.id) : null]);
+      const [people, box, guests, contract, sow] = await Promise.all([listPresenters(event.id), getInbox(event.id),
+        event.room?.seats ? getAttendees(event.id) : null, canCost || event.kind !== "rbh" ? contractState(event.id) : null,
+        canCost && event.kind === "rbh" && !event.project ? getSow(event.id).catch(() => null) : null]);
       const mats = people.map((p) => materialsStatus(p, event.materialsScan ?? null));
       const seen = canCost ? event : redactEvent(event);
       return {
@@ -765,6 +766,9 @@ async function showList(canCost = true, viewer = { key: true }) {
         // events the contract has been signed and locked in"): "signed" in the app, "in" (uploaded), or null. An RBH
         // event's contract is the president's and the VP's, so others see only whether it's locked.
         contract,
+        // Where its statement of work stands, so a finished RBH event whose final invoice hasn't gone asks for it
+        // (Andrew 26 Nov 2026). The president's and the VP's only, like the rest of the money.
+        ...(sow ? { sowStatus: sow.status ?? "" } : {}),
       };
     })
   );

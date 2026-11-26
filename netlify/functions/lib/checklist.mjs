@@ -1,4 +1,4 @@
-import { getMeta } from "./store.mjs";
+import { getMeta, getEvent, putEvent } from "./store.mjs";
 import { token } from "./ids.mjs";
 import { deadline, whyNotWorking, todayIso, formatDate } from "./deadlines.mjs";
 import { fitsTitle } from "./titles.mjs";
@@ -133,7 +133,27 @@ export function taskDue(dayOne, daysBefore, lastDay = dayOne) {
  * job marked not applicable stays on the event so it is visibly ruled out
  * rather than quietly missing, and is never late, never soon, and never counted.
  */
+/**
+ * The jobs that still need you once an event has started (Andrew 26 Nov 2026: "If the outstanding items are to send RBH
+ * final invoice or send out survey or certificates post conference, then that should alert me. But really nothing
+ * else"): the survey, and the certificates sent out after it. The final invoice is the statement of work's, not a job.
+ */
+export const afterEventJob = (t) => t?.auto === "survey" || /certificate.*(sent out|after the event)/i.test(String(t?.what ?? ""));
+const isCertsAfter = (t) => /certificate.*(sent out|after the event)/i.test(String(t?.what ?? ""));
+
+/** Certificates went out by email: the job saying so ticks itself, as the survey's does when it sends. */
+export async function tickCertsJob(eventId, by = "sent by email") {
+  const event = await getEvent(eventId);
+  const job = (event?.tasks ?? []).find((t) => isCertsAfter(t) && !t.done && !t.na);
+  if (!job) return false;
+  Object.assign(job, { done: true, doneAt: new Date().toISOString(), doneBy: by });
+  await putEvent(event);
+  return true;
+}
+
 export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne, cutoff = null) {
+  // Certificates sent out after the event, with no date of its own: due the day after it ends, so it can be overdue.
+  if (isCertsAfter(task) && !Number.isFinite(task.daysBefore)) task = { ...task, daysBefore: -1 };
   const fromCutoff = task.from === "cutoff";
   const numbered = Number.isFinite(task.daysBefore);
   const scheduled = numbered && (!fromCutoff || Boolean(cutoff));
@@ -143,13 +163,10 @@ export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne, cuto
     : dayOne ? taskDue(dayOne, task.daysBefore, lastDay) : null;
   const days = due ? Math.round((Date.parse(due) - Date.parse(today)) / 86400000) : null;
   const live = !task.na && !task.done;
-  // A job due before the event, once the event has started (Andrew 26 Nov 2026: presenter material, food numbers or the
-  // rooming list "clearly … do not still need to be on my dashboard"): it has passed, not late. It stays on the list,
-  // unticked, but no longer counts as overdue. Jobs during or after the event (the survey, certificates) still do.
-  // And three weeks after the event ends, what's left after it (a survey from months ago) has passed too.
-  const ended = lastDay && lastDay >= (dayOne ?? "") ? lastDay : dayOne;
-  const longOver = Boolean(ended) && Date.parse(today) - Date.parse(ended) > 21 * 86400000;
-  const lapsed = Boolean(due) && live && Boolean(dayOne) && ((due < dayOne && today >= dayOne) || (due < today && longOver));
+  // Once the event has started, every other job has passed rather than gone late (Andrew 26 Nov 2026): presenter
+  // material, food numbers, the rooming list "clearly … do not still need to be on my dashboard". It stays on the list,
+  // unticked, but no longer counts. The survey and the certificates afterwards still alert until they're done.
+  const lapsed = Boolean(due) && live && Boolean(dayOne) && today >= dayOne && !afterEventJob(task);
   return {
     ...task,
     na: task.na === true,

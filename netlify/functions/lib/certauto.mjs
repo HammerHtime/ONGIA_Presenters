@@ -3,6 +3,7 @@ import { localNow } from "./surveysend.mjs";
 import { peopleOf } from "./certpeople.mjs";
 import { templatesFor, certSettings, certIndex, certRecord, issueMany } from "./certs.mjs";
 import { sendCertificate } from "./certmail.mjs";
+import { tickCertsJob } from "./checklist.mjs";
 import { siteOrigin } from "./site.mjs";
 import { pacer, timeLeft } from "./bulk.mjs";
 
@@ -81,6 +82,7 @@ export async function runCertsRounds(events, { now = new Date(), deadline = null
         if (r.mail?.sentAt && !r.mail.failed) sent++;
         else { failed++; trouble.push({ email: person.email, why: r.mail?.failed || r.error || "not sent" }); }
       }
+      if (sent) await tickCertsJob(event.id, "sent automatically").catch(() => {});
       out.push({ event: event.id, title: event.title, kind: "certs", sent, failed, left, trouble: trouble.slice(0, 10) });
     } catch (e) {
       out.push({ event: event.id, title: event.title, kind: "certs", error: e.message });
