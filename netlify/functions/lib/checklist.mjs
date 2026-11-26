@@ -143,6 +143,13 @@ export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne, cuto
     : dayOne ? taskDue(dayOne, task.daysBefore, lastDay) : null;
   const days = due ? Math.round((Date.parse(due) - Date.parse(today)) / 86400000) : null;
   const live = !task.na && !task.done;
+  // A job due before the event, once the event has started (Andrew 26 Nov 2026: presenter material, food numbers or the
+  // rooming list "clearly … do not still need to be on my dashboard"): it has passed, not late. It stays on the list,
+  // unticked, but no longer counts as overdue. Jobs during or after the event (the survey, certificates) still do.
+  // And three weeks after the event ends, what's left after it (a survey from months ago) has passed too.
+  const ended = lastDay && lastDay >= (dayOne ?? "") ? lastDay : dayOne;
+  const longOver = Boolean(ended) && Date.parse(today) - Date.parse(ended) > 21 * 86400000;
+  const lapsed = Boolean(due) && live && Boolean(dayOne) && ((due < dayOne && today >= dayOne) || (due < today && longOver));
   return {
     ...task,
     na: task.na === true,
@@ -152,8 +159,9 @@ export function dressed(task, dayOne, today = todayIso(), lastDay = dayOne, cuto
     due,
     dueReadable: due ? formatDate(due) : "",
     days,
-    late: Boolean(due) && live && due < today,
-    soon: Boolean(due) && live && days !== null && days >= 0 && days <= 14,
+    lapsed,
+    late: Boolean(due) && live && due < today && !lapsed,
+    soon: Boolean(due) && live && days !== null && days >= 0 && days <= 14 && !lapsed,
   };
 }
 
