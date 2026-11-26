@@ -42,13 +42,26 @@ export function groupCounts(manifest) {
   return GROUPS.map(([id, name]) => ({ id, name, count: n[id] }));
 }
 
+// What each kind of record is, in words.
+const KIND = { event: "Event", sow: "Statement of work", receipts: "Receipts", receiptfile: "Receipt file", presenter: "Presenter",
+  pdf: "Signed agreement PDF", headshot: "Headshot", token: "Presenter link", contract: "Hotel contract", contractread: "Contract read",
+  contractsign: "Contract signing", contractsigned: "Signed contract", agenda: "Agenda", agendaread: "Agenda read", wfile: "Welcome letter file",
+  attendees: "Attendee list", reply: "Reply", surveycontact: "Survey contact", volunteer: "Volunteer", vtoken: "Volunteer link",
+  expclaim: "Expense claim", expline: "Expense line", expfile: "Receipt", expread: "Receipt read", expthumb: "Receipt picture", expmine: "Claim list",
+  expshot: "Card statement", expq: "Expense queue", surveyresp: "Survey answer", surveydone: "Survey answered", roster: "Board list",
+  "meta:invseq": "Invoice numbers", "meta:budget": "Budget", "meta:certs": "Certificate", "meta:ongia": "ONGIA setting", "meta:agencies": "Agencies" };
+
 /** A name a person recognises for a record: its title or name, with the event it belongs to. */
 function labelOf(key, value, titles) {
   const v = value && typeof value === "object" ? value : {};
   const own = v.title || v.name || [v.first, v.last].filter(Boolean).join(" ") || v.paidTo || v.what || v.program?.title || "";
   const ev = Object.entries(titles).find(([id]) => key.includes(id))?.[1] ?? "";
-  const kind = key.split(":")[0];
-  return [own && own !== ev ? own : "", ev, !own && !ev ? key : kind].filter(Boolean).join(" · ");
+  const parts = key.split(":");
+  const kind = parts[0] === "meta" ? (KIND[`meta:${parts[1]}`] ?? parts[1]) : (KIND[parts[0]] ?? parts[0]);
+  // An invoice counter says which series: "Invoice numbers · ITP-2026".
+  if (key.startsWith("meta:invseq:")) return `${kind} · ${parts.slice(2).join(":")}`;
+  // The kind first, so rows for one event still tell apart on a phone ("Receipts · Western Symposium").
+  return [kind, own && own !== ev ? own : "", ev].filter(Boolean).join(" · ");
 }
 
 /** One kind of record: each in the backup, in the desk now, or both, and whether it differs. */
