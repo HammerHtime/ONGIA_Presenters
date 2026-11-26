@@ -2264,7 +2264,9 @@ async function authConfig() {
 }
 const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const randomCode = () => b64u(crypto.getRandomValues(new Uint8Array(32)));
-const redirectUri = () => `${location.origin}${location.pathname}`;
+// Always /admin.html, the address registered with Microsoft (as the Receipts app and the annual review send): the desk
+// also opens at /admin or /, and Microsoft refuses an address it doesn't know (AADSTS50011, Andrew 26 Nov 2026).
+const redirectUri = () => `${location.origin}/admin.html`;
 function setSession(key, who) {
   KEY = key; WHO = who;
   sessionStorage.setItem("ongia-admin-key", key);
