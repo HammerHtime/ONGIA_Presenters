@@ -2571,6 +2571,8 @@ function homeQueues(events, inbox, { here = false } = {}) {
     // The names and agencies list for RBH, due two days before (audit 24 Nov 2026: it showed on the events list only).
     if (rbhListDue(ev)) needs.push(row({ rank: 1, icon: "!", cls: "late", title: "List for RBH due", who: "Names and agencies", note: "Two days before the event",
       btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="communications">Open it</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
+    if (invoiceDue(ev)) needs.push(row({ rank: 1, icon: "$", cls: "late", title: "Send RBH the final invoice", who: ev.sowStatus === "approved" ? "Statement of work approved" : "Statement of work not approved yet", note: "The event is over",
+      btn: here ? `<button class="btn btn-ghost btn-sm" data-gotab="money">Open it</button>` : `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Open event</button>` }));
     if (blockers.length) needs.push(row({ rank: 0, icon: "!", cls: "late", title: "Event is blocked", who: esc(blockers.map((b) => b.short).join(", ")), btn: `<button class="btn btn-ghost btn-sm" data-goev="${esc(ev.id)}">Fix it</button>` }));
     const due = ev.noDeadlines ? null : ev.deadlines?.agreement;
     const out = a.outstanding ?? [];
@@ -2688,6 +2690,10 @@ const hotelState = (ev) => ev.project ? null
 const CONTRACT_ICON = (ok = false) => `<svg class="hico" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 3h8l4 4v15H6z"/><path d="M14 3v4h4"/><path d="M8.5 11h6.5M8.5 14h4.5"/><path d="M8.5 18.5c1-1.2 1.6-1.2 2.2 0s1.3 1.1 2.3-.2"/>${ok ? `<circle class="hok" cx="19" cy="19" r="5"/><path class="hokt" d="M16.8 19.1l1.6 1.6 3-3.2"/>` : ""}</svg>`;
 const HOTEL_F = () => { try { return sessionStorage.getItem("ongia-hotel-f") || "all"; } catch { return "all"; } };
 /** An RBH event whose names and agencies list is due (two days before, until the first day) and hasn't gone. */
+// A finished RBH event whose final invoice hasn't gone (Andrew 26 Nov 2026: one of the three things that should still
+// alert after an event). Only where its statement of work is on the desk; the president's and the VP's to see.
+const invoiceDue = (ev) => ev.kind === "rbh" && !ev.project && typeof ev.sowStatus === "string" && !["invoiced", "paid"].includes(ev.sowStatus)
+  && !!(ev.lastDay || ev.dayOne) && (ev.lastDay || ev.dayOne) < todayIso();
 const rbhListDue = (ev) => {
   if (ev.kind !== "rbh" || ev.project || ev.practice || !ev.dayOne || (ev.rbhList?.sent ?? []).length) return false;
   const left = Math.round((Date.parse(ev.dayOne) - Date.parse(new Date().toLocaleDateString("en-CA"))) / 86400000);
@@ -2721,6 +2727,7 @@ function eventsTable(upcoming) {
     if (blocked.length) pills.push(`<span class="pill late">blocked</span>`);
     const rlDue = rbhListDue(ev);
     if (rlDue) pills.push(`<span class="pill late" title="Names and agencies for RBH: Communications, List for RBH">RBH list due</span>`);
+    if (invoiceDue(ev)) pills.push(`<span class="pill late" title="The event is over and RBH hasn't been sent the final invoice">Invoice due</span>`);
     if (!pills.length) {
       const nx = [["Agreements due", due], ["Final materials due", ev.noDeadlines ? null : ev.deadlines?.final], ["Training starts", ev.dayOne]].find(([, d]) => d && days(d) >= 0);
       if (nx) pills.push(`<span class="pill grey">${esc(nx[0])} ${esc(fmtDate(nx[1]).replace(/^\w+ /, "").replace(/ \d{4}$/, ""))}</span>`);
@@ -2728,7 +2735,7 @@ function eventsTable(upcoming) {
     if (ev.canEdit === false) pills.push(`<span class="pill grey">view only</span>`);
     const dates = `${esc(fmtDate(ev.dayOne).replace(/ \d{4}$/, ""))}${ev.lastDay && ev.lastDay !== ev.dayOne ? ` – ${esc(fmtDate(ev.lastDay).replace(/ \d{4}$/, ""))}` : ""}`;
     // The tile's left edge says whether the event needs you (red) or not (navy).
-    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blocked.length || rlDue;
+    const attn = (a.review ?? []).length || (a.uninvited ?? []).length || (a.failed ?? []).length || (due && days(due) < 0 && outN) || blocked.length || rlDue || invoiceDue(ev);
     return `<tr class="evcard evrow${attn ? " attn" : ""}${ev.kind === "rbh" ? " rbh" : ""}${open ? " unlocked" : ""}" data-open="${esc(ev.id)}" role="link" tabindex="0">
       <td class="e"><h2>${esc(ev.title)}${ev.kind === "rbh" ? ` <span class="shchip info">${ev.project ? "RBH project" : "RBH"}</span>` : ""}${ev.practice ? ` <span class="shchip warn" title="Made-up people for trying things out. Nothing on it is ever emailed.">Practice</span>` : ""}</h2><span class="s">${esc(ev.city)}${ev.venue ? " · " + esc(ev.venue) : ""}</span></td>
       <td class="d">${dates}</td>

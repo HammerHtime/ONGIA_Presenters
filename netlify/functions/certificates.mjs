@@ -13,6 +13,7 @@ import { directory, agencyOf, domainOf } from "./lib/agencies.mjs";
 import { templateOf, findTemplate, hasFrench, templatesFor, certSettings, certIndex, certRecord, issue, issueMany, certificatePdf, certFileName, certDate, designsOf, putDesigns, placeDesign, cleanDesign, putDesignImage, designImage } from "./lib/certs.mjs";
 import { randomBytes } from "node:crypto";
 import { sendCertificate, sendSample, mailCard } from "./lib/certmail.mjs";
+import { tickCertsJob } from "./lib/checklist.mjs";
 import { personFile, eventFile, disposition } from "./lib/filenames.mjs";
 
 /**
@@ -123,6 +124,7 @@ export default async (req) => {
       if (had?.mail?.sentAt && !had.mail.bounced && !had.mail.failed && body.again !== true) { results.push({ key, mail: mailCard(had), skipped: "already emailed" }); continue; }
       results.push({ key, ...(await sendCertificate({ event, person: p, code, origin, by })) });
     }
+    if (results.some((r) => r.mail?.sentAt && !r.mail.failed)) await tickCertsJob(event.id).catch(() => {});
     return json({ results });
   }
   if (req.method === "POST" && q("sample")) {
