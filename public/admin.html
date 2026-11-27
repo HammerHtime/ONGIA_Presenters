@@ -9069,7 +9069,9 @@ function wireSow(ev, S, { onSums = null } = {}) {
   const profitOf = (which) => {
     const t = sowSums(sow, which), amount = (l) => t.lines.find((x) => x.id === l.id)?.amount ?? 0;
     const fixed = r2(sow.lines.filter((l) => l.type === "fixed").reduce((n, l) => n + amount(l), 0));
-    const margin = which === "actual" ? r2(sow.lines.filter((l) => l.type !== "fixed").reduce((n, l) => n + amount(l) - (numOrNull(l.receiptsTotal) ?? 0), 0) + t.other - (numOrNull(sow.receiptsOther) ?? 0)) : 0;
+    // Only where there are receipts to compare with: an at-cost line with none passes through (lib/sow.mjs profit()).
+    const margin = which === "actual" ? r2(sow.lines.filter((l) => l.type !== "fixed" && (numOrNull(l.receiptsTotal) ?? 0) > 0).reduce((n, l) => n + amount(l) - numOrNull(l.receiptsTotal), 0)
+      + ((numOrNull(sow.receiptsOther) ?? 0) > 0 ? t.other - numOrNull(sow.receiptsOther) : 0)) : 0;
     const internal = which === "estimate" ? r2((sow.internal ?? []).reduce((n, r) => n + (r.planned ?? 0), 0))
       : r2((sow.internal ?? []).reduce((n, r) => n + (r.paid ?? claimedFor(r.id) ?? r.planned ?? 0), 0) + counted().filter((st) => !st.row || !(sow.internal ?? []).some((r) => r.id === st.row)).reduce((n, st) => n + (st.amount ?? 0), 0));
     const billed = r2(t.subtotal + t.fee), kept = r2(fixed + t.fee + margin - internal);

@@ -7,7 +7,7 @@ const events = (await import(F + "events.mjs")).default;
 const sowFn = (await import(F + "sow.mjs")).default;
 const roster = (await import(F + "roster.mjs")).default;
 const { issueSession } = await import(F + "lib/auth.mjs");
-const { profit, provinceTaxes } = await import(F + "lib/sow.mjs");
+const { profit, provinceTaxes, money } = await import(F + "lib/sow.mjs");
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -32,6 +32,10 @@ ok("the receipts pass through: billed as receipted, they make nothing", A.margin
 ok("no tax in it: what's billed before tax is $16,293.43, and the profit is 70.1% of it", A.billed === 16293.43 && A.pct === 70.1, JSON.stringify(A));
 ok("the SOW: fixed $9,800 + fee $5,120 − stipends $4,500 = $10,420", E.fixed === 9800 && E.fee === 5120 && E.profit === 10420, JSON.stringify(E));
 ok("an at-cost line billed above its receipts makes the difference", profit({ ...sow, lines: sow.lines.map((l) => (l.id === "t" ? { ...l, actual: 400 } : l)) }, "actual").margin === 22.14);
+// The September 2026 ITP (Andrew 27 Nov 2026): from before the Receipts app, its at-cost actuals typed in, no receipts.
+const sept = { lines: [{ id: "h", name: "Hotel", type: "cost", estimate: 15000, actual: 15827.12, receiptsTotal: 0 }, { id: "o", name: "On Site", type: "fixed", estimate: 10960 }], taxes: [], internal: [] };
+const SP = profit(sept, "actual");
+ok("an at-cost line with no receipts passes through: none of the hotel reads as profit", SP.margin === 0 && SP.profit === money(10960 + SP.fee), JSON.stringify(SP));
 ok("once paid, what was paid counts instead of what was planned", profit({ ...sow, internal: [{ name: "Stipends", planned: 4500, paid: 4200 }] }, "actual").internal === 4200
   && profit({ ...sow, internal: [{ name: "Stipends", planned: 4500, paid: 4200 }] }, "estimate").internal === 4500);
 
