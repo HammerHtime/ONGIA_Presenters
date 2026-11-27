@@ -251,7 +251,10 @@ export function profit(sow, which = "estimate") {
   const amount = (l) => t.lines.find((x) => x.id === l.id)?.amount ?? 0;
   const fixed = money((sow.lines ?? []).filter((l) => l.type === "fixed").reduce((n, l) => n + amount(l), 0));
   const margin = which === "actual"
-    ? money((sow.lines ?? []).filter((l) => l.type !== "fixed").reduce((n, l) => n + amount(l) - (num(l.receiptsTotal) ?? 0), 0) + t.other - (num(sow.receiptsOther) ?? 0))
+    // Only where there are receipts to compare with (Andrew 27 Nov 2026): an at-cost line with none (an event from before
+    // the Receipts app, its actuals typed in) passes through, rather than all of it reading as profit.
+    ? money((sow.lines ?? []).filter((l) => l.type !== "fixed" && (num(l.receiptsTotal) ?? 0) > 0).reduce((n, l) => n + amount(l) - num(l.receiptsTotal), 0)
+      + ((num(sow.receiptsOther) ?? 0) > 0 ? t.other - num(sow.receiptsOther) : 0))
     : 0;
   const internal = internalCost(sow, which);
   const billed = money(t.subtotal + t.fee);
