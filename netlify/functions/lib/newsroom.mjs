@@ -137,9 +137,9 @@ async function fetchText(url, fetchFn, ms = 12000) {
 }
 
 /** The feeds and Google News, read directly (no cost). Each source's outcome goes in the log. */
-export async function gatherFeeds({ src, since, fetchFn = fetch }) {
+export async function gatherFeeds({ src, since, until = Infinity, fetchFn = fetch }) {
   const out = [], notes = [];
-  const fresh = (p) => { const t = Date.parse(p); return !Number.isFinite(t) || t >= since; };
+  const fresh = (p) => { const t = Date.parse(p); return Number.isFinite(t) ? t >= since && t <= until : until === Infinity; };
   await Promise.all(src.feeds.map(async (f) => {
     try {
       const items = parseFeed(await fetchText(f.url, fetchFn)).filter((i) => fresh(i.published) && (f.official ? TOPIC_WORDS.test(`${i.title} ${i.snippet}`) : TOPIC_WORDS.test(i.title)));
@@ -150,7 +150,10 @@ export async function gatherFeeds({ src, since, fetchFn = fetch }) {
   await Promise.all(src.newsQueries.map(async (q) => {
     // "fr: …" searches Google News in French (Québec); everything else in English.
     const fr = /^fr:\s*/i.test(q), term = q.replace(/^fr:\s*/i, "");
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`${term} when:1d`)}&hl=${fr ? "fr-CA" : "en-CA"}&gl=CA&ceid=CA:${fr ? "fr" : "en"}`;
+    // An earlier day (a sample of a past night) asks Google for that day; otherwise the last day.
+    const ymd = (t) => new Date(t).toISOString().slice(0, 10);
+    const when = until === Infinity ? "when:1d" : `after:${ymd(since - 86400000)} before:${ymd(until + 86400000)}`;
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`${term} ${when}`)}&hl=${fr ? "fr-CA" : "en-CA"}&gl=CA&ceid=CA:${fr ? "fr" : "en"}`;
     try {
       const items = parseFeed(await fetchText(url, fetchFn)).filter((i) => fresh(i.published)).slice(0, 12);
       for (const i of items) {
@@ -216,14 +219,14 @@ const arr = (items) => ({ type: "array", items });
 
 // ── 1b. the official sites, by web search ──────────────────────────────────────────────────────────────────────
 const CANDS = S({ items: arr(S({ title: str, url: str, outlet: str, published: str, snippet: str, official: bool })) });
-export async function gatherOfficial({ client, usage, src, topics, sinceIso }) {
+export async function gatherOfficial({ client, usage, src, topics, sinceIso, untilIso = "" }) {
   const domains = [...new Set(src.officialSites.map((s) => s.domain))].slice(0, 60);
   const r = await ask({
     client, usage, effort: "low",
     web: { search: { max: 10, domains } },
     submit: { name: "report_items", description: "Report the news releases found.", schema: CANDS },
     system: "You find official police and government news releases in Canada for ONGIA, a non-profit that trains police, educators and communities on gangs, organized crime and human trafficking. Use web search, which is limited to official police and agency sites. Report only releases published since the time given, on the subjects given, with their exact address. Never invent an address or a release.",
-    content: `Find news releases published since ${sinceIso} on these subjects:\n${topics.map((t) => `- ${t}`).join("\n")}\n\nSearch a few times across the subjects (for example "seized firearms", "charged trafficking", "contraband tobacco", "home invasion arrest", "youth charged shooting", "gang prevention program"). Report each release once, with official set to true.`,
+    content: `Find news releases published ${untilIso ? `between ${sinceIso} and ${untilIso}` : `since ${sinceIso}`} on these subjects:\n${topics.map((t) => `- ${t}`).join("\n")}\n\nSearch a few times across the subjects (for example "seized firearms", "charged trafficking", "contraband tobacco", "home invasion arrest", "youth charged shooting", "gang prevention program"). Report each release once, with official set to true.`,
   });
   return (r.items ?? []).filter((i) => onDomain(i.url, domains)).map((i) => ({ ...i, official: true, via: "official sites (web search)" }));
 }
@@ -363,24 +366,30 @@ async function pool(items, n, fn) {
  * One night. `mode` "sample" (the default) writes the stories into the library marked as samples, with nothing sent
  * and nothing marked covered; "live" will also send to Buffer once that is switched on.
  */
-export async function runNewsroom({ mode = "sample", client = null, fetchFn = fetch, now = new Date(), by = "the nightly run", deadline = Date.now() + 14 * 60 * 1000 } = {}) {
+export async function runNewsroom({ daysAgo = 0, mode = "sample", client = null, fetchFn = fetch, now = new Date(), by = "the nightly run", deadline = Date.now() + 14 * 60 * 1000 } = {}) {
   if (!client && !anthropicKey()) throw new Error("The desk has no Anthropic API key, so the Newsroom cannot run.");
   const api = client ?? new Anthropic({ apiKey: anthropicKey() });
   const set = await settings();
   const src = sourcesFrom(set);
   const usage = newUsage();
-  const night = torontoDate(now);
+  // A sample can be of an earlier night (daysAgo 1 or 2), so Andrew sees three different nights in one go; a live
+  // night always reads back to the last night that finished.
+  if (mode === "live") daysAgo = 0;
+  daysAgo = Math.max(0, Math.min(6, Math.round(Number(daysAgo) || 0)));
+  const end = now.getTime() - daysAgo * 86400000;
+  const until = daysAgo ? end : Infinity;
+  const night = torontoDate(new Date(end));
   const lastOk = await getMeta("newsroom:lastok");
-  const since = Math.min(now.getTime() - 24 * 3600 * 1000, lastOk?.at ? Date.parse(lastOk.at) : Infinity);
-  const log = { id: `${night}-${mode}-${randomBytes(2).toString("hex")}`, night, mode, by, startedAt: now.toISOString(), since: new Date(since).toISOString(), sources: [], found: [], picked: [], skipped: [], updates: [], refused: [], errors: [], stories: [] };
+  const since = daysAgo ? end - 86400000 : Math.min(now.getTime() - 24 * 3600 * 1000, lastOk?.at ? Date.parse(lastOk.at) : Infinity);
+  const log = { id: `${night}-${mode}-${randomBytes(2).toString("hex")}`, night, mode, by, startedAt: now.toISOString(), since: new Date(since).toISOString(), until: daysAgo ? new Date(end).toISOString() : null, sources: [], found: [], picked: [], skipped: [], updates: [], refused: [], errors: [], stories: [] };
   const save = async () => { log.usage = { ...usage, usd: usd(usage) }; await putMeta(`news:night:${log.id}`, log); };
   await save();
   try {
     // 1. gather
-    const feeds = await gatherFeeds({ src, since, fetchFn });
+    const feeds = await gatherFeeds({ src, since, until, fetchFn });
     log.sources.push(...feeds.notes);
     let official = [];
-    try { official = await gatherOfficial({ client: api, usage, src, topics: set.topics, sinceIso: new Date(since).toISOString() }); log.sources.push({ source: "official sites (web search)", found: official.length }); }
+    try { official = await gatherOfficial({ client: api, usage, src, topics: set.topics, sinceIso: new Date(since).toISOString(), untilIso: daysAgo ? new Date(end).toISOString() : "" }); log.sources.push({ source: "official sites (web search)", found: official.length }); }
     catch (e) { log.errors.push(`official sites search: ${e.message}`); }
     const all = [...official, ...feeds.items];
     log.found = all.map((c) => ({ title: c.title, url: c.url, outlet: c.outlet, official: !!c.official }));

@@ -63,7 +63,7 @@ export default async (req) => {
     if (r) return json({ running: r }, 202);
     await putMeta("newsroom:running", { at: new Date().toISOString(), by, mode });
     try {
-      const res = await fetch(`${siteOrigin(new URL(req.url).origin)}/api/newsroom-run-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "", "content-type": "application/json" }, body: JSON.stringify({ mode, by }) });
+      const res = await fetch(`${siteOrigin(new URL(req.url).origin)}/api/newsroom-run-background`, { method: "POST", headers: { "x-admin-key": process.env.ADMIN_KEY ?? "", "content-type": "application/json" }, body: JSON.stringify({ mode, by, daysAgo: mode === "sample" ? Number(body.daysAgo) || 0 : 0 }) });
       if (res.status >= 400) throw new Error(`the run answered ${res.status}`);
     } catch (e) {
       await putMeta("newsroom:running", null);
