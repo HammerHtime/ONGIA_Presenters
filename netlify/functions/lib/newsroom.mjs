@@ -185,11 +185,13 @@ function count(usage, m) {
 export async function ask({ client, usage, system, content, submit, web = null, effort = "medium", maxTokens = 16000 }) {
   const tools = [];
   if (web?.search) tools.push({ type: "web_search_20260209", name: "web_search", max_uses: web.search.max ?? 8, ...(web.search.domains?.length ? { allowed_domains: web.search.domains } : {}) });
-  if (web?.fetch) tools.push({ type: "web_fetch_20260209", name: "web_fetch", max_uses: web.fetch.max ?? 6, ...(web.fetch.domains?.length ? { allowed_domains: web.fetch.domains } : {}) });
+  // A page is read up to about 8,000 tokens: a news release fits easily, and a long article's first part carries its facts.
+  if (web?.fetch) tools.push({ type: "web_fetch_20260209", name: "web_fetch", max_uses: web.fetch.max ?? 4, max_content_tokens: 8000, ...(web.fetch.domains?.length ? { allowed_domains: web.fetch.domains } : {}) });
   tools.push({ name: submit.name, description: submit.description, input_schema: submit.schema, strict: true });
   const messages = [{ role: "user", content }];
   for (let turn = 0; turn < 6; turn++) {
-    const base = { model: MODEL, max_tokens: maxTokens, system, messages, tools, tool_choice: { type: "auto" }, output_config: { effort } };
+    // Cached: each step of a story's conversation re-sends what came before, and cached text costs a tenth.
+    const base = { model: MODEL, max_tokens: maxTokens, system, messages, tools, tool_choice: { type: "auto" }, output_config: { effort }, cache_control: { type: "ephemeral" } };
     let m;
     // The refusal fallback and the strict answer format are asked for; if the API turns either down for this request,
     // it is sent once more without them rather than losing the night.
@@ -223,7 +225,7 @@ export async function gatherOfficial({ client, usage, src, topics, sinceIso, unt
   const domains = [...new Set(src.officialSites.map((s) => s.domain))].slice(0, 60);
   const r = await ask({
     client, usage, effort: "low",
-    web: { search: { max: 10, domains } },
+    web: { search: { max: 6, domains } },
     submit: { name: "report_items", description: "Report the news releases found.", schema: CANDS },
     system: "You find official police and government news releases in Canada for ONGIA, a non-profit that trains police, educators and communities on gangs, organized crime and human trafficking. Use web search, which is limited to official police and agency sites. Report only releases published since the time given, on the subjects given, with their exact address. Never invent an address or a release.",
     content: `Find news releases published ${untilIso ? `between ${sinceIso} and ${untilIso}` : `since ${sinceIso}`} on these subjects:\n${topics.map((t) => `- ${t}`).join("\n")}\n\nSearch a few times across the subjects (for example "seized firearms", "charged trafficking", "contraband tobacco", "home invasion arrest", "youth charged shooting", "gang prevention program"). Report each release once, with official set to true.`,
@@ -252,6 +254,7 @@ export async function rank({ client, usage, items, library, set, topics }) {
 const KEYS = S({ where: arr(str), agency: arr(str), crime: arr(str), specifics: arr(str), outcome: arr(str), people: arr(str) });
 const FACT = S({ id: str, statement: str, kind: { type: "string", enum: ["number", "date", "place", "agency", "charge", "law", "comparison", "other"] }, sourceName: str, sourceUrl: str });
 const DRAFT = S({
+  sourceName: str, sourceUrl: str, sourceOfficial: bool, city: str, province: str,
   headline: str, summary: str, commentary: str,
   captions: S({ linkedin: str, instagram: str, x: str }),
   image: S({ kicker: str, headline: str, figures: arr(S({ value: str, label: str })), view: str, source: str }),
@@ -280,11 +283,11 @@ export async function writeStory({ client, usage, pick, item, similar, gov, offi
   const lib = similar.map((s) => `${s.id} · ${s.night} · ${s.city}, ${s.province} · ${s.headline} · ${s.sourceUrl ?? ""}`).join("\n");
   const urls = [item.url, ...(item.also ?? []).map((a) => a.url)];
   return ask({
-    client, usage, effort: "high", maxTokens: 20000,
-    web: { fetch: { max: 8 }, search: { max: 4 } },
+    client, usage, effort: "medium", maxTokens: 20000,
+    web: { fetch: { max: 4 }, search: { max: 2 } },
     submit: { name: "submit_draft", description: "Submit the finished draft.", schema: DRAFT },
     system: `You write ONGIA's social media posts about Canadian news. ONGIA is Canada's non-profit for training on street gangs, youth violence, organized crime and human trafficking; its board includes court-qualified experts, so ONGIA's view speaks with that authority. You write for ONGIA's own channels (Instagram, its LinkedIn page, X).\n\n${RULES}`,
-    content: `The story (${typeOf(pick.type).label}, ${pick.city}, ${pick.province}):\n${item.title}\nSource: ${item.official ? "official release" : item.outlet} ${item.url}\n${item.also?.length ? `Also reported at:\n${item.also.map((a) => `- ${a.name} ${a.url}`).join("\n")}\n` : ""}Why it was picked: ${pick.why}\n\nIf the source is in French, read it in French and write everything in English. Read the source first with web_fetch (prefer the official release; if the source is a news story, look for the agency's own release with web search and read it). Base every fact on what you read.\n\nWrite:\n- headline: short and factual, no names.\n- summary: two or three sentences in ONGIA's own words, facts only.\n- commentary: a full paragraph of ONGIA's expert view, the pattern behind the story and why it matters.\n${bigPicture ? `- This is one of tonight's bigger-picture stories: in the commentary explain how it connects beyond this city or offender (the network, other provinces, the groups that profit, the supply route, how young people are recruited and used as pawns while the adults directing them stay insulated), usually by pointing to similar crimes in other provinces. Each comparison must be real: from this list of ONGIA's earlier stories (give its id) or from an official release you read (give its address), and listed under comparisons and facts.\n  Earlier stories:\n${lib || "  (none yet)"}\n` : "- Keep the commentary on this story itself; no comparisons to other provinces tonight (comparisons empty).\n"}- captions.linkedin: professional, the summary then the full view woven in as one piece, the source link at the end of the story text, then hashtags. 120 to 220 words.\n- captions.instagram: shorter (70 to 130 words), the same story and view, ends with "Link in bio", then hashtags.\n- captions.x: one short line plus the source link, under 250 characters with the link, one or two hashtags.\n- Mention the agency by its name in the text (the desk adds @mentions where the agency's account is confirmed). Hashtags: the city and province (e.g. #Brampton #Peel #Ontario), two or three topic tags (#ContrabandTobacco #GhostGuns #HumanTrafficking), and #ONGIA. About 5 to 8 on Instagram, 4 to 6 on LinkedIn, 2 or 3 on X. Put the full list under hashtags too.\n- image: kicker like "SEIZURE · LACOLLE, QC" (the outcome and the place), a headline under 90 characters, up to three key figures from the release (value and short label; none if the release gives none), view: two or three sentences of ONGIA's view, source: the agency and "news release" (or the outlet).\n- keywords: where (city, province, country), agency (full official names), crime (from: gangs, organized crime, guns, shootings, drugs, human trafficking, contraband tobacco, nicotine pouches, extortion, home invasions, money laundering, youth violence, auto theft, carjacking, sextortion, fraud), specifics (drug names, firearm types incl. ghost gun / 3D-printed, named projects, importation or exportation, port or border crossing), outcome (seizure, arrest, charges, sentencing, warrant, good news), people by category only (youth, adult, victims).\n- facts: every factual statement in your text (numbers, dates, places, agencies, charges, laws, comparisons), each with the source name and address you read it at. Ids f1, f2, ...\n- photo: only if the official release itself has a photo of what was seized or the scene (drugs, guns, cash, cartons, pouches, vehicles) with no person in it, give the image address and what it shows; otherwise empty strings. Never a news outlet's photo, never a person.\n- andrewComment: ${allowComment ? `a comment from Andrew Hammond, ONGIA's president, to post under ONGIA's LinkedIn post, as an expert and as president, as long as the story needs. ${VOICE} Any number in it must be in facts.` : "empty string."}\n\nAllowed addresses to read include: ${urls.join(", ")}. Government sources for the law: ${gov.slice(0, 12).join(", ")}. Official sites: ${official.slice(0, 30).join(", ")}.`,
+    content: `The story (${typeOf(pick.type).label}, ${pick.city}, ${pick.province}):\n${item.title}\nSource: ${item.official ? "official release" : item.outlet} ${item.url}\n${item.also?.length ? `Also reported at:\n${item.also.map((a) => `- ${a.name} ${a.url}`).join("\n")}\n` : ""}Why it was picked: ${pick.why}\n\nIf the source is in French, read it in French and write everything in English. Read the source first with web_fetch (prefer the official release; if the source is a news story, look for the agency's own release with web search and read it). Base every fact on what you read.\n\nWrite:\n- sourceName, sourceUrl, sourceOfficial: the page you based the story on (the agency's own release when you found it, else the news story), its real address (never a news.google.com link), and whether it is the agency's own.\n- city and province (two letters) where it happened; empty only if the source gives no place.\n- headline: short and factual, no names.\n- summary: two or three sentences in ONGIA's own words, facts only.\n- commentary: a full paragraph of ONGIA's expert view, the pattern behind the story and why it matters.\n${bigPicture ? `- This is one of tonight's bigger-picture stories: in the commentary explain how it connects beyond this city or offender (the network, other provinces, the groups that profit, the supply route, how young people are recruited and used as pawns while the adults directing them stay insulated), usually by pointing to similar crimes in other provinces. Each comparison must be real: from this list of ONGIA's earlier stories (give its id) or from an official release you read (give its address), and listed under comparisons and facts.\n  Earlier stories:\n${lib || "  (none yet)"}\n` : "- Keep the commentary on this story itself; no comparisons to other provinces tonight (comparisons empty).\n"}- captions.linkedin: professional, the summary then the full view woven in as one piece, the source link at the end of the story text, then hashtags. 120 to 220 words.\n- captions.instagram: shorter (70 to 130 words), the same story and view, ends with "Link in bio", then hashtags.\n- captions.x: one short line plus the source link, under 250 characters with the link, one or two hashtags.\n- Mention the agency by its name in the text (the desk adds @mentions where the agency's account is confirmed). Hashtags: the city and province (e.g. #Brampton #Peel #Ontario), two or three topic tags (#ContrabandTobacco #GhostGuns #HumanTrafficking), and #ONGIA. About 5 to 8 on Instagram, 4 to 6 on LinkedIn, 2 or 3 on X. Put the full list under hashtags too.\n- image: kicker like "SEIZURE · LACOLLE, QC" (the outcome and the place), a headline under 90 characters, up to three key figures from the release: amounts, quantities and counts only (e.g. "$100,000" damage, "3" handguns, "2" charged), never dates; none if the release gives none, view: two or three sentences of ONGIA's view, source: the agency and "news release" (or the outlet).\n- keywords: where (city, province, country), agency (full official names), crime (from: gangs, organized crime, guns, shootings, drugs, human trafficking, contraband tobacco, nicotine pouches, extortion, home invasions, money laundering, youth violence, auto theft, carjacking, sextortion, fraud), specifics (drug names, firearm types incl. ghost gun / 3D-printed, named projects, importation or exportation, port or border crossing), outcome (seizure, arrest, charges, sentencing, warrant, good news), people by category only (youth, adult, victims).\n- facts: every factual statement in your text (numbers, dates, places, agencies, charges, laws, comparisons), each with the source name and address you read it at. Ids f1, f2, ...\n- photo: only if the official release itself has a photo of what was seized or the scene (drugs, guns, cash, cartons, pouches, vehicles) with no person in it, give the image address and what it shows; otherwise empty strings. Never a news outlet's photo, never a person.\n- andrewComment: ${allowComment ? `a comment from Andrew Hammond, ONGIA's president, to post under ONGIA's LinkedIn post, as an expert and as president, as long as the story needs. ${VOICE} Any number in it must be in facts.` : "empty string."}\n\nAllowed addresses to read include: ${urls.join(", ")}. Government sources for the law: ${gov.slice(0, 12).join(", ")}. Official sites: ${official.slice(0, 30).join(", ")}.`,
   });
 }
 
@@ -299,7 +302,7 @@ export async function checkStory({ client, usage, draft, item, gov }) {
   const facts = draft.facts.map((f) => `${f.id} [${f.kind}] ${f.statement} (source: ${f.sourceName} ${f.sourceUrl})`).join("\n");
   return ask({
     client, usage, effort: "high", maxTokens: 20000,
-    web: { fetch: { max: 10 }, search: { max: 3 } },
+    web: { fetch: { max: 4 }, search: { max: 1 } },
     submit: { name: "submit_check", description: "Submit the verdict on every statement and the corrected texts.", schema: CHECK },
     system: "You are ONGIA's fact-checker, separate from the writer. You re-read every factual statement against its source and mark it confirmed, corrected or removed. Statements about laws, regulations and what is legal are checked only against the government's own page (Health Canada, Justice Laws, the Canada Gazette, the agency's page), never a news summary or memory; if that page cannot be read, the statement is removed. Numbers come from the release, not a news rewrite. Anything you cannot confirm is removed, never softened into a guess. Then you return the texts with every correction applied and every removed statement taken out, changing nothing else.",
     content: `The story's source: ${item.url}\n\nStatements to check:\n${facts}\n\nThe texts:\nHEADLINE: ${draft.headline}\nSUMMARY: ${draft.summary}\nCOMMENTARY: ${draft.commentary}\nLINKEDIN: ${draft.captions.linkedin}\nINSTAGRAM: ${draft.captions.instagram}\nX: ${draft.captions.x}\nIMAGE: ${JSON.stringify(draft.image)}\nANDREW'S COMMENT: ${draft.andrewComment || "(none)"}\n\nRead each source with web_fetch. For a law statement, read the government page (${gov.slice(0, 10).join(", ")}). Give a verdict for every id, the address you confirmed it at, and for corrected ones the corrected statement. Return all texts with the corrections applied and removed statements taken out (keep them otherwise word for word; an empty comment stays empty).`,
@@ -314,6 +317,18 @@ export async function humanize({ client, usage, t }) {
     submit: { name: "submit_edit", description: "Submit the edited texts.", schema: EDIT },
     system: `You are a line editor removing the tells of AI writing from text ONGIA will post. Change the texture, never the substance: every fact, number, date, place, agency, hashtag, link and claim stays, meaning the same thing. Add nothing: no new examples, caveats, transitions or context. Cut inflated significance ("stands as a testament", "plays a pivotal role", "marks a turning point"), "not just X but Y", rule-of-three padding, AI vocabulary (delve, tapestry, testament, underscore, pivotal, crucial, vibrant, robust, foster, showcase, leverage, seamless, landscape, navigate, elevate, resonate), "-ing" tails that editorialize, "serves as"/"stands as" (use is/has), em dashes (use commas, colons or full stops), puffery, signposting ("it's important to note", "moreover", "in conclusion"). Vary sentence length. Plain Canadian English. Never add a header or label. If a text is already clean, make only light touches. Keep links and hashtags exactly as they are.`,
     content: `HEADLINE: ${t.headline}\nSUMMARY: ${t.summary}\nCOMMENTARY: ${t.commentary}\nIMAGE VIEW: ${t.view}\nLINKEDIN: ${t.captions.linkedin}\nINSTAGRAM: ${t.captions.instagram}\nX: ${t.captions.x}\nANDREW'S COMMENT: ${t.andrewComment || "(none; return an empty string)"}`,
+  });
+}
+
+// ── repair: take out a name or a figure the guards caught, nothing else ─────────────────────────────────────────────
+const REPAIR = S({ captions: S({ linkedin: str, instagram: str, x: str }), image: S({ kicker: str, headline: str, figures: arr(S({ value: str, label: str })), view: str, source: str }), headline: str, summary: str, commentary: str, andrewComment: str });
+export async function repair({ client, usage, t, why, names, facts }) {
+  const ok = facts.filter((f) => f.verdict === "confirmed" || f.verdict === "corrected").map((f) => `- ${f.verdict === "corrected" && f.corrected ? f.corrected : f.statement}`).join("\n");
+  return ask({
+    client, usage, effort: "low",
+    submit: { name: "submit_repair", description: "Submit the texts with the problems removed.", schema: REPAIR },
+    system: "You make the smallest change that removes a problem from text ONGIA will post. Never add anything. Keep everything else word for word.",
+    content: `Problems found: ${why.join("; ")}.\nNever name any person (these appear in the sources: ${(names ?? []).join(", ") || "none listed"}); refer to them by role or not at all.\nEvery number must be one of the checked facts below; take out any other number (a numbered point may become a plain sentence). A key figure on the image that is not in the facts is removed.\nChecked facts:\n${ok}\n\nHEADLINE: ${t.headline}\nSUMMARY: ${t.summary}\nCOMMENTARY: ${t.commentary}\nLINKEDIN: ${t.captions.linkedin}\nINSTAGRAM: ${t.captions.instagram}\nX: ${t.captions.x}\nIMAGE: ${JSON.stringify(t.image)}\nANDREW'S COMMENT: ${t.andrewComment || "(none; return an empty string)"}`,
   });
 }
 
@@ -438,19 +453,33 @@ export async function runNewsroom({ daysAgo = 0, mode = "sample", client = null,
         photo = ph.ok ? { url: draft.photo.url, credit: ph.credit, src: ph.src, person: false, describe: ph.describe } : null;
         if (!ph.ok) log.errors.push(`photo left out for "${item.title}": ${ph.why}`);
       }
-      const image = { ...check.image, view: edited.view, source: check.image.source || item.outlet };
-      const texts = [edited.headline, edited.summary, edited.commentary, edited.captions.linkedin, edited.captions.instagram, edited.captions.x, image.kicker, image.headline, image.view, ...image.figures.flatMap((f) => [f.value, f.label]), edited.andrewComment];
-      const why = refusals({ texts, names: draft.namesInSources, facts, photo }, { governmentDomains: src.governmentDomains, officialDomains: src.officialSites.map((s) => s.domain) });
-      // The edit must not change a fact: any number it introduced is caught above; a name it introduced too.
+      let image = { ...check.image, view: edited.view, source: check.image.source || item.outlet };
+      const guardOpts = { governmentDomains: src.governmentDomains, officialDomains: src.officialSites.map((s) => s.domain) };
+      const textsOf = (e, im) => ({
+        texts: [e.headline, e.summary, e.commentary, e.captions.linkedin, e.captions.instagram, e.captions.x, im.kicker, im.headline, im.view, ...im.figures.flatMap((f) => [f.value, f.label]), e.andrewComment],
+        labels: ["the headline", "the summary", "the commentary", "the LinkedIn caption", "the Instagram caption", "the X caption", "the image", "the image", "the image", ...im.figures.flatMap(() => ["the image", "the image"]), "Andrew's comment"],
+      });
+      let why = refusals({ ...textsOf(edited, image), names: draft.namesInSources, facts, photo }, guardOpts);
+      // A name or an unsourced figure can usually just come out: one repair, then the same guards again.
+      let final = edited;
+      if (why.length && why.every((w) => /^names a person|^has numbers/.test(w))) {
+        const fixed = settle(await repair({ client: api, usage, t: { ...edited, image }, why, names: draft.namesInSources, facts }), { ...edited, image });
+        const im2 = { ...image, ...fixed.image, figures: Array.isArray(fixed.image?.figures) ? fixed.image.figures : image.figures };
+        const again = refusals({ ...textsOf(fixed, im2), names: draft.namesInSources, facts, photo }, guardOpts);
+        if (!again.length) { final = fixed; image = im2; why = []; } else why = again.map((w) => `${w} (after one repair)`);
+      }
       if (why.length) return { item, refused: why };
       const id = newId();
       const story = {
         id, night, mode, createdAt: new Date().toISOString(), by,
-        type: p.type, city: p.city, province: p.province, country: "Canada",
-        headline: edited.headline, summary: edited.summary, commentary: edited.commentary,
-        captions: edited.captions, andrewComment: edited.andrewComment || "",
+        type: p.type, city: draft.city || p.city || (draft.keywords.where ?? [])[0] || "", province: (draft.province || p.province || "").slice(0, 2).toUpperCase(), country: "Canada",
+        headline: final.headline, summary: final.summary, commentary: final.commentary,
+        captions: final.captions, andrewComment: final.andrewComment || "",
         image: { ...image, date: longDate(night) }, photo: photo ? { url: photo.url, credit: photo.credit, describe: photo.describe } : null,
-        source: { name: item.official ? item.outlet : item.outlet || domainOf(item.url), url: item.url, official: !!item.official, published: item.published ?? "" },
+        // The page the story was written from (the agency's release when one was found), not the search result that led to it.
+        source: /^https?:\/\//.test(draft.sourceUrl) && !/news\.google\./.test(draft.sourceUrl)
+          ? { name: draft.sourceName || domainOf(draft.sourceUrl), url: draft.sourceUrl, official: !!draft.sourceOfficial || onDomain(draft.sourceUrl, src.officialSites.map((s) => s.domain)), published: item.published ?? "", foundVia: item.url }
+          : { name: item.outlet || domainOf(item.url), url: item.url, official: !!item.official, published: item.published ?? "" },
         otherSources: item.also ?? [], facts, comparisons: draft.comparisons ?? [], keywords: draft.keywords, hashtags: draft.hashtags ?? [],
         bigPicture: !!bigPicture, caseKey: { project: p.project ?? "", agency: p.agency ?? "", details: p.details ?? [] },
         thread: [], buffer: { status: "none" }, why: p.why,

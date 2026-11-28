@@ -95,11 +95,13 @@ const FREE = ["1-833-900-1010", "1 833 900 1010", "24/7"];
 export function numbersIn(text) {
   let t = String(text ?? "");
   for (const f of FREE) t = t.split(f).join(" ");
-  t = t.replace(/#\w+/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/\b\d+D\b/gi, " ");
+  t = t.replace(/#\w+/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/\b\d+D\b/gi, " ")
+    // a numbered point ("1. Recruitment moved onto the phone") is not a figure
+    .replace(/^[ \t]*\(?\d{1,2}[.)][ \t]/gm, " ");
   const out = [];
-  for (const m of t.matchAll(/(\d[\d,]*(?:\.\d+)?)(\s*(?:million|billion|thousand|k)\b)?/gi)) {
+  for (const m of t.matchAll(/(\d[\d,]*(?:\.\d+)?)((?:\s*|-)(?:million|billion|thousand|k)\b)?/gi)) {
     const n = m[1].replace(/,/g, "").replace(/\.0+$/, "");
-    out.push(m[2] ? `${n} ${m[2].trim().toLowerCase()}` : n);
+    out.push(m[2] ? `${n} ${m[2].replace(/^[\s-]+/, "").toLowerCase()}` : n);
   }
   return out;
 }
@@ -108,7 +110,7 @@ export function unsourcedNumbers(texts, facts) {
   const known = new Set((facts ?? []).filter((f) => f.verdict === "confirmed" || f.verdict === "corrected").flatMap((f) => numbersIn(`${f.statement} ${f.corrected ?? ""}`)));
   // A scaled figure ("25 million") is sourced if the fact says it either way ("25 million" or "25,000,000").
   const scale = { thousand: 1e3, k: 1e3, million: 1e6, billion: 1e9 };
-  for (const k of [...known]) { const [n, s] = k.split(" "); if (s && scale[s]) known.add(String(Number(n) * scale[s])); }
+  for (const k of [...known]) { const [n, s] = k.split(" "); if (s && scale[s]) { known.add(String(Number(n) * scale[s])); known.add(n); } }
   const missing = new Set();
   for (const n of texts.filter(Boolean).flatMap(numbersIn)) {
     const [v, s] = n.split(" ");
@@ -131,8 +133,10 @@ export function lawProblems(facts, governmentDomains) {
 export function refusals(draft, { governmentDomains = [], officialDomains = [] } = {}) {
   const why = [];
   const texts = draft.texts ?? [];
-  const names = namesFound(texts, draft.names ?? []);
-  if (names.length) why.push(`names a person (${names.length}): ${names.join(", ")}`);
+  const labels = draft.labels ?? [];
+  // Where a name appeared, never the name itself: the log must not carry a young person's or a victim's name either.
+  const named = texts.map((t, i) => (namesFound([t], draft.names ?? []).length ? labels[i] || `text ${i + 1}` : null)).filter(Boolean);
+  if (named.length) why.push(`names a person (in: ${[...new Set(named)].join(", ")})`);
   const nums = unsourcedNumbers(texts, draft.facts ?? []);
   if (nums.length) why.push(`has numbers no checked source carries: ${nums.join(", ")}`);
   why.push(...lawProblems(draft.facts, governmentDomains));

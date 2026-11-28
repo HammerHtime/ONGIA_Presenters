@@ -48,6 +48,8 @@ const facts = [
 ok("numbers the facts carry pass (1,100 = 1100; $25 million)", G.unsourcedNumbers(["About 1100 rounds and $25 million in pouches; 2 charged."], facts).length === 0);
 ok("a statistic with no source is refused", G.unsourcedNumbers(["Gun crime rose 40% last year."], facts).join() === "40", JSON.stringify(G.unsourcedNumbers(["Gun crime rose 40% last year."], facts)));
 ok("the hotline, 24/7, '3D-printed', hashtags and links are not figures", G.unsourcedNumbers(["Call 1-833-900-1010, 24/7. One gun was 3D-printed. #Top10 https://x.ca/2026/11"], facts).length === 0);
+ok("numbered points in a comment are not figures", G.unsourcedNumbers(["So what do we do?\n1. Start early.\n2) Mentor.\n10. Real exits."], facts).length === 0);
+ok("'$25-million' with a hyphen is the same as '$25 million'", G.unsourcedNumbers(["More than $25-million in pouches, about 25 million in all."], facts).length === 0);
 ok("a statement that was never checked refuses the draft", G.refusals({ texts: [], facts: [{ id: "f9", statement: "x", kind: "other" }] }).some((w) => /never checked/.test(w)));
 
 console.log("— the law only from a government page");
@@ -128,6 +130,11 @@ const client = { beta: { messages: { create: async (req) => {
     const d = Object.values(drafts).find((x) => body.includes(`HEADLINE: ${x.headline}`));
     return reply({ captions: d.captions, view: d.image.view, headline: d.headline, summary: d.summary, commentary: d.commentary, andrewComment: /none; return/.test(body) ? "" : d.andrewComment });
   }
+  if (name === "submit_repair") {
+    // Stubborn on purpose: hands the text back unchanged, so the youth story stays refused after its one repair.
+    const d = Object.values(drafts).find((x) => body.includes(`HEADLINE: ${x.headline}`));
+    return reply({ captions: d.captions, image: d.image, headline: d.headline, summary: d.summary, commentary: d.commentary, andrewComment: "" });
+  }
   throw new Error(`unexpected tool ${name}`);
 } } } };
 // The feeds: CBSA has the Brampton story too (a duplicate across outlets), plus a shooting and an off-subject item.
@@ -143,7 +150,8 @@ ok("the night ran without errors", !log.errors.length, JSON.stringify(log.errors
 ok("the official web search keeps only official sites (an outlet's page dropped)", !log.found.some((f) => /not-official/.test(f.url)));
 ok("the same Brampton story from the feed and the search is one item, the official one kept", log.skipped.some((s) => /same story/.test(s.why) && /cbc/.test(s.url)) && log.picked.some((p) => /peelpolice/.test(p.url)), JSON.stringify(log.skipped));
 ok("the off-subject item is skipped with Claude's reason", log.skipped.some((s) => /budget/i.test(s.title) && s.why === "off subject"));
-ok("the story whose source names a youth is refused, and the log says why", log.refused.length === 1 && /names a person/.test(log.refused[0].why.join(" ")), JSON.stringify(log.refused));
+ok("the story whose source names a youth is refused after one repair, and the log says where", log.refused.length === 1 && /names a person \(in: the LinkedIn caption, the Instagram caption, the X caption\).*after one repair/.test(log.refused[0].why.join(" ")), JSON.stringify(log.refused));
+ok("…and the log itself never carries the name", !JSON.stringify(await getMeta(`news:night:${log.id}`)).includes("Riley"));
 ok("…so the made-up youth's name is in no saved story", !JSON.stringify(await Promise.all(log.stories.map(N.getStory))).includes("Riley"));
 ok("one story written up", log.picked.length === 1 && log.stories.length === 1, JSON.stringify(log.picked));
 const story = await N.getStory(log.stories[0]);
@@ -203,6 +211,30 @@ const fr = await N.gatherFeeds({ since: 0, src: { feeds: [{ name: "SQ", agency: 
 ok("a French release on the subjects is kept, a road closure is not", fr.items.length === 1 && /armes/.test(fr.items[0].title));
 ok("'fr:' searches Google News in French, the rest in English", asked.some((u) => /hl=fr-CA/.test(u) && /gang%20de%20rue/.test(u)) && asked.some((u) => /hl=en-CA/.test(u) && /extortion/.test(u)));
 ok("the four added subjects are searched by default", ["extortion", "auto theft", "money laundering", "sextortion"].every((t) => N.TOPICS.some((x) => x.includes(t))));
+
+console.log("— one repair: a name taken out saves the story");
+{
+  const fx = { beta: { messages: { create: async (req) => {
+    const name = req.tools.at(-1).name, body = JSON.stringify(req.messages);
+    const rp = (input) => ({ type: "message", role: "assistant", stop_reason: "tool_use", content: [{ type: "tool_use", id: "t", name, input }], usage: { input_tokens: 1, output_tokens: 1 } });
+    const cap = "A spokesperson, Morgan Ellery, said 2 inmates were charged. #ONGIA";      // made up
+    const fixedCap = "A spokesperson said 2 inmates were charged. #ONGIA";
+    const im = { kicker: "SEIZURE · KINGSTON, ON", headline: "Contraband seized at a prison", figures: [], view: "Prison contraband is a business.", source: "CSC news release" };
+    const f = [{ id: "f1", statement: "2 inmates were charged", kind: "charge", sourceName: "CSC", sourceUrl: "https://www.canada.ca/en/csc/news/1" }];
+    if (name === "report_items") return rp({ items: [{ title: "Contraband seized at Kingston prison", url: "https://www.canada.ca/en/csc/news/1", outlet: "CSC", published: "", snippet: "", official: true }] });
+    if (name === "choose") return rp({ picks: [{ n: 1, type: "drugs", why: "prison contraband", goodNews: false, bigPicture: false, significant: false, agency: "CSC", city: "Kingston", province: "ON", project: "", details: [] }], updates: [], skipped: [] });
+    if (name === "submit_draft") return rp({ sourceName: "Correctional Service Canada", sourceUrl: "https://www.canada.ca/en/csc/news/1", sourceOfficial: true, city: "Kingston", province: "ON", headline: "Contraband seized at a Kingston prison", summary: "2 inmates were charged.", commentary: "Prison contraband is a business.", captions: { linkedin: cap, instagram: cap, x: cap }, image: im, keywords: { where: ["Kingston"], agency: ["Correctional Service Canada"], crime: ["drugs"], specifics: [], outcome: ["charges"], people: ["adult"] }, hashtags: [], facts: f, comparisons: [], namesInSources: ["Morgan Ellery"], photo: { url: "", description: "" }, andrewComment: "" });
+    if (name === "submit_check") return rp({ facts: [{ id: "f1", verdict: "confirmed", corrected: "", sourceUrl: f[0].sourceUrl, note: "" }], captions: { linkedin: cap, instagram: cap, x: cap }, image: im, headline: "Contraband seized at a Kingston prison", summary: "2 inmates were charged.", commentary: "Prison contraband is a business.", andrewComment: "" });
+    if (name === "submit_edit") return rp({ captions: { linkedin: cap, instagram: cap, x: cap }, view: im.view, headline: "Contraband seized at a Kingston prison", summary: "2 inmates were charged.", commentary: "Prison contraband is a business.", andrewComment: "" });
+    if (name === "submit_repair") return rp({ captions: { linkedin: fixedCap, instagram: fixedCap, x: fixedCap }, image: im, headline: "Contraband seized at a Kingston prison", summary: "2 inmates were charged.", commentary: "Prison contraband is a business.", andrewComment: "" });
+    throw new Error(name);
+  } } } };
+  await N.saveSettings({ sources: { feeds: [], officialSites: [{ name: "Government of Canada", agency: "", province: "", domain: "canada.ca" }], newsQueries: [] } }, "test");
+  const r = await N.runNewsroom({ mode: "sample", client: fx, fetchFn: async () => new Response("<rss></rss>"), now: new Date("2026-11-30T07:05:00Z") });
+  const st = r.stories[0] && await N.getStory(r.stories[0]);
+  ok("the name is taken out and the story is kept", r.refused.length === 0 && st && !JSON.stringify(st).includes("Ellery") && /A spokesperson said/.test(st.captions.linkedin), JSON.stringify(r.refused));
+  ok("the story records the release it was written from, and its city", st?.source.url === "https://www.canada.ca/en/csc/news/1" && st.source.official && st.city === "Kingston");
+}
 
 console.log("— an option the API turns down doesn't lose the night");
 const seen = [];
