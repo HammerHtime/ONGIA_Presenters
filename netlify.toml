@@ -114,3 +114,17 @@
   for = "/vendor/*"
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# The Newsroom (28 Nov 2026): the post image is drawn with resvg, whose WebAssembly file is read at run time, and the
+# sources list is read from its JSON file; both ship with the functions that need them.
+[functions."newsroom-run-background"]
+  included_files = ["public/assets/**", "node_modules/@resvg/resvg-wasm/index_bg.wasm", "netlify/functions/lib/newsroom-sources.json"]
+
+[functions."newsroom"]
+  included_files = ["public/assets/**", "node_modules/@resvg/resvg-wasm/index_bg.wasm", "netlify/functions/lib/newsroom-sources.json"]
+
+[functions."newsroom-schedule"]
+  included_files = ["public/assets/**", "node_modules/@resvg/resvg-wasm/index_bg.wasm", "netlify/functions/lib/newsroom-sources.json"]
+
+[functions."newsimg"]
+  included_files = ["node_modules/@resvg/resvg-wasm/index_bg.wasm", "netlify/functions/lib/newsroom-sources.json"]
