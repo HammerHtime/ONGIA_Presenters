@@ -3611,10 +3611,45 @@ function calComing(items, today) {
   return out.slice(0, 9);
 }
 
+/*
+ * My own work schedule on the year's PDF (Andrew 28 Nov 2026: "N for nights, D for days, O for off … 7 on, 7 off").
+ * Folded to one line: "7 days, 7 off, 7 nights, 7 off · Change". Kept for the signed-in person only (/api/calendar).
+ */
+let MY_SCHED = undefined;
+async function drawMySchedule(editing = false) {
+  const box = document.getElementById("mysched"); if (!box) return;
+  if (MY_SCHED === undefined) { try { MY_SCHED = await api("/calendar?schedule=1"); } catch (e) { MY_SCHED = { schedule: null, says: "", problem: e.message }; } }
+  const s = MY_SCHED.schedule, head = `<div class="dh"><h2>My schedule</h2></div>`;
+  if (!editing) {
+    box.innerHTML = `${head}<p class="porg schedline">${MY_SCHED.problem ? esc(MY_SCHED.problem) : s ? `${esc(MY_SCHED.says)} · from ${esc(fmtDate(s.start).replace(/^\w+ /, ""))}` : "None yet. It goes on the PDF, D, N or O on each day."} <button type="button" class="linkish" id="schedchange">${s ? "Change" : "Add"}</button></p>`;
+    document.getElementById("schedchange").onclick = () => drawMySchedule(true);
+    return;
+  }
+  box.innerHTML = `${head}<label class="porg" for="sched-pat">Rotation, a letter a day: D days, N nights, O off</label>
+    <input id="sched-pat" class="input" style="width:100%;font-family:ui-monospace,monospace;letter-spacing:.06em" value="${esc(s?.pattern ?? "")}" placeholder="DDDDDDDOOOOOOONNNNNNNOOOOOOO" autocomplete="off">
+    <label class="porg" for="sched-start" style="margin-top:6px;display:block">Its first letter falls on</label>
+    <input id="sched-start" class="input" type="date" value="${esc(s?.start ?? "")}">
+    <div style="display:flex;gap:6px;margin-top:8px"><button type="button" class="mini" id="sched-save">Save</button><button type="button" class="mini ghost" id="sched-cancel">Cancel</button>${s ? `<button type="button" class="mini ghost" id="sched-off">Remove</button>` : ""}</div>
+    <p class="porg" id="sched-say" style="margin-top:6px"></p>`;
+  const put = async (body) => { try { MY_SCHED = await api("/calendar?schedule=1", { method: "PUT", body: JSON.stringify(body) }); drawMySchedule(); } catch (e) { document.getElementById("sched-say").textContent = e.message; } };
+  document.getElementById("sched-save").onclick = () => put({ pattern: document.getElementById("sched-pat").value, start: document.getElementById("sched-start").value });
+  document.getElementById("sched-cancel").onclick = () => drawMySchedule();
+  if (s) document.getElementById("sched-off").onclick = () => put({ off: true });
+}
+
 function yearScreen(events, year, confs = []) {
-  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="printyear">Print</button>`;
+  BARRIGHT.innerHTML = `<button class="chip" id="back">Events</button><button class="chip" id="printyear">Print</button><button class="chip" id="pdfyear">Download PDF</button>`;
   document.getElementById("back").onclick = () => { view = { name: "list" }; render(); };
   document.getElementById("printyear").onclick = () => window.print();
+  // The whole year as a wall calendar, a month a page, every event, with my schedule on each day (Andrew 28 Nov 2026).
+  document.getElementById("pdfyear").onclick = async (e) => {
+    const b = e.currentTarget, was = b.textContent; b.disabled = true; b.textContent = "Making it…";
+    try {
+      const res = await apiFetch(`/api/calendar?year=${year}`, { headers: { "x-admin-key": KEY } });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't make the PDF (${res.status})`);
+      await saveRes(res, `ONGIA calendar ${year}.pdf`);
+    } catch (x) { alert(x.message); } finally { b.disabled = false; b.textContent = was; }
+  };
   const today = todayIso();
   const how = view.cal ?? (matchMedia("(max-width:760px)").matches ? "list" : "year");
   const month = view.month ?? (yearOf(today) === year ? monthOf(today) : 1);
@@ -3645,6 +3680,7 @@ function yearScreen(events, year, confs = []) {
           ${CAL_KINDS.map(([k, l]) => `<label class="cshow"><input type="checkbox" data-calshow="${k}"${CAL_SHOW[k] ? " checked" : ""}><i class="k-${k}"></i>${l}<b>${all.filter((i) => i.kind === k && inYear(i)).length}</b></label>`).join("")}
           <label class="cwhosel">Who<select id="calwho"><option value="">Everyone</option>${people.map((p) => `<option value="${esc(p.email)}"${p.email === CAL_WHO ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
           <p class="porg" style="margin-top:10px">On each bar, who's going; the lead is underlined. A, D, F: agreements, draft and final materials due. H: hotel cut-off.</p></section>
+        <section class="card calcard" id="mysched"><div class="dh"><h2>My schedule</h2></div><p class="porg">Loading…</p></section>
       </aside></div>`
     + (() => { const crunch = crunchOf(events, year, today); return crunch.length ? `<div class="needs crunch"><h2>Watch these weeks</h2>
       ${crunch.map((c) => `<div class="nrow${c.stop ? " stop" : ""}"><div class="why"><b>${esc(c.what)}</b><div class="who">${esc(c.when)}</div></div><button class="mini" data-goev="${esc(c.id)}">Open event</button></div>`).join("")}</div>` : ""; })()
@@ -3652,6 +3688,7 @@ function yearScreen(events, year, confs = []) {
     + `<dialog class="sheet msdlg" id="msdlg">${milestonesPanel(events, year, today)}</dialog>`;
 
   wireTemplate();
+  drawMySchedule();
   const go = (v) => { view = { ...view, name: "year", ...v }; render(); };
   document.getElementById("yprev").onclick = () => how === "month" ? go(month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }) : go({ year: year - 1, month: undefined });
   document.getElementById("ynext").onclick = () => how === "month" ? go(month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }) : go({ year: year + 1, month: undefined });
