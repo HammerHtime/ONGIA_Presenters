@@ -28,7 +28,11 @@ export const TYPES = {
   organized: { tag: "ORGANIZED CRIME", colour: "#F07167", label: "Organized crime" },
   drugs: { tag: "DRUG SEIZURE", colour: "#F07167", label: "Drugs" },
   homeinvasion: { tag: "HOME INVASION", colour: "#F07167", label: "Home invasions" },
+  extortion: { tag: "EXTORTION", colour: "#F07167", label: "Extortion" },
+  autotheft: { tag: "AUTO THEFT", colour: "#F07167", label: "Auto theft" },
+  laundering: { tag: "MONEY LAUNDERING", colour: "#F07167", label: "Money laundering" },
   trafficking: { tag: "HUMAN TRAFFICKING", colour: "#5CC8D7", label: "Human trafficking" },
+  sextortion: { tag: "ONLINE EXPLOITATION", colour: "#B69CF5", label: "Sextortion" },
   youth: { tag: "YOUTH VIOLENCE", colour: "#B69CF5", label: "Youth violence" },
   goodnews: { tag: "GOOD NEWS", colour: "#7BD389", label: "Good news" },
 };

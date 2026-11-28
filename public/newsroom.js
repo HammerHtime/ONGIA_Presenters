@@ -11,7 +11,7 @@
  */
 const TYPES = {
   tobacco: ["Contraband tobacco", "#8a6a12"], nicotine: ["Nicotine pouches", "#8a6a12"], guns: ["Guns & gangs", "#b4442f"], gangs: ["Guns & gangs", "#b4442f"],
-  organized: ["Organized crime", "#b4442f"], drugs: ["Drugs", "#b4442f"], homeinvasion: ["Home invasions", "#b4442f"], trafficking: ["Trafficking", "#1f6f6a"],
+  organized: ["Organized crime", "#b4442f"], drugs: ["Drugs", "#b4442f"], homeinvasion: ["Home invasions", "#b4442f"], trafficking: ["Trafficking", "#1f6f6a"], extortion: ["Extortion", "#b4442f"], autotheft: ["Auto theft", "#b4442f"], laundering: ["Money laundering", "#b4442f"], sextortion: ["Sextortion", "#6a3d8f"],
   youth: ["Youth violence", "#6a3d8f"], goodnews: ["Good news", "#2f6b4f"],
 };
 const typeOf = (t) => TYPES[t] ?? ["Story", "#596176"];
@@ -300,7 +300,7 @@ export async function newsroomScreen(ctx) {
       <details><summary>Sources · ${src.feeds.length} feeds, ${src.officialSites.length} police and agency sites, ${src.newsQueries.length} news searches${st.sources ? " (changed here)" : ""}</summary>
         <p class="hint">Feeds, one a line: name | address | official (yes/no)</p><textarea id="nr-feeds">${esc(src.feeds.map((f) => `${f.name} | ${f.url} | ${f.official ? "yes" : "no"}`).join("\n"))}</textarea>
         <p class="hint">Police and agency sites, one a line: name | web address | province | photos cleared (yes/no)</p><textarea id="nr-sites">${esc(src.officialSites.map((o) => `${o.name} | ${o.domain} | ${o.province || ""} | ${o.photos ? "yes" : "no"}`).join("\n"))}</textarea>
-        <p class="hint">News searches (Google News, Canada, last day), one a line</p><textarea id="nr-queries" style="min-height:80px">${esc(src.newsQueries.join("\n"))}</textarea>
+        <p class="hint">News searches (Google News, Canada, last day), one a line; start with "fr:" to search in French</p><textarea id="nr-queries" style="min-height:80px">${esc(src.newsQueries.join("\n"))}</textarea>
         <div style="display:flex;gap:8px"><button type="button" class="mini" id="nr-saves">Save sources</button>${st.sources ? `<button type="button" class="mini" id="nr-resets">Back to the standard list</button>` : ""}</div></details>
     </div>
     <div class="nrcard nrlog"><div class="nrlab">Nights</div>${h.nights.length ? h.nights.map((n) => `<details data-nrnight="${esc(n.id)}"><summary>${esc(day(n.night))} · ${n.mode === "sample" ? "Sample" : "Live"} · ${n.finishedAt ? `${n.picked} written${n.refused ? ` · ${n.refused} refused` : ""}${n.errors ? ` · ${n.errors} errors` : ""} · $${Number(n.usd).toFixed(2)}` : "running…"}</summary><div class="nrnightbody">Opening…</div></details>`).join("") : `<div class="nrempty">No nights yet.</div>`}</div>`;

@@ -195,6 +195,15 @@ const im = await image(new Request(`http://x/api/newsimg?id=${story.imageKey}`))
 ok("the post image is at a public address Buffer can fetch", im.status === 200 && im.headers.get("content-type") === "image/png");
 ok("a made-up image id is not found", (await image(new Request("http://x/api/newsimg?id=../../etc"))).status === 404);
 
+console.log("— French: Québec's police and press");
+const asked = [];
+const frFeed = `<feed><entry><title>La SQ saisit des armes à feu et de la drogue à Laval</title><link href="https://www.sq.gouv.qc.ca/communiques/123"/><updated>${new Date().toISOString()}</updated></entry><entry><title>Avis de fermeture de route</title><link href="https://www.sq.gouv.qc.ca/communiques/124"/><updated>${new Date().toISOString()}</updated></entry></feed>`;
+const fr = await N.gatherFeeds({ since: 0, src: { feeds: [{ name: "SQ", agency: "Sûreté du Québec", kind: "atom", official: true, url: "https://www.sq.gouv.qc.ca/feed" }], newsQueries: ["fr: gang de rue", "extortion shooting business"] },
+  fetchFn: async (u) => { asked.push(u); return new Response(/sq\.gouv/.test(u) ? frFeed : "<rss></rss>"); } });
+ok("a French release on the subjects is kept, a road closure is not", fr.items.length === 1 && /armes/.test(fr.items[0].title));
+ok("'fr:' searches Google News in French, the rest in English", asked.some((u) => /hl=fr-CA/.test(u) && /gang%20de%20rue/.test(u)) && asked.some((u) => /hl=en-CA/.test(u) && /extortion/.test(u)));
+ok("the four added subjects are searched by default", ["extortion", "auto theft", "money laundering", "sextortion"].every((t) => N.TOPICS.some((x) => x.includes(t))));
+
 console.log("— an option the API turns down doesn't lose the night");
 const seen = [];
 const picky = { beta: { messages: { create: async (req) => {
