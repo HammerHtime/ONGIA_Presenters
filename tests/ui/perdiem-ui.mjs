@@ -86,6 +86,8 @@ if (D) await q.screenshot({ path: D + "perdiem-rates.png" });
 await q.fill("#pd-dinner", "65.00"); await q.click("#pdsave"); await q.waitForTimeout(1200);
 const after = await xp("", {}, PRES);
 ok("saved: dinner is $65.00 now, and it says who set it", after.perDiem.dinner === 65 && after.perDiem.setBy === "Andrew Hammond", JSON.stringify(after.perDiem));
+// Put the rate back: the screen tests share one desk, and later ones (presenterlink-ui) expect the standard $62.70.
+await xp("?perdiem=1", { method: "PUT", body: JSON.stringify({ breakfast: after.perDiem.breakfast, lunch: after.perDiem.lunch, dinner: 62.7 }) }, PRES);
 // John doesn't get the menu item.
 await p.goto(`${S}/expenses`, { waitUntil: "networkidle" }); await p.waitForTimeout(800);
 await p.click("#me"); await p.waitForTimeout(200);

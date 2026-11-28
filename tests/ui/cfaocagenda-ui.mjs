@@ -25,7 +25,7 @@ ok("a presenter's line comes over empty but for its times: no presenter, title, 
 console.log("— on the page");
 await api("/api/roster");
 const T = Date.now().toString(36);
-const mk = async (title, city, dayOne) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, city, venue: "Hotel", dayOne, lastDay: dayOne, invite: false,
+const mk = async (title, city, dayOne) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, city, venue: "Hotel", dayOne, lastDay: dayOne, invite: false, invoicePrefix: "CFAOC",
   board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }] }) })).event;
 const old = await mk(`Canadian Forum Against Organized Crime ${T}`, "Victoria, BC", "2026-11-24");
 const fresh = await mk(`CFAOC Halifax ${T}`, "Halifax, NS", "2027-03-10");
