@@ -185,6 +185,30 @@ and reads each one back to confirm.
 An approval is signed by whoever is signed in with their Microsoft account; the name is not typed. Saving a record
 that someone else changed in the meantime keeps both changes (only the fields this save changed are written).
 
+## Newsroom
+
+Briefing Room › More › **Newsroom** (the president only; `NEWSROOM_USERS` widens it). Each night it finds new Canadian
+stories on ONGIA's subjects, writes each up with ONGIA's view, checks every fact a second time, and draws the branded
+1080×1350 image from Andrew's template. It is **off** until Andrew switches it on in the Control room; **Run a sample**
+writes a whole night into the library marked *Sample*, sending nothing and marking nothing covered.
+
+- **Sources** are in `netlify/functions/lib/newsroom-sources.json` (feeds read directly, police and agency sites searched
+  by Claude's web search limited to those sites, Google News searches); the Control room can override the list.
+- **One run**: gather (back to the last finished night) → same story from several outlets made one, anything covered
+  dropped (`lib/newsguard.mjs`) → Claude picks 5–8 → write → a separate fact-check (the law only from government pages)
+  → an edit pass with the humanizer's rules → code refuses any draft that names a person, carries a number no checked
+  source has, states the law unconfirmed, or has a photo not from an official release or that may show a person.
+- **One post per story**: a later step in a case already written up joins that story's thread, never a second post, and
+  only on a sure match (same project, or same agency, city and seizure); anything less is logged, not linked.
+- **Images** are drawn by satori and resvg (fonts in `public/assets/fonts/news`, SIL OFL) and served at
+  `/api/newsimg?id=…`, a public address Buffer can fetch. Photos from a release are used only for sites whose photo
+  terms are cleared (`photos: true`); none are yet.
+- **Schedule**: `newsroom-schedule` wakes at 06:00 and 07:00 UTC and goes on only at 2 a.m. Toronto, when switched on;
+  the run is `newsroom-run-background` (15 minutes). Each night's log (found, picked and why, skipped and why, refused
+  and why, errors, cost) is in the Control room.
+- **Not yet**: Buffer drafts and Ideas (needs `BUFFER_API_KEY`), the 7 a.m. email, confirmed @handles per agency, the
+  gaps on Trends.
+
 ## Tests
 
 `npm test` runs the server tests and the screen tests (phone and desktop); see `tests/README.md`.

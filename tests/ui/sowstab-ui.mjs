@@ -16,7 +16,7 @@ const T = Date.now().toString(36);
 const shift = (d) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
 const mk = async (title, d, extra = {}) => (await api("/api/events", { method: "POST", body: JSON.stringify({ title, city: "Montreal, QC", venue: "Hotel", dayOne: shift(d), lastDay: shift(d + 2), invite: false, kind: "rbh", province: "QC", invoicePrefix: "TAB",
   board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }], ...extra }) })).event;
-const vip = await mk(`RBH VIP Tab ${T}`, 40), itp = await mk(`RBH ITP Tab ${T}`, 70), bare = await mk(`RBH ITP Bare ${T}`, 90);
+const vip = await mk(`RBH VIP Tab ${T}`, 40), itp = await mk(`RBH ITP Tab ${T}`, 70, { invoicePrefix: "ITP" }), bare = await mk(`RBH ITP Bare ${T}`, 90, { invoicePrefix: "ITP" });
 for (const [ev, base] of [[vip, 1000], [itp, 3000]]) {
   const s = await api(`/api/sow?event=${ev.id}&create=1`, { method: "POST", body: JSON.stringify({ from: "standard" }) });
   await api(`/api/sow?event=${ev.id}`, { method: "PUT", body: JSON.stringify({ lines: s.sow.lines.map((l, i) => ({ ...l, estimate: base + i * 100 })), taxes: s.sow.taxes, taxBase: "subtotal+fee", deposit: 0, internal: [{ name: "Stipends", planned: 500 }] }) });

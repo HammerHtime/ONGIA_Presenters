@@ -2400,6 +2400,7 @@ const SIDE_ICON = {
   sponsors: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
   sandbox: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
   board: '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M12 20c0-3.3 1.8-6 4-6s6 2.7 6 6"/>',
+  newsroom: '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/>',
   more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
 };
 /**
@@ -2470,7 +2471,7 @@ function drawSide() {
   // reload too? It shouldn't), so the logo and the buttons stay put while the page beside them changes.
   const built = `${WHO?.email ?? "key"}|${!!WHO?.canCost}|${SPONSORS_ON}`;
   if (el.dataset.built === built) {
-    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sponsors: "sponsors", expensesnav: "expenses" };
+    const KEYS = { eventsnav: "events", theyear: "year", reportsnav: "reports", letters: "letters", admin: "admin", sowsnav: "sows", sponsors: "sponsors", expensesnav: "expenses", newsnav: "newsroom" };
     el.querySelectorAll(".sn[id]").forEach((b) => { const on = KEYS[b.id] === at; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.getElementById("snmore")?.setAttribute("aria-expanded", "false");
     attention(); expAttention();
@@ -2483,7 +2484,9 @@ function drawSide() {
   const more = [WHO?.canCost ? item("sowsnav", "sows", "RBH SOWs", " rbh") : "", WHO?.email ? item("expensesnav", "expenses", "Expenses", "", expBadge()) : "", SPONSORS_ON ? item("sponsors", "sponsors", "Sponsors") : "",
     // The board's annual review (Andrew 25 Nov 2026), on its own page with its own sign-in. Called "Annual review", not
     // "Board": the board members themselves are under Admin. The Sandbox is gone (Andrew 25 Nov 2026: "we don't need it").
-    WHO?.canCost ? item("boardnav", "board", "Annual review") : ""].filter(Boolean);
+    WHO?.canCost ? item("boardnav", "board", "Annual review") : "",
+    // The Newsroom (Andrew 28 Nov 2026): the nightly news posts, the president only (the server checks too).
+    /^president@ongia\.ca$/i.test(WHO?.email ?? "") ? item("newsnav", "newsroom", "Newsroom") : ""].filter(Boolean);
   const who = WHO?.name || WHO?.email || "";
   const initials = (who || "Desk").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   el.innerHTML = `<img class="slogo" src="/assets/ongia-logo-tagline-dark.png" alt="ONGIA: Knowledge. Network. Impact." width="188" height="48"><div class="sroom">Briefing Room</div>
@@ -2492,7 +2495,7 @@ function drawSide() {
     <div class="sme"><i aria-hidden="true">${esc(initials)}</i><div><b>${esc(who || "Signed in with the key")}</b><span>${esc(sideRole())}</span></div></div>`;
   const go = (id, v) => { const b = document.getElementById(id); if (b) b.onclick = () => { view = v; render(); }; };
   go("eventsnav", { name: "list" }); go("theyear", { name: "year", year: null }); go("reportsnav", { name: "reports", sub: "ongia" }); go("downloadsnav", { name: "downloads" }); go("letters", { name: "letters" });
-  go("sowsnav", { name: "sows" }); go("sponsors", { name: "sponsors" });
+  go("sowsnav", { name: "sows" }); go("sponsors", { name: "sponsors" }); go("newsnav", { name: "newsroom" });
   document.getElementById("admin").onclick = () => { view = { name: "admin", tab: ATTN ? "agencies" : "board" }; render(); };
   const bn = document.getElementById("boardnav");
   if (bn) bn.onclick = () => { location.href = "/board"; };
@@ -13785,6 +13788,7 @@ async function drawScreen() {
       return yearScreen(events, view.year ?? defaultYear(events, todayIso()), conferences);
     }
     if (view.name === "sows") return sowsScreen(await api("/sow?all=1"));
+    if (view.name === "newsroom") { const { newsroomScreen } = await import("/newsroom.js"); return newsroomScreen(NRCTX); }
     // The Sandbox screen is gone (25 Nov 2026): an old link to it opens the events.
     if (view.name === "sandbox") { view = { name: "list" }; return render(); }
     if (view.name === "expenses") { if (WHO?.email && expensesHere()) return expensesScreen(); view = { name: "list" }; return render(); }
@@ -13875,6 +13879,8 @@ async function drawScreen() {
   }
 }
 const load = render;
+// What the Newsroom screen (public/newsroom.js) needs from the desk; it keeps its filters and open story on here.
+const NRCTX = { ROOT, BARRIGHT, api, toast: (m) => toast(m), key: () => KEY };
 // The "ready for review" email links straight to a presenter: #review/<event>/<presenter>
 {
   const m = location.hash.match(/^#review\/([^/]+)\/([^/]+)$/);

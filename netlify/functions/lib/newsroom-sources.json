@@ -1,0 +1,235 @@
+{
+  "_about": "The Newsroom's sources (Andrew, 28 Nov 2026: keep the list in one editable file). feeds are read directly each night; officialSites are searched by Claude's web search limited to each site; newsQueries go to Google News (Canada, last day). Photos are only ever taken from officialSites and feeds marked official. The Control room can override this list without a deploy.",
+  "feeds": [
+    {
+      "name": "CBSA news releases",
+      "agency": "Canada Border Services Agency",
+      "kind": "atom",
+      "official": true,
+      "url": "https://api.io.canada.ca/io-server/gc/news/en/v2?dept=canadaborderservicesagency&sort=publishedDate&orderBy=desc&pick=30&format=atom"
+    },
+    {
+      "name": "RCMP news (Government of Canada)",
+      "agency": "Royal Canadian Mounted Police",
+      "kind": "atom",
+      "official": true,
+      "url": "https://api.io.canada.ca/io-server/gc/news/en/v2?dept=royalcanadianmountedpolice&sort=publishedDate&orderBy=desc&pick=30&format=atom"
+    },
+    {
+      "name": "Public Safety Canada news",
+      "agency": "Public Safety Canada",
+      "kind": "atom",
+      "official": true,
+      "url": "https://api.io.canada.ca/io-server/gc/news/en/v2?dept=publicsafetycanada&sort=publishedDate&orderBy=desc&pick=30&format=atom"
+    },
+    {
+      "name": "Health Canada news",
+      "agency": "Health Canada",
+      "kind": "atom",
+      "official": true,
+      "url": "https://api.io.canada.ca/io-server/gc/news/en/v2?dept=departmentofhealth&sort=publishedDate&orderBy=desc&pick=30&format=atom"
+    },
+    {
+      "name": "Canada Newswire",
+      "agency": "",
+      "kind": "rss",
+      "official": false,
+      "url": "https://www.newswire.ca/rss/news-releases-list.rss"
+    }
+  ],
+  "officialSites": [
+    {
+      "name": "RCMP",
+      "agency": "Royal Canadian Mounted Police",
+      "province": "",
+      "domain": "rcmp.ca"
+    },
+    {
+      "name": "RCMP (old address)",
+      "agency": "Royal Canadian Mounted Police",
+      "province": "",
+      "domain": "rcmp-grc.gc.ca"
+    },
+    {
+      "name": "CBSA",
+      "agency": "Canada Border Services Agency",
+      "province": "",
+      "domain": "cbsa-asfc.gc.ca"
+    },
+    {
+      "name": "Government of Canada news",
+      "agency": "",
+      "province": "",
+      "domain": "canada.ca"
+    },
+    {
+      "name": "Public Safety Canada",
+      "agency": "Public Safety Canada",
+      "province": "",
+      "domain": "publicsafety.gc.ca"
+    },
+    {
+      "name": "Ontario Provincial Police",
+      "agency": "Ontario Provincial Police",
+      "province": "ON",
+      "domain": "opp.ca"
+    },
+    {
+      "name": "Sûreté du Québec",
+      "agency": "Sûreté du Québec",
+      "province": "QC",
+      "domain": "sq.gouv.qc.ca"
+    },
+    {
+      "name": "Toronto Police Service",
+      "agency": "Toronto Police Service",
+      "province": "ON",
+      "domain": "tps.ca"
+    },
+    {
+      "name": "Peel Regional Police",
+      "agency": "Peel Regional Police",
+      "province": "ON",
+      "domain": "peelpolice.ca"
+    },
+    {
+      "name": "York Regional Police",
+      "agency": "York Regional Police",
+      "province": "ON",
+      "domain": "yrp.ca"
+    },
+    {
+      "name": "Durham Regional Police",
+      "agency": "Durham Regional Police Service",
+      "province": "ON",
+      "domain": "drps.ca"
+    },
+    {
+      "name": "Halton Regional Police",
+      "agency": "Halton Regional Police Service",
+      "province": "ON",
+      "domain": "haltonpolice.ca"
+    },
+    {
+      "name": "Ottawa Police Service",
+      "agency": "Ottawa Police Service",
+      "province": "ON",
+      "domain": "ottawapolice.ca"
+    },
+    {
+      "name": "Hamilton Police Service",
+      "agency": "Hamilton Police Service",
+      "province": "ON",
+      "domain": "hamiltonpolice.on.ca"
+    },
+    {
+      "name": "Winnipeg Police Service",
+      "agency": "Winnipeg Police Service",
+      "province": "MB",
+      "domain": "winnipeg.ca"
+    },
+    {
+      "name": "Regina Police Service",
+      "agency": "Regina Police Service",
+      "province": "SK",
+      "domain": "reginapolice.ca"
+    },
+    {
+      "name": "Saskatoon Police Service",
+      "agency": "Saskatoon Police Service",
+      "province": "SK",
+      "domain": "saskatoonpolice.ca"
+    },
+    {
+      "name": "Calgary Police Service",
+      "agency": "Calgary Police Service",
+      "province": "AB",
+      "domain": "calgary.ca"
+    },
+    {
+      "name": "Edmonton Police Service",
+      "agency": "Edmonton Police Service",
+      "province": "AB",
+      "domain": "edmontonpolice.ca"
+    },
+    {
+      "name": "Vancouver Police Department",
+      "agency": "Vancouver Police Department",
+      "province": "BC",
+      "domain": "vpd.ca"
+    },
+    {
+      "name": "Surrey Police Service",
+      "agency": "Surrey Police Service",
+      "province": "BC",
+      "domain": "surreypolice.ca"
+    },
+    {
+      "name": "Service de police de la Ville de Montréal",
+      "agency": "Service de police de la Ville de Montréal",
+      "province": "QC",
+      "domain": "spvm.qc.ca"
+    },
+    {
+      "name": "Halifax Regional Police",
+      "agency": "Halifax Regional Police",
+      "province": "NS",
+      "domain": "halifax.ca"
+    }
+  ],
+  "newsQueries": [
+    "organized crime",
+    "street gang",
+    "gang shooting",
+    "gun seizure",
+    "firearms charges",
+    "ghost gun",
+    "drug seizure fentanyl",
+    "home invasion",
+    "youth charged shooting",
+    "teen charged firearm",
+    "human trafficking charges",
+    "contraband tobacco seizure",
+    "illegal cigarettes seized",
+    "nicotine pouches seized",
+    "youth gang prevention program",
+    "extortion shooting business",
+    "auto theft ring stolen vehicles port",
+    "carjacking charged",
+    "money laundering organized crime",
+    "sextortion youth",
+    "fr: gang de rue",
+    "fr: saisie d'armes",
+    "fr: saisie de drogue",
+    "fr: traite de personnes",
+    "fr: tabac de contrebande",
+    "fr: sachets de nicotine",
+    "fr: extorsion incendie criminel",
+    "fr: vol de véhicules réseau",
+    "fr: crime organisé arrestation",
+    "fr: jeunes arrêtés arme à feu"
+  ],
+  "governmentDomains": [
+    "gc.ca",
+    "canada.ca",
+    "justice.gc.ca",
+    "laws-lois.justice.gc.ca",
+    "gazette.gc.ca",
+    "ontario.ca",
+    "quebec.ca",
+    "gouv.qc.ca",
+    "gov.bc.ca",
+    "alberta.ca",
+    "saskatchewan.ca",
+    "gov.mb.ca",
+    "gnb.ca",
+    "novascotia.ca",
+    "princeedwardisland.ca",
+    "gov.nl.ca",
+    "yukon.ca",
+    "gov.nt.ca",
+    "gov.nu.ca",
+    "criminalintelligence.gc.ca",
+    "statcan.gc.ca"
+  ]
+}
