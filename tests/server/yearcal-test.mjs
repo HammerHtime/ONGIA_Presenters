@@ -8,7 +8,7 @@ const cal = (await import(F + "calendar.mjs")).default;
 const { putEvent, putMeta } = await import(F + "lib/store.mjs");
 const { issueSession } = await import(F + "lib/auth.mjs");
 const { cleanSchedule, shiftOn, describe } = await import(F + "lib/myschedule.mjs");
-const { calendarItems, monthWeeks } = await import(F + "lib/yearpdf.mjs");
+const { calendarItems, monthWeeks, clashes } = await import(F + "lib/yearpdf.mjs");
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdtempSync } from "node:fs";
 let pass = 0, fail = 0;
@@ -32,6 +32,10 @@ const items = calendarItems([
 ], [{ id: "x", title: "IAGI", place: "Orlando", from: "2027-08-01", to: "2027-08-04" }]);
 ok("every RBH and ONGIA event and the conferences, not practice events or projects", items.map((i) => `${i.kind}:${i.title}`).join("|") === "ongia:Calgary Symposium|rbh:RBH ITP|ext:IAGI");
 ok("who's going, the lead first, first names", items[1].who.join(",") === "Andrew,Jacqulyn" && items[1].place === "Montreal");
+
+ok("a clash: an event on a day or night I work", clashes({ from: "2027-04-06", to: "2027-04-07" }, s) && clashes({ from: "2027-04-16", to: "2027-04-16" }, s));
+ok("not one on days off, even across a week", !clashes({ from: "2027-04-09", to: "2027-04-15" }, s) && !clashes({ from: "2027-04-06", to: "2027-04-07" }, null));
+ok("one that only starts on an off day and runs into work is still a clash", clashes({ from: "2027-04-14", to: "2027-04-17" }, s));
 
 // The route.
 await putEvent({ id: "cal-1", kind: "rbh", title: "RBH ITP Training - June 2027", city: "Montreal, QC", dayOne: "2027-06-14", lastDay: "2027-06-18", board: [{ name: "Andrew Hammond", email: "president@ongia.ca", lead: true }] });

@@ -18,6 +18,7 @@ const ASSETS = ASSET_DIRS.find((d) => existsSync(path.join(d, "ongia-logo-taglin
 const W = 792, H = 612, MX = 32, TOP = 28;
 const NAVY = "#1a2f5e", NAVY_DEEP = "#0e1a35", GOLD = "#b8922a", INK = "#0e1a35", GREY = "#6b6f78", LINE = "#d9d4c4", LINE2 = "#e6e1d3";
 const KIND = { ongia: { bg: NAVY, fg: "#ffffff" }, rbh: { bg: "#1f6f6a", fg: "#ffffff" }, ext: { bg: GOLD, fg: "#1c1608" } };
+const CLASH = "#d0342c";
 const SHIFT = { D: { bg: "#fbe7b5", fg: "#6b4a00" }, N: { bg: "#2b2f45", fg: "#ffffff" }, O: { bg: "#e3efe0", fg: "#2f6b3a" } };
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -35,6 +36,16 @@ export function calendarItems(events, confs = []) {
       who: [...(e.board ?? [])].sort((a, b) => !!b.lead - !!a.lead).map((m) => first(m.name || String(m.email ?? "").split("@")[0])).filter(Boolean) })),
     ...confs.filter((c) => ok(c.from)).map((c) => ({ kind: "ext", title: String(c.title ?? ""), place: String(c.place ?? ""), from: c.from, to: ok(c.to) && c.to >= c.from ? c.to : c.from, who: [] })),
   ].sort((a, b) => a.from.localeCompare(b.from) || a.title.localeCompare(b.title));
+}
+
+/**
+ * An event on a day I work (Andrew 28 Nov 2026: "add the red edge for clashes"): any of its days is a D or an N on the
+ * schedule. The whole bar gets the edge, on every week it crosses.
+ */
+export function clashes(item, schedule) {
+  if (!schedule?.pattern) return false;
+  for (let t = ms(item.from); t <= ms(item.to); t += DAY) if (["D", "N"].includes(shiftOn(schedule, iso(t)))) return true;
+  return false;
 }
 
 /** The weeks (Sunday first) a month's page shows: 5 or 6 rows of 7 days. */
@@ -109,7 +120,7 @@ function drawMonth(doc, { year, m, items, schedule, logo, printed }) {
       const hs = lane.map((x) => barHeight(doc, x, cw));
       const lh = Math.max(...hs);
       if (ly + lh > y + rh - 2) { hidden += lane.length; return; }
-      lane.forEach((x) => drawBar(doc, x, gx, cw, ly, lh, mStart, mEnd));
+      lane.forEach((x) => drawBar(doc, x, gx, cw, ly, lh, mStart, mEnd, clashes(x.i, schedule)));
       ly += lh + 2;
     });
     if (hidden) doc.font("Helvetica-Bold").fontSize(7).fillColor(GREY).text(`+${hidden} more`, gx + 5, y + rh - 10, { lineBreak: false });
@@ -124,7 +135,9 @@ function drawMonth(doc, { year, m, items, schedule, logo, printed }) {
     fx += 12 + doc.widthOfString(label) + 12;
   };
   key(KIND.ongia.bg, "ONGIA-led"); key(KIND.rbh.bg, "RBH"); key(KIND.ext.bg, "External conference");
-  if (schedule?.pattern) { fx += 14; key(SHIFT.D.bg, "Days", SHIFT.D.fg, "D"); key(SHIFT.N.bg, "Nights", SHIFT.N.fg, "N"); key(SHIFT.O.bg, "Off", SHIFT.O.fg, "O"); }
+  if (schedule?.pattern) { fx += 14; key(SHIFT.D.bg, "Days", SHIFT.D.fg, "D"); key(SHIFT.N.bg, "Nights", SHIFT.N.fg, "N"); key(SHIFT.O.bg, "Off", SHIFT.O.fg, "O");
+    fx += 6; doc.roundedRect(fx + 0.8, fy - 0.2, 7.4, 7.4, 1.5).lineWidth(1.6).strokeColor(CLASH).stroke();
+    doc.font("Helvetica").fontSize(7.5).fillColor(GREY).text("On a day I work", fx + 12, fy, { lineBreak: false }); }
   doc.font("Helvetica").fontSize(7.5).fillColor(GREY).text(`ONGIA Briefing Room${printed ? ` · printed ${printed}` : ""} · page ${m + 1} of 12`, MX, fy, { width: W - MX * 2, align: "right", lineBreak: false });
 }
 
@@ -136,7 +149,7 @@ function barHeight(doc, x, cw) {
   const th = Math.min(doc.heightOfString(x.i.title, { width: w }), TITLE * 1.2 * 2);
   return 4 + th + lines(x).length * (SUB * 1.2) + 3;
 }
-function drawBar(doc, x, gx, cw, y, h, mStart, mEnd) {
+function drawBar(doc, x, gx, cw, y, h, mStart, mEnd, clash = false) {
   const left = gx + x.a * cw + (x.cont ? 0 : 3), right = gx + (x.b + 1) * cw - (x.more ? 0 : 3), w = right - left;
   const c = KIND[x.i.kind] ?? KIND.ongia;
   doc.save();
@@ -144,6 +157,18 @@ function drawBar(doc, x, gx, cw, y, h, mStart, mEnd) {
   doc.roundedRect(left, y, w, h, 3).fill(c.bg);
   if (x.cont) doc.rect(left, y, 4, h).fill(c.bg);
   if (x.more) doc.rect(right - 4, y, 4, h).fill(c.bg);
+  // On a work day: a red edge inside the bar, open where it carries on into the next or last week.
+  if (clash) {
+    const t = 1.8, r = 3, i = t / 2;
+    doc.lineWidth(t).strokeColor(CLASH).lineJoin("round");
+    if (!x.cont && !x.more) doc.roundedRect(left + i, y + i, w - t, h - t, r).stroke();
+    else {
+      const L = left + (x.cont ? 0 : i), R = right - (x.more ? 0 : i), T = y + i, B = y + h - i;
+      doc.moveTo(L, T).lineTo(R, T).stroke(); doc.moveTo(L, B).lineTo(R, B).stroke();
+      if (!x.cont) doc.moveTo(L, T).lineTo(L, B).stroke();
+      if (!x.more) doc.moveTo(R, T).lineTo(R, B).stroke();
+    }
+  }
   const tw = w - 10;
   doc.font("Helvetica-Bold").fontSize(TITLE).fillColor(c.fg);
   const th = Math.min(doc.heightOfString(x.i.title, { width: tw }), TITLE * 1.2 * 2);
